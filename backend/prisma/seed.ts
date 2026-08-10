@@ -1,12 +1,7 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcrypt";
-import dotenv from "dotenv";
 
-dotenv.config();
-
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
-const prisma = new PrismaClient({ adapter });
+const prisma = new PrismaClient();
 
 const roles = [
   {
@@ -97,6 +92,7 @@ async function main() {
   // -------------------------
   // Institute
   // -------------------------
+
   const institute = await prisma.institute.upsert({
     where: {
       code: "AADYA",
@@ -116,6 +112,7 @@ async function main() {
   // -------------------------
   // Branch
   // -------------------------
+
   const branch = await prisma.branch.upsert({
     where: {
       instituteId_code: {
@@ -137,6 +134,7 @@ async function main() {
   // -------------------------
   // Roles
   // -------------------------
+
   const roleMap: Record<string, string> = {};
 
   for (const roleData of roles) {
@@ -158,6 +156,7 @@ async function main() {
   // -------------------------
   // Permissions
   // -------------------------
+
   const permissionMap: Record<string, string> = {};
 
   for (const permissionName of permissions) {
@@ -179,6 +178,7 @@ async function main() {
   // -------------------------
   // ADMIN permissions
   // -------------------------
+
   const adminRoleId = roleMap["ADMIN"];
 
   for (const permissionId of Object.values(permissionMap)) {
@@ -200,17 +200,23 @@ async function main() {
   console.log("✅ Admin permissions assigned");
 
   // -------------------------
-  // Admin password & user
+  // Admin password
   // -------------------------
-  const passwordHash = await bcrypt.hash("ChangeMe@123", 12);
+
+  const passwordHash = await bcrypt.hash(
+    "ChangeMe@123",
+    12
+  );
+
+  // -------------------------
+  // Admin User
+  // -------------------------
 
   const admin = await prisma.user.upsert({
     where: {
       id: "aadya-initial-admin",
     },
-    update: {
-      passwordHash,
-    },
+    update: {},
     create: {
       id: "aadya-initial-admin",
       instituteId: institute.id,
@@ -227,6 +233,7 @@ async function main() {
   // -------------------------
   // Assign Admin Role
   // -------------------------
+
   await prisma.userRole.upsert({
     where: {
       userId_roleId: {

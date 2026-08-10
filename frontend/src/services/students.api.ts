@@ -1,5 +1,5 @@
 import { api } from "./api";
-import { Student } from "../types/student.types";
+import type { Student } from "../types/student.types";
 
 export const studentsApi = {
   getAll: async (): Promise<Student[]> => {
