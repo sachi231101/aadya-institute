@@ -1,4 +1,4 @@
-import { AttendanceStatus } from "../constants/status";
+import type { AttendanceStatus } from "../constants/status";
 
 export interface AttendanceRecord {
   id: string;
