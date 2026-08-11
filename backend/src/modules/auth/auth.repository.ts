@@ -1,5 +1,21 @@
 import { prisma } from "../../config/database";
 
+const userInclude = {
+  userRoles: {
+    include: {
+      role: {
+        include: {
+          rolePermissions: {
+            include: {
+              permission: true,
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
 export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
   return prisma.user.findFirst({
     where: {
@@ -9,21 +25,13 @@ export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
       ],
       status: "ACTIVE",
     },
-    include: {
-      userRoles: {
-        include: { role: true },
-      },
-    },
+    include: userInclude,
   });
 };
 
 export const findUserById = async (userId: string) => {
   return prisma.user.findUnique({
     where: { id: userId, status: "ACTIVE" },
-    include: {
-      userRoles: {
-        include: { role: true },
-      },
-    },
+    include: userInclude,
   });
 };

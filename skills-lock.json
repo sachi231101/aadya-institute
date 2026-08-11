@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "skills": {
+    "backend-development": {
+      "source": "mrgoonie/claudekit-skills",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/backend-development/SKILL.md",
+      "computedHash": "dedbc6bb7afa2c16ac6b3451a435a198af0e5d3786b30a15d40910ba207fd6e3"
+    },
+    "form-generator-rhf-zod": {
+      "source": "hopeoverture/worldbuilding-app-skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-components/form-generator-rhf-zod/SKILL.md",
+      "computedHash": "54c8362eff7cf2ad4e9d1208e0518aae09e78f7f9f07d345392abace1c519695"
+    },
+    "prisma-database-setup": {
+      "source": "prisma/skills",
+      "sourceType": "github",
+      "skillPath": "prisma-database-setup/SKILL.md",
+      "computedHash": "0911d9454bd48df3badd23a50fd90a280eabb15dcbd472c14e7b729075dadefb"
+    },
+    "react": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "react/SKILL.md",
+      "computedHash": "13de1712406768dcd399d384cd4cc4796f909ba1e348abb665ca3f251e955cce"
+    },
+    "react-best-practices": {
+      "source": "0xbigboss/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/react-best-practices/SKILL.md",
+      "computedHash": "3184afb0fcd05ef984e9265cdbaa94d58021b0839a75fdf7fe739f699b6b5bbe"
+    },
+    "shadcn-ui-expert": {
+      "source": "majesteitbart/talentmatcher",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/shadcn-ui-expert/SKILL.md",
+      "computedHash": "36c0c60befed47a8fb01384278f03cd1248092857d835dfafd606c18dbab11e9"
+    },
+    "typescript-best-practices": {
+      "source": "0xbigboss/claude-code",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/typescript-best-practices/SKILL.md",
+      "computedHash": "b73b69197553b711e02839015e6abca717eb2305e90de3cc86403c92d92b00d9"
+    },
+    "vite-react": {
+      "source": "eng0ai/eng0-template-skills",
+      "sourceType": "github",
+      "skillPath": "vite-react/SKILL.md",
+      "computedHash": "71c6048e06eb1b8e25be3e764e0b4e017d7b6cb90374301eb497eb715d744d6b"
+    }
+  }
+}

@@ -10,6 +10,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "prisma:seed": "tsx prisma/seed.ts",
+    "test": "tsx --test src/tests/*.test.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
