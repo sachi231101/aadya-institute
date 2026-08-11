@@ -38,6 +38,7 @@ const permissions = [
   "faculty.read",
   "faculty.create",
   "faculty.update",
+  "faculty.delete",
 
   "course.read",
   "course.create",
