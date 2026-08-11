@@ -1,8 +1,9 @@
 import { Router } from "express";
 import authRoutes from "../modules/auth/auth.routes";
 import instituteRoutes from "../modules/institutes/institute.routes";
+import leadRoutes from "../modules/leads/lead.routes";
 import { whatsappWebhookVerify, whatsappWebhookHandler } from "../webhooks/whatsapp/whatsapp.webhook";
-import { aiCallingCallbackHandler } from "../webhooks/ai-calling/ai-calling.webhook";
+import { sarvamWebhookHandler } from "../webhooks/ai-calling/ai-calling.webhook";
 
 const router = Router();
 
@@ -12,9 +13,13 @@ router.use("/auth", authRoutes);
 // Institutes
 router.use("/institutes", instituteRoutes);
 
-// Webhooks (no auth — raw JSON)
+// Leads + AI Calling (Phase 1)
+router.use("/leads", leadRoutes);
+
+// Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);
 router.post("/webhooks/whatsapp", whatsappWebhookHandler);
-router.post("/webhooks/ai-calling/callback", aiCallingCallbackHandler);
+router.post("/webhooks/sarvam/callback", sarvamWebhookHandler);
 
 export default router;
+
