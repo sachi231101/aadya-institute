@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
-import { loginService, refreshTokenService, getMeService } from "./auth.service";
-import { sendSuccess, sendError } from "../../utils/response";
+import { loginService, refreshTokenService, logoutService, getMeService } from "./auth.service";
+import { sendSuccess } from "../../utils/response";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -16,6 +16,15 @@ export const refreshToken = async (req: Request, res: Response, next: NextFuncti
   try {
     const tokens = await refreshTokenService(req.body.refreshToken);
     sendSuccess(res, tokens, 200, "Tokens refreshed");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const logout = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    await logoutService(req.user!.userId);
+    sendSuccess(res, null, 200, "Logged out successfully");
   } catch (err) {
     next(err);
   }

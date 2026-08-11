@@ -4,15 +4,28 @@ import { findUserByEmailOrPhone, findUserById } from "./auth.repository";
 import { AppError } from "../../middlewares/error.middleware";
 import type { LoginInput, TokenPair, AuthUser } from "./auth.types";
 
-const buildAuthUser = (user: any): AuthUser => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  phone: user.phone,
-  instituteId: user.instituteId,
-  branchId: user.branchId,
-  roles: (user.userRoles ?? []).map((ur: any) => ur.role.name),
-});
+const buildAuthUser = (user: any): AuthUser => {
+  const roles = (user.userRoles ?? []).map((ur: any) => ur.role.name);
+  const permissionsSet = new Set<string>();
+  (user.userRoles ?? []).forEach((ur: any) => {
+    (ur.role?.rolePermissions ?? []).forEach((rp: any) => {
+      if (rp.permission?.name) {
+        permissionsSet.add(rp.permission.name);
+      }
+    });
+  });
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    instituteId: user.instituteId,
+    branchId: user.branchId,
+    roles,
+    permissions: Array.from(permissionsSet),
+  };
+};
 
 export const loginService = async (input: LoginInput): Promise<{ user: AuthUser; tokens: TokenPair }> => {
   const user = await findUserByEmailOrPhone(input.emailOrPhone);
@@ -61,6 +74,10 @@ export const refreshTokenService = async (refreshToken: string): Promise<TokenPa
     accessToken: signAccessToken(newPayload),
     refreshToken: signRefreshToken(newPayload),
   };
+};
+
+export const logoutService = async (_userId: string): Promise<void> => {
+  return;
 };
 
 export const getMeService = async (userId: string): Promise<AuthUser> => {
