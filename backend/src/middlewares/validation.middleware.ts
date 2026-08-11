@@ -21,7 +21,13 @@ export const validate = (schema: ZodSchema, target: Target = "body") => {
     }
 
     // Replace the target with the parsed (type-safe) value
-    (req as any)[target] = result.data;
+    Object.defineProperty(req, target, {
+      value: result.data,
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
     next();
   };
 };
+

@@ -1,6 +1,8 @@
 import { Router } from "express";
 import authRoutes from "../modules/auth/auth.routes";
 import instituteRoutes from "../modules/institutes/institute.routes";
+import userRoutes from "../modules/users/user.routes";
+import branchRoutes from "../modules/branches/branch.routes";
 import leadRoutes from "../modules/leads/lead.routes";
 import facultyRoutes from "../modules/faculty/faculty.routes";
 import { whatsappWebhookVerify, whatsappWebhookHandler } from "../webhooks/whatsapp/whatsapp.webhook";
@@ -13,6 +15,14 @@ router.use("/auth", authRoutes);
 
 // Institutes
 router.use("/institutes", instituteRoutes);
+
+// Users
+router.use("/users", userRoutes);
+
+// Branches
+router.use("/branches", branchRoutes);
+
+
 
 // Leads + AI Calling (Phase 1)
 router.use("/leads", leadRoutes);
