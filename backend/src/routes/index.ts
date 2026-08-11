@@ -3,8 +3,10 @@ import authRoutes from "../modules/auth/auth.routes";
 import instituteRoutes from "../modules/institutes/institute.routes";
 import userRoutes from "../modules/users/user.routes";
 import branchRoutes from "../modules/branches/branch.routes";
+import leadRoutes from "../modules/leads/lead.routes";
+import facultyRoutes from "../modules/faculty/faculty.routes";
 import { whatsappWebhookVerify, whatsappWebhookHandler } from "../webhooks/whatsapp/whatsapp.webhook";
-import { aiCallingCallbackHandler } from "../webhooks/ai-calling/ai-calling.webhook";
+import { sarvamWebhookHandler } from "../webhooks/ai-calling/ai-calling.webhook";
 
 const router = Router();
 
@@ -22,9 +24,16 @@ router.use("/branches", branchRoutes);
 
 
 
-// Webhooks (no auth — raw JSON)
+// Leads + AI Calling (Phase 1)
+router.use("/leads", leadRoutes);
+
+// Faculty
+router.use("/faculty", facultyRoutes);
+
+// Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);
 router.post("/webhooks/whatsapp", whatsappWebhookHandler);
-router.post("/webhooks/ai-calling/callback", aiCallingCallbackHandler);
+router.post("/webhooks/sarvam/callback", sarvamWebhookHandler);
 
 export default router;
+

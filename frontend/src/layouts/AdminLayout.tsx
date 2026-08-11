@@ -1,170 +1,174 @@
-import React from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
+import { Bell, Building2, Plus } from "lucide-react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/layout/app-sidebar";
+import { Button } from "@/components/ui/button";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Input } from "@/components/ui/input";
 import {
-  LayoutDashboard,
-  Users,
-  GraduationCap,
-  BookOpen,
-  Calendar,
-  LogOut,
-  Bell,
-  Building2,
-} from "lucide-react";
-import { useAuthStore } from "../store/auth.store";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useNotificationStore } from "@/store/notification.store";
+
+const branchSchema = z.object({
+  name: z.string().min(2, "Branch name is required"),
+  code: z.string().min(2, "Branch code is required"),
+  address: z.string().min(5, "Full address is required"),
+  phone: z.string().min(10, "Valid contact number is required"),
+});
+
+type BranchFormValues = z.infer<typeof branchSchema>;
 
 export const AdminLayout: React.FC = () => {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const addNotification = useNotificationStore((state) => state.addNotification);
 
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
+  const form = useForm<BranchFormValues>({
+    resolver: zodResolver(branchSchema),
+    defaultValues: {
+      name: "",
+      code: "",
+      address: "",
+      phone: "",
+    },
+  });
+
+  const onSubmit = (data: BranchFormValues) => {
+    // In a real application, this would save to a database
+    addNotification(`Branch "${data.name}" created successfully!`, "success");
+    setIsBranchModalOpen(false);
+    form.reset();
   };
 
-  const navItems = [
-    { label: "Dashboard", icon: LayoutDashboard, path: "/admin/dashboard" },
-    { label: "Students", icon: GraduationCap, path: "/admin/students" },
-    { label: "Faculty", icon: Users, path: "/admin/faculty" },
-    { label: "Courses", icon: BookOpen, path: "/admin/courses" },
-    { label: "Batches", icon: Calendar, path: "/admin/batches" },
-  ];
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
-      {/* Sidebar */}
-      <aside
-        style={{
-          width: "260px",
-          background: "var(--bg-secondary)",
-          borderRight: "1px solid var(--border-color)",
-          display: "flex",
-          flexDirection: "column",
-          padding: "1.5rem 1rem",
-        }}
-      >
-        {/* Brand */}
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0 0.5rem 1.5rem" }}>
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #6366f1, #ec4899)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: 800,
-            }}
-          >
-            A
-          </div>
-          <div>
-            <h2 style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>Aadya Portal</h2>
-            <span style={{ fontSize: "0.75rem", color: "var(--accent-primary)", fontWeight: 600 }}>
-              SUPER ADMIN
-            </span>
-          </div>
-        </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-bg-secondary px-6">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="-ml-2" />
+              <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
+                <Building2 size={18} />
+                <span className="text-sm font-medium">Main Campus — Bengaluru</span>
+              </div>
+            </div>
 
-        {/* Nav Links */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-secondary)",
-                  transition: "all 0.2s",
-                }}
+            <div className="flex items-center gap-4">
+              <Button 
+                onClick={() => setIsBranchModalOpen(true)}
+                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
               >
-                <Icon size={18} />
-                <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* User Info & Logout */}
-        <div
-          style={{
-            padding: "1rem 0.5rem 0",
-            borderTop: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              {user?.name || "Aadya Admin"}
-            </p>
-            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{user?.email || "admin@aadya.in"}</p>
-          </div>
-          <button
-            onClick={handleLogout}
-            style={{
-              color: "#ef4444",
-              padding: "0.5rem",
-              borderRadius: "var(--radius-md)",
-              cursor: "pointer",
-            }}
-            title="Logout"
-          >
-            <LogOut size={18} />
-          </button>
+                <Plus size={16} />
+                Create a Branch
+              </Button>
+              <button className="relative text-muted-foreground hover:text-foreground transition-colors">
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-secondary opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-secondary"></span>
+                </span>
+              </button>
+            </div>
+          </header>
+          
+          <main className="flex-1 overflow-auto bg-bg-primary">
+            <Outlet />
+          </main>
         </div>
-      </aside>
-
-      {/* Main Container */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        {/* Top Header */}
-        <header
-          style={{
-            height: "70px",
-            background: "var(--bg-secondary)",
-            borderBottom: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 2rem",
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", color: "var(--text-secondary)" }}>
-            <Building2 size={18} />
-            <span style={{ fontSize: "0.9rem" }}>Main Campus — Bengaluru</span>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <button style={{ position: "relative", color: "var(--text-secondary)", cursor: "pointer" }}>
-              <Bell size={20} />
-              <span
-                style={{
-                  position: "absolute",
-                  top: "-2px",
-                  right: "-2px",
-                  width: "8px",
-                  height: "8px",
-                  borderRadius: "50%",
-                  background: "var(--accent-secondary)",
-                }}
-              />
-            </button>
-          </div>
-        </header>
-
-        {/* Main Content Area */}
-        <main style={{ flex: 1, padding: "2rem", overflowY: "auto" }}>
-          <Outlet />
-        </main>
       </div>
-    </div>
+
+      <Dialog open={isBranchModalOpen} onOpenChange={setIsBranchModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Branch</DialogTitle>
+            <DialogDescription>
+              Add a new Aadya Institute branch to the system.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ramamurthy Nagar" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. RMN" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. +91 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ramamurthy Nagar, Bengaluru" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsBranchModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
+                  Create Branch
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </SidebarProvider>
   );
 };

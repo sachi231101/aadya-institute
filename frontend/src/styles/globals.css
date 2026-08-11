@@ -1,34 +1,79 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 33.3% 97.6%;
+    --foreground: 220.7 37.6% 14.5%;
+    --card: 0 0% 100%;
+    --card-foreground: 220.7 37.6% 14.5%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220.7 37.6% 14.5%;
+    --primary: 206.5 76.1% 37.8%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 207.9 85.3% 29.2%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 37.2 100% 94.3%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 35.9 90.9% 52%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 206.5 76.1% 37.8%;
+    --radius: 0.5rem;
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220.7 37.6% 14.5%;
+    --sidebar-primary: 206.5 76.1% 37.8%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 220 33.3% 97.6%;
+    --sidebar-accent-foreground: 206.5 76.1% 37.8%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+    --sidebar-ring: 206.5 76.1% 37.8%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
 
 :root {
   --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
   --font-heading: 'Outfit', system-ui, -apple-system, sans-serif;
 
-  /* Color Palette - Vibrant Dark & Premium Gold/Indigo Theme */
-  --bg-primary: #0b0f19;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1f2937;
-  --bg-card: rgba(17, 24, 39, 0.85);
-  --bg-glass: rgba(255, 255, 255, 0.03);
+  /* Color Palette - Aadya Official */
+  --bg-primary: #F6F8FC;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F1F5F9;
+  --bg-card: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.7);
 
-  --accent-primary: #6366f1;
-  --accent-primary-hover: #4f46e5;
-  --accent-secondary: #ec4899;
-  --accent-gold: #f59e0b;
-  --accent-cyan: #06b6d4;
+  --accent-primary: #1769AA;
+  --accent-primary-hover: #0B4F8A;
+  --accent-secondary: #F39A16;
+  --accent-gold: #F39A16;
+  --accent-cyan: #1769AA;
   --accent-emerald: #10b981;
 
-  --text-primary: #f9fafb;
-  --text-secondary: #9ca3af;
-  --text-muted: #6b7280;
+  --text-primary: #172033;
+  --text-secondary: #64748B;
+  --text-muted: #94A3B8;
 
-  --border-color: rgba(255, 255, 255, 0.08);
-  --border-highlight: rgba(99, 102, 241, 0.3);
+  --border-color: #E2E8F0;
+  --border-highlight: #CBD5E1;
 
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
-  --shadow-glow: 0 0 20px rgba(99, 102, 241, 0.35);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px rgba(23, 105, 170, 0.15);
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
