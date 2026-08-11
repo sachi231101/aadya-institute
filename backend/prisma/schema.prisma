@@ -127,14 +127,16 @@ model User {
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  userRoles UserRole[]
-  student   Student?
-  faculty   Faculty?
+  userRoles      UserRole[]
+  refreshTokens  RefreshToken[]
+  student        Student?
+  faculty        Faculty?
 
-  activityLogs ActivityLog[]
+  activityLogs   ActivityLog[]
 
   @@index([instituteId])
   @@index([branchId])
+  @@index([instituteId, branchId])
   @@index([email])
   @@index([phone])
 }
@@ -151,6 +153,20 @@ model UserRole {
   @@unique([userId, roleId])
   @@index([userId])
   @@index([roleId])
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
 }
 
 model RolePermission {
@@ -190,6 +206,7 @@ model Student {
   @@unique([instituteId, studentCode])
   @@index([instituteId])
   @@index([branchId])
+  @@index([instituteId, branchId])
 }
 
 model Faculty {
@@ -214,6 +231,7 @@ model Faculty {
   @@unique([instituteId, employeeCode])
   @@index([instituteId])
   @@index([branchId])
+  @@index([instituteId, branchId])
 }
 
 model Course {
@@ -277,6 +295,7 @@ model Admission {
   @@index([studentId])
   @@index([instituteId])
   @@index([branchId])
+  @@index([instituteId, branchId])
   @@index([courseId])
 }
 
@@ -307,6 +326,7 @@ model Batch {
   @@unique([instituteId, code])
   @@index([instituteId])
   @@index([branchId])
+  @@index([instituteId, branchId])
   @@index([courseId])
   @@index([facultyId])
 }

@@ -1,3 +1,2 @@
-// users module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+ï»¿export { default as userRoutes } from './user.routes';
+export * from './user.types';

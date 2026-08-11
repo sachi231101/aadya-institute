@@ -1,3 +1,2 @@
-// branches module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+ï»¿export { default as branchRoutes } from './branch.routes';
+export * from './branch.types';
