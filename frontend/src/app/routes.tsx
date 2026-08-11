@@ -15,6 +15,7 @@ import { AdminDashboard } from "../pages/admin/Dashboard";
 import { AllStudents } from "../pages/admin/students/AllStudents";
 import { AddStudent } from "../pages/admin/students/AddStudent";
 import { StudentDetails } from "../pages/admin/students/StudentDetails";
+import { EditStudent } from "../pages/admin/students/EditStudent";
 import { StudentAttendance } from "../pages/admin/students/StudentAttendance";
 import { StudentPerformance } from "../pages/admin/students/StudentPerformance";
 
@@ -30,6 +31,12 @@ import { AllCourses } from "../pages/admin/courses/AllCourses";
 import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { Batches } from "../pages/admin/courses/Batches";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
+
+// Administration
+import { AdminPanel } from "../pages/admin/administration/AdminPanel";
+import { ViewAdmin } from "../pages/admin/administration/ViewAdmin";
+import { EditAdmin } from "../pages/admin/administration/EditAdmin";
+import { AddAdmin } from "../pages/admin/administration/AddAdmin";
 
 // Admissions
 import { Enquiries } from "../pages/admin/admissions/Enquiries";
@@ -66,15 +73,24 @@ export const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/login" element={<Login />} />
 
+      {/* Administration Routes */}
+      <Route path="/administration" element={<AdminLayout />}>
+        <Route index element={<AdminPanel />} />
+        <Route path="admins/new" element={<AddAdmin />} />
+        <Route path="admins/:id" element={<ViewAdmin />} />
+        <Route path="admins/:id/edit" element={<EditAdmin />} />
+      </Route>
+
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
-        
+
         {/* Students */}
         <Route path="students">
           <Route path="all" element={<AllStudents />} />
           <Route path="add" element={<AddStudent />} />
           <Route path=":id" element={<StudentDetails />} />
+          <Route path=":id/edit" element={<EditStudent />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="performance" element={<StudentPerformance />} />
         </Route>

@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, UserPlus, Save } from "lucide-react";
+import { ArrowLeft, Edit, Save } from "lucide-react";
 
 
 const studentSchema = z.object({
@@ -30,15 +30,18 @@ const studentSchema = z.object({
 
 type StudentFormValues = z.infer<typeof studentSchema>;
 
-export const AddStudent: React.FC = () => {
+export const EditStudent: React.FC = () => {
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { addStudent } = useStudentStore();
+  const { students, updateStudent } = useStudentStore();
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const student = students.find((s) => s.id === id);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema),
     defaultValues: {
-      studentCode: `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      studentCode: "",
       name: "",
       email: "",
       phone: "",
@@ -47,17 +50,29 @@ export const AddStudent: React.FC = () => {
     },
   });
 
+  useEffect(() => {
+    if (student) {
+      form.reset({
+        studentCode: student.studentCode,
+        name: student.name,
+        email: student.email || "",
+        phone: student.phone || "",
+        qualification: student.qualification || "",
+        status: student.status,
+      });
+    } else {
+      navigate("/admin/students/all");
+    }
+  }, [student, form, navigate]);
+
   const onSubmit = async (data: StudentFormValues) => {
+    if (!id) return;
     setIsSubmitting(true);
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
       
-      addStudent({
-        ...data,
-        instituteId: "aadya-inst-1",
-        branchId: "branch-1"
-      });
+      updateStudent(id, data);
       
       navigate("/admin/students/all");
     } catch (error) {
@@ -66,6 +81,8 @@ export const AddStudent: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  if (!student) return null;
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -78,9 +95,9 @@ export const AddStudent: React.FC = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Add New Student</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Edit Student</h2>
           <p className="text-sm text-text-secondary">
-            Register a new student into the academy.
+            Update information for {student.name}.
           </p>
         </div>
       </div>
@@ -88,11 +105,11 @@ export const AddStudent: React.FC = () => {
       <Card className="border-border/50 shadow-sm bg-bg-primary">
         <CardHeader className="border-b border-border/50 pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-accent-primary" />
+            <Edit className="h-5 w-5 text-accent-primary" />
             Student Details
           </CardTitle>
           <CardDescription>
-            Enter the student's personal and academic information below.
+            Update the student's personal and academic information below.
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
@@ -211,7 +228,7 @@ export const AddStudent: React.FC = () => {
                   ) : (
                     <>
                       <Save className="mr-2 h-4 w-4" />
-                      Save Student
+                      Save Changes
                     </>
                   )}
                 </Button>
