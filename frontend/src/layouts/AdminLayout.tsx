@@ -1,10 +1,61 @@
-import React from "react";
+import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, Building2 } from "lucide-react";
+import { Bell, Building2, Plus } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
+import { Button } from "@/components/ui/button";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useNotificationStore } from "@/store/notification.store";
+
+const branchSchema = z.object({
+  name: z.string().min(2, "Branch name is required"),
+  code: z.string().min(2, "Branch code is required"),
+  address: z.string().min(5, "Full address is required"),
+  phone: z.string().min(10, "Valid contact number is required"),
+});
+
+type BranchFormValues = z.infer<typeof branchSchema>;
 
 export const AdminLayout: React.FC = () => {
+  const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
+  const addNotification = useNotificationStore((state) => state.addNotification);
+
+  const form = useForm<BranchFormValues>({
+    resolver: zodResolver(branchSchema),
+    defaultValues: {
+      name: "",
+      code: "",
+      address: "",
+      phone: "",
+    },
+  });
+
+  const onSubmit = (data: BranchFormValues) => {
+    // In a real application, this would save to a database
+    addNotification(`Branch "${data.name}" created successfully!`, "success");
+    setIsBranchModalOpen(false);
+    form.reset();
+  };
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
@@ -21,6 +72,13 @@ export const AdminLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              <Button 
+                onClick={() => setIsBranchModalOpen(true)}
+                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
+              >
+                <Plus size={16} />
+                Create a Branch
+              </Button>
               <button className="relative text-muted-foreground hover:text-foreground transition-colors">
                 <Bell size={20} />
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
@@ -36,6 +94,81 @@ export const AdminLayout: React.FC = () => {
           </main>
         </div>
       </div>
+
+      <Dialog open={isBranchModalOpen} onOpenChange={setIsBranchModalOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Branch</DialogTitle>
+            <DialogDescription>
+              Add a new Aadya Institute branch to the system.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ramamurthy Nagar" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="code"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Branch Code</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. RMN" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="phone"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Number</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. +91 9876543210" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="address"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Full Address</FormLabel>
+                    <FormControl>
+                      <Input placeholder="e.g. Ramamurthy Nagar, Bengaluru" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter className="pt-4">
+                <Button type="button" variant="outline" onClick={() => setIsBranchModalOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
+                  Create Branch
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
   );
 };

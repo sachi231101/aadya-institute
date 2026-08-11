@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Link, useLocation } from "react-router-dom"
+import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   BookOpen,
   Calendar,
@@ -11,7 +11,8 @@ import {
   CreditCard,
   BarChart3,
   ChevronRight,
-  LogOut
+  LogOut,
+  Shield
 } from "lucide-react"
 
 import {
@@ -38,6 +39,12 @@ const data = {
       url: "/admin/dashboard",
       icon: LayoutDashboard,
       isActive: true,
+    },
+    {
+      title: "Admin Panel",
+      url: "/administration",
+      icon: Shield,
+      isActive: false,
     },
     {
       title: "Students",
@@ -131,6 +138,7 @@ const data = {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
+  const navigate = useNavigate()
   const { user, logout } = useAuthStore()
 
   return (
@@ -140,9 +148,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/admin/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-pink-500 text-white font-bold">
-                  A
-                </div>
+                <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold text-text-primary">Aadya Portal</span>
                   <span className="text-xs text-accent-primary font-bold">SUPER ADMIN</span>
@@ -157,7 +163,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenu>
             {data.navMain.map((item) => {
               const isPathActive = location.pathname.startsWith(item.url)
-              
+
               if (!item.items) {
                 return (
                   <SidebarMenuItem key={item.title}>
@@ -214,7 +220,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <span className="text-sm font-semibold truncate">{user?.name || "Aadya Admin"}</span>
                 <span className="text-xs text-muted-foreground truncate">{user?.email || "admin@aadya.in"}</span>
               </div>
-              <button onClick={() => logout()} className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
+              <button onClick={() => {
+                logout();
+                navigate("/login");
+              }} className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
                 <LogOut size={16} />
               </button>
             </div>

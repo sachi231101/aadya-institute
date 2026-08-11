@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Lock, Mail, ArrowRight, Shield } from "lucide-react";
+import { Lock, Mail, ArrowRight } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { authApi } from "../../services/auth.api";
 import { UserRole } from "../../constants/roles";
@@ -66,7 +66,7 @@ export const Login: React.FC = () => {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "radial-gradient(circle at 50% 50%, #1e1b4b 0%, #0b0f19 100%)",
+        background: "var(--bg-primary)",
         padding: "1rem",
       }}
     >
@@ -80,24 +80,12 @@ export const Login: React.FC = () => {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
-          <div
-            style={{
-              width: "56px",
-              height: "56px",
-              borderRadius: "16px",
-              background: "linear-gradient(135deg, #6366f1, #ec4899)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              margin: "0 auto 1rem",
-              boxShadow: "0 0 25px rgba(99, 102, 241, 0.4)",
-            }}
-          >
-            <Shield size={28} color="#fff" />
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1.5rem" }}>
+            <img src="/aadya-logo.png" alt="Aadya Institute" style={{ height: "64px", objectFit: "contain" }} />
           </div>
-          <h1 style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>Aadya Institute</h1>
+          <h1 style={{ fontSize: "1.75rem", marginBottom: "0.5rem" }}>ERP Portal</h1>
           <p style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>
-            Sign in to access your ERP portal
+            Sign in to access your account
           </p>
         </div>
 
@@ -150,7 +138,7 @@ export const Login: React.FC = () => {
                 style={{
                   width: "100%",
                   padding: "0.75rem 1rem 0.75rem 2.75rem",
-                  background: "rgba(255, 255, 255, 0.05)",
+                  background: "var(--bg-tertiary)",
                   border: "1px solid var(--border-color)",
                   borderRadius: "var(--radius-md)",
                   color: "var(--text-primary)",
@@ -192,7 +180,7 @@ export const Login: React.FC = () => {
                 style={{
                   width: "100%",
                   padding: "0.75rem 1rem 0.75rem 2.75rem",
-                  background: "rgba(255, 255, 255, 0.05)",
+                  background: "var(--bg-tertiary)",
                   border: "1px solid var(--border-color)",
                   borderRadius: "var(--radius-md)",
                   color: "var(--text-primary)",
@@ -211,7 +199,7 @@ export const Login: React.FC = () => {
               padding: "0.85rem",
               marginTop: "0.5rem",
               borderRadius: "var(--radius-md)",
-              background: "linear-gradient(135deg, #6366f1, #4f46e5)",
+              background: "var(--accent-primary)",
               color: "#fff",
               fontWeight: 600,
               fontSize: "0.95rem",
@@ -219,7 +207,7 @@ export const Login: React.FC = () => {
               alignItems: "center",
               justifyContent: "center",
               gap: "0.5rem",
-              boxShadow: "0 4px 15px rgba(99, 102, 241, 0.4)",
+              boxShadow: "0 4px 15px rgba(23, 105, 170, 0.3)",
               transition: "all 0.2s",
             }}
           >
