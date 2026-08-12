@@ -3,7 +3,12 @@ import * as controller from "./faculty.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
 import { validate } from "../../middlewares/validation.middleware";
-import { createFacultySchema, updateFacultySchema } from "./faculty.validation";
+import {
+  createFacultySchema,
+  updateFacultySchema,
+  assignCourseSchema,
+  markAttendanceSchema,
+} from "./faculty.validation";
 
 const router = Router();
 
@@ -15,6 +20,36 @@ router.get(
   "/",
   requireRole("ADMIN", "CENTER_MANAGER"),
   controller.getAll
+);
+
+// GET /api/v1/faculty/courses — List assigned courses/batches
+router.get(
+  "/courses",
+  requireRole("ADMIN", "CENTER_MANAGER"),
+  controller.getCourses
+);
+
+// POST /api/v1/faculty/courses/assign — Assign faculty to a batch
+router.post(
+  "/courses/assign",
+  requireRole("ADMIN"),
+  validate(assignCourseSchema),
+  controller.assignCourse
+);
+
+// GET /api/v1/faculty/attendance — List faculty attendance records
+router.get(
+  "/attendance",
+  requireRole("ADMIN", "CENTER_MANAGER"),
+  controller.getAttendance
+);
+
+// POST /api/v1/faculty/attendance — Mark/log faculty attendance
+router.post(
+  "/attendance",
+  requireRole("ADMIN", "CENTER_MANAGER"),
+  validate(markAttendanceSchema),
+  controller.markAttendance
 );
 
 // GET /api/v1/faculty/:id — Get single faculty (ADMIN or CENTER_MANAGER)

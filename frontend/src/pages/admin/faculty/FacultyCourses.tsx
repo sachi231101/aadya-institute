@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   BookOpen, 
   Users, 
@@ -7,54 +8,66 @@ import {
   Plus, 
   Filter, 
   GraduationCap,
-  Layers
+  Layers,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { useFacultyStore } from "../../../store/faculty.store";
+import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 
-export const FacultyCourses: React.FC = () => {
-  const { facultyList, assignments, assignCourse } = useFacultyStore();
+const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string>("ALL");
+const formatSchedules = (schedules: { dayOfWeek: number; startTime: string; endTime: string }[]) => {
+  if (!schedules || schedules.length === 0) return "No schedule set";
+  return schedules
+    .map((s) => `${DAY_NAMES[s.dayOfWeek]} ${s.startTime}–${s.endTime}`)
+    .join(", ");
+};
+
+export const FacultyCourses: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialFacultyId = searchParams.get("facultyId") || "";
+
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(initialFacultyId || "ALL");
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
 
   // Modal Form state
-  const [newFacultyId, setNewFacultyId] = useState<string>(facultyList[0]?.id || "");
-  const [newCourseName, setNewCourseName] = useState<string>("");
-  const [newBatchCode, setNewBatchCode] = useState<string>("");
-  const [newSchedule, setNewSchedule] = useState<string>("Mon, Wed, Fri (10:00 AM - 12:00 PM)");
-  const [newWeeklyHours, setNewWeeklyHours] = useState<number>(6);
+  const [newFacultyId, setNewFacultyId] = useState<string>("");
+  const [newBatchId, setNewBatchId] = useState<string>("");
 
-  const filteredAssignments = assignments.filter(
-    (item) => selectedFacultyId === "ALL" || item.facultyId === selectedFacultyId
-  );
+  // Fetch data from backend
+  const coursesParams = {
+    limit: 50,
+    facultyId: selectedFacultyId !== "ALL" ? selectedFacultyId : undefined,
+  };
 
-  const totalWeeklyHours = filteredAssignments.reduce((acc, curr) => acc + curr.weeklyHours, 0);
-  const totalStudentsTaught = filteredAssignments.reduce((acc, curr) => acc + curr.studentCount, 0);
+  const { data: coursesResponse, isLoading, isError } = useFacultyCourses(coursesParams);
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const assignMutation = useAssignFacultyCourse();
 
-  const handleAssignSubmit = (e: React.FormEvent) => {
+  const assignments = coursesResponse?.data ?? [];
+  const facultyList = facultyResponse?.data ?? [];
+
+  const totalStudentsTaught = assignments.reduce((acc, curr) => acc + (curr._count?.enrollments ?? 0), 0);
+
+  const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const facultyObj = facultyList.find((f) => f.id === newFacultyId);
-    if (!facultyObj || !newCourseName || !newBatchCode) return;
+    if (!newFacultyId || !newBatchId) return;
 
-    assignCourse({
-      facultyId: facultyObj.id,
-      facultyName: facultyObj.name,
-      courseId: `CRS-${Math.floor(100 + Math.random() * 900)}`,
-      courseName: newCourseName,
-      batchCode: newBatchCode,
-      schedule: newSchedule,
-      studentCount: 30,
-      weeklyHours: Number(newWeeklyHours) || 6,
-    });
-
-    // Reset & Close
-    setNewCourseName("");
-    setNewBatchCode("");
-    setShowAssignModal(false);
+    try {
+      await assignMutation.mutateAsync({
+        batchId: newBatchId,
+        facultyId: newFacultyId,
+      });
+      setNewFacultyId("");
+      setNewBatchId("");
+      setShowAssignModal(false);
+    } catch (error) {
+      console.error("Failed to assign course:", error);
+    }
   };
 
   return (
@@ -86,7 +99,7 @@ export const FacultyCourses: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Active Assignments</p>
-              <h3 className="text-2xl font-bold text-text-primary">{filteredAssignments.length}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{coursesResponse?.meta?.total ?? assignments.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -97,8 +110,10 @@ export const FacultyCourses: React.FC = () => {
               <Clock className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Weekly Hours</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalWeeklyHours} hrs/wk</h3>
+              <p className="text-xs font-medium text-text-secondary">Batches with Schedules</p>
+              <h3 className="text-2xl font-bold text-text-primary">
+                {assignments.filter((a) => a.schedules && a.schedules.length > 0).length}
+              </h3>
             </div>
           </CardContent>
         </Card>
@@ -122,7 +137,7 @@ export const FacultyCourses: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Total Faculty</p>
-              <h3 className="text-2xl font-bold text-text-primary">{facultyList.length}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{facultyResponse?.meta?.total ?? facultyList.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -142,30 +157,42 @@ export const FacultyCourses: React.FC = () => {
           <option value="ALL">All Faculty Members</option>
           {facultyList.map((f) => (
             <option key={f.id} value={f.id}>
-              {f.name} ({f.facultyCode})
+              {f.user.name} ({f.employeeCode})
             </option>
           ))}
         </select>
       </div>
 
       {/* Assigned Courses Grid */}
-      {filteredAssignments.length > 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+          <span className="ml-3 text-text-secondary">Loading assignments...</span>
+        </div>
+      ) : isError ? (
+        <Card className="border-border/50 bg-bg-primary text-center py-12">
+          <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4 opacity-50" />
+          <h3 className="text-lg font-medium text-text-primary mb-2">Failed to load assignments</h3>
+          <p className="text-text-secondary max-w-sm mx-auto">Please try again later.</p>
+        </Card>
+      ) : assignments.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {filteredAssignments.map((item) => (
+          {assignments.map((item) => (
             <Card key={item.id} className="border-border/50 shadow-sm bg-bg-primary hover:border-border transition-all">
               <CardHeader className="pb-3 border-b border-border/50">
                 <div className="flex justify-between items-start gap-2">
                   <div>
                     <CardTitle className="text-base font-bold text-text-primary flex items-center gap-2">
                       <BookOpen className="h-4 w-4 text-[#1769AA]" />
-                      {item.courseName}
+                      {item.course.name}
                     </CardTitle>
                     <CardDescription className="text-xs mt-1">
-                      Batch Code: <span className="font-mono text-text-primary font-semibold">{item.batchCode}</span>
+                      Batch: <span className="font-mono text-text-primary font-semibold">{item.code}</span>
+                      {" • "}Course Code: <span className="font-mono text-text-primary font-semibold">{item.course.code}</span>
                     </CardDescription>
                   </div>
                   <Badge variant="outline" className="text-xs bg-blue-50 text-[#1769AA] border-blue-200">
-                    {item.weeklyHours} hrs / week
+                    {item.status}
                   </Badge>
                 </div>
               </CardHeader>
@@ -175,21 +202,25 @@ export const FacultyCourses: React.FC = () => {
                   <span className="text-text-secondary flex items-center gap-1.5">
                     <Users className="h-4 w-4 text-text-muted" /> Instructor:
                   </span>
-                  <span className="font-medium text-text-primary">{item.facultyName}</span>
+                  <span className="font-medium text-text-primary">
+                    {item.faculty?.user.name ?? "Unassigned"}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-text-secondary flex items-center gap-1.5">
                     <Calendar className="h-4 w-4 text-text-muted" /> Schedule:
                   </span>
-                  <span className="text-xs font-mono text-text-primary">{item.schedule}</span>
+                  <span className="text-xs font-mono text-text-primary">
+                    {formatSchedules(item.schedules)}
+                  </span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-border/50">
                   <span className="text-text-secondary flex items-center gap-1.5">
                     <GraduationCap className="h-4 w-4 text-text-muted" /> Enrolled Students:
                   </span>
-                  <span className="font-semibold text-emerald-600">{item.studentCount} Students</span>
+                  <span className="font-semibold text-emerald-600">{item._count?.enrollments ?? 0} Students</span>
                 </div>
               </CardContent>
             </Card>
@@ -218,7 +249,7 @@ export const FacultyCourses: React.FC = () => {
           <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
             <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-[#1769AA]" />
-              Assign Course to Faculty
+              Assign Faculty to Batch
             </h3>
             
             <form onSubmit={handleAssignSubmit} className="space-y-4">
@@ -230,57 +261,35 @@ export const FacultyCourses: React.FC = () => {
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   required
                 >
+                  <option value="">Select a faculty member</option>
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({f.facultyCode})
+                      {f.user.name} ({f.employeeCode})
                     </option>
                   ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Course Name *</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Batch ID *</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Advanced System Design & Microservices"
-                  value={newCourseName}
-                  onChange={(e) => setNewCourseName(e.target.value)}
+                  placeholder="Enter the batch ID to assign"
+                  value={newBatchId}
+                  onChange={(e) => setNewBatchId(e.target.value)}
                   className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                   required
                 />
+                <p className="text-xs text-slate-500 mt-1">
+                  Enter the batch ID from the Batches section to assign this faculty member.
+                </p>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Batch Code *</label>
-                <Input
-                  type="text"
-                  placeholder="e.g. SD-2026-X1"
-                  value={newBatchCode}
-                  onChange={(e) => setNewBatchCode(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Class Schedule</label>
-                <Input
-                  type="text"
-                  value={newSchedule}
-                  onChange={(e) => setNewSchedule(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Weekly Teaching Hours</label>
-                <Input
-                  type="number"
-                  value={newWeeklyHours}
-                  onChange={(e) => setNewWeeklyHours(Number(e.target.value))}
-                  className="bg-white border-slate-300 text-slate-900"
-                />
-              </div>
+              {assignMutation.isError && (
+                <div className="p-3 rounded-md bg-red-50 text-red-700 text-sm">
+                  Failed to assign faculty to batch. Please verify the batch ID.
+                </div>
+              )}
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
                 <Button 
@@ -294,7 +303,14 @@ export const FacultyCourses: React.FC = () => {
                   type="submit" 
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
-                  Assign Course
+                  {assignMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Assigning...
+                    </>
+                  ) : (
+                    "Assign Course"
+                  )}
                 </Button>
               </div>
             </form>

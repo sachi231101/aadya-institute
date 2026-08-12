@@ -47,11 +47,11 @@ const buildWhereClause = (params: Omit<FindAllFacultyParams, "skip" | "take">) =
 
   if (params.search) {
     where.OR = [
-      { employeeCode: { contains: params.search } },
-      { specialization: { contains: params.search } },
-      { user: { name: { contains: params.search } } },
-      { user: { email: { contains: params.search } } },
-      { user: { phone: { contains: params.search } } },
+      { employeeCode: { contains: params.search, mode: "insensitive" } },
+      { specialization: { contains: params.search, mode: "insensitive" } },
+      { user: { name: { contains: params.search, mode: "insensitive" } } },
+      { user: { email: { contains: params.search, mode: "insensitive" } } },
+      { user: { phone: { contains: params.search, mode: "insensitive" } } },
     ];
   }
 
@@ -220,3 +220,192 @@ export const softDeleteFaculty = async (id: string) => {
     });
   });
 };
+
+// ─── Faculty Course Assignments (via Batch model) ───────────────────────
+
+export interface FindFacultyCoursesParams {
+  instituteId: string;
+  branchId?: string;
+  facultyId?: string;
+  skip: number;
+  take: number;
+}
+
+/**
+ * Fetch batches assigned to faculty members, joined with Course and enrollment counts.
+ */
+export const findFacultyCourses = (params: FindFacultyCoursesParams) => {
+  const where: Record<string, unknown> = {
+    instituteId: params.instituteId,
+    facultyId: { not: null },
+  };
+
+  if (params.branchId) where.branchId = params.branchId;
+  if (params.facultyId) where.facultyId = params.facultyId;
+
+  return prisma.batch.findMany({
+    where,
+    include: {
+      course: { select: { id: true, name: true, code: true } },
+      faculty: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      branch: { select: { id: true, name: true, code: true } },
+      schedules: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+      _count: { select: { enrollments: true } },
+    },
+    orderBy: { createdAt: "desc" },
+    skip: params.skip,
+    take: params.take,
+  });
+};
+
+export const countFacultyCourses = (params: Omit<FindFacultyCoursesParams, "skip" | "take">) => {
+  const where: Record<string, unknown> = {
+    instituteId: params.instituteId,
+    facultyId: { not: null },
+  };
+  if (params.branchId) where.branchId = params.branchId;
+  if (params.facultyId) where.facultyId = params.facultyId;
+
+  return prisma.batch.count({ where });
+};
+
+/**
+ * Assign a faculty member to a batch (update batch.facultyId).
+ */
+export const assignFacultyToBatch = (batchId: string, facultyId: string) =>
+  prisma.batch.update({
+    where: { id: batchId },
+    data: { facultyId },
+    include: {
+      course: { select: { id: true, name: true, code: true } },
+      faculty: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      _count: { select: { enrollments: true } },
+    },
+  });
+
+// ─── Faculty Attendance ─────────────────────────────────────────────────
+
+export interface FindFacultyAttendanceParams {
+  instituteId: string;
+  branchId?: string;
+  facultyId?: string;
+  date?: string; // ISO date string, e.g. "2026-08-12"
+  skip: number;
+  take: number;
+}
+
+/**
+ * Fetch FacultyAttendance records joined with faculty user info and class session info.
+ */
+export const findFacultyAttendance = (params: FindFacultyAttendanceParams) => {
+  const where: Record<string, unknown> = {
+    faculty: { instituteId: params.instituteId },
+  };
+
+  if (params.branchId) {
+    (where.faculty as Record<string, unknown>).branchId = params.branchId;
+  }
+  if (params.facultyId) {
+    where.facultyId = params.facultyId;
+  }
+  if (params.date) {
+    const dayStart = new Date(params.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(params.date);
+    dayEnd.setHours(23, 59, 59, 999);
+    where.classSession = { scheduledDate: { gte: dayStart, lte: dayEnd } };
+  }
+
+  return prisma.facultyAttendance.findMany({
+    where,
+    include: {
+      faculty: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      classSession: {
+        select: {
+          id: true,
+          scheduledDate: true,
+          startTime: true,
+          endTime: true,
+          batch: { select: { id: true, name: true, code: true } },
+        },
+      },
+    },
+    orderBy: { classSession: { scheduledDate: "desc" } },
+    skip: params.skip,
+    take: params.take,
+  });
+};
+
+export const countFacultyAttendance = (params: Omit<FindFacultyAttendanceParams, "skip" | "take">) => {
+  const where: Record<string, unknown> = {
+    faculty: { instituteId: params.instituteId },
+  };
+  if (params.branchId) {
+    (where.faculty as Record<string, unknown>).branchId = params.branchId;
+  }
+  if (params.facultyId) where.facultyId = params.facultyId;
+  if (params.date) {
+    const dayStart = new Date(params.date);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(params.date);
+    dayEnd.setHours(23, 59, 59, 999);
+    where.classSession = { scheduledDate: { gte: dayStart, lte: dayEnd } };
+  }
+
+  return prisma.facultyAttendance.count({ where });
+};
+
+/**
+ * Create a FacultyAttendance record (upsert by faculty+classSession uniqueness).
+ */
+export const upsertFacultyAttendance = (data: {
+  facultyId: string;
+  classSessionId: string;
+  loginAt?: Date;
+  logoutAt?: Date;
+}) =>
+  prisma.facultyAttendance.upsert({
+    where: {
+      facultyId_classSessionId: {
+        facultyId: data.facultyId,
+        classSessionId: data.classSessionId,
+      },
+    },
+    create: {
+      facultyId: data.facultyId,
+      classSessionId: data.classSessionId,
+      loginAt: data.loginAt,
+      logoutAt: data.logoutAt,
+    },
+    update: {
+      loginAt: data.loginAt,
+      logoutAt: data.logoutAt,
+    },
+    include: {
+      faculty: {
+        include: {
+          user: { select: { id: true, name: true } },
+        },
+      },
+      classSession: {
+        select: {
+          id: true,
+          scheduledDate: true,
+          startTime: true,
+          endTime: true,
+        },
+      },
+    },
+  });

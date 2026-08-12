@@ -91,3 +91,107 @@ export const deleteFaculty = async (id: string) => {
   await getFacultyById(id); // throws 404 if not found
   return repo.softDeleteFaculty(id);
 };
+
+// ─── Faculty Course Assignments ─────────────────────────────────────────
+
+/**
+ * List batches assigned to faculty members (course assignment view).
+ */
+export const getAllFacultyCourses = async (
+  instituteId: string,
+  userBranchId: string | null | undefined,
+  query: { page?: number; limit?: number; facultyId?: string; branchId?: string }
+) => {
+  const page = Number(query.page) || 1;
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const skip = (page - 1) * limit;
+  const branchId = userBranchId || query.branchId || undefined;
+
+  const params: repo.FindFacultyCoursesParams = {
+    instituteId,
+    branchId,
+    facultyId: query.facultyId || undefined,
+    skip,
+    take: limit,
+  };
+
+  const [data, total] = await Promise.all([
+    repo.findFacultyCourses(params),
+    repo.countFacultyCourses({
+      instituteId: params.instituteId,
+      branchId: params.branchId,
+      facultyId: params.facultyId,
+    }),
+  ]);
+
+  const meta = buildMeta(total, page, limit);
+  return { data, meta };
+};
+
+/**
+ * Assign a faculty member to a batch.
+ */
+export const assignFacultyToBatch = async (batchId: string, facultyId: string) => {
+  // Verify the faculty member exists
+  await getFacultyById(facultyId);
+  return repo.assignFacultyToBatch(batchId, facultyId);
+};
+
+// ─── Faculty Attendance ─────────────────────────────────────────────────
+
+/**
+ * List faculty attendance records.
+ */
+export const getAllFacultyAttendance = async (
+  instituteId: string,
+  userBranchId: string | null | undefined,
+  query: { page?: number; limit?: number; facultyId?: string; branchId?: string; date?: string }
+) => {
+  const page = Number(query.page) || 1;
+  const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
+  const skip = (page - 1) * limit;
+  const branchId = userBranchId || query.branchId || undefined;
+
+  const params: repo.FindFacultyAttendanceParams = {
+    instituteId,
+    branchId,
+    facultyId: query.facultyId || undefined,
+    date: query.date || undefined,
+    skip,
+    take: limit,
+  };
+
+  const [data, total] = await Promise.all([
+    repo.findFacultyAttendance(params),
+    repo.countFacultyAttendance({
+      instituteId: params.instituteId,
+      branchId: params.branchId,
+      facultyId: params.facultyId,
+      date: params.date,
+    }),
+  ]);
+
+  const meta = buildMeta(total, page, limit);
+  return { data, meta };
+};
+
+/**
+ * Log (upsert) a faculty attendance record.
+ */
+export const logFacultyAttendance = async (data: {
+  facultyId: string;
+  classSessionId: string;
+  loginAt?: string;
+  logoutAt?: string;
+}) => {
+  // Verify faculty exists
+  await getFacultyById(data.facultyId);
+
+  return repo.upsertFacultyAttendance({
+    facultyId: data.facultyId,
+    classSessionId: data.classSessionId,
+    loginAt: data.loginAt ? new Date(data.loginAt) : undefined,
+    logoutAt: data.logoutAt ? new Date(data.logoutAt) : undefined,
+  });
+};
+
