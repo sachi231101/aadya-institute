@@ -17,6 +17,12 @@ interface CourseState {
   updateBatch: (id: string, batchData: Partial<Batch>) => void;
   deleteBatch: (id: string) => void;
 
+  // Student & Faculty Batch Assignments
+  enrolledStudentsMap: Record<string, string[]>;
+  assignStudentToBatch: (batchId: string, studentId: string) => void;
+  removeStudentFromBatch: (batchId: string, studentId: string) => void;
+  assignFacultyToBatch: (batchId: string, facultyId: string, facultyName: string) => void;
+
   // Curriculum Actions
   addModule: (courseId: string, title: string, code: string) => void;
   addTopic: (moduleId: string, title: string, durationHours: number, description?: string) => void;
@@ -247,6 +253,52 @@ export const useCourseStore = create<CourseState>((set) => ({
   deleteBatch: (id) =>
     set((state) => ({
       batches: state.batches.filter((b) => b.id !== id),
+    })),
+
+  enrolledStudentsMap: {
+    "b-1": ["STD001", "STD002"],
+    "b-2": ["STD003"],
+  },
+
+  assignStudentToBatch: (batchId, studentId) =>
+    set((state) => {
+      const currentList = state.enrolledStudentsMap[batchId] || [];
+      if (currentList.includes(studentId)) return state;
+      const updatedList = [...currentList, studentId];
+      const updatedMap = { ...state.enrolledStudentsMap, [batchId]: updatedList };
+
+      // Update enrolledCount in batch
+      const updatedBatches = state.batches.map((b) =>
+        b.id === batchId ? { ...b, enrolledCount: updatedList.length } : b
+      );
+
+      return {
+        enrolledStudentsMap: updatedMap,
+        batches: updatedBatches,
+      };
+    }),
+
+  removeStudentFromBatch: (batchId, studentId) =>
+    set((state) => {
+      const currentList = state.enrolledStudentsMap[batchId] || [];
+      const updatedList = currentList.filter((sId) => sId !== studentId);
+      const updatedMap = { ...state.enrolledStudentsMap, [batchId]: updatedList };
+
+      const updatedBatches = state.batches.map((b) =>
+        b.id === batchId ? { ...b, enrolledCount: updatedList.length } : b
+      );
+
+      return {
+        enrolledStudentsMap: updatedMap,
+        batches: updatedBatches,
+      };
+    }),
+
+  assignFacultyToBatch: (batchId, facultyId, facultyName) =>
+    set((state) => ({
+      batches: state.batches.map((b) =>
+        b.id === batchId ? { ...b, facultyId, facultyName } : b
+      ),
     })),
 
   addModule: (courseId, title, code) =>

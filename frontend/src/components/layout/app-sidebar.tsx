@@ -12,7 +12,8 @@ import {
   BarChart3,
   ChevronRight,
   LogOut,
-  Shield
+  Shield,
+  UserCheck
 } from "lucide-react"
 
 import {
@@ -91,6 +92,18 @@ const data = {
         { title: "Enquiries", url: "/admin/admissions/enquiries" },
         { title: "Applications", url: "/admin/admissions/applications" },
         { title: "All Admissions", url: "/admin/admissions/all" },
+      ],
+    },
+    {
+      title: "Counsellor",
+      url: "/admin/counselor/overview",
+      icon: UserCheck,
+      isActive: false,
+      items: [
+        { title: "Overview", url: "/admin/counselor/overview" },
+        { title: "Create & Manage Batches", url: "/admin/counselor/batches" },
+        { title: "Assign Students", url: "/admin/counselor/assign-students" },
+        { title: "Assign Faculty", url: "/admin/counselor/assign-faculty" },
       ],
     },
     {

@@ -222,7 +222,7 @@ export const AdminPanel: React.FC = () => {
         <div className="flex justify-start">
           <Button onClick={() => navigate("/administration/admins/new")} className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors">
             <Plus size={16} />
-            Add Admin
+            Add Center Manager
           </Button>
         </div>
       </div>
@@ -237,7 +237,7 @@ export const AdminPanel: React.FC = () => {
               <h3 className="text-lg font-medium text-text-primary">No administrators found.</h3>
               <p className="text-muted-foreground mt-2 mb-4">Create your first administrator to manage access to the Aadya ERP.</p>
               <Button onClick={() => navigate("/administration/admins/new")} className="bg-accent-primary">
-                <Plus size={16} className="mr-2" /> Add Admin
+                <Plus size={16} className="mr-2" /> Add Center Manager
               </Button>
             </div>
           ) : (
