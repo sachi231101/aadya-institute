@@ -1,0 +1,16 @@
+import { z } from "zod";
+
+export const createCourseSchema = z.object({
+  name: z.string().min(2, "Course name must be at least 2 characters"),
+  code: z.string().min(2, "Course code must be at least 2 characters"),
+  description: z.string().optional(),
+  duration: z.number().int().positive().optional(),
+});
+
+export const updateCourseSchema = z.object({
+  name: z.string().min(2).optional(),
+  code: z.string().min(2).optional(),
+  description: z.string().optional(),
+  duration: z.number().int().positive().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
+});
