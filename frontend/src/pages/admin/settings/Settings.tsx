@@ -23,17 +23,18 @@ export const Settings: React.FC = () => {
   const location = useLocation();
   const { user, updateUser } = useAuthStore();
 
+  const isFaculty = location.pathname.startsWith("/faculty") || user?.role === "FACULTY";
   const isCounselor = location.pathname.startsWith("/counselor") || user?.role === "COUNSELLOR";
   const isCenter = location.pathname.startsWith("/center") || user?.role === "CENTER_MANAGER";
 
   const [activeTab, setActiveTab] = useState<"personal" | "security" | "notifications" | "system">("personal");
 
   // Personal Info Form State
-  const [name, setName] = useState(user?.name || (isCounselor ? "Kavita Nair" : isCenter ? "Center Manager" : "Aadya Admin"));
-  const [email, setEmail] = useState(user?.email || (isCounselor ? "counselor@aadya.in" : isCenter ? "center.manager@aadya.in" : "admin@aadya.in"));
-  const [phone, setPhone] = useState(user?.phone || "+91 98765 11223");
-  const [designation, setDesignation] = useState(isCounselor ? "Senior Admissions Counsellor" : isCenter ? "Center Operations Manager" : "Academy Operations Director");
-  const [department, setDepartment] = useState(isCounselor ? "Student Admissions & Counselling Desk" : isCenter ? "Branch Operations & Administration" : "Institute Administration");
+  const [name, setName] = useState(user?.name || (isFaculty ? "Prof. Dr. Rajesh Sharma" : isCounselor ? "Kavita Nair" : isCenter ? "Center Manager" : "Aadya Admin"));
+  const [email, setEmail] = useState(user?.email || (isFaculty ? "faculty@aadya.in" : isCounselor ? "counselor@aadya.in" : isCenter ? "center.manager@aadya.in" : "admin@aadya.in"));
+  const [phone, setPhone] = useState(user?.phone || "+91 98765 99887");
+  const [designation, setDesignation] = useState(isFaculty ? "Senior Faculty Instructor & Course Lead" : isCounselor ? "Senior Admissions Counsellor" : isCenter ? "Center Operations Manager" : "Academy Operations Director");
+  const [department, setDepartment] = useState(isFaculty ? "School of Computer Science & Software Engineering" : isCounselor ? "Student Admissions & Counselling Desk" : isCenter ? "Branch Operations & Administration" : "Institute Administration");
   const [language, setLanguage] = useState("English (US)");
   const [timezone, setTimezone] = useState("(GMT+05:30) India Standard Time");
 
@@ -87,10 +88,12 @@ export const Settings: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">
-            {isCounselor ? "Counsellor Profile & Settings" : isCenter ? "Center Manager Settings" : "Admin Account Settings"}
+            {isFaculty ? "Faculty Profile & Settings" : isCounselor ? "Counsellor Profile & Settings" : isCenter ? "Center Manager Settings" : "Admin Account Settings"}
           </h2>
           <p className="text-sm text-text-secondary">
-            {isCounselor
+            {isFaculty
+              ? "Manage your teaching profile, security credentials, notification preferences, and course instruction settings."
+              : isCounselor
               ? "Manage your counsellor profile, security credentials, notification preferences, and desk settings."
               : isCenter
               ? "Manage your branch profile, security credentials, notification preferences, and center settings."
@@ -187,8 +190,8 @@ export const Settings: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-bold text-slate-900">{name}</h3>
-                    <Badge variant="outline" className={isCounselor ? "bg-emerald-50 text-emerald-700 border-emerald-200" : isCenter ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-[#1769AA] border-blue-200"}>
-                      {isCounselor ? "COUNSELLOR" : isCenter ? "CENTER MANAGER" : "ADMIN"}
+                    <Badge variant="outline" className={isFaculty ? "bg-amber-50 text-amber-700 border-amber-200" : isCounselor ? "bg-emerald-50 text-emerald-700 border-emerald-200" : isCenter ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-[#1769AA] border-blue-200"}>
+                      {isFaculty ? "FACULTY" : isCounselor ? "COUNSELLOR" : isCenter ? "CENTER MANAGER" : "ADMIN"}
                     </Badge>
                   </div>
                   <p className="text-xs text-slate-500 flex items-center gap-3">

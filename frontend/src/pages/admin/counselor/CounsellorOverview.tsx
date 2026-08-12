@@ -1,11 +1,12 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { 
   Users, 
   GraduationCap, 
   BookOpen, 
   UserCheck, 
+  UserPlus,
   Plus, 
   ArrowRight,
   Calendar,
@@ -21,6 +22,8 @@ import { Button } from "@/components/ui/button";
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
 
   // Queries for live data from backend
   const { data: batchesRes, isLoading: loadingBatches, isError: errorBatches } = useQuery({

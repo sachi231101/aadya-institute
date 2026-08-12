@@ -66,7 +66,7 @@ export const StudentReports: React.FC = () => {
 
   const filteredStudents = students.filter((s) => {
     return (
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.user?.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       s.studentCode.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
@@ -295,7 +295,7 @@ export const StudentReports: React.FC = () => {
                             {student.studentCode}
                           </span>
                           <span className="font-medium text-slate-900 text-xs">
-                            {student.name}
+                            {student.user?.name || "Unknown Student"}
                           </span>
                         </div>
                       </TableCell>

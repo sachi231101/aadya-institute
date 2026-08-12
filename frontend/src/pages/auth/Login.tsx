@@ -86,6 +86,38 @@ export const Login: React.FC = () => {
           return;
         }
 
+        if (emailOrPhone.includes("faculty")) {
+          const facUser = {
+            id: "fac-001",
+            name: "Prof. Dr. Rajesh Sharma (Faculty)",
+            email: "faculty@aadya.in",
+            phone: "+91 98765 99887",
+            role: "FACULTY",
+            roles: ["FACULTY"],
+            instituteId: "inst-aadya-01",
+            branchId: "branch-blr-01",
+          };
+          setAuth(facUser, "demo-fac-token");
+          navigate("/faculty/dashboard");
+          return;
+        }
+
+        if (emailOrPhone.includes("student")) {
+          const stuUser = {
+            id: "stu-001",
+            name: "Rahul Verma (Student)",
+            email: "student@aadya.in",
+            phone: "+91 98765 44332",
+            role: "STUDENT",
+            roles: ["STUDENT"],
+            instituteId: "inst-aadya-01",
+            branchId: "branch-blr-01",
+          };
+          setAuth(stuUser, "demo-stu-token");
+          navigate("/student/dashboard");
+          return;
+        }
+
         const message = err?.response?.data?.message || "Login failed. Please check your credentials.";
         setError(message);
       } finally {
@@ -283,6 +315,26 @@ export const Login: React.FC = () => {
                 style={{ padding: "0.35rem 0.75rem", borderRadius: "6px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", fontSize: "0.75rem", cursor: "pointer", color: "#10b981", fontWeight: 600 }}
               >
                 Counsellor
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailOrPhone("faculty@aadya.in");
+                  setPassword("ChangeMe@123");
+                }}
+                style={{ padding: "0.35rem 0.75rem", borderRadius: "6px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", fontSize: "0.75rem", cursor: "pointer", color: "#d97706", fontWeight: 600 }}
+              >
+                Faculty
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmailOrPhone("student@aadya.in");
+                  setPassword("ChangeMe@123");
+                }}
+                style={{ padding: "0.35rem 0.75rem", borderRadius: "6px", background: "var(--bg-tertiary)", border: "1px solid var(--border-color)", fontSize: "0.75rem", cursor: "pointer", color: "#8b5cf6", fontWeight: 600 }}
+              >
+                Student
               </button>
             </div>
           </div>
