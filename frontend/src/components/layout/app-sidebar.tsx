@@ -41,7 +41,7 @@ const data = {
       isActive: true,
     },
     {
-      title: "Admin Panel",
+      title: "Center Manager",
       url: "/administration",
       icon: Shield,
       isActive: false,
@@ -151,7 +151,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold text-text-primary">Aadya Portal</span>
-                  <span className="text-xs text-accent-primary font-bold">SUPER ADMIN</span>
+                  <span className="text-xs text-accent-primary font-bold">ADMIN</span>
                 </div>
               </Link>
             </SidebarMenuButton>

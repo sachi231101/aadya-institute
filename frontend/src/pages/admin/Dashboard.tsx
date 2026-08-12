@@ -1,136 +1,476 @@
-import React from "react";
-import { Users, GraduationCap, BookOpen, Calendar, Activity, PhoneCall, MessageSquare, Loader2 } from "lucide-react";
-import { useAuthStore } from "@/store/auth.store";
-import { useBranches } from "@/hooks/useBranches";
-import { useBranchStats } from "@/hooks/useBranches";
+import React, { useState } from "react";
+import { 
+  Building2, 
+  Plus, 
+  Users, 
+  GraduationCap, 
+  BookOpen, 
+  Calendar, 
+  Activity, 
+  UserCheck, 
+  MapPin, 
+  Phone, 
+  DollarSign, 
+  CheckCircle2, 
+  UserPlus,
+  Trash2
+} from "lucide-react";
+import { useBranchStore } from "@/store/branch.store";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import type { Branch } from "@/types/branch.types";
 
 export const AdminDashboard: React.FC = () => {
-  const { user } = useAuthStore();
+  const { branches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
 
-  // Fetch all branches to get the first one for stats
-  const { data: branchesResponse, isLoading: branchesLoading } = useBranches();
-  const branches = branchesResponse?.data ?? [];
-  const primaryBranchId = user?.branchId || branches[0]?.id;
+  // Create Branch Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [branchName, setBranchName] = useState("");
+  const [branchCode, setBranchCode] = useState("");
+  const [city, setCity] = useState("Bengaluru");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
+  const [managerName, setManagerName] = useState("");
+  const [managerEmail, setManagerEmail] = useState("");
 
-  // Fetch stats for the primary branch
-  const { data: statsResponse, isLoading: statsLoading } = useBranchStats(primaryBranchId);
-  const branchStats = statsResponse?.data;
+  // Assign Manager Modal State
+  const [assignModalBranch, setAssignModalBranch] = useState<Branch | null>(null);
+  const [newManagerName, setNewManagerName] = useState("");
+  const [newManagerEmail, setNewManagerEmail] = useState("");
 
-  const isLoading = branchesLoading || statsLoading;
+  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  const stats = [
-    {
-      label: "Total Students",
-      value: isLoading ? "—" : String(branchStats?.totalStudents ?? 0),
-      icon: GraduationCap,
-      color: "#6366f1",
-    },
-    {
-      label: "Faculty Members",
-      value: isLoading ? "—" : String(branchStats?.totalFaculty ?? 0),
-      icon: Users,
-      color: "#ec4899",
-    },
-    {
-      label: "Active Batches",
-      value: isLoading ? "—" : String(branchStats?.totalBatches ?? 0),
-      icon: Calendar,
-      color: "#f59e0b",
-    },
-    {
-      label: "Admissions",
-      value: isLoading ? "—" : String(branchStats?.totalAdmissions ?? 0),
-      icon: BookOpen,
-      color: "#06b6d4",
-    },
-  ];
+  const totalStudents = branches.reduce((acc, b) => acc + b.studentCount, 0);
+  const totalBatches = branches.reduce((acc, b) => acc + b.batchCount, 0);
+  const totalRevenue = branches.reduce((acc, b) => acc + b.revenueCollected, 0);
+
+  const handleCreateBranchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!branchName || !branchCode) return;
+
+    addBranch({
+      code: branchCode,
+      name: branchName,
+      city: city || "Bengaluru",
+      address: address || "Bengaluru, KA",
+      phone: phone || "+91 98765 43210",
+      assignedManagerName: managerName || "Unassigned Manager",
+      assignedManagerEmail: managerEmail || "manager@aadya.in",
+      status: "ACTIVE",
+    });
+
+    setNotificationMsg(`New Branch "${branchName}" created successfully!`);
+    setTimeout(() => setNotificationMsg(null), 3000);
+
+    setBranchName("");
+    setBranchCode("");
+    setAddress("");
+    setPhone("");
+    setManagerName("");
+    setManagerEmail("");
+    setShowCreateModal(false);
+  };
+
+  const handleOpenAssignModal = (branch: Branch) => {
+    setAssignModalBranch(branch);
+    setNewManagerName(branch.assignedManagerName);
+    setNewManagerEmail(branch.assignedManagerEmail);
+  };
+
+  const handleAssignManagerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!assignModalBranch || !newManagerName || !newManagerEmail) return;
+
+    assignManagerToBranch(assignModalBranch.id, newManagerName, newManagerEmail);
+    setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
+    setTimeout(() => setNotificationMsg(null), 3000);
+
+    setAssignModalBranch(null);
+  };
 
   return (
-    <div>
-      <div style={{ marginBottom: "2rem" }}>
-        <h1 style={{ fontSize: "1.8rem", marginBottom: "0.5rem" }}>Admin Dashboard</h1>
-        <p style={{ color: "var(--text-secondary)" }}>
-          Institute Overview & Core Metrics — Aadya Educational System
-        </p>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Admin Executive Dashboard</h2>
+          <p className="text-sm text-text-secondary">
+            Full administrative control across all Aadya Institute branches, center manager assignments, and academy operations.
+          </p>
+        </div>
+
+        <Button 
+          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm transition-colors"
+          onClick={() => setShowCreateModal(true)}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Create a Branch
+        </Button>
       </div>
 
-      {/* Metrics Grid */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-          gap: "1.5rem",
-          marginBottom: "2rem",
-        }}
-      >
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
-          return (
-            <div key={i} className="glass-card" style={{ padding: "1.5rem" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem" }}>
-                <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>{stat.label}</span>
-                <div
-                  style={{
-                    width: "38px",
-                    height: "38px",
-                    borderRadius: "10px",
-                    background: `${stat.color}15`,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    color: stat.color,
-                  }}
-                >
-                  <Icon size={20} />
-                </div>
-              </div>
-              {isLoading ? (
-                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                  <Loader2 size={20} className="animate-spin" style={{ color: "var(--text-secondary)" }} />
-                  <span style={{ color: "var(--text-secondary)", fontSize: "0.9rem" }}>Loading...</span>
-                </div>
-              ) : (
-                <h2 style={{ fontSize: "1.8rem", color: "var(--text-primary)" }}>{stat.value}</h2>
-              )}
+      {notificationMsg && (
+        <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-3 animate-in fade-in">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+          <p className="text-sm font-semibold">{notificationMsg}</p>
+        </div>
+      )}
+
+      {/* Global Overview Metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-indigo-50 text-indigo-600">
+              <GraduationCap className="h-6 w-6" />
             </div>
-          );
-        })}
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Total Students Across Branches</p>
+              <h3 className="text-2xl font-bold text-text-primary">{totalStudents}</h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-pink-50 text-pink-600">
+              <Users className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Active Faculty Members</p>
+              <h3 className="text-2xl font-bold text-text-primary">12 Members</h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
+              <Calendar className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Total Running Batches</p>
+              <h3 className="text-2xl font-bold text-text-primary">{totalBatches} Batches</h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
+              <DollarSign className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Total Net Revenue</p>
+              <h3 className="text-2xl font-bold text-text-primary">₹{totalRevenue.toLocaleString("en-IN")}</h3>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Analytics & Quick Action Section */}
-      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "1.5rem" }}>
-        <div className="glass-card" style={{ padding: "1.5rem" }}>
-          <h3 style={{ marginBottom: "1rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <Activity size={20} color="var(--accent-primary)" />
-            Recent Activity & System Logs
+      {/* Multi-Branch Management Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-[#1769AA]" />
+            Aadya Institute Branch Operations & Center Managers ({branches.length} Branches)
           </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ padding: "0.75rem", background: "rgba(255,255,255,0.02)", borderRadius: "var(--radius-md)", border: "1px solid var(--border-color)" }}>
-              <span style={{ fontSize: "0.85rem", color: "var(--accent-emerald)" }}>[SYSTEM]</span> Activity logs will be connected in a future update.
-            </div>
-          </div>
         </div>
 
-        <div className="glass-card" style={{ padding: "1.5rem" }}>
-          <h3 style={{ marginBottom: "1rem" }}>AI & Integrations</h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <PhoneCall size={20} color="var(--accent-cyan)" />
-              <div>
-                <p style={{ fontSize: "0.9rem", fontWeight: 600 }}>AI Voice Agent</p>
-                <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Will be connected in Phase 2</p>
-              </div>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <MessageSquare size={20} color="var(--accent-emerald)" />
-              <div>
-                <p style={{ fontSize: "0.9rem", fontWeight: 600 }}>WhatsApp Webhooks</p>
-                <p style={{ fontSize: "0.75rem", color: "var(--text-secondary)" }}>Will be connected in Phase 2</p>
-              </div>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {branches.map((branch) => (
+            <Card key={branch.id} className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6 space-y-4">
+                {/* Branch Header */}
+                <div className="flex justify-between items-start gap-2">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="font-mono text-xs text-[#1769AA] bg-blue-50 border-blue-200">
+                        {branch.code}
+                      </Badge>
+                      <Badge variant="success">
+                        {branch.status}
+                      </Badge>
+                    </div>
+                    <h4 className="text-lg font-bold text-slate-900">{branch.name}</h4>
+                  </div>
+
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
+                    onClick={() => deleteBranch(branch.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+
+                {/* Location & Contact */}
+                <div className="space-y-1 text-xs text-slate-600">
+                  <p className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    <span>{branch.address}</span>
+                  </p>
+                  <p className="flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+                    <span>{branch.phone}</span>
+                  </p>
+                </div>
+
+                {/* Assigned Branch Manager Info Box */}
+                <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="p-2 rounded-md bg-blue-100 text-[#1769AA]">
+                      <UserCheck className="h-4 w-4" />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">ASSIGNED BRANCH MANAGER</p>
+                      <p className="text-xs font-bold text-slate-900">{branch.assignedManagerName}</p>
+                      <p className="text-[11px] text-slate-500">{branch.assignedManagerEmail}</p>
+                    </div>
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="text-xs bg-white border-blue-200 text-[#1769AA] hover:bg-blue-50"
+                    onClick={() => handleOpenAssignModal(branch)}
+                  >
+                    <UserPlus className="mr-1 h-3.5 w-3.5" />
+                    Assign as Manager
+                  </Button>
+                </div>
+
+                {/* Branch Key Metrics Footer */}
+                <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-100 text-center text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Students</span>
+                    <span className="font-bold text-slate-900">{branch.studentCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Batches</span>
+                    <span className="font-bold text-slate-900">{branch.batchCount}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Collected Fee</span>
+                    <span className="font-bold text-emerald-700">₹{branch.revenueCollected.toLocaleString("en-IN")}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
+
+      {/* Activity Logs & Integrations Feed */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4">
+        <Card className="border-border/50 bg-white shadow-sm md:col-span-2">
+          <CardContent className="p-6">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <Activity className="h-5 w-5 text-[#1769AA]" />
+              Admin Multi-Branch System Logs
+            </h3>
+            <div className="space-y-2">
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
+                <span className="text-slate-700"><strong>Ramamurthy Nagara Branch:</strong> 12 new admissions processed today.</span>
+                <Badge variant="outline" className="text-[10px]">Just Now</Badge>
+              </div>
+              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
+                <span className="text-slate-700"><strong>Malleshwaram Branch:</strong> Attendance marked for Morning MERN cohort.</span>
+                <Badge variant="outline" className="text-[10px]">10m ago</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-white shadow-sm">
+          <CardContent className="p-6">
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 mb-3">
+              <BookOpen className="h-5 w-5 text-purple-600" />
+              Automations & Webhooks
+            </h3>
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between items-center p-2 rounded bg-slate-50">
+                <span className="font-semibold text-slate-800">Sarvam AI Calling Agent</span>
+                <Badge variant="success">Active</Badge>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded bg-slate-50">
+                <span className="font-semibold text-slate-800">WhatsApp Reminder Service</span>
+                <Badge variant="success">Active</Badge>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Modal Dialog: Create New Branch */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-lg p-6 space-y-4 text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-[#1769AA]" />
+              Create New Academy Branch
+            </h3>
+
+            <form onSubmit={handleCreateBranchSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Branch Name *</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Koramangala Branch"
+                    value={branchName}
+                    onChange={(e) => setBranchName(e.target.value)}
+                    required
+                    className="bg-white border-slate-300 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Branch Code *</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. BR-KRM-03"
+                    value={branchCode}
+                    onChange={(e) => setBranchCode(e.target.value)}
+                    required
+                    className="bg-white border-slate-300 text-slate-900 font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">City</label>
+                  <Input
+                    type="text"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    className="bg-white border-slate-300 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Phone</label>
+                  <Input
+                    type="text"
+                    placeholder="+91 98765 43210"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="bg-white border-slate-300 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Branch Address</label>
+                <Input
+                  type="text"
+                  placeholder="e.g. 100ft Road, Koramangala, Bengaluru"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assign Manager Name</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. Suresh Kumar"
+                    value={managerName}
+                    onChange={(e) => setManagerName(e.target.value)}
+                    className="bg-white border-slate-300 text-slate-900"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Email</label>
+                  <Input
+                    type="email"
+                    placeholder="e.g. suresh.krm@aadya.in"
+                    value={managerEmail}
+                    onChange={(e) => setManagerEmail(e.target.value)}
+                    className="bg-white border-slate-300 text-slate-900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowCreateModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                >
+                  Create Branch
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Dialog: Assign Center Manager */}
+      {assignModalBranch && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
+            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-[#1769AA]" />
+              Assign Center Manager
+            </h3>
+
+            <p className="text-xs text-slate-500">
+              Assign or update the primary center manager responsible for operational data for <strong>{assignModalBranch.name}</strong>.
+            </p>
+
+            <form onSubmit={handleAssignManagerSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Full Name *</label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Rajesh Kumar"
+                  value={newManagerName}
+                  onChange={(e) => setNewManagerName(e.target.value)}
+                  required
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Email Address *</label>
+                <Input
+                  type="email"
+                  placeholder="e.g. rajesh.rmn@aadya.in"
+                  value={newManagerEmail}
+                  onChange={(e) => setNewManagerEmail(e.target.value)}
+                  required
+                  className="bg-white border-slate-300 text-slate-900"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAssignModalBranch(null)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                >
+                  Confirm Manager Assignment
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

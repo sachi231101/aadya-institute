@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 
 // Map backend role names to display labels
 const ROLE_DISPLAY: Record<string, string> = {
-  ADMIN: "Super Admin",
+  ADMIN: "Admin",
   CENTER_MANAGER: "Center Manager",
   COUNSELLOR: "Counsellor",
   FACULTY: "Faculty",
