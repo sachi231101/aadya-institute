@@ -161,3 +161,15 @@ export const updateUserStatus = async (
   });
   return mapUserToResponse(user);
 };
+
+export const deleteUser = async (id: string, instituteId: string) => {
+  // Soft-delete: set status to BLOCKED and remove role assignments
+  await prisma.$transaction([
+    prisma.userRole.deleteMany({ where: { userId: id } }),
+    prisma.refreshToken.deleteMany({ where: { userId: id } }),
+    prisma.user.update({
+      where: { id },
+      data: { status: "BLOCKED" },
+    }),
+  ]);
+};

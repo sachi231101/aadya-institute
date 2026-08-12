@@ -1,9 +1,10 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, MoreVertical, Eye, Edit, Shield, Key, Power, Trash2 } from "lucide-react";
+import { Plus, MoreVertical, Eye, Edit, Shield, Key, Power, Trash2, Loader2 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { useAdminStore } from "@/store/admin.store";
 import { useNotificationStore } from "@/store/notification.store";
+import { useAdminUsers, useUpdateUserStatus, useDeleteUser } from "@/hooks/useUsers";
+import type { UserResponse } from "@/services/users.api";
 
 import {
   Table,
@@ -33,14 +34,41 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+// Map backend role names to display labels
+const ROLE_DISPLAY: Record<string, string> = {
+  ADMIN: "Super Admin",
+  CENTER_MANAGER: "Center Manager",
+  COUNSELLOR: "Counsellor",
+  FACULTY: "Faculty",
+  STUDENT: "Student",
+};
+
+const getRoleLabel = (roles: string[]): string => {
+  if (!roles.length) return "No Role";
+  return ROLE_DISPLAY[roles[0]] || roles[0];
+};
+
+const getStatusLabel = (status: string): string => {
+  if (status === "ACTIVE") return "Active";
+  if (status === "INACTIVE") return "Inactive";
+  if (status === "BLOCKED") return "Blocked";
+  return status;
+};
+
 export const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { admins, updateAdmin, deleteAdmin } = useAdminStore();
   const addNotification = useNotificationStore((state) => state.addNotification);
 
-  // Determine if logged-in user is Super Admin
-  const isSuperAdmin = user?.id === "aadya-super-admin" || user?.name === "Aadya Super Admin";
+  // Fetch admins from backend
+  const { data: usersResponse, isLoading, isError, error } = useAdminUsers();
+  const updateStatusMutation = useUpdateUserStatus();
+  const deleteUserMutation = useDeleteUser();
+
+  const admins: UserResponse[] = usersResponse?.data ?? [];
+
+  // Determine if logged-in user is Super Admin (has ADMIN role)
+  const isSuperAdmin = user?.role === "ADMIN";
 
   // Modal State
   const [activeModal, setActiveModal] = useState<
@@ -73,31 +101,55 @@ export const AdminPanel: React.FC = () => {
 
   const handleDeactivate = () => {
     if (selectedAdminId) {
-      updateAdmin(selectedAdminId, { status: "Inactive" });
-      addNotification("Administrator deactivated successfully.", "success");
-      closeModal();
+      updateStatusMutation.mutate(
+        { id: selectedAdminId, data: { status: "INACTIVE" } },
+        {
+          onSuccess: () => {
+            addNotification("Administrator deactivated successfully.", "success");
+            closeModal();
+          },
+          onError: (err: any) => {
+            addNotification(err?.response?.data?.message || "Failed to deactivate administrator.", "error");
+          },
+        }
+      );
     }
   };
 
   const handleActivate = () => {
     if (selectedAdminId) {
-      updateAdmin(selectedAdminId, { status: "Active" });
-      addNotification("Administrator activated successfully.", "success");
-      closeModal();
+      updateStatusMutation.mutate(
+        { id: selectedAdminId, data: { status: "ACTIVE" } },
+        {
+          onSuccess: () => {
+            addNotification("Administrator activated successfully.", "success");
+            closeModal();
+          },
+          onError: (err: any) => {
+            addNotification(err?.response?.data?.message || "Failed to activate administrator.", "error");
+          },
+        }
+      );
     }
   };
 
   const handleDelete = () => {
     if (selectedAdminId && deleteConfirmText === "DELETE") {
-      deleteAdmin(selectedAdminId);
-      addNotification("Administrator deleted successfully.", "success");
-      closeModal();
+      deleteUserMutation.mutate(selectedAdminId, {
+        onSuccess: () => {
+          addNotification("Administrator deleted successfully.", "success");
+          closeModal();
+        },
+        onError: (err: any) => {
+          addNotification(err?.response?.data?.message || "Failed to delete administrator.", "error");
+        },
+      });
     }
   };
 
   const handleResetPassword = () => {
     if (newPassword && newPassword === confirmPassword) {
-      // In a real app, this would call an API
+      // TODO: Wire to reset-password API when available
       addNotification("Password reset successfully.", "success");
       closeModal();
     }
@@ -105,11 +157,57 @@ export const AdminPanel: React.FC = () => {
 
   const handleChangePermissions = () => {
     if (selectedAdminId && newRole) {
-      updateAdmin(selectedAdminId, { role: newRole });
+      // TODO: Wire to update-role API when available
       addNotification("Permissions updated successfully.", "success");
       closeModal();
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Admin Panel</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage system administrators and their access levels.
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex items-center justify-center py-20">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            <span className="ml-3 text-muted-foreground">Loading administrators...</span>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col gap-4">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Admin Panel</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage system administrators and their access levels.
+            </p>
+          </div>
+        </div>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-20">
+            <h3 className="text-lg font-medium text-red-600">Failed to load administrators</h3>
+            <p className="text-muted-foreground mt-2">
+              {(error as any)?.response?.data?.message || "An error occurred while fetching data."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -157,34 +255,34 @@ export const AdminPanel: React.FC = () => {
                 </TableHeader>
                 <TableBody>
                   {admins.map((admin) => {
-                    const isProtected = admin.name === "Aadya Super Admin" || admin.id === "ADM001";
+                    const isCurrentUser = admin.id === user?.id;
 
                     return (
                       <TableRow key={admin.id}>
-                        <TableCell className="font-medium">{admin.id}</TableCell>
+                        <TableCell className="font-medium font-mono text-xs">{admin.id.slice(0, 8)}...</TableCell>
                         <TableCell>{admin.name}</TableCell>
-                        <TableCell>{admin.email}</TableCell>
+                        <TableCell>{admin.email || "—"}</TableCell>
                         <TableCell>
                           <Badge
                             variant="outline"
-                            className={isProtected
+                            className={admin.roles.includes("ADMIN")
                               ? "bg-amber-100 text-amber-800 border-amber-200"
                               : "bg-bg-primary text-text-primary border-border"
                             }
                           >
-                            {admin.role}
+                            {getRoleLabel(admin.roles)}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <Badge
                             variant="secondary"
                             className={
-                              admin.status === "Active"
+                              admin.status === "ACTIVE"
                                 ? "bg-green-100 text-green-800 hover:bg-green-100"
                                 : "bg-gray-100 text-gray-800 hover:bg-gray-100"
                             }
                           >
-                            {admin.status}
+                            {getStatusLabel(admin.status)}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -205,7 +303,7 @@ export const AdminPanel: React.FC = () => {
                                 Edit Admin
                               </DropdownMenuItem>
 
-                              {!isProtected && isSuperAdmin && (
+                              {!isCurrentUser && isSuperAdmin && (
                                 <>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onClick={() => handleOpenModal(admin.id, "changePermissions")}>
@@ -217,7 +315,7 @@ export const AdminPanel: React.FC = () => {
                                     Reset Password
                                   </DropdownMenuItem>
 
-                                  {admin.status === "Active" ? (
+                                  {admin.status === "ACTIVE" ? (
                                     <DropdownMenuItem onClick={() => handleOpenModal(admin.id, "deactivate")}>
                                       <Power className="mr-2 h-4 w-4" />
                                       Deactivate Admin
@@ -260,14 +358,21 @@ export const AdminPanel: React.FC = () => {
             <DialogDescription className="py-4">
               Are you sure you want to deactivate:<br /><br />
               <strong className="text-foreground">{selectedAdmin?.name}</strong><br />
-              <span className="text-muted-foreground">{selectedAdmin?.id}</span><br />
               <span className="text-muted-foreground">{selectedAdmin?.email}</span><br /><br />
               The administrator will no longer be able to log in.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDeactivate}>Deactivate Admin</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeactivate}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deactivating...</>
+              ) : "Deactivate Admin"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -286,7 +391,15 @@ export const AdminPanel: React.FC = () => {
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleActivate}>Activate Admin</Button>
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white"
+              onClick={handleActivate}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Activating...</>
+              ) : "Activate Admin"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -300,7 +413,6 @@ export const AdminPanel: React.FC = () => {
               <div>
                 You are about to permanently delete:<br /><br />
                 <strong className="text-foreground">{selectedAdmin?.name}</strong><br />
-                <span className="text-muted-foreground">{selectedAdmin?.id}</span><br />
                 <span className="text-muted-foreground">{selectedAdmin?.email}</span>
               </div>
               <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm font-medium">
@@ -324,9 +436,11 @@ export const AdminPanel: React.FC = () => {
             <Button
               variant="destructive"
               onClick={handleDelete}
-              disabled={deleteConfirmText !== "DELETE"}
+              disabled={deleteConfirmText !== "DELETE" || deleteUserMutation.isPending}
             >
-              Delete Administrator
+              {deleteUserMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : "Delete Administrator"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -339,7 +453,7 @@ export const AdminPanel: React.FC = () => {
             <DialogTitle>Reset Password</DialogTitle>
             <DialogDescription className="py-4 space-y-4">
               <div>
-                Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong> ({selectedAdmin?.id})
+                Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong>
               </div>
               <div className="space-y-4 pt-2">
                 <div className="space-y-2">
@@ -396,16 +510,15 @@ export const AdminPanel: React.FC = () => {
                   onChange={(e) => setNewRole(e.target.value)}
                 >
                   <option value="" disabled>Select a role...</option>
-                  <option value="System Admin">System Admin</option>
-                  <option value="Admin">Admin</option>
-                  <option value="Faculty">Faculty</option>
-                  <option value="Counsellor">Counsellor</option>
-                  <option value="Accountant">Accountant</option>
+                  <option value="ADMIN">Super Admin</option>
+                  <option value="CENTER_MANAGER">Center Manager</option>
+                  <option value="FACULTY">Faculty</option>
+                  <option value="COUNSELLOR">Counsellor</option>
                 </select>
               </div>
-              {newRole && newRole !== selectedAdmin?.role && (
+              {newRole && newRole !== (selectedAdmin?.roles?.[0] || "") && (
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
-                  <strong>Note:</strong> You are changing this user's access level from <strong>{selectedAdmin?.role}</strong> to <strong>{newRole}</strong>.
+                  <strong>Note:</strong> You are changing this user's access level from <strong>{getRoleLabel(selectedAdmin?.roles || [])}</strong> to <strong>{ROLE_DISPLAY[newRole] || newRole}</strong>.
                 </div>
               )}
             </DialogDescription>

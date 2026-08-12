@@ -1,13 +1,13 @@
-import type { UserRole } from "../constants/roles";
-
 export interface User {
   id: string;
   name: string;
-  email?: string;
-  phone?: string;
-  role: UserRole;
+  email?: string | null;
+  phone?: string | null;
+  role: string; // Primary role for routing/sidebar (derived from roles[0])
+  roles: string[]; // All assigned roles from backend
   instituteId: string;
-  branchId?: string;
+  branchId?: string | null;
+  permissions?: string[];
 }
 
 export interface AuthState {
@@ -18,6 +18,7 @@ export interface AuthState {
 }
 
 export interface LoginResponse {
-  token: string;
   user: User;
+  accessToken: string;
+  refreshToken: string;
 }

@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useAdminStore, type Admin } from "@/store/admin.store";
 import { useNotificationStore } from "@/store/notification.store";
-import { ArrowLeft } from "lucide-react";
+import { useCreateUser } from "@/hooks/useUsers";
+import { useBranches } from "@/hooks/useBranches";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,11 +22,15 @@ import {
 const addAdminSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
-  phone: z.string().optional(),
-  branch: z.string().optional(),
-  role: z.string().min(2, "Role is required."),
-  password: z.string().min(6, "Password must be at least 6 characters."),
-  confirmPassword: z.string().min(6, "Password confirmation is required."),
+  phone: z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional().or(z.literal("")),
+  branchId: z.string().optional().or(z.literal("")),
+  role: z.string().min(1, "Role is required."),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters.")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
+    .regex(/[0-9]/, "Password must contain at least one number."),
+  confirmPassword: z.string().min(1, "Password confirmation is required."),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords do not match",
   path: ["confirmPassword"],
@@ -35,9 +40,11 @@ type AddAdminFormValues = z.infer<typeof addAdminSchema>;
 
 export const AddAdmin: React.FC = () => {
   const navigate = useNavigate();
-  const addAdmin = useAdminStore((state) => state.addAdmin);
-  const admins = useAdminStore((state) => state.admins);
   const addNotification = useNotificationStore((state) => state.addNotification);
+  const createUserMutation = useCreateUser();
+  const { data: branchesResponse } = useBranches();
+
+  const branches = branchesResponse?.data ?? [];
 
   const form = useForm<AddAdminFormValues>({
     resolver: zodResolver(addAdminSchema),
@@ -45,33 +52,34 @@ export const AddAdmin: React.FC = () => {
       name: "",
       email: "",
       phone: "",
-      branch: "",
-      role: "Admin",
+      branchId: "",
+      role: "ADMIN",
       password: "",
       confirmPassword: "",
     },
   });
 
   const onSubmit = (data: AddAdminFormValues) => {
-    // Generate a new ID based on existing admins count
-    const nextIdNumber = admins.length > 0 
-      ? Math.max(...admins.map(a => parseInt(a.id.replace('ADM', '')))) + 1 
-      : 1;
-    const newId = `ADM${String(nextIdNumber).padStart(3, '0')}`;
-    
-    const newAdmin: Admin = {
-      id: newId,
-      name: data.name,
-      email: data.email,
-      phone: data.phone,
-      branch: data.branch,
-      role: data.role,
-      status: "Active",
-    };
-
-    addAdmin(newAdmin);
-    addNotification("Administrator created successfully.", "success");
-    navigate("/administration");
+    createUserMutation.mutate(
+      {
+        name: data.name,
+        email: data.email,
+        phone: data.phone || undefined,
+        password: data.password,
+        roles: [data.role],
+        branchId: data.branchId || undefined,
+      },
+      {
+        onSuccess: () => {
+          addNotification("Administrator created successfully.", "success");
+          navigate("/administration");
+        },
+        onError: (err: any) => {
+          const message = err?.response?.data?.message || "Failed to create administrator.";
+          addNotification(message, "error");
+        },
+      }
+    );
   };
 
   return (
@@ -132,7 +140,7 @@ export const AddAdmin: React.FC = () => {
                     <FormItem>
                       <FormLabel>Phone Number</FormLabel>
                       <FormControl>
-                        <Input placeholder="+91 9876543210" {...field} />
+                        <Input placeholder="9876543210" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -140,12 +148,22 @@ export const AddAdmin: React.FC = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="branch"
+                  name="branchId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Assigned Branch</FormLabel>
                       <FormControl>
-                        <Input placeholder="Main Branch" {...field} />
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          {...field}
+                        >
+                          <option value="">No branch (Institute-wide)</option>
+                          {branches.map((branch) => (
+                            <option key={branch.id} value={branch.id}>
+                              {branch.name} ({branch.code})
+                            </option>
+                          ))}
+                        </select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -165,11 +183,10 @@ export const AddAdmin: React.FC = () => {
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           {...field}
                         >
-                          <option value="System Admin">System Admin</option>
-                          <option value="Admin">Admin</option>
-                          <option value="Faculty">Faculty</option>
-                          <option value="Counsellor">Counsellor</option>
-                          <option value="Accountant">Accountant</option>
+                          <option value="ADMIN">Super Admin</option>
+                          <option value="CENTER_MANAGER">Center Manager</option>
+                          <option value="FACULTY">Faculty</option>
+                          <option value="COUNSELLOR">Counsellor</option>
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -211,8 +228,14 @@ export const AddAdmin: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => navigate("/administration")}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors">
-                  Create Administrator
+                <Button
+                  type="submit"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
+                  disabled={createUserMutation.isPending}
+                >
+                  {createUserMutation.isPending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
+                  ) : "Create Administrator"}
                 </Button>
               </div>
             </form>

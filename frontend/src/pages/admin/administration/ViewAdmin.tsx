@@ -1,20 +1,54 @@
 import React from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
-import { useAdminStore } from "@/store/admin.store";
-import { ArrowLeft, User, Shield, Activity, Mail, Phone, MapPin, Calendar, Clock } from "lucide-react";
+import { useUser } from "@/hooks/useUsers";
+import { ArrowLeft, User, Shield, Activity, Mail, Phone, MapPin, Calendar, Clock, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
+// Map backend role names to display labels
+const ROLE_DISPLAY: Record<string, string> = {
+  ADMIN: "Super Admin",
+  CENTER_MANAGER: "Center Manager",
+  COUNSELLOR: "Counsellor",
+  FACULTY: "Faculty",
+  STUDENT: "Student",
+};
+
+const formatDate = (dateStr: string | undefined): string => {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("en-IN", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "—";
+  }
+};
+
 export const ViewAdmin: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const getAdminById = useAdminStore((state) => state.getAdminById);
-  const admin = getAdminById(id || "");
+  const { data: userResponse, isLoading, isError } = useUser(id);
+
+  const admin = userResponse?.data;
 
   const [activeTab, setActiveTab] = React.useState<"overview" | "permissions" | "activity">("overview");
 
-  if (!admin) {
+  if (isLoading) {
+    return (
+      <div className="p-6 max-w-7xl mx-auto">
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          <span className="ml-3 text-muted-foreground">Loading administrator...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError || !admin) {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <Button variant="ghost" onClick={() => navigate("/administration")} className="mb-4">
@@ -28,6 +62,8 @@ export const ViewAdmin: React.FC = () => {
     );
   }
 
+  const statusLabel = admin.status === "ACTIVE" ? "Active" : admin.status === "INACTIVE" ? "Inactive" : "Blocked";
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex items-center gap-4">
@@ -39,7 +75,7 @@ export const ViewAdmin: React.FC = () => {
           <p className="text-muted-foreground mt-1">Viewing details for {admin.name}</p>
         </div>
         <div className="ml-auto">
-          <Link to={`/admin/administration/admins/${admin.id}/edit`}>
+          <Link to={`/administration/admins/${admin.id}/edit`}>
             <Button className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
               Edit Administrator
             </Button>
@@ -55,19 +91,19 @@ export const ViewAdmin: React.FC = () => {
               <User size={40} />
             </div>
             <h2 className="text-xl font-bold text-text-primary">{admin.name}</h2>
-            <p className="text-muted-foreground mb-4">{admin.id}</p>
+            <p className="text-muted-foreground text-xs mb-4 font-mono">{admin.id.slice(0, 12)}...</p>
             <Badge variant="outline" className="mb-2 bg-bg-primary text-text-primary border-border">
-              {admin.role}
+              {admin.roles.map(r => ROLE_DISPLAY[r] || r).join(", ") || "No Role"}
             </Badge>
             <Badge
               variant="secondary"
               className={
-                admin.status === "Active"
+                admin.status === "ACTIVE"
                   ? "bg-green-100 text-green-800"
                   : "bg-gray-100 text-gray-800"
               }
             >
-              {admin.status}
+              {statusLabel}
             </Badge>
           </CardContent>
         </Card>
@@ -118,7 +154,7 @@ export const ViewAdmin: React.FC = () => {
                       <Mail size={16} className="text-muted-foreground mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-text-primary">Email</p>
-                        <p className="text-sm text-muted-foreground">{admin.email}</p>
+                        <p className="text-sm text-muted-foreground">{admin.email || "Not provided"}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
@@ -132,7 +168,7 @@ export const ViewAdmin: React.FC = () => {
                       <MapPin size={16} className="text-muted-foreground mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-text-primary">Branch</p>
-                        <p className="text-sm text-muted-foreground">{admin.branch || "Not assigned"}</p>
+                        <p className="text-sm text-muted-foreground">{admin.branchId || "Institute-wide"}</p>
                       </div>
                     </div>
                   </div>
@@ -147,14 +183,14 @@ export const ViewAdmin: React.FC = () => {
                       <Calendar size={16} className="text-muted-foreground mt-0.5" />
                       <div>
                         <p className="text-sm font-medium text-text-primary">Created Date</p>
-                        <p className="text-sm text-muted-foreground">Aug 10, 2026</p> {/* Mock date */}
+                        <p className="text-sm text-muted-foreground">{formatDate(admin.createdAt)}</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-3">
                       <Activity size={16} className="text-muted-foreground mt-0.5" />
                       <div>
-                        <p className="text-sm font-medium text-text-primary">Last Login</p>
-                        <p className="text-sm text-muted-foreground">{admin.lastLogin || "Never"}</p>
+                        <p className="text-sm font-medium text-text-primary">Last Updated</p>
+                        <p className="text-sm text-muted-foreground">{formatDate(admin.updatedAt)}</p>
                       </div>
                     </div>
                   </div>
@@ -167,10 +203,9 @@ export const ViewAdmin: React.FC = () => {
                     <Shield size={18} className="text-[#1769AA]" /> Access Level
                   </h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    This administrator has the <strong>{admin.role}</strong> role.
+                    This administrator has the <strong>{admin.roles.map(r => ROLE_DISPLAY[r] || r).join(", ")}</strong> role.
                   </p>
 
-                  {/* Mock permissions list based on role */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div className="flex items-center gap-2 p-2 rounded bg-bg-secondary text-sm">
                       <div className="w-2 h-2 rounded-full bg-green-500"></div> User Management
@@ -181,7 +216,7 @@ export const ViewAdmin: React.FC = () => {
                     <div className="flex items-center gap-2 p-2 rounded bg-bg-secondary text-sm">
                       <div className="w-2 h-2 rounded-full bg-green-500"></div> System Configuration
                     </div>
-                    {admin.role === "Super Admin" && (
+                    {admin.roles.includes("ADMIN") && (
                       <div className="flex items-center gap-2 p-2 rounded bg-bg-secondary text-sm">
                         <div className="w-2 h-2 rounded-full bg-green-500"></div> Delete Administrators
                       </div>
