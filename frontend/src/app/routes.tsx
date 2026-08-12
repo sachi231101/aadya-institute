@@ -43,6 +43,12 @@ import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 
+// Counsellor
+import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
+import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
+import { AssignStudents } from "../pages/admin/counselor/AssignStudents";
+import { AssignFaculty } from "../pages/admin/counselor/AssignFaculty";
+
 // Schedule
 import { Classes } from "../pages/admin/schedule/Classes";
 import { Timetable } from "../pages/admin/schedule/Timetable";
@@ -117,6 +123,14 @@ export const AppRoutes: React.FC = () => {
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="applications" element={<Applications />} />
           <Route path="all" element={<AllAdmissions />} />
+        </Route>
+
+        {/* Counsellor */}
+        <Route path="counselor">
+          <Route path="overview" element={<CounsellorOverview />} />
+          <Route path="batches" element={<CounsellorBatches />} />
+          <Route path="assign-students" element={<AssignStudents />} />
+          <Route path="assign-faculty" element={<AssignFaculty />} />
         </Route>
 
         {/* Schedule */}

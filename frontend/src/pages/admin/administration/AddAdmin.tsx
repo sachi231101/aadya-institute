@@ -89,15 +89,15 @@ export const AddAdmin: React.FC = () => {
           <ArrowLeft size={20} />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Add Administrator</h1>
-          <p className="text-muted-foreground mt-1">Create a new administrator account</p>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Add Center Manager</h1>
+          <p className="text-muted-foreground mt-1">Create a new center manager account</p>
         </div>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Profile Details</CardTitle>
-          <CardDescription>Enter the details for the new administrator.</CardDescription>
+          <CardDescription>Enter the details for the new center manager.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -235,7 +235,7 @@ export const AddAdmin: React.FC = () => {
                 >
                   {createUserMutation.isPending ? (
                     <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
-                  ) : "Create Administrator"}
+                  ) : "Create Center Manager"}
                 </Button>
               </div>
             </form>
