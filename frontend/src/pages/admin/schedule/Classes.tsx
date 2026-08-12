@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useScheduleStore } from "../../../store/schedule.store";
 import { useCourseStore } from "../../../store/course.store";
-import { useFacultyStore } from "../../../store/faculty.store";
+import { useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,8 @@ import type { ClassMode, ClassStatus } from "../../../types/schedule.types";
 export const Classes: React.FC = () => {
   const { classes, addClassSession, deleteClassSession, cancelClassSession, toggleAttendanceMarked } = useScheduleStore();
   const { courses, batches } = useCourseStore();
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [modeFilter, setModeFilter] = useState("ALL");
@@ -93,7 +94,7 @@ export const Classes: React.FC = () => {
       courseId: selectedCourse?.id || "c-1",
       courseName: selectedCourse?.name || "General Course",
       facultyId,
-      facultyName: selectedFaculty?.name || "Unassigned",
+      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
       date,
       startTime,
       endTime,
@@ -414,7 +415,7 @@ export const Classes: React.FC = () => {
                 >
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({f.facultyCode})
+                      {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
                     </option>
                   ))}
                 </select>

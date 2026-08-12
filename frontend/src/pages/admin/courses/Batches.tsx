@@ -11,7 +11,7 @@ import {
   UserCheck
 } from "lucide-react";
 import { useCourseStore } from "../../../store/course.store";
-import { useFacultyStore } from "../../../store/faculty.store";
+import { useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,8 @@ import {
 
 export const Batches: React.FC = () => {
   const { batches, courses, addBatch, deleteBatch } = useCourseStore();
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
@@ -84,7 +85,7 @@ export const Batches: React.FC = () => {
       courseId,
       courseName: selectedCourse?.name || "General Course",
       facultyId,
-      facultyName: selectedFaculty?.name || "Unassigned",
+      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
       startDate,
       schedulePattern,
       timeSlot,
@@ -398,7 +399,7 @@ export const Batches: React.FC = () => {
                 >
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({f.facultyCode})
+                      {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
                     </option>
                   ))}
                 </select>

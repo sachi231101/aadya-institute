@@ -44,6 +44,7 @@ import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 
 // Counsellor
+import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
 import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
 import { AssignStudents } from "../pages/admin/counselor/AssignStudents";
@@ -128,6 +129,7 @@ export const AppRoutes: React.FC = () => {
         {/* Counsellor */}
         <Route path="counselor">
           <Route path="overview" element={<CounsellorOverview />} />
+          <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
           <Route path="assign-students" element={<AssignStudents />} />
           <Route path="assign-faculty" element={<AssignFaculty />} />
@@ -162,11 +164,108 @@ export const AppRoutes: React.FC = () => {
       {/* Center Manager Routes */}
       <Route path="/center" element={<CenterLayout />}>
         <Route path="dashboard" element={<CenterDashboard />} />
+
+        {/* Students */}
+        <Route path="students">
+          <Route path="all" element={<AllStudents />} />
+          <Route path="add" element={<AddStudent />} />
+          <Route path=":id" element={<StudentDetails />} />
+          <Route path=":id/edit" element={<EditStudent />} />
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="performance" element={<StudentPerformance />} />
+        </Route>
+
+        {/* Counsellor */}
+        <Route path="counselor">
+          <Route path="overview" element={<CounsellorOverview />} />
+          <Route path="all" element={<AllCounsellors />} />
+          <Route path="batches" element={<CounsellorBatches />} />
+          <Route path="assign-students" element={<AssignStudents />} />
+          <Route path="assign-faculty" element={<AssignFaculty />} />
+        </Route>
+
+        {/* Faculty */}
+        <Route path="faculty">
+          <Route path="all" element={<AllFaculty />} />
+          <Route path="add" element={<AddFaculty />} />
+          <Route path=":id" element={<FacultyDetails />} />
+          <Route path="courses" element={<FacultyCourses />} />
+          <Route path="attendance" element={<FacultyAttendance />} />
+        </Route>
+
+        {/* Fees */}
+        <Route path="fees">
+          <Route path="payments" element={<Payments />} />
+          <Route path="pending" element={<PendingFees />} />
+          <Route path="reports" element={<FeeReports />} />
+        </Route>
+
+        {/* Admissions */}
+        <Route path="admissions">
+          <Route path="enquiries" element={<Enquiries />} />
+          <Route path="applications" element={<Applications />} />
+          <Route path="all" element={<AllAdmissions />} />
+        </Route>
+
+        {/* Courses */}
+        <Route path="courses">
+          <Route path="all" element={<AllCourses />} />
+          <Route path="add" element={<AddCourse />} />
+          <Route path="batches" element={<Batches />} />
+          <Route path="curriculum" element={<Curriculum />} />
+        </Route>
+
+        {/* Settings */}
+        <Route path="settings" element={<Settings />} />
       </Route>
 
       {/* Counselor Routes */}
       <Route path="/counselor" element={<CounselorLayout />}>
         <Route path="dashboard" element={<CounselorDashboard />} />
+
+        {/* Admissions / Leads */}
+        <Route path="admissions">
+          <Route path="enquiries" element={<Enquiries />} />
+          <Route path="applications" element={<Applications />} />
+          <Route path="all" element={<AllAdmissions />} />
+        </Route>
+
+        {/* Students */}
+        <Route path="students">
+          <Route path="all" element={<AllStudents />} />
+          <Route path="add" element={<AddStudent />} />
+          <Route path=":id" element={<StudentDetails />} />
+          <Route path=":id/edit" element={<EditStudent />} />
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="performance" element={<StudentPerformance />} />
+        </Route>
+
+        {/* Faculty */}
+        <Route path="faculty">
+          <Route path="all" element={<AllFaculty />} />
+          <Route path="add" element={<AddFaculty />} />
+          <Route path=":id" element={<FacultyDetails />} />
+          <Route path="courses" element={<FacultyCourses />} />
+          <Route path="attendance" element={<FacultyAttendance />} />
+        </Route>
+
+        {/* Fees */}
+        <Route path="fees">
+          <Route path="payments" element={<Payments />} />
+          <Route path="pending" element={<PendingFees />} />
+          <Route path="reports" element={<FeeReports />} />
+        </Route>
+
+        {/* Reports */}
+        <Route path="reports">
+          <Route path="students" element={<StudentReports />} />
+          <Route path="faculty" element={<FacultyReports />} />
+          <Route path="courses" element={<CourseReports />} />
+          <Route path="financial" element={<FinancialReports />} />
+        </Route>
+
+        {/* Settings */}
+        <Route path="settings" element={<Settings />} />
       </Route>
 
       {/* Faculty Routes */}
