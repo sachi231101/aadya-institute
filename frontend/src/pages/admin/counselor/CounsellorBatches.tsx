@@ -1,14 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, 
   Search, 
   Users, 
   GraduationCap,
-  UserCheck
+  UserCheck,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { useCourseStore } from "../../../store/course.store";
-import { useFacultyList } from "../../../hooks/useFaculty";
+import { batchesApi, type CreateBatchPayload } from "../../../services/batches.api";
+import { coursesApi } from "../../../services/courses.api";
+import { facultyApi } from "../../../services/faculty.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -32,9 +36,7 @@ import {
 
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
-  const { batches, courses, addBatch } = useCourseStore();
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const facultyList = facultyResponse?.data ?? [];
+  const queryClient = useQueryClient();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
@@ -44,19 +46,58 @@ export const CounsellorBatches: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [courseId, setCourseId] = useState(courses[0]?.id || "");
-  const [facultyId, setFacultyId] = useState(facultyList[0]?.id || "");
+  const [courseId, setCourseId] = useState("");
+  const [facultyId, setFacultyId] = useState("");
   const [startDate, setStartDate] = useState("2026-04-01");
   const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
   const [timeSlot, setTimeSlot] = useState("10:00 AM - 12:00 PM");
   const [capacity, setCapacity] = useState<number>(35);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Queries for live server state
+  const { data: batchesRes, isLoading: loadingBatches, isError: errorBatches } = useQuery({
+    queryKey: ["batches"],
+    queryFn: () => batchesApi.getAll(),
+  });
+
+  const { data: coursesRes } = useQuery({
+    queryKey: ["courses"],
+    queryFn: () => coursesApi.getAll(),
+  });
+
+  const { data: facultyRes } = useQuery({
+    queryKey: ["faculty"],
+    queryFn: () => facultyApi.getAll({ limit: 100 }),
+  });
+
+  const batches = batchesRes?.data || [];
+  const courses = coursesRes?.data || [];
+  const facultyList = facultyRes?.data || [];
+
+  // Mutation for creating a batch
+  const createBatchMutation = useMutation({
+    mutationFn: (payload: CreateBatchPayload) => batchesApi.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["batches"] });
+      setName("");
+      setCode("");
+      setErrorMsg("");
+      setShowModal(false);
+    },
+    onError: (err: any) => {
+      setErrorMsg(err.response?.data?.message || "Failed to create batch.");
+    },
+  });
 
   const filteredBatches = batches.filter((b) => {
+    const facultyName = b.faculty?.user?.name || "";
+    const courseName = b.course?.name || "";
+
     const matchesSearch =
       b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.facultyName && b.facultyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      b.courseName.toLowerCase().includes(searchTerm.toLowerCase());
+      facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      courseName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCourse = courseFilter === "ALL" || b.courseId === courseFilter;
     const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
@@ -66,28 +107,32 @@ export const CounsellorBatches: React.FC = () => {
 
   const handleCreateSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !code || !courseId) return;
+    if (!name || !code || !courseId) {
+      setErrorMsg("Batch name, code, and course selection are required.");
+      return;
+    }
 
-    const selectedCourse = courses.find((c) => c.id === courseId);
-    const selectedFaculty = facultyList.find((f) => f.id === facultyId);
-
-    addBatch({
+    createBatchMutation.mutate({
       name,
       code,
       courseId,
-      courseName: selectedCourse?.name || "General Course",
-      facultyId,
-      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
+      facultyId: facultyId || undefined,
       startDate,
+      capacity,
       schedulePattern,
       timeSlot,
-      capacity,
-      status: "UPCOMING",
     });
+  };
 
-    setName("");
-    setCode("");
-    setShowModal(false);
+  const handleOpenModal = () => {
+    if (courses.length > 0 && !courseId) {
+      setCourseId(courses[0].id);
+    }
+    if (facultyList.length > 0 && !facultyId) {
+      setFacultyId(facultyList[0].id);
+    }
+    setErrorMsg("");
+    setShowModal(true);
   };
 
   return (
@@ -106,7 +151,7 @@ export const CounsellorBatches: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <Button 
-            onClick={() => setShowModal(true)} 
+            onClick={handleOpenModal} 
             className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors"
           >
             <Plus size={16} /> Create New Batch
@@ -150,6 +195,7 @@ export const CounsellorBatches: React.FC = () => {
               <option value="ACTIVE">Active</option>
               <option value="UPCOMING">Upcoming</option>
               <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
             </select>
           </div>
         </CardContent>
@@ -164,72 +210,85 @@ export const CounsellorBatches: React.FC = () => {
                 <TableHead>Batch Name & Code</TableHead>
                 <TableHead>Course</TableHead>
                 <TableHead>Assigned Faculty</TableHead>
-                <TableHead>Schedule & Slot</TableHead>
-                <TableHead>Enrollment / Capacity</TableHead>
+                <TableHead>Start Date</TableHead>
+                <TableHead>Enrollment Count</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredBatches.length === 0 ? (
+              {loadingBatches ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
+                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#1769AA] mb-2" />
+                    Fetching batches from server...
+                  </TableCell>
+                </TableRow>
+              ) : errorBatches ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-12 text-red-600">
+                    <AlertCircle className="h-6 w-6 mx-auto mb-2" />
+                    Failed to fetch batches from server.
+                  </TableCell>
+                </TableRow>
+              ) : filteredBatches.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
                     No batches found matching criteria.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredBatches.map((batch) => (
-                  <TableRow key={batch.id}>
-                    <TableCell>
-                      <div className="font-semibold text-text-primary">{batch.name}</div>
-                      <div className="text-xs font-mono text-muted-foreground">{batch.code}</div>
-                    </TableCell>
-                    <TableCell className="text-sm font-medium">{batch.courseName}</TableCell>
-                    <TableCell className="text-sm">
-                      <span className="font-medium text-text-primary">
-                        {batch.facultyName || "Unassigned"}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <div className="font-medium">{batch.schedulePattern}</div>
-                      <div className="text-muted-foreground">{batch.timeSlot}</div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-xs font-semibold">
-                        {batch.enrolledCount} / {batch.capacity} Students
-                      </div>
-                      <div className="w-full bg-border/40 h-1.5 rounded-full overflow-hidden mt-1">
-                        <div 
-                          className="bg-[#1769AA] h-full rounded-full" 
-                          style={{ width: `${Math.min(100, Math.round((batch.enrolledCount / batch.capacity) * 100))}%` }}
-                        />
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={batch.status === "ACTIVE" ? "default" : "outline"}>
-                        {batch.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right space-x-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => navigate("/admin/counselor/assign-students")}
-                        className="text-xs gap-1"
-                      >
-                        <GraduationCap className="h-3.5 w-3.5" /> Assign Students
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => navigate("/admin/counselor/assign-faculty")}
-                        className="text-xs gap-1"
-                      >
-                        <Users className="h-3.5 w-3.5" /> Assign Faculty
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                filteredBatches.map((batch) => {
+                  const enrolledCount = batch._count?.enrollments ?? 0;
+                  const facultyName = batch.faculty?.user?.name || "Unassigned";
+                  const courseName = batch.course?.name || "General Course";
+
+                  return (
+                    <TableRow key={batch.id}>
+                      <TableCell>
+                        <div className="font-semibold text-text-primary">{batch.name}</div>
+                        <div className="text-xs font-mono text-muted-foreground">{batch.code}</div>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium">{courseName}</TableCell>
+                      <TableCell className="text-sm">
+                        <span className="font-medium text-text-primary">
+                          {facultyName}
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-xs font-medium">
+                        {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "—"}
+                      </TableCell>
+                      <TableCell>
+                        <div className="text-xs font-semibold">
+                          {enrolledCount} Students Enrolled
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={batch.status === "ACTIVE" ? "default" : "outline"}>
+                          {batch.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          onClick={() => navigate("/admin/counselor/assign-students")}
+                          className="text-xs gap-1"
+                        >
+                          <GraduationCap className="h-3.5 w-3.5" /> Assign Students
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => navigate("/admin/counselor/assign-faculty")}
+                          className="text-xs gap-1"
+                        >
+                          <Users className="h-3.5 w-3.5" /> Assign Faculty
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
@@ -241,8 +300,14 @@ export const CounsellorBatches: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Create New Batch</DialogTitle>
-            <DialogDescription>Fill in the details to create a new batch as a Counsellor.</DialogDescription>
+            <DialogDescription>Fill in the details to create a new batch in the database.</DialogDescription>
           </DialogHeader>
+
+          {errorMsg && (
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 rounded text-xs">
+              {errorMsg}
+            </div>
+          )}
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
             <div>
@@ -283,6 +348,7 @@ export const CounsellorBatches: React.FC = () => {
                 value={courseId}
                 onChange={(e) => setCourseId(e.target.value)}
                 className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                required
               >
                 {courses.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -293,15 +359,16 @@ export const CounsellorBatches: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Faculty (Collected from Faculty Store)</label>
+              <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Faculty (Optional)</label>
               <select
                 value={facultyId}
                 onChange={(e) => setFacultyId(e.target.value)}
                 className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
               >
+                <option value="">Unassigned</option>
                 {facultyList.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.user?.name || (f as any).name} — {f.specialization || (f as any).department || "Faculty"}
+                    {f.user?.name || f.employeeCode} — {f.specialization || "Faculty"}
                   </option>
                 ))}
               </select>
@@ -328,6 +395,7 @@ export const CounsellorBatches: React.FC = () => {
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  required
                 />
               </div>
             </div>
@@ -345,7 +413,12 @@ export const CounsellorBatches: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
+              <Button 
+                type="submit" 
+                disabled={createBatchMutation.isPending}
+                className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+              >
+                {createBatchMutation.isPending && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
                 Create Batch
               </Button>
             </DialogFooter>

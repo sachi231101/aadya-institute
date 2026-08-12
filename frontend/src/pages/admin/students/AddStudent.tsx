@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStudentStore } from "../../../store/student.store";
+import { useCreateStudent } from "../../../hooks/useStudents";
+import { useBranches } from "../../../hooks/useBranches";
 
 import {
   Form,
@@ -24,16 +25,26 @@ const studentSchema = z.object({
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
+  password: z.string().min(8, "Password must be at least 8 characters"),
   qualification: z.string().min(2, "Qualification is required").optional().or(z.literal("")),
-  status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED"]),
+  dateOfBirth: z.string().optional().or(z.literal("")),
+  branchId: z.string().min(1, "Branch is required"),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
 
 export const AddStudent: React.FC = () => {
   const navigate = useNavigate();
-  const { addStudent } = useStudentStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const createMutation = useCreateStudent();
+
+  // Try to load branches dynamically; fall back gracefully
+  let branches: { id: string; name: string }[] = [];
+  try {
+    const branchQuery = useBranches();
+    branches = branchQuery.data?.data ?? [];
+  } catch {
+    // useBranchList may not exist yet; we'll show a text input as fallback
+  }
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema),
@@ -42,28 +53,29 @@ export const AddStudent: React.FC = () => {
       name: "",
       email: "",
       phone: "",
+      password: "Student@123",
       qualification: "",
-      status: "ACTIVE",
+      dateOfBirth: "",
+      branchId: "",
     },
   });
 
   const onSubmit = async (data: StudentFormValues) => {
-    setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-
-      addStudent({
-        ...data,
-        instituteId: "aadya-inst-1",
-        branchId: "branch-1"
+      await createMutation.mutateAsync({
+        studentCode: data.studentCode,
+        name: data.name,
+        email: data.email || undefined,
+        phone: data.phone || undefined,
+        password: data.password,
+        qualification: data.qualification || undefined,
+        dateOfBirth: data.dateOfBirth || undefined,
+        branchId: data.branchId,
       });
-
       navigate("/admin/students/all");
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Failed to create student";
+      form.setError("root", { message: msg });
     }
   };
 
@@ -98,6 +110,11 @@ export const AddStudent: React.FC = () => {
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {form.formState.errors.root && (
+                <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md p-3 text-sm">
+                  {form.formState.errors.root.message}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -106,7 +123,7 @@ export const AddStudent: React.FC = () => {
                     <FormItem>
                       <FormLabel>Student Code *</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. AAD-2023-001" {...field} />
+                        <Input placeholder="e.g. AAD-2026-001" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -157,6 +174,20 @@ export const AddStudent: React.FC = () => {
 
                 <FormField
                   control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password *</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Min. 8 characters" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="qualification"
                   render={({ field }) => (
                     <FormItem>
@@ -171,20 +202,38 @@ export const AddStudent: React.FC = () => {
 
                 <FormField
                   control={form.control}
-                  name="status"
+                  name="dateOfBirth"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Enrollment Status *</FormLabel>
+                      <FormLabel>Date of Birth</FormLabel>
                       <FormControl>
-                        <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                          {...field}
-                        >
-                          <option value="ACTIVE">Active</option>
-                          <option value="ON_LEAVE">On Leave</option>
-                          <option value="COMPLETED">Completed</option>
-                          <option value="DISCONTINUED">Discontinued</option>
-                        </select>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Branch *</FormLabel>
+                      <FormControl>
+                        {branches.length > 0 ? (
+                          <select
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            {...field}
+                          >
+                            <option value="">Select branch...</option>
+                            {branches.map((b) => (
+                              <option key={b.id} value={b.id}>{b.name}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <Input placeholder="Enter branch ID" {...field} />
+                        )}
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -197,17 +246,17 @@ export const AddStudent: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => navigate("/admin/students/all")}
-                  disabled={isSubmitting}
+                  disabled={createMutation.isPending}
                   className="px-5 font-medium transition-colors"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={createMutation.isPending}
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
                 >
-                  {isSubmitting ? (
+                  {createMutation.isPending ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" />
                       <span>Saving...</span>

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useStudentStore } from "../../../store/student.store";
+import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
 
 import {
   Form,
@@ -16,16 +16,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Edit, Save } from "lucide-react";
+import { ArrowLeft, Edit, Save, Loader2, AlertCircle } from "lucide-react";
 
 
 const studentSchema = z.object({
-  studentCode: z.string().min(3, "Student Code is required"),
   name: z.string().min(2, "Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
-  qualification: z.string().min(2, "Qualification is required").optional().or(z.literal("")),
-  status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED"]),
+  qualification: z.string().optional().or(z.literal("")),
+  dateOfBirth: z.string().optional().or(z.literal("")),
+  status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -33,19 +33,19 @@ type StudentFormValues = z.infer<typeof studentSchema>;
 export const EditStudent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { students, updateStudent } = useStudentStore();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { data: response, isLoading, isError } = useStudent(id);
+  const updateMutation = useUpdateStudent();
 
-  const student = students.find((s) => s.id === id);
+  const student = response?.data;
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema),
     defaultValues: {
-      studentCode: "",
       name: "",
       email: "",
       phone: "",
       qualification: "",
+      dateOfBirth: "",
       status: "ACTIVE",
     },
   });
@@ -53,36 +53,58 @@ export const EditStudent: React.FC = () => {
   useEffect(() => {
     if (student) {
       form.reset({
-        studentCode: student.studentCode,
-        name: student.name,
-        email: student.email || "",
-        phone: student.phone || "",
+        name: student.user?.name || "",
+        email: student.user?.email || "",
+        phone: student.user?.phone || "",
         qualification: student.qualification || "",
+        dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
         status: student.status,
       });
-    } else {
-      navigate("/admin/students/all");
     }
-  }, [student, form, navigate]);
+  }, [student, form]);
 
   const onSubmit = async (data: StudentFormValues) => {
     if (!id) return;
-    setIsSubmitting(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      updateStudent(id, data);
-      
+      await updateMutation.mutateAsync({
+        id,
+        data: {
+          name: data.name,
+          email: data.email || undefined,
+          phone: data.phone || undefined,
+          qualification: data.qualification || undefined,
+          dateOfBirth: data.dateOfBirth || undefined,
+          status: data.status,
+        },
+      });
       navigate("/admin/students/all");
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsSubmitting(false);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || "Failed to update student";
+      form.setError("root", { message: msg });
     }
   };
 
-  if (!student) return null;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-8 w-8 animate-spin text-accent-primary" />
+        <span className="ml-3 text-text-secondary">Loading student...</span>
+      </div>
+    );
+  }
+
+  if (isError || !student) {
+    return (
+      <div className="text-center py-16">
+        <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4 opacity-60" />
+        <h3 className="text-lg font-medium text-text-primary mb-2">Student not found</h3>
+        <p className="text-text-secondary mb-6">The requested student could not be loaded.</p>
+        <Button variant="outline" onClick={() => navigate("/admin/students/all")}>
+          Back to Students
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
@@ -97,7 +119,7 @@ export const EditStudent: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">Edit Student</h2>
           <p className="text-sm text-text-secondary">
-            Update information for {student.name}.
+            Update information for {student.user?.name || student.studentCode}.
           </p>
         </div>
       </div>
@@ -115,21 +137,19 @@ export const EditStudent: React.FC = () => {
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {form.formState.errors.root && (
+                <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md p-3 text-sm">
+                  {form.formState.errors.root.message}
+                </div>
+              )}
+
+              {/* Read-only Student Code */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="studentCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Student Code *</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. AAD-2023-001" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+                <div>
+                  <label className="text-sm font-medium text-text-secondary">Student Code</label>
+                  <Input value={student.studentCode} disabled className="mt-1 bg-bg-secondary/50" />
+                </div>
+
                 <FormField
                   control={form.control}
                   name="name"
@@ -188,6 +208,20 @@ export const EditStudent: React.FC = () => {
 
                 <FormField
                   control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Date of Birth</FormLabel>
+                      <FormControl>
+                        <Input type="date" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
@@ -201,6 +235,7 @@ export const EditStudent: React.FC = () => {
                           <option value="ON_LEAVE">On Leave</option>
                           <option value="COMPLETED">Completed</option>
                           <option value="DISCONTINUED">Discontinued</option>
+                          <option value="CANCELLED">Cancelled</option>
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -214,17 +249,20 @@ export const EditStudent: React.FC = () => {
                   type="button" 
                   variant="outline" 
                   onClick={() => navigate("/admin/students/all")}
-                  disabled={isSubmitting}
+                  disabled={updateMutation.isPending}
                 >
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
                   className="bg-accent-primary hover:bg-accent-secondary text-white"
-                  disabled={isSubmitting}
+                  disabled={updateMutation.isPending}
                 >
-                  {isSubmitting ? (
-                    "Saving..."
+                  {updateMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
                   ) : (
                     <>
                       <Save className="mr-2 h-4 w-4" />
