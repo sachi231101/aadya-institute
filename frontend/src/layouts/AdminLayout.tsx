@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, Building2, Plus } from "lucide-react";
+import { Bell, Building2, Plus, Loader2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -25,12 +25,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useNotificationStore } from "@/store/notification.store";
+import { useCreateBranch } from "@/hooks/useBranches";
 
 const branchSchema = z.object({
   name: z.string().min(2, "Branch name is required"),
-  code: z.string().min(2, "Branch code is required"),
-  address: z.string().min(5, "Full address is required"),
-  phone: z.string().min(10, "Valid contact number is required"),
+  code: z.string().min(2, "Branch code is required").max(10, "Branch code must be at most 10 characters"),
+  address: z.string().optional().or(z.literal("")),
+  phone: z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional().or(z.literal("")),
 });
 
 type BranchFormValues = z.infer<typeof branchSchema>;
@@ -38,6 +39,7 @@ type BranchFormValues = z.infer<typeof branchSchema>;
 export const AdminLayout: React.FC = () => {
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
   const addNotification = useNotificationStore((state) => state.addNotification);
+  const createBranchMutation = useCreateBranch();
 
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),
@@ -50,10 +52,25 @@ export const AdminLayout: React.FC = () => {
   });
 
   const onSubmit = (data: BranchFormValues) => {
-    // In a real application, this would save to a database
-    addNotification(`Branch "${data.name}" created successfully!`, "success");
-    setIsBranchModalOpen(false);
-    form.reset();
+    createBranchMutation.mutate(
+      {
+        name: data.name,
+        code: data.code,
+        address: data.address || undefined,
+        phone: data.phone || undefined,
+      },
+      {
+        onSuccess: () => {
+          addNotification(`Branch "${data.name}" created successfully!`, "success");
+          setIsBranchModalOpen(false);
+          form.reset();
+        },
+        onError: (err: any) => {
+          const message = err?.response?.data?.message || "Failed to create branch.";
+          addNotification(message, "error");
+        },
+      }
+    );
   };
 
   return (
@@ -138,7 +155,7 @@ export const AdminLayout: React.FC = () => {
                   <FormItem>
                     <FormLabel>Contact Number</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. +91 9876543210" {...field} />
+                      <Input placeholder="e.g. 9876543210" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -161,8 +178,14 @@ export const AdminLayout: React.FC = () => {
                 <Button type="button" variant="outline" onClick={() => setIsBranchModalOpen(false)}>
                   Cancel
                 </Button>
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
-                  Create Branch
+                <Button
+                  type="submit"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={createBranchMutation.isPending}
+                >
+                  {createBranchMutation.isPending ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...</>
+                  ) : "Create Branch"}
                 </Button>
               </DialogFooter>
             </form>

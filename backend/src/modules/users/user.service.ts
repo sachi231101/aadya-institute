@@ -12,6 +12,7 @@ import {
   createUser,
   updateUser,
   updateUserStatus,
+  deleteUser,
 } from "./user.repository";
 import type { UserStatus } from "@prisma/client";
 
@@ -186,4 +187,33 @@ export const updateUserStatusService = async (
   }
 
   return updateUserStatus(userId, instituteId, input.status);
+};
+
+// ─── Delete User ──────────────────────────────────────────────────────────────
+
+export const deleteUserService = async (
+  currentUser: AuthUser,
+  userId: string
+) => {
+  const instituteId = getInstituteId(currentUser);
+  const existing = await findUserById(userId, instituteId);
+  if (!existing) throw new AppError("User not found", 404);
+
+  // Prevent self-deletion
+  if (userId === currentUser.id) {
+    throw new AppError("Cannot delete your own account", 400);
+  }
+
+  // Branch isolation for CENTER_MANAGER
+  if (
+    currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("ADMIN") &&
+    currentUser.branchId &&
+    existing.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("User not found", 404);
+  }
+
+  await deleteUser(userId, instituteId);
+  return { id: userId, deleted: true };
 };

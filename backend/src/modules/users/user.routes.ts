@@ -8,6 +8,7 @@ import {
   createUser,
   updateUser,
   updateUserStatus,
+  deleteUser,
 } from "./user.controller";
 import {
   createUserSchema,
@@ -58,6 +59,13 @@ router.patch(
   requirePermission("user.update"),
   validate(updateUserStatusSchema),
   updateUserStatus
+);
+
+// DELETE /api/v1/users/:id — Soft-delete a user
+router.delete(
+  "/:id",
+  requirePermission("user.delete"),
+  deleteUser
 );
 
 export default router;

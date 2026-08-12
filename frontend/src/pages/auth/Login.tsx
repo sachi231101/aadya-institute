@@ -20,11 +20,20 @@ export const Login: React.FC = () => {
     setError("");
 
     try {
-      const response = await authApi.login(emailOrPhone, password);
-      setAuth(response.user, response.token);
+      const result = await authApi.login(emailOrPhone, password);
+      
+      // Map backend AuthUser (roles[]) to frontend User (role + roles[])
+      const primaryRole = result.user.roles?.[0] || "ADMIN";
+      const frontendUser = {
+        ...result.user,
+        role: primaryRole,
+        roles: result.user.roles || [primaryRole],
+      };
+      
+      setAuth(frontendUser, result.accessToken);
 
-      // Redirect according to role
-      switch (response.user.role) {
+      // Redirect according to primary role
+      switch (primaryRole) {
         case UserRole.ADMIN:
           navigate("/admin/dashboard");
           break;
@@ -44,16 +53,8 @@ export const Login: React.FC = () => {
           navigate("/admin/dashboard");
       }
     } catch (err: any) {
-      // Demo fallback login for preview
-      const demoUser = {
-        id: "aadya-initial-admin",
-        name: "Aadya Admin",
-        email: emailOrPhone,
-        role: UserRole.ADMIN,
-        instituteId: "aadya-inst-1",
-      };
-      setAuth(demoUser, "demo-jwt-token");
-      navigate("/admin/dashboard");
+      const message = err?.response?.data?.message || "Login failed. Please check your credentials.";
+      setError(message);
     } finally {
       setLoading(false);
     }

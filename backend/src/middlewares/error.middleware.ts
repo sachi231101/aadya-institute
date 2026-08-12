@@ -24,6 +24,7 @@ export const errorMiddleware = (
     return;
   }
 
+  console.error("🔴 UNHANDLED ERROR:", err);
   logger.error({ err }, "Unhandled error");
   sendError(res, "Internal Server Error", 500);
 };
