@@ -36,7 +36,7 @@ import {
 
 // Map backend role names to display labels
 const ROLE_DISPLAY: Record<string, string> = {
-  ADMIN: "Super Admin",
+  ADMIN: "Admin",
   CENTER_MANAGER: "Center Manager",
   COUNSELLOR: "Counsellor",
   FACULTY: "Faculty",
@@ -169,16 +169,16 @@ export const AdminPanel: React.FC = () => {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Admin Panel</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Center Manager</h1>
             <p className="text-muted-foreground mt-1">
-              Manage system administrators and their access levels.
+              Manage system administrators and center managers.
             </p>
           </div>
         </div>
         <Card>
           <CardContent className="flex items-center justify-center py-20">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-            <span className="ml-3 text-muted-foreground">Loading administrators...</span>
+            <span className="ml-3 text-muted-foreground">Loading managers...</span>
           </CardContent>
         </Card>
       </div>
@@ -191,9 +191,9 @@ export const AdminPanel: React.FC = () => {
       <div className="p-6 max-w-7xl mx-auto space-y-6">
         <div className="flex flex-col gap-4">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Admin Panel</h1>
+            <h1 className="text-2xl font-bold tracking-tight text-text-primary">Center Manager</h1>
             <p className="text-muted-foreground mt-1">
-              Manage system administrators and their access levels.
+              Manage system administrators and center managers.
             </p>
           </div>
         </div>
@@ -213,7 +213,7 @@ export const AdminPanel: React.FC = () => {
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Admin Panel</h1>
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Center Manager</h1>
           <p className="text-muted-foreground mt-1">
             Manage system administrators and their access levels.
           </p>

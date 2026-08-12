@@ -183,7 +183,7 @@ export const AddAdmin: React.FC = () => {
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           {...field}
                         >
-                          <option value="ADMIN">Super Admin</option>
+                          <option value="ADMIN">Admin</option>
                           <option value="CENTER_MANAGER">Center Manager</option>
                           <option value="FACULTY">Faculty</option>
                           <option value="COUNSELLOR">Counsellor</option>

@@ -9,7 +9,7 @@ export const UserRole = {
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 export const ROLE_LABELS: Record<UserRole, string> = {
-  [UserRole.ADMIN]: "Super Administrator",
+  [UserRole.ADMIN]: "Admin",
   [UserRole.CENTER_MANAGER]: "Center Manager",
   [UserRole.COUNSELLOR]: "Counselor",
   [UserRole.FACULTY]: "Faculty",

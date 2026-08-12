@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, Building2, Plus, Loader2 } from "lucide-react";
+import { Bell, Building2, Loader2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -89,13 +89,6 @@ export const AdminLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <Button 
-                onClick={() => setIsBranchModalOpen(true)}
-                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
-              >
-                <Plus size={16} />
-                Create a Branch
-              </Button>
               <button className="relative text-muted-foreground hover:text-foreground transition-colors">
                 <Bell size={20} />
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
