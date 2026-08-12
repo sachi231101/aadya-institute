@@ -310,6 +310,123 @@ async function main() {
   });
   console.log("✅ Admin role assigned");
 
+  // ── Courses ─────────────────────────────────────────────────────────────
+  const course1 = await prisma.course.upsert({
+    where: { instituteId_code: { instituteId: institute.id, code: "WEB-DEV" } },
+    update: {},
+    create: {
+      instituteId: institute.id,
+      name: "Full Stack Web Development",
+      code: "WEB-DEV",
+      description: "Complete web development course covering frontend, backend and deployment",
+      duration: 6,
+    },
+  });
+
+  const course2 = await prisma.course.upsert({
+    where: { instituteId_code: { instituteId: institute.id, code: "DATA-SCI" } },
+    update: {},
+    create: {
+      instituteId: institute.id,
+      name: "Data Science & Analytics",
+      code: "DATA-SCI",
+      description: "Data science fundamentals with Python and ML",
+      duration: 4,
+    },
+  });
+  console.log("✅ Courses seeded:", course1.name, ",", course2.name);
+
+  // ── Course Modules ──────────────────────────────────────────────────────
+  const mod1 = await prisma.courseModule.upsert({
+    where: { courseId_sequence: { courseId: course1.id, sequence: 1 } },
+    update: {},
+    create: { courseId: course1.id, name: "HTML & CSS Fundamentals", sequence: 1, duration: 2 },
+  });
+  const mod2 = await prisma.courseModule.upsert({
+    where: { courseId_sequence: { courseId: course1.id, sequence: 2 } },
+    update: {},
+    create: { courseId: course1.id, name: "JavaScript & TypeScript", sequence: 2, duration: 3 },
+  });
+  const mod3 = await prisma.courseModule.upsert({
+    where: { courseId_sequence: { courseId: course1.id, sequence: 3 } },
+    update: {},
+    create: { courseId: course1.id, name: "React & Node.js", sequence: 3, duration: 4 },
+  });
+  console.log("✅ Course modules seeded");
+
+  // ── Faculty User ────────────────────────────────────────────────────────
+  const facultyHash = await bcrypt.hash("Faculty@123", 12);
+  const facultyUser = await prisma.user.upsert({
+    where: { id: "seed-faculty-user" },
+    update: { passwordHash: facultyHash },
+    create: {
+      id: "seed-faculty-user",
+      instituteId: institute.id,
+      branchId: branch.id,
+      name: "Ramesh Kumar",
+      email: "ramesh@aadya.in",
+      phone: "9888888888",
+      passwordHash: facultyHash,
+    },
+  });
+
+  const faculty = await prisma.faculty.upsert({
+    where: { userId: facultyUser.id },
+    update: {},
+    create: {
+      userId: facultyUser.id,
+      instituteId: institute.id,
+      branchId: branch.id,
+      employeeCode: "FAC-001",
+      specialization: "Full Stack Development",
+    },
+  });
+
+  if (roleMap["FACULTY"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: facultyUser.id, roleId: roleMap["FACULTY"] } },
+      update: {},
+      create: { userId: facultyUser.id, roleId: roleMap["FACULTY"] },
+    });
+  }
+  console.log("✅ Faculty seeded:", facultyUser.name);
+
+  // ── Batch ───────────────────────────────────────────────────────────────
+  const batch1 = await prisma.batch.upsert({
+    where: { instituteId_code: { instituteId: institute.id, code: "WD-2026-A" } },
+    update: {},
+    create: {
+      instituteId: institute.id,
+      branchId: branch.id,
+      courseId: course1.id,
+      facultyId: faculty.id,
+      name: "Web Dev Batch A (2026)",
+      code: "WD-2026-A",
+      startDate: new Date("2026-07-01"),
+      expectedEndDate: new Date("2026-12-31"),
+      status: "ACTIVE",
+    },
+  });
+  console.log("✅ Batch seeded:", batch1.name);
+
+  // ── Batch Modules ───────────────────────────────────────────────────────
+  const bm1 = await prisma.batchModule.upsert({
+    where: { batchId_sequence: { batchId: batch1.id, sequence: 1 } },
+    update: {},
+    create: { batchId: batch1.id, courseModuleId: mod1.id, sequence: 1, startDate: new Date("2026-07-01"), status: "INACTIVE" },
+  });
+  const bm2 = await prisma.batchModule.upsert({
+    where: { batchId_sequence: { batchId: batch1.id, sequence: 2 } },
+    update: {},
+    create: { batchId: batch1.id, courseModuleId: mod2.id, sequence: 2, startDate: new Date("2026-08-01"), status: "ACTIVE" },
+  });
+  await prisma.batchModule.upsert({
+    where: { batchId_sequence: { batchId: batch1.id, sequence: 3 } },
+    update: {},
+    create: { batchId: batch1.id, courseModuleId: mod3.id, sequence: 3, startDate: new Date("2026-10-01") },
+  });
+  console.log("✅ Batch modules seeded");
+
   console.log("\n🎉 Database seed completed!");
   console.log("   Admin email: admin@aadya.in");
   console.log("   Admin phone: 9999999999");
@@ -324,3 +441,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
