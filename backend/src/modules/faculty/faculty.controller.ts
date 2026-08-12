@@ -39,3 +39,38 @@ export const remove = async (req: AuthenticatedRequest, res: Response, next: Nex
     sendSuccess(res, null, 200, "Faculty deleted successfully");
   } catch (err) { next(err); }
 };
+
+// ─── Faculty Course Assignments ─────────────────────────────────────────
+
+export const getCourses = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, branchId } = req.user!;
+    const { data, meta } = await service.getAllFacultyCourses(instituteId, branchId, req.query as any);
+    sendPaginated(res, data, meta);
+  } catch (err) { next(err); }
+};
+
+export const assignCourse = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { batchId, facultyId } = req.body;
+    const data = await service.assignFacultyToBatch(batchId, facultyId);
+    sendSuccess(res, data, 200, "Faculty assigned to batch successfully");
+  } catch (err) { next(err); }
+};
+
+// ─── Faculty Attendance ─────────────────────────────────────────────────
+
+export const getAttendance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, branchId } = req.user!;
+    const { data, meta } = await service.getAllFacultyAttendance(instituteId, branchId, req.query as any);
+    sendPaginated(res, data, meta);
+  } catch (err) { next(err); }
+};
+
+export const markAttendance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.logFacultyAttendance(req.body);
+    sendSuccess(res, data, 201, "Faculty attendance logged successfully");
+  } catch (err) { next(err); }
+};
