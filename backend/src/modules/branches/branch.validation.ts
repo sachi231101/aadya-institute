@@ -16,15 +16,24 @@ export const createBranchSchema = z.object({
   address: z.string().trim().optional(),
   phone: z
     .string()
-    .regex(/^\d{10}$/, "Phone must be a 10-digit number")
-    .optional(),
+    .trim()
+    .optional()
+    .refine((val) => !val || /^\d{10}$/.test(val), {
+      message: "Phone must be a 10-digit number",
+    }),
 });
 
 export const updateBranchSchema = z.object({
   name: z.string().min(2).trim().optional(),
   code: z.string().min(2).max(10).trim().toUpperCase().optional(),
   address: z.string().trim().optional(),
-  phone: z.string().regex(/^\d{10}$/).optional(),
+  phone: z
+    .string()
+    .trim()
+    .optional()
+    .refine((val) => !val || /^\d{10}$/.test(val), {
+      message: "Phone must be a 10-digit number",
+    }),
   status: statusEnum.optional(),
 });
 

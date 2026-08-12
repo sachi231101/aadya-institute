@@ -52,6 +52,7 @@ export const AdminLayout: React.FC = () => {
   });
 
   const onSubmit = (data: BranchFormValues) => {
+    form.clearErrors("root");
     createBranchMutation.mutate(
       {
         name: data.name,
@@ -66,7 +67,8 @@ export const AdminLayout: React.FC = () => {
           form.reset();
         },
         onError: (err: any) => {
-          const message = err?.response?.data?.message || "Failed to create branch.";
+          const message = err?.response?.data?.message || err?.message || "Failed to create branch.";
+          form.setError("root", { message });
           addNotification(message, "error");
         },
       }
@@ -90,7 +92,10 @@ export const AdminLayout: React.FC = () => {
 
             <div className="flex items-center gap-4">
               <Button 
-                onClick={() => setIsBranchModalOpen(true)}
+                onClick={() => {
+                  form.reset();
+                  setIsBranchModalOpen(true);
+                }}
                 className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
               >
                 <Plus size={16} />
@@ -122,6 +127,11 @@ export const AdminLayout: React.FC = () => {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {form.formState.errors.root && (
+                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+                  {form.formState.errors.root.message}
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="name"
