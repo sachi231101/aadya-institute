@@ -59,7 +59,16 @@ export default {
   				'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
-  			}
+  			},
+  			'bg-primary': 'var(--bg-primary)',
+  			'bg-secondary': 'var(--bg-secondary)',
+  			'bg-tertiary': 'var(--bg-tertiary)',
+  			'bg-card': 'var(--bg-card)',
+  			'text-primary': 'var(--text-primary)',
+  			'text-secondary': 'var(--text-secondary)',
+  			'text-muted': 'var(--text-muted)',
+  			'accent-primary': 'var(--accent-primary)',
+  			'accent-primary-hover': 'var(--accent-primary-hover)'
   		}
   	}
   },
