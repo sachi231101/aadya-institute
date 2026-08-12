@@ -6,6 +6,7 @@ import {
   GraduationCap, 
   BookOpen, 
   UserCheck, 
+  UserPlus,
   Plus, 
   ArrowRight,
   Calendar,
@@ -21,6 +22,7 @@ import { Button } from "@/components/ui/button";
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
+  const basePath = "/admin";
 
   // Queries for live data from backend
   const { data: batchesRes, isLoading: loadingBatches, isError: errorBatches } = useQuery({

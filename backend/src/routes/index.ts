@@ -12,6 +12,9 @@ import { sarvamWebhookHandler } from "../webhooks/ai-calling/ai-calling.webhook"
 
 import courseRoutes from "../modules/courses/course.routes";
 import batchRoutes from "../modules/batches/batch.routes";
+import moduleRoutes from "../modules/modules/module.routes";
+import admissionsRoutes from "../modules/admissions/admissions.routes";
+import classSessionRoutes from "../modules/class-sessions/class-session.routes";
 
 const router = Router();
 
@@ -27,6 +30,9 @@ router.use("/users", userRoutes);
 // Branches
 router.use("/branches", branchRoutes);
 
+// Admissions & Leads
+router.use("/admissions", admissionsRoutes);
+
 // Leads + AI Calling (Phase 1)
 router.use("/leads", leadRoutes);
 
@@ -39,11 +45,17 @@ router.use("/students", studentRoutes);
 // Courses
 router.use("/courses", courseRoutes);
 
+// Modules / Curriculum
+router.use("/modules", moduleRoutes);
+
 // Batches
 router.use("/batches", batchRoutes);
 
 // Attendance
 router.use("/attendance", attendanceRoutes);
+
+// Class Sessions & Schedule
+router.use("/class-sessions", classSessionRoutes);
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);

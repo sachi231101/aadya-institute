@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   HelpCircle, 
   Plus, 
@@ -13,7 +13,8 @@ import {
   Globe,
   Users,
   MapPin,
-  Share2
+  Share2,
+  Loader2
 } from "lucide-react";
 import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
@@ -40,8 +41,8 @@ import {
 import type { EnquirySource, EnquiryStatus } from "../../../types/admission.types";
 
 export const Enquiries: React.FC = () => {
-  const { enquiries, addEnquiry, deleteEnquiry, convertEnquiryToApplication } = useAdmissionStore();
-  const { courses } = useCourseStore();
+  const { enquiries, isLoading, fetchEnquiries, addEnquiry, updateEnquiry, deleteEnquiry, convertEnquiryToApplication } = useAdmissionStore();
+  const { courses, fetchCourses } = useCourseStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sourceFilter, setSourceFilter] = useState("ALL");
@@ -52,17 +53,31 @@ export const Enquiries: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [courseId, setCourseId] = useState(courses[0]?.id || "");
+  const [courseId, setCourseId] = useState("");
   const [source, setSource] = useState<EnquirySource>("WEBSITE");
   const [status, setStatus] = useState<EnquiryStatus>("NEW");
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchEnquiries();
+    if (fetchCourses) {
+      fetchCourses();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (courses.length > 0 && !courseId) {
+      setCourseId(courses[0].id);
+    }
+  }, [courses]);
 
   const filteredEnquiries = enquiries.filter((e) => {
     const matchesSearch =
-      e.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.phone.includes(searchTerm) ||
-      e.courseName.toLowerCase().includes(searchTerm.toLowerCase());
+      (e.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (e.phone || "").includes(searchTerm) ||
+      (e.courseName || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesSource = sourceFilter === "ALL" || e.source === sourceFilter;
     const matchesStatus = statusFilter === "ALL" || e.status === statusFilter;
@@ -76,27 +91,26 @@ export const Enquiries: React.FC = () => {
   const convertedCount = enquiries.filter((e) => e.status === "CONVERTED").length;
   const conversionRate = totalEnquiries > 0 ? Math.round((convertedCount / totalEnquiries) * 100) : 0;
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone || !courseId) return;
 
-    const selectedCourse = courses.find((c) => c.id === courseId);
-
-    addEnquiry({
+    setIsSubmitting(true);
+    await addEnquiry({
       name,
-      email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
+      email: email || undefined,
       phone,
       courseId,
-      courseName: selectedCourse?.name || "General Course",
       source,
       status,
-      counselorNotes: notes,
+      counselorNotes: notes || undefined,
     });
 
     setName("");
     setEmail("");
     setPhone("");
     setNotes("");
+    setIsSubmitting(false);
     setShowModal(false);
   };
 
@@ -112,23 +126,6 @@ export const Enquiries: React.FC = () => {
         return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><Users className="w-3 h-3 mr-1" /> Referral</Badge>;
       default:
         return <Badge variant="outline"><Share2 className="w-3 h-3 mr-1" /> {src}</Badge>;
-    }
-  };
-
-  const getStatusBadge = (st: EnquiryStatus) => {
-    switch (st) {
-      case "NEW":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-800">New Lead</Badge>;
-      case "IN_PROGRESS":
-        return <Badge variant="warning">In Progress</Badge>;
-      case "FOLLOW_UP":
-        return <Badge variant="secondary" className="bg-purple-100 text-purple-800">Follow-up</Badge>;
-      case "CONVERTED":
-        return <Badge variant="success">Converted</Badge>;
-      case "REJECTED":
-        return <Badge variant="destructive">Closed</Badge>;
-      default:
-        return <Badge variant="outline">{st}</Badge>;
     }
   };
 
@@ -230,6 +227,7 @@ export const Enquiries: React.FC = () => {
                 <option value="WHATSAPP">WhatsApp</option>
                 <option value="WALK_IN">Walk-in</option>
                 <option value="REFERRAL">Referral</option>
+                <option value="SOCIAL_MEDIA">Social Media</option>
               </select>
 
               <select
@@ -262,7 +260,16 @@ export const Enquiries: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredEnquiries.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                        Loading enquiries...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredEnquiries.length > 0 ? (
                   filteredEnquiries.map((enquiry) => (
                     <TableRow key={enquiry.id} className="hover:bg-slate-50 transition-colors">
                       <TableCell>
@@ -271,7 +278,7 @@ export const Enquiries: React.FC = () => {
                             {enquiry.name}
                           </span>
                           <span className="text-xs text-text-secondary block">
-                            {enquiry.email} • {enquiry.phone}
+                            {enquiry.email ? `${enquiry.email} • ` : ""}{enquiry.phone}
                           </span>
                         </div>
                       </TableCell>
@@ -279,12 +286,24 @@ export const Enquiries: React.FC = () => {
                         {enquiry.courseName}
                       </TableCell>
                       <TableCell>{getSourceBadge(enquiry.source)}</TableCell>
-                      <TableCell>{getStatusBadge(enquiry.status)}</TableCell>
+                      <TableCell>
+                        <select
+                          value={enquiry.status}
+                          onChange={(e) => updateEnquiry(enquiry.id, { status: e.target.value as EnquiryStatus })}
+                          className="text-xs p-1 border rounded bg-transparent font-medium"
+                        >
+                          <option value="NEW">New Lead</option>
+                          <option value="IN_PROGRESS">In Progress</option>
+                          <option value="FOLLOW_UP">Follow-up</option>
+                          <option value="CONVERTED">Converted</option>
+                          <option value="REJECTED">Closed</option>
+                        </select>
+                      </TableCell>
                       <TableCell className="text-xs text-text-secondary max-w-xs truncate">
                         {enquiry.counselorNotes || "—"}
                       </TableCell>
                       <TableCell className="text-xs text-text-secondary">
-                        {enquiry.createdAt}
+                        {enquiry.createdAt ? new Date(enquiry.createdAt).toLocaleDateString() : "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -319,7 +338,7 @@ export const Enquiries: React.FC = () => {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                      No enquiries found matching criteria.
+                      No enquiries found. Add your first live lead!
                     </TableCell>
                   </TableRow>
                 )}
@@ -383,6 +402,7 @@ export const Enquiries: React.FC = () => {
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   required
                 >
+                  <option value="" disabled>Select a course</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.code})
@@ -436,14 +456,23 @@ export const Enquiries: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={isSubmitting}
                 >
-                  Save Enquiry
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Enquiry"
+                  )}
                 </Button>
               </div>
             </form>

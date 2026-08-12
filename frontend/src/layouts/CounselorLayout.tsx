@@ -1,10 +1,16 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { Bell, UserCheck } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CounselorSidebar } from "@/components/layout/counselor-sidebar";
+import { useAuthStore } from "@/store/auth.store";
 
 export const CounselorLayout: React.FC = () => {
+  const { token } = useAuthStore();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">

@@ -7,7 +7,9 @@ export interface BatchData {
   courseId: string;
   facultyId?: string | null;
   startDate: string;
-  expectedEndDate?: string | null;
+  capacity?: number;
+  schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM" | string;
+  timeSlot?: string;
   status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   createdAt: string;
   course?: { id: string; name: string; code: string };

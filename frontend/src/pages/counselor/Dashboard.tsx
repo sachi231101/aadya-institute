@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   UserCheck, 
@@ -13,10 +13,12 @@ import {
   TrendingUp,
   PhoneCall,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
+import { useAdmissionStore } from "@/store/admission.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,18 +31,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const mockRecentLeads = [
-  { id: "ENQ-2026-089", name: "Vikram Malhotra", course: "Full Stack Software Engineering", phone: "+91 98765 43210", status: "DEMO_ATTENDED", counselorNotes: "Interested in upcoming March batch. Requested fee structure details." },
-  { id: "ENQ-2026-092", name: "Sneha Reddy", course: "Data Science & AI Master Program", phone: "+91 98765 54321", status: "CALL_SCHEDULED", counselorNotes: "Visited campus today. Attended demo class." },
-  { id: "ENQ-2026-095", name: "Amitabh Sen", course: "Cloud DevOps & Architecture", phone: "+91 98765 65432", status: "NEW_ENQUIRY", counselorNotes: "Wants weekend batch option. Call scheduled for 4 PM." },
-];
-
 export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { students } = useStudentStore();
-  const { counselors } = useCounselorStore();
+  const { fetchCounselors } = useCounselorStore();
+  const { enquiries, admissions, isLoading, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
 
-  const myCounselor = counselors[0] || { name: "Kavita Nair", assignedLeadsCount: 42, activeStudentsCount: 28 };
+  useEffect(() => {
+    fetchCounselors();
+    fetchEnquiries();
+    fetchAdmissions();
+  }, []);
+
+  const totalLeadsCount = enquiries.length;
+  const newLeadsCount = enquiries.filter((e) => e.status === "NEW").length;
+  const pendingFollowups = enquiries.filter((e) => e.status === "FOLLOW_UP" || e.status === "IN_PROGRESS").length;
+  const confirmedAdmissionsCount = admissions.length;
+
+  const recentEnquiries = enquiries.slice(0, 5);
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -52,7 +60,7 @@ export const CounselorDashboard: React.FC = () => {
             Counsellor Operations Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Lead Pipeline, Student Admissions & Branch Counselling Operations — Bengaluru Main Campus
+            Lead Pipeline, Student Admissions & Branch Counselling Operations — Aadya Institute
           </p>
         </div>
 
@@ -78,10 +86,10 @@ export const CounselorDashboard: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Assigned Leads</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{myCounselor.assignedLeadsCount || 42}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Total Lead Enquiries</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalLeadsCount}</h3>
               <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
-                <TrendingUp className="h-3 w-3" /> Active Pipeline
+                <TrendingUp className="h-3 w-3" /> {newLeadsCount} New Leads
               </p>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
@@ -93,10 +101,10 @@ export const CounselorDashboard: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Follow-ups Today</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">18</h3>
+              <p className="text-sm font-medium text-muted-foreground">Follow-ups Pending</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{pendingFollowups}</h3>
               <p className="text-xs text-muted-foreground mt-1">
-                12 Calls Completed
+                In Progress & Scheduled
               </p>
             </div>
             <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
@@ -108,8 +116,8 @@ export const CounselorDashboard: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Converted Admissions</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{myCounselor.activeStudentsCount || students.length}</h3>
+              <p className="text-sm font-medium text-muted-foreground">Confirmed Admissions</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{confirmedAdmissionsCount}</h3>
               <p className="text-xs text-emerald-600 font-medium mt-1 flex items-center gap-1">
                 <CheckCircle2 className="h-3 w-3" /> Confirmed Enrolments
               </p>
@@ -123,9 +131,9 @@ export const CounselorDashboard: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Fee Collections</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">₹2,45,000</h3>
-              <p className="text-xs text-muted-foreground mt-1">This Month</p>
+              <p className="text-sm font-medium text-muted-foreground">Registered Students</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{students.length}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Total Enrolled</p>
             </div>
             <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
               <CreditCard className="h-6 w-6" />
@@ -305,24 +313,39 @@ export const CounselorDashboard: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockRecentLeads.map((lead) => (
-              <TableRow key={lead.id} className="hover:bg-slate-50/80 transition-colors">
-                <TableCell>
-                  <div>
-                    <span className="font-mono text-xs font-bold text-emerald-700 block">{lead.id}</span>
-                    <span className="font-medium text-text-primary text-xs">{lead.name}</span>
-                  </div>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin mx-auto text-emerald-600 mb-1" />
+                  Loading live lead enquiries...
                 </TableCell>
-                <TableCell className="text-xs text-text-secondary font-medium">{lead.course}</TableCell>
-                <TableCell className="text-xs text-text-secondary">{lead.phone}</TableCell>
-                <TableCell>
-                  <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
-                    {lead.status.replace("_", " ")}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-xs text-muted-foreground italic">{lead.counselorNotes}</TableCell>
               </TableRow>
-            ))}
+            ) : recentEnquiries.length > 0 ? (
+              recentEnquiries.map((lead) => (
+                <TableRow key={lead.id} className="hover:bg-slate-50/80 transition-colors">
+                  <TableCell>
+                    <div>
+                      <span className="font-mono text-xs font-bold text-emerald-700 block">{lead.enquiryNo || lead.id}</span>
+                      <span className="font-medium text-text-primary text-xs">{lead.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-xs text-text-secondary font-medium">{lead.courseName || "General Course"}</TableCell>
+                  <TableCell className="text-xs text-text-secondary">{lead.phone}</TableCell>
+                  <TableCell>
+                    <Badge className="bg-emerald-500/10 text-emerald-700 border-emerald-500/20">
+                      {lead.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-xs text-muted-foreground italic">{lead.counselorNotes || "—"}</TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No lead enquiries found. Add your first live enquiry in Admissions!
+                </TableCell>
+              </TableRow>
+            )}
           </TableBody>
         </Table>
       </Card>
