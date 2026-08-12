@@ -8,9 +8,11 @@ import {
   CheckCircle2, 
   MoreVertical, 
   Trash2,
-  UserCheck
+  UserCheck,
+  Loader2
 } from "lucide-react";
-import { useCourseStore } from "../../../store/course.store";
+import { useBatches } from "../../../hooks/useBatches";
+import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -34,31 +36,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const Batches: React.FC = () => {
-  const { batches, courses, addBatch, deleteBatch } = useCourseStore();
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const facultyList = facultyResponse?.data ?? [];
-
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const { courses } = useCourses();
+  const { batches, loading, createBatch, deleteBatch } = useBatches({
+    search: searchTerm,
+    courseId: courseFilter !== "ALL" ? courseFilter : undefined,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+  });
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [courseId, setCourseId] = useState(courses[0]?.id || "");
-  const [facultyId, setFacultyId] = useState(facultyList[0]?.id || "");
+  const [courseId, setCourseId] = useState("");
+  const [facultyId, setFacultyId] = useState("");
   const [startDate, setStartDate] = useState("2026-04-01");
   const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
   const [timeSlot, setTimeSlot] = useState("10:00 AM - 12:00 PM");
   const [capacity, setCapacity] = useState<number>(35);
+  const [submitting, setSubmitting] = useState(false);
 
   const filteredBatches = batches.filter((b) => {
+    const facultyName = b.faculty?.user?.name || "";
+    const courseName = b.course?.name || "";
+
     const matchesSearch =
+      !searchTerm ||
       b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (b.facultyName && b.facultyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      b.courseName.toLowerCase().includes(searchTerm.toLowerCase());
+      facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      courseName.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesCourse = courseFilter === "ALL" || b.courseId === courseFilter;
     const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
@@ -68,34 +80,41 @@ export const Batches: React.FC = () => {
 
   const activeCount = batches.filter((b) => b.status === "ACTIVE").length;
   const upcomingCount = batches.filter((b) => b.status === "UPCOMING").length;
-  const totalEnrolled = batches.reduce((acc, b) => acc + b.enrolledCount, 0);
-  const totalCapacity = batches.reduce((acc, b) => acc + b.capacity, 0);
+  const totalEnrolled = batches.reduce((acc, b) => acc + (b._count?.enrollments || 0), 0);
+  const totalCapacity = batches.reduce((acc, b) => acc + (b.capacity || 35), 0);
   const avgOccupancy = totalCapacity > 0 ? Math.round((totalEnrolled / totalCapacity) * 100) : 0;
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !code || !courseId) return;
 
-    const selectedCourse = courses.find((c) => c.id === courseId);
-    const selectedFaculty = facultyList.find((f) => f.id === facultyId);
+    try {
+      setSubmitting(true);
+      await createBatch({
+        name,
+        code,
+        courseId,
+        facultyId: facultyId || undefined,
+        startDate,
+        schedulePattern,
+        timeSlot,
+        capacity,
+      });
 
-    addBatch({
-      name,
-      code,
-      courseId,
-      courseName: selectedCourse?.name || "General Course",
-      facultyId,
-      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
-      startDate,
-      schedulePattern,
-      timeSlot,
-      capacity,
-      status: "UPCOMING",
-    });
+      setName("");
+      setCode("");
+      setShowModal(false);
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Failed to create batch");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-    setName("");
-    setCode("");
-    setShowModal(false);
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this batch?")) {
+      await deleteBatch(id);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -111,7 +130,7 @@ export const Batches: React.FC = () => {
     }
   };
 
-  const getPatternBadge = (pattern: string) => {
+  const getPatternBadge = (pattern?: string) => {
     switch (pattern) {
       case "MWF":
         return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Mon, Wed, Fri</Badge>;
@@ -120,7 +139,7 @@ export const Batches: React.FC = () => {
       case "WEEKEND":
         return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Weekend</Badge>;
       default:
-        return <Badge variant="outline">{pattern}</Badge>;
+        return <Badge variant="outline">{pattern || "MWF"}</Badge>;
     }
   };
 
@@ -137,7 +156,10 @@ export const Batches: React.FC = () => {
 
         <Button 
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
-          onClick={() => setShowModal(true)}
+          onClick={() => {
+            if (courses.length > 0 && !courseId) setCourseId(courses[0].id);
+            setShowModal(true);
+          }}
         >
           <Plus className="mr-2 h-4 w-4" />
           Create New Batch
@@ -240,101 +262,113 @@ export const Batches: React.FC = () => {
 
           {/* Table Container */}
           <div className="rounded-md border border-border/50 overflow-hidden bg-white">
-            <Table>
-              <TableHeader className="bg-bg-secondary/50">
-                <TableRow>
-                  <TableHead className="font-semibold text-text-primary">Batch Code & Title</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Associated Course</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Instructor</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Schedule Pattern</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Start Date</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Occupancy</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                  <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredBatches.length > 0 ? (
-                  filteredBatches.map((batch) => {
-                    const occupancyPercent = Math.round((batch.enrolledCount / batch.capacity) * 100);
-                    return (
-                      <TableRow key={batch.id} className="hover:bg-slate-50 transition-colors">
-                        <TableCell>
-                          <div>
-                            <span className="font-mono text-xs font-bold text-[#1769AA] block">
-                              {batch.code}
-                            </span>
-                            <span className="font-medium text-text-primary text-sm">
-                              {batch.name}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-text-secondary font-medium">
-                          {batch.courseName}
-                        </TableCell>
-                        <TableCell className="text-xs text-text-secondary">
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5 text-text-muted" />
-                            <span>{batch.facultyName || "Unassigned"}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            {getPatternBadge(batch.schedulePattern)}
-                            <span className="block text-[11px] text-text-muted">
-                              {batch.timeSlot}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs text-text-secondary">
-                          {batch.startDate}
-                        </TableCell>
-                        <TableCell>
-                          <div className="w-32 space-y-1">
-                            <div className="flex justify-between text-[11px] font-medium text-text-secondary">
-                              <span>{batch.enrolledCount} / {batch.capacity}</span>
-                              <span>{occupancyPercent}%</span>
-                            </div>
-                            <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                              <div 
-                                className={`h-full rounded-full ${occupancyPercent >= 90 ? "bg-amber-500" : "bg-[#1769AA]"}`}
-                                style={{ width: `${Math.min(occupancyPercent, 100)}%` }}
-                              />
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{getStatusBadge(batch.status)}</TableCell>
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                              <DropdownMenuLabel>Batch Actions</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive focus:text-destructive"
-                                onClick={() => deleteBatch(batch.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Batch
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
+            {loading ? (
+              <div className="py-12 flex justify-center items-center text-text-muted">
+                <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+                <span className="ml-2 text-sm font-medium">Loading batches...</span>
+              </div>
+            ) : (
+              <Table>
+                <TableHeader className="bg-bg-secondary/50">
                   <TableRow>
-                    <TableCell colSpan={8} className="h-32 text-center text-text-muted">
-                      No batches found matching criteria.
-                    </TableCell>
+                    <TableHead className="font-semibold text-text-primary">Batch Code & Title</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Associated Course</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Instructor</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Schedule Pattern</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Start Date</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Occupancy</TableHead>
+                    <TableHead className="font-semibold text-text-primary">Status</TableHead>
+                    <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredBatches.length > 0 ? (
+                    filteredBatches.map((batch) => {
+                      const enrolledCount = batch._count?.enrollments || 0;
+                      const maxCapacity = batch.capacity || 35;
+                      const occupancyPercent = Math.round((enrolledCount / maxCapacity) * 100);
+                      const formattedDate = batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "-";
+                      const instructorName = batch.faculty?.user?.name || "Unassigned";
+
+                      return (
+                        <TableRow key={batch.id} className="hover:bg-slate-50 transition-colors">
+                          <TableCell>
+                            <div>
+                              <span className="font-mono text-xs font-bold text-[#1769AA] block">
+                                {batch.code}
+                              </span>
+                              <span className="font-medium text-text-primary text-sm">
+                                {batch.name}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-text-secondary font-medium">
+                            {batch.course?.name || "N/A"}
+                          </TableCell>
+                          <TableCell className="text-xs text-text-secondary">
+                            <div className="flex items-center gap-1.5">
+                              <UserCheck className="h-3.5 w-3.5 text-text-muted" />
+                              <span>{instructorName}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="space-y-1">
+                              {getPatternBadge(batch.schedulePattern)}
+                              <span className="block text-[11px] text-text-muted">
+                                {batch.timeSlot || "10:00 AM - 12:00 PM"}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-xs text-text-secondary">
+                            {formattedDate}
+                          </TableCell>
+                          <TableCell>
+                            <div className="w-32 space-y-1">
+                              <div className="flex justify-between text-[11px] font-medium text-text-secondary">
+                                <span>{enrolledCount} / {maxCapacity}</span>
+                                <span>{occupancyPercent}%</span>
+                              </div>
+                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${occupancyPercent >= 90 ? "bg-amber-500" : "bg-[#1769AA]"}`}
+                                  style={{ width: `${Math.min(occupancyPercent, 100)}%` }}
+                                />
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(batch.status)}</TableCell>
+                          <TableCell className="text-right">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
+                                <DropdownMenuLabel>Batch Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => handleDelete(batch.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete Batch
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })
+                  ) : (
+                    <TableRow>
+                      <TableCell colSpan={8} className="h-32 text-center text-text-muted">
+                        No batches found matching criteria.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -357,6 +391,7 @@ export const Batches: React.FC = () => {
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   required
                 >
+                  <option value="">Select a course</option>
                   {courses.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name} ({c.code})
@@ -397,6 +432,7 @@ export const Batches: React.FC = () => {
                   onChange={(e) => setFacultyId(e.target.value)}
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                 >
+                  <option value="">Unassigned</option>
                   {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
@@ -457,14 +493,23 @@ export const Batches: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
+                  disabled={submitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={submitting}
                 >
-                  Save Batch
+                  {submitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Batch"
+                  )}
                 </Button>
               </div>
             </form>

@@ -1,301 +1,258 @@
 import { create } from "zustand";
-import type { Enquiry, Application, Admission } from "../types/admission.types";
+import { admissionsApi } from "../services/admissions.api";
+import type { 
+  Enquiry, 
+  Application, 
+  Admission,
+  CreateEnquiryPayload,
+  CreateApplicationPayload,
+  CreateAdmissionPayload,
+  ConvertEnquiryPayload,
+  ConvertApplicationPayload
+} from "../types/admission.types";
 
 interface AdmissionState {
   enquiries: Enquiry[];
   applications: Application[];
   admissions: Admission[];
+  isLoading: boolean;
+  error: string | null;
+
+  // Fetch Actions
+  fetchEnquiries: (params?: { search?: string; source?: string; status?: string; courseId?: string }) => Promise<void>;
+  fetchApplications: (params?: { search?: string; feeStatus?: string; status?: string; courseId?: string }) => Promise<void>;
+  fetchAdmissions: (params?: { search?: string; courseId?: string; status?: string; batchId?: string }) => Promise<void>;
 
   // Enquiry Actions
-  addEnquiry: (enquiry: Omit<Enquiry, "id" | "createdAt">) => void;
-  updateEnquiry: (id: string, data: Partial<Enquiry>) => void;
-  deleteEnquiry: (id: string) => void;
-  convertEnquiryToApplication: (enquiryId: string) => void;
+  addEnquiry: (payload: CreateEnquiryPayload) => Promise<Enquiry | null>;
+  updateEnquiry: (id: string, payload: Partial<CreateEnquiryPayload>) => Promise<boolean>;
+  deleteEnquiry: (id: string) => Promise<boolean>;
+  convertEnquiryToApplication: (enquiryId: string, payload?: ConvertEnquiryPayload) => Promise<boolean>;
 
   // Application Actions
-  addApplication: (application: Omit<Application, "id" | "applicationNo" | "submittedDate">) => void;
-  updateApplication: (id: string, data: Partial<Application>) => void;
-  deleteApplication: (id: string) => void;
-  convertApplicationToAdmission: (applicationId: string, batchId?: string, batchName?: string) => void;
+  addApplication: (payload: CreateApplicationPayload) => Promise<Application | null>;
+  updateApplication: (id: string, payload: Partial<CreateApplicationPayload>) => Promise<boolean>;
+  deleteApplication: (id: string) => Promise<boolean>;
+  convertApplicationToAdmission: (applicationId: string, payload?: ConvertApplicationPayload) => Promise<boolean>;
 
   // Admission Actions
-  addAdmission: (admission: Omit<Admission, "id" | "admissionNo" | "admissionDate">) => void;
-  updateAdmission: (id: string, data: Partial<Admission>) => void;
-  deleteAdmission: (id: string) => void;
+  addAdmission: (payload: CreateAdmissionPayload) => Promise<Admission | null>;
+  updateAdmission: (id: string, payload: Partial<CreateAdmissionPayload>) => Promise<boolean>;
+  deleteAdmission: (id: string) => Promise<boolean>;
 }
 
-const initialEnquiries: Enquiry[] = [
-  {
-    id: "enq-101",
-    name: "Rohan Sharma",
-    email: "rohan.s@gmail.com",
-    phone: "+91 98765 43210",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    source: "WEBSITE",
-    status: "NEW",
-    counselorNotes: "Interested in upcoming March batch. Requested fee structure details.",
-    createdAt: "2026-02-10",
+export const useAdmissionStore = create<AdmissionState>((set, get) => ({
+  enquiries: [],
+  applications: [],
+  admissions: [],
+  isLoading: false,
+  error: null,
+
+  // ─── FETCH ACTIONS ─────────────────────────────────────────────────────────
+  fetchEnquiries: async (params) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await admissionsApi.getEnquiries(params);
+      const enquiries = (response.data || []).map((e) => ({
+        ...e,
+        courseName: e.course?.name || e.courseName || "General Course",
+        email: e.email || "",
+      }));
+      set({ enquiries, isLoading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to fetch enquiries", isLoading: false });
+    }
   },
-  {
-    id: "enq-102",
-    name: "Priya Patel",
-    email: "priya.p@yahoo.com",
-    phone: "+91 98123 45678",
-    courseId: "c-2",
-    courseName: "Backend Engineering & Systems",
-    source: "WALK_IN",
-    status: "IN_PROGRESS",
-    counselorNotes: "Visited campus today. Attended demo class with Dr. Rajesh Verma.",
-    createdAt: "2026-02-08",
+
+  fetchApplications: async (params) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await admissionsApi.getApplications(params);
+      const applications = (response.data || []).map((a) => ({
+        ...a,
+        courseName: a.course?.name || a.courseName || "General Course",
+        email: a.email || "",
+        submittedDate: a.submittedDate ? new Date(a.submittedDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      }));
+      set({ applications, isLoading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to fetch applications", isLoading: false });
+    }
   },
-  {
-    id: "enq-103",
-    name: "Vikram Malhotra",
-    email: "v.malhotra@gmail.com",
-    phone: "+91 97654 32109",
-    courseId: "c-3",
-    courseName: "Data Science & Applied Machine Learning",
-    source: "WHATSAPP",
-    status: "FOLLOW_UP",
-    counselorNotes: "Wants weekend batch option. Call scheduled for tomorrow 4 PM.",
-    createdAt: "2026-02-05",
+
+  fetchAdmissions: async (params) => {
+    set({ isLoading: true, error: null });
+    try {
+      const response = await admissionsApi.getAdmissions(params);
+      const admissions = (response.data || []).map((adm) => ({
+        ...adm,
+        studentName: adm.studentName || "N/A",
+        email: adm.email || "",
+        phone: adm.phone || "",
+        courseName: adm.course?.name || adm.courseName || "General Course",
+        batchName: adm.batch?.code || adm.batch?.name || adm.batchName || "N/A",
+        admissionDate: adm.admissionDate ? new Date(adm.admissionDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+      }));
+      set({ admissions, isLoading: false });
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to fetch admissions", isLoading: false });
+    }
   },
-  {
-    id: "enq-104",
-    name: "Sneha Reddy",
-    email: "sneha.reddy@outlook.com",
-    phone: "+91 99887 76655",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    source: "REFERRAL",
-    status: "CONVERTED",
-    counselorNotes: "Converted to application APP-2026-012.",
-    createdAt: "2026-02-01",
+
+  // ─── ENQUIRY MUTATIONS ─────────────────────────────────────────────────────
+  addEnquiry: async (payload) => {
+    try {
+      const response = await admissionsApi.createEnquiry(payload);
+      if (response.success && response.data) {
+        await get().fetchEnquiries();
+        return response.data;
+      }
+      return null;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to create enquiry" });
+      return null;
+    }
   },
-];
 
-const initialApplications: Application[] = [
-  {
-    id: "app-201",
-    applicationNo: "APP-2026-012",
-    applicantName: "Sneha Reddy",
-    email: "sneha.reddy@outlook.com",
-    phone: "+91 99887 76655",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    feeStatus: "PAID",
-    status: "APPROVED",
-    submittedDate: "2026-02-02",
-    notes: "Application fee paid. Documents verified by Counsellor.",
+  updateEnquiry: async (id, payload) => {
+    try {
+      const response = await admissionsApi.updateEnquiry(id, payload);
+      if (response.success) {
+        await get().fetchEnquiries();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to update enquiry" });
+      return false;
+    }
   },
-  {
-    id: "app-202",
-    applicationNo: "APP-2026-015",
-    applicantName: "Amitabh Joshi",
-    email: "amitabh.j@gmail.com",
-    phone: "+91 98450 11223",
-    courseId: "c-2",
-    courseName: "Backend Engineering & Systems",
-    feeStatus: "PAID",
-    status: "UNDER_REVIEW",
-    submittedDate: "2026-02-06",
-    notes: "Submitted graduation certificate and ID proof.",
+
+  deleteEnquiry: async (id) => {
+    try {
+      const response = await admissionsApi.deleteEnquiry(id);
+      if (response.success) {
+        set((state) => ({ enquiries: state.enquiries.filter((e) => e.id !== id) }));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to delete enquiry" });
+      return false;
+    }
   },
-  {
-    id: "app-203",
-    applicationNo: "APP-2026-018",
-    applicantName: "Kavya Nair",
-    email: "kavya.nair@gmail.com",
-    phone: "+91 97112 33445",
-    courseId: "c-3",
-    courseName: "Data Science & Applied Machine Learning",
-    feeStatus: "PENDING",
-    status: "SUBMITTED",
-    submittedDate: "2026-02-09",
-    notes: "Awaiting registration fee payment.",
+
+  convertEnquiryToApplication: async (enquiryId, payload) => {
+    try {
+      const response = await admissionsApi.convertEnquiryToApplication(enquiryId, payload);
+      if (response.success) {
+        await Promise.all([get().fetchEnquiries(), get().fetchApplications()]);
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to convert enquiry to application" });
+      return false;
+    }
   },
-];
 
-const initialAdmissions: Admission[] = [
-  {
-    id: "adm-301",
-    admissionNo: "ADM-2026-001",
-    studentName: "Aarav Gupta",
-    email: "aarav.gupta@gmail.com",
-    phone: "+91 98220 55443",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    batchId: "b-1",
-    batchName: "FS-2026-A1",
-    feePlan: "FULL_PAYMENT",
-    status: "CONFIRMED",
-    admissionDate: "2026-01-20",
-    notes: "Confirmed admission. Full fee paid upfront.",
+  // ─── APPLICATION MUTATIONS ─────────────────────────────────────────────────
+  addApplication: async (payload) => {
+    try {
+      const response = await admissionsApi.createApplication(payload);
+      if (response.success && response.data) {
+        await get().fetchApplications();
+        return response.data;
+      }
+      return null;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to create application" });
+      return null;
+    }
   },
-  {
-    id: "adm-302",
-    admissionNo: "ADM-2026-005",
-    studentName: "Diya Deshmukh",
-    email: "diya.d@gmail.com",
-    phone: "+91 99001 88776",
-    courseId: "c-2",
-    courseName: "Backend Engineering & Systems",
-    batchId: "b-3",
-    batchName: "BE-2026-B2",
-    feePlan: "INSTALLMENT",
-    status: "CONFIRMED",
-    admissionDate: "2026-01-25",
-    notes: "First installment paid.",
+
+  updateApplication: async (id, payload) => {
+    try {
+      const response = await admissionsApi.updateApplication(id, payload);
+      if (response.success) {
+        await get().fetchApplications();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to update application" });
+      return false;
+    }
   },
-  {
-    id: "adm-303",
-    admissionNo: "ADM-2026-009",
-    studentName: "Rahul Mehta",
-    email: "rahul.m@gmail.com",
-    phone: "+91 97334 22110",
-    courseId: "c-3",
-    courseName: "Data Science & Applied Machine Learning",
-    batchId: "b-4",
-    batchName: "DS-2026-W1",
-    feePlan: "INSTALLMENT",
-    status: "PROVISIONAL",
-    admissionDate: "2026-02-07",
-    notes: "Provisional seat reserved for May weekend batch.",
+
+  deleteApplication: async (id) => {
+    try {
+      const response = await admissionsApi.deleteApplication(id);
+      if (response.success) {
+        set((state) => ({ applications: state.applications.filter((a) => a.id !== id) }));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to delete application" });
+      return false;
+    }
   },
-];
 
-export const useAdmissionStore = create<AdmissionState>((set) => ({
-  enquiries: initialEnquiries,
-  applications: initialApplications,
-  admissions: initialAdmissions,
+  convertApplicationToAdmission: async (applicationId, payload) => {
+    try {
+      const response = await admissionsApi.convertApplicationToAdmission(applicationId, payload);
+      if (response.success) {
+        await Promise.all([get().fetchApplications(), get().fetchAdmissions()]);
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to convert application to admission" });
+      return false;
+    }
+  },
 
-  // Enquiry Actions
-  addEnquiry: (data) =>
-    set((state) => {
-      const newEnquiry: Enquiry = {
-        ...data,
-        id: `enq-${Date.now()}`,
-        createdAt: new Date().toISOString().split("T")[0],
-      };
-      return { enquiries: [newEnquiry, ...state.enquiries] };
-    }),
+  // ─── ADMISSION MUTATIONS ───────────────────────────────────────────────────
+  addAdmission: async (payload) => {
+    try {
+      const response = await admissionsApi.createAdmission(payload);
+      if (response.success && response.data) {
+        await get().fetchAdmissions();
+        return response.data;
+      }
+      return null;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to create admission" });
+      return null;
+    }
+  },
 
-  updateEnquiry: (id, data) =>
-    set((state) => ({
-      enquiries: state.enquiries.map((e) => (e.id === id ? { ...e, ...data } : e)),
-    })),
+  updateAdmission: async (id, payload) => {
+    try {
+      const response = await admissionsApi.updateAdmission(id, payload);
+      if (response.success) {
+        await get().fetchAdmissions();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to update admission" });
+      return false;
+    }
+  },
 
-  deleteEnquiry: (id) =>
-    set((state) => ({
-      enquiries: state.enquiries.filter((e) => e.id !== id),
-    })),
-
-  convertEnquiryToApplication: (enquiryId) =>
-    set((state) => {
-      const enquiry = state.enquiries.find((e) => e.id === enquiryId);
-      if (!enquiry) return state;
-
-      const newAppNo = `APP-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const newApplication: Application = {
-        id: `app-${Date.now()}`,
-        applicationNo: newAppNo,
-        applicantName: enquiry.name,
-        email: enquiry.email,
-        phone: enquiry.phone,
-        courseId: enquiry.courseId,
-        courseName: enquiry.courseName,
-        feeStatus: "PAID",
-        status: "SUBMITTED",
-        submittedDate: new Date().toISOString().split("T")[0],
-        notes: `Converted from enquiry ${enquiry.id}.`,
-      };
-
-      const updatedEnquiries = state.enquiries.map((e) =>
-        e.id === enquiryId ? { ...e, status: "CONVERTED" as const } : e
-      );
-
-      return {
-        enquiries: updatedEnquiries,
-        applications: [newApplication, ...state.applications],
-      };
-    }),
-
-  // Application Actions
-  addApplication: (data) =>
-    set((state) => {
-      const newAppNo = `APP-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const newApp: Application = {
-        ...data,
-        id: `app-${Date.now()}`,
-        applicationNo: newAppNo,
-        submittedDate: new Date().toISOString().split("T")[0],
-      };
-      return { applications: [newApp, ...state.applications] };
-    }),
-
-  updateApplication: (id, data) =>
-    set((state) => ({
-      applications: state.applications.map((a) => (a.id === id ? { ...a, ...data } : a)),
-    })),
-
-  deleteApplication: (id) =>
-    set((state) => ({
-      applications: state.applications.filter((a) => a.id !== id),
-    })),
-
-  convertApplicationToAdmission: (applicationId, batchId, batchName) =>
-    set((state) => {
-      const app = state.applications.find((a) => a.id === applicationId);
-      if (!app) return state;
-
-      const newAdmNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const newAdmission: Admission = {
-        id: `adm-${Date.now()}`,
-        admissionNo: newAdmNo,
-        studentName: app.applicantName,
-        email: app.email,
-        phone: app.phone,
-        courseId: app.courseId,
-        courseName: app.courseName,
-        batchId: batchId || "b-1",
-        batchName: batchName || "FS-2026-A1",
-        feePlan: "INSTALLMENT",
-        status: "CONFIRMED",
-        admissionDate: new Date().toISOString().split("T")[0],
-        notes: `Converted from application ${app.applicationNo}.`,
-      };
-
-      const updatedApps = state.applications.map((a) =>
-        a.id === applicationId ? { ...a, status: "ADMITTED" as const } : a
-      );
-
-      return {
-        applications: updatedApps,
-        admissions: [newAdmission, ...state.admissions],
-      };
-    }),
-
-  // Admission Actions
-  addAdmission: (data) =>
-    set((state) => {
-      const newAdmNo = `ADM-2026-${Math.floor(100 + Math.random() * 900)}`;
-      const newAdmission: Admission = {
-        ...data,
-        id: `adm-${Date.now()}`,
-        admissionNo: newAdmNo,
-        admissionDate: new Date().toISOString().split("T")[0],
-      };
-      return { admissions: [newAdmission, ...state.admissions] };
-    }),
-
-  updateAdmission: (id, data) =>
-    set((state) => ({
-      admissions: state.admissions.map((a) => (a.id === id ? { ...a, ...data } : a)),
-    })),
-
-  deleteAdmission: (id) =>
-    set((state) => ({
-      admissions: state.admissions.filter((a) => a.id !== id),
-    })),
+  deleteAdmission: async (id) => {
+    try {
+      const response = await admissionsApi.deleteAdmission(id);
+      if (response.success) {
+        set((state) => ({ admissions: state.admissions.filter((a) => a.id !== id) }));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.response?.data?.message || err.message || "Failed to delete admission" });
+      return false;
+    }
+  },
 }));

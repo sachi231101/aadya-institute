@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Calendar, 
   Plus, 
@@ -8,7 +8,8 @@ import {
   MoreVertical, 
   Trash2, 
   MapPin,
-  XCircle
+  XCircle,
+  Loader2
 } from "lucide-react";
 import { useScheduleStore } from "../../../store/schedule.store";
 import { useCourseStore } from "../../../store/course.store";
@@ -36,10 +37,16 @@ import {
 import type { ClassMode, ClassStatus } from "../../../types/schedule.types";
 
 export const Classes: React.FC = () => {
-  const { classes, addClassSession, deleteClassSession, cancelClassSession, toggleAttendanceMarked } = useScheduleStore();
-  const { courses, batches } = useCourseStore();
+  const { classes, isLoading, fetchClasses, addClassSession, deleteClassSession, cancelClassSession, toggleAttendanceMarked } = useScheduleStore();
+  const { courses, batches, fetchCourses, fetchBatches } = useCourseStore();
   const { data: facultyResponse } = useFacultyList({ limit: 100 });
   const facultyList = facultyResponse?.data ?? [];
+
+  useEffect(() => {
+    fetchClasses();
+    fetchCourses();
+    fetchBatches();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [modeFilter, setModeFilter] = useState("ALL");
@@ -79,28 +86,23 @@ export const Classes: React.FC = () => {
   const attendanceMarkedCount = classes.filter((c) => c.attendanceMarked).length;
   const attendancePercent = totalClasses > 0 ? Math.round((attendanceMarkedCount / totalClasses) * 100) : 0;
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !batchId || !facultyId || !date) return;
+    const effectiveBatchId = batchId || batches[0]?.id;
+    const effectiveFacultyId = facultyId || facultyList[0]?.id;
+    const selectedCourse = courses.find((c) => c.id === courseId);
+    if (!title || !effectiveBatchId || !effectiveFacultyId || !date) return;
 
-    const selectedBatch = batches.find((b) => b.id === batchId);
-    const selectedCourse = courses.find((c) => c.id === (courseId || selectedBatch?.courseId));
-    const selectedFaculty = facultyList.find((f) => f.id === facultyId);
-
-    addClassSession({
+    await addClassSession({
       title,
-      batchId,
-      batchCode: selectedBatch?.code || "FS-2026-A1",
-      courseId: selectedCourse?.id || "c-1",
-      courseName: selectedCourse?.name || "General Course",
-      facultyId,
-      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
-      date,
+      batchId: effectiveBatchId,
+      batchModuleId: selectedCourse ? undefined : undefined,
+      facultyId: effectiveFacultyId,
+      scheduledDate: date,
       startTime,
       endTime,
       roomNo,
       mode,
-      status: "UPCOMING",
       meetingUrl,
       notes,
     });
@@ -267,7 +269,16 @@ export const Classes: React.FC = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredClasses.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                        Loading class sessions...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredClasses.length > 0 ? (
                   filteredClasses.map((cls) => (
                     <TableRow key={cls.id} className="hover:bg-slate-50 transition-colors">
                       <TableCell>

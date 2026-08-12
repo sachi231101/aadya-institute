@@ -1,11 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Calendar as CalendarIcon, 
   Clock, 
   MapPin, 
   UserCheck, 
   BookOpen,
-  Filter
+  Filter,
+  Loader2
 } from "lucide-react";
 import { useScheduleStore } from "../../../store/schedule.store";
 import { useCourseStore } from "../../../store/course.store";
@@ -15,8 +16,13 @@ import { Badge } from "@/components/ui/badge";
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export const Timetable: React.FC = () => {
-  const { classes } = useScheduleStore();
-  const { batches } = useCourseStore();
+  const { classes, isLoading, fetchClasses } = useScheduleStore();
+  const { batches, fetchBatches } = useCourseStore();
+
+  useEffect(() => {
+    fetchClasses();
+    fetchBatches();
+  }, []);
 
   const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
 
@@ -68,12 +74,18 @@ export const Timetable: React.FC = () => {
 
       {/* Weekly Matrix Grid */}
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {DAYS.map((day) => {
-            const dayClasses = filteredClasses.filter((cls) => {
-              const dayName = getDayName(cls.date);
-              return dayName === day || (day === "Monday" && cls.batchCode === "FS-2026-A1") || (day === "Wednesday" && cls.batchCode === "BE-2026-B2");
-            });
+        {isLoading ? (
+          <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+            <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+            Loading academy timetable grid...
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {DAYS.map((day) => {
+              const dayClasses = filteredClasses.filter((cls) => {
+                const dayName = getDayName(cls.date);
+                return dayName === day;
+              });
 
             return (
               <Card key={day} className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -136,6 +148,7 @@ export const Timetable: React.FC = () => {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

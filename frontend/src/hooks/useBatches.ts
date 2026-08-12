@@ -1,18 +1,45 @@
-import { useState, useEffect } from "react";
-import type { Batch } from "../types/batch.types";
-import { batchesApi } from "../services/batches.api";
+import { useState, useEffect, useCallback } from "react";
+import { batchesApi, type BatchData, type CreateBatchPayload } from "../services/batches.api";
 
-export const useBatches = () => {
-  const [batches, setBatches] = useState<Batch[]>([]);
-  const [loading, setLoading] = useState(true);
+export const useBatches = (filters?: { search?: string; courseId?: string; facultyId?: string; status?: string }) => {
+  const [batches, setBatches] = useState<BatchData[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchBatches = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await batchesApi.getAll(filters);
+      setBatches(response.data || []);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || "Failed to fetch batches");
+    } finally {
+      setLoading(false);
+    }
+  }, [filters?.search, filters?.courseId, filters?.facultyId, filters?.status]);
 
   useEffect(() => {
-    batchesApi
-      .getAll()
-      .then(setBatches)
-      .catch(() => setBatches([]))
-      .finally(() => setLoading(false));
-  }, []);
+    fetchBatches();
+  }, [fetchBatches]);
 
-  return { batches, loading };
+  const createBatch = async (payload: CreateBatchPayload) => {
+    const response = await batchesApi.create(payload);
+    await fetchBatches();
+    return response.data;
+  };
+
+  const deleteBatch = async (id: string) => {
+    await batchesApi.delete(id);
+    await fetchBatches();
+  };
+
+  return {
+    batches,
+    loading,
+    error,
+    refetch: fetchBatches,
+    createBatch,
+    deleteBatch,
+  };
 };

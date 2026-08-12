@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Layers, 
   Plus, 
@@ -8,24 +8,43 @@ import {
   ChevronDown, 
   ChevronRight,
   FileText,
-  Bookmark
+  Bookmark,
+  Loader2,
+  Trash2
 } from "lucide-react";
-import { useCourseStore } from "../../../store/course.store";
+import { useCourses } from "../../../hooks/useCourses";
+import { useModules } from "../../../hooks/useModules";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export const Curriculum: React.FC = () => {
-  const { courses, modules, addModule, addTopic, toggleTopicCompletion } = useCourseStore();
+  const { courses, loading: coursesLoading } = useCourses();
+  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
 
-  const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || "");
+  useEffect(() => {
+    if (courses.length > 0 && !selectedCourseId) {
+      setSelectedCourseId(courses[0].id);
+    }
+  }, [courses, selectedCourseId]);
+
+  const {
+    modules,
+    loading: modulesLoading,
+    createModule,
+    addTopic,
+    toggleTopic,
+    deleteModule,
+  } = useModules(selectedCourseId);
+
   const [expandedModules, setExpandedModules] = useState<Record<string, boolean>>({});
 
   // Module Modal State
   const [showModuleModal, setShowModuleModal] = useState(false);
   const [moduleTitle, setModuleTitle] = useState("");
   const [moduleCode, setModuleCode] = useState("");
+  const [moduleSubmitting, setModuleSubmitting] = useState(false);
 
   // Topic Modal State
   const [showTopicModal, setShowTopicModal] = useState(false);
@@ -33,38 +52,77 @@ export const Curriculum: React.FC = () => {
   const [topicTitle, setTopicTitle] = useState("");
   const [topicHours, setTopicHours] = useState<number>(4);
   const [topicDescription, setTopicDescription] = useState("");
+  const [topicSubmitting, setTopicSubmitting] = useState(false);
 
-  const selectedCourse = courses.find((c) => c.id === selectedCourseId) || courses[0];
-  const courseModules = modules.filter((m) => m.courseId === selectedCourseId);
+  const selectedCourse = courses.find((c) => c.id === selectedCourseId);
 
-  const toggleModule = (id: string) => {
+  const toggleModuleAccordion = (id: string) => {
     setExpandedModules((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleAddModuleSubmit = (e: React.FormEvent) => {
+  const handleAddModuleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!moduleTitle || !selectedCourseId) return;
 
-    addModule(selectedCourseId, moduleTitle, moduleCode || `MOD-${Date.now().toString().slice(-3)}`);
-    setModuleTitle("");
-    setModuleCode("");
-    setShowModuleModal(false);
+    try {
+      setModuleSubmitting(true);
+      await createModule({
+        courseId: selectedCourseId,
+        name: moduleTitle,
+        code: moduleCode || `MOD-${Date.now().toString().slice(-3)}`,
+      });
+
+      setModuleTitle("");
+      setModuleCode("");
+      setShowModuleModal(false);
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Failed to create module");
+    } finally {
+      setModuleSubmitting(false);
+    }
   };
 
-  const handleAddTopicSubmit = (e: React.FormEvent) => {
+  const handleAddTopicSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topicTitle || !activeModuleId) return;
 
-    addTopic(activeModuleId, topicTitle, topicHours, topicDescription);
-    setTopicTitle("");
-    setTopicHours(4);
-    setTopicDescription("");
-    setShowTopicModal(false);
+    try {
+      setTopicSubmitting(true);
+      await addTopic(activeModuleId, {
+        title: topicTitle,
+        durationHours: topicHours,
+        description: topicDescription,
+      });
+
+      setTopicTitle("");
+      setTopicHours(4);
+      setTopicDescription("");
+      setShowTopicModal(false);
+    } catch (err: any) {
+      alert(err.response?.data?.message || err.message || "Failed to add topic");
+    } finally {
+      setTopicSubmitting(false);
+    }
   };
 
-  const totalTopics = courseModules.reduce((acc, m) => acc + m.topics.length, 0);
-  const completedTopics = courseModules.reduce(
-    (acc, m) => acc + m.topics.filter((t) => t.isCompleted).length,
+  const handleToggleTopic = async (moduleId: string, topicId: string) => {
+    try {
+      await toggleTopic(moduleId, topicId);
+    } catch (err: any) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteModule = async (moduleId: string) => {
+    if (confirm("Are you sure you want to delete this module?")) {
+      await deleteModule(moduleId);
+    }
+  };
+
+  // Calculate totals
+  const totalTopics = modules.reduce((acc, m) => acc + ((m.topics as any[])?.length || 0), 0);
+  const completedTopics = modules.reduce(
+    (acc, m) => acc + ((m.topics as any[])?.filter((t) => t.isCompleted)?.length || 0),
     0
   );
   const progressPercent = totalTopics > 0 ? Math.round((completedTopics / totalTopics) * 100) : 0;
@@ -84,6 +142,7 @@ export const Curriculum: React.FC = () => {
           <Button 
             className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
             onClick={() => setShowModuleModal(true)}
+            disabled={!selectedCourseId}
           >
             <Plus className="mr-2 h-4 w-4" />
             Add New Module
@@ -98,20 +157,28 @@ export const Curriculum: React.FC = () => {
             <div className="space-y-1 flex-1">
               <span className="text-xs font-semibold text-text-secondary uppercase tracking-wider">Active Course Curriculum</span>
               <div className="flex items-center gap-3">
-                <select
-                  value={selectedCourseId}
-                  onChange={(e) => setSelectedCourseId(e.target.value)}
-                  className="h-10 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA] min-w-[280px]"
-                >
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.code})
-                    </option>
-                  ))}
-                </select>
-                <Badge variant="outline" className="bg-blue-50 text-[#1769AA] border-blue-200">
-                  {selectedCourse?.category}
-                </Badge>
+                {coursesLoading ? (
+                  <div className="flex items-center text-sm text-slate-500">
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" /> Loading courses...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedCourseId}
+                    onChange={(e) => setSelectedCourseId(e.target.value)}
+                    className="h-10 px-3 py-2 bg-slate-50 border border-slate-300 rounded-md text-base font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA] min-w-[280px]"
+                  >
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.code})
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {selectedCourse?.category && (
+                  <Badge variant="outline" className="bg-blue-50 text-[#1769AA] border-blue-200">
+                    {selectedCourse.category}
+                  </Badge>
+                )}
               </div>
             </div>
 
@@ -119,11 +186,13 @@ export const Curriculum: React.FC = () => {
             <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6 text-xs text-text-secondary">
               <div>
                 <span className="block text-slate-400">Total Duration</span>
-                <span className="font-bold text-slate-800 text-sm">{selectedCourse?.durationMonths} Months ({selectedCourse?.totalHours} hrs)</span>
+                <span className="font-bold text-slate-800 text-sm">
+                  {selectedCourse?.duration || selectedCourse?.durationMonths || 6} Months ({selectedCourse?.totalHours || 100} hrs)
+                </span>
               </div>
               <div>
                 <span className="block text-slate-400">Modules Count</span>
-                <span className="font-bold text-slate-800 text-sm">{courseModules.length} Modules</span>
+                <span className="font-bold text-slate-800 text-sm">{modules.length} Modules</span>
               </div>
               <div>
                 <span className="block text-slate-400">Topics Completion</span>
@@ -144,14 +213,20 @@ export const Curriculum: React.FC = () => {
 
       {/* Modules List */}
       <div className="space-y-4">
-        {courseModules.length > 0 ? (
-          courseModules.map((module, index) => {
+        {modulesLoading ? (
+          <div className="py-12 text-center text-slate-500 flex justify-center items-center">
+            <Loader2 className="h-8 w-8 animate-spin text-[#1769AA] mr-2" />
+            <span>Loading curriculum modules...</span>
+          </div>
+        ) : modules.length > 0 ? (
+          modules.map((module, index) => {
             const isExpanded = expandedModules[module.id] !== false; // Default expanded
-            const moduleCompletedCount = module.topics.filter((t) => t.isCompleted).length;
+            const moduleTopics: any[] = (module.topics as any[]) || [];
+            const moduleCompletedCount = moduleTopics.filter((t) => t.isCompleted).length;
 
             return (
               <Card key={module.id} className="border-border/50 bg-white shadow-sm overflow-hidden">
-                <CardHeader className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 cursor-pointer transition-colors" onClick={() => toggleModule(module.id)}>
+                <CardHeader className="p-4 bg-slate-50/70 hover:bg-slate-50 border-b border-slate-100 cursor-pointer transition-colors" onClick={() => toggleModuleAccordion(module.id)}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3">
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-500">
@@ -162,12 +237,12 @@ export const Curriculum: React.FC = () => {
                       </Badge>
                       <div>
                         <CardTitle className="text-base font-bold text-slate-900">
-                          {module.title}
+                          {module.name}
                         </CardTitle>
                         <CardDescription className="text-xs text-slate-500 flex items-center gap-3 mt-0.5">
-                          <span>{module.topics.length} Topics</span>
+                          <span>{moduleTopics.length} Topics</span>
                           <span>•</span>
-                          <span>{moduleCompletedCount} of {module.topics.length} completed</span>
+                          <span>{moduleCompletedCount} of {moduleTopics.length} completed</span>
                         </CardDescription>
                       </div>
                     </div>
@@ -185,15 +260,23 @@ export const Curriculum: React.FC = () => {
                         <Plus className="mr-1 h-3.5 w-3.5 text-[#1769AA]" />
                         Add Topic
                       </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 text-rose-500 hover:text-rose-700 hover:bg-rose-50"
+                        onClick={() => handleDeleteModule(module.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 </CardHeader>
 
                 {isExpanded && (
                   <CardContent className="p-4 space-y-3 bg-white">
-                    {module.topics.length > 0 ? (
+                    {moduleTopics.length > 0 ? (
                       <div className="divide-y divide-slate-100 border border-slate-100 rounded-lg overflow-hidden">
-                        {module.topics.map((topic) => (
+                        {moduleTopics.map((topic) => (
                           <div 
                             key={topic.id}
                             className="p-3 flex items-start justify-between gap-4 hover:bg-slate-50 transition-colors"
@@ -202,7 +285,7 @@ export const Curriculum: React.FC = () => {
                               <button 
                                 type="button"
                                 className="mt-0.5 text-slate-400 hover:text-emerald-600 transition-colors"
-                                onClick={() => toggleTopicCompletion(module.id, topic.id)}
+                                onClick={() => handleToggleTopic(module.id, topic.id)}
                               >
                                 {topic.isCompleted ? (
                                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
@@ -222,7 +305,7 @@ export const Curriculum: React.FC = () => {
 
                             <div className="flex items-center gap-2 text-xs text-slate-500 whitespace-nowrap">
                               <Clock className="h-3.5 w-3.5 text-slate-400" />
-                              <span>{topic.durationHours} hrs</span>
+                              <span>{topic.durationHours || 4} hrs</span>
                             </div>
                           </div>
                         ))}
@@ -260,6 +343,7 @@ export const Curriculum: React.FC = () => {
               <Button 
                 className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 onClick={() => setShowModuleModal(true)}
+                disabled={!selectedCourseId}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Module
@@ -307,14 +391,23 @@ export const Curriculum: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowModuleModal(false)}
+                  disabled={moduleSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={moduleSubmitting}
                 >
-                  Create Module
+                  {moduleSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Module"
+                  )}
                 </Button>
               </div>
             </form>
@@ -371,14 +464,23 @@ export const Curriculum: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowTopicModal(false)}
+                  disabled={topicSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={topicSubmitting}
                 >
-                  Add Topic
+                  {topicSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Add Topic"
+                  )}
                 </Button>
               </div>
             </form>

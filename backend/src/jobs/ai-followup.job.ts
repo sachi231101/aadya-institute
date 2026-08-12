@@ -22,7 +22,7 @@ export const aiFollowupJob = async (): Promise<void> => {
   logger.info(`[ai-followup] ${admissions.length} pending admissions to follow up`);
 
   for (const admission of admissions) {
-    const phone = admission.student.user?.phone;
+    const phone = admission.student?.user?.phone;
     if (!phone) continue;
 
     await aiCallingQueue.add("ai-followup", {

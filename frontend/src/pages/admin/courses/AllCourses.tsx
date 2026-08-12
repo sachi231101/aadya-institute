@@ -12,9 +12,10 @@ import {
   Trash2, 
   LayoutGrid, 
   List,
-  GraduationCap
+  GraduationCap,
+  Loader2
 } from "lucide-react";
-import { useCourseStore } from "../../../store/course.store";
+import { useCourses } from "../../../hooks/useCourses";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -38,20 +39,28 @@ import {
 
 export const AllCourses: React.FC = () => {
   const navigate = useNavigate();
-  const { courses, deleteCourse } = useCourseStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
 
-  const categories = Array.from(new Set(courses.map((c) => c.category)));
+  const { courses, loading, error, deleteCourse } = useCourses({
+    search: searchTerm,
+    status: statusFilter !== "ALL" ? statusFilter : undefined,
+    category: categoryFilter !== "ALL" ? categoryFilter : undefined,
+  });
+
+  const categories = Array.from(
+    new Set(courses.map((c) => c.category).filter((cat): cat is string => Boolean(cat)))
+  );
 
   const filteredCourses = courses.filter((c) => {
     const matchesSearch =
+      !searchTerm ||
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      c.category.toLowerCase().includes(searchTerm.toLowerCase());
+      (c.category && c.category.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCategory = categoryFilter === "ALL" || c.category === categoryFilter;
     const matchesStatus = statusFilter === "ALL" || c.status === statusFilter;
@@ -61,10 +70,10 @@ export const AllCourses: React.FC = () => {
 
   const totalCourses = courses.length;
   const activeCourses = courses.filter((c) => c.status === "ACTIVE").length;
-  const totalEnrolled = courses.reduce((acc, c) => acc + c.enrolledStudents, 0);
-  const totalModules = courses.reduce((acc, c) => acc + c.modulesCount, 0);
+  const totalEnrolled = courses.reduce((acc, c) => acc + (c._count?.admissions || 0), 0);
+  const totalModules = courses.reduce((acc, c) => acc + (c.modules?.length || 0), 0);
 
-  const getModeBadge = (mode: string) => {
+  const getModeBadge = (mode?: string) => {
     switch (mode) {
       case "HYBRID":
         return <Badge variant="secondary" className="bg-purple-50 text-purple-700 border-purple-200">Hybrid</Badge>;
@@ -73,7 +82,13 @@ export const AllCourses: React.FC = () => {
       case "ONLINE":
         return <Badge variant="secondary" className="bg-emerald-50 text-emerald-700 border-emerald-200">Online</Badge>;
       default:
-        return <Badge variant="outline">{mode}</Badge>;
+        return <Badge variant="outline">{mode || "HYBRID"}</Badge>;
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this course?")) {
+      await deleteCourse(id);
     }
   };
 
@@ -212,8 +227,17 @@ export const AllCourses: React.FC = () => {
             </div>
           </div>
 
-          {/* Grid View */}
-          {viewMode === "grid" ? (
+          {loading ? (
+            <div className="py-12 flex justify-center items-center text-text-muted">
+              <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+              <span className="ml-2 text-sm font-medium">Loading courses...</span>
+            </div>
+          ) : error ? (
+            <div className="py-8 text-center text-rose-500 font-medium text-sm">
+              {error}
+            </div>
+          ) : viewMode === "grid" ? (
+            /* Grid View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {filteredCourses.length > 0 ? (
                 filteredCourses.map((course) => (
@@ -245,7 +269,7 @@ export const AllCourses: React.FC = () => {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive"
-                                onClick={() => deleteCourse(course.id)}
+                                onClick={() => handleDelete(course.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete Course
                               </DropdownMenuItem>
@@ -265,15 +289,15 @@ export const AllCourses: React.FC = () => {
                       <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary pt-2 border-t border-slate-100">
                         <div className="flex items-center gap-1.5">
                           <Clock className="h-3.5 w-3.5 text-text-muted" />
-                          <span>{course.durationMonths} Months ({course.totalHours} hrs)</span>
+                          <span>{course.duration || course.durationMonths || 6} Months ({course.totalHours || 100} hrs)</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Layers className="h-3.5 w-3.5 text-text-muted" />
-                          <span>{course.modulesCount} Modules</span>
+                          <span>{course.modules?.length || 0} Modules</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-text-muted" />
-                          <span>{course.enrolledStudents} Students</span>
+                          <span>{course._count?.admissions || 0} Students</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           {getModeBadge(course.mode)}
@@ -341,13 +365,13 @@ export const AllCourses: React.FC = () => {
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-text-secondary">{course.category}</TableCell>
+                        <TableCell className="text-xs text-text-secondary">{course.category || "General"}</TableCell>
                         <TableCell>{getModeBadge(course.mode)}</TableCell>
                         <TableCell className="text-xs text-text-secondary">
-                          {course.durationMonths} Mos ({course.totalHours} hrs)
+                          {course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)
                         </TableCell>
-                        <TableCell className="text-xs text-text-secondary">{course.modulesCount}</TableCell>
-                        <TableCell className="text-xs font-semibold text-text-primary">{course.enrolledStudents}</TableCell>
+                        <TableCell className="text-xs text-text-secondary">{course.modules?.length || 0}</TableCell>
+                        <TableCell className="text-xs font-semibold text-text-primary">{course._count?.admissions || 0}</TableCell>
                         <TableCell>
                           <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
                             {course.status}
@@ -370,7 +394,7 @@ export const AllCourses: React.FC = () => {
                               <DropdownMenuSeparator />
                               <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive"
-                                onClick={() => deleteCourse(course.id)}
+                                onClick={() => handleDelete(course.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>

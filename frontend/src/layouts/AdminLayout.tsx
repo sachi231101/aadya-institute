@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { Bell, Building2, Loader2, Plus } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/form";
 import { useNotificationStore } from "@/store/notification.store";
 import { useCreateBranch } from "@/hooks/useBranches";
+import { useAuthStore } from "@/store/auth.store";
 
 const branchSchema = z.object({
   name: z.string().min(2, "Branch name is required"),
@@ -37,9 +38,14 @@ const branchSchema = z.object({
 type BranchFormValues = z.infer<typeof branchSchema>;
 
 export const AdminLayout: React.FC = () => {
+  const { token } = useAuthStore();
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
   const addNotification = useNotificationStore((state) => state.addNotification);
   const createBranchMutation = useCreateBranch();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),

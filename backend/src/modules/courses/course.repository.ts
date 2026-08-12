@@ -10,11 +10,16 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
     where.status = filters.status;
   }
 
+  if (filters.category && filters.category !== "ALL") {
+    where.category = filters.category;
+  }
+
   if (filters.search) {
     where.OR = [
       { name: { contains: filters.search, mode: "insensitive" } },
       { code: { contains: filters.search, mode: "insensitive" } },
       { description: { contains: filters.search, mode: "insensitive" } },
+      { category: { contains: filters.search, mode: "insensitive" } },
     ];
   }
 
@@ -25,8 +30,10 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
         select: {
           id: true,
           name: true,
+          code: true,
           sequence: true,
           duration: true,
+          topics: true,
         },
         orderBy: { sequence: "asc" },
       },
@@ -55,6 +62,9 @@ export const findCourseById = (id: string, instituteId: string) => {
           code: true,
           status: true,
           startDate: true,
+          capacity: true,
+          schedulePattern: true,
+          timeSlot: true,
         },
       },
     },
@@ -69,6 +79,10 @@ export const createCourse = (instituteId: string, data: CreateCourseDto) => {
       code: data.code,
       description: data.description,
       duration: data.duration,
+      category: data.category || "Web Development",
+      mode: data.mode || "HYBRID",
+      level: data.level || "BEGINNER",
+      totalHours: data.totalHours || 100,
     },
   });
 };
@@ -85,3 +99,5 @@ export const deleteCourse = (id: string, instituteId: string) => {
     where: { id, instituteId },
   });
 };
+
+

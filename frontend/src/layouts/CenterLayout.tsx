@@ -1,10 +1,16 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 import { Bell, Building2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
+import { useAuthStore } from "@/store/auth.store";
 
 export const CenterLayout: React.FC = () => {
+  const { token } = useAuthStore();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">
