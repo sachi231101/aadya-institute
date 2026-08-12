@@ -26,6 +26,20 @@ export const listFacultyQuerySchema = z.object({
   status: z.enum(["ACTIVE", "INACTIVE", "ON_LEAVE"]).optional(),
 }).partial();
 
+export const assignCourseSchema = z.object({
+  batchId: z.string().min(1, "Batch ID is required"),
+  facultyId: z.string().min(1, "Faculty ID is required"),
+});
+
+export const markAttendanceSchema = z.object({
+  facultyId: z.string().min(1, "Faculty ID is required"),
+  classSessionId: z.string().min(1, "Class Session ID is required"),
+  loginAt: z.string().datetime().optional(),
+  logoutAt: z.string().datetime().optional(),
+});
+
 export type CreateFacultyDto = z.infer<typeof createFacultySchema>;
 export type UpdateFacultyDto = z.infer<typeof updateFacultySchema>;
 export type ListFacultyQuery = z.infer<typeof listFacultyQuerySchema>;
+export type AssignCourseDto = z.infer<typeof assignCourseSchema>;
+export type MarkAttendanceDto = z.infer<typeof markAttendanceSchema>;

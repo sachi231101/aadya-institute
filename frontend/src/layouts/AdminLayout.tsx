@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { Bell, Building2, Loader2 } from "lucide-react";
+import { Bell, Building2, Loader2, Plus } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,7 @@ export const AdminLayout: React.FC = () => {
   });
 
   const onSubmit = (data: BranchFormValues) => {
+    form.clearErrors("root");
     createBranchMutation.mutate(
       {
         name: data.name,
@@ -66,7 +67,8 @@ export const AdminLayout: React.FC = () => {
           form.reset();
         },
         onError: (err: any) => {
-          const message = err?.response?.data?.message || "Failed to create branch.";
+          const message = err?.response?.data?.message || err?.message || "Failed to create branch.";
+          form.setError("root", { message });
           addNotification(message, "error");
         },
       }
@@ -89,6 +91,16 @@ export const AdminLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
+              <Button 
+                onClick={() => {
+                  form.reset();
+                  setIsBranchModalOpen(true);
+                }}
+                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
+              >
+                <Plus size={16} />
+                Create a Branch
+              </Button>
               <button className="relative text-muted-foreground hover:text-foreground transition-colors">
                 <Bell size={20} />
                 <span className="absolute -top-1 -right-1 flex h-3 w-3">
@@ -115,6 +127,11 @@ export const AdminLayout: React.FC = () => {
           </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              {form.formState.errors.root && (
+                <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
+                  {form.formState.errors.root.message}
+                </div>
+              )}
               <FormField
                 control={form.control}
                 name="name"
