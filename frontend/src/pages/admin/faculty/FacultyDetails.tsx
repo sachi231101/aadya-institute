@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  Mail, 
-  Phone, 
-  Award, 
-  BookOpen, 
-  Clock, 
-  UserCheck, 
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  Award,
+  BookOpen,
+  Clock,
+  UserCheck,
   MapPin,
   Loader2,
   AlertCircle
@@ -89,8 +89,8 @@ export const FacultyDetails: React.FC = () => {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header & Back Button */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="icon"
           onClick={() => navigate("/admin/faculty/all")}
         >
@@ -121,7 +121,7 @@ export const FacultyDetails: React.FC = () => {
                   </Badge>
                 </div>
                 <p className="text-sm text-text-secondary mt-1">{faculty.specialization || "No specialization set"}</p>
-                
+
                 <div className="flex flex-wrap items-center gap-4 mt-3 text-xs text-text-muted">
                   <span className="flex items-center gap-1">
                     <Mail className="h-3.5 w-3.5 text-text-secondary" /> {faculty.user.email || "No email"}
@@ -137,7 +137,7 @@ export const FacultyDetails: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-3 w-full md:w-auto">
-              <Button 
+              <Button
                 variant="outline"
                 onClick={() => navigate(`/admin/faculty/courses?facultyId=${faculty.id}`)}
                 className="w-full md:w-auto"
@@ -154,33 +154,30 @@ export const FacultyDetails: React.FC = () => {
       <div className="flex items-center gap-2 border-b border-border/50 pb-2">
         <button
           onClick={() => setActiveTab("overview")}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === "overview"
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === "overview"
               ? "bg-[#1769AA] text-white"
               : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
-          }`}
+            }`}
         >
           Overview
         </button>
 
         <button
           onClick={() => setActiveTab("courses")}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === "courses"
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === "courses"
               ? "bg-[#1769AA] text-white"
               : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
-          }`}
+            }`}
         >
           Assigned Courses ({facultyAssignments.length})
         </button>
 
         <button
           onClick={() => setActiveTab("attendance")}
-          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === "attendance"
+          className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${activeTab === "attendance"
               ? "bg-[#1769AA] text-white"
               : "text-text-secondary hover:text-text-primary hover:bg-bg-secondary"
-          }`}
+            }`}
         >
           Attendance Record ({facultyAttendance.length})
         </button>
@@ -296,7 +293,7 @@ export const FacultyDetails: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-4">
                       <span className="text-xs text-text-secondary">
-                        {record.loginAt ? `In: ${formatTime(record.loginAt)}` : "No login"} 
+                        {record.loginAt ? `In: ${formatTime(record.loginAt)}` : "No login"}
                         {record.logoutAt ? ` — Out: ${formatTime(record.logoutAt)}` : ""}
                       </span>
                       <Badge variant={record.loginAt ? "success" : "secondary"}>

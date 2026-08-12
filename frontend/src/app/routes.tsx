@@ -74,6 +74,7 @@ import { CenterDashboard } from "../pages/center/Dashboard";
 import { CounselorDashboard } from "../pages/counselor/Dashboard";
 import { FacultyDashboard } from "../pages/faculty/Dashboard";
 import { StudentDashboard } from "../pages/student/Dashboard";
+import { StudentAttendance as PortalStudentAttendance } from "../pages/student/Attendance";
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -271,11 +272,24 @@ export const AppRoutes: React.FC = () => {
       {/* Faculty Routes */}
       <Route path="/faculty" element={<FacultyLayout />}>
         <Route path="dashboard" element={<FacultyDashboard />} />
+        <Route path="courses" element={<FacultyCourses />} />
+        <Route path="students">
+          <Route path="attendance" element={<StudentAttendance />} />
+          <Route path="all" element={<AllStudents />} />
+        </Route>
+        <Route path="schedule">
+          <Route path="classes" element={<Classes />} />
+        </Route>
+        <Route path="reports">
+          <Route path="students" element={<StudentReports />} />
+        </Route>
+        <Route path="settings" element={<Settings />} />
       </Route>
 
       {/* Student Routes */}
       <Route path="/student" element={<StudentLayout />}>
         <Route path="dashboard" element={<StudentDashboard />} />
+        <Route path="attendance" element={<PortalStudentAttendance />} />
       </Route>
 
       {/* Default Fallback */}
