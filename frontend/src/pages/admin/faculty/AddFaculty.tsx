@@ -251,7 +251,7 @@ export const AddFaculty: React.FC = () => {
                 <Button 
                   type="submit" 
                   disabled={isSubmitting}
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
                 >
                   {isSubmitting ? (
                     <>

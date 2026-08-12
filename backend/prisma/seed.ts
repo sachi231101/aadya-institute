@@ -272,9 +272,23 @@ async function main() {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe@123";
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
+  // Update any existing admin@aadya.in user's password and status
+  await prisma.user.updateMany({
+    where: { email: "admin@aadya.in" },
+    data: {
+      passwordHash,
+      status: "ACTIVE",
+    },
+  });
+
   const admin = await prisma.user.upsert({
     where: { id: "aadya-initial-admin" },
-    update: {},
+    update: {
+      email: "admin@aadya.in",
+      passwordHash,
+      name: "Aadya Admin",
+      status: "ACTIVE",
+    },
     create: {
       id: "aadya-initial-admin",
       instituteId: institute.id,

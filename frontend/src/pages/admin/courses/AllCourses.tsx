@@ -89,7 +89,7 @@ export const AllCourses: React.FC = () => {
         </div>
 
         <Button 
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm transition-colors"
+          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
           onClick={() => navigate("/admin/courses/add")}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -293,7 +293,7 @@ export const AllCourses: React.FC = () => {
                         <Button 
                           variant="default" 
                           size="sm" 
-                          className="w-full text-xs bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                          className="w-full text-xs bg-[#1769AA] hover:bg-[#F39A16] text-white"
                           onClick={() => navigate("/admin/courses/batches")}
                         >
                           <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
