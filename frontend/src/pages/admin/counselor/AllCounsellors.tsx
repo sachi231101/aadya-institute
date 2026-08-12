@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Users, 
   Plus, 
@@ -11,7 +11,8 @@ import {
   Edit3, 
   Trash2, 
   TrendingUp,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { useCounselorStore } from "@/store/counselor.store";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
@@ -45,7 +46,11 @@ import {
 } from "@/components/ui/dialog";
 
 export const AllCounsellors: React.FC = () => {
-  const { counselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
+  const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
+
+  useEffect(() => {
+    fetchCounselors();
+  }, []);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -90,11 +95,11 @@ export const AllCounsellors: React.FC = () => {
   const totalLeads = counselors.reduce((acc, c) => acc + c.assignedLeadsCount, 0);
   const totalEnrolled = counselors.reduce((acc, c) => acc + c.activeStudentsCount, 0);
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
 
-    addCounselor({
+    await addCounselor({
       name,
       employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
       email,
@@ -126,11 +131,11 @@ export const AllCounsellors: React.FC = () => {
     setEditStatus(c.status);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editCounselor || !editName || !editEmail) return;
 
-    updateCounselor(editCounselor.id, {
+    await updateCounselor(editCounselor.id, {
       name: editName,
       employeeCode: editCode,
       email: editEmail,
@@ -142,9 +147,9 @@ export const AllCounsellors: React.FC = () => {
     setEditCounselor(null);
   };
 
-  const handleDeleteConfirm = () => {
+  const handleDeleteConfirm = async () => {
     if (deleteCounselorId) {
-      deleteCounselor(deleteCounselorId);
+      await deleteCounselor(deleteCounselorId);
       setDeleteCounselorId(null);
     }
   };
@@ -285,7 +290,16 @@ export const AllCounsellors: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredCounselors.length > 0 ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={7} className="h-32 text-center text-text-muted">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                    Loading counsellors...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredCounselors.length > 0 ? (
               filteredCounselors.map((c) => (
                 <TableRow key={c.id} className="hover:bg-slate-50/80 transition-colors">
                   <TableCell className="font-medium">

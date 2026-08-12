@@ -1,12 +1,16 @@
 import React from "react";
-import { Link, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, Settings, CheckSquare } from "lucide-react";
+import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 
 export const StudentLayout: React.FC = () => {
-  const { user, logout } = useAuthStore();
+  const { user, token, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   const handleLogout = () => {
     logout();

@@ -85,7 +85,12 @@ export const CounsellorBatches: React.FC = () => {
       setShowModal(false);
     },
     onError: (err: any) => {
-      setErrorMsg(err.response?.data?.message || "Failed to create batch.");
+      const fieldErrors = err.response?.data?.errors;
+      if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
+        setErrorMsg(fieldErrors.map((e: any) => `${e.field}: ${e.message}`).join(" | "));
+      } else {
+        setErrorMsg(err.response?.data?.message || "Failed to create batch.");
+      }
     },
   });
 

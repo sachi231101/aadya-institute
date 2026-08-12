@@ -125,6 +125,9 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
       code: data.code,
       startDate: new Date(data.startDate),
       expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
+      schedulePattern: data.schedulePattern || "MWF",
+      timeSlot: data.timeSlot || "10:00 AM - 12:00 PM",
+      capacity: data.capacity || 35,
       status: "UPCOMING",
     },
     include: batchInclude,
@@ -141,6 +144,9 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
   if (data.status !== undefined) updateData.status = data.status;
   if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
   if (data.expectedEndDate !== undefined) updateData.expectedEndDate = data.expectedEndDate ? new Date(data.expectedEndDate) : null;
+  if (data.schedulePattern !== undefined) updateData.schedulePattern = data.schedulePattern;
+  if (data.timeSlot !== undefined) updateData.timeSlot = data.timeSlot;
+  if (data.capacity !== undefined) updateData.capacity = data.capacity;
 
   return prisma.batch.updateMany({
     where: { id, instituteId },

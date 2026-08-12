@@ -1,11 +1,17 @@
 import { create } from "zustand";
 import type { Course, CourseModule, Topic } from "../types/course.types";
 import type { Batch } from "../types/batch.types";
+import { coursesApi } from "../services/courses.api";
+import { batchesApi } from "../services/batches.api";
 
 interface CourseState {
   courses: Course[];
   batches: Batch[];
   modules: CourseModule[];
+
+  // Fetch Actions
+  fetchCourses: () => Promise<void>;
+  fetchBatches: () => Promise<void>;
 
   // Course Actions
   addCourse: (courseData: Omit<Course, "id" | "createdAt" | "modulesCount" | "enrolledStudents">) => void;
@@ -29,185 +35,62 @@ interface CourseState {
   toggleTopicCompletion: (moduleId: string, topicId: string) => void;
 }
 
-const initialCourses: Course[] = [
-  {
-    id: "c-1",
-    name: "Full Stack MERN Architecture",
-    code: "FS-2026",
-    category: "Web Development",
-    mode: "HYBRID",
-    level: "INTERMEDIATE",
-    durationMonths: 6,
-    totalHours: 240,
-    modulesCount: 6,
-    enrolledStudents: 64,
-    status: "ACTIVE",
-    description: "Master React, Node.js, Express, MongoDB, TypeScript, and microservices architecture.",
-    createdAt: "2026-01-10",
-  },
-  {
-    id: "c-2",
-    name: "Backend Engineering & Systems",
-    code: "BE-2026",
-    category: "Backend & Cloud",
-    mode: "OFFLINE",
-    level: "ADVANCED",
-    durationMonths: 4,
-    totalHours: 180,
-    modulesCount: 5,
-    enrolledStudents: 42,
-    status: "ACTIVE",
-    description: "In-depth distributed systems, PostgreSQL, Redis, message queues (BullMQ), and API gateway setup.",
-    createdAt: "2026-01-15",
-  },
-  {
-    id: "c-3",
-    name: "Data Science & Applied Machine Learning",
-    code: "DS-2026",
-    category: "AI & Data",
-    mode: "ONLINE",
-    level: "BEGINNER",
-    durationMonths: 6,
-    totalHours: 220,
-    modulesCount: 7,
-    enrolledStudents: 38,
-    status: "ACTIVE",
-    description: "Python, Pandas, Scikit-Learn, PyTorch basics, and predictive model deployment.",
-    createdAt: "2026-02-01",
-  },
-  {
-    id: "c-4",
-    name: "Product UI/UX Design Masterclass",
-    code: "UX-2026",
-    category: "Design",
-    mode: "HYBRID",
-    level: "BEGINNER",
-    durationMonths: 3,
-    totalHours: 120,
-    modulesCount: 4,
-    enrolledStudents: 28,
-    status: "INACTIVE",
-    description: "User research, wireframing, Figma design systems, prototyping, and usability testing.",
-    createdAt: "2026-02-10",
-  },
-];
-
-const initialBatches: Batch[] = [
-  {
-    id: "b-1",
-    name: "MERN Batch Alpha",
-    code: "FS-2026-A1",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    facultyId: "f-1",
-    facultyName: "Dr. Rajesh Verma",
-    startDate: "2026-03-01",
-    schedulePattern: "MWF",
-    timeSlot: "10:00 AM - 12:00 PM",
-    capacity: 35,
-    enrolledCount: 32,
-    status: "ACTIVE",
-  },
-  {
-    id: "b-2",
-    name: "MERN Batch Beta",
-    code: "FS-2026-B1",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    facultyId: "f-2",
-    facultyName: "Prof. Ananya Roy",
-    startDate: "2026-04-15",
-    schedulePattern: "TTS",
-    timeSlot: "02:00 PM - 04:00 PM",
-    capacity: 35,
-    enrolledCount: 32,
-    status: "ACTIVE",
-  },
-  {
-    id: "b-3",
-    name: "Backend Specialist Batch 1",
-    code: "BE-2026-B2",
-    courseId: "c-2",
-    courseName: "Backend Engineering & Systems",
-    facultyId: "f-1",
-    facultyName: "Dr. Rajesh Verma",
-    startDate: "2026-03-15",
-    schedulePattern: "TTS",
-    timeSlot: "02:00 PM - 05:00 PM",
-    capacity: 30,
-    enrolledCount: 28,
-    status: "ACTIVE",
-  },
-  {
-    id: "b-4",
-    name: "Data Science Weekend Batch",
-    code: "DS-2026-W1",
-    courseId: "c-3",
-    courseName: "Data Science & Applied Machine Learning",
-    facultyId: "f-3",
-    facultyName: "Dr. Suresh Kumar",
-    startDate: "2026-05-01",
-    schedulePattern: "WEEKEND",
-    timeSlot: "10:00 AM - 04:00 PM",
-    capacity: 40,
-    enrolledCount: 38,
-    status: "UPCOMING",
-  },
-];
-
-const initialModules: CourseModule[] = [
-  {
-    id: "m-1",
-    courseId: "c-1",
-    title: "Module 1: Advanced TypeScript & Modern React",
-    code: "MOD-101",
-    order: 1,
-    topics: [
-      { id: "t-1", title: "TypeScript Generics & Utility Types", durationHours: 4, isCompleted: true },
-      { id: "t-2", title: "Custom Hooks & Context API Architecture", durationHours: 6, isCompleted: true },
-      { id: "t-3", title: "State Management with Zustand & TanStack Query", durationHours: 6, isCompleted: false },
-    ],
-  },
-  {
-    id: "m-2",
-    courseId: "c-1",
-    title: "Module 2: Node.js, Express & REST API Architecture",
-    code: "MOD-102",
-    order: 2,
-    topics: [
-      { id: "t-4", title: "Express Router & Middleware Pipeline Design", durationHours: 6, isCompleted: false },
-      { id: "t-5", title: "JWT Authentication & Refresh Token Rotation", durationHours: 8, isCompleted: false },
-      { id: "t-6", title: "Input Validation with Zod & Error Middlewares", durationHours: 4, isCompleted: false },
-    ],
-  },
-  {
-    id: "m-3",
-    courseId: "c-1",
-    title: "Module 3: PostgreSQL & Prisma ORM",
-    code: "MOD-103",
-    order: 3,
-    topics: [
-      { id: "t-7", title: "Database Modeling, Foreign Keys & Constraints", durationHours: 6, isCompleted: false },
-      { id: "t-8", title: "Prisma Migrations, Seeds & Transactions", durationHours: 8, isCompleted: false },
-    ],
-  },
-  {
-    id: "m-4",
-    courseId: "c-2",
-    title: "Module 1: Distributed Caching & Queues",
-    code: "BE-MOD-1",
-    order: 1,
-    topics: [
-      { id: "t-9", title: "Redis Data Structures & Caching Patterns", durationHours: 6, isCompleted: true },
-      { id: "t-10", title: "Asynchronous Background Jobs with BullMQ", durationHours: 8, isCompleted: false },
-    ],
-  },
-];
-
 export const useCourseStore = create<CourseState>((set) => ({
-  courses: initialCourses,
-  batches: initialBatches,
-  modules: initialModules,
+  courses: [],
+  batches: [],
+  modules: [],
+
+  fetchCourses: async () => {
+    try {
+      const res = await coursesApi.getAll();
+      if (res.success && res.data) {
+        const mappedCourses: Course[] = res.data.map((c) => ({
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          description: c.description || "",
+          durationMonths: c.durationMonths || c.duration || 6,
+          totalHours: c.totalHours || 100,
+          category: c.category || "Development",
+          mode: (c.mode as any) || "HYBRID",
+          level: (c.level as any) || "BEGINNER",
+          status: c.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          createdAt: c.createdAt ? new Date(c.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          modulesCount: c.modules?.length || c._count?.batches || 0,
+          enrolledStudents: c._count?.admissions || 0,
+        }));
+        set({ courses: mappedCourses });
+      }
+    } catch (err) {
+      console.error("Failed to fetch courses:", err);
+    }
+  },
+
+  fetchBatches: async () => {
+    try {
+      const res = await batchesApi.getAll();
+      if (res.success && res.data) {
+        const mappedBatches: Batch[] = res.data.map((b) => ({
+          id: b.id,
+          name: b.name,
+          code: b.code,
+          courseId: b.courseId,
+          courseName: b.course?.name || "General Course",
+          facultyId: b.facultyId || undefined,
+          facultyName: b.faculty?.user?.name || "Unassigned",
+          startDate: b.startDate ? new Date(b.startDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          schedulePattern: (b.schedulePattern as any) || "MWF",
+          timeSlot: b.timeSlot || "10:00 AM - 12:00 PM",
+          capacity: b.capacity || 35,
+          enrolledCount: b._count?.enrollments || 0,
+          status: b.status === "ACTIVE" ? "ACTIVE" : b.status === "UPCOMING" ? "UPCOMING" : "COMPLETED",
+        }));
+        set({ batches: mappedBatches });
+      }
+    } catch (err) {
+      console.error("Failed to fetch batches:", err);
+    }
+  },
 
   addCourse: (courseData) =>
     set((state) => {
@@ -240,8 +123,6 @@ export const useCourseStore = create<CourseState>((set) => ({
         id: `b-${Date.now()}`,
         enrolledCount: 0,
       };
-
-      // Recalculate active batches for course
       return { batches: [newBatch, ...state.batches] };
     }),
 
@@ -267,7 +148,6 @@ export const useCourseStore = create<CourseState>((set) => ({
       const updatedList = [...currentList, studentId];
       const updatedMap = { ...state.enrolledStudentsMap, [batchId]: updatedList };
 
-      // Update enrolledCount in batch
       const updatedBatches = state.batches.map((b) =>
         b.id === batchId ? { ...b, enrolledCount: updatedList.length } : b
       );
@@ -312,8 +192,7 @@ export const useCourseStore = create<CourseState>((set) => ({
         order: courseModules.length + 1,
         topics: [],
       };
-      
-      // Update modulesCount on course
+
       const updatedCourses = state.courses.map((c) =>
         c.id === courseId ? { ...c, modulesCount: c.modulesCount + 1 } : c
       );

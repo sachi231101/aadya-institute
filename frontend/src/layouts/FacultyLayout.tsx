@@ -1,10 +1,28 @@
 import React from "react";
-import { Outlet } from "react-router-dom";
-import { Bell, BookOpen } from "lucide-react";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
-import { FacultySidebar } from "@/components/layout/faculty-sidebar";
+import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
+import { LayoutDashboard, CheckSquare, BookOpen, FileCheck, LogOut, Bell } from "lucide-react";
+import { useAuthStore } from "../store/auth.store";
 
 export const FacultyLayout: React.FC = () => {
+  const { user, token, logout } = useAuthStore();
+  const navigate = useNavigate();
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const navItems = [
+    { label: "Faculty Dashboard", icon: LayoutDashboard, path: "/faculty/dashboard" },
+    { label: "Classes & Sessions", icon: BookOpen, path: "/faculty/classes" },
+    { label: "Mark Attendance", icon: CheckSquare, path: "/faculty/attendance" },
+    { label: "Assignments", icon: FileCheck, path: "/faculty/assignments" },
+  ];
+
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full bg-background">

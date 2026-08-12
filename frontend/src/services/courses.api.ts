@@ -6,9 +6,14 @@ export interface CourseData {
   code: string;
   description?: string;
   duration?: number;
+  durationMonths?: number;
+  totalHours?: number;
+  category?: string;
+  mode?: "OFFLINE" | "ONLINE" | "HYBRID" | string;
+  level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | string;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   createdAt: string;
-  modules?: Array<{ id: string; name: string; sequence: number; duration?: number }>;
+  modules?: Array<{ id: string; name: string; code?: string; sequence: number; duration?: number; topics?: any }>;
   _count?: { batches: number; admissions: number };
 }
 
@@ -17,6 +22,10 @@ export interface CreateCoursePayload {
   code: string;
   description?: string;
   duration?: number;
+  category?: string;
+  mode?: string;
+  level?: string;
+  totalHours?: number;
 }
 
 export const coursesApi = {

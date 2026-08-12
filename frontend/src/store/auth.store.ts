@@ -9,31 +9,42 @@ interface AuthStore {
   logout: () => void;
 }
 
-const defaultAdminUser: User = {
-  id: "admin-001",
-  name: "Aadya Admin",
-  email: "admin@aadya.in",
-  phone: "+91 98765 43210",
-  role: "ADMIN",
-  roles: ["ADMIN"],
-  instituteId: "inst-aadya-01",
-  branchId: "branch-blr-01",
+const getInitialState = (): { token: string | null; user: User | null } => {
+  const token = localStorage.getItem("token");
+  const storedUser = localStorage.getItem("user");
+
+  if (token && storedUser) {
+    try {
+      return { token, user: JSON.parse(storedUser) as User };
+    } catch {
+      localStorage.removeItem("user");
+    }
+  }
+  return { token: null, user: null };
 };
 
+const initialState = getInitialState();
+
 export const useAuthStore = create<AuthStore>((set) => ({
-  user: defaultAdminUser,
-  token: localStorage.getItem("token"),
+  user: initialState.user,
+  token: initialState.token,
   setAuth: (user, token) => {
     localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
     set({ user, token });
   },
   updateUser: (data) => {
-    set((state) => ({
-      user: state.user ? { ...state.user, ...data } : null,
-    }));
+    set((state) => {
+      const updatedUser = state.user ? { ...state.user, ...data } : null;
+      if (updatedUser) {
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+      return { user: updatedUser };
+    });
   },
   logout: () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     set({ user: null, token: null });
   },
 }));

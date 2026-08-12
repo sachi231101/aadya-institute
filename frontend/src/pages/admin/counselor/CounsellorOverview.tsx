@@ -22,8 +22,7 @@ import { Button } from "@/components/ui/button";
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
+  const basePath = "/admin";
 
   // Queries for live data from backend
   const { data: batchesRes, isLoading: loadingBatches, isError: errorBatches } = useQuery({

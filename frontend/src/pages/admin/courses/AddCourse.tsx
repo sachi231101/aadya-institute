@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, BookOpen, Save, CheckCircle2 } from "lucide-react";
-import { useCourseStore } from "../../../store/course.store";
+import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { useCourses } from "../../../hooks/useCourses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export const AddCourse: React.FC = () => {
   const navigate = useNavigate();
-  const { addCourse } = useCourseStore();
+  const { createCourse } = useCourses();
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -18,30 +18,38 @@ export const AddCourse: React.FC = () => {
   const [durationMonths, setDurationMonths] = useState<number>(6);
   const [totalHours, setTotalHours] = useState<number>(200);
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState<"ACTIVE" | "INACTIVE">("ACTIVE");
 
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !code) return;
 
-    addCourse({
-      name,
-      code,
-      category,
-      mode,
-      level,
-      durationMonths,
-      totalHours,
-      description,
-      status,
-    });
+    try {
+      setSubmitting(true);
+      setError(null);
+      await createCourse({
+        name,
+        code,
+        category,
+        mode,
+        level,
+        duration: durationMonths,
+        totalHours,
+        description,
+      });
 
-    setIsSaved(true);
-    setTimeout(() => {
-      navigate("/admin/courses/all");
-    }, 1000);
+      setIsSaved(true);
+      setTimeout(() => {
+        navigate("/admin/courses/all");
+      }, 1000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || err.message || "Failed to create course");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -69,6 +77,16 @@ export const AddCourse: React.FC = () => {
           <div>
             <p className="text-sm font-semibold">Course Created Successfully!</p>
             <p className="text-xs text-emerald-700">Redirecting to course directory...</p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-4 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 flex items-center gap-3 animate-in fade-in">
+          <AlertCircle className="h-5 w-5 text-rose-600" />
+          <div>
+            <p className="text-sm font-semibold">Failed to Create Course</p>
+            <p className="text-xs text-rose-700">{error}</p>
           </div>
         </div>
       )}
@@ -162,7 +180,7 @@ export const AddCourse: React.FC = () => {
             {/* Section 2: Duration & Structure */}
             <div className="space-y-4 pt-4 border-t border-slate-100">
               <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">2. Duration & Hours</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Duration (Months)</label>
                   <Input
@@ -185,18 +203,6 @@ export const AddCourse: React.FC = () => {
                     onChange={(e) => setTotalHours(Number(e.target.value))}
                     className="bg-white border-slate-300 text-slate-900"
                   />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Initial Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as any)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="ACTIVE">Active</option>
-                    <option value="INACTIVE">Inactive</option>
-                  </select>
                 </div>
               </div>
             </div>
@@ -223,15 +229,26 @@ export const AddCourse: React.FC = () => {
                 variant="outline" 
                 onClick={() => navigate("/admin/courses/all")}
                 className="bg-white border-slate-300 text-slate-700"
+                disabled={submitting}
               >
                 Cancel
               </Button>
               <Button 
                 type="submit" 
                 className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm"
+                disabled={submitting}
               >
-                <Save className="mr-2 h-4 w-4" />
-                Save Course
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Course
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>

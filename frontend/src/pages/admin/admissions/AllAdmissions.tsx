@@ -1,13 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   GraduationCap, 
   Plus, 
   Search, 
   CheckCircle2, 
-  Clock, 
   MoreVertical, 
   Trash2, 
-  UserCheck
+  Loader2
 } from "lucide-react";
 import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
@@ -34,8 +33,8 @@ import {
 import type { AdmissionStatus, FeePlan } from "../../../types/admission.types";
 
 export const AllAdmissions: React.FC = () => {
-  const { admissions, addAdmission, deleteAdmission } = useAdmissionStore();
-  const { courses, batches } = useCourseStore();
+  const { admissions, isLoading, fetchAdmissions, addAdmission, updateAdmission, deleteAdmission } = useAdmissionStore();
+  const { courses, batches, fetchCourses, fetchBatches } = useCourseStore();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
@@ -46,19 +45,38 @@ export const AllAdmissions: React.FC = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
-  const [courseId, setCourseId] = useState(courses[0]?.id || "");
-  const [batchId, setBatchId] = useState(batches[0]?.id || "");
+  const [courseId, setCourseId] = useState("");
+  const [batchId, setBatchId] = useState("");
   const [feePlan, setFeePlan] = useState<FeePlan>("INSTALLMENT");
   const [status, setStatus] = useState<AdmissionStatus>("CONFIRMED");
   const [notes, setNotes] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchAdmissions();
+    if (fetchCourses) fetchCourses();
+    if (fetchBatches) fetchBatches();
+  }, []);
+
+  useEffect(() => {
+    if (courses.length > 0 && !courseId) {
+      setCourseId(courses[0].id);
+    }
+  }, [courses]);
+
+  useEffect(() => {
+    if (batches.length > 0 && !batchId) {
+      setBatchId(batches[0].id);
+    }
+  }, [batches]);
 
   const filteredAdmissions = admissions.filter((adm) => {
     const matchesSearch =
-      adm.admissionNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adm.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adm.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      adm.phone.includes(searchTerm) ||
-      adm.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (adm.admissionNo || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (adm.studentName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (adm.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (adm.phone || "").includes(searchTerm) ||
+      (adm.courseName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (adm.batchName && adm.batchName.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesCourse = courseFilter === "ALL" || adm.courseId === courseFilter;
@@ -72,45 +90,31 @@ export const AllAdmissions: React.FC = () => {
   const provisionalCount = admissions.filter((a) => a.status === "PROVISIONAL").length;
   const activeBatchesCount = Array.from(new Set(admissions.map((a) => a.batchId).filter(Boolean))).length;
 
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !phone || !courseId) return;
 
-    const selectedCourse = courses.find((c) => c.id === courseId);
-    const selectedBatch = batches.find((b) => b.id === batchId);
-
-    addAdmission({
+    setIsSubmitting(true);
+    await addAdmission({
       studentName: name,
-      email: email || `${name.toLowerCase().replace(/\s+/g, ".")}@gmail.com`,
+      email: email || undefined,
       phone,
       courseId,
-      courseName: selectedCourse?.name || "General Course",
-      batchId,
-      batchName: selectedBatch?.code || "FS-2026-A1",
+      batchId: batchId || undefined,
       feePlan,
       status,
-      notes,
+      notes: notes || undefined,
     });
 
     setName("");
     setEmail("");
     setPhone("");
     setNotes("");
+    setIsSubmitting(false);
     setShowModal(false);
   };
 
-  const getStatusBadge = (st: AdmissionStatus) => {
-    switch (st) {
-      case "CONFIRMED":
-        return <Badge variant="success">Confirmed</Badge>;
-      case "PROVISIONAL":
-        return <Badge variant="warning">Provisional</Badge>;
-      case "CANCELLED":
-        return <Badge variant="destructive">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{st}</Badge>;
-    }
-  };
+
 
   const getFeePlanBadge = (fp: FeePlan) => {
     return fp === "FULL_PAYMENT" ? (
@@ -127,7 +131,7 @@ export const AllAdmissions: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">All Admissions</h2>
           <p className="text-sm text-text-secondary">
-            Directory of officially enrolled students, batch assignments, and fee payment plans.
+            View active student admissions, fee structures, and batch assignments across all institute departments.
           </p>
         </div>
 
@@ -136,7 +140,7 @@ export const AllAdmissions: React.FC = () => {
           onClick={() => setShowModal(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
-          Direct Admission
+          Direct Admission Entry
         </Button>
       </div>
 
@@ -144,11 +148,23 @@ export const AllAdmissions: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
+            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-text-secondary">Total Admissions</p>
+              <h3 className="text-2xl font-bold text-text-primary">{totalAdmissions}</h3>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-border/50 bg-bg-secondary shadow-sm">
+          <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
               <CheckCircle2 className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Confirmed Admissions</p>
+              <p className="text-xs font-medium text-text-secondary">Confirmed Seats</p>
               <h3 className="text-2xl font-bold text-text-primary">{confirmedCount}</h3>
             </div>
           </CardContent>
@@ -157,7 +173,7 @@ export const AllAdmissions: React.FC = () => {
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
-              <Clock className="h-6 w-6" />
+              <GraduationCap className="h-6 w-6" />
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Provisional Seats</p>
@@ -168,23 +184,11 @@ export const AllAdmissions: React.FC = () => {
 
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
+            <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
               <GraduationCap className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Enrolled</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalAdmissions}</h3>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
-              <UserCheck className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-text-secondary">Active Cohorts</p>
+              <p className="text-xs font-medium text-text-secondary">Active Batches Assigned</p>
               <h3 className="text-2xl font-bold text-text-primary">{activeBatchesCount}</h3>
             </div>
           </CardContent>
@@ -199,7 +203,7 @@ export const AllAdmissions: React.FC = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
-                placeholder="Search by admission no, student name, email, course, or batch..."
+                placeholder="Search by admission no, student name, email, or course..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-9 bg-bg-secondary border-border/50"
@@ -239,51 +243,62 @@ export const AllAdmissions: React.FC = () => {
             <Table>
               <TableHeader className="bg-bg-secondary/50">
                 <TableRow>
-                  <TableHead className="font-semibold text-text-primary">Admission No & Student</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Course & Batch</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Payment Plan</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Admission Date</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Adm No.</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Student Details</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Course</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Assigned Batch</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Fee Plan</TableHead>
                   <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Notes</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Admission Date</TableHead>
                   <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAdmissions.length > 0 ? (
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="h-32 text-center text-text-muted">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                        Loading admissions...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : filteredAdmissions.length > 0 ? (
                   filteredAdmissions.map((adm) => (
                     <TableRow key={adm.id} className="hover:bg-slate-50 transition-colors">
+                      <TableCell className="font-mono text-xs font-semibold text-[#1769AA]">
+                        {adm.admissionNo || "—"}
+                      </TableCell>
                       <TableCell>
                         <div>
-                          <span className="font-mono text-xs font-bold text-[#1769AA] block">
-                            {adm.admissionNo}
-                          </span>
-                          <span className="font-medium text-text-primary text-sm block">
+                          <span className="font-semibold text-text-primary text-sm block">
                             {adm.studentName}
                           </span>
                           <span className="text-xs text-text-secondary block">
-                            {adm.email} • {adm.phone}
+                            {adm.email ? `${adm.email} • ` : ""}{adm.phone}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <div>
-                          <span className="text-xs font-semibold text-slate-800 block">
-                            {adm.courseName}
-                          </span>
-                          {adm.batchName && (
-                            <Badge variant="outline" className="font-mono text-[10px] bg-slate-50 text-slate-600 mt-0.5">
-                              Batch: {adm.batchName}
-                            </Badge>
-                          )}
-                        </div>
+                      <TableCell className="text-xs font-medium text-[#1769AA]">
+                        {adm.courseName}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-slate-700">
+                        {adm.batchName || "Unassigned"}
                       </TableCell>
                       <TableCell>{getFeePlanBadge(adm.feePlan)}</TableCell>
+                      <TableCell>
+                        <select
+                          value={adm.status}
+                          onChange={(e) => updateAdmission(adm.id, { status: e.target.value as AdmissionStatus })}
+                          className="text-xs p-1 border rounded bg-transparent font-medium"
+                        >
+                          <option value="CONFIRMED">Confirmed</option>
+                          <option value="PROVISIONAL">Provisional</option>
+                          <option value="CANCELLED">Cancelled</option>
+                        </select>
+                      </TableCell>
                       <TableCell className="text-xs text-text-secondary">
                         {adm.admissionDate}
-                      </TableCell>
-                      <TableCell>{getStatusBadge(adm.status)}</TableCell>
-                      <TableCell className="text-xs text-text-secondary max-w-xs truncate">
-                        {adm.notes || "—"}
                       </TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
@@ -299,7 +314,7 @@ export const AllAdmissions: React.FC = () => {
                               className="text-destructive focus:text-destructive"
                               onClick={() => deleteAdmission(adm.id)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Admission
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Record
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -308,8 +323,8 @@ export const AllAdmissions: React.FC = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                      No admissions found matching criteria.
+                    <TableCell colSpan={8} className="h-32 text-center text-text-muted">
+                      No admission records found. Create your first live admission!
                     </TableCell>
                   </TableRow>
                 )}
@@ -346,7 +361,7 @@ export const AllAdmissions: React.FC = () => {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number *</label>
                   <Input
                     type="text"
-                    placeholder="+91 98220 55443"
+                    placeholder="+91 98765 43210"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     required
@@ -357,7 +372,7 @@ export const AllAdmissions: React.FC = () => {
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
                   <Input
                     type="email"
-                    placeholder="student@gmail.com"
+                    placeholder="aarav@gmail.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="bg-white border-slate-300 text-slate-900"
@@ -365,47 +380,50 @@ export const AllAdmissions: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Course *</label>
-                <select
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                  required
-                >
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Batch</label>
-                <select
-                  value={batchId}
-                  onChange={(e) => setBatchId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Course *</label>
+                  <select
+                    value={courseId}
+                    onChange={(e) => setCourseId(e.target.value)}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    required
+                  >
+                    <option value="" disabled>Select course</option>
+                    {courses.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Batch</label>
+                  <select
+                    value={batchId}
+                    onChange={(e) => setBatchId(e.target.value)}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  >
+                    <option value="">No Batch Assigned</option>
+                    {batches.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.code || b.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Plan</label>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Fee Payment Plan</label>
                   <select
                     value={feePlan}
                     onChange={(e) => setFeePlan(e.target.value as FeePlan)}
                     className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   >
-                    <option value="INSTALLMENT">Installment Plan</option>
-                    <option value="FULL_PAYMENT">Full Payment Upfront</option>
+                    <option value="FULL_PAYMENT">Full Upfront</option>
+                    <option value="INSTALLMENT">Installments</option>
                   </select>
                 </div>
                 <div>
@@ -422,10 +440,10 @@ export const AllAdmissions: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Admission Notes</label>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Notes / Remarks</label>
                 <Input
                   type="text"
-                  placeholder="e.g. Received first installment receipt #4021."
+                  placeholder="e.g. Paid registration fee via UPI."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   className="bg-white border-slate-300 text-slate-900"
@@ -437,14 +455,23 @@ export const AllAdmissions: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
+                  disabled={isSubmitting}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={isSubmitting}
                 >
-                  Confirm Admission
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Admission"
+                  )}
                 </Button>
               </div>
             </form>

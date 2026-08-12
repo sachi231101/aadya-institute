@@ -2,7 +2,6 @@ import * as React from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   BookOpen,
-  Calendar,
   GraduationCap,
   LayoutDashboard,
   Settings,
@@ -11,8 +10,7 @@ import {
   CreditCard,
   ChevronRight,
   LogOut,
-  UserCheck,
-  Building2
+  UserCheck
 } from "lucide-react"
 
 import {

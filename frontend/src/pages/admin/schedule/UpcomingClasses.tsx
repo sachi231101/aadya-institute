@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Clock, 
   Calendar, 
@@ -8,7 +8,8 @@ import {
   MessageSquare, 
   AlertCircle,
   XCircle,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from "lucide-react";
 import { useScheduleStore } from "../../../store/schedule.store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 export const UpcomingClasses: React.FC = () => {
-  const { classes, cancelClassSession } = useScheduleStore();
+  const { classes, isLoading, fetchClasses, cancelClassSession } = useScheduleStore();
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
+
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -104,7 +110,14 @@ export const UpcomingClasses: React.FC = () => {
 
       {/* Upcoming Cards Feed */}
       <div className="space-y-4">
-        {upcomingClasses.length > 0 ? (
+        {isLoading ? (
+          <Card className="border-border/50 bg-white py-12 text-center shadow-sm">
+            <CardContent className="flex items-center justify-center gap-2 text-slate-600">
+              <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+              Loading upcoming class sessions...
+            </CardContent>
+          </Card>
+        ) : upcomingClasses.length > 0 ? (
           upcomingClasses.map((cls) => (
             <Card key={cls.id} className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="p-6">

@@ -1,169 +1,101 @@
 import { create } from "zustand";
-import type { ClassSession } from "../types/schedule.types";
+import { classSessionsApi, mapBackendSession } from "../services/class-sessions.api";
+import type { ClassSession, CreateClassSessionPayload, UpdateClassSessionPayload } from "../types/schedule.types";
 
 interface ScheduleState {
   classes: ClassSession[];
+  isLoading: boolean;
+  error: string | null;
 
-  // Actions
-  addClassSession: (session: Omit<ClassSession, "id" | "attendanceMarked">) => void;
-  updateClassSession: (id: string, data: Partial<ClassSession>) => void;
-  deleteClassSession: (id: string) => void;
-  cancelClassSession: (id: string) => void;
+  fetchClasses: (filters?: Record<string, any>) => Promise<void>;
+  addClassSession: (payload: CreateClassSessionPayload) => Promise<ClassSession | null>;
+  updateClassSession: (id: string, payload: UpdateClassSessionPayload) => Promise<boolean>;
+  deleteClassSession: (id: string) => Promise<boolean>;
+  cancelClassSession: (id: string) => Promise<boolean>;
   toggleAttendanceMarked: (id: string) => void;
 }
 
-const today = new Date().toISOString().split("T")[0];
+export const useScheduleStore = create<ScheduleState>((set, get) => ({
+  classes: [],
+  isLoading: false,
+  error: null,
 
-// Dynamic dates helper
-const getDateOffset = (offsetDays: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() + offsetDays);
-  return d.toISOString().split("T")[0];
-};
-
-const initialClasses: ClassSession[] = [
-  {
-    id: "cls-101",
-    title: "Advanced React Patterns & Custom Hooks",
-    batchId: "b-1",
-    batchCode: "FS-2026-A1",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    facultyId: "f-1",
-    facultyName: "Dr. Rajesh Verma",
-    date: today,
-    startTime: "10:00 AM",
-    endTime: "12:00 PM",
-    roomNo: "Lab 201 (Main Building)",
-    mode: "OFFLINE",
-    status: "ONGOING",
-    attendanceMarked: true,
-    meetingUrl: "https://meet.google.com/xyz-aadya-mern",
-    notes: "Bring laptops with Node.js v20+ preinstalled.",
+  fetchClasses: async (filters) => {
+    set({ isLoading: true, error: null });
+    try {
+      const res = await classSessionsApi.getAll(filters);
+      if (res.success && res.data) {
+        const mapped = res.data.map(mapBackendSession);
+        set({ classes: mapped, isLoading: false });
+      } else {
+        set({ isLoading: false });
+      }
+    } catch (err: any) {
+      set({ error: err.message || "Failed to fetch class sessions", isLoading: false });
+    }
   },
-  {
-    id: "cls-102",
-    title: "PostgreSQL Schema Modeling & Transactions",
-    batchId: "b-3",
-    batchCode: "BE-2026-B2",
-    courseId: "c-2",
-    courseName: "Backend Engineering & Systems",
-    facultyId: "f-1",
-    facultyName: "Dr. Rajesh Verma",
-    date: today,
-    startTime: "02:00 PM",
-    endTime: "04:00 PM",
-    roomNo: "Room 104",
-    mode: "HYBRID",
-    status: "UPCOMING",
-    attendanceMarked: false,
-    meetingUrl: "https://meet.google.com/backend-aadya",
-    notes: "Hands-on session with Prisma ORM.",
+
+  addClassSession: async (payload) => {
+    try {
+      const res = await classSessionsApi.create(payload);
+      if (res.success && res.data) {
+        await get().fetchClasses();
+        return mapBackendSession(res.data);
+      }
+      return null;
+    } catch (err: any) {
+      set({ error: err.message || "Failed to add class session" });
+      return null;
+    }
   },
-  {
-    id: "cls-103",
-    title: "Introduction to PyTorch & Neural Nets",
-    batchId: "b-4",
-    batchCode: "DS-2026-W1",
-    courseId: "c-3",
-    courseName: "Data Science & Applied Machine Learning",
-    facultyId: "f-3",
-    facultyName: "Dr. Suresh Kumar",
-    date: getDateOffset(1),
-    startTime: "10:00 AM",
-    endTime: "01:00 PM",
-    roomNo: "AI Lab 302",
-    mode: "ONLINE",
-    status: "UPCOMING",
-    attendanceMarked: false,
-    meetingUrl: "https://zoom.us/j/9876543210",
-    notes: "Jupyter notebooks shared in Google Drive.",
+
+  updateClassSession: async (id, payload) => {
+    try {
+      const res = await classSessionsApi.update(id, payload);
+      if (res.success) {
+        await get().fetchClasses();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.message || "Failed to update class session" });
+      return false;
+    }
   },
-  {
-    id: "cls-104",
-    title: "Node.js Event Loop & Microservices Architecture",
-    batchId: "b-2",
-    batchCode: "FS-2026-B1",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    facultyId: "f-2",
-    facultyName: "Prof. Ananya Roy",
-    date: getDateOffset(2),
-    startTime: "02:00 PM",
-    endTime: "04:00 PM",
-    roomNo: "Lab 202",
-    mode: "OFFLINE",
-    status: "UPCOMING",
-    attendanceMarked: false,
+
+  cancelClassSession: async (id) => {
+    try {
+      const res = await classSessionsApi.cancel(id);
+      if (res.success) {
+        await get().fetchClasses();
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.message || "Failed to cancel class session" });
+      return false;
+    }
   },
-  {
-    id: "cls-105",
-    title: "Figma Component Systems & Auto Layout",
-    batchId: "b-5",
-    batchCode: "UX-2026-X1",
-    courseId: "c-4",
-    courseName: "Product UI/UX Design Masterclass",
-    facultyId: "f-4",
-    facultyName: "Priya Sharma",
-    date: getDateOffset(3),
-    startTime: "11:00 AM",
-    endTime: "01:00 PM",
-    roomNo: "Design Studio 1",
-    mode: "OFFLINE",
-    status: "UPCOMING",
-    attendanceMarked: false,
+
+  deleteClassSession: async (id) => {
+    try {
+      const res = await classSessionsApi.delete(id);
+      if (res.success) {
+        set((state) => ({ classes: state.classes.filter((c) => c.id !== id) }));
+        return true;
+      }
+      return false;
+    } catch (err: any) {
+      set({ error: err.message || "Failed to delete class session" });
+      return false;
+    }
   },
-  {
-    id: "cls-100",
-    title: "TypeScript Generics & Utility Types",
-    batchId: "b-1",
-    batchCode: "FS-2026-A1",
-    courseId: "c-1",
-    courseName: "Full Stack MERN Architecture",
-    facultyId: "f-1",
-    facultyName: "Dr. Rajesh Verma",
-    date: getDateOffset(-1),
-    startTime: "10:00 AM",
-    endTime: "12:00 PM",
-    roomNo: "Lab 201",
-    mode: "OFFLINE",
-    status: "COMPLETED",
-    attendanceMarked: true,
-  },
-];
 
-export const useScheduleStore = create<ScheduleState>((set) => ({
-  classes: initialClasses,
-
-  addClassSession: (data) =>
-    set((state) => {
-      const newSession: ClassSession = {
-        ...data,
-        id: `cls-${Date.now()}`,
-        attendanceMarked: false,
-      };
-      return { classes: [newSession, ...state.classes] };
-    }),
-
-  updateClassSession: (id, data) =>
-    set((state) => ({
-      classes: state.classes.map((c) => (c.id === id ? { ...c, ...data } : c)),
-    })),
-
-  deleteClassSession: (id) =>
-    set((state) => ({
-      classes: state.classes.filter((c) => c.id !== id),
-    })),
-
-  cancelClassSession: (id) =>
-    set((state) => ({
-      classes: state.classes.map((c) => (c.id === id ? { ...c, status: "CANCELLED" as const } : c)),
-    })),
-
-  toggleAttendanceMarked: (id) =>
+  toggleAttendanceMarked: (id) => {
     set((state) => ({
       classes: state.classes.map((c) =>
         c.id === id ? { ...c, attendanceMarked: !c.attendanceMarked } : c
       ),
-    })),
+    }));
+  },
 }));

@@ -17,6 +17,13 @@ export const attendanceApi = {
     return response.data;
   },
 
+  // ─── Session Attendance ────────────────────────────────────────────────
+
+  getSessionAttendance: async (sessionId: string): Promise<SingleResponse<AttendanceRecord[]>> => {
+    const response = await api.get<SingleResponse<AttendanceRecord[]>>(`/attendance/session/${sessionId}`);
+    return response.data;
+  },
+
   // ─── Mark Attendance ──────────────────────────────────────────────────
 
   mark: async (data: MarkAttendancePayload): Promise<SingleResponse<AttendanceRecord>> => {
