@@ -13,6 +13,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
+import { useCourseStore } from "../../../store/course.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -34,6 +35,9 @@ export const FacultyCourses: React.FC = () => {
   const [selectedFacultyId, setSelectedFacultyId] = useState<string>(initialFacultyId || "ALL");
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
 
+  // Store batches
+  const { batches: storeBatches } = useCourseStore();
+
   // Modal Form state
   const [newFacultyId, setNewFacultyId] = useState<string>("");
   const [newBatchId, setNewBatchId] = useState<string>("");
@@ -50,6 +54,24 @@ export const FacultyCourses: React.FC = () => {
 
   const assignments = coursesResponse?.data ?? [];
   const facultyList = facultyResponse?.data ?? [];
+
+  // Combine backend batch assignments + store batches for complete dropdown list
+  const assignmentBatches = assignments.map((a) => ({
+    id: a.id,
+    name: a.name,
+    code: a.code,
+    courseName: a.course?.name || "",
+  }));
+  const storeBatchesMapped = storeBatches.map((b) => ({
+    id: b.id,
+    name: b.name,
+    code: b.code,
+    courseName: b.courseName || "",
+  }));
+
+  const allBatchesMap = new Map<string, { id: string; name: string; code: string; courseName: string }>();
+  [...assignmentBatches, ...storeBatchesMapped].forEach((b) => allBatchesMap.set(b.id, b));
+  const allBatches = Array.from(allBatchesMap.values());
 
   const totalStudentsTaught = assignments.reduce((acc, curr) => acc + (curr._count?.enrollments ?? 0), 0);
 
@@ -271,17 +293,22 @@ export const FacultyCourses: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Batch ID *</label>
-                <Input
-                  type="text"
-                  placeholder="Enter the batch ID to assign"
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Select Batch *</label>
+                <select
                   value={newBatchId}
                   onChange={(e) => setNewBatchId(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   required
-                />
+                >
+                  <option value="">Select a batch to assign</option>
+                  {allBatches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code}) {b.courseName ? `— ${b.courseName}` : ""}
+                    </option>
+                  ))}
+                </select>
                 <p className="text-xs text-slate-500 mt-1">
-                  Enter the batch ID from the Batches section to assign this faculty member.
+                  Select an active academy batch from the dropdown above.
                 </p>
               </div>
 
