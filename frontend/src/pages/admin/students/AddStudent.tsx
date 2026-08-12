@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, UserPlus, Save } from "lucide-react";
+import { ArrowLeft, UserPlus, Save, Loader2 } from "lucide-react";
 
 
 const studentSchema = z.object({
@@ -52,13 +52,13 @@ export const AddStudent: React.FC = () => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 800));
-      
+
       addStudent({
         ...data,
         instituteId: "aadya-inst-1",
         branchId: "branch-1"
       });
-      
+
       navigate("/admin/students/all");
     } catch (error) {
       console.error(error);
@@ -70,8 +70,8 @@ export const AddStudent: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="icon"
           onClick={() => navigate("/admin/students/all")}
         >
@@ -112,7 +112,7 @@ export const AddStudent: React.FC = () => {
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="name"
@@ -176,7 +176,7 @@ export const AddStudent: React.FC = () => {
                     <FormItem>
                       <FormLabel>Enrollment Status *</FormLabel>
                       <FormControl>
-                        <select 
+                        <select
                           className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                           {...field}
                         >
@@ -192,26 +192,30 @@ export const AddStudent: React.FC = () => {
                 />
               </div>
 
-              <div className="flex justify-end gap-4 pt-4 border-t border-border/50">
-                <Button 
-                  type="button" 
-                  variant="outline" 
+              <div className="flex items-center justify-end gap-3 pt-6 border-t border-border/50">
+                <Button
+                  type="button"
+                  variant="outline"
                   onClick={() => navigate("/admin/students/all")}
                   disabled={isSubmitting}
+                  className="px-5 font-medium transition-colors"
                 >
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-accent-primary hover:bg-accent-secondary text-white"
+                <Button
+                  type="submit"
                   disabled={isSubmitting}
+                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
                 >
                   {isSubmitting ? (
-                    "Saving..."
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Saving...</span>
+                    </>
                   ) : (
                     <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Student
+                      <Save className="h-4 w-4" />
+                      <span>Save Student</span>
                     </>
                   )}
                 </Button>
