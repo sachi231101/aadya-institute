@@ -167,7 +167,7 @@ export const Settings: React.FC = () => {
                   </div>
                   <button 
                     type="button"
-                    className="absolute bottom-0 right-0 bg-[#1769AA] text-white p-1.5 rounded-full shadow hover:bg-[#0B4F8A] transition-colors"
+                    className="absolute bottom-0 right-0 bg-[#1769AA] text-white p-1.5 rounded-full shadow hover:bg-[#F39A16] transition-colors"
                   >
                     <Camera className="h-3.5 w-3.5" />
                   </button>
@@ -294,7 +294,7 @@ export const Settings: React.FC = () => {
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <Button 
                     type="submit" 
-                    className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm"
+                    className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm"
                   >
                     <Save className="mr-2 h-4 w-4" />
                     Save Personal Info
@@ -362,7 +362,7 @@ export const Settings: React.FC = () => {
                 <div className="flex justify-end pt-4 border-t border-slate-100">
                   <Button 
                     type="submit" 
-                    className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm"
+                    className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm"
                   >
                     Update Password
                   </Button>

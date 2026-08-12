@@ -228,7 +228,7 @@ export const AddCourse: React.FC = () => {
               </Button>
               <Button 
                 type="submit" 
-                className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm"
+                className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm"
               >
                 <Save className="mr-2 h-4 w-4" />
                 Save Course

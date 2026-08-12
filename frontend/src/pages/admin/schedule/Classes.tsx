@@ -150,7 +150,7 @@ export const Classes: React.FC = () => {
         </div>
 
         <Button 
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm transition-colors"
+          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
           onClick={() => setShowModal(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -501,7 +501,7 @@ export const Classes: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
                   Schedule Class
                 </Button>

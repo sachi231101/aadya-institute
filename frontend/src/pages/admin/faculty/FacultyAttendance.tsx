@@ -107,7 +107,7 @@ export const FacultyAttendance: React.FC = () => {
         </div>
 
         <Button
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white transition-colors"
+          className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
           onClick={() => setShowLogModal(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -361,8 +361,7 @@ export const FacultyAttendance: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
-                  disabled={markMutation.isPending}
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
                   {markMutation.isPending ? (
                     <>

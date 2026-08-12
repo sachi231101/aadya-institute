@@ -82,7 +82,7 @@ export const Curriculum: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <Button 
-            className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white shadow-sm transition-colors"
+            className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
             onClick={() => setShowModuleModal(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -258,7 +258,7 @@ export const Curriculum: React.FC = () => {
                 This course currently has no curriculum modules defined. Start by adding your first module.
               </p>
               <Button 
-                className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 onClick={() => setShowModuleModal(true)}
               >
                 <Plus className="mr-2 h-4 w-4" />
@@ -312,7 +312,7 @@ export const Curriculum: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
                   Create Module
                 </Button>
@@ -376,7 +376,7 @@ export const Curriculum: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
                   Add Topic
                 </Button>

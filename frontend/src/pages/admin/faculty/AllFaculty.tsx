@@ -100,7 +100,7 @@ export const AllFaculty: React.FC = () => {
           </p>
         </div>
         <Button 
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white transition-colors"
+          className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
           onClick={() => navigate("/admin/faculty/add")}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -351,7 +351,7 @@ export const AllFaculty: React.FC = () => {
                 </Button>
               ) : (
                 <Button 
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                   onClick={() => navigate("/admin/faculty/add")}
                 >
                   <Plus className="mr-2 h-4 w-4" />

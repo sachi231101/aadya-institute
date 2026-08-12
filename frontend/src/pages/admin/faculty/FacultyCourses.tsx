@@ -82,7 +82,7 @@ export const FacultyCourses: React.FC = () => {
         </div>
 
         <Button 
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white transition-colors"
+          className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
           onClick={() => setShowAssignModal(true)}
         >
           <Plus className="mr-2 h-4 w-4" />
@@ -234,7 +234,7 @@ export const FacultyCourses: React.FC = () => {
             There are currently no course assignments matching the selected faculty filter.
           </p>
           <Button 
-            className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
+            className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
             onClick={() => setShowAssignModal(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -301,8 +301,7 @@ export const FacultyCourses: React.FC = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white"
-                  disabled={assignMutation.isPending}
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                 >
                   {assignMutation.isPending ? (
                     <>
