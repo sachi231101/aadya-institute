@@ -4,16 +4,12 @@ import {
   Plus, 
   Search, 
   Users, 
-  Calendar, 
-  CheckCircle2, 
   GraduationCap,
-  UserCheck,
-  ArrowRight
+  UserCheck
 } from "lucide-react";
 import { useCourseStore } from "../../../store/course.store";
-import { useFacultyStore } from "../../../store/faculty.store";
-import { useStudentStore } from "../../../store/student.store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFacultyList } from "../../../hooks/useFaculty";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -37,7 +33,8 @@ import {
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
   const { batches, courses, addBatch } = useCourseStore();
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState("ALL");
@@ -80,7 +77,7 @@ export const CounsellorBatches: React.FC = () => {
       courseId,
       courseName: selectedCourse?.name || "General Course",
       facultyId,
-      facultyName: selectedFaculty?.name || "Unassigned",
+      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || "Unassigned",
       startDate,
       schedulePattern,
       timeSlot,
@@ -304,7 +301,7 @@ export const CounsellorBatches: React.FC = () => {
               >
                 {facultyList.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.name} — {f.department || "Faculty"}
+                    {f.user?.name || (f as any).name} — {f.specialization || (f as any).department || "Faculty"}
                   </option>
                 ))}
               </select>

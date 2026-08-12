@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Users, 
   GraduationCap, 
@@ -7,20 +7,24 @@ import {
   UserCheck, 
   Plus, 
   ArrowRight,
-  Sparkles,
-  Calendar
+  Calendar,
+  UserPlus
 } from "lucide-react";
 import { useCourseStore } from "../../../store/course.store";
 import { useStudentStore } from "../../../store/student.store";
-import { useFacultyStore } from "../../../store/faculty.store";
+import { useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
+
   const { batches, courses } = useCourseStore();
   const { students } = useStudentStore();
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const activeBatches = batches.filter((b) => b.status === "ACTIVE").length;
   const upcomingBatches = batches.filter((b) => b.status === "UPCOMING").length;
@@ -41,7 +45,14 @@ export const CounsellorOverview: React.FC = () => {
 
         <div className="flex items-center gap-3">
           <Button 
-            onClick={() => navigate("/admin/counselor/batches")}
+            onClick={() => navigate(`${basePath}/counselor/all`)}
+            variant="outline"
+            className="gap-2"
+          >
+            <UserPlus size={16} /> Manage Counsellors
+          </Button>
+          <Button 
+            onClick={() => navigate(`${basePath}/counselor/batches`)}
             className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors"
           >
             <Plus size={16} /> Create Batch
@@ -49,15 +60,15 @@ export const CounsellorOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Metrics Grid */}
+      {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Batches</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">{batches.length}</h3>
-              <p className="text-xs text-green-600 font-medium mt-1">
-                {activeBatches} Active • {upcomingBatches} Upcoming
+              <p className="text-xs text-muted-foreground mt-1">
+                {activeBatches} Active, {upcomingBatches} Upcoming
               </p>
             </div>
             <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
@@ -69,11 +80,9 @@ export const CounsellorOverview: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Students</p>
+              <p className="text-sm font-medium text-muted-foreground">Total Enrolled</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">{students.length}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                From Student Store
-              </p>
+              <p className="text-xs text-green-600 font-medium mt-1">Active Students</p>
             </div>
             <div className="p-3 bg-purple-500/10 rounded-xl text-purple-600">
               <GraduationCap className="h-6 w-6" />
@@ -84,11 +93,9 @@ export const CounsellorOverview: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Available Faculty</p>
+              <p className="text-sm font-medium text-muted-foreground">Assigned Faculty</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">{facultyList.length}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                From Faculty Store
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Available Instructors</p>
             </div>
             <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
               <Users className="h-6 w-6" />
@@ -99,11 +106,9 @@ export const CounsellorOverview: React.FC = () => {
         <Card className="border border-border/60 shadow-sm">
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Courses</p>
+              <p className="text-sm font-medium text-muted-foreground">Active Courses</p>
               <h3 className="text-2xl font-bold text-text-primary mt-1">{courses.length}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Active Offerings
-              </p>
+              <p className="text-xs text-muted-foreground mt-1">Curriculum Programs</p>
             </div>
             <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
               <BookOpen className="h-6 w-6" />
@@ -114,19 +119,41 @@ export const CounsellorOverview: React.FC = () => {
 
       {/* Quick Action Navigation Cards */}
       <h2 className="text-lg font-semibold text-text-primary">Counsellor Actions</h2>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <Card 
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
-          onClick={() => navigate("/admin/counselor/batches")}
+          onClick={() => navigate(`${basePath}/counselor/all`)}
         >
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
-                <Calendar className="h-6 w-6" />
+                <UserCheck className="h-6 w-6" />
               </div>
               <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-[#1769AA] group-hover:translate-x-1 transition-all" />
             </div>
             <CardTitle className="text-lg mt-4 group-hover:text-[#1769AA] transition-colors">
+              Manage Counsellors
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Create new counsellor profiles, update contact info, assign branches, and manage staff statuses.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card 
+          className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
+          onClick={() => navigate(`${basePath}/counselor/batches`)}
+        >
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="p-3 bg-blue-500/10 rounded-xl text-blue-600">
+                <Calendar className="h-6 w-6" />
+              </div>
+              <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-blue-600 group-hover:translate-x-1 transition-all" />
+            </div>
+            <CardTitle className="text-lg mt-4 group-hover:text-blue-600 transition-colors">
               Create & Manage Batches
             </CardTitle>
           </CardHeader>
@@ -139,7 +166,7 @@ export const CounsellorOverview: React.FC = () => {
 
         <Card 
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
-          onClick={() => navigate("/admin/counselor/assign-students")}
+          onClick={() => navigate(`${basePath}/counselor/assign-students`)}
         >
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -161,7 +188,7 @@ export const CounsellorOverview: React.FC = () => {
 
         <Card 
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
-          onClick={() => navigate("/admin/counselor/assign-faculty")}
+          onClick={() => navigate(`${basePath}/counselor/assign-faculty`)}
         >
           <CardHeader>
             <div className="flex items-center justify-between">

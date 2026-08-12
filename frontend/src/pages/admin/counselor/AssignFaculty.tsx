@@ -3,13 +3,11 @@ import {
   Users, 
   Search, 
   CheckCircle2, 
-  UserCheck, 
-  Calendar,
-  BookOpen
+  UserCheck
 } from "lucide-react";
 import { useCourseStore } from "../../../store/course.store";
-import { useFacultyStore } from "../../../store/faculty.store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFacultyList } from "../../../hooks/useFaculty";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -32,7 +30,8 @@ import {
 
 export const AssignFaculty: React.FC = () => {
   const { batches, assignFacultyToBatch } = useCourseStore();
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
@@ -60,7 +59,8 @@ export const AssignFaculty: React.FC = () => {
 
     const facultyObj = facultyList.find((f) => f.id === targetFacultyId);
     if (facultyObj) {
-      assignFacultyToBatch(selectedBatchId, facultyObj.id, facultyObj.name);
+      const facultyName = facultyObj.user?.name || (facultyObj as any).name || "Faculty Member";
+      assignFacultyToBatch(selectedBatchId, facultyObj.id, facultyName);
     }
     setSelectedBatchId(null);
   };
@@ -182,7 +182,7 @@ export const AssignFaculty: React.FC = () => {
               >
                 {facultyList.map((f) => (
                   <option key={f.id} value={f.id}>
-                    {f.name} — {f.department || "Faculty"} ({f.qualification || "Faculty Member"})
+                    {f.user?.name || (f as any).name} — {f.specialization || (f as any).department || "Faculty"} ({f.employeeCode || "Faculty Member"})
                   </option>
                 ))}
               </select>

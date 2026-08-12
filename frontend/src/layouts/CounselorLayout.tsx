@@ -1,123 +1,41 @@
 import React from "react";
-import { Link, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, UserCheck, FileText, LogOut, Bell } from "lucide-react";
-import { useAuthStore } from "../store/auth.store";
+import { Outlet } from "react-router-dom";
+import { Bell, UserCheck } from "lucide-react";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { CounselorSidebar } from "@/components/layout/counselor-sidebar";
 
 export const CounselorLayout: React.FC = () => {
-  const { user, logout } = useAuthStore();
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const navItems = [
-    { label: "Counselor Dashboard", icon: LayoutDashboard, path: "/counselor/dashboard" },
-    { label: "Lead Management", icon: UserCheck, path: "/counselor/leads" },
-    { label: "Admissions", icon: FileText, path: "/counselor/admissions" },
-  ];
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
-      <aside
-        style={{
-          width: "260px",
-          background: "var(--bg-secondary)",
-          borderRight: "1px solid var(--border-color)",
-          display: "flex",
-          flexDirection: "column",
-          padding: "1.5rem 1rem",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0 0.5rem 1.5rem" }}>
-          <div
-            style={{
-              width: "40px",
-              height: "40px",
-              borderRadius: "10px",
-              background: "linear-gradient(135deg, #10b981, #059669)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontWeight: 800,
-            }}
-          >
-            C
-          </div>
-          <div>
-            <h2 style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>Counselor Portal</h2>
-            <span style={{ fontSize: "0.75rem", color: "var(--accent-emerald)", fontWeight: 600 }}>
-              COUNSELOR
-            </span>
-          </div>
+    <SidebarProvider>
+      <div className="flex min-h-screen w-full bg-background">
+        <CounselorSidebar />
+        
+        <div className="flex-1 flex flex-col min-w-0">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-bg-secondary px-6">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="-ml-2" />
+              <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
+                <UserCheck size={18} className="text-emerald-600" />
+                <span className="text-sm font-medium">Counsellor Portal — Admissions & Counselling Desk</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button className="relative text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-bg-tertiary">
+                <Bell size={20} />
+                <span className="absolute top-1 right-1 flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+              </button>
+            </div>
+          </header>
+          
+          <main className="flex-1 overflow-auto bg-bg-primary">
+            <Outlet />
+          </main>
         </div>
-
-        <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem", flex: 1 }}>
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.path}
-                to={item.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "var(--radius-md)",
-                  color: "var(--text-secondary)",
-                }}
-              >
-                <Icon size={18} />
-                <span style={{ fontSize: "0.9rem", fontWeight: 500 }}>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div
-          style={{
-            padding: "1rem 0.5rem 0",
-            borderTop: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <div>
-            <p style={{ fontSize: "0.85rem", fontWeight: 600, color: "var(--text-primary)" }}>
-              {user?.name || "Counselor"}
-            </p>
-          </div>
-          <button onClick={handleLogout} style={{ color: "#ef4444", cursor: "pointer" }}>
-            <LogOut size={18} />
-          </button>
-        </div>
-      </aside>
-
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <header
-          style={{
-            height: "70px",
-            background: "var(--bg-secondary)",
-            borderBottom: "1px solid var(--border-color)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            padding: "0 2rem",
-          }}
-        >
-          <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>Counseling & Admission desk</span>
-          <button style={{ color: "var(--text-secondary)" }}>
-            <Bell size={20} />
-          </button>
-        </header>
-        <main style={{ flex: 1, padding: "2rem", overflowY: "auto" }}>
-          <Outlet />
-        </main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };

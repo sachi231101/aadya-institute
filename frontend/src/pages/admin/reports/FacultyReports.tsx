@@ -9,7 +9,7 @@ import {
   PieChart as PieChartIcon,
   Award
 } from "lucide-react";
-import { useFacultyStore } from "../../../store/faculty.store";
+import { useFacultyList } from "../../../hooks/useFaculty";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,8 @@ const feedbackRatingData = [
 ];
 
 export const FacultyReports: React.FC = () => {
-  const { facultyList } = useFacultyStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   const totalFaculty = facultyList.length || 12;
 
@@ -228,7 +229,7 @@ export const FacultyReports: React.FC = () => {
             </TableHeader>
             <TableBody>
               {facultyList.length > 0 ? (
-                facultyList.map((faculty) => (
+                facultyList.map((faculty: any) => (
                   <TableRow key={faculty.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div>

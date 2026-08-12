@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 import { 
   User as UserIcon, 
   Lock, 
@@ -19,15 +20,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export const Settings: React.FC = () => {
+  const location = useLocation();
   const { user, updateUser } = useAuthStore();
+
+  const isCounselor = location.pathname.startsWith("/counselor") || user?.role === "COUNSELLOR";
+  const isCenter = location.pathname.startsWith("/center") || user?.role === "CENTER_MANAGER";
+
   const [activeTab, setActiveTab] = useState<"personal" | "security" | "notifications" | "system">("personal");
 
   // Personal Info Form State
-  const [name, setName] = useState(user?.name || "Aadya Admin");
-  const [email, setEmail] = useState(user?.email || "admin@aadya.in");
-  const [phone, setPhone] = useState(user?.phone || "+91 98765 43210");
-  const [designation, setDesignation] = useState("Academy Operations Director");
-  const [department, setDepartment] = useState("Institute Administration");
+  const [name, setName] = useState(user?.name || (isCounselor ? "Kavita Nair" : isCenter ? "Center Manager" : "Aadya Admin"));
+  const [email, setEmail] = useState(user?.email || (isCounselor ? "counselor@aadya.in" : isCenter ? "center.manager@aadya.in" : "admin@aadya.in"));
+  const [phone, setPhone] = useState(user?.phone || "+91 98765 11223");
+  const [designation, setDesignation] = useState(isCounselor ? "Senior Admissions Counsellor" : isCenter ? "Center Operations Manager" : "Academy Operations Director");
+  const [department, setDepartment] = useState(isCounselor ? "Student Admissions & Counselling Desk" : isCenter ? "Branch Operations & Administration" : "Institute Administration");
   const [language, setLanguage] = useState("English (US)");
   const [timezone, setTimezone] = useState("(GMT+05:30) India Standard Time");
 
@@ -80,9 +86,15 @@ export const Settings: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Admin Account Settings</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">
+            {isCounselor ? "Counsellor Profile & Settings" : isCenter ? "Center Manager Settings" : "Admin Account Settings"}
+          </h2>
           <p className="text-sm text-text-secondary">
-            Manage your personal profile, security credentials, notification channels, and portal preferences.
+            {isCounselor
+              ? "Manage your counsellor profile, security credentials, notification preferences, and desk settings."
+              : isCenter
+              ? "Manage your branch profile, security credentials, notification preferences, and center settings."
+              : "Manage your personal profile, security credentials, notification channels, and portal preferences."}
           </p>
         </div>
       </div>
@@ -175,14 +187,14 @@ export const Settings: React.FC = () => {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <h3 className="text-xl font-bold text-slate-900">{name}</h3>
-                    <Badge variant="outline" className="bg-blue-50 text-[#1769AA] border-blue-200">
-                      ADMIN
+                    <Badge variant="outline" className={isCounselor ? "bg-emerald-50 text-emerald-700 border-emerald-200" : isCenter ? "bg-amber-50 text-amber-700 border-amber-200" : "bg-blue-50 text-[#1769AA] border-blue-200"}>
+                      {isCounselor ? "COUNSELLOR" : isCenter ? "CENTER MANAGER" : "ADMIN"}
                     </Badge>
                   </div>
                   <p className="text-xs text-slate-500 flex items-center gap-3">
                     <span className="flex items-center gap-1"><Mail className="h-3.5 w-3.5 text-slate-400" /> {email}</span>
                     <span>•</span>
-                    <span className="flex items-center gap-1"><Building className="h-3.5 w-3.5 text-slate-400" /> Aadya Institute Main</span>
+                    <span className="flex items-center gap-1"><Building className="h-3.5 w-3.5 text-slate-400" /> {isCenter ? "Bengaluru Main Branch" : "Aadya Institute Main"}</span>
                   </p>
                 </div>
               </div>
@@ -317,7 +329,9 @@ export const Settings: React.FC = () => {
                   Change Password & Security Credentials
                 </CardTitle>
                 <CardDescription className="text-xs text-slate-500">
-                  Update your admin account password to ensure portal access security.
+                  {isCenter
+                    ? "Update your center manager account password to ensure portal access security."
+                    : "Update your admin account password to ensure portal access security."}
                 </CardDescription>
               </CardHeader>
 

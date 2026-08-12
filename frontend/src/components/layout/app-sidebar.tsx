@@ -101,6 +101,7 @@ const data = {
       isActive: false,
       items: [
         { title: "Overview", url: "/admin/counselor/overview" },
+        { title: "Manage Counsellors", url: "/admin/counselor/all" },
         { title: "Create & Manage Batches", url: "/admin/counselor/batches" },
         { title: "Assign Students", url: "/admin/counselor/assign-students" },
         { title: "Assign Faculty", url: "/admin/counselor/assign-faculty" },
