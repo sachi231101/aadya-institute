@@ -8,9 +8,14 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 
 
 export const CounselorLayout: React.FC = () => {
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  if (!userRoles.includes("COUNSELLOR") && !userRoles.includes("ADMIN")) {
     return <Navigate to="/login" replace />;
   }
   return (

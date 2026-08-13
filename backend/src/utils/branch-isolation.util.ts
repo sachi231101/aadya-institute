@@ -17,16 +17,16 @@ export const getBranchScopeFilter = (
   user: AuthUser,
   requestedBranchId?: string
 ): BranchScopeFilter => {
-  const isInstituteAdmin = user.roles.includes("ADMIN");
+  const isGlobalRole = user.roles.includes("ADMIN") || user.roles.includes("COUNSELLOR");
 
-  if (isInstituteAdmin) {
+  if (isGlobalRole) {
     return {
       instituteId: user.instituteId,
       ...(requestedBranchId ? { branchId: requestedBranchId } : {}),
     };
   }
 
-  // Non-admin roles: lock to user's assigned branchId if present
+  // Branch-specific roles (e.g. CENTER_MANAGER): lock to user's assigned branchId if present
   return {
     instituteId: user.instituteId,
     ...(user.branchId ? { branchId: user.branchId } : {}),
@@ -41,8 +41,8 @@ export const hasBranchAccess = (
   user: AuthUser,
   targetBranchId: string
 ): boolean => {
-  if (user.roles.includes("ADMIN")) {
-    return true; // Admin has access to all branches in institute
+  if (user.roles.includes("ADMIN") || user.roles.includes("COUNSELLOR")) {
+    return true; // Admin and Counsellor have access to all institute branches
   }
   return !!user.branchId && user.branchId === targetBranchId;
 };

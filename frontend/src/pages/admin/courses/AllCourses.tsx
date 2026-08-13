@@ -1,16 +1,16 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  BookOpen, 
-  Plus, 
-  Search, 
-  Layers, 
-  Users, 
-  CheckCircle2, 
-  Clock, 
-  MoreVertical, 
-  Trash2, 
-  LayoutGrid, 
+import {
+  BookOpen,
+  Plus,
+  Search,
+  Layers,
+  Users,
+  CheckCircle2,
+  Clock,
+  MoreVertical,
+  Trash2,
+  LayoutGrid,
   List,
   GraduationCap,
   Loader2
@@ -103,7 +103,7 @@ export const AllCourses: React.FC = () => {
           </p>
         </div>
 
-        <Button 
+        <Button
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
           onClick={() => navigate("/admin/courses/add")}
         >
@@ -267,7 +267,7 @@ export const AllCourses: React.FC = () => {
                                 <GraduationCap className="mr-2 h-4 w-4" /> View Batches
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => handleDelete(course.id)}
                               >
@@ -305,18 +305,18 @@ export const AllCourses: React.FC = () => {
                       </div>
 
                       <div className="flex items-center justify-between gap-2 pt-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="w-full text-xs"
                           onClick={() => navigate("/admin/courses/curriculum")}
                         >
                           <BookOpen className="mr-1.5 h-3.5 w-3.5 text-[#1769AA]" />
                           Curriculum
                         </Button>
-                        <Button 
-                          variant="default" 
-                          size="sm" 
+                        <Button
+                          variant="default"
+                          size="sm"
                           className="w-full text-xs bg-[#1769AA] hover:bg-[#F39A16] text-white"
                           onClick={() => navigate("/admin/courses/batches")}
                         >
@@ -392,7 +392,7 @@ export const AllCourses: React.FC = () => {
                                 <GraduationCap className="mr-2 h-4 w-4" /> Batches
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
-                              <DropdownMenuItem 
+                              <DropdownMenuItem
                                 className="text-destructive focus:text-destructive"
                                 onClick={() => handleDelete(course.id)}
                               >

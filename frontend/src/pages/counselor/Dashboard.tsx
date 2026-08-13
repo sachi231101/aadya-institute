@@ -33,7 +33,7 @@ import {
 
 export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { students } = useStudentStore();
+  const { students, fetchStudents } = useStudentStore();
   const { fetchCounselors } = useCounselorStore();
   const { enquiries, admissions, isLoading, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
 
@@ -41,6 +41,7 @@ export const CounselorDashboard: React.FC = () => {
     fetchCounselors();
     fetchEnquiries();
     fetchAdmissions();
+    fetchStudents();
   }, []);
 
   const totalLeadsCount = enquiries.length;

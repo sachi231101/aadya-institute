@@ -21,10 +21,21 @@ import {
 import type { NotificationType, NotificationItem } from "../../services/notifications.api";
 import { Badge } from "@/components/ui/badge";
 
+import { useAuthStore } from "@/store/auth.store";
+
 export const NotificationPopover: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  const isCounselor = userRoles.includes("COUNSELLOR") && !userRoles.includes("ADMIN");
+  const isCenter = userRoles.includes("CENTER_MANAGER") && !userRoles.includes("ADMIN");
+  const isFaculty = userRoles.includes("FACULTY") && !userRoles.includes("ADMIN");
+  const isStudent = userRoles.includes("STUDENT") && !userRoles.includes("ADMIN");
+
+  const rolePrefix = isCounselor ? "/counselor" : isCenter ? "/center" : isFaculty ? "/faculty" : isStudent ? "/student" : "/admin";
 
   const { data: unreadData } = useGetUnreadCount();
   const { data: listData, isLoading } = useGetNotifications({ limit: 5 });
@@ -55,7 +66,8 @@ export const NotificationPopover: React.FC = () => {
     }
     setIsOpen(false);
     if (item.link) {
-      navigate(item.link);
+      const mappedLink = item.link.replace(/^\/(admin|center|faculty|student|counselor)/, rolePrefix);
+      navigate(mappedLink);
     }
   };
 
@@ -191,7 +203,7 @@ export const NotificationPopover: React.FC = () => {
               type="button"
               onClick={() => {
                 setIsOpen(false);
-                navigate("/admin/notifications");
+                navigate(`${rolePrefix}/notifications`);
               }}
               className="text-xs font-bold text-[#1769AA] hover:text-[#F39A16] flex items-center justify-center gap-1 w-full py-1 transition-colors"
             >

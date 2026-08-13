@@ -7,9 +7,17 @@ import { FacultySidebar } from "@/components/layout/faculty-sidebar";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
 export const FacultyLayout: React.FC = () => {
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  if (!userRoles.includes("FACULTY") && !userRoles.includes("ADMIN")) {
+    if (userRoles.includes("COUNSELLOR")) {
+      return <Navigate to="/counselor/dashboard" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 

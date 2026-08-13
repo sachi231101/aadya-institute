@@ -14,6 +14,14 @@ export const StudentLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  if (!userRoles.includes("STUDENT") && !userRoles.includes("ADMIN")) {
+    if (userRoles.includes("COUNSELLOR")) {
+      return <Navigate to="/counselor/dashboard" replace />;
+    }
+    return <Navigate to="/login" replace />;
+  }
+
   const handleLogout = () => {
     logout();
     navigate("/login");

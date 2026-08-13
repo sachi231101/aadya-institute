@@ -8,6 +8,7 @@ export interface UserResponse {
   status: "ACTIVE" | "INACTIVE" | "BLOCKED";
   instituteId: string;
   branchId: string | null;
+  branch?: { id: string; name: string; code: string } | null;
   roles: string[];
   createdAt: string;
   updatedAt: string;

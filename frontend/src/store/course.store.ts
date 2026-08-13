@@ -136,10 +136,7 @@ export const useCourseStore = create<CourseState>((set) => ({
       batches: state.batches.filter((b) => b.id !== id),
     })),
 
-  enrolledStudentsMap: {
-    "b-1": ["STD001", "STD002"],
-    "b-2": ["STD003"],
-  },
+  enrolledStudentsMap: {},
 
   assignStudentToBatch: (batchId, studentId) =>
     set((state) => {
