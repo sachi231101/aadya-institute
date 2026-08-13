@@ -1,8 +1,8 @@
 import * as repository from "./batch.repository";
 import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters } from "./batch.types";
 import { AppError } from "../../middlewares/error.middleware";
-import { triggerNotification } from "../notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../notifications/notification.constants";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 

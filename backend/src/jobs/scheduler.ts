@@ -1,8 +1,8 @@
 import cron from "node-cron";
-import { classReminderJob } from "./class-reminder.job";
-import { feedbackJob } from "./feedback.job";
-import { firstClassJob } from "./first-class.job";
-import { moduleStartJob } from "./module-start.job";
+import { classReminderJob } from "../modules/whatsapp/jobs/class-reminder.job";
+import { feedbackJob } from "../modules/whatsapp/jobs/feedback.job";
+import { firstClassJob } from "../modules/whatsapp/jobs/first-class.job";
+import { moduleStartJob } from "../modules/whatsapp/jobs/module-start.job";
 import { recordingCleanupJob } from "./recording-cleanup.job";
 import { aiFollowupJob } from "./ai-followup.job";
 import { logger } from "../config/logger";

@@ -1,7 +1,7 @@
-import { prisma } from "../config/database";
-import { logger } from "../config/logger";
-import { triggerNotification } from "../modules/notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications/notification.constants";
+import { prisma } from "../../../config/database";
+import { logger } from "../../../config/logger";
+import { triggerNotification } from "../whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp.constants";
 
 /**
  * Enqueues WhatsApp class reminders ~2 hours before scheduled class start time.
@@ -9,7 +9,6 @@ import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications
  */
 export const classReminderJob = async (): Promise<void> => {
   const now = new Date();
-  // 2 hour window: 1h 45m to 2h 15m from now
   const windowStart = new Date(now.getTime() + 105 * 60 * 1000);
   const windowEnd = new Date(now.getTime() + 135 * 60 * 1000);
 

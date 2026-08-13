@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as controller from "./attendance.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requirePermission, requireRole } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   rosterQuerySchema,

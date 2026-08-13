@@ -1,15 +1,10 @@
-import { prisma } from "../config/database";
-import { logger } from "../config/logger";
-import { triggerNotification } from "../modules/notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications/notification.constants";
+import { prisma } from "../../../config/database";
+import { logger } from "../../../config/logger";
+import { triggerNotification } from "../whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp.constants";
 
 /**
  * Sends the "Rules & Regulations" WhatsApp message for a batch's FIRST class.
- *
- * Finds ACTIVE class sessions scheduled within the next 24 hours that are the
- * earliest scheduled session of their batch, and notifies all enrolled students.
- * Uses idempotency keys so students only receive the first-class message once
- * per session.
  */
 export const firstClassJob = async (): Promise<void> => {
   const now = new Date();
@@ -39,7 +34,6 @@ export const firstClassJob = async (): Promise<void> => {
       orderBy: { scheduledDate: "asc" },
     });
 
-    // Only the batch's very first class triggers the rules & regulations message
     if (!earliest || earliest.id !== session.id) continue;
 
     const startDate = session.scheduledDate.toISOString().split("T")[0];

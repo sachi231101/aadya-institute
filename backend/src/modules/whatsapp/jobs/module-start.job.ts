@@ -1,14 +1,10 @@
-import { prisma } from "../config/database";
-import { logger } from "../config/logger";
-import { triggerNotification } from "../modules/notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications/notification.constants";
+import { prisma } from "../../../config/database";
+import { logger } from "../../../config/logger";
+import { triggerNotification } from "../whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp.constants";
 
 /**
  * Sends a "New Module" WhatsApp notification when a batch module starts.
- *
- * Finds ACTIVE BatchModule records whose startDate is within the next 24 hours
- * and notifies all enrolled students. Uses idempotency keys so each student
- * receives exactly one module-start message per module.
  */
 export const moduleStartJob = async (): Promise<void> => {
   const now = new Date();

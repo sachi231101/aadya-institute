@@ -5,13 +5,13 @@ import {
   NotificationStatus,
   buildIdempotencyKey,
   NON_RETRIABLE_ERROR_CODES,
-} from "../modules/notifications/notification.constants";
+} from "../modules/whatsapp/whatsapp.constants";
 import { normalizePhone, isValidIndianPhone } from "../utils/phone";
 import {
   createTemplateSchema,
   updateTemplateSchema,
   upsertRuleSchema,
-} from "../modules/notifications/notification.validation";
+} from "../modules/whatsapp/whatsapp.validation";
 
 describe("Notification Constants & Idempotency Key Unit Tests", () => {
   test("should generate correct idempotency keys for all event types", () => {

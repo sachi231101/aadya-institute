@@ -1,25 +1,14 @@
 /**
  * WhatsApp BullMQ worker — processes queued WhatsApp notifications.
  *
- * Responsibilities:
- * 1. Read `{ notificationId }` from job payload.
- * 2. Load Notification record from DB.
- * 3. Validate status (skip if already SENT/DELIVERED/READ/CANCELLED).
- * 4. Verify recipient phone and whatsappEnabled preference.
- * 5. Verify and format required template variables.
- * 6. Update status to SENDING.
- * 7. Call whatsAppService.sendTemplate().
- * 8. Update status to SENT + record providerMessageId.
- * 9. Handle retries vs. permanent failures.
- *
- * @module workers/whatsapp.worker
+ * @module modules/whatsapp/whatsapp.worker
  */
-import { createWorker } from "../queues/queue";
-import { env } from "../config/env";
-import { logger } from "../config/logger";
-import { whatsAppService } from "../modules/whatsapp/whatsapp.service";
-import { NotificationStatus, NON_RETRIABLE_ERROR_CODES } from "../modules/notifications/notification.constants";
-import * as repo from "../modules/notifications/notification.repository";
+import { createWorker } from "../../queues/queue";
+import { env } from "../../config/env";
+import { logger } from "../../config/logger";
+import { whatsAppService } from "./whatsapp.service";
+import { NotificationStatus, NON_RETRIABLE_ERROR_CODES } from "./whatsapp.constants";
+import * as repo from "./whatsapp.repository";
 
 export interface WhatsappJobData {
   notificationId: string;
@@ -42,7 +31,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Terminal or active processing status check
   if (
     [
       NotificationStatus.SENT,
@@ -58,7 +46,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Load recipient info
   let phone = (notification.metadata as any)?.recipientPhone;
   let name = (notification.metadata as any)?.recipientName ?? "Student";
 
@@ -80,7 +67,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Check preference
   const recipientUser = notification.student?.user ?? notification.user;
   if (recipientUser && recipientUser.whatsappEnabled === false) {
     logger.info({ notificationId }, "[whatsapp.worker] Recipient opted out of WhatsApp — CANCELLED");
@@ -91,7 +77,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Check template
   const template = notification.template;
   if (!template || template.status !== "ACTIVE") {
     logger.error({ notificationId, templateId: notification.templateId }, "[whatsapp.worker] Template inactive or missing — marking FAILED");
@@ -103,7 +88,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Prepare template variables
   const metadataParams = (notification.metadata as any)?.templateParams || {};
   const requiredVars = (template.variables as string[]) || [];
 
@@ -130,7 +114,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
     return;
   }
 
-  // Mark status SENDING
   await repo.updateNotificationStatus(notificationId, {
     status: NotificationStatus.SENDING,
     retryCount: (notification.retryCount ?? 0) + 1,
@@ -144,7 +127,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
       templateParams,
     });
 
-    // Mark SENT
     await repo.updateNotificationStatus(notificationId, {
       status: NotificationStatus.SENT,
       sentAt: new Date(),
@@ -172,7 +154,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
         errorMessage: errorMsg,
       });
     } else {
-      // Retriable error — update status & re-throw for BullMQ backoff
       await repo.updateNotificationStatus(notificationId, {
         status: NotificationStatus.QUEUED,
         errorMessage: errorMsg,
@@ -182,9 +163,6 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
   }
 };
 
-/**
- * Initialize BullMQ worker for WhatsApp messages.
- */
 export const whatsappWorker = createWorker<WhatsappJobData>(
   "whatsapp",
   async (job) => {
