@@ -16,7 +16,7 @@ router.use(authMiddleware);
 // GET /api/v1/students — List all students
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAll
 );
 

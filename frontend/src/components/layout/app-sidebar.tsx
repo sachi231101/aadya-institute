@@ -6,7 +6,9 @@ import {
   GraduationCap,
   LayoutDashboard,
   Settings,
+  Bell,
   Users,
+
   Target,
   CreditCard,
   BarChart3,
@@ -142,11 +144,18 @@ const data = {
       ],
     },
     {
+      title: "Notifications",
+      url: "/admin/notifications",
+      icon: Bell,
+      isActive: false,
+    },
+    {
       title: "Settings",
       url: "/admin/settings",
       icon: Settings,
       isActive: false,
     },
+
   ],
 }
 

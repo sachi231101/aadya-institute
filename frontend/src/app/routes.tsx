@@ -68,6 +68,8 @@ import { FinancialReports } from "../pages/admin/reports/FinancialReports";
 
 // Settings
 import { Settings } from "../pages/admin/settings/Settings";
+import { NotificationsPage } from "../pages/admin/notifications/NotificationsPage";
+
 
 // Other roles dashboards
 import { CenterDashboard } from "../pages/center/Dashboard";
@@ -159,9 +161,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="financial" element={<FinancialReports />} />
         </Route>
 
-        {/* Settings */}
+        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
+
 
       {/* Center Manager Routes */}
       <Route path="/center" element={<CenterLayout />}>
@@ -291,7 +295,9 @@ export const AppRoutes: React.FC = () => {
       <Route path="/student" element={<StudentLayout />}>
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
+
 
       {/* Default Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />

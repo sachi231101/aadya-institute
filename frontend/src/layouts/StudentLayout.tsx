@@ -2,6 +2,8 @@ import React from "react";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
 import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, CheckSquare, Settings } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
+import { NotificationPopover } from "../components/notifications/NotificationPopover";
+
 
 export const StudentLayout: React.FC = () => {
   const { user, token, logout } = useAuthStore();
@@ -142,10 +144,9 @@ export const StudentLayout: React.FC = () => {
           }}
         >
           <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>Student Learning Portal</span>
-          <button style={{ color: "var(--text-secondary)" }}>
-            <Bell size={20} />
-          </button>
+          <NotificationPopover />
         </header>
+
         <main style={{ flex: 1, padding: "2rem", overflowY: "auto" }}>
           <Outlet />
         </main>

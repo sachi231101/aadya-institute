@@ -4,6 +4,7 @@ import { BookOpen, Bell } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FacultySidebar } from "@/components/layout/faculty-sidebar";
+import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
 export const FacultyLayout: React.FC = () => {
   const { token } = useAuthStore();
@@ -28,14 +29,9 @@ export const FacultyLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="relative text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-bg-tertiary">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-              </button>
+              <NotificationPopover />
             </div>
+
           </header>
           
           <main className="flex-1 overflow-auto bg-bg-primary">
