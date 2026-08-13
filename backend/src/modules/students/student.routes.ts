@@ -13,39 +13,39 @@ const router = Router();
 // All student routes require authentication
 router.use(authMiddleware);
 
-// GET /api/v1/students — List all students (ADMIN or CENTER_MANAGER)
+// GET /api/v1/students — List all students
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   controller.getAll
 );
 
 // GET /api/v1/students/:id/performance — Get student performance metrics
 router.get(
   "/:id/performance",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   controller.getPerformance
 );
 
 // GET /api/v1/students/:id — Get single student
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   controller.getById
 );
 
-// POST /api/v1/students — Create student (ADMIN only)
+// POST /api/v1/students — Create student
 router.post(
   "/",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(createStudentSchema),
   controller.create
 );
 
-// PATCH /api/v1/students/:id — Update student (ADMIN only)
+// PATCH /api/v1/students/:id — Update student
 router.patch(
   "/:id",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(updateStudentSchema),
   controller.update
 );

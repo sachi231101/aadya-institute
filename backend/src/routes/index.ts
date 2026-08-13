@@ -15,6 +15,7 @@ import batchRoutes from "../modules/batches/batch.routes";
 import moduleRoutes from "../modules/modules/module.routes";
 import admissionsRoutes from "../modules/admissions/admissions.routes";
 import classSessionRoutes from "../modules/class-sessions/class-session.routes";
+import feeRoutes from "../modules/fees/fee.routes";
 
 const router = Router();
 
@@ -56,6 +57,9 @@ router.use("/attendance", attendanceRoutes);
 
 // Class Sessions & Schedule
 router.use("/class-sessions", classSessionRoutes);
+
+// Fees Management
+router.use("/fees", feeRoutes);
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);

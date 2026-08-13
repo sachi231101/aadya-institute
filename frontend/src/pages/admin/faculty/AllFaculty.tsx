@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
   Plus, 
@@ -43,11 +43,18 @@ import {
 export const AllFaculty: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const deleteMutation = useDeleteFaculty();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [page, setPage] = useState(1);
+
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
   const queryParams = {
     page,
@@ -101,7 +108,7 @@ export const AllFaculty: React.FC = () => {
         </div>
         <Button 
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
-          onClick={() => navigate("/admin/faculty/add")}
+          onClick={() => navigate(`${basePath}/faculty/add`)}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Faculty
@@ -269,15 +276,15 @@ export const AllFaculty: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-bg-primary border-border/50 shadow-md">
                               <DropdownMenuLabel>Faculty Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/faculty/${faculty.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`${basePath}/faculty/${faculty.id}`)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Profile
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/faculty/courses?facultyId=${faculty.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`${basePath}/faculty/courses?facultyId=${faculty.id}`)}>
                                 <BookOpen className="mr-2 h-4 w-4" />
                                 Assigned Courses
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/faculty/attendance?facultyId=${faculty.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`${basePath}/faculty/attendance?facultyId=${faculty.id}`)}>
                                 <Clock className="mr-2 h-4 w-4" />
                                 View Attendance
                               </DropdownMenuItem>

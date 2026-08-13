@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -35,7 +35,14 @@ type StudentFormValues = z.infer<typeof studentSchema>;
 
 export const AddStudent: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const createMutation = useCreateStudent();
+
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
   // Try to load branches dynamically; fall back gracefully
   let branches: { id: string; name: string }[] = [];
@@ -72,7 +79,7 @@ export const AddStudent: React.FC = () => {
         dateOfBirth: data.dateOfBirth || undefined,
         branchId: data.branchId,
       });
-      navigate("/admin/students/all");
+      navigate(`${basePath}/students/all`);
     } catch (error: any) {
       const msg = error?.response?.data?.message || "Failed to create student";
       form.setError("root", { message: msg });
@@ -85,7 +92,7 @@ export const AddStudent: React.FC = () => {
         <Button
           variant="outline"
           size="icon"
-          onClick={() => navigate("/admin/students/all")}
+          onClick={() => navigate(`${basePath}/students/all`)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

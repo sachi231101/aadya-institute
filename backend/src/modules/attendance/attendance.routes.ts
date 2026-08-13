@@ -17,7 +17,7 @@ router.use(authMiddleware);
 // GET /api/v1/attendance/roster — Get daily attendance roster
 router.get(
   "/roster",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(rosterQuerySchema, "query"),
   controller.getRoster
 );
@@ -25,7 +25,7 @@ router.get(
 // POST /api/v1/attendance/mark — Mark single student attendance
 router.post(
   "/mark",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(markAttendanceSchema),
   controller.mark
 );
@@ -33,7 +33,7 @@ router.post(
 // POST /api/v1/attendance/bulk — Bulk mark attendance
 router.post(
   "/bulk",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(bulkMarkAttendanceSchema),
   controller.bulkMark
 );
@@ -41,7 +41,7 @@ router.post(
 // GET /api/v1/attendance/session/:sessionId — Get attendance for a class session
 router.get(
   "/session/:sessionId",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   controller.getSessionAttendance
 );
 

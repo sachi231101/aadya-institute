@@ -2,7 +2,7 @@ import React from "react";
 import { useAuthStore } from "../../store/auth.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Calendar, Filter, Plus, ArrowUpRight, CheckCircle2, Clock, Video } from "lucide-react";
+import { Calendar, Filter, Plus, ArrowUpRight, CheckCircle2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
 // Mock Data
@@ -181,7 +181,7 @@ export const StudentAttendance: React.FC = () => {
                     dataKey="value"
                     stroke="none"
                   >
-                    {gaugeData.map((entry, index) => (
+                    {gaugeData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

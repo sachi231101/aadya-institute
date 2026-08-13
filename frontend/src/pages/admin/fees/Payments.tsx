@@ -11,9 +11,11 @@ import {
   TrendingUp,
   Building,
   Smartphone,
-  Wallet
+  Wallet,
+  Loader2,
+  FileText
 } from "lucide-react";
-import { useFeeStore } from "../../../store/fee.store";
+import { usePayments, useFeeStats, useCreatePayment, useDeletePayment } from "../../../hooks/useFees";
 import { useCourseStore } from "../../../store/course.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -35,15 +37,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { PaymentMethod, PaymentStatus } from "../../../types/fee.types";
+import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 
 export const Payments: React.FC = () => {
-  const { payments, addPayment, deletePayment } = useFeeStore();
-  const { courses } = useCourseStore();
-
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  const { data: paymentsData, isLoading: paymentsLoading } = usePayments({
+    search: searchTerm,
+    method: methodFilter,
+    status: statusFilter,
+  });
+
+  const { data: statsData } = useFeeStats();
+  const createPaymentMutation = useCreatePayment();
+  const deletePaymentMutation = useDeletePayment();
+
+  const { courses } = useCourseStore();
+
+  // Receipt Modal State
+  const [viewReceiptItem, setViewReceiptItem] = useState<Payment | null>(null);
 
   // Modal State for New Payment
   const [showModal, setShowModal] = useState(false);
@@ -56,50 +70,48 @@ export const Payments: React.FC = () => {
   const [transactionRef, setTransactionRef] = useState("");
   const [notes, setNotes] = useState("");
 
-  const filteredPayments = payments.filter((p) => {
-    const matchesSearch =
-      p.receiptNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.admissionNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      p.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.transactionRef && p.transactionRef.toLowerCase().includes(searchTerm.toLowerCase()));
+  const payments = paymentsData?.data?.data || [];
+  const stats = statsData?.data || {
+    totalCollected: 0,
+    todayCollected: 0,
+    digitalPercent: 0,
+    totalTransactionsCount: 0,
+  };
 
-    const matchesMethod = methodFilter === "ALL" || p.method === methodFilter;
-    const matchesStatus = statusFilter === "ALL" || p.status === statusFilter;
-
-    return matchesSearch && matchesMethod && matchesStatus;
-  });
-
-  const totalCollected = payments.reduce((acc, p) => (p.status === "SUCCESS" ? acc + p.amount : acc), 0);
-  const todayStr = new Date().toISOString().split("T")[0];
-  const todayCollected = payments
-    .filter((p) => p.date === todayStr && p.status === "SUCCESS")
-    .reduce((acc, p) => acc + p.amount, 0);
-
-  const digitalPaymentsCount = payments.filter((p) => p.method === "UPI" || p.method === "NET_BANKING" || p.method === "CARD").length;
-  const digitalPercent = payments.length > 0 ? Math.round((digitalPaymentsCount / payments.length) * 100) : 0;
-
-  const handleCreateSubmit = (e: React.FormEvent) => {
+  const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!studentName || !amount || !courseName) return;
 
-    addPayment({
-      studentName,
-      admissionNo: admissionNo || `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
-      courseName,
-      amount,
-      date,
-      method,
-      transactionRef,
-      status: "SUCCESS",
-      notes,
-    });
+    try {
+      await createPaymentMutation.mutateAsync({
+        studentName,
+        admissionNo: admissionNo || `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
+        courseName,
+        amount,
+        date,
+        method,
+        transactionRef,
+        status: "SUCCESS",
+        notes,
+      });
 
-    setStudentName("");
-    setAdmissionNo("");
-    setTransactionRef("");
-    setNotes("");
-    setShowModal(false);
+      setStudentName("");
+      setAdmissionNo("");
+      setTransactionRef("");
+      setNotes("");
+      setShowModal(false);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to record payment");
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this payment receipt record?")) return;
+    try {
+      await deletePaymentMutation.mutateAsync(id);
+    } catch (err: any) {
+      alert(err?.response?.data?.message || "Failed to delete payment");
+    }
   };
 
   const getMethodBadge = (m: PaymentMethod) => {
@@ -158,8 +170,8 @@ export const Payments: React.FC = () => {
               <DollarSign className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Collected Revenue</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{totalCollected.toLocaleString("en-IN")}</h3>
+              <p className="text-xs font-medium text-text-secondary">Total Revenue Collected</p>
+              <h3 className="text-2xl font-bold text-text-primary">₹{stats.totalCollected.toLocaleString("en-IN")}</h3>
             </div>
           </CardContent>
         </Card>
@@ -171,7 +183,7 @@ export const Payments: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Collected Today</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{todayCollected.toLocaleString("en-IN")}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">₹{stats.todayCollected.toLocaleString("en-IN")}</h3>
             </div>
           </CardContent>
         </Card>
@@ -183,7 +195,7 @@ export const Payments: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Receipts Issued</p>
-              <h3 className="text-2xl font-bold text-text-primary">{payments.length}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{stats.totalTransactionsCount}</h3>
             </div>
           </CardContent>
         </Card>
@@ -195,7 +207,7 @@ export const Payments: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Digital Payment Split</p>
-              <h3 className="text-2xl font-bold text-text-primary">{digitalPercent}%</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{stats.digitalPercent}%</h3>
             </div>
           </CardContent>
         </Card>
@@ -248,77 +260,83 @@ export const Payments: React.FC = () => {
             <Table>
               <TableHeader className="bg-bg-secondary/50">
                 <TableRow>
-                  <TableHead className="font-semibold text-text-primary">Receipt No & Student</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Receipt No</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Student Details</TableHead>
                   <TableHead className="font-semibold text-text-primary">Course</TableHead>
                   <TableHead className="font-semibold text-text-primary">Amount Paid</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Payment Method</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Date & Ref ID</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Payment Mode</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Date</TableHead>
                   <TableHead className="font-semibold text-text-primary">Status</TableHead>
                   <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {filteredPayments.length > 0 ? (
-                  filteredPayments.map((p) => (
-                    <TableRow key={p.id} className="hover:bg-slate-50 transition-colors">
-                      <TableCell>
-                        <div>
-                          <span className="font-mono text-xs font-bold text-[#1769AA] block">
-                            {p.receiptNo}
-                          </span>
-                          <span className="font-medium text-text-primary text-sm block">
-                            {p.studentName}
-                          </span>
-                          <span className="text-xs text-text-secondary block">
-                            {p.admissionNo}
-                          </span>
-                        </div>
+                {paymentsLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-5 h-5 animate-spin text-[#1769AA]" />
+                        Loading payment receipts...
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ) : payments.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                      No payment receipt records found matching criteria.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  payments.map((p) => (
+                    <TableRow key={p.id} className="hover:bg-bg-secondary/30 transition-colors">
+                      <TableCell className="font-medium text-slate-900 flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-[#1769AA]" />
+                        {p.receiptNo}
                       </TableCell>
-                      <TableCell className="text-xs font-medium text-slate-800">
+                      <TableCell>
+                        <div className="font-medium text-text-primary">{p.studentName}</div>
+                        <div className="text-xs text-text-secondary font-mono">{p.admissionNo}</div>
+                      </TableCell>
+                      <TableCell className="max-w-[200px] truncate text-slate-700 font-medium">
                         {p.courseName}
                       </TableCell>
-                      <TableCell className="text-sm font-bold text-emerald-700">
+                      <TableCell className="font-bold text-slate-900">
                         ₹{p.amount.toLocaleString("en-IN")}
                       </TableCell>
                       <TableCell>{getMethodBadge(p.method)}</TableCell>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <span className="text-xs font-semibold text-slate-800 block">{p.date}</span>
-                          {p.transactionRef && (
-                            <span className="font-mono text-[10px] text-slate-500 block truncate max-w-[120px]">
-                              {p.transactionRef}
-                            </span>
-                          )}
-                        </div>
+                      <TableCell className="text-sm text-text-secondary">
+                        {new Date(p.date).toLocaleDateString("en-IN", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </TableCell>
                       <TableCell>{getStatusBadge(p.status)}</TableCell>
                       <TableCell className="text-right">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreVertical className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                            <DropdownMenuLabel>Receipt Options</DropdownMenuLabel>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Receipt Actions</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => setViewReceiptItem(p)}>
+                              <FileText className="mr-2 h-4 w-4 text-[#1769AA]" /> View & Print Receipt
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => deletePayment(p.id)}
+                            <DropdownMenuItem
+                              className="text-red-600 focus:text-red-600"
+                              onClick={() => handleDelete(p.id)}
                             >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
                             </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                      No payment receipts found matching criteria.
-                    </TableCell>
-                  </TableRow>
                 )}
               </TableBody>
             </Table>
@@ -326,127 +344,187 @@ export const Payments: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Modal Dialog for Recording New Payment */}
+      {/* View Receipt Modal */}
+      {viewReceiptItem && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="border-b border-slate-100 pb-4 flex justify-between items-start">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">Official Fee Receipt</h3>
+                <p className="text-xs text-slate-500 font-mono">Aadya Institute of Technology</p>
+              </div>
+              <Badge className="bg-[#1769AA] text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Student Name</span>
+                  <span className="font-semibold text-slate-900">{viewReceiptItem.studentName}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Admission No</span>
+                  <span className="font-semibold text-slate-900 font-mono">{viewReceiptItem.admissionNo}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-xs text-slate-500 block font-medium">Enrolled Course</span>
+                <span className="font-semibold text-slate-900">{viewReceiptItem.courseName}</span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Amount Received</span>
+                  <span className="text-xl font-bold text-emerald-600">₹{viewReceiptItem.amount.toLocaleString("en-IN")}</span>
+                </div>
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Payment Method</span>
+                  <span className="font-semibold text-slate-900">{viewReceiptItem.method}</span>
+                </div>
+              </div>
+
+              {viewReceiptItem.transactionRef && (
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Transaction Reference</span>
+                  <span className="font-mono text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded inline-block">
+                    {viewReceiptItem.transactionRef}
+                  </span>
+                </div>
+              )}
+
+              {viewReceiptItem.notes && (
+                <div>
+                  <span className="text-xs text-slate-500 block font-medium">Notes / Remarks</span>
+                  <span className="text-slate-700 text-xs italic">{viewReceiptItem.notes}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => window.print()}>
+                Print Receipt
+              </Button>
+              <Button className="bg-[#1769AA]" onClick={() => setViewReceiptItem(null)}>
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Record Payment Modal */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <Receipt className="h-5 w-5 text-[#1769AA]" />
-              Record Fee Payment Receipt
-            </h3>
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <h3 className="text-lg font-bold text-slate-900">Record Student Fee Payment</h3>
+              <Button variant="ghost" size="icon" onClick={() => setShowModal(false)}>✕</Button>
+            </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Student Name *</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Student Name *</label>
                 <Input
-                  type="text"
+                  required
                   placeholder="e.g. Aarav Gupta"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  required
-                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Admission Number</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Admission No</label>
                   <Input
-                    type="text"
-                    placeholder="e.g. ADM-2026-001"
+                    placeholder="ADM-2026-XXX"
                     value={admissionNo}
                     onChange={(e) => setAdmissionNo(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Amount Collected (₹) *</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Amount Paid (₹) *</label>
                   <Input
                     type="number"
+                    required
+                    min={1}
                     value={amount}
                     onChange={(e) => setAmount(Number(e.target.value))}
-                    required
-                    className="bg-white border-slate-300 text-slate-900 font-bold"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Course Name</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Course Enrolled *</label>
                 <select
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                 >
                   {courses.map((c) => (
-                    <option key={c.id} value={c.name}>
-                      {c.name}
-                    </option>
+                    <option key={c.id} value={c.name}>{c.name}</option>
                   ))}
+                  <option value="Full Stack MERN Architecture">Full Stack MERN Architecture</option>
+                  <option value="Backend Engineering & Systems">Backend Engineering & Systems</option>
+                  <option value="Data Science & Applied Machine Learning">Data Science & Applied Machine Learning</option>
+                  <option value="Product UI/UX Design Masterclass">Product UI/UX Design Masterclass</option>
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Method</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method</label>
                   <select
                     value={method}
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                   >
-                    <option value="UPI">UPI / GPay / PhonePe</option>
-                    <option value="NET_BANKING">NetBanking</option>
-                    <option value="CARD">Credit/Debit Card</option>
+                    <option value="UPI">UPI</option>
+                    <option value="NET_BANKING">Net Banking</option>
+                    <option value="CARD">Debit / Credit Card</option>
                     <option value="CASH">Cash</option>
                     <option value="CHEQUE">Cheque</option>
                   </select>
                 </div>
+
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Date</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Date</label>
                   <Input
                     type="date"
                     value={date}
                     onChange={(e) => setDate(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Transaction Ref / Cheque No</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Transaction Ref / Cheque No</label>
                 <Input
-                  type="text"
-                  placeholder="e.g. UPI/602188491029"
+                  placeholder="e.g. UPI/602188491029 or HDFC/N291048102"
                   value={transactionRef}
                   onChange={(e) => setTransactionRef(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Payment Remarks</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Remarks / Notes</label>
                 <Input
-                  type="text"
-                  placeholder="e.g. First installment paid."
+                  placeholder="e.g. First Installment Token Fee"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                >
+              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
+                <Button 
+                  type="submit" 
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  disabled={createPaymentMutation.isPending}
                 >
-                  Generate Receipt
+                  {createPaymentMutation.isPending ? "Generating Receipt..." : "Record & Issue Receipt"}
                 </Button>
               </div>
             </form>
