@@ -1,17 +1,17 @@
 import React, { useState } from "react";
-import { 
-  Building2, 
-  Plus, 
-  Users, 
-  GraduationCap, 
-  BookOpen, 
-  Calendar, 
-  Activity, 
-  UserCheck, 
-  MapPin, 
-  Phone, 
-  DollarSign, 
-  CheckCircle2, 
+import {
+  Building2,
+  Plus,
+  Users,
+  GraduationCap,
+  BookOpen,
+  Calendar,
+  Activity,
+  UserCheck,
+  MapPin,
+  Phone,
+  DollarSign,
+  CheckCircle2,
   UserPlus,
   Trash2,
   Loader2
@@ -26,7 +26,7 @@ import type { Branch } from "@/types/branch.types";
 
 export const AdminDashboard: React.FC = () => {
   const { branches: mockBranches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
-  
+
   // Real API hooks
   const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
   const createBranchMutation = useCreateBranch();
@@ -52,7 +52,7 @@ export const AdminDashboard: React.FC = () => {
 
   // Map Real Backend branches to UI branches (Merging with local mocks for stats)
   const apiBranches = branchesResponse?.data?.filter(b => b.status !== "DELETED") || [];
-  
+
   const branches: Branch[] = apiBranches.map(apiBranch => {
     // Match by code to link real branch with local mock data
     const mocked = mockBranches.find(b => b.code === apiBranch.code);
@@ -130,7 +130,7 @@ export const AdminDashboard: React.FC = () => {
     // We can use the code or real ID for assignManagerToBranch if we modified it. 
     // Wait, assignManagerToBranch matches by id. Let's make sure it can match by code too.
     assignManagerToBranch(assignModalBranch.code, newManagerName, newManagerEmail);
-    
+
     setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
     setTimeout(() => setNotificationMsg(null), 3000);
 
@@ -168,7 +168,7 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
-        <Button 
+        <Button
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
           onClick={() => setShowCreateModal(true)}
         >
@@ -263,8 +263,8 @@ export const AdminDashboard: React.FC = () => {
                     <h4 className="text-lg font-bold text-slate-900">{branch.name}</h4>
                   </div>
 
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="sm"
                     className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
                     onClick={() => handleDeleteBranch(branch)}
