@@ -267,6 +267,8 @@ export const AdminPanel: React.FC = () => {
                             variant="outline"
                             className={admin.roles.includes("ADMIN")
                               ? "bg-amber-100 text-amber-800 border-amber-200"
+                              : admin.roles.includes("CENTER_MANAGER")
+                              ? "bg-blue-100 text-blue-800 border-blue-200"
                               : "bg-bg-primary text-text-primary border-border"
                             }
                           >
@@ -409,28 +411,31 @@ export const AdminPanel: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="text-red-600">Delete Administrator?</DialogTitle>
-            <DialogDescription className="py-4 space-y-4">
-              <div>
-                You are about to permanently delete:<br /><br />
-                <strong className="text-foreground">{selectedAdmin?.name}</strong><br />
-                <span className="text-muted-foreground">{selectedAdmin?.email}</span>
-              </div>
-              <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm font-medium">
-                This action cannot be undone. All data will be permanently removed.
-              </div>
-              <div className="space-y-2 pt-2">
-                <label className="text-sm font-medium text-foreground">
-                  Type <strong className="text-red-600 select-none">DELETE</strong> to confirm
-                </label>
-                <Input
-                  value={deleteConfirmText}
-                  onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  placeholder="DELETE"
-                  className="border-red-200 focus-visible:ring-red-500"
-                />
-              </div>
+            <DialogDescription>
+              Confirm administrator account removal. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              You are about to permanently delete:<br /><br />
+              <strong className="text-foreground">{selectedAdmin?.name}</strong><br />
+              <span className="text-muted-foreground">{selectedAdmin?.email}</span>
+            </div>
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md text-red-800 text-sm font-medium">
+              This action cannot be undone. All data will be permanently removed.
+            </div>
+            <div className="space-y-2 pt-2">
+              <label className="text-sm font-medium text-foreground">
+                Type <strong className="text-red-600 select-none">DELETE</strong> to confirm
+              </label>
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="border-red-200 focus-visible:ring-red-500"
+              />
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
             <Button
@@ -451,35 +456,38 @@ export const AdminPanel: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription className="py-4 space-y-4">
-              <div>
-                Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong>
-              </div>
-              <div className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">New Password</label>
-                  <Input
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Confirm Password</label>
-                  <Input
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                  />
-                  {confirmPassword && newPassword !== confirmPassword && (
-                    <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
-                  )}
-                </div>
-              </div>
+            <DialogDescription>
+              Set a new password for this administrator account.
             </DialogDescription>
           </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong>
+            </div>
+            <div className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">New Password</label>
+                <Input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Confirm Password</label>
+                <Input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                {confirmPassword && newPassword !== confirmPassword && (
+                  <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+                )}
+              </div>
+            </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
             <Button
@@ -498,31 +506,34 @@ export const AdminPanel: React.FC = () => {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Change Permissions</DialogTitle>
-            <DialogDescription className="py-4 space-y-4">
-              <div>
-                Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong>
-              </div>
-              <div className="space-y-2 pt-2">
-                <label className="text-sm font-medium">New Role</label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                  value={newRole}
-                  onChange={(e) => setNewRole(e.target.value)}
-                >
-                  <option value="" disabled>Select a role...</option>
-                  <option value="ADMIN">Super Admin</option>
-                  <option value="CENTER_MANAGER">Center Manager</option>
-                  <option value="FACULTY">Faculty</option>
-                  <option value="COUNSELLOR">Counsellor</option>
-                </select>
-              </div>
-              {newRole && newRole !== (selectedAdmin?.roles?.[0] || "") && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
-                  <strong>Note:</strong> You are changing this user's access level from <strong>{getRoleLabel(selectedAdmin?.roles || [])}</strong> to <strong>{ROLE_DISPLAY[newRole] || newRole}</strong>.
-                </div>
-              )}
+            <DialogDescription>
+              Update system role and administrative privileges.
             </DialogDescription>
           </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              Administrator: <strong className="text-foreground">{selectedAdmin?.name}</strong>
+            </div>
+            <div className="space-y-2 pt-2">
+              <label className="text-sm font-medium">New Role</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+              >
+                <option value="" disabled>Select a role...</option>
+                <option value="ADMIN">Super Admin</option>
+                <option value="CENTER_MANAGER">Center Manager</option>
+                <option value="FACULTY">Faculty</option>
+                <option value="COUNSELLOR">Counsellor</option>
+              </select>
+            </div>
+            {newRole && newRole !== (selectedAdmin?.roles?.[0] || "") && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-md text-amber-800 text-sm">
+                <strong>Note:</strong> You are changing this user's access level from <strong>{getRoleLabel(selectedAdmin?.roles || [])}</strong> to <strong>{ROLE_DISPLAY[newRole] || newRole}</strong>.
+              </div>
+            )}
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={closeModal}>Cancel</Button>
             <Button

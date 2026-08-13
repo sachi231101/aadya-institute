@@ -1,6 +1,6 @@
 import React from "react";
-import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell } from "lucide-react";
+import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
+import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, CheckSquare, Settings } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 
 export const StudentLayout: React.FC = () => {

@@ -43,10 +43,6 @@ export const AdminLayout: React.FC = () => {
   const addNotification = useNotificationStore((state) => state.addNotification);
   const createBranchMutation = useCreateBranch();
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),
     defaultValues: {
@@ -56,6 +52,10 @@ export const AdminLayout: React.FC = () => {
       phone: "",
     },
   });
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
 
   const onSubmit = (data: BranchFormValues) => {
     form.clearErrors("root");
