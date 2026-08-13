@@ -43,6 +43,14 @@ export interface CreateBranchPayload {
   phone?: string;
 }
 
+export interface UpdateBranchPayload {
+  name?: string;
+  code?: string;
+  address?: string;
+  phone?: string;
+  status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
+}
+
 export interface BranchStatsResponse {
   branchId: string;
   branchName: string;
@@ -65,6 +73,11 @@ export const branchesApi = {
 
   createBranch: async (data: CreateBranchPayload): Promise<SingleResponse<BranchResponse>> => {
     const response = await api.post<SingleResponse<BranchResponse>>("/branches", data);
+    return response.data;
+  },
+
+  updateBranch: async (id: string, data: UpdateBranchPayload): Promise<SingleResponse<BranchResponse>> => {
+    const response = await api.patch<SingleResponse<BranchResponse>>(`/branches/${id}`, data);
     return response.data;
   },
 
