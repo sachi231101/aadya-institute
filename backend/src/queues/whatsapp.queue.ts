@@ -1,16 +1,12 @@
-import { createQueue, createWorker } from "./queue";
-import { sendTextMessage } from "../integrations/whatsapp/meta.client";
-
-export interface WhatsappJob {
-  to: string;
-  message: string;
-}
+/**
+ * WhatsApp queue definition.
+ *
+ * Worker implementation lives in src/workers/whatsapp.worker.ts.
+ *
+ * @module queues/whatsapp.queue
+ */
+import { createQueue } from "./queue";
+import type { WhatsappJobData } from "../workers/whatsapp.worker";
 
 export const whatsappQueue = createQueue("whatsapp");
-
-export const whatsappWorker = createWorker<WhatsappJob>(
-  "whatsapp",
-  async (job) => {
-    await sendTextMessage(job.data.to, job.data.message);
-  }
-);
+export type { WhatsappJobData };

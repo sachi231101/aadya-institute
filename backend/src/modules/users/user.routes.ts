@@ -8,12 +8,14 @@ import {
   createUser,
   updateUser,
   updateUserStatus,
+  updateWhatsappPreference,
   deleteUser,
 } from "./user.controller";
 import {
   createUserSchema,
   updateUserSchema,
   updateUserStatusSchema,
+  updateWhatsappPreferenceSchema,
   userListQuerySchema,
 } from "./user.validation";
 
@@ -21,6 +23,14 @@ const router = Router();
 
 // All user routes require authentication
 router.use(authMiddleware);
+
+// PATCH /api/v1/users/me/whatsapp-preference — Self-service WhatsApp opt-out/in
+// Must be registered before "/:id" routes so "me" is not treated as an id.
+router.patch(
+  "/me/whatsapp-preference",
+  validate(updateWhatsappPreferenceSchema),
+  updateWhatsappPreference
+);
 
 // GET /api/v1/users — List users (admin, center manager)
 router.get(

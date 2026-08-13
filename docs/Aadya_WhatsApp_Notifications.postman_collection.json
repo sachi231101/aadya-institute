@@ -1,0 +1,234 @@
+{
+  "info": {
+    "name": "Aadya Institute — WhatsApp & Notifications",
+    "description": "Phase 1 WhatsApp Notification & Automation System. Requires: Redis running, AiSensy API key configured, and a bearer token (obtained from POST /auth/login).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api/v1" },
+    { "key": "token", "value": "" },
+    { "key": "notificationId", "value": "" },
+    { "key": "providerMessageId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login (admin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@aadya.in\",\n  \"password\": \"ChangeMe@123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/me", "host": ["{{baseUrl}}"], "path": ["auth", "me"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notification History",
+      "item": [
+        {
+          "name": "List notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/notifications?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["notifications"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "event", "value": "", "disabled": true },
+                { "key": "status", "value": "", "disabled": true }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get notification by id",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/{{notificationId}}", "host": ["{{baseUrl}}"], "path": ["notifications", "{{notificationId}}"] }
+          }
+        },
+        {
+          "name": "Resend notification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/{{notificationId}}/resend", "host": ["{{baseUrl}}"], "path": ["notifications", "{{notificationId}}", "resend"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Templates & Rules",
+      "item": [
+        {
+          "name": "List templates",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/templates/all", "host": ["{{baseUrl}}"], "path": ["notifications", "templates", "all"] }
+          }
+        },
+        {
+          "name": "Create template",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"my_template\",\n  \"event\": \"CLASS_REMINDER\",\n  \"providerTemplateName\": \"aadya_class_reminder\",\n  \"language\": \"en\",\n  \"variables\": [\"student_name\", \"batch_name\", \"start_time\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/notifications/templates", "host": ["{{baseUrl}}"], "path": ["notifications", "templates"] }
+          }
+        },
+        {
+          "name": "List rules",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{token}}" }],
+            "url": { "raw": "{{baseUrl}}/notifications/rules/all", "host": ["{{baseUrl}}"], "path": ["notifications", "rules", "all"] }
+          }
+        },
+        {
+          "name": "Upsert rule (disable CLASS_REMINDER)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"event\": \"CLASS_REMINDER\",\n  \"channel\": \"WHATSAPP\",\n  \"enabled\": false,\n  \"configuration\": { \"offsetMinutes\": -120 }\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/notifications/rules", "host": ["{{baseUrl}}"], "path": ["notifications", "rules"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "WhatsApp Send",
+      "item": [
+        {
+          "name": "Send test message (requires AiSensy API key)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"phone\": \"9876543210\",\n  \"name\": \"Test User\",\n  \"campaignName\": \"aadya_class_reminder\",\n  \"templateParams\": [\"Rahul\", \"Web Dev Batch A\", \"10:00 AM\"]\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/whatsapp/test", "host": ["{{baseUrl}}"], "path": ["whatsapp", "test"] }
+          }
+        },
+        {
+          "name": "Opt-out / opt-in self-service",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"whatsappEnabled\": false\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users/me/whatsapp-preference", "host": ["{{baseUrl}}"], "path": ["users", "me", "whatsapp-preference"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhook",
+      "item": [
+        {
+          "name": "Simulate delivered status callback",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerMessageId\": \"{{providerMessageId}}\",\n  \"status\": \"delivered\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/webhooks/whatsapp", "host": ["{{baseUrl}}"], "path": ["webhooks", "whatsapp"] }
+          }
+        },
+        {
+          "name": "Simulate read status callback",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"providerMessageId\": \"{{providerMessageId}}\",\n  \"status\": \"read\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/webhooks/whatsapp", "host": ["{{baseUrl}}"], "path": ["webhooks", "whatsapp"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Assignments (ASSIGNMENT_CREATED trigger)",
+      "item": [
+        {
+          "name": "Create assignment",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classSessionId\": \"SESSION_ID\",\n  \"title\": \"React Hooks Assignment\",\n  \"description\": \"Build a todo app with useState and useEffect\",\n  \"dueDate\": \"2026-08-20\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/assignments", "host": ["{{baseUrl}}"], "path": ["assignments"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Recordings (RECORDING_AVAILABLE trigger)",
+      "item": [
+        {
+          "name": "Create recording",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"classSessionId\": \"SESSION_ID\",\n  \"storageKey\": \"recordings/abc.mp4\",\n  \"duration\": 3600\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/recordings", "host": ["{{baseUrl}}"], "path": ["recordings"] }
+          }
+        }
+      ]
+    }
+  ]
+}

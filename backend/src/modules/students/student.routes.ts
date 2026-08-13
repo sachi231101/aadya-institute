@@ -2,17 +2,38 @@ import { Router } from "express";
 import * as controller from "./student.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   createStudentSchema,
   updateStudentSchema,
 } from "./student.validation";
+import {
+  getStudentAttendance,
+  getStudentAttendanceSummary,
+} from "../attendance/attendance.controller";
 
 const router = Router();
 
 // All student routes require authentication
 router.use(authMiddleware);
 
+// ─── Student Attendance Endpoints ─────────────────────────────────────────────
+router.get(
+  "/:studentId/attendance/summary",
+  requirePermission("attendance.read"),
+  getStudentAttendanceSummary
+);
+
+router.get(
+  "/:studentId/attendance",
+  requirePermission("attendance.read"),
+  getStudentAttendance
+);
+
+// ─── Student CRUD Endpoints ───────────────────────────────────────────────────
+
+// GET /api/v1/students — List all students (ADMIN or CENTER_MANAGER)
 // GET /api/v1/students — List all students
 router.get(
   "/",

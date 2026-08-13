@@ -25,6 +25,7 @@ export const mapUserToResponse = (user: UserWithRoles) => ({
   instituteId: user.instituteId,
   branchId: user.branchId,
   branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
+  whatsappEnabled: user.whatsappEnabled,
   roles: user.userRoles.map((ur) => ur.role.name),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
@@ -143,6 +144,7 @@ export const updateUser = async (
     email?: string | null;
     phone?: string | null;
     branchId?: string | null;
+    whatsappEnabled?: boolean;
   }
 ) => {
   const user = await prisma.user.update({
@@ -152,7 +154,17 @@ export const updateUser = async (
       ...(data.email !== undefined && { email: data.email }),
       ...(data.phone !== undefined && { phone: data.phone }),
       ...(data.branchId !== undefined && { branchId: data.branchId }),
+      ...(data.whatsappEnabled !== undefined && { whatsappEnabled: data.whatsappEnabled }),
     },
+    include: userInclude,
+  });
+  return mapUserToResponse(user);
+};
+
+export const updateWhatsappPreference = async (id: string, whatsappEnabled: boolean) => {
+  const user = await prisma.user.update({
+    where: { id },
+    data: { whatsappEnabled },
     include: userInclude,
   });
   return mapUserToResponse(user);

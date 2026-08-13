@@ -13,6 +13,44 @@ import type {
   ConvertEnquiryDTO,
   ConvertApplicationDTO
 } from "./admissions.types";
+import { triggerNotification } from "../notifications/notification.service";
+import { NotificationEvent, buildIdempotencyKey } from "../notifications/notification.constants";
+import { logger } from "../../config/logger";
+
+const triggerAdmissionNotification = async (admissionId: string) => {
+  try {
+    const admission = await prisma.admission.findUnique({
+      where: { id: admissionId },
+      include: { course: true, student: true },
+    });
+    if (!admission) return;
+
+    const studentId = admission.studentId ?? undefined;
+    const idempotencyKey = buildIdempotencyKey.ADMISSION_CREATED(
+      studentId ?? admission.id,
+      admission.id
+    );
+
+    await triggerNotification({
+      instituteId: admission.instituteId,
+      studentId,
+      event: NotificationEvent.ADMISSION_CREATED,
+      idempotencyKey,
+      templateParams: {
+        student_name: admission.studentName ?? "Student",
+        course_name: admission.course?.name ?? "Course",
+        admission_no: admission.admissionNo ?? "ADM-001",
+      },
+      metadata: {
+        admissionId: admission.id,
+        admissionNo: admission.admissionNo,
+        phone: admission.phone,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, admissionId }, "[admissions] Failed to trigger admission notification");
+  }
+};
 
 export const AdmissionsService = {
   // Helper for generating sequential numbers
@@ -175,6 +213,10 @@ export const AdmissionsService = {
       return newAdmission;
     });
 
+    setImmediate(() => {
+      triggerAdmissionNotification(admission.id);
+    });
+
     return admission;
   },
 
@@ -203,7 +245,13 @@ export const AdmissionsService = {
     }
 
     const admissionNo = await this.generateNo("ADM");
-    return AdmissionsRepository.createAdmission(instituteId, branchId, admissionNo, dto);
+    const admission = await AdmissionsRepository.createAdmission(instituteId, branchId, admissionNo, dto);
+
+    setImmediate(() => {
+      triggerAdmissionNotification(admission.id);
+    });
+
+    return admission;
   },
 
   async updateAdmission(id: string, instituteId: string, dto: UpdateAdmissionDTO) {
