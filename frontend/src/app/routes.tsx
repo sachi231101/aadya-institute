@@ -10,6 +10,7 @@ import { StudentLayout } from "../layouts/StudentLayout";
 
 // Admin Dashboard
 import { AdminDashboard } from "../pages/admin/Dashboard";
+import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 
 // Students
 import { AllStudents } from "../pages/admin/students/AllStudents";

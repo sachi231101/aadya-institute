@@ -18,19 +18,26 @@ import {
 } from "lucide-react";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches, useCreateBranch, useUpdateBranch } from "@/hooks/useBranches";
+import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import type { Branch } from "@/types/branch.types";
 
 export const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { branches: mockBranches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
 
   // Real API hooks
   const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
+  const { data: usersResponse } = useAdminUsers({ limit: 100 });
+  const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
+
   const createBranchMutation = useCreateBranch();
   const updateBranchMutation = useUpdateBranch();
+  const updateUserMutation = useUpdateUser();
 
   // Create Branch Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -56,6 +63,10 @@ export const AdminDashboard: React.FC = () => {
   const branches: Branch[] = apiBranches.map(apiBranch => {
     // Match by code to link real branch with local mock data
     const mocked = mockBranches.find(b => b.code === apiBranch.code);
+    
+    // Find if a center manager from the API is assigned to this branch
+    const realManager = centerManagers.find(m => m.branchId === apiBranch.id);
+
     return {
       id: apiBranch.id, // Always use real backend ID for actions
       code: apiBranch.code,
@@ -63,8 +74,8 @@ export const AdminDashboard: React.FC = () => {
       city: mocked?.city || city || "Bengaluru",
       address: apiBranch.address || mocked?.address || "Bengaluru, KA",
       phone: apiBranch.phone || mocked?.phone || "+91 98765 43210",
-      assignedManagerName: mocked?.assignedManagerName || "Unassigned Manager",
-      assignedManagerEmail: mocked?.assignedManagerEmail || "manager@aadya.in",
+      assignedManagerName: realManager ? realManager.name : (mocked?.assignedManagerName || "Unassigned Manager"),
+      assignedManagerEmail: realManager ? (realManager.email || "manager@aadya.in") : (mocked?.assignedManagerEmail || "manager@aadya.in"),
       studentCount: mocked?.studentCount || 0,
       batchCount: mocked?.batchCount || 0,
       revenueCollected: mocked?.revenueCollected || 0,
@@ -123,18 +134,45 @@ export const AdminDashboard: React.FC = () => {
     setNewManagerEmail(branch.assignedManagerEmail);
   };
 
-  const handleAssignManagerSubmit = (e: React.FormEvent) => {
+  const handleAssignManagerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!assignModalBranch || !newManagerName || !newManagerEmail) return;
 
-    // We can use the code or real ID for assignManagerToBranch if we modified it. 
-    // Wait, assignManagerToBranch matches by id. Let's make sure it can match by code too.
-    assignManagerToBranch(assignModalBranch.code, newManagerName, newManagerEmail);
+    try {
+      // Find the selected user to get their ID
+      const selectedUser = centerManagers.find(m => m.email === newManagerEmail);
+      
+      if (selectedUser) {
+        // Update the user's branchId in the real backend
+        await updateUserMutation.mutateAsync({ 
+          id: selectedUser.id, 
+          data: { branchId: assignModalBranch.id } 
+        });
+      }
 
-    setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
-    setTimeout(() => setNotificationMsg(null), 3000);
+      // Also update local mock store for immediate UI feedback if needed
+      const existingMock = mockBranches.find(b => b.code === assignModalBranch.code || b.id === assignModalBranch.id);
+      if (!existingMock) {
+        addBranch({
+          code: assignModalBranch.code,
+          name: assignModalBranch.name,
+          city: assignModalBranch.city || "Bengaluru",
+          address: assignModalBranch.address,
+          phone: assignModalBranch.phone,
+          assignedManagerName: newManagerName,
+          assignedManagerEmail: newManagerEmail,
+          status: "ACTIVE"
+        });
+      } else {
+        assignManagerToBranch(assignModalBranch.code, newManagerName, newManagerEmail);
+      }
 
-    setAssignModalBranch(null);
+      setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
+      setTimeout(() => setNotificationMsg(null), 3000);
+      setAssignModalBranch(null);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "Failed to assign manager.");
+    }
   };
 
   const handleDeleteBranch = async (branch: Branch) => {
@@ -247,7 +285,11 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {branches.map((branch) => (
-            <Card key={branch.id} className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow">
+            <Card
+              key={branch.id}
+              className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow cursor-pointer hover:border-[#1769AA]/30"
+              onClick={() => navigate(`/admin/branch/${branch.id}/performance`)}
+            >
               <CardContent className="p-6 space-y-4">
                 {/* Branch Header */}
                 <div className="flex justify-between items-start gap-2">
@@ -267,7 +309,10 @@ export const AdminDashboard: React.FC = () => {
                     variant="ghost"
                     size="sm"
                     className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
-                    onClick={() => handleDeleteBranch(branch)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteBranch(branch);
+                    }}
                     disabled={updateBranchMutation.isPending}
                   >
                     {updateBranchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
@@ -303,7 +348,10 @@ export const AdminDashboard: React.FC = () => {
                     variant="outline"
                     size="sm"
                     className="text-xs bg-white border-blue-200 text-[#1769AA] hover:bg-blue-50"
-                    onClick={() => handleOpenAssignModal(branch)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenAssignModal(branch);
+                    }}
                   >
                     <UserPlus className="mr-1 h-3.5 w-3.5" />
                     Assign as Manager
@@ -445,27 +493,27 @@ export const AdminDashboard: React.FC = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Assign Manager Name</label>
-                  <Input
-                    type="text"
-                    placeholder="e.g. Suresh Kumar"
-                    value={managerName}
-                    onChange={(e) => setManagerName(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Email</label>
-                  <Input
-                    type="email"
-                    placeholder="e.g. suresh.krm@aadya.in"
-                    value={managerEmail}
-                    onChange={(e) => setManagerEmail(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
-                  />
-                </div>
+              <div className="pt-2 border-t border-slate-100">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Select Center Manager</label>
+                <select
+                  className="w-full flex h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1769AA] disabled:cursor-not-allowed disabled:opacity-50 text-slate-900"
+                  value={managerEmail}
+                  onChange={(e) => {
+                    const selectedEmail = e.target.value;
+                    setManagerEmail(selectedEmail);
+                    const selectedUser = centerManagers.find(m => m.email === selectedEmail);
+                    if (selectedUser) {
+                      setManagerName(selectedUser.name);
+                    }
+                  }}
+                >
+                  <option value="">-- Optional: Select a Manager --</option>
+                  {centerManagers.map((manager) => (
+                    <option key={manager.id} value={manager.email || ""}>
+                      {manager.name} {manager.email ? `(${manager.email})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
@@ -509,27 +557,27 @@ export const AdminDashboard: React.FC = () => {
 
             <form onSubmit={handleAssignManagerSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Full Name *</label>
-                <Input
-                  type="text"
-                  placeholder="e.g. Rajesh Kumar"
-                  value={newManagerName}
-                  onChange={(e) => setNewManagerName(e.target.value)}
-                  required
-                  className="bg-white border-slate-300 text-slate-900"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Manager Email Address *</label>
-                <Input
-                  type="email"
-                  placeholder="e.g. rajesh.rmn@aadya.in"
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Select Center Manager *</label>
+                <select
+                  className="w-full flex h-10 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1769AA] disabled:cursor-not-allowed disabled:opacity-50 text-slate-900"
                   value={newManagerEmail}
-                  onChange={(e) => setNewManagerEmail(e.target.value)}
+                  onChange={(e) => {
+                    const selectedEmail = e.target.value;
+                    setNewManagerEmail(selectedEmail);
+                    const selectedUser = centerManagers.find(m => m.email === selectedEmail);
+                    if (selectedUser) {
+                      setNewManagerName(selectedUser.name);
+                    }
+                  }}
                   required
-                  className="bg-white border-slate-300 text-slate-900"
-                />
+                >
+                  <option value="" disabled>-- Select a Manager --</option>
+                  {centerManagers.map((manager) => (
+                    <option key={manager.id} value={manager.email || ""}>
+                      {manager.name} {manager.email ? `(${manager.email})` : ""}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
