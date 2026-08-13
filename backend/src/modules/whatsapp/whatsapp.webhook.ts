@@ -1,33 +1,22 @@
 /**
- * AiSensy Webhook verification (GET) and status callback handler (POST).
+ * WhatsApp Webhook verification (GET) and status callback handler (POST).
  *
- * Configured in AiSensy Dashboard:
+ * Configured in Provider Dashboard:
  *   URL: <APP_URL>/api/v1/webhooks/whatsapp
  *
  * Handles status events: sent, delivered, read, failed.
- * Supports both single-object and array (`messages: [...]`) payloads.
  *
- * Security:
- *   If WHATSAPP_WEBHOOK_SECRET is configured, POST callbacks must present the
- *   secret via `X-AiSensy-Signature`, `X-AiSensy-Token`, `X-Webhook-Token`
- *   header, or `?token=` query param. When the secret is empty (dev), callbacks
- *   are accepted without verification and a warning is logged.
- *
- * @module webhooks/whatsapp/whatsapp.webhook
+ * @module modules/whatsapp/whatsapp.webhook
  */
 import crypto from "crypto";
 import type { Request, Response } from "express";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
-import { NotificationStatus } from "../../modules/notifications/notification.constants";
+import { NotificationStatus } from "./whatsapp.constants";
 import { env } from "../../config/env";
 
 const VERIFY_TOKEN = env.WHATSAPP_WEBHOOK_SECRET || "aadya_secret_webhook_token";
 
-/**
- * GET Webhook Verification Endpoint.
- * Checks verification token if the provider uses a challenge handshake.
- */
 export const whatsappWebhookVerify = (req: Request, res: Response): void => {
   const mode = req.query["hub.mode"];
   const token = req.query["hub.verify_token"];
@@ -36,7 +25,7 @@ export const whatsappWebhookVerify = (req: Request, res: Response): void => {
   if (mode === "subscribe" && token === VERIFY_TOKEN) {
     res.status(200).send(challenge);
   } else {
-    res.status(200).json({ status: "AiSensy Webhook Active" });
+    res.status(200).json({ status: "WhatsApp Webhook Active" });
   }
 };
 
@@ -55,9 +44,6 @@ const extractStatus = (m: Record<string, any>): string | undefined =>
 const extractReason = (m: Record<string, any>): string | undefined =>
   m?.reason || m?.error || m?.errorMessage || m?.failureResponse?.message;
 
-/**
- * Map a single message object into a normalized StatusEvent.
- */
 const toStatusEvent = (m: Record<string, any>): StatusEvent => {
   if (typeof m !== "object" || m === null) return {};
   const messageId = extractMessageId(m);
@@ -69,17 +55,10 @@ const toStatusEvent = (m: Record<string, any>): StatusEvent => {
   };
 };
 
-/**
- * Collect all status events from any supported payload shape.
- * Supports: single object, `{ messages: [...] }`, top-level array.
- */
 const collectStatusEvents = (body: any): StatusEvent[] => {
   if (!body || typeof body !== "object") return [];
-
   if (Array.isArray(body)) return body.map(toStatusEvent);
-
   if (Array.isArray(body.messages)) return body.messages.map(toStatusEvent);
-
   return [toStatusEvent(body)];
 };
 
@@ -95,7 +74,6 @@ const buildUpdateForStatus = (
 
   switch (normalizeStatus(statusRaw)) {
     case "delivered":
-      // Don't downgrade if already READ
       if (currentStatus !== NotificationStatus.READ) {
         return {
           status: NotificationStatus.DELIVERED,
@@ -168,10 +146,6 @@ const processStatusEvent = async (event: StatusEvent): Promise<void> => {
   }
 };
 
-/**
- * POST Status Callback Handler.
- * Processes delivery status updates sent by AiSensy.
- */
 export const whatsappWebhookHandler = async (
   req: Request,
   res: Response
@@ -204,15 +178,10 @@ export const whatsappWebhookHandler = async (
     res.status(200).json({ received: true });
   } catch (err) {
     logger.error({ err }, "[whatsapp.webhook] Error handling status callback");
-    res.status(200).json({ received: true }); // Always 200 OK to provider
+    res.status(200).json({ received: true });
   }
 };
 
-/**
- * Verify the request carries the configured webhook secret.
- * When WHATSAPP_WEBHOOK_SECRET is empty (development), accepts the callback
- * but logs a warning so misconfiguration is visible.
- */
 const isAuthorizedWebhook = (req: Request): boolean => {
   const secret = env.WHATSAPP_WEBHOOK_SECRET;
 

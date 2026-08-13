@@ -1,7 +1,7 @@
 /**
- * Notification system constants — events, statuses, and channels.
+ * WhatsApp Notification constants — events, statuses, channels, and idempotency keys.
  *
- * @module notification.constants
+ * @module modules/whatsapp/whatsapp.constants
  */
 
 export enum NotificationEvent {
@@ -25,12 +25,6 @@ export enum NotificationEvent {
 
   // Recording events
   RECORDING_AVAILABLE = "RECORDING_AVAILABLE",
-
-  // Fee events — DEFERRED: requires Fee/Payment module
-  // FEE_DUE_SOON = "FEE_DUE_SOON",
-  // FEE_DUE_TODAY = "FEE_DUE_TODAY",
-  // FEE_OVERDUE = "FEE_OVERDUE",
-  // PAYMENT_RECEIVED = "PAYMENT_RECEIVED",
 }
 
 export const NOTIFICATION_EVENTS = Object.values(NotificationEvent);
@@ -38,8 +32,8 @@ export const NOTIFICATION_EVENTS = Object.values(NotificationEvent);
 export enum NotificationStatus {
   PENDING = "PENDING",       // Created, not yet queued
   QUEUED = "QUEUED",         // Added to BullMQ
-  SENDING = "SENDING",       // Worker is actively calling AiSensy
-  SENT = "SENT",             // AiSensy accepted the message
+  SENDING = "SENDING",       // Worker is actively calling provider
+  SENT = "SENT",             // Provider accepted the message
   DELIVERED = "DELIVERED",   // WhatsApp delivered to recipient device
   READ = "READ",             // Recipient opened the message
   FAILED = "FAILED",         // Final failure (no more retries)
@@ -51,7 +45,7 @@ export enum NotificationChannel {
 }
 
 /**
- * Non-retriable AiSensy error codes (HTTP 400 / business errors).
+ * Non-retriable provider error codes (HTTP 400 / business errors).
  * Do NOT retry these — mark immediately as FAILED.
  */
 export const NON_RETRIABLE_ERROR_CODES = new Set([
@@ -66,7 +60,7 @@ export const NON_RETRIABLE_ERROR_CODES = new Set([
 
 /**
  * Idempotency key builders per event.
- * These ensure we never queue the same notification twice.
+ * Ensures duplicate notifications are never queued.
  */
 export const buildIdempotencyKey = {
   [NotificationEvent.CLASS_REMINDER]: (studentId: string, sessionId: string, date: string) =>

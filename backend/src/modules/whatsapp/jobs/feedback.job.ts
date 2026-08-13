@@ -1,7 +1,7 @@
-import { prisma } from "../config/database";
-import { logger } from "../config/logger";
-import { triggerNotification } from "../modules/notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications/notification.constants";
+import { prisma } from "../../../config/database";
+import { logger } from "../../../config/logger";
+import { triggerNotification } from "../whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp.constants";
 
 /**
  * Sends feedback request notifications to enrolled students 10–15 minutes after a class session ends.

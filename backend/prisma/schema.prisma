@@ -129,8 +129,6 @@ model Institute {
 
   payments    Payment[]
   pendingFees PendingFee[]
-  notifications Notification[]
-
   createdAtLogs ActivityLog[]
   notifications Notification[]
 
@@ -765,14 +763,20 @@ model NotificationRule {
 }
 
 model Notification {
-  id                String    @id @default(cuid())
+  id                String            @id @default(cuid())
   instituteId       String
+  branchId          String?
   userId            String?
   studentId         String?
-  event             String
-  channel           String    @default("WHATSAPP")
+  title             String?
+  message           String?
+  type              NotificationType? @default(SYSTEM)
+  link              String?
+  isRead            Boolean           @default(false)
+  event             String?
+  channel           String            @default("WHATSAPP")
   templateId        String?
-  status            String    @default("PENDING")
+  status            String            @default("PENDING")
   scheduledAt       DateTime?
   sentAt            DateTime?
   deliveredAt       DateTime?
@@ -781,13 +785,14 @@ model Notification {
   providerMessageId String?
   errorMessage      String?
   metadata          Json?
-  retryCount        Int       @default(0)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  retryCount        Int               @default(0)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
-  institute Institute            @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
-  student   Student?             @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  institute Institute             @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?               @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  user      User?                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  student   Student?              @relation(fields: [studentId], references: [id], onDelete: SetNull)
   template  NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([userId])
@@ -795,6 +800,8 @@ model Notification {
   @@index([event])
   @@index([status])
   @@index([instituteId])
+  @@index([branchId])
+  @@index([isRead])
   @@index([scheduledAt])
   @@index([providerMessageId])
 }
@@ -907,30 +914,7 @@ enum NotificationType {
   SYSTEM
 }
 
-model Notification {
-  id          String           @id @default(cuid())
-  userId      String?
-  instituteId String
-  branchId    String?
-  title       String
-  message     String
-  type        NotificationType @default(SYSTEM)
-  link        String?
-  isRead      Boolean          @default(false)
-  readAt      DateTime?
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
 
-  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
-
-  @@index([userId])
-  @@index([instituteId])
-  @@index([branchId])
-  @@index([isRead])
-  @@index([createdAt])
-}
 
 
 

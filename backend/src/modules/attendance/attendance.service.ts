@@ -10,8 +10,8 @@ import type {
   PatchAttendanceDto,
 } from "./attendance.validation";
 import type { AttendanceEntryItem } from "./attendance.types";
-import { triggerNotification } from "../notifications/notification.service";
-import { NotificationEvent, buildIdempotencyKey } from "../notifications/notification.constants";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { AppError } from "../../middlewares/error.middleware";

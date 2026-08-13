@@ -1,7 +1,7 @@
 /**
  * Types for the WhatsApp notification module.
  *
- * @module whatsapp.types
+ * @module modules/whatsapp/whatsapp.types
  */
 
 export interface SendWhatsAppTemplateOptions {
@@ -9,7 +9,7 @@ export interface SendWhatsAppTemplateOptions {
   phone: string;
   /** Recipient display name for personalisation */
   name: string;
-  /** AiSensy campaign/template name — must be "Live" in AiSensy dashboard */
+  /** Provider campaign/template name — must be active in provider dashboard */
   campaignName: string;
   /** Ordered variable values matching the template placeholders ({{1}}, {{2}}, ...) */
   templateParams: string[];
@@ -29,8 +29,85 @@ export interface SendWhatsAppResult {
  * WhatsApp provider interface.
  *
  * All provider implementations (AiSensy, Meta, etc.) must implement this.
- * Business logic never depends on a concrete provider — it calls this interface.
  */
 export interface IWhatsAppProvider {
   sendTemplate(options: SendWhatsAppTemplateOptions): Promise<SendWhatsAppResult>;
+}
+
+export interface TriggerNotificationInput {
+  instituteId: string;
+  studentId?: string;
+  userId?: string;
+  event: string;
+  templateParams: Record<string, string>;
+  idempotencyKey?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface NotificationFilters {
+  branchId?: string;
+  studentId?: string;
+  event?: string;
+  status?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export type NotificationType =
+  | "ADMISSION"
+  | "PAYMENT"
+  | "ATTENDANCE"
+  | "DISCONTINUATION_RISK"
+  | "CLASS_SESSION"
+  | "ASSIGNMENT"
+  | "AI_CALL"
+  | "SYSTEM";
+
+export interface NotificationItem {
+  id: string;
+  userId?: string | null;
+  instituteId: string;
+  branchId?: string | null;
+  title: string;
+  message: string;
+  type: NotificationType;
+  link?: string | null;
+  isRead: boolean;
+  readAt?: string | null;
+  createdAt: string;
+}
+
+export interface NotificationListResponse {
+  notifications: NotificationItem[];
+  unreadCount: number;
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+}
+
+export interface UnreadCountResponse {
+  unreadCount: number;
+}
+
+export interface CreateNotificationPayload {
+  userId?: string;
+  instituteId: string;
+  branchId?: string;
+  title: string;
+  message: string;
+  type?: NotificationType;
+  link?: string;
+}
+
+export interface NotificationQueryFilters {
+  page?: number;
+  limit?: number;
+  type?: NotificationType;
+  unreadOnly?: boolean;
+  search?: string;
 }

@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { NOTIFICATION_EVENTS } from "./notification.constants";
+import { NOTIFICATION_EVENTS } from "./whatsapp.constants";
+
+export const sendTestMessageSchema = z.object({
+  phone: z.string().min(10, "Valid phone number is required"),
+  name: z.string().default("Test User"),
+  campaignName: z.string().min(1, "Campaign name is required"),
+  templateParams: z.array(z.string()).default([]),
+});
 
 export const createTemplateSchema = z.object({
   name: z.string().min(2, "Template name is required"),
@@ -40,6 +47,7 @@ export const listNotificationsQuerySchema = z.object({
   limit: z.string().optional(),
 });
 
+export type SendTestMessageInput = z.infer<typeof sendTestMessageSchema>;
 export type CreateTemplateInput = z.infer<typeof createTemplateSchema>;
 export type UpdateTemplateInput = z.infer<typeof updateTemplateSchema>;
 export type UpsertRuleInput = z.infer<typeof upsertRuleSchema>;

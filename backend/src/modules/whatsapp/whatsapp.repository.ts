@@ -1,10 +1,17 @@
 /**
- * Notification repository — all Prisma access for notification data.
+ * WhatsApp & Notification repository — database operations via Prisma.
  *
- * @module modules/notifications/notification.repository
+ * @module modules/whatsapp/whatsapp.repository
  */
 import { prisma } from "../../config/database";
 import type { Prisma } from "@prisma/client";
+import type {
+  NotificationListResponse,
+  UnreadCountResponse,
+  CreateNotificationPayload,
+  NotificationQueryFilters,
+  NotificationType,
+} from "./whatsapp.types";
 
 // ─── Idempotency ─────────────────────────────────────────────────────────────
 
@@ -235,19 +242,8 @@ export const markNotificationQueued = async (id: string) => {
     data: { status: "QUEUED" },
   });
 };
-import { prisma } from "../../config/database";
-import type {
-  NotificationListResponse,
-  UnreadCountResponse,
-  CreateNotificationPayload,
-  NotificationQueryFilters,
-  NotificationType,
-} from "./notification.types";
 
 export class NotificationRepository {
-  /**
-   * Fetch notifications list with filters and pagination
-   */
   static async listNotifications(
     instituteId: string,
     userId: string,
@@ -301,7 +297,6 @@ export class NotificationRepository {
       }),
     ]);
 
-    // If zero notifications exist in database, seed initial system notifications
     if (total === 0 && !filters.search && !filters.type) {
       await this.seedInitialNotifications(instituteId, userId);
       return this.listNotifications(instituteId, userId, filters);
@@ -312,8 +307,8 @@ export class NotificationRepository {
       userId: n.userId,
       instituteId: n.instituteId,
       branchId: n.branchId,
-      title: n.title,
-      message: n.message,
+      title: n.title ?? "",
+      message: n.message ?? "",
       type: n.type as NotificationType,
       link: n.link,
       isRead: n.isRead,
@@ -333,9 +328,6 @@ export class NotificationRepository {
     };
   }
 
-  /**
-   * Get total unread count for user header badge
-   */
   static async getUnreadCount(instituteId: string, userId: string): Promise<UnreadCountResponse> {
     const unreadCount = await prisma.notification.count({
       where: {
@@ -348,9 +340,6 @@ export class NotificationRepository {
     return { unreadCount };
   }
 
-  /**
-   * Mark a single notification as read
-   */
   static async markAsRead(notificationId: string, userId: string) {
     const notification = await prisma.notification.findFirst({
       where: { id: notificationId },
@@ -375,9 +364,6 @@ export class NotificationRepository {
     };
   }
 
-  /**
-   * Mark all unread notifications as read
-   */
   static async markAllAsRead(instituteId: string, userId: string) {
     const result = await prisma.notification.updateMany({
       where: {
@@ -394,9 +380,6 @@ export class NotificationRepository {
     return { success: true, count: result.count };
   }
 
-  /**
-   * Create a new notification (used by event triggers)
-   */
   static async createNotification(payload: CreateNotificationPayload) {
     return prisma.notification.create({
       data: {
@@ -412,9 +395,6 @@ export class NotificationRepository {
     });
   }
 
-  /**
-   * Delete a notification entry
-   */
   static async deleteNotification(notificationId: string, userId: string) {
     const notification = await prisma.notification.findFirst({
       where: { id: notificationId },
@@ -431,9 +411,6 @@ export class NotificationRepository {
     return { success: true, message: "Notification deleted" };
   }
 
-  /**
-   * Seed realistic initial system notifications
-   */
   private static async seedInitialNotifications(instituteId: string, userId: string) {
     const now = new Date();
     const initialEvents = [
@@ -442,35 +419,35 @@ export class NotificationRepository {
         message: "Student Rahul Sharma has completed enrollment for Full-Stack Web Development batch.",
         type: "ADMISSION" as NotificationType,
         link: "/admin/students",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 12), // 12 mins ago
+        createdAt: new Date(now.getTime() - 1000 * 60 * 12),
       },
       {
         title: "Fee Payment Received",
         message: "Received ₹25,000 via UPI for Installment #1 from Priya Patel.",
         type: "PAYMENT" as NotificationType,
         link: "/admin/fees/payments",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 45), // 45 mins ago
+        createdAt: new Date(now.getTime() - 1000 * 60 * 45),
       },
       {
         title: "Attendance Risk Alert",
         message: "Student Vikram Singh missed 3 consecutive theory classes in Data Science batch.",
         type: "DISCONTINUATION_RISK" as NotificationType,
         link: "/admin/students/attendance",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 180), // 3 hours ago
+        createdAt: new Date(now.getTime() - 1000 * 60 * 180),
       },
       {
         title: "AI Voice Call Completed",
         message: "Lead Ananya Roy indicated high admission intent during Sarvam AI automated call.",
         type: "AI_CALL" as NotificationType,
         link: "/admin/admissions/enquiries",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 360), // 6 hours ago
+        createdAt: new Date(now.getTime() - 1000 * 60 * 360),
       },
       {
         title: "Class Session Scheduled",
         message: "New Class Session 'React Hooks & State Management' scheduled for tomorrow 10:00 AM.",
         type: "CLASS_SESSION" as NotificationType,
         link: "/admin/courses/batches",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 720), // 12 hours ago
+        createdAt: new Date(now.getTime() - 1000 * 60 * 720),
       },
     ];
 
