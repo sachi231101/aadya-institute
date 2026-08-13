@@ -8,9 +8,200 @@ export interface FindRosterParams {
   take: number;
 }
 
+export const findSessionWithBatchAndFaculty = async (classSessionId: string) => {
+  return prisma.classSession.findUnique({
+    where: { id: classSessionId },
+    include: {
+      batch: {
+        include: {
+          course: true,
+          enrollments: {
+            where: { status: "ACTIVE" },
+            include: {
+              student: {
+                include: { user: { select: { id: true, name: true, email: true, phone: true } } },
+              },
+            },
+          },
+        },
+      },
+      faculty: {
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  });
+};
+
+export const findAttendanceBySessionId = async (classSessionId: string) => {
+  return prisma.studentAttendance.findMany({
+    where: { classSessionId },
+    include: {
+      student: {
+        include: {
+          user: { select: { id: true, name: true, email: true, phone: true } },
+        },
+      },
+    },
+    orderBy: { student: { studentCode: "asc" } },
+  });
+};
+
+export const findAttendanceById = async (attendanceId: string) => {
+  return prisma.studentAttendance.findUnique({
+    where: { id: attendanceId },
+    include: {
+      classSession: {
+        include: {
+          batch: true,
+          faculty: true,
+        },
+      },
+      student: {
+        include: { user: true },
+      },
+    },
+  });
+};
+
+export const bulkUpsertSessionAttendance = async (
+  classSessionId: string,
+  entries: { studentId: string; status: string; remarks?: string }[],
+  markedBy?: string
+) => {
+  return prisma.$transaction(
+    entries.map((entry) =>
+      prisma.studentAttendance.upsert({
+        where: {
+          classSessionId_studentId: {
+            classSessionId,
+            studentId: entry.studentId,
+          },
+        },
+        create: {
+          classSessionId,
+          studentId: entry.studentId,
+          status: entry.status,
+          markedBy,
+          remarks: entry.remarks,
+        },
+        update: {
+          status: entry.status,
+          markedBy,
+          remarks: entry.remarks,
+          markedAt: new Date(),
+        },
+        include: {
+          student: {
+            include: {
+              user: { select: { id: true, name: true } },
+            },
+          },
+        },
+      })
+    )
+  );
+};
+
+export const updateAttendanceRecord = async (
+  attendanceId: string,
+  data: { status?: string; remarks?: string; markedBy?: string }
+) => {
+  return prisma.studentAttendance.update({
+    where: { id: attendanceId },
+    data: {
+      ...(data.status ? { status: data.status } : {}),
+      ...(data.remarks !== undefined ? { remarks: data.remarks } : {}),
+      ...(data.markedBy ? { markedBy: data.markedBy } : {}),
+      markedAt: new Date(),
+    },
+    include: {
+      student: {
+        include: { user: { select: { id: true, name: true } } },
+      },
+      classSession: true,
+    },
+  });
+};
+
+export const findStudentAttendanceHistory = async (params: {
+  studentId: string;
+  fromDate?: Date;
+  toDate?: Date;
+  skip: number;
+  take: number;
+}) => {
+  const where: any = {
+    studentId: params.studentId,
+  };
+
+  if (params.fromDate || params.toDate) {
+    where.classSession = {
+      scheduledDate: {
+        ...(params.fromDate ? { gte: params.fromDate } : {}),
+        ...(params.toDate ? { lte: params.toDate } : {}),
+      },
+    };
+  }
+
+  const [records, total] = await Promise.all([
+    prisma.studentAttendance.findMany({
+      where,
+      skip: params.skip,
+      take: params.take,
+      orderBy: { classSession: { scheduledDate: "desc" } },
+      include: {
+        classSession: {
+          include: {
+            batch: { select: { id: true, name: true, code: true } },
+            batchModule: { select: { id: true, courseModule: { select: { name: true } } } },
+          },
+        },
+      },
+    }),
+    prisma.studentAttendance.count({ where }),
+  ]);
+
+  return { records, total };
+};
+
+export const calculateStudentAttendanceStats = async (studentId: string) => {
+  const [presentCount, absentCount, leaveCount, totalCount] = await Promise.all([
+    prisma.studentAttendance.count({ where: { studentId, status: "PRESENT" } }),
+    prisma.studentAttendance.count({ where: { studentId, status: "ABSENT" } }),
+    prisma.studentAttendance.count({ where: { studentId, status: "LEAVE" } }),
+    prisma.studentAttendance.count({ where: { studentId } }),
+  ]);
+
+  const percentage = totalCount > 0 ? Math.round((presentCount / totalCount) * 10000) / 100 : 0;
+
+  return {
+    totalClasses: totalCount,
+    presentCount,
+    absentCount,
+    leaveCount,
+    attendancePercentage: percentage,
+  };
+};
+
 /**
- * Ensure a ClassSession exists for a specific branch and date so attendance can be linked.
+ * Helper: Query recent theory sessions for consecutive absence calculation.
  */
+export const findRecentStudentAttendanceForBatch = async (studentId: string, batchId: string, limit = 10) => {
+  return prisma.studentAttendance.findMany({
+    where: {
+      studentId,
+      classSession: { batchId },
+    },
+    orderBy: { classSession: { scheduledDate: "desc" } },
+    take: limit,
+    select: { status: true, markedAt: true },
+  });
+};
+
+// ─── Legacy functions maintained for backwards compatibility ──────────────────
+
 export const ensureClassSessionForBranch = async (
   instituteId: string,
   targetBranchId: string,
@@ -21,7 +212,6 @@ export const ensureClassSessionForBranch = async (
   const dayEnd = new Date(date);
   dayEnd.setHours(23, 59, 59, 999);
 
-  // Check if a ClassSession already exists for this branch and date
   let session = await prisma.classSession.findFirst({
     where: {
       branchId: targetBranchId,
@@ -31,7 +221,6 @@ export const ensureClassSessionForBranch = async (
 
   if (session) return session;
 
-  // Find or create a default batch for this branch
   let batch = await prisma.batch.findFirst({
     where: { branchId: targetBranchId },
   });
@@ -60,7 +249,6 @@ export const ensureClassSessionForBranch = async (
     });
   }
 
-  // Find or create a faculty member
   let faculty = await prisma.faculty.findFirst({
     where: { instituteId },
   });
@@ -86,7 +274,6 @@ export const ensureClassSessionForBranch = async (
     });
   }
 
-  // Create the ClassSession for this date
   return prisma.classSession.create({
     data: {
       batchId: batch.id,
@@ -99,9 +286,6 @@ export const ensureClassSessionForBranch = async (
   });
 };
 
-/**
- * Fetch daily roster of all students in the branch/institute with their attendance for a specific date.
- */
 export const findDailyStudentRoster = async (params: FindRosterParams) => {
   const studentWhere: Record<string, unknown> = {
     instituteId: params.instituteId,
@@ -130,7 +314,6 @@ export const findDailyStudentRoster = async (params: FindRosterParams) => {
     return { roster: [], total: 0 };
   }
 
-  // Ensure sessions exist for all unique branches present in the student list
   const branchIds = Array.from(new Set(students.map((s) => s.branchId)));
   const sessionMap: Record<string, string> = {};
 
@@ -141,7 +324,6 @@ export const findDailyStudentRoster = async (params: FindRosterParams) => {
 
   const classSessionIds = Object.values(sessionMap);
 
-  // Fetch all attendance marked for these students on these sessions
   const attendanceRecords = await prisma.studentAttendance.findMany({
     where: {
       classSessionId: { in: classSessionIds },
@@ -174,9 +356,6 @@ export const findDailyStudentRoster = async (params: FindRosterParams) => {
   return { roster, total: totalStudents };
 };
 
-/**
- * Upsert a single student attendance record.
- */
 export const upsertStudentAttendance = (data: {
   classSessionId: string;
   studentId: string;
@@ -213,9 +392,6 @@ export const upsertStudentAttendance = (data: {
     },
   });
 
-/**
- * Bulk upsert attendance records within a transaction.
- */
 export const bulkUpsertStudentAttendance = async (
   entries: { classSessionId: string; studentId: string; status: string; remarks?: string }[],
   markedBy?: string
@@ -254,9 +430,6 @@ export const bulkUpsertStudentAttendance = async (
   );
 };
 
-/**
- * Get attendance records for a specific class session.
- */
 export const findAttendanceBySession = (classSessionId: string) =>
   prisma.studentAttendance.findMany({
     where: { classSessionId },

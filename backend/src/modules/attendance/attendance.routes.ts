@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as controller from "./attendance.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   rosterQuerySchema,
@@ -11,38 +11,68 @@ import {
 
 const router = Router();
 
-// All attendance routes require authentication
 router.use(authMiddleware);
 
-// GET /api/v1/attendance/roster — Get daily attendance roster
+// ─── Required Business API Endpoints ──────────────────────────────────────────
+
+// PATCH /api/v1/attendance/:attendanceId — Update single attendance record
+router.patch(
+  "/:attendanceId",
+  requirePermission("attendance.update"),
+  controller.patchAttendance
+);
+
+// GET /api/v1/students/:studentId/attendance — Get student attendance history
+router.get(
+  "/student/:studentId",
+  requirePermission("attendance.read"),
+  controller.getStudentAttendance
+);
+
+// GET /api/v1/students/:studentId/attendance/summary — Get student attendance summary
+router.get(
+  "/student/:studentId/summary",
+  requirePermission("attendance.read"),
+  controller.getStudentAttendanceSummary
+);
+
+// ─── Class Session Endpoints ──────────────────────────────────────────────────
+
+// GET /api/v1/attendance/session/:id — Get session attendance
+router.get(
+  "/session/:id",
+  requirePermission("attendance.read"),
+  controller.getSessionAttendance
+);
+
+// POST /api/v1/attendance/session/:id — Bulk submit session attendance
+router.post(
+  "/session/:id",
+  requirePermission("attendance.mark"),
+  controller.postSessionAttendance
+);
+
+// ─── Legacy Endpoints ─────────────────────────────────────────────────────────
+
 router.get(
   "/roster",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("attendance.read"),
   validate(rosterQuerySchema, "query"),
   controller.getRoster
 );
 
-// POST /api/v1/attendance/mark — Mark single student attendance
 router.post(
   "/mark",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("attendance.mark"),
   validate(markAttendanceSchema),
   controller.mark
 );
 
-// POST /api/v1/attendance/bulk — Bulk mark attendance
 router.post(
   "/bulk",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("attendance.mark"),
   validate(bulkMarkAttendanceSchema),
   controller.bulkMark
-);
-
-// GET /api/v1/attendance/session/:sessionId — Get attendance for a class session
-router.get(
-  "/session/:sessionId",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
-  controller.getSessionAttendance
 );
 
 export default router;

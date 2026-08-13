@@ -1,23 +1,18 @@
-export interface RosterQuery {
-  date: string;      // ISO date string, e.g. "2026-08-12"
-  branchId?: string;
-  batchId?: string;
-  page?: number;
-  limit?: number;
-}
+export type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 
-export interface MarkAttendanceDto {
-  classSessionId: string;
+export interface AttendanceEntryItem {
   studentId: string;
-  status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+  status: AttendanceStatus;
   remarks?: string;
 }
 
-export interface BulkMarkAttendanceDto {
-  classSessionId: string;
-  entries: {
-    studentId: string;
-    status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
-    remarks?: string;
-  }[];
+export interface AttendanceSummary {
+  studentId: string;
+  studentCode?: string;
+  studentName?: string;
+  totalClasses: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  attendancePercentage: number;
 }

@@ -107,6 +107,7 @@ model Institute {
   batches    Batch[]
 
   createdAtLogs ActivityLog[]
+  notifications Notification[]
 }
 
 model Branch {
@@ -156,16 +157,17 @@ model Permission {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  instituteId  String
-  branchId     String?
-  name         String
-  email        String?
-  phone        String?
-  passwordHash String
-  status       UserStatus @default(ACTIVE)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  id              String     @id @default(cuid())
+  instituteId     String
+  branchId        String?
+  name            String
+  email           String?
+  phone           String?
+  passwordHash    String
+  status          UserStatus @default(ACTIVE)
+  whatsappEnabled Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
@@ -178,6 +180,7 @@ model User {
 
 
   activityLogs   ActivityLog[]
+  notifications  Notification[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -247,6 +250,7 @@ model Student {
   assignmentSubmissions AssignmentSubmission[]
   feedbacks             Feedback[]
   callLogs              CallLog[]
+  notifications         Notification[]
 
   @@unique([instituteId, studentCode])
   @@index([instituteId])
@@ -562,6 +566,7 @@ model StudentAttendance {
 
   @@unique([classSessionId, studentId])
   @@index([studentId])
+  @@index([classSessionId])
 }
 
 model FacultyAttendance {
@@ -690,4 +695,79 @@ model ActivityLog {
   @@index([userId])
   @@index([instituteId])
   @@index([entityType, entityId])
+}
+
+// ─── Notification System ────────────────────────────────────────────────────
+
+model NotificationTemplate {
+  id                   String   @id @default(cuid())
+  name                 String   @unique
+  event                String
+  providerTemplateName String
+  language             String   @default("en")
+  variables            Json     // string[] of required variable names
+  status               String   @default("ACTIVE") // ACTIVE | INACTIVE
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  notifications Notification[]
+
+  @@index([event])
+  @@index([status])
+}
+
+model NotificationRule {
+  id            String   @id @default(cuid())
+  event         String
+  channel       String   @default("WHATSAPP")
+  enabled       Boolean  @default(true)
+  configuration Json?    // e.g. { "offsetMinutes": -120 } for CLASS_REMINDER
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([event, channel])
+  @@index([event])
+}
+
+model Notification {
+  id                String    @id @default(cuid())
+  instituteId       String
+  userId            String?
+  studentId         String?
+  event             String
+  channel           String    @default("WHATSAPP")
+  templateId        String?
+  status            String    @default("PENDING")
+  scheduledAt       DateTime?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  failedAt          DateTime?
+  providerMessageId String?
+  errorMessage      String?
+  metadata          Json?
+  retryCount        Int       @default(0)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  institute Institute            @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  user      User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+  student   Student?             @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  template  NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([studentId])
+  @@index([event])
+  @@index([status])
+  @@index([instituteId])
+  @@index([scheduledAt])
+  @@index([providerMessageId])
+}
+
+model NotificationIdempotency {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  createdAt DateTime @default(now())
+
+  @@index([key])
 }
