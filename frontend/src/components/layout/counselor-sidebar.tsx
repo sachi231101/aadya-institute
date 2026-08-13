@@ -138,8 +138,8 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
               if (!item.items) {
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isDirectActive}
                       tooltip={item.title}
                       className={isDirectActive ? "bg-emerald-500/10 text-emerald-700 font-medium" : ""}
@@ -162,7 +162,7 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton 
+                      <SidebarMenuButton
                         tooltip={item.title}
                         isActive={isSubItemActive}
                         className={isSubItemActive ? "text-emerald-700 font-medium" : ""}
@@ -178,8 +178,8 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
                           const isSubActive = location.pathname === subItem.url
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton 
-                                asChild 
+                              <SidebarMenuSubButton
+                                asChild
                                 isActive={isSubActive}
                                 className={isSubActive ? "bg-emerald-500/10 text-emerald-700 font-semibold" : ""}
                               >

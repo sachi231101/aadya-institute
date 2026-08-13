@@ -2,6 +2,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import { prisma } from "../../config/database";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./faculty.repository";
 import type { CreateFacultyDto, UpdateFacultyDto, ListFacultyQuery } from "./faculty.validation";
@@ -107,10 +108,22 @@ export const getAllFacultyCourses = async (
   const skip = (page - 1) * limit;
   const scope = getBranchScopeFilter(currentUser, query.branchId);
 
+  let targetFacultyId = query.facultyId && query.facultyId !== "ALL" ? query.facultyId : undefined;
+
+  // If user has FACULTY role and targetFacultyId is not set, resolve their faculty profile ID
+  if (currentUser.roles.includes("FACULTY") && !targetFacultyId) {
+    const facultyRecord = await prisma.faculty.findFirst({
+      where: { userId: currentUser.id },
+    });
+    if (facultyRecord) {
+      targetFacultyId = facultyRecord.id;
+    }
+  }
+
   const params: repo.FindFacultyCoursesParams = {
     instituteId: scope.instituteId,
     branchId: scope.branchId,
-    facultyId: query.facultyId || undefined,
+    facultyId: targetFacultyId,
     skip,
     take: limit,
   };

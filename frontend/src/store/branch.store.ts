@@ -7,9 +7,9 @@ interface BranchState {
 
   // Actions
   addBranch: (branch: Omit<Branch, "id" | "studentCount" | "batchCount" | "revenueCollected">) => void;
-  assignManagerToBranch: (branchId: string, managerName: string, managerEmail: string) => void;
+  assignManagerToBranch: (identifier: string, managerName: string, managerEmail: string) => void;
   setActiveBranch: (branchId: string) => void;
-  deleteBranch: (id: string) => void;
+  deleteBranch: (identifier: string) => void;
 }
 
 const initialBranches: Branch[] = [
@@ -59,10 +59,10 @@ export const useBranchStore = create<BranchState>((set) => ({
       return { branches: [...state.branches, newBranch] };
     }),
 
-  assignManagerToBranch: (branchId, managerName, managerEmail) =>
+  assignManagerToBranch: (identifier, managerName, managerEmail) =>
     set((state) => ({
       branches: state.branches.map((b) =>
-        b.id === branchId
+        b.id === identifier || b.code === identifier
           ? { ...b, assignedManagerName: managerName, assignedManagerEmail: managerEmail }
           : b
       ),
@@ -70,8 +70,8 @@ export const useBranchStore = create<BranchState>((set) => ({
 
   setActiveBranch: (branchId) => set({ activeBranchId: branchId }),
 
-  deleteBranch: (id) =>
+  deleteBranch: (identifier) =>
     set((state) => ({
-      branches: state.branches.filter((b) => b.id !== id),
+      branches: state.branches.filter((b) => b.id !== identifier && b.code !== identifier),
     })),
 }));

@@ -57,6 +57,7 @@ router.post(
 router.get(
   "/roster",
   requirePermission("attendance.read"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(rosterQuerySchema, "query"),
   controller.getRoster
 );
@@ -64,6 +65,7 @@ router.get(
 router.post(
   "/mark",
   requirePermission("attendance.mark"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(markAttendanceSchema),
   controller.mark
 );
@@ -71,8 +73,16 @@ router.post(
 router.post(
   "/bulk",
   requirePermission("attendance.mark"),
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   validate(bulkMarkAttendanceSchema),
   controller.bulkMark
+);
+
+// GET /api/v1/attendance/session/:sessionId — Get attendance for a class session
+router.get(
+  "/session/:sessionId",
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
+  controller.getSessionAttendance
 );
 
 export default router;

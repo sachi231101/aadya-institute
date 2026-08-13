@@ -7,9 +7,12 @@ import {
   BarChart3, 
   PieChart as PieChartIcon,
   TrendingUp,
-  Search
+  Search,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { useStudentStore } from "../../../store/student.store";
+import { useStudentReport } from "../../../hooks/useReports";
+import { downloadCsv } from "../../../utils/csvExporter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,46 +40,68 @@ import {
   Cell,
 } from "recharts";
 
-const enrollmentTrend = [
-  { month: "Sep 2025", students: 110 },
-  { month: "Oct 2025", students: 135 },
-  { month: "Nov 2025", students: 160 },
-  { month: "Dec 2025", students: 195 },
-  { month: "Jan 2026", students: 230 },
-  { month: "Feb 2026", students: 264 },
-];
-
-const attendanceDistData = [
-  { range: "90-100% Attendance", count: 145, color: "#10b981" },
-  { range: "75-89% Attendance", count: 85, color: "#1769AA" },
-  { range: "50-74% Attendance", count: 24, color: "#f59e0b" },
-  { range: "Below 50% (Risk)", count: 10, color: "#ef4444" },
-];
-
-const courseShareData = [
-  { name: "Full Stack MERN", value: 112, color: "#1769AA" },
-  { name: "Backend Engineering", value: 68, color: "#10b981" },
-  { name: "Data Science & AI", value: 54, color: "#f59e0b" },
-  { name: "UI/UX Design", value: 30, color: "#8b5cf6" },
-];
-
 export const StudentReports: React.FC = () => {
-  const { students } = useStudentStore();
+  const { data, isLoading, isError, refetch } = useStudentReport();
   const [searchTerm, setSearchTerm] = useState("");
 
-  const filteredStudents = students.filter((s) => {
-    const studentName = s.user?.name || (s as any).name || "";
+  const summary = data?.summary || {
+    totalStudents: 0,
+    avgAttendanceRate: 0,
+    assignmentCompletionRate: 0,
+    discontinuationRiskCount: 0,
+  };
+
+  const enrollmentTrend = data?.enrollmentTrend || [];
+  const attendanceDistribution = data?.attendanceDistribution || [];
+  const courseShare = data?.courseShare || [];
+  const studentList = data?.students || [];
+
+  const filteredStudents = studentList.filter((s) => {
     return (
-      studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.studentCode.toLowerCase().includes(searchTerm.toLowerCase())
+      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      s.courseName.toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 
-  const totalStudents = students.length || 264;
-
   const handleExport = () => {
-    alert("Exporting Student Analytics & Performance Report to CSV...");
+    if (!studentList.length) {
+      alert("No student report data available to export.");
+      return;
+    }
+    const exportData = studentList.map((s) => ({
+      "Roll Code": s.studentCode,
+      "Student Name": s.name,
+      "Branch": s.branchName,
+      "Course": s.courseName,
+      "Attendance %": `${s.attendancePercentage}%`,
+      "Assignments": `${s.assignmentsSubmitted}/${s.totalAssignments}`,
+      "Risk Level": s.riskFlag,
+    }));
+    downloadCsv("Student_Analytics_Report", exportData);
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
+        <Loader2 className="h-9 w-9 animate-spin text-[#1769AA]" />
+        <p className="text-sm font-medium">Aggregating student performance & attendance analytics...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center space-y-3">
+        <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+        <h3 className="text-lg font-bold text-red-800">Failed to load student reports</h3>
+        <p className="text-xs text-red-600">Unable to retrieve real-time student analytics metrics from database.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Retry Loading
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -108,7 +133,7 @@ export const StudentReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Total Enrolled Students</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalStudents}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.totalStudents}</h3>
             </div>
           </CardContent>
         </Card>
@@ -120,7 +145,7 @@ export const StudentReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Avg Attendance Rate</p>
-              <h3 className="text-2xl font-bold text-text-primary">88.4%</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.avgAttendanceRate}%</h3>
             </div>
           </CardContent>
         </Card>
@@ -132,7 +157,7 @@ export const StudentReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Assignment Completion</p>
-              <h3 className="text-2xl font-bold text-text-primary">91.2%</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.assignmentCompletionRate}%</h3>
             </div>
           </CardContent>
         </Card>
@@ -144,7 +169,7 @@ export const StudentReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Discontinuation Risk</p>
-              <h3 className="text-2xl font-bold text-text-primary">10 Students</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.discontinuationRiskCount} Students</h3>
             </div>
           </CardContent>
         </Card>
@@ -165,15 +190,21 @@ export const StudentReports: React.FC = () => {
           </CardHeader>
           <CardContent className="p-5 pt-4">
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={enrollmentTrend}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
-                  <Area type="monotone" dataKey="students" stroke="#1769AA" fill="#1769AA" fillOpacity={0.15} strokeWidth={2} />
-                </AreaChart>
-              </ResponsiveContainer>
+              {enrollmentTrend.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={enrollmentTrend}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <Area type="monotone" dataKey="students" stroke="#1769AA" fill="#1769AA" fillOpacity={0.15} strokeWidth={2} name="Total Students" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  No enrollment data available.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -191,19 +222,25 @@ export const StudentReports: React.FC = () => {
           </CardHeader>
           <CardContent className="p-5 pt-4">
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={attendanceDistData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="range" tick={{ fontSize: 11, fill: "#64748B" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                    {attendanceDistData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
+              {attendanceDistribution.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={attendanceDistribution}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="range" tick={{ fontSize: 11, fill: "#64748B" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Headcount">
+                      {attendanceDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  No attendance distribution available.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -220,28 +257,34 @@ export const StudentReports: React.FC = () => {
           </CardHeader>
           <CardContent className="p-5 pt-4 flex flex-col items-center">
             <div className="h-56 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={courseShareData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={70}
-                    innerRadius={35}
-                    paddingAngle={3}
-                  >
-                    {courseShareData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
-                </PieChart>
-              </ResponsiveContainer>
+              {courseShare.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={courseShare}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      innerRadius={35}
+                      paddingAngle={3}
+                    >
+                      {courseShare.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  No course share data.
+                </div>
+              )}
             </div>
             <div className="w-full space-y-2 text-xs pt-2 border-t border-slate-100">
-              {courseShareData.map((item) => (
+              {courseShare.map((item) => (
                 <div key={item.name} className="flex justify-between items-center">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
@@ -254,7 +297,7 @@ export const StudentReports: React.FC = () => {
           </CardContent>
         </Card>
 
-        {/* Student Risk & Performance Table */}
+        {/* Student Risk & Performance Directory Table */}
         <Card className="border-border/50 bg-white shadow-sm lg:col-span-2">
           <CardHeader className="p-5 pb-2 border-b border-slate-100 flex flex-row items-center justify-between">
             <div>
@@ -288,7 +331,7 @@ export const StudentReports: React.FC = () => {
               </TableHeader>
               <TableBody>
                 {filteredStudents.length > 0 ? (
-                  filteredStudents.slice(0, 5).map((student) => (
+                  filteredStudents.slice(0, 10).map((student) => (
                     <TableRow key={student.id} className="hover:bg-slate-50">
                       <TableCell>
                         <div>
@@ -296,22 +339,36 @@ export const StudentReports: React.FC = () => {
                             {student.studentCode}
                           </span>
                           <span className="font-medium text-slate-900 text-xs">
-                            {student.user?.name || (student as any).name || student.studentCode}
+                            {student.name}
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600">Full Stack MERN Architecture</TableCell>
-                      <TableCell className="text-xs font-bold text-emerald-700">92%</TableCell>
-                      <TableCell className="text-xs text-slate-700">8/8 Submitted</TableCell>
+                      <TableCell className="text-xs text-slate-600">{student.courseName}</TableCell>
+                      <TableCell className="text-xs font-bold text-emerald-700">
+                        {student.attendancePercentage}%
+                      </TableCell>
+                      <TableCell className="text-xs text-slate-700">
+                        {student.assignmentsSubmitted}/{student.totalAssignments} Submitted
+                      </TableCell>
                       <TableCell>
-                        <Badge variant="success">Normal</Badge>
+                        <Badge
+                          variant={
+                            student.riskFlag === "Triggered"
+                              ? "destructive"
+                              : student.riskFlag === "At Risk"
+                              ? "secondary"
+                              : "success"
+                          }
+                        >
+                          {student.riskFlag}
+                        </Badge>
                       </TableCell>
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-slate-400 text-xs">
-                      No student records found.
+                      No student performance records found.
                     </TableCell>
                   </TableRow>
                 )}

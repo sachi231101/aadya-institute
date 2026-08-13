@@ -19,8 +19,15 @@ import assignmentRoutes from "../modules/assignments/assignment.routes";
 import recordingRoutes from "../modules/recordings/recording.routes";
 import notificationRoutes from "../modules/notifications/notification.routes";
 import whatsappRoutes from "../modules/whatsapp/whatsapp.routes";
+import feeRoutes from "../modules/fees/fee.routes";
+import reportRoutes from "../modules/reports/report.routes";
+import settingsRoutes from "../modules/settings/settings.routes";
+import notificationRoutes from "../modules/notifications/notification.routes";
 
 const router = Router();
+
+
+
 
 // Auth
 router.use("/auth", authRoutes);
@@ -70,6 +77,21 @@ router.use("/recordings", recordingRoutes);
 // Notifications & WhatsApp
 router.use("/notifications", notificationRoutes);
 router.use("/whatsapp", whatsappRoutes);
+// Fees Management
+router.use("/fees", feeRoutes);
+
+
+// Reports
+router.use("/reports", reportRoutes);
+
+// User & Account Settings
+router.use("/settings", settingsRoutes);
+
+// Notifications System
+router.use("/notifications", notificationRoutes);
+
+
+
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);

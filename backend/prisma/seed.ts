@@ -111,6 +111,12 @@ const permissions = [
 
   // Reports
   "report.read",
+
+  // Fees
+  "fee.read",
+  "fee.create",
+  "fee.update",
+  "fee.delete",
 ];
 
 /** Permissions granted to each role */
@@ -120,6 +126,9 @@ const rolePermissions: Record<string, string[]> = {
 
   CENTER_MANAGER: [
     "user.read",
+    "user.create",
+    "user.update",
+    "user.delete",
     "branch.read",
     "branch.update",
     "student.read",
@@ -144,6 +153,10 @@ const rolePermissions: Record<string, string[]> = {
     "assignment.read",
     "recording.read",
     "feedback.read",
+    "fee.read",
+    "fee.create",
+    "fee.update",
+    "fee.delete",
     "dashboard.read",
     "report.read",
     "notification.read",
@@ -151,13 +164,27 @@ const rolePermissions: Record<string, string[]> = {
   ],
 
   COUNSELLOR: [
+    "user.read",
     "student.read",
-    "admission.read",
-    "admission.create",
+    "student.create",
+    "student.update",
+    "faculty.read",
+    "faculty.create",
+    "faculty.update",
     "course.read",
     "module.read",
+    "admission.read",
+    "admission.create",
+    "admission.update",
     "batch.read",
     "schedule.read",
+    "attendance.read",
+    "attendance.mark",
+    "attendance.update",
+    "fee.read",
+    "fee.create",
+    "fee.update",
+    "report.read",
     "ai_call.read",
     "ai_call.create",
     "ai_call.update",
@@ -590,6 +617,45 @@ async function main() {
     });
   }
   console.log("✅ Student seeded:", studentUser.email);
+  // ── Counsellor User ───────────────────────────────────────────────────────
+  const counselorPassword = process.env.SEED_COUNSELOR_PASSWORD ?? "Counselor@123";
+  const counselorHash = await bcrypt.hash(counselorPassword, 12);
+
+  await prisma.user.updateMany({
+    where: { email: "counselor@aadya.in" },
+    data: {
+      passwordHash: counselorHash,
+      status: "ACTIVE",
+    },
+  });
+
+  const counselorUser = await prisma.user.upsert({
+    where: { id: "seed-counselor-user" },
+    update: {
+      email: "counselor@aadya.in",
+      passwordHash: counselorHash,
+      name: "Kavita Nair",
+      status: "ACTIVE",
+    },
+    create: {
+      id: "seed-counselor-user",
+      instituteId: institute.id,
+      branchId: branch.id,
+      name: "Kavita Nair",
+      email: "counselor@aadya.in",
+      phone: "9777777777",
+      passwordHash: counselorHash,
+    },
+  });
+
+  if (roleMap["COUNSELLOR"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: counselorUser.id, roleId: roleMap["COUNSELLOR"] } },
+      update: {},
+      create: { userId: counselorUser.id, roleId: roleMap["COUNSELLOR"] },
+    });
+  }
+  console.log("✅ Counsellor seeded:", counselorUser.email);
 
   // ── Batch ───────────────────────────────────────────────────────────────
   const batch1 = await prisma.batch.upsert({
@@ -626,6 +692,9 @@ async function main() {
     create: { batchId: batch1.id, courseModuleId: mod3.id, sequence: 3, startDate: new Date("2026-10-01") },
   });
   console.log("✅ Batch modules seeded");
+
+
+
 
   console.log("\n🎉 Database seed completed!");
 }

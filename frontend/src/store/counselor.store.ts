@@ -49,8 +49,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       const res = await usersApi.createUser({
         name: payload.name,
         email: payload.email,
-        phone: payload.phone,
-        password: "Password@123",
+        password: payload.password || "Password@123",
         roles: ["COUNSELLOR"],
         branchId: payload.branchId || undefined,
       });

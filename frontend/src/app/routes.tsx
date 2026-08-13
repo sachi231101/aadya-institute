@@ -10,6 +10,7 @@ import { StudentLayout } from "../layouts/StudentLayout";
 
 // Admin Dashboard
 import { AdminDashboard } from "../pages/admin/Dashboard";
+import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 
 // Students
 import { AllStudents } from "../pages/admin/students/AllStudents";
@@ -68,6 +69,8 @@ import { FinancialReports } from "../pages/admin/reports/FinancialReports";
 
 // Settings
 import { Settings } from "../pages/admin/settings/Settings";
+import { NotificationsPage } from "../pages/admin/notifications/NotificationsPage";
+
 
 // Other roles dashboards
 import { CenterDashboard } from "../pages/center/Dashboard";
@@ -79,6 +82,7 @@ import { StudentAttendance as PortalStudentAttendance } from "../pages/student/A
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
 
       {/* Administration Routes */}
@@ -92,6 +96,7 @@ export const AppRoutes: React.FC = () => {
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="branch/:id/performance" element={<BranchPerformance />} />
 
         {/* Students */}
         <Route path="students">
@@ -158,9 +163,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="financial" element={<FinancialReports />} />
         </Route>
 
-        {/* Settings */}
+        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
+
 
       {/* Center Manager Routes */}
       <Route path="/center" element={<CenterLayout />}>
@@ -290,7 +297,9 @@ export const AppRoutes: React.FC = () => {
       <Route path="/student" element={<StudentLayout />}>
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
+        <Route path="settings" element={<Settings />} />
       </Route>
+
 
       {/* Default Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />

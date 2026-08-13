@@ -96,13 +96,13 @@ router.get(
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   AdmissionsController.createAdmission
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   AdmissionsController.updateAdmission
 );
 

@@ -1,27 +1,17 @@
 import React from "react";
-import { Link, Navigate, Outlet, useNavigate } from "react-router-dom";
-import { LayoutDashboard, CheckSquare, BookOpen, FileCheck, LogOut, Bell } from "lucide-react";
+import { Navigate, Outlet } from "react-router-dom";
+import { BookOpen, Bell } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { FacultySidebar } from "@/components/layout/faculty-sidebar";
+import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
 export const FacultyLayout: React.FC = () => {
-  const { user, token, logout } = useAuthStore();
-  const navigate = useNavigate();
+  const { token } = useAuthStore();
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  const navItems = [
-    { label: "Faculty Dashboard", icon: LayoutDashboard, path: "/faculty/dashboard" },
-    { label: "Classes & Sessions", icon: BookOpen, path: "/faculty/classes" },
-    { label: "Mark Attendance", icon: CheckSquare, path: "/faculty/attendance" },
-    { label: "Assignments", icon: FileCheck, path: "/faculty/assignments" },
-  ];
 
   return (
     <SidebarProvider>
@@ -39,14 +29,9 @@ export const FacultyLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="relative text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-bg-tertiary">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                </span>
-              </button>
+              <NotificationPopover />
             </div>
+
           </header>
           
           <main className="flex-1 overflow-auto bg-bg-primary">

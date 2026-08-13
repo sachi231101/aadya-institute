@@ -1,8 +1,6 @@
 import React, { useState } from "react";
 import { 
-  GraduationCap, 
   Calendar, 
-  Video, 
   Download, 
   Clock, 
   UserCircle, 

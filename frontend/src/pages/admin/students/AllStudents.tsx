@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Search, 
   Plus, 
@@ -39,9 +39,16 @@ import {
 export const AllStudents: React.FC = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [page, setPage] = useState(1);
+
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
   const { data: response, isLoading, isError, error } = useStudentList({
     page,
@@ -95,7 +102,7 @@ export const AllStudents: React.FC = () => {
         </div>
         <Button 
           className="bg-accent-primary hover:bg-accent-secondary text-white"
-          onClick={() => navigate("/admin/students/add")}
+          onClick={() => navigate(`${basePath}/students/add`)}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Student
@@ -199,11 +206,11 @@ export const AllStudents: React.FC = () => {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-bg-primary border-border/50 shadow-md">
                               <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/students/${student.id}`)}>
+                              <DropdownMenuItem onClick={() => navigate(`${basePath}/students/${student.id}`)}>
                                 <Eye className="mr-2 h-4 w-4" />
                                 View Details
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate(`/admin/students/${student.id}/edit`)}>
+                              <DropdownMenuItem onClick={() => navigate(`${basePath}/students/${student.id}/edit`)}>
                                 <Edit className="mr-2 h-4 w-4" />
                                 Edit Student
                               </DropdownMenuItem>
@@ -270,7 +277,7 @@ export const AllStudents: React.FC = () => {
               ) : (
                 <Button 
                   className="bg-accent-primary hover:bg-accent-secondary text-white"
-                  onClick={() => navigate("/admin/students/add")}
+                  onClick={() => navigate(`${basePath}/students/add`)}
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Student

@@ -3,6 +3,7 @@ import {
   branchesApi,
   type BranchListParams,
   type CreateBranchPayload,
+  type UpdateBranchPayload,
 } from "@/services/branches.api";
 
 const BRANCHES_KEY = "branches";
@@ -35,6 +36,20 @@ export const useCreateBranch = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateBranchPayload) => branchesApi.createBranch(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [BRANCHES_KEY] });
+    },
+  });
+};
+
+/**
+ * Update an existing branch.
+ */
+export const useUpdateBranch = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateBranchPayload }) =>
+      branchesApi.updateBranch(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [BRANCHES_KEY] });
     },

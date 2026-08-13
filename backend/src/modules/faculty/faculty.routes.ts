@@ -15,24 +15,24 @@ const router = Router();
 // All faculty routes require authentication
 router.use(authMiddleware);
 
-// GET /api/v1/faculty — List all faculty (ADMIN or CENTER_MANAGER)
+// GET /api/v1/faculty — List all faculty
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAll
 );
 
 // GET /api/v1/faculty/courses — List assigned courses/batches
 router.get(
   "/courses",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getCourses
 );
 
 // POST /api/v1/faculty/courses/assign — Assign faculty to a batch
 router.post(
   "/courses/assign",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(assignCourseSchema),
   controller.assignCourse
 );
@@ -40,37 +40,37 @@ router.post(
 // GET /api/v1/faculty/attendance — List faculty attendance records
 router.get(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAttendance
 );
 
 // POST /api/v1/faculty/attendance — Mark/log faculty attendance
 router.post(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(markAttendanceSchema),
   controller.markAttendance
 );
 
-// GET /api/v1/faculty/:id — Get single faculty (ADMIN or CENTER_MANAGER)
+// GET /api/v1/faculty/:id — Get single faculty
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getById
 );
 
-// POST /api/v1/faculty — Create faculty (ADMIN only)
+// POST /api/v1/faculty — Create faculty
 router.post(
   "/",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(createFacultySchema),
   controller.create
 );
 
-// PATCH /api/v1/faculty/:id — Update faculty (ADMIN only)
+// PATCH /api/v1/faculty/:id — Update faculty
 router.patch(
   "/:id",
-  requireRole("ADMIN"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(updateFacultySchema),
   controller.update
 );

@@ -2,6 +2,13 @@ import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/permission.middleware";
 import * as controller from "./notification.controller";
+import {
+  getNotifications,
+  getUnreadCount,
+  markAsRead,
+  markAllAsRead,
+  deleteNotification,
+} from "./notification.controller";
 
 const router = Router();
 
@@ -21,5 +28,10 @@ router.patch("/templates/:id/status", requirePermission("notification.manage"), 
 // ─── Rules ──────────────────────────────────────────────────────────────────
 router.get("/rules/all", requirePermission("notification.read"), controller.listRules);
 router.post("/rules", requirePermission("notification.manage"), controller.upsertRule);
+router.get("/", getNotifications);
+router.get("/unread-count", getUnreadCount);
+router.patch("/read-all", markAllAsRead);
+router.patch("/:id/read", markAsRead);
+router.delete("/:id", deleteNotification);
 
 export default router;
