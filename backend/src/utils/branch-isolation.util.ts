@@ -26,10 +26,10 @@ export const getBranchScopeFilter = (
     };
   }
 
-  // Non-admin roles: strictly lock to user's assigned branchId
+  // Non-admin roles: lock to user's assigned branchId if present
   return {
     instituteId: user.instituteId,
-    branchId: user.branchId ?? "UNASSIGNED_BRANCH",
+    ...(user.branchId ? { branchId: user.branchId } : {}),
   };
 };
 

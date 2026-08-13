@@ -1,3 +1,5 @@
-// notifications module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+export * from "./notification.types";
+export * from "./notification.repository";
+export * from "./notification.service";
+export * from "./notification.controller";
+export { default as notificationRoutes } from "./notification.routes";

@@ -7,9 +7,12 @@ import {
   CheckCircle2, 
   BarChart3, 
   PieChart as PieChartIcon,
-  Award
+  Award,
+  Loader2,
+  AlertCircle
 } from "lucide-react";
-import { useFacultyList } from "../../../hooks/useFaculty";
+import { useFacultyReport } from "../../../hooks/useReports";
+import { downloadCsv } from "../../../utils/csvExporter";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,29 +37,58 @@ import {
   Cell,
 } from "recharts";
 
-const facultyWorkloadData = [
-  { name: "Dr. Rajesh Verma", hours: 48, batches: 3 },
-  { name: "Prof. Ananya Roy", hours: 36, batches: 2 },
-  { name: "Dr. Suresh Kumar", hours: 42, batches: 2 },
-  { name: "Priya Sharma", hours: 28, batches: 1 },
-];
-
-const feedbackRatingData = [
-  { rating: "5 Stars (Excellent)", count: 68, color: "#10b981" },
-  { rating: "4 Stars (Good)", count: 24, color: "#1769AA" },
-  { rating: "3 Stars (Average)", count: 6, color: "#f59e0b" },
-  { rating: "Below 3 Stars", count: 2, color: "#ef4444" },
-];
-
 export const FacultyReports: React.FC = () => {
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const facultyList = facultyResponse?.data ?? [];
+  const { data, isLoading, isError, refetch } = useFacultyReport();
 
-  const totalFaculty = facultyList.length || 12;
+  const summary = data?.summary || {
+    totalActiveFaculty: 0,
+    avgStudentRating: 0,
+    monthlyTeachingHours: 0,
+    sessionCompliancePercentage: 0,
+  };
+
+  const facultyWorkloadData = data?.workload || [];
+  const feedbackRatingData = data?.ratingDistribution || [];
+  const facultyList = data?.faculty || [];
 
   const handleExport = () => {
-    alert("Exporting Faculty Analytics & Performance Report to CSV...");
+    if (!facultyList.length) {
+      alert("No faculty report data available to export.");
+      return;
+    }
+    const exportData = facultyList.map((f) => ({
+      "Faculty Code": f.facultyCode,
+      "Faculty Name": f.name,
+      "Specialization": f.specialization,
+      "Assigned Cohorts": `${f.assignedBatchesCount} Batches`,
+      "Teaching Hours": `${f.teachingHours} hrs/mo`,
+      "Student Rating": f.avgRating,
+      "Status": f.status,
+    }));
+    downloadCsv("Faculty_Performance_Report", exportData);
   };
+
+  if (isLoading) {
+    return (
+      <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
+        <Loader2 className="h-9 w-9 animate-spin text-[#1769AA]" />
+        <p className="text-sm font-medium">Aggregating instructor workloads & feedback analytics...</p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="p-8 bg-red-50 border border-red-200 rounded-lg text-center space-y-3">
+        <AlertCircle className="h-8 w-8 text-red-500 mx-auto" />
+        <h3 className="text-lg font-bold text-red-800">Failed to load faculty reports</h3>
+        <p className="text-xs text-red-600">Unable to retrieve real-time faculty metrics from backend service.</p>
+        <Button variant="outline" size="sm" onClick={() => refetch()}>
+          Retry Loading
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -88,7 +120,7 @@ export const FacultyReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Total Active Faculty</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalFaculty}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.totalActiveFaculty}</h3>
             </div>
           </CardContent>
         </Card>
@@ -100,7 +132,7 @@ export const FacultyReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Avg Student Rating</p>
-              <h3 className="text-2xl font-bold text-text-primary">4.8 / 5.0</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.avgStudentRating} / 5.0</h3>
             </div>
           </CardContent>
         </Card>
@@ -112,7 +144,7 @@ export const FacultyReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Monthly Teaching Hours</p>
-              <h3 className="text-2xl font-bold text-text-primary">154 hrs</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.monthlyTeachingHours} hrs</h3>
             </div>
           </CardContent>
         </Card>
@@ -124,7 +156,7 @@ export const FacultyReports: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Session Compliance</p>
-              <h3 className="text-2xl font-bold text-text-primary">97.5%</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{summary.sessionCompliancePercentage}%</h3>
             </div>
           </CardContent>
         </Card>
@@ -145,15 +177,21 @@ export const FacultyReports: React.FC = () => {
           </CardHeader>
           <CardContent className="p-5 pt-4">
             <div className="h-64 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={facultyWorkloadData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} />
-                  <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
-                  <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
-                  <Bar dataKey="hours" fill="#1769AA" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              {facultyWorkloadData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={facultyWorkloadData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748B" }} />
+                    <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <Bar dataKey="hours" fill="#1769AA" radius={[4, 4, 0, 0]} name="Teaching Hours" />
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  No workload data available.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -171,25 +209,31 @@ export const FacultyReports: React.FC = () => {
           </CardHeader>
           <CardContent className="p-5 pt-4 flex flex-col md:flex-row items-center gap-6">
             <div className="h-56 w-full md:w-1/2">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={feedbackRatingData}
-                    dataKey="count"
-                    nameKey="rating"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={70}
-                    innerRadius={35}
-                    paddingAngle={3}
-                  >
-                    {feedbackRatingData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
-                </PieChart>
-              </ResponsiveContainer>
+              {feedbackRatingData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={feedbackRatingData}
+                      dataKey="count"
+                      nameKey="rating"
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      innerRadius={35}
+                      paddingAngle={3}
+                    >
+                      {feedbackRatingData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                  No feedback rating distribution.
+                </div>
+              )}
             </div>
 
             <div className="w-full md:w-1/2 space-y-2 text-xs">
@@ -207,7 +251,7 @@ export const FacultyReports: React.FC = () => {
         </Card>
       </div>
 
-      {/* Faculty Performance Table */}
+      {/* Faculty Performance Summary Directory */}
       <Card className="border-border/50 bg-white shadow-sm">
         <CardHeader className="p-5 pb-2 border-b border-slate-100">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -229,7 +273,7 @@ export const FacultyReports: React.FC = () => {
             </TableHeader>
             <TableBody>
               {facultyList.length > 0 ? (
-                facultyList.map((faculty: any) => (
+                facultyList.map((faculty) => (
                   <TableRow key={faculty.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div>
@@ -242,15 +286,17 @@ export const FacultyReports: React.FC = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-xs text-slate-600">{faculty.specialization}</TableCell>
-                    <TableCell className="text-xs text-slate-700 font-semibold">2 Batches</TableCell>
-                    <TableCell className="text-xs text-slate-700">48 hrs/mo</TableCell>
+                    <TableCell className="text-xs text-slate-700 font-semibold">{faculty.assignedBatchesCount} Batches</TableCell>
+                    <TableCell className="text-xs text-slate-700">{faculty.teachingHours} hrs/mo</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
-                        ⭐ 4.8 / 5.0
+                        ⭐ {faculty.avgRating} / 5.0
                       </Badge>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="success">Active</Badge>
+                      <Badge variant={faculty.status === "ACTIVE" ? "success" : "secondary"}>
+                        {faculty.status}
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))

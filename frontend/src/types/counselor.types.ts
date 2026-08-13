@@ -19,6 +19,7 @@ export interface CreateCounselorPayload {
   employeeCode: string;
   email: string;
   phone: string;
+  password?: string;
   branchId?: string;
   branchName?: string;
   status?: CounselorStatus;
