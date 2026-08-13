@@ -6,7 +6,7 @@ import * as z from "zod";
 import { useNotificationStore } from "@/store/notification.store";
 import { useCreateUser } from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,18 +53,21 @@ export const AddAdmin: React.FC = () => {
       email: "",
       phone: "",
       branchId: "",
-      role: "ADMIN",
+      role: "CENTER_MANAGER",
       password: "",
       confirmPassword: "",
     },
   });
 
   const onSubmit = (data: AddAdminFormValues) => {
+    form.clearErrors("root");
+    const sanitizedPhone = data.phone?.trim() ? data.phone.trim() : undefined;
+
     createUserMutation.mutate(
       {
-        name: data.name,
-        email: data.email,
-        phone: data.phone || undefined,
+        name: data.name.trim(),
+        email: data.email.trim().toLowerCase(),
+        phone: sanitizedPhone,
         password: data.password,
         roles: [data.role],
         branchId: data.branchId || undefined,
@@ -75,7 +78,15 @@ export const AddAdmin: React.FC = () => {
           navigate("/administration");
         },
         onError: (err: any) => {
-          const message = err?.response?.data?.message || "Failed to create administrator.";
+          const message = err?.response?.data?.message || err?.message || "Failed to create administrator.";
+          
+          if (message.toLowerCase().includes("email")) {
+            form.setError("email", { type: "manual", message });
+          } else if (message.toLowerCase().includes("phone")) {
+            form.setError("phone", { type: "manual", message });
+          }
+          
+          form.setError("root", { type: "manual", message });
           addNotification(message, "error");
         },
       }
@@ -102,6 +113,12 @@ export const AddAdmin: React.FC = () => {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {form.formState.errors.root && (
+                <div className="p-4 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm font-medium flex items-center gap-3">
+                  <AlertCircle className="h-5 w-5 text-red-600 shrink-0" />
+                  <span>{form.formState.errors.root.message}</span>
+                </div>
+              )}
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField

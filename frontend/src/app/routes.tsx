@@ -79,6 +79,7 @@ import { StudentAttendance as PortalStudentAttendance } from "../pages/student/A
 export const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
 
       {/* Administration Routes */}

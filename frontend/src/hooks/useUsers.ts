@@ -11,12 +11,12 @@ const USERS_KEY = "users";
 
 /**
  * Fetch users with admin/management roles for the Admin Panel.
- * Filters by role=ADMIN by default but can be overridden.
+ * Fetches both ADMIN and CENTER_MANAGER users.
  */
 export const useAdminUsers = (params?: UserListParams) => {
   return useQuery({
     queryKey: [USERS_KEY, "admin", params],
-    queryFn: () => usersApi.getUsers({ role: "ADMIN", limit: 50, ...params }),
+    queryFn: () => usersApi.getUsers({ limit: 50, ...params }),
   });
 };
 
