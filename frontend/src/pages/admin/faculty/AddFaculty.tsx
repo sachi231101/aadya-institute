@@ -1,5 +1,5 @@
 import React from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -33,8 +33,15 @@ type FacultyFormValues = z.infer<typeof facultySchema>;
 
 export const AddFaculty: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const createMutation = useCreateFaculty();
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
+
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
   const branches = branchesResponse?.data ?? [];
 
@@ -62,7 +69,7 @@ export const AddFaculty: React.FC = () => {
         specialization: data.specialization || undefined,
         branchId: data.branchId,
       });
-      navigate("/admin/faculty/all");
+      navigate(`${basePath}/faculty/all`);
     } catch (error: any) {
       const message = error?.response?.data?.message || "Failed to create faculty member.";
       form.setError("root", { message });
@@ -76,7 +83,7 @@ export const AddFaculty: React.FC = () => {
         <Button 
           variant="outline" 
           size="icon"
-          onClick={() => navigate("/admin/faculty/all")}
+          onClick={() => navigate(`${basePath}/faculty/all`)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

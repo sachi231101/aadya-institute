@@ -25,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EditClassModal } from "./EditClassModal";
-import type { ClassSession, ClassMode, ClassStatus } from "../../../types/schedule.types";
+import type { ClassSession, ClassStatus } from "../../../types/schedule.types";
 
 export const Timetable: React.FC = () => {
   const { classes, isLoading, fetchClasses } = useScheduleStore();

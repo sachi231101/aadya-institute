@@ -1,13 +1,13 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  UserCheck, 
-  Target, 
-  GraduationCap, 
-  Users, 
-  CreditCard, 
-  BarChart3, 
-  Settings, 
+import {
+  UserCheck,
+  Target,
+  GraduationCap,
+  Users,
+  CreditCard,
+  BarChart3,
+  Settings,
   ArrowRight,
   Plus,
   TrendingUp,
@@ -65,14 +65,14 @@ export const CounselorDashboard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             onClick={() => navigate("/counselor/admissions/enquiries")}
             variant="outline"
             className="gap-2"
           >
             <Plus size={16} /> New Lead Enquiry
           </Button>
-          <Button 
+          <Button
             onClick={() => navigate("/counselor/students/add")}
             className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 transition-colors"
           >
@@ -146,7 +146,7 @@ export const CounselorDashboard: React.FC = () => {
       <h2 className="text-lg font-semibold text-text-primary">Counsellor Workspace Modules</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* 1. Admissions / Leads */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-emerald-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/admissions/enquiries")}
         >
@@ -169,7 +169,7 @@ export const CounselorDashboard: React.FC = () => {
         </Card>
 
         {/* 2. Students */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-purple-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/students/all")}
         >
@@ -192,7 +192,7 @@ export const CounselorDashboard: React.FC = () => {
         </Card>
 
         {/* 3. Faculty */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-amber-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/faculty/all")}
         >
@@ -215,7 +215,7 @@ export const CounselorDashboard: React.FC = () => {
         </Card>
 
         {/* 4. Fees */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/fees/payments")}
         >
@@ -238,7 +238,7 @@ export const CounselorDashboard: React.FC = () => {
         </Card>
 
         {/* 5. Reports */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-blue-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/reports/students")}
         >
@@ -261,7 +261,7 @@ export const CounselorDashboard: React.FC = () => {
         </Card>
 
         {/* 6. Settings */}
-        <Card 
+        <Card
           className="border border-border/60 hover:border-slate-600 transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate("/counselor/settings")}
         >
@@ -292,9 +292,9 @@ export const CounselorDashboard: React.FC = () => {
               <Clock className="h-5 w-5 text-emerald-600" />
               Priority Lead Follow-up Pipeline
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => navigate("/counselor/admissions/enquiries")}
               className="text-emerald-700 hover:text-emerald-800 gap-1"
             >

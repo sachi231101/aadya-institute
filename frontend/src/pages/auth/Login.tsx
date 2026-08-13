@@ -11,7 +11,6 @@ import {
   GraduationCap,
   Users,
   ChevronRight,
-  Sparkles,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { authApi } from "../../services/auth.api";

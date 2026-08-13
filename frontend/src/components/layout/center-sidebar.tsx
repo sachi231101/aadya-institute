@@ -152,8 +152,8 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
               if (!item.items) {
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild 
+                    <SidebarMenuButton
+                      asChild
                       isActive={isDirectActive}
                       tooltip={item.title}
                       className={isDirectActive ? "bg-accent-primary/10 text-accent-primary font-medium" : ""}
@@ -176,7 +176,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton 
+                      <SidebarMenuButton
                         tooltip={item.title}
                         isActive={isSubItemActive}
                         className={isSubItemActive ? "text-accent-primary font-medium" : ""}
@@ -192,8 +192,8 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                           const isSubActive = location.pathname === subItem.url
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton 
-                                asChild 
+                              <SidebarMenuSubButton
+                                asChild
                                 isActive={isSubActive}
                                 className={isSubActive ? "bg-accent-primary/10 text-accent-primary font-semibold" : ""}
                               >

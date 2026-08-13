@@ -76,6 +76,27 @@ enum FeePlan {
   INSTALLMENT
 }
 
+enum PaymentMethod {
+  UPI
+  NET_BANKING
+  CARD
+  CASH
+  CHEQUE
+}
+
+enum PaymentStatus {
+  SUCCESS
+  PENDING
+  FAILED
+}
+
+enum OverdueStatus {
+  OVERDUE
+  DUE_SOON
+  PARTIAL
+  PAID
+}
+
 
 enum BatchStatus {
   UPCOMING
@@ -106,6 +127,9 @@ model Institute {
 
   batches    Batch[]
 
+  payments    Payment[]
+  pendingFees PendingFee[]
+
   createdAtLogs ActivityLog[]
 }
 
@@ -130,6 +154,9 @@ model Branch {
   applications Application[]
 
   batches    Batch[]
+
+  payments    Payment[]
+  pendingFees PendingFee[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -247,6 +274,8 @@ model Student {
   assignmentSubmissions AssignmentSubmission[]
   feedbacks             Feedback[]
   callLogs              CallLog[]
+  payments              Payment[]
+  pendingFees           PendingFee[]
 
   @@unique([instituteId, studentCode])
   @@index([instituteId])
@@ -412,6 +441,8 @@ model Admission {
   batch       Batch?      @relation(fields: [batchId], references: [id], onDelete: SetNull)
 
   batchEnrollments BatchEnrollment[]
+  payments         Payment[]
+  pendingFees      PendingFee[]
 
   @@index([studentId])
   @@index([applicationId])
@@ -691,3 +722,71 @@ model ActivityLog {
   @@index([instituteId])
   @@index([entityType, entityId])
 }
+
+model Payment {
+  id             String        @id @default(cuid())
+  receiptNo      String        @unique
+  instituteId    String
+  branchId       String?
+  studentId      String?
+  admissionId    String?
+  pendingFeeId   String?
+  studentName    String
+  admissionNo    String
+  courseName     String
+  amount         Float
+  date           DateTime      @default(now())
+  method         PaymentMethod @default(UPI)
+  transactionRef String?
+  status         PaymentStatus @default(SUCCESS)
+  notes          String?
+  recordedById   String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  institute  Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch     Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student    Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission  Admission?  @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  pendingFee PendingFee? @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([admissionId])
+  @@index([receiptNo])
+}
+
+model PendingFee {
+  id            String        @id @default(cuid())
+  instituteId   String
+  branchId      String?
+  studentId     String?
+  admissionId   String?
+  studentName   String
+  admissionNo   String
+  phone         String
+  courseName    String
+  totalFee      Float
+  amountPaid    Float         @default(0)
+  dueAmount     Float
+  dueDate       DateTime
+  installmentNo Int           @default(1)
+  overdueDays   Int           @default(0)
+  status        OverdueStatus @default(DUE_SOON)
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  institute Institute  @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?    @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student   Student?   @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission Admission? @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  payments  Payment[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([admissionId])
+}
+
