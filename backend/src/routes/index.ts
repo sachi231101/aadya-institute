@@ -18,6 +18,7 @@ import classSessionRoutes from "../modules/class-sessions/class-session.routes";
 import assignmentRoutes from "../modules/assignments/assignment.routes";
 import recordingRoutes from "../modules/recordings/recording.routes";
 import whatsappRoutes from "../modules/whatsapp/whatsapp.routes";
+import notificationRoutes from "../modules/notifications/notification.routes";
 import feeRoutes from "../modules/fees/fee.routes";
 import reportRoutes from "../modules/reports/report.routes";
 import settingsRoutes from "../modules/settings/settings.routes";
@@ -70,7 +71,7 @@ router.use("/assignments", assignmentRoutes);
 router.use("/recordings", recordingRoutes);
 
 // Notifications & WhatsApp
-router.use("/notifications", whatsappRoutes);
+router.use("/notifications", notificationRoutes);
 router.use("/whatsapp", whatsappRoutes);
 
 // Fees Management
