@@ -16,12 +16,18 @@ const STUDENTS_KEY = "students";
 const STUDENT_PERFORMANCE_KEY = "student-performance";
 const ATTENDANCE_ROSTER_KEY = "attendance-roster";
 
+import { useAuthStore } from "@/store/auth.store";
+
 // ─── Student CRUD Hooks ─────────────────────────────────────────────────
 
 export const useStudentList = (params?: StudentListParams) => {
+  const { user } = useAuthStore();
+  const branchId = user?.role === "CENTER_MANAGER" && user.branchId ? user.branchId : params?.branchId;
+  const mergedParams = { ...params, ...(branchId ? { branchId } : {}) };
+
   return useQuery({
-    queryKey: [STUDENTS_KEY, params],
-    queryFn: () => studentsApi.getAll(params),
+    queryKey: [STUDENTS_KEY, mergedParams],
+    queryFn: () => studentsApi.getAll(mergedParams),
   });
 };
 

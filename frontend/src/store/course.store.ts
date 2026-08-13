@@ -11,7 +11,7 @@ interface CourseState {
 
   // Fetch Actions
   fetchCourses: () => Promise<void>;
-  fetchBatches: () => Promise<void>;
+  fetchBatches: (branchId?: string) => Promise<void>;
 
   // Course Actions
   addCourse: (courseData: Omit<Course, "id" | "createdAt" | "modulesCount" | "enrolledStudents">) => void;
@@ -66,9 +66,9 @@ export const useCourseStore = create<CourseState>((set) => ({
     }
   },
 
-  fetchBatches: async () => {
+  fetchBatches: async (branchId?: string) => {
     try {
-      const res = await batchesApi.getAll();
+      const res = await batchesApi.getAll(branchId ? { branchId } : undefined);
       if (res.success && res.data) {
         const mappedBatches: Batch[] = res.data.map((b) => ({
           id: b.id,

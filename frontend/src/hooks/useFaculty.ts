@@ -14,12 +14,18 @@ const FACULTY_KEY = "faculty";
 const FACULTY_COURSES_KEY = "faculty-courses";
 const FACULTY_ATTENDANCE_KEY = "faculty-attendance";
 
+import { useAuthStore } from "@/store/auth.store";
+
 // ─── Faculty CRUD Hooks ─────────────────────────────────────────────────
 
 export const useFacultyList = (params?: FacultyListParams) => {
+  const { user } = useAuthStore();
+  const branchId = user?.role === "CENTER_MANAGER" && user.branchId ? user.branchId : params?.branchId;
+  const mergedParams = { ...params, ...(branchId ? { branchId } : {}) };
+
   return useQuery({
-    queryKey: [FACULTY_KEY, params],
-    queryFn: () => facultyApi.getAll(params),
+    queryKey: [FACULTY_KEY, mergedParams],
+    queryFn: () => facultyApi.getAll(mergedParams),
   });
 };
 

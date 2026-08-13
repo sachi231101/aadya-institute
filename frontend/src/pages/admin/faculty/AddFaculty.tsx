@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
+import { useAuthStore } from "@/store/auth.store";
 
 import {
   Form,
@@ -36,6 +37,8 @@ export const AddFaculty: React.FC = () => {
   const location = useLocation();
   const createMutation = useCreateFaculty();
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
+  const { user } = useAuthStore();
+  const isCenterManager = user?.role === "CENTER_MANAGER";
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -54,7 +57,7 @@ export const AddFaculty: React.FC = () => {
       phone: "",
       password: "",
       specialization: "",
-      branchId: "",
+      branchId: isCenterManager && user?.branchId ? user.branchId : "",
     },
   });
 
@@ -202,18 +205,26 @@ export const AddFaculty: React.FC = () => {
                     <FormItem>
                       <FormLabel>Branch *</FormLabel>
                       <FormControl>
-                        <select 
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
-                          {...field}
-                          disabled={branchesLoading}
-                        >
-                          <option value="">Select a branch</option>
-                          {branches.map((branch) => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name} ({branch.code})
-                            </option>
-                          ))}
-                        </select>
+                        {isCenterManager ? (
+                          <Input 
+                            value={branches.find(b => b.id === field.value)?.name || field.value} 
+                            disabled 
+                            className="bg-slate-100 text-slate-700 font-medium" 
+                          />
+                        ) : (
+                          <select 
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
+                            {...field}
+                            disabled={branchesLoading}
+                          >
+                            <option value="">Select a branch</option>
+                            {branches.map((branch) => (
+                              <option key={branch.id} value={branch.id}>
+                                {branch.name} ({branch.code})
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </FormControl>
                       <FormMessage />
                     </FormItem>

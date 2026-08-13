@@ -6,21 +6,25 @@ interface CounselorState {
   counselors: Counselor[];
   isLoading: boolean;
   error: string | null;
-  fetchCounselors: () => Promise<void>;
+  fetchCounselors: (branchId?: string) => Promise<void>;
   addCounselor: (payload: CreateCounselorPayload) => Promise<Counselor | null>;
   updateCounselor: (id: string, payload: UpdateCounselorPayload) => Promise<boolean>;
   deleteCounselor: (id: string) => Promise<boolean>;
 }
 
-export const useCounselorStore = create<CounselorState>((set, get) => ({
+export const useCounselorStore = create<CounselorState>((set) => ({
   counselors: [],
   isLoading: false,
   error: null,
 
-  fetchCounselors: async () => {
+  fetchCounselors: async (branchId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await usersApi.getUsers({ role: "COUNSELLOR", limit: 100 });
+      const res = await usersApi.getUsers({ 
+        role: "COUNSELLOR", 
+        limit: 100,
+        ...(branchId ? { branchId } : {})
+      });
       if (res.success && res.data) {
         const mapped: Counselor[] = res.data.map((u) => ({
           id: u.id,
@@ -55,21 +59,22 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       });
 
       if (res.success && res.data) {
-        await get().fetchCounselors();
         const createdUser = res.data;
-        return {
+        const newCounselor = {
           id: createdUser.id,
           name: createdUser.name,
           employeeCode: payload.employeeCode || `CNS-${createdUser.id.slice(-4).toUpperCase()}`,
           email: createdUser.email || "",
           phone: createdUser.phone || "",
-          branchId: createdUser.branchId || "main",
+          branchId: createdUser.branchId || payload.branchId || "main",
           branchName: payload.branchName || "Main Campus",
           assignedLeadsCount: 0,
           activeStudentsCount: 0,
           status: payload.status || "ACTIVE",
           createdAt: createdUser.createdAt,
         };
+        set((state) => ({ counselors: [...state.counselors, newCounselor] }));
+        return newCounselor;
       }
       return null;
     } catch (err: any) {
@@ -92,7 +97,20 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
         });
       }
       if (res.success) {
-        await get().fetchCounselors();
+        set((state) => ({
+          counselors: state.counselors.map((c) =>
+            c.id === id
+              ? {
+                  ...c,
+                  name: payload.name || c.name,
+                  email: payload.email || c.email,
+                  phone: payload.phone || c.phone,
+                  branchId: payload.branchId || c.branchId,
+                  status: payload.status || c.status,
+                }
+              : c
+          ),
+        }));
         return true;
       }
       return false;

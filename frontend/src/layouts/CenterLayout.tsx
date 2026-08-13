@@ -1,15 +1,30 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { Bell, Building2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranch } from "@/hooks/useBranches";
+import { useStudentStore } from "@/store/student.store";
+import { useCourseStore } from "@/store/course.store";
 
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
 export const CenterLayout: React.FC = () => {
 
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
+  const { data: branchResponse } = useBranch(user?.branchId || undefined);
+  const branchName = branchResponse?.data?.name || "Bengaluru Main Campus";
+
+  const { fetchStudents } = useStudentStore();
+  const { fetchBatches } = useCourseStore();
+
+  useEffect(() => {
+    if (user?.branchId && user.role === "CENTER_MANAGER") {
+      fetchStudents(user.branchId);
+      fetchBatches(user.branchId);
+    }
+  }, [user?.branchId, user?.role, fetchStudents, fetchBatches]);
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -25,7 +40,7 @@ export const CenterLayout: React.FC = () => {
               <SidebarTrigger className="-ml-2" />
               <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
                 <Building2 size={18} />
-                <span className="text-sm font-medium">Center Portal — Bengaluru Main Branch</span>
+                <span className="text-sm font-medium">Center Portal — {branchName}</span>
               </div>
             </div>
 
