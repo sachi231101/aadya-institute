@@ -12,40 +12,9 @@ interface BranchState {
   deleteBranch: (identifier: string) => void;
 }
 
-const initialBranches: Branch[] = [
-  {
-    id: "br-rmn-01",
-    code: "BR-RMN-01",
-    name: "Ramamurthy Nagara Branch",
-    city: "Bengaluru",
-    address: "TC Palya Main Road, Ramamurthy Nagar, Bengaluru, KA 560016",
-    phone: "+91 98801 12233",
-    assignedManagerName: "Rajesh Kumar (Center Manager)",
-    assignedManagerEmail: "rajesh.rmn@aadya.in",
-    studentCount: 145,
-    batchCount: 6,
-    revenueCollected: 680000,
-    status: "ACTIVE",
-  },
-  {
-    id: "br-mlw-02",
-    code: "BR-MLW-02",
-    name: "Malleshwaram Branch",
-    city: "Bengaluru",
-    address: "Sampige Road, 18th Cross, Malleshwaram, Bengaluru, KA 560003",
-    phone: "+91 97702 44556",
-    assignedManagerName: "Priya Deshmukh (Center Manager)",
-    assignedManagerEmail: "priya.mlw@aadya.in",
-    studentCount: 119,
-    batchCount: 5,
-    revenueCollected: 570000,
-    status: "ACTIVE",
-  },
-];
-
 export const useBranchStore = create<BranchState>((set) => ({
-  branches: initialBranches,
-  activeBranchId: "br-rmn-01",
+  branches: [],
+  activeBranchId: "",
 
   addBranch: (data) =>
     set((state) => {

@@ -40,7 +40,7 @@ const branchSchema = z.object({
 type BranchFormValues = z.infer<typeof branchSchema>;
 
 export const AdminLayout: React.FC = () => {
-  const { token } = useAuthStore();
+  const { token, user } = useAuthStore();
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
   const addNotification = useNotificationStore((state) => state.addNotification);
   const createBranchMutation = useCreateBranch();
@@ -55,7 +55,25 @@ export const AdminLayout: React.FC = () => {
     },
   });
 
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!userRoles.includes("ADMIN")) {
+    if (userRoles.includes("COUNSELLOR")) {
+      return <Navigate to="/counselor/dashboard" replace />;
+    }
+    if (userRoles.includes("CENTER_MANAGER")) {
+      return <Navigate to="/center/dashboard" replace />;
+    }
+    if (userRoles.includes("FACULTY")) {
+      return <Navigate to="/faculty/dashboard" replace />;
+    }
+    if (userRoles.includes("STUDENT")) {
+      return <Navigate to="/student/dashboard" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
@@ -94,7 +112,7 @@ export const AdminLayout: React.FC = () => {
               <SidebarTrigger className="-ml-2" />
               <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
                 <Building2 size={18} />
-                <span className="text-sm font-medium">Main Campus — Bengaluru</span>
+                <span className="text-sm font-medium">Aadya Central Branch — Bengaluru</span>
               </div>
             </div>
 

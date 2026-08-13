@@ -47,6 +47,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+import { useBranches } from "@/hooks/useBranches";
+
 export const AllCounsellors: React.FC = () => {
   const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
   const { user } = useAuthStore();
@@ -55,6 +57,8 @@ export const AllCounsellors: React.FC = () => {
   
   const { data: branchesResponse } = useBranches();
   const branches = branchesResponse?.data || [];
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const apiBranches = branchesResponse?.data || [];
 
   useEffect(() => {
     fetchCounselors(isCenterManager ? userBranchId : undefined);
@@ -71,7 +75,11 @@ export const AllCounsellors: React.FC = () => {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [branchId, setBranchId] = useState("");
+  const [selectedBranchId, setSelectedBranchId] = useState("");
+  const [branchName, setBranchName] = useState("Bengaluru Central Branch");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
+  const [createError, setCreateError] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Edit Modal State
   const [editCounselor, setEditCounselor] = useState<Counselor | null>(null);
@@ -107,19 +115,30 @@ export const AllCounsellors: React.FC = () => {
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
+    setCreateError(null);
+    setIsSubmitting(true);
 
-    await addCounselor({
+    const created = await addCounselor({
       name,
       employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
       email,
       password: password || undefined,
       phone,
       branchId: branchId,
+      branchId: selectedBranchId || undefined,
+      branchName,
       status,
     });
 
-    setShowCreateModal(false);
-    resetCreateForm();
+    setIsSubmitting(false);
+
+    if (created) {
+      setShowCreateModal(false);
+      resetCreateForm();
+    } else {
+      const storeErr = useCounselorStore.getState().error;
+      setCreateError(storeErr || "Failed to create counsellor.");
+    }
   };
 
   const resetCreateForm = () => {
@@ -129,7 +148,10 @@ export const AllCounsellors: React.FC = () => {
     setPassword("");
     setPhone("");
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
+    setSelectedBranchId("");
+    setBranchName("Bengaluru Central Branch");
     setStatus("ACTIVE");
+    setCreateError(null);
   };
 
   const handleOpenEditModal = (c: Counselor) => {
@@ -399,6 +421,11 @@ export const AllCounsellors: React.FC = () => {
           </DialogHeader>
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
+            {createError && (
+              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-semibold animate-in fade-in">
+                {createError}
+              </div>
+            )}
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Full Name *</label>
               <Input
@@ -458,11 +485,12 @@ export const AllCounsellors: React.FC = () => {
               <label className="text-xs font-semibold text-text-primary block mb-1">Phone Number *</label>
               <Input
                 type="text"
-                placeholder="e.g. +91 98765 11223"
+                placeholder="e.g. 9876511223 (10 digits)"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
               />
+              <span className="text-[11px] text-muted-foreground block mt-0.5">Must be a valid 10-digit mobile number</span>
             </div>
 
             <div>
@@ -492,14 +520,37 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
+              <select
+                value={selectedBranchId}
+                onChange={(e) => {
+                  const bId = e.target.value;
+                  setSelectedBranchId(bId);
+                  const selectedBranch = apiBranches.find((b) => b.id === bId);
+                  if (selectedBranch) {
+                    setBranchName(selectedBranch.name);
+                  }
+                }}
+                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+              >
+                <option value="">-- Select Branch (Optional) --</option>
+                {apiBranches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <DialogFooter className="pt-4">
-              <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
+              <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
-                Create Counsellor
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+                ) : (
+                  "Create Counsellor"
+                )}
               </Button>
             </DialogFooter>
           </form>
@@ -599,6 +650,18 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
+              <select
+                value={editBranch}
+                onChange={(e) => setEditBranch(e.target.value)}
+                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+              >
+                <option value="">-- Select Branch --</option>
+                {apiBranches.map((b) => (
+                  <option key={b.id} value={b.name}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <DialogFooter className="pt-4">

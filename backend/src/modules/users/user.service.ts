@@ -2,7 +2,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
 import type { AuthUser } from "../auth/auth.types";
-import type { CreateUserInput, UpdateUserInput, UpdateUserStatusInput, UserListQuery } from "./user.types";
+import type { CreateUserInput, UpdateUserInput, UpdateUserStatusInput, UpdateWhatsappPreferenceInput, UserListQuery } from "./user.types";
 import {
   findUsers,
   findUserById,
@@ -12,6 +12,7 @@ import {
   createUser,
   updateUser,
   updateUserStatus,
+  updateWhatsappPreference,
   deleteUser,
 } from "./user.repository";
 import type { UserStatus } from "@prisma/client";
@@ -29,8 +30,8 @@ const getInstituteId = (currentUser: AuthUser): string => {
  * see/create users in their own branch.
  */
 const getBranchFilter = (currentUser: AuthUser, requestedBranchId?: string): string | undefined => {
-  if (currentUser.roles.includes("ADMIN")) {
-    return requestedBranchId; // Admin can filter by any branch or see all
+  if (currentUser.roles.includes("ADMIN") || currentUser.roles.includes("COUNSELLOR")) {
+    return requestedBranchId; // Admin & Counsellor can filter by requested branch or see all
   }
   if (currentUser.roles.includes("CENTER_MANAGER")) {
     // Always enforce the manager's own branch — ignore any branchId from request
@@ -168,6 +169,16 @@ export const updateUserService = async (
   }
 
   return updateUser(userId, instituteId, input);
+};
+
+// ─── Update WhatsApp Preference (self-service opt-out) ────────────────────────
+
+export const updateWhatsappPreferenceService = async (
+  currentUser: AuthUser,
+  input: UpdateWhatsappPreferenceInput
+) => {
+  // Users can only change their own preference; no admin elevation needed.
+  return updateWhatsappPreference(currentUser.id, input.whatsappEnabled);
 };
 
 // ─── Update User Status ───────────────────────────────────────────────────────

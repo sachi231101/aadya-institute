@@ -7,6 +7,7 @@ import {
   createUserService,
   updateUserService,
   updateUserStatusService,
+  updateWhatsappPreferenceService,
   deleteUserService,
 } from "./user.service";
 import type { AuthUser } from "../auth/auth.types";
@@ -88,6 +89,22 @@ export const updateUserStatus = async (
       req.body
     );
     sendSuccess(res, user, 200, "User status updated");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateWhatsappPreference = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = await updateWhatsappPreferenceService(
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, user, 200, "WhatsApp preference updated");
   } catch (err) {
     next(err);
   }

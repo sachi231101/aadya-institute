@@ -88,6 +88,7 @@ export const CenterDashboard: React.FC = () => {
           </h1>
           <p className="text-muted-foreground mt-1">
             Branch Operations Overview & Administration — {branchName}
+            Branch Operations Overview & Administration — Bengaluru Branch
           </p>
         </div>
 

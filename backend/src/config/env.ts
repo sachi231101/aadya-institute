@@ -17,4 +17,12 @@ export const env = {
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   // Seeding
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || "ChangeMe@123",
+  // AiSensy WhatsApp
+  AISENSY_API_KEY: process.env.AISENSY_API_KEY || "",
+  AISENSY_BASE_URL: process.env.AISENSY_BASE_URL || "https://backend.aisensy.com/campaign/t1/api/v2",
+  // Webhook security
+  WHATSAPP_WEBHOOK_SECRET: process.env.WHATSAPP_WEBHOOK_SECRET || "",
+  // Queue config
+  WHATSAPP_MAX_RETRIES: Number(process.env.WHATSAPP_MAX_RETRIES) || 3,
+  WHATSAPP_QUEUE_CONCURRENCY: Number(process.env.WHATSAPP_QUEUE_CONCURRENCY) || 5,
 };

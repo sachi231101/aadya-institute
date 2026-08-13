@@ -25,8 +25,17 @@ export const CenterLayout: React.FC = () => {
       fetchBatches(user.branchId);
     }
   }, [user?.branchId, user?.role, fetchStudents, fetchBatches]);
+  const { token, user } = useAuthStore();
 
   if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  if (!userRoles.includes("CENTER_MANAGER") && !userRoles.includes("ADMIN")) {
+    if (userRoles.includes("COUNSELLOR")) {
+      return <Navigate to="/counselor/dashboard" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
   return (
@@ -40,7 +49,7 @@ export const CenterLayout: React.FC = () => {
               <SidebarTrigger className="-ml-2" />
               <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
                 <Building2 size={18} />
-                <span className="text-sm font-medium">Center Portal — {branchName}</span>
+                <span className="text-sm font-medium">Center Portal — Bengaluru Central Branch</span>
               </div>
             </div>
 

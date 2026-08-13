@@ -1,6 +1,45 @@
 import * as repository from "./batch.repository";
 import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters } from "./batch.types";
 import { AppError } from "../../middlewares/error.middleware";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
+import { prisma } from "../../config/database";
+import { logger } from "../../config/logger";
+
+const triggerBatchAssignedNotification = async (studentId: string, batchId: string) => {
+  try {
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: { user: true },
+    });
+    const batch = await prisma.batch.findUnique({
+      where: { id: batchId },
+      include: { course: true },
+    });
+
+    if (!student || !batch) return;
+
+    const idempotencyKey = buildIdempotencyKey.BATCH_ASSIGNED(studentId, batchId);
+
+    await triggerNotification({
+      instituteId: student.instituteId,
+      studentId: student.id,
+      event: NotificationEvent.BATCH_ASSIGNED,
+      idempotencyKey,
+      templateParams: {
+        student_name: student.user?.name ?? "Student",
+        batch_name: batch.name,
+        course_name: batch.course?.name ?? "Course",
+      },
+      metadata: {
+        batchId,
+        courseId: batch.courseId,
+      },
+    });
+  } catch (err) {
+    logger.error({ err, studentId, batchId }, "[batches] Failed to trigger batch assigned notification");
+  }
+};
 
 export const getBatches = async (instituteId: string, branchId?: string, filters: BatchQueryFilters = {}) => {
   return repository.findAllBatches(instituteId, branchId, filters);
@@ -34,7 +73,13 @@ export const assignFaculty = async (id: string, instituteId: string, facultyId: 
 
 export const enrollStudent = async (batchId: string, instituteId: string, studentId: string, admissionId?: string) => {
   await getBatchById(batchId, instituteId);
-  return repository.enrollStudentInBatch(batchId, studentId, admissionId);
+  const enrollment = await repository.enrollStudentInBatch(batchId, studentId, admissionId);
+
+  setImmediate(() => {
+    triggerBatchAssignedNotification(studentId, batchId);
+  });
+
+  return enrollment;
 };
 
 export const removeStudent = async (batchId: string, instituteId: string, studentId: string) => {

@@ -16,9 +16,12 @@ import {
   Trash2,
   Loader2
 } from "lucide-react";
-import { useBranchStore } from "@/store/branch.store";
 import { useBranches, useCreateBranch, useUpdateBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
+import { useStudentList } from "@/hooks/useStudents";
+import { useFacultyList } from "@/hooks/useFaculty";
+import { useBatches } from "@/hooks/useBatches";
+import { useFinancialReport, useStudentReport } from "@/hooks/useReports";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,11 +31,16 @@ import type { Branch } from "@/types/branch.types";
 
 export const AdminDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { branches: mockBranches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
 
   // Real API hooks
   const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
   const { data: usersResponse } = useAdminUsers({ limit: 100 });
+  const { data: studentsResponse } = useStudentList();
+  const { data: facultyResponse } = useFacultyList();
+  const { batches: allBatches } = useBatches();
+  const { data: financialReport } = useFinancialReport();
+  const { data: studentReport } = useStudentReport();
+
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
   const createBranchMutation = useCreateBranch();
@@ -57,35 +65,37 @@ export const AdminDashboard: React.FC = () => {
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Map Real Backend branches to UI branches (Merging with local mocks for stats)
+  // Map Real Backend branches to UI branches
   const apiBranches = branchesResponse?.data?.filter(b => b.status !== "DELETED") || [];
 
   const branches: Branch[] = apiBranches.map(apiBranch => {
-    // Match by code to link real branch with local mock data
-    const mocked = mockBranches.find(b => b.code === apiBranch.code);
-    
-    // Find if a center manager from the API is assigned to this branch
     const realManager = centerManagers.find(m => m.branchId === apiBranch.id);
 
+    // Calculate branch dynamic student and batch counts
+    const branchStudents = studentReport?.students?.filter(s => s.branchName === apiBranch.name) || [];
+    const branchBatches = allBatches?.filter(b => b.branchId === apiBranch.id || b.branch?.id === apiBranch.id) || [];
+
     return {
-      id: apiBranch.id, // Always use real backend ID for actions
+      id: apiBranch.id,
       code: apiBranch.code,
       name: apiBranch.name,
-      city: mocked?.city || city || "Bengaluru",
-      address: apiBranch.address || mocked?.address || "Bengaluru, KA",
-      phone: apiBranch.phone || mocked?.phone || "+91 98765 43210",
-      assignedManagerName: realManager ? realManager.name : (mocked?.assignedManagerName || "Unassigned Manager"),
-      assignedManagerEmail: realManager ? (realManager.email || "manager@aadya.in") : (mocked?.assignedManagerEmail || "manager@aadya.in"),
-      studentCount: mocked?.studentCount || 0,
-      batchCount: mocked?.batchCount || 0,
-      revenueCollected: mocked?.revenueCollected || 0,
+      city: city || "Bengaluru",
+      address: apiBranch.address || "Bengaluru, KA",
+      phone: apiBranch.phone || "N/A",
+      assignedManagerName: realManager ? realManager.name : "Unassigned Manager",
+      assignedManagerEmail: realManager ? realManager.email : "Unassigned",
+      studentCount: branchStudents.length > 0 ? branchStudents.length : 0,
+      batchCount: branchBatches.length > 0 ? branchBatches.length : 0,
+      revenueCollected: financialReport?.summary?.totalCollected || 0,
       status: apiBranch.status as any,
     };
   });
 
-  const totalStudents = branches.reduce((acc, b) => acc + b.studentCount, 0);
-  const totalBatches = branches.reduce((acc, b) => acc + b.batchCount, 0);
-  const totalRevenue = branches.reduce((acc, b) => acc + b.revenueCollected, 0);
+  // Global Live Metrics from PostgreSQL
+  const totalStudents = studentsResponse?.meta?.total ?? studentReport?.summary?.totalStudents ?? branches.reduce((acc, b) => acc + b.studentCount, 0);
+  const totalFaculty = facultyResponse?.meta?.total ?? facultyResponse?.data?.length ?? 0;
+  const totalBatches = allBatches?.length ?? branches.reduce((acc, b) => acc + b.batchCount, 0);
+  const totalRevenue = financialReport?.summary?.totalCollected ?? branches.reduce((acc, b) => acc + b.revenueCollected, 0);
 
   const handleCreateBranchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,25 +103,23 @@ export const AdminDashboard: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      // 1. Save to real backend
-      await createBranchMutation.mutateAsync({
+      // Save to real backend
+      const createdRes = await createBranchMutation.mutateAsync({
         name: branchName,
         code: branchCode,
         address: address,
         phone: phone,
       });
 
-      // 2. Save to local mock store to preserve manager names & UI stats
-      addBranch({
-        code: branchCode,
-        name: branchName,
-        city: city || "Bengaluru",
-        address: address || "Bengaluru, KA",
-        phone: phone || "+91 98765 43210",
-        assignedManagerName: managerName || "Unassigned Manager",
-        assignedManagerEmail: managerEmail || "manager@aadya.in",
-        status: "ACTIVE",
-      });
+      if (managerEmail && createdRes?.data?.id) {
+        const selectedUser = centerManagers.find(m => m.email === managerEmail);
+        if (selectedUser) {
+          await updateUserMutation.mutateAsync({
+            id: selectedUser.id,
+            data: { branchId: createdRes.data.id }
+          });
+        }
+      }
 
       setNotificationMsg(`New Branch "${branchName}" created successfully!`);
       setTimeout(() => setNotificationMsg(null), 3000);
@@ -130,8 +138,10 @@ export const AdminDashboard: React.FC = () => {
 
   const handleOpenAssignModal = (branch: Branch) => {
     setAssignModalBranch(branch);
-    setNewManagerName(branch.assignedManagerName);
-    setNewManagerEmail(branch.assignedManagerEmail);
+    const validEmail = branch.assignedManagerEmail !== "Unassigned" ? branch.assignedManagerEmail : "";
+    const validName = branch.assignedManagerName !== "Unassigned Manager" ? branch.assignedManagerName : "";
+    setNewManagerName(validName);
+    setNewManagerEmail(validEmail);
   };
 
   const handleAssignManagerSubmit = async (e: React.FormEvent) => {
@@ -150,23 +160,6 @@ export const AdminDashboard: React.FC = () => {
         });
       }
 
-      // Also update local mock store for immediate UI feedback if needed
-      const existingMock = mockBranches.find(b => b.code === assignModalBranch.code || b.id === assignModalBranch.id);
-      if (!existingMock) {
-        addBranch({
-          code: assignModalBranch.code,
-          name: assignModalBranch.name,
-          city: assignModalBranch.city || "Bengaluru",
-          address: assignModalBranch.address,
-          phone: assignModalBranch.phone,
-          assignedManagerName: newManagerName,
-          assignedManagerEmail: newManagerEmail,
-          status: "ACTIVE"
-        });
-      } else {
-        assignManagerToBranch(assignModalBranch.code, newManagerName, newManagerEmail);
-      }
-
       setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
       setTimeout(() => setNotificationMsg(null), 3000);
       setAssignModalBranch(null);
@@ -179,14 +172,11 @@ export const AdminDashboard: React.FC = () => {
     if (!confirm(`Are you sure you want to delete the branch "${branch.name}"?`)) return;
 
     try {
-      // 1. Soft delete on the backend
+      // Soft delete on the backend
       await updateBranchMutation.mutateAsync({
         id: branch.id,
         data: { status: "DELETED" },
       });
-
-      // 2. Remove from local mock state
-      deleteBranch(branch.code);
 
       setNotificationMsg(`Branch "${branch.name}" has been deleted.`);
       setTimeout(() => setNotificationMsg(null), 3000);
@@ -243,7 +233,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Active Faculty Members</p>
-              <h3 className="text-2xl font-bold text-text-primary">12 Members</h3>
+              <h3 className="text-2xl font-bold text-text-primary">{totalFaculty} Members</h3>
             </div>
           </CardContent>
         </Card>
@@ -388,14 +378,29 @@ export const AdminDashboard: React.FC = () => {
               Admin Multi-Branch System Logs
             </h3>
             <div className="space-y-2">
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
-                <span className="text-slate-700"><strong>Ramamurthy Nagara Branch:</strong> 12 new admissions processed today.</span>
-                <Badge variant="outline" className="text-[10px]">Just Now</Badge>
-              </div>
-              <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
-                <span className="text-slate-700"><strong>Malleshwaram Branch:</strong> Attendance marked for Morning MERN cohort.</span>
-                <Badge variant="outline" className="text-[10px]">10m ago</Badge>
-              </div>
+              {studentReport?.students && studentReport.students.length > 0 ? (
+                studentReport.students.slice(0, 3).map((s) => (
+                  <div key={s.id} className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
+                    <span className="text-slate-700">
+                      <strong>{s.branchName}:</strong> New student admission registered for {s.name} ({s.courseName}).
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">Active</Badge>
+                  </div>
+                ))
+              ) : branches.length > 0 ? (
+                branches.slice(0, 2).map((b) => (
+                  <div key={b.id} className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-xs flex justify-between items-center">
+                    <span className="text-slate-700">
+                      <strong>{b.name}:</strong> Branch active & operational ({b.code}). Assigned Manager: {b.assignedManagerName}.
+                    </span>
+                    <Badge variant="outline" className="text-[10px]">Active</Badge>
+                  </div>
+                ))
+              ) : (
+                <div className="p-3 text-xs text-slate-500 text-center">
+                  No active multi-branch log entries recorded.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

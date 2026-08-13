@@ -1,13 +1,13 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { 
-  Users, 
-  GraduationCap, 
-  BookOpen, 
-  UserCheck, 
+import {
+  Users,
+  GraduationCap,
+  BookOpen,
+  UserCheck,
   UserPlus,
-  Plus, 
+  Plus,
   ArrowRight,
   Calendar,
   Loader2,
@@ -69,14 +69,14 @@ export const CounsellorOverview: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button 
+          <Button
             onClick={() => navigate(`${basePath}/counselor/all`)}
             variant="outline"
             className="gap-2"
           >
             <UserPlus size={16} /> Manage Counsellors
           </Button>
-          <Button 
+          <Button
             onClick={() => navigate(`${basePath}/counselor/batches`)}
             className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors"
           >
@@ -176,7 +176,7 @@ export const CounsellorOverview: React.FC = () => {
       {/* Quick Action Navigation Cards */}
       <h2 className="text-lg font-semibold text-text-primary">Counsellor Actions</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card 
+        <Card
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate(`${basePath}/counselor/all`)}
         >
@@ -198,7 +198,7 @@ export const CounsellorOverview: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate(`${basePath}/counselor/batches`)}
         >
@@ -220,7 +220,7 @@ export const CounsellorOverview: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate(`${basePath}/counselor/assign-students`)}
         >
@@ -242,7 +242,7 @@ export const CounsellorOverview: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card 
+        <Card
           className="border border-border/60 hover:border-[#1769AA] transition-all cursor-pointer group shadow-sm hover:shadow-md"
           onClick={() => navigate(`${basePath}/counselor/assign-faculty`)}
         >

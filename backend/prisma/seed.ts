@@ -73,11 +73,14 @@ const permissions = [
   "assignment.read",
   "assignment.create",
   "assignment.update",
+  "assignment.delete",
   "assignment.evaluate",
   "assignment.submit",
 
   // Recordings
   "recording.read",
+  "recording.create",
+  "recording.delete",
 
   // Feedback
   "feedback.read",
@@ -94,6 +97,11 @@ const permissions = [
   // WhatsApp
   "whatsapp.read",
   "whatsapp.send",
+
+  // Notifications
+  "notification.read",
+  "notification.manage",
+  "notification.resend",
 
   // Branches
   "branch.read",
@@ -151,8 +159,9 @@ const rolePermissions: Record<string, string[]> = {
     "fee.delete",
     "dashboard.read",
     "report.read",
+    "notification.read",
+    "notification.resend",
   ],
-
 
   COUNSELLOR: [
     "user.read",
@@ -181,6 +190,7 @@ const rolePermissions: Record<string, string[]> = {
     "ai_call.update",
     "whatsapp.read",
     "dashboard.read",
+    "notification.read",
   ],
 
   FACULTY: [
@@ -195,8 +205,11 @@ const rolePermissions: Record<string, string[]> = {
     "assignment.read",
     "assignment.create",
     "assignment.update",
+    "assignment.delete",
     "assignment.evaluate",
     "recording.read",
+    "recording.create",
+    "recording.delete",
     "feedback.read",
     "dashboard.read",
   ],
@@ -214,6 +227,84 @@ const rolePermissions: Record<string, string[]> = {
     "dashboard.read",
   ],
 };
+
+const defaultNotificationRules = [
+  { event: "CLASS_REMINDER", channel: "WHATSAPP", enabled: true, configuration: { offsetMinutes: -120 } },
+  { event: "FIRST_CLASS", channel: "WHATSAPP", enabled: true, configuration: { offsetMinutes: -1440 } },
+  { event: "MODULE_START", channel: "WHATSAPP", enabled: true },
+  { event: "STUDENT_ABSENT", channel: "WHATSAPP", enabled: true },
+  { event: "FEEDBACK_REQUESTED", channel: "WHATSAPP", enabled: true },
+  { event: "ASSIGNMENT_CREATED", channel: "WHATSAPP", enabled: true },
+  { event: "ADMISSION_CREATED", channel: "WHATSAPP", enabled: true },
+  { event: "BATCH_ASSIGNED", channel: "WHATSAPP", enabled: true },
+  { event: "RECORDING_AVAILABLE", channel: "WHATSAPP", enabled: true },
+];
+
+const defaultNotificationTemplates = [
+  {
+    name: "class_reminder_template",
+    event: "CLASS_REMINDER",
+    providerTemplateName: "aadya_class_reminder",
+    language: "en",
+    variables: ["student_name", "batch_name", "start_time"],
+  },
+  {
+    name: "student_absent_template",
+    event: "STUDENT_ABSENT",
+    providerTemplateName: "aadya_student_absent",
+    language: "en",
+    variables: ["student_name", "batch_name", "date"],
+  },
+  {
+    name: "feedback_requested_template",
+    event: "FEEDBACK_REQUESTED",
+    providerTemplateName: "aadya_feedback_request",
+    language: "en",
+    variables: ["student_name", "batch_name", "session_id"],
+  },
+  {
+    name: "admission_created_template",
+    event: "ADMISSION_CREATED",
+    providerTemplateName: "aadya_admission_created",
+    language: "en",
+    variables: ["student_name", "course_name", "admission_no"],
+  },
+  {
+    name: "batch_assigned_template",
+    event: "BATCH_ASSIGNED",
+    providerTemplateName: "aadya_batch_assigned",
+    language: "en",
+    variables: ["student_name", "batch_name", "course_name"],
+  },
+  {
+    name: "first_class_template",
+    event: "FIRST_CLASS",
+    providerTemplateName: "aadya_first_class",
+    language: "en",
+    variables: ["student_name", "batch_name", "start_date", "start_time", "location"],
+  },
+  {
+    name: "module_start_template",
+    event: "MODULE_START",
+    providerTemplateName: "aadya_module_start",
+    language: "en",
+    variables: ["student_name", "batch_name", "module_name", "start_date"],
+  },
+  {
+    name: "assignment_created_template",
+    event: "ASSIGNMENT_CREATED",
+    providerTemplateName: "aadya_assignment_created",
+    language: "en",
+    variables: ["student_name", "batch_name", "assignment_title", "due_date"],
+  },
+  {
+    name: "recording_available_template",
+    event: "RECORDING_AVAILABLE",
+    providerTemplateName: "aadya_recording_available",
+    language: "en",
+    variables: ["student_name", "batch_name", "session_title", "expiry_date"],
+  },
+];
 
 async function main() {
   console.log("🌱 Starting database seed...");
@@ -237,10 +328,10 @@ async function main() {
 
   const branch = await prisma.branch.upsert({
     where: { instituteId_code: { instituteId: institute.id, code: "MAIN" } },
-    update: {},
+    update: { name: "Aadya Central Branch" },
     create: {
       instituteId: institute.id,
-      name: "Main Branch",
+      name: "Aadya Central Branch",
       code: "MAIN",
       address: "Bengaluru",
     },
@@ -289,17 +380,41 @@ async function main() {
         create: { roleId, permissionId },
       });
     }
-    console.log(
-      `✅ ${roleName} assigned ${permList.length} permissions`
-    );
+    console.log(`✅ ${roleName} assigned ${permList.length} permissions`);
   }
+
+  // ── Notification Rules ─────────────────────────────────────────────────────
+
+  for (const rule of defaultNotificationRules) {
+    await prisma.notificationRule.upsert({
+      where: { event_channel: { event: rule.event, channel: rule.channel } },
+      update: { enabled: rule.enabled, configuration: rule.configuration },
+      create: rule,
+    });
+  }
+  console.log("✅ Notification Rules seeded:", defaultNotificationRules.length);
+
+  // ── Notification Templates ─────────────────────────────────────────────────
+
+  for (const tpl of defaultNotificationTemplates) {
+    await prisma.notificationTemplate.upsert({
+      where: { name: tpl.name },
+      update: {
+        event: tpl.event,
+        providerTemplateName: tpl.providerTemplateName,
+        language: tpl.language,
+        variables: tpl.variables,
+      },
+      create: tpl,
+    });
+  }
+  console.log("✅ Notification Templates seeded:", defaultNotificationTemplates.length);
 
   // ── Admin User ─────────────────────────────────────────────────────────────
 
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe@123";
   const passwordHash = await bcrypt.hash(adminPassword, 12);
 
-  // Update any existing admin@aadya.in user's password and status
   await prisma.user.updateMany({
     where: { email: "admin@aadya.in" },
     data: {
@@ -381,6 +496,54 @@ async function main() {
   });
   console.log("✅ Course modules seeded");
 
+  // ── Center Manager User ──────────────────────────────────────────────────
+  const managerHash = await bcrypt.hash("Manager@123", 12);
+  const managerUser = await prisma.user.upsert({
+    where: { id: "seed-manager-user" },
+    update: { email: "manager@aadya.in", passwordHash: managerHash, status: "ACTIVE" },
+    create: {
+      id: "seed-manager-user",
+      instituteId: institute.id,
+      branchId: branch.id,
+      name: "Suresh Sharma",
+      email: "manager@aadya.in",
+      phone: "9876543210",
+      passwordHash: managerHash,
+    },
+  });
+  if (roleMap["CENTER_MANAGER"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: managerUser.id, roleId: roleMap["CENTER_MANAGER"] } },
+      update: {},
+      create: { userId: managerUser.id, roleId: roleMap["CENTER_MANAGER"] },
+    });
+  }
+  console.log("✅ Center Manager seeded:", managerUser.email);
+
+  // ── Counsellor User ──────────────────────────────────────────────────────
+  const counsellorHash = await bcrypt.hash("Counsellor@123", 12);
+  const counsellorUser = await prisma.user.upsert({
+    where: { id: "seed-counsellor-user" },
+    update: { email: "counsellor@aadya.in", passwordHash: counsellorHash, status: "ACTIVE" },
+    create: {
+      id: "seed-counsellor-user",
+      instituteId: institute.id,
+      branchId: branch.id,
+      name: "Priya Singh",
+      email: "counsellor@aadya.in",
+      phone: "9876543211",
+      passwordHash: counsellorHash,
+    },
+  });
+  if (roleMap["COUNSELLOR"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: counsellorUser.id, roleId: roleMap["COUNSELLOR"] } },
+      update: {},
+      create: { userId: counsellorUser.id, roleId: roleMap["COUNSELLOR"] },
+    });
+  }
+  console.log("✅ Counsellor seeded:", counsellorUser.email);
+
   // ── Faculty User ────────────────────────────────────────────────────────
   const facultyHash = await bcrypt.hash("Faculty@123", 12);
   const facultyUser = await prisma.user.upsert({
@@ -418,6 +581,42 @@ async function main() {
   }
   console.log("✅ Faculty seeded:", facultyUser.name);
 
+  // ── Student User ────────────────────────────────────────────────────────
+  const studentHash = await bcrypt.hash("Student@123", 12);
+  const studentUser = await prisma.user.upsert({
+    where: { id: "seed-student-user" },
+    update: { email: "student@aadya.in", passwordHash: studentHash, status: "ACTIVE" },
+    create: {
+      id: "seed-student-user",
+      instituteId: institute.id,
+      branchId: branch.id,
+      name: "Rahul Verma",
+      email: "student@aadya.in",
+      phone: "9777777777",
+      passwordHash: studentHash,
+    },
+  });
+
+  await prisma.student.upsert({
+    where: { userId: studentUser.id },
+    update: {},
+    create: {
+      userId: studentUser.id,
+      instituteId: institute.id,
+      branchId: branch.id,
+      studentCode: "STU-001",
+      qualification: "B.Tech Computer Science",
+    },
+  });
+
+  if (roleMap["STUDENT"]) {
+    await prisma.userRole.upsert({
+      where: { userId_roleId: { userId: studentUser.id, roleId: roleMap["STUDENT"] } },
+      update: {},
+      create: { userId: studentUser.id, roleId: roleMap["STUDENT"] },
+    });
+  }
+  console.log("✅ Student seeded:", studentUser.email);
   // ── Counsellor User ───────────────────────────────────────────────────────
   const counselorPassword = process.env.SEED_COUNSELOR_PASSWORD ?? "Counselor@123";
   const counselorHash = await bcrypt.hash(counselorPassword, 12);
@@ -477,12 +676,12 @@ async function main() {
   console.log("✅ Batch seeded:", batch1.name);
 
   // ── Batch Modules ───────────────────────────────────────────────────────
-  const bm1 = await prisma.batchModule.upsert({
+  await prisma.batchModule.upsert({
     where: { batchId_sequence: { batchId: batch1.id, sequence: 1 } },
     update: {},
     create: { batchId: batch1.id, courseModuleId: mod1.id, sequence: 1, startDate: new Date("2026-07-01"), status: "INACTIVE" },
   });
-  const bm2 = await prisma.batchModule.upsert({
+  await prisma.batchModule.upsert({
     where: { batchId_sequence: { batchId: batch1.id, sequence: 2 } },
     update: {},
     create: { batchId: batch1.id, courseModuleId: mod2.id, sequence: 2, startDate: new Date("2026-08-01"), status: "ACTIVE" },
@@ -498,9 +697,6 @@ async function main() {
 
 
   console.log("\n🎉 Database seed completed!");
-  console.log("   Admin email: admin@aadya.in");
-  console.log("   Admin phone: 9999999999");
-  console.log(`   Admin password: ${adminPassword === "ChangeMe@123" ? "ChangeMe@123 (default — set SEED_ADMIN_PASSWORD in .env)" : "*** (from env)"}`);
 }
 
 main()
@@ -511,4 +707,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

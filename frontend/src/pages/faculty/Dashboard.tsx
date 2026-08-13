@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, 
@@ -41,14 +41,6 @@ interface AssignedStudentAttendance {
   performanceGrade: "A+" | "A" | "B+" | "B";
 }
 
-const mockAssignedStudents: AssignedStudentAttendance[] = [
-  { id: "STU-101", studentCode: "AAD-FS-011", name: "Aarav Sharma", email: "aarav.s@gmail.com", batchName: "FS-MARCH-2026-WD", course: "Full Stack Software Engineering", attendanceStatus: "PRESENT", attendancePercentage: 96, lastMarked: "Today, 09:30 AM", performanceGrade: "A+" },
-  { id: "STU-102", studentCode: "AAD-FS-012", name: "Ananya Iyer", email: "ananya.iyer@gmail.com", batchName: "FS-MARCH-2026-WD", course: "Full Stack Software Engineering", attendanceStatus: "PRESENT", attendancePercentage: 92, lastMarked: "Today, 09:30 AM", performanceGrade: "A" },
-  { id: "STU-103", studentCode: "AAD-DS-005", name: "Rohan Kulkarni", email: "rohan.k@gmail.com", batchName: "DS-AI-FEB-2026", course: "Data Science & AI Master", attendanceStatus: "ABSENT", attendancePercentage: 78, lastMarked: "Today, 09:30 AM", performanceGrade: "B+" },
-  { id: "STU-104", studentCode: "AAD-DS-008", name: "Priya Nair", email: "priya.nair@gmail.com", batchName: "DS-AI-FEB-2026", course: "Data Science & AI Master", attendanceStatus: "PRESENT", attendancePercentage: 98, lastMarked: "Today, 09:30 AM", performanceGrade: "A+" },
-  { id: "STU-105", studentCode: "AAD-CS-019", name: "Karthik Raja", email: "karthik.r@gmail.com", batchName: "CLOUD-DEVOPS-JAN", course: "Cloud DevOps Architecture", attendanceStatus: "LEAVE", attendancePercentage: 85, lastMarked: "Yesterday", performanceGrade: "B" },
-];
-
 export const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { students: globalStudents, fetchStudents } = useStudentStore();
@@ -59,7 +51,28 @@ export const FacultyDashboard: React.FC = () => {
     fetchBatches();
   }, []);
 
-  const [studentList, setStudentList] = useState<AssignedStudentAttendance[]>(mockAssignedStudents);
+  // Map live students from database cleanly using useMemo
+  const liveAssignedStudents = useMemo<AssignedStudentAttendance[]>(() => {
+    return globalStudents.map((s) => ({
+      id: s.id,
+      studentCode: s.studentId || `STD-${s.id.slice(-4).toUpperCase()}`,
+      name: s.name,
+      email: s.email || "",
+      batchName: s.batch?.code || s.batch?.name || "Assigned Batch",
+      course: s.course?.name || "Enrolled Course",
+      attendanceStatus: "PRESENT" as const,
+      attendancePercentage: 100,
+      lastMarked: "Registered",
+      performanceGrade: "A" as const,
+    }));
+  }, [globalStudents]);
+
+  const [studentList, setStudentList] = useState<AssignedStudentAttendance[]>([]);
+
+  useEffect(() => {
+    setStudentList(liveAssignedStudents);
+  }, [liveAssignedStudents]);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBatchFilter, setSelectedBatchFilter] = useState("ALL");
 
@@ -85,7 +98,7 @@ export const FacultyDashboard: React.FC = () => {
 
   const presentCount = studentList.filter((s) => s.attendanceStatus === "PRESENT").length;
   const totalAssignedCount = studentList.length;
-  const attendanceRate = Math.round((presentCount / totalAssignedCount) * 100);
+  const attendanceRate = totalAssignedCount > 0 ? Math.round((presentCount / totalAssignedCount) * 100) : 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -124,7 +137,7 @@ export const FacultyDashboard: React.FC = () => {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Assigned Batches</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{batches.length || 3}</h3>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{batches.length}</h3>
               <p className="text-xs text-amber-600 font-medium mt-1 flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" /> Active Teaching Batches
               </p>
@@ -139,7 +152,7 @@ export const FacultyDashboard: React.FC = () => {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Assigned Students</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{globalStudents.length || 48}</h3>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{globalStudents.length}</h3>
               <p className="text-xs text-muted-foreground mt-1">
                 Across Active Modules
               </p>
@@ -209,9 +222,11 @@ export const FacultyDashboard: React.FC = () => {
               className="h-9 px-3 text-xs bg-white border border-border/60 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
             >
               <option value="ALL">All Batches</option>
-              <option value="FS-MARCH-2026-WD">FS-MARCH-2026-WD</option>
-              <option value="DS-AI-FEB-2026">DS-AI-FEB-2026</option>
-              <option value="CLOUD-DEVOPS-JAN">CLOUD-DEVOPS-JAN</option>
+              {batches.map((b) => (
+                <option key={b.id} value={b.code || b.name}>
+                  {b.code || b.name}
+                </option>
+              ))}
             </select>
           </div>
         </CardHeader>
@@ -342,33 +357,41 @@ export const FacultyDashboard: React.FC = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {mockAssignedStudents.map((stu) => (
-              <TableRow key={`rep-${stu.id}`} className="hover:bg-slate-50/80 transition-colors">
-                <TableCell>
-                  <span className="font-mono text-xs font-bold text-amber-700 block">{stu.studentCode}</span>
-                  <span className="font-medium text-text-primary text-xs">{stu.name}</span>
-                </TableCell>
-                <TableCell className="text-xs text-text-secondary font-medium">{stu.batchName}</TableCell>
-                <TableCell>
-                  <span className="text-xs font-bold text-slate-800">{stu.attendancePercentage}% Attendance</span>
-                </TableCell>
-                <TableCell>
-                  <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 font-bold">
-                    Grade {stu.performanceGrade}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-right">
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
-                    onClick={() => navigate("/faculty/reports/students")}
-                    className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
-                  >
-                    View Report
-                  </Button>
+            {studentList.length > 0 ? (
+              studentList.map((stu) => (
+                <TableRow key={`rep-${stu.id}`} className="hover:bg-slate-50/80 transition-colors">
+                  <TableCell>
+                    <span className="font-mono text-xs font-bold text-amber-700 block">{stu.studentCode}</span>
+                    <span className="font-medium text-text-primary text-xs">{stu.name}</span>
+                  </TableCell>
+                  <TableCell className="text-xs text-text-secondary font-medium">{stu.batchName}</TableCell>
+                  <TableCell>
+                    <span className="text-xs font-bold text-slate-800">{stu.attendancePercentage}% Attendance</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 font-bold">
+                      Grade {stu.performanceGrade}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      onClick={() => navigate("/faculty/reports/students")}
+                      className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
+                    >
+                      View Report
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                  No assigned students found in database.
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </Card>
