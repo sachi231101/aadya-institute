@@ -129,8 +129,10 @@ model Institute {
 
   payments    Payment[]
   pendingFees PendingFee[]
+  notifications Notification[]
 
   createdAtLogs ActivityLog[]
+
 }
 
 model Branch {
@@ -157,6 +159,8 @@ model Branch {
 
   payments    Payment[]
   pendingFees PendingFee[]
+  notifications Notification[]
+
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -202,9 +206,12 @@ model User {
   student        Student?
   faculty        Faculty?
   assignedEnquiries Enquiry[]
-
+  settings UserSettings?
 
   activityLogs   ActivityLog[]
+  notifications  Notification[]
+
+
 
   @@index([instituteId])
   @@index([branchId])
@@ -789,4 +796,66 @@ model PendingFee {
   @@index([studentId])
   @@index([admissionId])
 }
+
+model UserSettings {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  designation           String?  @default("")
+  department            String?  @default("")
+  language              String?  @default("English (US)")
+  timezone              String?  @default("(GMT+05:30) India Standard Time")
+  twoFactorEnabled      Boolean  @default(false)
+  emailAdmissions       Boolean  @default(true)
+  emailFeeAlerts        Boolean  @default(true)
+  emailAttendance       Boolean  @default(false)
+  whatsappReminders     Boolean  @default(true)
+  aiCallAlerts          Boolean  @default(true)
+  primaryBranch         String?  @default("")
+  currencyFormat        String?  @default("INR (₹)")
+  themeMode             String?  @default("LIGHT")
+  autoLogoutMinutes     Int?     @default(30)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  ADMISSION
+  PAYMENT
+  ATTENDANCE
+  DISCONTINUATION_RISK
+  CLASS_SESSION
+  ASSIGNMENT
+  AI_CALL
+  SYSTEM
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String?
+  instituteId String
+  branchId    String?
+  title       String
+  message     String
+  type        NotificationType @default(SYSTEM)
+  link        String?
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+
+
 

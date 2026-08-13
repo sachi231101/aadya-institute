@@ -60,6 +60,7 @@ export const AllCounsellors: React.FC = () => {
   const [name, setName] = useState("");
   const [employeeCode, setEmployeeCode] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [branchName, setBranchName] = useState("Bengaluru Main Campus");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
@@ -103,6 +104,7 @@ export const AllCounsellors: React.FC = () => {
       name,
       employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
       email,
+      password: password || undefined,
       phone,
       branchName,
       status,
@@ -116,6 +118,7 @@ export const AllCounsellors: React.FC = () => {
     setName("");
     setEmployeeCode("");
     setEmail("");
+    setPassword("");
     setPhone("");
     setBranchName("Bengaluru Main Campus");
     setStatus("ACTIVE");
@@ -430,6 +433,16 @@ export const AllCounsellors: React.FC = () => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-text-primary block mb-1">Account Password (Optional)</label>
+              <Input
+                type="password"
+                placeholder="Defaults to Password@123 if empty"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
               />
             </div>
 

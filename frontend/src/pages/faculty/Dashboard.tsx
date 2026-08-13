@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   BookOpen, 
@@ -51,8 +51,13 @@ const mockAssignedStudents: AssignedStudentAttendance[] = [
 
 export const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { students: globalStudents } = useStudentStore();
-  const { batches } = useCourseStore();
+  const { students: globalStudents, fetchStudents } = useStudentStore();
+  const { batches, fetchBatches } = useCourseStore();
+
+  useEffect(() => {
+    fetchStudents();
+    fetchBatches();
+  }, []);
 
   const [studentList, setStudentList] = useState<AssignedStudentAttendance[]>(mockAssignedStudents);
   const [searchTerm, setSearchTerm] = useState("");

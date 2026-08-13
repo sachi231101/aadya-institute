@@ -118,6 +118,9 @@ const rolePermissions: Record<string, string[]> = {
 
   CENTER_MANAGER: [
     "user.read",
+    "user.create",
+    "user.update",
+    "user.delete",
     "branch.read",
     "branch.update",
     "student.read",
@@ -142,6 +145,10 @@ const rolePermissions: Record<string, string[]> = {
     "assignment.read",
     "recording.read",
     "feedback.read",
+    "fee.read",
+    "fee.create",
+    "fee.update",
+    "fee.delete",
     "dashboard.read",
     "report.read",
   ],

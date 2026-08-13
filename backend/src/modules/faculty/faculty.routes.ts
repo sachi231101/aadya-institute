@@ -18,14 +18,14 @@ router.use(authMiddleware);
 // GET /api/v1/faculty — List all faculty
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAll
 );
 
 // GET /api/v1/faculty/courses — List assigned courses/batches
 router.get(
   "/courses",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getCourses
 );
 
@@ -40,14 +40,14 @@ router.post(
 // GET /api/v1/faculty/attendance — List faculty attendance records
 router.get(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAttendance
 );
 
 // POST /api/v1/faculty/attendance — Mark/log faculty attendance
 router.post(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(markAttendanceSchema),
   controller.markAttendance
 );
@@ -55,7 +55,7 @@ router.post(
 // GET /api/v1/faculty/:id — Get single faculty
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getById
 );
 
@@ -70,7 +70,7 @@ router.post(
 // PATCH /api/v1/faculty/:id — Update faculty
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(updateFacultySchema),
   controller.update
 );

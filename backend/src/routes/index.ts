@@ -16,8 +16,14 @@ import moduleRoutes from "../modules/modules/module.routes";
 import admissionsRoutes from "../modules/admissions/admissions.routes";
 import classSessionRoutes from "../modules/class-sessions/class-session.routes";
 import feeRoutes from "../modules/fees/fee.routes";
+import reportRoutes from "../modules/reports/report.routes";
+import settingsRoutes from "../modules/settings/settings.routes";
+import notificationRoutes from "../modules/notifications/notification.routes";
 
 const router = Router();
+
+
+
 
 // Auth
 router.use("/auth", authRoutes);
@@ -60,6 +66,19 @@ router.use("/class-sessions", classSessionRoutes);
 
 // Fees Management
 router.use("/fees", feeRoutes);
+
+
+// Reports
+router.use("/reports", reportRoutes);
+
+// User & Account Settings
+router.use("/settings", settingsRoutes);
+
+// Notifications System
+router.use("/notifications", notificationRoutes);
+
+
+
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);

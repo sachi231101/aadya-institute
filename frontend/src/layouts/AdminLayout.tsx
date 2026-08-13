@@ -4,6 +4,8 @@ import { Bell, Building2, Loader2, Plus } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
+import { NotificationPopover } from "../components/notifications/NotificationPopover";
+
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -107,14 +109,9 @@ export const AdminLayout: React.FC = () => {
                 <Plus size={16} />
                 Create a Branch
               </Button>
-              <button className="relative text-muted-foreground hover:text-foreground transition-colors">
-                <Bell size={20} />
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-secondary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-3 w-3 bg-accent-secondary"></span>
-                </span>
-              </button>
+              <NotificationPopover />
             </div>
+
           </header>
           
           <main className="flex-1 overflow-auto bg-bg-primary">

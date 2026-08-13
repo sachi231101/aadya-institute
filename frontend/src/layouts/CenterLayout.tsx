@@ -5,7 +5,10 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
 
+import { NotificationPopover } from "../components/notifications/NotificationPopover";
+
 export const CenterLayout: React.FC = () => {
+
   const { token } = useAuthStore();
 
   if (!token) {
@@ -27,14 +30,9 @@ export const CenterLayout: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-4">
-              <button className="relative text-muted-foreground hover:text-foreground transition-colors p-2 rounded-md hover:bg-bg-tertiary">
-                <Bell size={20} />
-                <span className="absolute top-1 right-1 flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-secondary opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent-secondary"></span>
-                </span>
-              </button>
+              <NotificationPopover />
             </div>
+
           </header>
           
           <main className="flex-1 overflow-auto bg-bg-primary">
