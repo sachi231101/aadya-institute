@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useCreateStudent } from "../../../hooks/useStudents";
 import { useBranches } from "../../../hooks/useBranches";
+import { useAuthStore } from "@/store/auth.store";
 
 import {
   Form,
@@ -37,6 +38,8 @@ export const AddStudent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const createMutation = useCreateStudent();
+  const { user } = useAuthStore();
+  const isCenterManager = user?.role === "CENTER_MANAGER";
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -63,7 +66,7 @@ export const AddStudent: React.FC = () => {
       password: "Student@123",
       qualification: "",
       dateOfBirth: "",
-      branchId: "",
+      branchId: isCenterManager && user?.branchId ? user.branchId : "",
     },
   });
 
@@ -228,7 +231,13 @@ export const AddStudent: React.FC = () => {
                     <FormItem>
                       <FormLabel>Branch *</FormLabel>
                       <FormControl>
-                        {branches.length > 0 ? (
+                        {isCenterManager ? (
+                          <Input 
+                            value={branches.find(b => b.id === field.value)?.name || field.value} 
+                            disabled 
+                            className="bg-slate-100 text-slate-700 font-medium" 
+                          />
+                        ) : branches.length > 0 ? (
                           <select
                             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
                             {...field}

@@ -48,7 +48,7 @@ export interface CreateBatchPayload {
 }
 
 export const batchesApi = {
-  getAll: async (params?: { search?: string; courseId?: string; facultyId?: string; status?: string }) => {
+  getAll: async (params?: { search?: string; courseId?: string; facultyId?: string; status?: string; branchId?: string }) => {
     const response = await api.get<{ success: boolean; data: BatchData[] }>("/batches", { params });
     return response.data;
   },

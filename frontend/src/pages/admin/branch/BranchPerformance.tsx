@@ -247,7 +247,7 @@ export const BranchPerformance: React.FC = () => {
                     paddingAngle={5}
                     dataKey="value"
                   >
-                    {courseSalesData.map((entry, index) => (
+                    {courseSalesData.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>

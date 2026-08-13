@@ -1,13 +1,30 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Navigate, Outlet } from "react-router-dom";
 import { Bell, Building2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranch } from "@/hooks/useBranches";
+import { useStudentStore } from "@/store/student.store";
+import { useCourseStore } from "@/store/course.store";
 
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
 export const CenterLayout: React.FC = () => {
+
+  const { token, user } = useAuthStore();
+  const { data: branchResponse } = useBranch(user?.branchId || undefined);
+  const branchName = branchResponse?.data?.name || "Bengaluru Main Campus";
+
+  const { fetchStudents } = useStudentStore();
+  const { fetchBatches } = useCourseStore();
+
+  useEffect(() => {
+    if (user?.branchId && user.role === "CENTER_MANAGER") {
+      fetchStudents(user.branchId);
+      fetchBatches(user.branchId);
+    }
+  }, [user?.branchId, user?.role, fetchStudents, fetchBatches]);
   const { token, user } = useAuthStore();
 
   if (!token) {

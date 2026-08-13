@@ -15,6 +15,8 @@ import {
   Loader2
 } from "lucide-react";
 import { useCounselorStore } from "@/store/counselor.store";
+import { useBranches } from "@/hooks/useBranches";
+import { useAuthStore } from "@/store/auth.store";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,12 +51,18 @@ import { useBranches } from "@/hooks/useBranches";
 
 export const AllCounsellors: React.FC = () => {
   const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
+  const { user } = useAuthStore();
+  const isCenterManager = user?.role === "CENTER_MANAGER";
+  const userBranchId = user?.branchId;
+  
+  const { data: branchesResponse } = useBranches();
+  const branches = branchesResponse?.data || [];
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const apiBranches = branchesResponse?.data || [];
 
   useEffect(() => {
-    fetchCounselors();
-  }, []);
+    fetchCounselors(isCenterManager ? userBranchId : undefined);
+  }, [isCenterManager, userBranchId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -66,6 +74,7 @@ export const AllCounsellors: React.FC = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [selectedBranchId, setSelectedBranchId] = useState("");
   const [branchName, setBranchName] = useState("Bengaluru Central Branch");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
@@ -78,7 +87,7 @@ export const AllCounsellors: React.FC = () => {
   const [editCode, setEditCode] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
-  const [editBranch, setEditBranch] = useState("");
+  const [editBranchId, setEditBranchId] = useState("");
   const [editStatus, setEditStatus] = useState<CounselorStatus>("ACTIVE");
 
   // Delete Modal State
@@ -115,6 +124,7 @@ export const AllCounsellors: React.FC = () => {
       email,
       password: password || undefined,
       phone,
+      branchId: branchId,
       branchId: selectedBranchId || undefined,
       branchName,
       status,
@@ -137,6 +147,7 @@ export const AllCounsellors: React.FC = () => {
     setEmail("");
     setPassword("");
     setPhone("");
+    setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
     setSelectedBranchId("");
     setBranchName("Bengaluru Central Branch");
     setStatus("ACTIVE");
@@ -149,7 +160,7 @@ export const AllCounsellors: React.FC = () => {
     setEditCode(c.employeeCode);
     setEditEmail(c.email);
     setEditPhone(c.phone);
-    setEditBranch(c.branchName);
+    setEditBranchId(c.branchId);
     setEditStatus(c.status);
   };
 
@@ -162,7 +173,7 @@ export const AllCounsellors: React.FC = () => {
       employeeCode: editCode,
       email: editEmail,
       phone: editPhone,
-      branchName: editBranch,
+      branchId: editBranchId,
       status: editStatus,
     });
 
@@ -347,7 +358,7 @@ export const AllCounsellors: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <span className="inline-flex items-center gap-1 text-xs font-medium text-text-primary">
-                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {c.branchName}
+                      <Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {branches.find(b => b.id === c.branchId)?.name || "Unknown Branch"}
                     </span>
                   </TableCell>
                   <TableCell>
@@ -484,6 +495,31 @@ export const AllCounsellors: React.FC = () => {
 
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
+              {isCenterManager ? (
+                <Input 
+                  value={branches.find(b => b.id === branchId)?.name || branchId} 
+                  disabled 
+                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                />
+              ) : (
+                <select
+                  value={branchId}
+                  onChange={(e) => setBranchId(e.target.value)}
+                  required
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                >
+                  <option value="" disabled>Select a branch</option>
+                  {branches.length === 0 ? (
+                    <option value="" disabled>Loading branches...</option>
+                  ) : (
+                    branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
               <select
                 value={selectedBranchId}
                 onChange={(e) => {
@@ -589,6 +625,31 @@ export const AllCounsellors: React.FC = () => {
 
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
+              {isCenterManager ? (
+                <Input 
+                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId} 
+                  disabled 
+                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                />
+              ) : (
+                <select
+                  value={editBranchId}
+                  onChange={(e) => setEditBranchId(e.target.value)}
+                  required
+                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                >
+                  <option value="" disabled>Select a branch</option>
+                  {branches.length === 0 ? (
+                    <option value="" disabled>Loading branches...</option>
+                  ) : (
+                    branches.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.name}
+                      </option>
+                    ))
+                  )}
+                </select>
+              )}
               <select
                 value={editBranch}
                 onChange={(e) => setEditBranch(e.target.value)}
