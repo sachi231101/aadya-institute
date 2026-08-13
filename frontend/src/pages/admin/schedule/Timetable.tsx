@@ -6,18 +6,32 @@ import {
   UserCheck, 
   BookOpen,
   Filter,
-  Loader2
+  Loader2,
+  Edit,
+  CheckCircle2
 } from "lucide-react";
 import { useScheduleStore } from "../../../store/schedule.store";
 import { useCourseStore } from "../../../store/course.store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useFacultyList } from "../../../hooks/useFaculty";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { EditClassModal } from "./EditClassModal";
+import type { ClassSession, ClassMode, ClassStatus } from "../../../types/schedule.types";
 
 export const Timetable: React.FC = () => {
   const { classes, isLoading, fetchClasses } = useScheduleStore();
   const { batches, fetchBatches } = useCourseStore();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyList = facultyResponse?.data ?? [];
 
   useEffect(() => {
     fetchClasses();
@@ -25,14 +39,37 @@ export const Timetable: React.FC = () => {
   }, []);
 
   const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("ALL");
+  const [editingSession, setEditingSession] = useState<ClassSession | null>(null);
 
   const filteredClasses = classes.filter((cls) => {
-    return selectedBatch === "ALL" || cls.batchId === selectedBatch;
+    const matchesBatch = selectedBatch === "ALL" || cls.batchId === selectedBatch;
+    const matchesFaculty = selectedFaculty === "ALL" || cls.facultyId === selectedFaculty;
+    return matchesBatch && matchesFaculty;
+  }).sort((a, b) => {
+    const dateA = new Date(`${a.date}T${a.startTime.split(' ')[0]}`);
+    const dateB = new Date(`${b.date}T${b.startTime.split(' ')[0]}`);
+    return dateA.getTime() - dateB.getTime();
   });
 
   const getDayName = (dateString: string) => {
     const d = new Date(dateString);
-    return d.toLocaleDateString("en-US", { weekday: "long" });
+    return d.toLocaleDateString("en-US", { weekday: "short" });
+  };
+
+  const getStatusBadge = (st: ClassStatus) => {
+    switch (st) {
+      case "ONGOING":
+        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800">Ongoing</Badge>;
+      case "UPCOMING":
+        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Upcoming</Badge>;
+      case "COMPLETED":
+        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Completed</Badge>;
+      case "CANCELLED":
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{st}</Badge>;
+    }
   };
 
   return (
@@ -42,24 +79,24 @@ export const Timetable: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">Academy Timetable</h2>
           <p className="text-sm text-text-secondary">
-            Weekly matrix grid view of batch schedules, faculty slots, and classroom availability.
+            Weekly data view of classes assigned to each faculty with editing access.
           </p>
         </div>
       </div>
 
       {/* Filter Controls */}
       <Card className="border-border/50 shadow-sm bg-bg-primary">
-        <CardContent className="p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+        <CardContent className="p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm font-semibold text-text-primary whitespace-nowrap">
             <Filter className="h-4 w-4 text-[#1769AA]" />
             <span>Filter Timetable View:</span>
           </div>
 
-          <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <select
               value={selectedBatch}
               onChange={(e) => setSelectedBatch(e.target.value)}
-              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA] w-full sm:w-64"
+              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA] min-w-[200px]"
             >
               <option value="ALL">All Cohort Batches</option>
               {batches.map((b) => (
@@ -68,88 +105,136 @@ export const Timetable: React.FC = () => {
                 </option>
               ))}
             </select>
+            
+            <select
+              value={selectedFaculty}
+              onChange={(e) => setSelectedFaculty(e.target.value)}
+              className="h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA] min-w-[200px]"
+            >
+              <option value="ALL">All Faculties</option>
+              {facultyList.map((f) => (
+                <option key={f.id} value={f.id}>
+                  {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
+                </option>
+              ))}
+            </select>
           </div>
         </CardContent>
       </Card>
 
-      {/* Weekly Matrix Grid */}
-      <div className="space-y-6">
-        {isLoading ? (
-          <div className="p-12 text-center text-slate-500 flex items-center justify-center gap-2 bg-white rounded-lg border border-slate-200 shadow-sm">
-            <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
-            Loading academy timetable grid...
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {DAYS.map((day) => {
-              const dayClasses = filteredClasses.filter((cls) => {
-                const dayName = getDayName(cls.date);
-                return dayName === day;
-              });
-
-            return (
-              <Card key={day} className="border-border/50 bg-white shadow-sm hover:shadow-md transition-shadow">
-                <CardHeader className="p-4 bg-slate-50 border-b border-slate-100 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-[#1769AA]" />
-                    {day}
-                  </CardTitle>
-                  <Badge variant="outline" className="bg-white text-slate-700 text-xs">
-                    {dayClasses.length} Sessions
-                  </Badge>
-                </CardHeader>
-
-                <CardContent className="p-4 space-y-3">
-                  {dayClasses.length > 0 ? (
-                    dayClasses.map((cls) => (
-                      <div 
-                        key={cls.id} 
-                        className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 hover:bg-slate-50 transition-colors space-y-2"
-                      >
-                        <div className="flex justify-between items-start gap-2">
-                          <Badge variant="outline" className="font-mono text-xs text-[#1769AA] bg-blue-50 border-blue-200">
-                            {cls.batchCode}
-                          </Badge>
-                          <Badge variant="secondary" className="text-[10px] bg-slate-200 text-slate-800">
-                            {cls.mode}
-                          </Badge>
-                        </div>
-
-                        <h4 className="text-sm font-bold text-slate-900 line-clamp-1">
-                          {cls.title}
-                        </h4>
-
-                        <div className="space-y-1 text-xs text-slate-600">
-                          <div className="flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{cls.startTime} - {cls.endTime}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <UserCheck className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{cls.facultyName}</span>
-                          </div>
-
-                          <div className="flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-slate-400" />
-                            <span>{cls.roomNo}</span>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="py-8 text-center text-xs text-slate-400">
-                      <BookOpen className="mx-auto h-8 w-8 text-slate-200 mb-1" />
-                      <span>No classes scheduled for {day}.</span>
+      {/* Table Grid */}
+      <Card className="border-border/50 shadow-sm bg-white overflow-hidden">
+        <Table>
+          <TableHeader className="bg-slate-50">
+            <TableRow>
+              <TableHead className="font-semibold text-slate-700">Date & Time</TableHead>
+              <TableHead className="font-semibold text-slate-700">Faculty</TableHead>
+              <TableHead className="font-semibold text-slate-700">Class & Batch</TableHead>
+              <TableHead className="font-semibold text-slate-700">Location/Mode</TableHead>
+              <TableHead className="font-semibold text-slate-700">Status</TableHead>
+              <TableHead className="text-right font-semibold text-slate-700">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading ? (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                    Loading academy timetable...
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : filteredClasses.length > 0 ? (
+              filteredClasses.map((cls) => (
+                <TableRow key={cls.id} className="hover:bg-slate-50/50 transition-colors">
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <span className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                        <CalendarIcon className="h-3.5 w-3.5 text-slate-400" />
+                        {cls.date} <span className="text-xs text-slate-500">({getDayName(cls.date)})</span>
+                      </span>
+                      <span className="text-xs text-slate-600 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        {cls.startTime} - {cls.endTime}
+                      </span>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        )}
-      </div>
+                  </TableCell>
+                  
+                  <TableCell>
+                    <span className="text-sm font-medium text-slate-800 flex items-center gap-1.5">
+                      <UserCheck className="h-4 w-4 text-slate-400" />
+                      {cls.facultyName}
+                    </span>
+                  </TableCell>
+
+                  <TableCell>
+                    <div>
+                      <span className="font-semibold text-slate-800 text-sm block">
+                        {cls.title}
+                      </span>
+                      <div className="mt-1 flex items-center gap-2">
+                        <Badge variant="outline" className="font-mono text-[10px] text-[#1769AA] border-blue-200 bg-blue-50">
+                          {cls.batchCode}
+                        </Badge>
+                      </div>
+                    </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1 text-xs text-slate-700">
+                        <MapPin className="h-3.5 w-3.5 text-slate-400" />
+                        <span>{cls.roomNo}</span>
+                      </div>
+                      <Badge variant="secondary" className="text-[10px] bg-slate-100 text-slate-600">
+                        {cls.mode}
+                      </Badge>
+                    </div>
+                  </TableCell>
+
+                  <TableCell>
+                    <div className="space-y-1">
+                      {getStatusBadge(cls.status)}
+                      {cls.attendanceMarked && (
+                        <span className="text-[10px] text-emerald-600 font-semibold flex items-center gap-1 mt-1">
+                          <CheckCircle2 className="h-3 w-3" /> Marked
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
+
+                  <TableCell className="text-right">
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-[#1769AA] hover:text-[#1769AA] hover:bg-blue-50"
+                      onClick={() => setEditingSession(cls)}
+                    >
+                      <Edit className="h-4 w-4 mr-1" />
+                      Edit
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell colSpan={6} className="h-32 text-center text-slate-500">
+                  <BookOpen className="mx-auto h-8 w-8 text-slate-300 mb-2" />
+                  No class sessions found matching your filters.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+      
+      {editingSession && (
+        <EditClassModal 
+          session={editingSession} 
+          onClose={() => setEditingSession(null)} 
+        />
+      )}
     </div>
   );
 };

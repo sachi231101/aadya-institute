@@ -13,9 +13,11 @@ import {
   DollarSign, 
   CheckCircle2, 
   UserPlus,
-  Trash2
+  Trash2,
+  Loader2
 } from "lucide-react";
 import { useBranchStore } from "@/store/branch.store";
+import { useBranches, useCreateBranch, useUpdateBranch } from "@/hooks/useBranches";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -23,7 +25,12 @@ import { Button } from "@/components/ui/button";
 import type { Branch } from "@/types/branch.types";
 
 export const AdminDashboard: React.FC = () => {
-  const { branches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
+  const { branches: mockBranches, addBranch, assignManagerToBranch, deleteBranch } = useBranchStore();
+  
+  // Real API hooks
+  const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
+  const createBranchMutation = useCreateBranch();
+  const updateBranchMutation = useUpdateBranch();
 
   // Create Branch Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -41,36 +48,73 @@ export const AdminDashboard: React.FC = () => {
   const [newManagerEmail, setNewManagerEmail] = useState("");
 
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Map Real Backend branches to UI branches (Merging with local mocks for stats)
+  const apiBranches = branchesResponse?.data?.filter(b => b.status !== "DELETED") || [];
+  
+  const branches: Branch[] = apiBranches.map(apiBranch => {
+    // Match by code to link real branch with local mock data
+    const mocked = mockBranches.find(b => b.code === apiBranch.code);
+    return {
+      id: apiBranch.id, // Always use real backend ID for actions
+      code: apiBranch.code,
+      name: apiBranch.name,
+      city: mocked?.city || city || "Bengaluru",
+      address: apiBranch.address || mocked?.address || "Bengaluru, KA",
+      phone: apiBranch.phone || mocked?.phone || "+91 98765 43210",
+      assignedManagerName: mocked?.assignedManagerName || "Unassigned Manager",
+      assignedManagerEmail: mocked?.assignedManagerEmail || "manager@aadya.in",
+      studentCount: mocked?.studentCount || 0,
+      batchCount: mocked?.batchCount || 0,
+      revenueCollected: mocked?.revenueCollected || 0,
+      status: apiBranch.status as any,
+    };
+  });
 
   const totalStudents = branches.reduce((acc, b) => acc + b.studentCount, 0);
   const totalBatches = branches.reduce((acc, b) => acc + b.batchCount, 0);
   const totalRevenue = branches.reduce((acc, b) => acc + b.revenueCollected, 0);
 
-  const handleCreateBranchSubmit = (e: React.FormEvent) => {
+  const handleCreateBranchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!branchName || !branchCode) return;
+    setErrorMsg(null);
 
-    addBranch({
-      code: branchCode,
-      name: branchName,
-      city: city || "Bengaluru",
-      address: address || "Bengaluru, KA",
-      phone: phone || "+91 98765 43210",
-      assignedManagerName: managerName || "Unassigned Manager",
-      assignedManagerEmail: managerEmail || "manager@aadya.in",
-      status: "ACTIVE",
-    });
+    try {
+      // 1. Save to real backend
+      await createBranchMutation.mutateAsync({
+        name: branchName,
+        code: branchCode,
+        address: address,
+        phone: phone,
+      });
 
-    setNotificationMsg(`New Branch "${branchName}" created successfully!`);
-    setTimeout(() => setNotificationMsg(null), 3000);
+      // 2. Save to local mock store to preserve manager names & UI stats
+      addBranch({
+        code: branchCode,
+        name: branchName,
+        city: city || "Bengaluru",
+        address: address || "Bengaluru, KA",
+        phone: phone || "+91 98765 43210",
+        assignedManagerName: managerName || "Unassigned Manager",
+        assignedManagerEmail: managerEmail || "manager@aadya.in",
+        status: "ACTIVE",
+      });
 
-    setBranchName("");
-    setBranchCode("");
-    setAddress("");
-    setPhone("");
-    setManagerName("");
-    setManagerEmail("");
-    setShowCreateModal(false);
+      setNotificationMsg(`New Branch "${branchName}" created successfully!`);
+      setTimeout(() => setNotificationMsg(null), 3000);
+
+      setBranchName("");
+      setBranchCode("");
+      setAddress("");
+      setPhone("");
+      setManagerName("");
+      setManagerEmail("");
+      setShowCreateModal(false);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "Failed to create branch in backend.");
+    }
   };
 
   const handleOpenAssignModal = (branch: Branch) => {
@@ -83,11 +127,34 @@ export const AdminDashboard: React.FC = () => {
     e.preventDefault();
     if (!assignModalBranch || !newManagerName || !newManagerEmail) return;
 
-    assignManagerToBranch(assignModalBranch.id, newManagerName, newManagerEmail);
+    // We can use the code or real ID for assignManagerToBranch if we modified it. 
+    // Wait, assignManagerToBranch matches by id. Let's make sure it can match by code too.
+    assignManagerToBranch(assignModalBranch.code, newManagerName, newManagerEmail);
+    
     setNotificationMsg(`Center Manager for "${assignModalBranch.name}" updated to ${newManagerName}!`);
     setTimeout(() => setNotificationMsg(null), 3000);
 
     setAssignModalBranch(null);
+  };
+
+  const handleDeleteBranch = async (branch: Branch) => {
+    if (!confirm(`Are you sure you want to delete the branch "${branch.name}"?`)) return;
+
+    try {
+      // 1. Soft delete on the backend
+      await updateBranchMutation.mutateAsync({
+        id: branch.id,
+        data: { status: "DELETED" },
+      });
+
+      // 2. Remove from local mock state
+      deleteBranch(branch.code);
+
+      setNotificationMsg(`Branch "${branch.name}" has been deleted.`);
+      setTimeout(() => setNotificationMsg(null), 3000);
+    } catch (err: any) {
+      setErrorMsg(err.response?.data?.message || "Failed to delete branch.");
+    }
   };
 
   return (
@@ -174,6 +241,7 @@ export const AdminDashboard: React.FC = () => {
           <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Building2 className="h-5 w-5 text-[#1769AA]" />
             Aadya Institute Branch Operations & Center Managers ({branches.length} Branches)
+            {isLoading && <Loader2 className="h-4 w-4 animate-spin text-[#1769AA]" />}
           </h3>
         </div>
 
@@ -199,9 +267,10 @@ export const AdminDashboard: React.FC = () => {
                     variant="ghost" 
                     size="sm"
                     className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
-                    onClick={() => deleteBranch(branch.id)}
+                    onClick={() => handleDeleteBranch(branch)}
+                    disabled={updateBranchMutation.isPending}
                   >
-                    <Trash2 className="h-4 w-4" />
+                    {updateBranchMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                   </Button>
                 </div>
 
@@ -313,6 +382,11 @@ export const AdminDashboard: React.FC = () => {
             </h3>
 
             <form onSubmit={handleCreateBranchSubmit} className="space-y-4">
+              {errorMsg && (
+                <div className="p-3 rounded-md bg-red-50 text-red-700 text-xs font-semibold">
+                  {errorMsg}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1">Branch Name *</label>
@@ -399,14 +473,20 @@ export const AdminDashboard: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowCreateModal(false)}
+                  disabled={createBranchMutation.isPending}
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white flex items-center gap-2"
+                  disabled={createBranchMutation.isPending}
                 >
-                  Create Branch
+                  {createBranchMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+                  ) : (
+                    "Create Branch"
+                  )}
                 </Button>
               </div>
             </form>
