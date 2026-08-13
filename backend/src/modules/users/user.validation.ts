@@ -1,12 +1,20 @@
 import { z } from "zod";
 
+const phoneSchema = z.preprocess(
+  (val) => {
+    if (typeof val === "string" && val.trim() !== "") {
+      const digits = val.replace(/\D/g, "");
+      return digits.length >= 10 ? digits.slice(-10) : val;
+    }
+    return val;
+  },
+  z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional()
+);
+
 export const createUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
   email: z.string().email("Invalid email").trim().toLowerCase().optional(),
-  phone: z
-    .string()
-    .regex(/^\d{10}$/, "Phone must be a 10-digit number")
-    .optional(),
+  phone: phoneSchema,
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -15,7 +23,7 @@ export const createUserSchema = z.object({
   roles: z
     .array(z.string().min(1))
     .min(1, "At least one role is required"),
-  branchId: z.string().cuid("Invalid branch ID").optional(),
+  branchId: z.string().optional(),
 }).refine((data) => data.email || data.phone, {
   message: "At least one of email or phone is required",
   path: ["email"],
@@ -24,8 +32,8 @@ export const createUserSchema = z.object({
 export const updateUserSchema = z.object({
   name: z.string().min(2).trim().optional(),
   email: z.string().email().trim().toLowerCase().optional(),
-  phone: z.string().regex(/^\d{10}$/).optional(),
-  branchId: z.string().cuid().optional().nullable(),
+  phone: phoneSchema,
+  branchId: z.string().optional().nullable(),
 });
 
 const statusEnum = z.preprocess(
@@ -42,7 +50,7 @@ export const userListQuerySchema = z.object({
   limit: z.coerce.number().int().positive().max(100).optional(),
   search: z.string().trim().optional(),
   role: z.string().optional(),
-  branchId: z.string().cuid().optional(),
+  branchId: z.string().optional(),
   status: statusEnum.optional(),
 });
 

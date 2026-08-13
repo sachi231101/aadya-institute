@@ -29,7 +29,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
           email: u.email || "",
           phone: u.phone || "",
           branchId: u.branchId || "main",
-          branchName: "Main Campus",
+          branchName: u.branch?.name || "Aadya Central Branch",
           assignedLeadsCount: 0,
           activeStudentsCount: 0,
           status: u.status === "ACTIVE" ? "ACTIVE" : u.status === "INACTIVE" ? "INACTIVE" : "ON_LEAVE",
@@ -45,10 +45,12 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
   },
 
   addCounselor: async (payload) => {
+    set({ isLoading: true, error: null });
     try {
       const res = await usersApi.createUser({
         name: payload.name,
         email: payload.email,
+        phone: payload.phone,
         password: payload.password || "Password@123",
         roles: ["COUNSELLOR"],
         branchId: payload.branchId || undefined,
@@ -56,6 +58,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
 
       if (res.success && res.data) {
         await get().fetchCounselors();
+        set({ isLoading: false });
         const createdUser = res.data;
         return {
           id: createdUser.id,
@@ -64,16 +67,22 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
           email: createdUser.email || "",
           phone: createdUser.phone || "",
           branchId: createdUser.branchId || "main",
-          branchName: payload.branchName || "Main Campus",
+          branchName: payload.branchName || "Aadya Central Branch",
           assignedLeadsCount: 0,
           activeStudentsCount: 0,
           status: payload.status || "ACTIVE",
           createdAt: createdUser.createdAt,
         };
       }
+      set({ isLoading: false });
       return null;
     } catch (err: any) {
-      set({ error: err.message || "Failed to add counselor" });
+      const backendErr = err.response?.data;
+      let errMsg = backendErr?.message || err.message || "Failed to add counselor";
+      if (backendErr?.errors && Array.isArray(backendErr.errors) && backendErr.errors.length > 0) {
+        errMsg = backendErr.errors.map((e: any) => e.message || e.field).join(". ");
+      }
+      set({ error: errMsg, isLoading: false });
       return null;
     }
   },
@@ -97,7 +106,12 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       }
       return false;
     } catch (err: any) {
-      set({ error: err.message || "Failed to update counselor" });
+      const backendErr = err.response?.data;
+      let errMsg = backendErr?.message || err.message || "Failed to update counselor";
+      if (backendErr?.errors && Array.isArray(backendErr.errors) && backendErr.errors.length > 0) {
+        errMsg = backendErr.errors.map((e: any) => e.message || e.field).join(". ");
+      }
+      set({ error: errMsg, isLoading: false });
       return false;
     }
   },

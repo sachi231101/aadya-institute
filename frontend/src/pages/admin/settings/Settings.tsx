@@ -75,7 +75,7 @@ export const Settings: React.FC = () => {
   const [aiCallAlerts, setAiCallAlerts] = useState(true);
 
   // System Preferences State
-  const [primaryBranch, setPrimaryBranch] = useState("Main Campus - Bengaluru");
+  const [primaryBranch, setPrimaryBranch] = useState("Aadya Central Branch - Bengaluru");
   const [currencyFormat, setCurrencyFormat] = useState("INR (₹)");
   const [themeMode, setThemeMode] = useState("LIGHT");
   const [autoLogoutMinutes, setAutoLogoutMinutes] = useState(30);
@@ -101,7 +101,7 @@ export const Settings: React.FC = () => {
       setWhatsappReminders(data.settings.whatsappReminders);
       setAiCallAlerts(data.settings.aiCallAlerts);
 
-      setPrimaryBranch(data.settings.primaryBranch || "Main Campus - Bengaluru");
+      setPrimaryBranch(data.settings.primaryBranch || "Aadya Central Branch - Bengaluru");
       setCurrencyFormat(data.settings.currencyFormat || "INR (₹)");
       setThemeMode(data.settings.themeMode || "LIGHT");
       setAutoLogoutMinutes(data.settings.autoLogoutMinutes || 30);
@@ -777,7 +777,7 @@ export const Settings: React.FC = () => {
                   onChange={(e) => handleSystemSettingChange("branch", e.target.value)}
                   className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                 >
-                  <option value="Main Campus - Bengaluru">Main Campus - Bengaluru</option>
+                  <option value="Aadya Central Branch - Bengaluru">Aadya Central Branch - Bengaluru</option>
                   <option value="North Branch - Indiranagar">North Branch - Indiranagar</option>
                 </select>
               </div>

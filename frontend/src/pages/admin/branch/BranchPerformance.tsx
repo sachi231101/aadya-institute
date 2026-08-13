@@ -4,8 +4,8 @@ import { ArrowLeft, Users, GraduationCap, Calendar, DollarSign, Activity, MapPin
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useBranchStore } from "@/store/branch.store";
-import { useBranches } from "@/hooks/useBranches";
+import { useBranches, useBranch, useBranchStats } from "@/hooks/useBranches";
+import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
 import {
   LineChart,
   Line,
@@ -22,37 +22,7 @@ import {
   Cell
 } from "recharts";
 
-const revenueData = [
-  { name: "Jan", revenue: 45000 },
-  { name: "Feb", revenue: 52000 },
-  { name: "Mar", revenue: 38000 },
-  { name: "Apr", revenue: 65000 },
-  { name: "May", revenue: 59000 },
-  { name: "Jun", revenue: 72000 },
-];
-
-const studentJoinData = [
-  { name: "Jan", joined: 45 },
-  { name: "Feb", joined: 60 },
-  { name: "Mar", joined: 35 },
-  { name: "Apr", joined: 75 },
-  { name: "May", joined: 90 },
-  { name: "Jun", joined: 110 },
-];
-
-const studentJoinWeeklyData = [
-  { name: "Week 1", joined: 12 },
-  { name: "Week 2", joined: 18 },
-  { name: "Week 3", joined: 8 },
-  { name: "Week 4", joined: 24 },
-];
-
-const courseSalesData = [
-  { name: "MERN Stack", value: 45 },
-  { name: "Data Science", value: 30 },
-  { name: "Python", value: 25 },
-];
-const COLORS = ["#4f46e5", "#0ea5e9", "#8b5cf6"];
+const COLORS = ["#4f46e5", "#0ea5e9", "#8b5cf6", "#10b981", "#f59e0b"];
 
 export const BranchPerformance: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -60,25 +30,50 @@ export const BranchPerformance: React.FC = () => {
 
   const [enrollmentView, setEnrollmentView] = useState<'monthly' | 'weekly'>('monthly');
 
-  // Get real branches
+  // Fetch branch details, stats, and reports from backend
+  const { data: branchDetailResponse } = useBranch(id);
+  const { data: statsResponse } = useBranchStats(id);
   const { data: branchesResponse } = useBranches({ limit: 100 });
-  const apiBranch = branchesResponse?.data?.find((b) => b.id === id);
 
-  // Also get mock store to combine data if needed
-  const { branches: mockBranches } = useBranchStore();
-  const mockedBranch = mockBranches.find((b) => b.code === apiBranch?.code) || mockBranches.find(b => b.code === id); // fallback for purely mocked
+  const { data: financialReport } = useFinancialReport(id);
+  const { data: studentReport } = useStudentReport(id);
 
-  // Combine data
-  const branchName = apiBranch?.name || mockedBranch?.name || "Unknown Branch";
-  const branchCode = apiBranch?.code || mockedBranch?.code || "N/A";
-  const address = apiBranch?.address || mockedBranch?.address || "Location Unavailable";
-  const phone = apiBranch?.phone || mockedBranch?.phone || "N/A";
-  const status = apiBranch?.status || mockedBranch?.status || "UNKNOWN";
+  const apiBranch = branchDetailResponse?.data || branchesResponse?.data?.find((b) => b.id === id);
 
-  const studentCount = mockedBranch?.studentCount || Math.floor(Math.random() * 200) + 50;
-  const facultyCount = Math.floor(studentCount / 15) + 1;
-  const batchCount = mockedBranch?.batchCount || Math.floor(studentCount / 20) + 1;
-  const revenueCollected = mockedBranch?.revenueCollected || studentCount * 12000;
+  // Resolved branch details
+  const branchName = apiBranch?.name || "Branch";
+  const branchCode = apiBranch?.code || "N/A";
+  const address = apiBranch?.address || "N/A";
+  const phone = apiBranch?.phone || "N/A";
+  const status = apiBranch?.status || "ACTIVE";
+
+  // Dynamic Chart Data from PostgreSQL Reports API
+  const revenueData = financialReport?.monthlyTrend?.map((item) => ({
+    name: item.month,
+    revenue: item.collected,
+  })) ?? [];
+
+  const studentJoinData = studentReport?.enrollmentTrend?.map((item) => ({
+    name: item.month,
+    joined: item.students,
+  })) ?? [];
+
+  const courseSalesData = studentReport?.courseShare?.map((item) => ({
+    name: item.name,
+    value: item.value,
+  })) ?? [];
+
+  // Dynamic Metrics from PostgreSQL
+  const realStats = statsResponse?.data;
+  const studentCount = realStats?.totalStudents ?? studentReport?.summary?.totalStudents ?? 0;
+  const facultyCount = realStats?.totalFaculty ?? 0;
+  const batchCount = realStats?.totalBatches ?? 0;
+  const revenueCollected = financialReport?.summary?.totalCollected ?? 0;
+
+  // Dynamic Recent Student Activities
+  const branchStudents = studentReport?.students ?? [];
+
+
 
   return (
     <div className="space-y-6 animate-in fade-in">
@@ -217,7 +212,7 @@ export const BranchPerformance: React.FC = () => {
           <CardContent>
             <div className="h-[300px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={enrollmentView === 'monthly' ? studentJoinData : studentJoinWeeklyData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
+                <BarChart data={studentJoinData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#64748b' }} dx={-10} />
@@ -237,7 +232,7 @@ export const BranchPerformance: React.FC = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-lg font-bold flex items-center gap-2">
               <BookOpen className="h-5 w-5 text-pink-500" />
-              Course Sales in Month
+              Course Share in Branch
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -258,7 +253,7 @@ export const BranchPerformance: React.FC = () => {
                   </Pie>
                   <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`${value} Sales`, 'Courses']}
+                    formatter={(value: number) => [`${value} Enrolled`, 'Students']}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: '12px' }} />
                 </PieChart>
@@ -278,34 +273,23 @@ export const BranchPerformance: React.FC = () => {
         </CardHeader>
         <CardContent className="pt-4">
           <div className="space-y-3">
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-sm flex justify-between items-center hover:bg-slate-100 transition-colors">
-              <div>
-                <span className="font-semibold text-slate-800">New Admission:</span>
-                <span className="text-slate-600 ml-2">Rahul Verma joined MERN Stack Batch B3.</span>
+            {branchStudents.length > 0 ? (
+              branchStudents.slice(0, 5).map((student) => (
+                <div key={student.id} className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-sm flex justify-between items-center hover:bg-slate-100 transition-colors">
+                  <div>
+                    <span className="font-semibold text-slate-800">Student Record:</span>
+                    <span className="text-slate-600 ml-2">{student.name} ({student.studentCode}) — {student.courseName}</span>
+                  </div>
+                  <Badge variant={student.riskFlag === "Normal" ? "outline" : "destructive"} className="text-xs bg-white">
+                    {student.riskFlag === "Normal" ? `${student.attendancePercentage}% Attendance` : student.riskFlag}
+                  </Badge>
+                </div>
+              ))
+            ) : (
+              <div className="p-6 text-center text-slate-500 text-sm">
+                No recent operational activity recorded for this branch.
               </div>
-              <Badge variant="outline" className="text-xs bg-white text-slate-500">2 hours ago</Badge>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-sm flex justify-between items-center hover:bg-slate-100 transition-colors">
-              <div>
-                <span className="font-semibold text-slate-800">Faculty Assigned:</span>
-                <span className="text-slate-600 ml-2">Priya Sharma assigned to Python Basics.</span>
-              </div>
-              <Badge variant="outline" className="text-xs bg-white text-slate-500">5 hours ago</Badge>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-sm flex justify-between items-center hover:bg-slate-100 transition-colors">
-              <div>
-                <span className="font-semibold text-slate-800">Fee Collected:</span>
-                <span className="text-slate-600 ml-2">₹15,000 collected for Data Science batch.</span>
-              </div>
-              <Badge variant="outline" className="text-xs bg-white text-slate-500">1 day ago</Badge>
-            </div>
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-sm flex justify-between items-center hover:bg-slate-100 transition-colors">
-              <div>
-                <span className="font-semibold text-slate-800">AI Caller Lead:</span>
-                <span className="text-slate-600 ml-2">Warm lead generated by Sarvam AI.</span>
-              </div>
-              <Badge variant="outline" className="text-xs bg-white text-slate-500">1 day ago</Badge>
-            </div>
+            )}
           </div>
         </CardContent>
       </Card>

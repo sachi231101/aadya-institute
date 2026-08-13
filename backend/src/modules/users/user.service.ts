@@ -29,8 +29,8 @@ const getInstituteId = (currentUser: AuthUser): string => {
  * see/create users in their own branch.
  */
 const getBranchFilter = (currentUser: AuthUser, requestedBranchId?: string): string | undefined => {
-  if (currentUser.roles.includes("ADMIN")) {
-    return requestedBranchId; // Admin can filter by any branch or see all
+  if (currentUser.roles.includes("ADMIN") || currentUser.roles.includes("COUNSELLOR")) {
+    return requestedBranchId; // Admin & Counsellor can filter by requested branch or see all
   }
   if (currentUser.roles.includes("CENTER_MANAGER")) {
     // Always enforce the manager's own branch — ignore any branchId from request

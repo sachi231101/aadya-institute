@@ -9,6 +9,7 @@ const userInclude = {
       role: true,
     },
   },
+  branch: true,
 } satisfies Prisma.UserInclude;
 
 // ─── Shape helpers ─────────────────────────────────────────────────────────────
@@ -23,6 +24,7 @@ export const mapUserToResponse = (user: UserWithRoles) => ({
   status: user.status,
   instituteId: user.instituteId,
   branchId: user.branchId,
+  branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
   roles: user.userRoles.map((ur) => ur.role.name),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
@@ -47,7 +49,14 @@ export const findUsers = async (params: {
     ...(status && { status }),
     ...(role && {
       userRoles: {
-        some: { role: { name: role } },
+        some: {
+          role: {
+            name: {
+              equals: role,
+              mode: "insensitive",
+            },
+          },
+        },
       },
     }),
     ...(search && {

@@ -81,7 +81,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     dashboardPath: "/center/dashboard",
     demoUser: {
       id: "cm-001",
-      name: "Rajesh Kumar (Center Manager)",
+      name: "Center Manager",
       email: "center.manager@aadya.in",
       phone: "+91 99999 11111",
       role: "CENTER_MANAGER",
@@ -105,7 +105,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     dashboardPath: "/counselor/dashboard",
     demoUser: {
       id: "cns-001",
-      name: "Kavita Nair (Counsellor)",
+      name: "Counsellor User",
       email: "counselor@aadya.in",
       phone: "+91 98765 11223",
       role: "COUNSELLOR",
@@ -129,7 +129,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     dashboardPath: "/faculty/dashboard",
     demoUser: {
       id: "fac-001",
-      name: "Prof. Dr. Rajesh Sharma (Faculty)",
+      name: "Faculty Instructor",
       email: "faculty@aadya.in",
       phone: "+91 98765 99887",
       role: "FACULTY",
@@ -153,7 +153,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     dashboardPath: "/student/dashboard",
     demoUser: {
       id: "stu-001",
-      name: "Rahul Verma (Student)",
+      name: "Enrolled Student",
       email: "student@aadya.in",
       phone: "+91 98765 44332",
       role: "STUDENT",

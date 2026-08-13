@@ -198,44 +198,83 @@ export class NotificationRepository {
    * Seed realistic initial system notifications
    */
   private static async seedInitialNotifications(instituteId: string, userId: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { userRoles: { include: { role: true } } },
+    });
+
+    const roles = user?.userRoles.map((ur) => ur.role.name) || [];
+    const isCounselor = roles.includes("COUNSELLOR") && !roles.includes("ADMIN");
+
     const now = new Date();
-    const initialEvents = [
-      {
-        title: "New Admission Confirmed",
-        message: "Student Rahul Sharma has completed enrollment for Full-Stack Web Development batch.",
-        type: "ADMISSION" as NotificationType,
-        link: "/admin/students",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 12), // 12 mins ago
-      },
-      {
-        title: "Fee Payment Received",
-        message: "Received ₹25,000 via UPI for Installment #1 from Priya Patel.",
-        type: "PAYMENT" as NotificationType,
-        link: "/admin/fees/payments",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 45), // 45 mins ago
-      },
-      {
-        title: "Attendance Risk Alert",
-        message: "Student Vikram Singh missed 3 consecutive theory classes in Data Science batch.",
-        type: "DISCONTINUATION_RISK" as NotificationType,
-        link: "/admin/students/attendance",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 180), // 3 hours ago
-      },
-      {
-        title: "AI Voice Call Completed",
-        message: "Lead Ananya Roy indicated high admission intent during Sarvam AI automated call.",
-        type: "AI_CALL" as NotificationType,
-        link: "/admin/admissions/enquiries",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 360), // 6 hours ago
-      },
-      {
-        title: "Class Session Scheduled",
-        message: "New Class Session 'React Hooks & State Management' scheduled for tomorrow 10:00 AM.",
-        type: "CLASS_SESSION" as NotificationType,
-        link: "/admin/courses/batches",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 720), // 12 hours ago
-      },
-    ];
+    const initialEvents = isCounselor
+      ? [
+          {
+            title: "New Lead Assigned",
+            message: "Prospective student lead Ananya Roy assigned for counselling follow-up.",
+            type: "AI_CALL" as NotificationType,
+            link: "/counselor/admissions/enquiries",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 15),
+          },
+          {
+            title: "AI Voice Call Summary Ready",
+            message: "Sarvam AI voice call completed with High Interest status for lead Ananya Roy.",
+            type: "AI_CALL" as NotificationType,
+            link: "/counselor/admissions/enquiries",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 45),
+          },
+          {
+            title: "New Student Application",
+            message: "Student Application submitted for Full-Stack Web Development course.",
+            type: "ADMISSION" as NotificationType,
+            link: "/counselor/admissions/applications",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 180),
+          },
+          {
+            title: "Counsellor Follow-up Reminder",
+            message: "Scheduled follow-up call with prospective student Rahul Verma.",
+            type: "SYSTEM" as NotificationType,
+            link: "/counselor/dashboard",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 360),
+          },
+        ]
+      : [
+          {
+            title: "New Admission Confirmed",
+            message: "Student Rahul Sharma has completed enrollment for Full-Stack Web Development batch.",
+            type: "ADMISSION" as NotificationType,
+            link: "/admin/students",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 12),
+          },
+          {
+            title: "Fee Payment Received",
+            message: "Received ₹25,000 via UPI for Installment #1 from Priya Patel.",
+            type: "PAYMENT" as NotificationType,
+            link: "/admin/fees/payments",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 45),
+          },
+          {
+            title: "Attendance Risk Alert",
+            message: "Student Vikram Singh missed 3 consecutive theory classes in Data Science batch.",
+            type: "DISCONTINUATION_RISK" as NotificationType,
+            link: "/admin/students/attendance",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 180),
+          },
+          {
+            title: "AI Voice Call Completed",
+            message: "Lead Ananya Roy indicated high admission intent during Sarvam AI automated call.",
+            type: "AI_CALL" as NotificationType,
+            link: "/admin/admissions/enquiries",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 360),
+          },
+          {
+            title: "Class Session Scheduled",
+            message: "New Class Session 'React Hooks & State Management' scheduled for tomorrow 10:00 AM.",
+            type: "CLASS_SESSION" as NotificationType,
+            link: "/admin/courses/batches",
+            createdAt: new Date(now.getTime() - 1000 * 60 * 720),
+          },
+        ];
 
     for (const item of initialEvents) {
       await prisma.notification.create({

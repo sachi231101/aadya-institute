@@ -38,7 +38,7 @@ export const CenterDashboard: React.FC = () => {
             Center Manager Dashboard
           </h1>
           <p className="text-muted-foreground mt-1">
-            Branch Operations Overview & Administration — Bengaluru Main Campus
+            Branch Operations Overview & Administration — Bengaluru Branch
           </p>
         </div>
 

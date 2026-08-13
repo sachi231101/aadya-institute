@@ -47,7 +47,7 @@ export class ReportRepository {
     const studentRows = students.map((s) => {
       const studentName = s.user?.name || `Student ${s.studentCode}`;
       const courseName = s.admissions[0]?.course?.name || "Unassigned";
-      const branchName = s.branch?.name || "Main Branch";
+      const branchName = s.branch?.name || "Aadya Central Branch";
 
       const totalClasses = s.studentAttendances.length;
       const presentClasses = s.studentAttendances.filter((a) => a.status === "PRESENT").length;

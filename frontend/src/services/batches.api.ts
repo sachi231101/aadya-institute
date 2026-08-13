@@ -5,6 +5,7 @@ export interface BatchData {
   name: string;
   code: string;
   courseId: string;
+  branchId?: string;
   facultyId?: string | null;
   startDate: string;
   capacity?: number;
@@ -37,6 +38,7 @@ export interface CreateBatchPayload {
   name: string;
   code: string;
   courseId: string;
+  branchId?: string;
   facultyId?: string;
   startDate: string;
   expectedEndDate?: string;

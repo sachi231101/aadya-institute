@@ -237,10 +237,10 @@ async function main() {
 
   const branch = await prisma.branch.upsert({
     where: { instituteId_code: { instituteId: institute.id, code: "MAIN" } },
-    update: {},
+    update: { name: "Aadya Central Branch" },
     create: {
       instituteId: institute.id,
-      name: "Main Branch",
+      name: "Aadya Central Branch",
       code: "MAIN",
       address: "Bengaluru",
     },

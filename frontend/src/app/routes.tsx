@@ -223,8 +223,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="curriculum" element={<Curriculum />} />
         </Route>
 
-        {/* Settings */}
+        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
       {/* Counselor Routes */}
@@ -272,8 +273,9 @@ export const AppRoutes: React.FC = () => {
           <Route path="financial" element={<FinancialReports />} />
         </Route>
 
-        {/* Settings */}
+        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
       {/* Faculty Routes */}
@@ -291,6 +293,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="students" element={<StudentReports />} />
         </Route>
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
       {/* Student Routes */}
@@ -298,6 +301,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
         <Route path="settings" element={<Settings />} />
+        <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
 
