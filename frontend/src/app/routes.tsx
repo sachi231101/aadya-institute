@@ -96,6 +96,7 @@ export const AppRoutes: React.FC = () => {
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="branch/:id/performance" element={<BranchPerformance />} />
 
         {/* Students */}
         <Route path="students">
