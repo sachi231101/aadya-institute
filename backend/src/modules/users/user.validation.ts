@@ -34,8 +34,6 @@ export const updateUserSchema = z.object({
   email: z.string().email().trim().toLowerCase().optional(),
   phone: phoneSchema,
   branchId: z.string().optional().nullable(),
-  phone: z.string().regex(/^\d{10}$/).optional(),
-  branchId: z.string().cuid().optional().nullable(),
   whatsappEnabled: z.boolean().optional(),
 });
 
