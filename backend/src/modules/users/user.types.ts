@@ -24,6 +24,11 @@ export interface UpdateUserInput {
   email?: string;
   phone?: string;
   branchId?: string;
+  whatsappEnabled?: boolean;
+}
+
+export interface UpdateWhatsappPreferenceInput {
+  whatsappEnabled: boolean;
 }
 
 export interface UpdateUserStatusInput {
@@ -38,6 +43,7 @@ export interface UserResponse {
   status: UserStatus;
   instituteId: string;
   branchId: string | null;
+  whatsappEnabled: boolean;
   roles: string[];
   createdAt: Date;
   updatedAt: Date;

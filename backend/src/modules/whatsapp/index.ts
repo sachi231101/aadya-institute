@@ -1,3 +1,2 @@
-// whatsapp module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+export * from './whatsapp.service';
+export * from './whatsapp.types';

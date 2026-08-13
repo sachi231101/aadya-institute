@@ -1,9 +1,10 @@
-import { whatsappQueue } from "../queues/whatsapp.queue";
 import { prisma } from "../config/database";
 import { logger } from "../config/logger";
+import { triggerNotification } from "../modules/notifications/notification.service";
+import { NotificationEvent, buildIdempotencyKey } from "../modules/notifications/notification.constants";
 
 /**
- * Sends feedback request to students after a class session ends.
+ * Sends feedback request notifications to enrolled students 10–15 minutes after a class session ends.
  */
 export const feedbackJob = async (): Promise<void> => {
   const tenMinsAgo = new Date(Date.now() - 10 * 60 * 1000);
@@ -18,6 +19,7 @@ export const feedbackJob = async (): Promise<void> => {
       batch: {
         include: {
           enrollments: {
+            where: { status: "ACTIVE" },
             include: { student: { include: { user: true } } },
           },
         },
@@ -29,12 +31,25 @@ export const feedbackJob = async (): Promise<void> => {
 
   for (const session of sessions) {
     for (const enrollment of session.batch.enrollments) {
-      const phone = enrollment.student.user?.phone;
-      if (!phone) continue;
+      const student = enrollment.student;
+      if (!student.user?.phone) continue;
 
-      await whatsappQueue.add("feedback-request", {
-        to: phone,
-        message: `⭐ How was your class today? Reply 1–5 to rate your session. (Session #${session.id.slice(-6)})`,
+      const idempotencyKey = buildIdempotencyKey.FEEDBACK_REQUESTED(student.id, session.id);
+
+      await triggerNotification({
+        instituteId: session.batch.instituteId,
+        studentId: student.id,
+        event: NotificationEvent.FEEDBACK_REQUESTED,
+        idempotencyKey,
+        templateParams: {
+          student_name: student.user.name ?? "Student",
+          batch_name: session.batch.name ?? "Batch",
+          session_id: session.id.slice(-6),
+        },
+        metadata: {
+          classSessionId: session.id,
+          batchId: session.batchId,
+        },
       });
     }
   }

@@ -1,3 +1,2 @@
-// assignments module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+export * from "./assignment.service";
+export * from "./assignment.types";

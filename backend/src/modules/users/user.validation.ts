@@ -26,6 +26,11 @@ export const updateUserSchema = z.object({
   email: z.string().email().trim().toLowerCase().optional(),
   phone: z.string().regex(/^\d{10}$/).optional(),
   branchId: z.string().cuid().optional().nullable(),
+  whatsappEnabled: z.boolean().optional(),
+});
+
+export const updateWhatsappPreferenceSchema = z.object({
+  whatsappEnabled: z.boolean(),
 });
 
 const statusEnum = z.preprocess(

@@ -1,3 +1,2 @@
-// recordings module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+export * from "./recording.service";
+export * from "./recording.types";
