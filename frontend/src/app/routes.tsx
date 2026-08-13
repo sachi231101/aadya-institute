@@ -10,6 +10,7 @@ import { StudentLayout } from "../layouts/StudentLayout";
 
 // Admin Dashboard
 import { AdminDashboard } from "../pages/admin/Dashboard";
+import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 
 // Students
 import { AllStudents } from "../pages/admin/students/AllStudents";
@@ -161,6 +162,9 @@ export const AppRoutes: React.FC = () => {
 
         {/* Settings */}
         <Route path="settings" element={<Settings />} />
+
+        {/* Branch */}
+        <Route path="branch/:id/performance" element={<BranchPerformance />} />
       </Route>
 
       {/* Center Manager Routes */}
