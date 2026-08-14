@@ -56,7 +56,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#cbd5e1",
     activeBg: "rgba(226, 232, 240, 1)",
     icon: Shield,
-    dashboardPath: "/admin/dashboard",
+    dashboardPath: "/admin/home",
     demoUser: {
       id: "aadya-initial-admin",
       name: "Aadya System Admin",
@@ -202,7 +202,7 @@ export const Login: React.FC = () => {
 
       switch (primaryRole) {
         case UserRole.ADMIN:
-          navigate("/admin/dashboard");
+          navigate("/admin/home");
           break;
         case UserRole.CENTER_MANAGER:
           navigate("/center/dashboard");
