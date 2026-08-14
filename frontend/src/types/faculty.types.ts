@@ -53,6 +53,7 @@ export interface FacultyCourseAssignment {
   } | null;
   branch: { id: string; name: string; code: string };
   schedules: { dayOfWeek: number; startTime: string; endTime: string }[];
+  classSessions?: { sessionStatus: string }[];
   _count: { enrollments: number };
 }
 

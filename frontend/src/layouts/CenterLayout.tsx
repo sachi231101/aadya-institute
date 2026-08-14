@@ -25,7 +25,6 @@ export const CenterLayout: React.FC = () => {
       fetchBatches(user.branchId);
     }
   }, [user?.branchId, user?.role, fetchStudents, fetchBatches]);
-  const { token, user } = useAuthStore();
 
   if (!token) {
     return <Navigate to="/login" replace />;

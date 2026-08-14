@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  UserCheck, 
-  Mail, 
-  Phone, 
-  Building2, 
-  MoreVertical, 
-  Edit3, 
-  Trash2, 
+import {
+  Users,
+  Plus,
+  Search,
+  UserCheck,
+  Mail,
+  Phone,
+  Building2,
+  MoreVertical,
+  Edit3,
+  Trash2,
   TrendingUp,
   CheckCircle2,
   Loader2
@@ -47,21 +47,17 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-import { useBranches } from "@/hooks/useBranches";
-
 export const AllCounsellors: React.FC = () => {
   const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
-  
+
   const { data: branchesResponse } = useBranches();
   const branches = branchesResponse?.data || [];
-  const { data: branchesResponse } = useBranches({ limit: 100 });
-  const apiBranches = branchesResponse?.data || [];
 
   useEffect(() => {
-    fetchCounselors(isCenterManager ? userBranchId : undefined);
+    fetchCounselors(isCenterManager ? (userBranchId || undefined) : undefined);
   }, [isCenterManager, userBranchId]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -75,8 +71,6 @@ export const AllCounsellors: React.FC = () => {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [branchId, setBranchId] = useState("");
-  const [selectedBranchId, setSelectedBranchId] = useState("");
-  const [branchName, setBranchName] = useState("Bengaluru Central Branch");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -124,9 +118,7 @@ export const AllCounsellors: React.FC = () => {
       email,
       password: password || undefined,
       phone,
-      branchId: branchId,
-      branchId: selectedBranchId || undefined,
-      branchName,
+      branchId,
       status,
     });
 
@@ -148,8 +140,6 @@ export const AllCounsellors: React.FC = () => {
     setPassword("");
     setPhone("");
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
-    setSelectedBranchId("");
-    setBranchName("Bengaluru Central Branch");
     setStatus("ACTIVE");
     setCreateError(null);
   };
@@ -385,8 +375,8 @@ export const AllCounsellors: React.FC = () => {
                         <DropdownMenuItem onClick={() => handleOpenEditModal(c)} className="gap-2 cursor-pointer">
                           <Edit3 className="h-4 w-4 text-[#1769AA]" /> Edit Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setDeleteCounselorId(c.id)} 
+                        <DropdownMenuItem
+                          onClick={() => setDeleteCounselorId(c.id)}
                           className="gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" /> Delete / Deactivate
@@ -496,10 +486,10 @@ export const AllCounsellors: React.FC = () => {
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
               {isCenterManager ? (
-                <Input 
-                  value={branches.find(b => b.id === branchId)?.name || branchId} 
-                  disabled 
-                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                <Input
+                  value={branches.find(b => b.id === branchId)?.name || branchId}
+                  disabled
+                  className="bg-slate-100 text-slate-700 font-medium h-10"
                 />
               ) : (
                 <select
@@ -520,25 +510,6 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
-              <select
-                value={selectedBranchId}
-                onChange={(e) => {
-                  const bId = e.target.value;
-                  setSelectedBranchId(bId);
-                  const selectedBranch = apiBranches.find((b) => b.id === bId);
-                  if (selectedBranch) {
-                    setBranchName(selectedBranch.name);
-                  }
-                }}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="">-- Select Branch (Optional) --</option>
-                {apiBranches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <DialogFooter className="pt-4">
@@ -626,10 +597,10 @@ export const AllCounsellors: React.FC = () => {
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
               {isCenterManager ? (
-                <Input 
-                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId} 
-                  disabled 
-                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                <Input
+                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId}
+                  disabled
+                  className="bg-slate-100 text-slate-700 font-medium h-10"
                 />
               ) : (
                 <select
@@ -650,18 +621,6 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
-              <select
-                value={editBranch}
-                onChange={(e) => setEditBranch(e.target.value)}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="">-- Select Branch --</option>
-                {apiBranches.map((b) => (
-                  <option key={b.id} value={b.name}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <DialogFooter className="pt-4">

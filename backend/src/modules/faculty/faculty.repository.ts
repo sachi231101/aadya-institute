@@ -254,6 +254,7 @@ export const findFacultyCourses = (params: FindFacultyCoursesParams) => {
       },
       branch: { select: { id: true, name: true, code: true } },
       schedules: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+      classSessions: { select: { sessionStatus: true } },
       _count: { select: { enrollments: true } },
     },
     orderBy: { createdAt: "desc" },
