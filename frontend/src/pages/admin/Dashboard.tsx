@@ -82,7 +82,7 @@ export const AdminDashboard: React.FC = () => {
       const realManager = centerManagers.find(m => m.branchId === apiBranch.id);
       const branchStudents = studentReport?.students?.filter(s => s.branchName === apiBranch.name) || [];
       const branchBatches = allBatches?.filter(b => b.branchId === apiBranch.id || b.branch?.id === apiBranch.id) || [];
-      const branchTotalRevenue = Math.floor(Math.random() * 1000000) + 200000; 
+      const branchTotalRevenue = Math.floor(Math.random() * 1000000) + 200000;
       const branchCollected = Math.floor(branchTotalRevenue * (0.7 + Math.random() * 0.2));
       const branchPending = branchTotalRevenue - branchCollected;
       const collectionRate = Math.round((branchCollected / branchTotalRevenue) * 100) || 0;
@@ -111,8 +111,8 @@ export const AdminDashboard: React.FC = () => {
     });
   }, [apiBranches, centerManagers, studentReport, allBatches, city]);
 
-  const filteredBranches = selectedBranchId === "all" 
-    ? branchesData 
+  const filteredBranches = selectedBranchId === "all"
+    ? branchesData
     : branchesData.filter(b => b.id === selectedBranchId);
 
   // Global KPIs (Filtered)
@@ -208,7 +208,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="flex flex-wrap items-center gap-4 py-2">
         <div className="flex items-center gap-2">
           <Building2 className="h-4 w-4 text-slate-400" />
-          <select 
+          <select
             className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
@@ -221,7 +221,7 @@ export const AdminDashboard: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <Calendar className="h-4 w-4 text-slate-400" />
-          <select 
+          <select
             className="h-9 rounded-md border border-slate-200 bg-white px-3 py-1 text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
             value={selectedDateFilter}
             onChange={(e) => setSelectedDateFilter(e.target.value)}
@@ -237,12 +237,10 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* 2. GLOBAL KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { label: "Total Branches", val: kpiTotalBranches, sub: `${kpiTotalBranches} Active`, icon: Building2, color: "text-blue-600", bg: "bg-blue-50" },
           { label: "Total Students", val: kpiTotalStudents, sub: `${Math.floor(kpiTotalStudents * 0.9)} Active`, icon: GraduationCap, color: "text-indigo-600", bg: "bg-indigo-50" },
           { label: "Total Faculty", val: kpiTotalFaculty, sub: `${Math.floor(kpiTotalFaculty * 0.9)} Active`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Total Counsellors", val: kpiTotalCounsellors, sub: `${Math.max(1, kpiTotalCounsellors - 1)} Active`, icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
           { label: "Active Batches", val: kpiActiveBatches, sub: "Currently Running", icon: Briefcase, color: "text-orange-600", bg: "bg-orange-50" },
           { label: "Total Leads", val: kpiTotalLeads, sub: "This Month", icon: Filter, color: "text-pink-600", bg: "bg-pink-50" },
           { label: "Total Revenue", val: formattedRevenue, sub: "This Month", icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" }
@@ -286,7 +284,7 @@ export const AdminDashboard: React.FC = () => {
             {filteredBranches.map((branch) => (
               <Card key={branch.id} className="border-slate-200 shadow-sm overflow-hidden relative flex flex-col">
                 <div className={`absolute top-0 left-0 right-0 h-1 ${branch.accentColor}`} />
-                
+
                 <CardContent className="p-0 flex-1 flex flex-col">
                   <div className="p-5 space-y-4">
                     {/* Header */}
@@ -398,7 +396,7 @@ export const AdminDashboard: React.FC = () => {
                         <SheetHeader className="mb-6">
                           <SheetTitle className="text-xl font-bold text-[#0A2540]">Branch Revenue</SheetTitle>
                         </SheetHeader>
-                        
+
                         <div className="space-y-6">
                           <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
                             <div className="flex justify-between">
@@ -440,7 +438,7 @@ export const AdminDashboard: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                          
+
                           <div className="space-y-3">
                             <h4 className="font-bold text-[#0A2540] border-b pb-2">Course-wise Revenue (Mock)</h4>
                             <div className="space-y-2 text-sm">
@@ -483,9 +481,9 @@ export const AdminDashboard: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(value) => `${value / 100000}L`} dx={-10} />
-                  <Tooltip 
+                  <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₹${(value/100000).toFixed(2)}L`, "Revenue"]}
+                    formatter={(value: number) => [`₹${(value / 100000).toFixed(2)}L`, "Revenue"]}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#1769AA" strokeWidth={3} dot={{ r: 4, fill: '#1769AA', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -507,7 +505,7 @@ export const AdminDashboard: React.FC = () => {
                     <span className="text-sm font-medium text-[#0A2540] truncate">{b.name}</span>
                   </div>
                   <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-[#0A2540]">₹{(b.totalRevenue/100000).toFixed(2)}L</span>
+                    <span className="text-sm font-bold text-[#0A2540]">₹{(b.totalRevenue / 100000).toFixed(2)}L</span>
                     <span className="text-[10px] font-bold text-emerald-600 flex items-center justify-end"><TrendingUp className="h-3 w-3 mr-0.5" /> {Math.floor(Math.random() * 20 + 5)}%</span>
                   </div>
                 </div>
@@ -569,17 +567,17 @@ export const AdminDashboard: React.FC = () => {
             </p>
             <div className="space-y-2">
               <label className="text-xs font-semibold text-slate-700">Type DELETE to confirm</label>
-              <Input 
-                value={deleteConfirmText} 
-                onChange={(e) => setDeleteConfirmText(e.target.value)} 
+              <Input
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder="DELETE"
                 className="border-red-200 focus-visible:ring-red-500"
               />
             </div>
             <div className="flex justify-end gap-3 pt-4">
               <Button type="button" variant="outline" onClick={() => { setDeleteModalBranch(null); setDeleteConfirmText(""); }}>Cancel</Button>
-              <Button 
-                type="button" 
+              <Button
+                type="button"
                 className="bg-red-600 hover:bg-red-700 text-white"
                 disabled={deleteConfirmText !== "DELETE" || updateBranchMutation.isPending}
                 onClick={handleDeleteBranch}

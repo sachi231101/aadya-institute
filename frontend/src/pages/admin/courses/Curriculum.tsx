@@ -129,25 +129,12 @@ export const Curriculum: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header & Main Actions */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Curriculum Builder</h2>
-          <p className="text-sm text-text-secondary">
-            Structure course syllabi, module sequences, topic hours, and learning progress.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button 
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
-            onClick={() => setShowModuleModal(true)}
-            disabled={!selectedCourseId}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add New Module
-          </Button>
-        </div>
+      {/* Header */}
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-text-primary">Curriculum Builder</h2>
+        <p className="text-sm text-text-secondary">
+          Structure course syllabi, module sequences, topic hours, and learning progress.
+        </p>
       </div>
 
       {/* Course Selection & Overview Banner */}

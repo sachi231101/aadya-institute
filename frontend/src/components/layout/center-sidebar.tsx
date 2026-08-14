@@ -45,7 +45,6 @@ const centerNavItems = [
     items: [
       { title: "All Students", url: "/center/students/all" },
       { title: "Attendance", url: "/center/students/attendance" },
-      { title: "Performance", url: "/center/students/performance" },
     ],
   },
   {
@@ -101,7 +100,6 @@ const centerNavItems = [
     isActive: false,
     items: [
       { title: "All Courses", url: "/center/courses/all" },
-      { title: "Add Course", url: "/center/courses/add" },
       { title: "Batches", url: "/center/courses/batches" },
       { title: "Curriculum", url: "/center/courses/curriculum" },
     ],

@@ -57,7 +57,6 @@ const data = {
       items: [
         { title: "All Students", url: "/admin/students/all" },
         { title: "Attendance", url: "/admin/students/attendance" },
-        { title: "Performance", url: "/admin/students/performance" },
       ],
     },
     {
@@ -78,7 +77,6 @@ const data = {
       isActive: false,
       items: [
         { title: "All Courses", url: "/admin/courses/all" },
-        { title: "Add Course", url: "/admin/courses/add" },
         { title: "Batches", url: "/admin/courses/batches" },
         { title: "Curriculum", url: "/admin/courses/curriculum" },
       ],

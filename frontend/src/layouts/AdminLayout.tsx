@@ -27,8 +27,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useNotificationStore } from "@/store/notification.store";
-import { useCreateBranch } from "@/hooks/useBranches";
+import { useCreateBranch, useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 
 const branchSchema = z.object({
   name: z.string().min(2, "Branch name is required"),
@@ -44,6 +45,11 @@ export const AdminLayout: React.FC = () => {
   const [isBranchModalOpen, setIsBranchModalOpen] = useState(false);
   const addNotification = useNotificationStore((state) => state.addNotification);
   const createBranchMutation = useCreateBranch();
+
+  // Branch Selection & Data
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const branches = branchesResponse?.data || [];
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
 
   const form = useForm<BranchFormValues>({
     resolver: zodResolver(branchSchema),
@@ -110,9 +116,30 @@ export const AdminLayout: React.FC = () => {
           <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-bg-secondary px-6">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="-ml-2" />
-              <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
-                <Building2 size={18} />
-                <span className="text-sm font-medium">Aadya Central Branch — Bengaluru</span>
+              
+              {/* Branch Switcher (Admin multi-branch toggle) */}
+              <div className="flex items-center gap-2 text-slate-700 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+                <Building2 size={16} className="text-[#1769AA] shrink-0" />
+                <span className="text-xs font-bold text-slate-500 uppercase tracking-wide hidden md:inline">Branch:</span>
+                <select
+                  value={selectedBranchId}
+                  onChange={(e) => setSelectedBranchId(e.target.value)}
+                  className="text-xs font-bold text-slate-800 bg-transparent focus:outline-none cursor-pointer pr-2"
+                >
+                  <option value="ALL">🌐 All Branches (Aggregate)</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      📍 {b.name} ({b.code})
+                    </option>
+                  ))}
+                  {branches.length === 0 && (
+                    <>
+                      <option value="b-central">📍 Aadya Central — Bengaluru</option>
+                      <option value="b-malleswaram">📍 Malleswaram Branch</option>
+                      <option value="b-ramamurthy">📍 Ramamurthy Nagar Branch</option>
+                    </>
+                  )}
+                </select>
               </div>
             </div>
 
@@ -122,7 +149,7 @@ export const AdminLayout: React.FC = () => {
                   form.reset();
                   setIsBranchModalOpen(true);
                 }}
-                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex"
+                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex font-semibold shadow-sm"
               >
                 <Plus size={16} />
                 Create a Branch
