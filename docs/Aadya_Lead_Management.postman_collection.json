@@ -1,0 +1,300 @@
+{
+  "info": {
+    "name": "Aadya Institute — Lead Management (Counsellor System)",
+    "description": "Backend API collection for Aadya Institute Lead Management Module (Folder 13 - Lead Management). Designed for Counsellor, Center Manager, and Admin workflows with branch isolation and RBAC.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "managerAccessToken", "value": "" },
+    { "key": "counsellorAccessToken", "value": "" },
+    { "key": "branchId", "value": "" },
+    { "key": "courseId", "value": "" },
+    { "key": "leadId", "value": "" },
+    { "key": "followUpId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "13 - Lead Management",
+      "item": [
+        {
+          "name": "1. Create Lead - Counsellor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Kumar\",\n  \"phoneNumber\": \"9876500004\",\n  \"email\": \"rahul@gmail.com\",\n  \"interestedIn\": \"Full Stack Development\",\n  \"source\": \"WALK_IN\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads", "host": ["{{base_url}}"], "path": ["leads"] },
+            "description": "Counsellor creates a lead with minimum required fields. Backend automatically binds creator, branch, self-assignment, and stage=ASSIGNED."
+          }
+        },
+        {
+          "name": "2. Create Lead - Manager",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sneha Patel\",\n  \"phoneNumber\": \"9876500010\",\n  \"email\": \"sneha@gmail.com\",\n  \"interestedIn\": \"Data Science & AI\",\n  \"source\": \"ONLINE\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads", "host": ["{{base_url}}"], "path": ["leads"] },
+            "description": "Center Manager creates a lead within their branch."
+          }
+        },
+        {
+          "name": "3. Create Lead - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Amit Verma\",\n  \"phoneNumber\": \"9876500020\",\n  \"email\": \"amit@gmail.com\",\n  \"interestedIn\": \"Cloud Computing\",\n  \"source\": \"REFERRAL\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads", "host": ["{{base_url}}"], "path": ["leads"] },
+            "description": "Super Admin creates a lead."
+          }
+        },
+        {
+          "name": "4. List Leads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": {
+              "raw": "{{base_url}}/leads?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["leads"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Paginated list of leads respecting branch scoping."
+          }
+        },
+        {
+          "name": "5. Search Leads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": {
+              "raw": "{{base_url}}/leads?search=Rahul&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["leads"],
+              "query": [
+                { "key": "search", "value": "Rahul" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Search leads by name, phone number, email, or interested course."
+          }
+        },
+        {
+          "name": "6. Filter Leads",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": {
+              "raw": "{{base_url}}/leads?stage=INTERESTED&status=ACTIVE&source=WALK_IN&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["leads"],
+              "query": [
+                { "key": "stage", "value": "INTERESTED" },
+                { "key": "status", "value": "ACTIVE" },
+                { "key": "source", "value": "WALK_IN" },
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            },
+            "description": "Filter leads by stage, status, and lead source."
+          }
+        },
+        {
+          "name": "7. Get Lead",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}"] },
+            "description": "Get detailed information for a single lead with counsellor, branch, history, and activities."
+          }
+        },
+        {
+          "name": "8. Update Lead",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Rahul Kumar Updated\",\n  \"email\": \"rahul.kumar@gmail.com\",\n  \"interestedIn\": \"Full Stack Development (MERN)\",\n  \"priority\": \"HIGH\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}"] },
+            "description": "Update non-sensitive lead fields."
+          }
+        },
+        {
+          "name": "9. Assign Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"counsellorId\": \"counsellor-user-id\",\n  \"notes\": \"Assigned by center manager for priority counseling\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/assign", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "assign"] },
+            "description": "Assign or reassign a lead to a counsellor (Manager/Admin)."
+          }
+        },
+        {
+          "name": "10. Change Stage",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"stage\": \"INTERESTED\",\n  \"notes\": \"Candidate attended demo class and expressed strong interest\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/stage", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "stage"] },
+            "description": "Transition lead stage (NEW, ASSIGNED, CONTACTED, INTERESTED, FOLLOW_UP, CONVERTED, LOST)."
+          }
+        },
+        {
+          "name": "11. Create Follow-up",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"CALL\",\n  \"scheduledAt\": \"2026-08-16T15:00:00.000Z\",\n  \"notes\": \"Follow up regarding fee payment structure\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/follow-ups", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "follow-ups"] },
+            "description": "Schedule a follow-up action for a lead."
+          }
+        },
+        {
+          "name": "12. Complete Follow-up",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\",\n  \"outcome\": \"Candidate confirmed visit to center tomorrow\",\n  \"notes\": \"Discussed installment options\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/follow-ups/{{followUpId}}", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "follow-ups", "{{followUpId}}"] },
+            "description": "Mark a scheduled follow-up as COMPLETED or CANCELLED."
+          }
+        },
+        {
+          "name": "13. Add Activity",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"NOTE_ADDED\",\n  \"title\": \"Parents Visit Note\",\n  \"description\": \"Parents visited campus and inspected lab facilities.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/activities", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "activities"] },
+            "description": "Add a manual audit log or note to the lead timeline."
+          }
+        },
+        {
+          "name": "14. Get Lead History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/history", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "history"] },
+            "description": "Retrieve full timeline including assignments, stage transitions, and activity logs."
+          }
+        },
+        {
+          "name": "15. Mark Lost",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"PRICE_HIGH\",\n  \"notes\": \"Candidate opted for a shorter online crash course\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/lost", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "lost"] },
+            "description": "Mark lead as LOST with mandatory reason."
+          }
+        },
+        {
+          "name": "16. Convert Lead",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"feePlan\": \"INSTALLMENT\",\n  \"notes\": \"Enrolled in August weekday batch\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/leads/{{leadId}}/convert", "host": ["{{base_url}}"], "path": ["leads", "{{leadId}}", "convert"] },
+            "description": "Atomically convert lead to Student profile and Admission record."
+          }
+        },
+        {
+          "name": "17. Dashboard Summary",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": { "raw": "{{base_url}}/leads/dashboard/summary", "host": ["{{base_url}}"], "path": ["leads", "dashboard", "summary"] },
+            "description": "Get count breakdown by stage (totalLeads, new, assigned, contacted, interested, followUp, converted, lost)."
+          }
+        },
+        {
+          "name": "18. Counsellor Performance",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }],
+            "url": { "raw": "{{base_url}}/leads/dashboard/counsellors", "host": ["{{base_url}}"], "path": ["leads", "dashboard", "counsellors"] },
+            "description": "Performance report per counsellor showing leads handled, contacted, converted, and conversion rate."
+          }
+        },
+        {
+          "name": "19. Follow-up Dashboard",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{counsellorAccessToken}}" }],
+            "url": { "raw": "{{base_url}}/leads/dashboard/follow-ups", "host": ["{{base_url}}"], "path": ["leads", "dashboard", "follow-ups"] },
+            "description": "Follow-up dashboard returning overdue, today, and upcoming follow-ups."
+          }
+        }
+      ]
+    }
+  ]
+}
