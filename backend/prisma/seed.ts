@@ -52,6 +52,14 @@ const permissions = [
   "admission.create",
   "admission.update",
 
+  // Leads
+  "lead.read",
+  "lead.create",
+  "lead.update",
+  "lead.assign",
+  "lead.convert",
+  "lead.delete",
+
   // Batches
   "batch.read",
   "batch.create",
@@ -140,6 +148,12 @@ const rolePermissions: Record<string, string[]> = {
     "admission.read",
     "admission.create",
     "admission.update",
+    "lead.read",
+    "lead.create",
+    "lead.update",
+    "lead.assign",
+    "lead.convert",
+    "lead.delete",
     "batch.read",
     "batch.create",
     "batch.update",
@@ -176,6 +190,10 @@ const rolePermissions: Record<string, string[]> = {
     "admission.read",
     "admission.create",
     "admission.update",
+    "lead.read",
+    "lead.create",
+    "lead.update",
+    "lead.convert",
     "batch.read",
     "schedule.read",
     "attendance.read",
