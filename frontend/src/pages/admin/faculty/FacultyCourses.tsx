@@ -35,7 +35,11 @@ export const FacultyCourses: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
 
   // Store batches
-  const { batches: storeBatches } = useCourseStore();
+  const { batches: storeBatches, fetchBatches } = useCourseStore();
+
+  React.useEffect(() => {
+    fetchBatches();
+  }, []);
 
   // Modal Form state
   const [newFacultyId, setNewFacultyId] = useState<string>("");

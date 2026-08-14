@@ -48,21 +48,21 @@ router.patch(
 
 router.patch(
   "/:id/faculty",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(assignFacultySchema),
   controller.assignFaculty
 );
 
 router.post(
   "/:id/students",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(enrollStudentSchema),
   controller.enrollStudent
 );
 
 router.delete(
   "/:id/students/:studentId",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.removeStudent
 );
 

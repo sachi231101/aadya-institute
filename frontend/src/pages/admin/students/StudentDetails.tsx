@@ -9,6 +9,15 @@ import { Button } from "@/components/ui/button";
 export const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = window.location;
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : location.pathname.startsWith("/faculty")
+    ? "/faculty"
+    : "/admin";
+
   const { data: response, isLoading, isError } = useStudent(id);
 
   const student = response?.data;
@@ -40,7 +49,7 @@ export const StudentDetails: React.FC = () => {
       <div className="text-center py-16">
         <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4 opacity-60" />
         <h3 className="text-lg font-medium text-text-primary mb-2">Student not found</h3>
-        <Button variant="outline" onClick={() => navigate("/admin/students/all")}>Back to Students</Button>
+        <Button variant="outline" onClick={() => navigate(`${basePath}/students/all`)}>Back to Students</Button>
       </div>
     );
   }
@@ -48,7 +57,7 @@ export const StudentDetails: React.FC = () => {
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" onClick={() => navigate("/admin/students/all")}>
+        <Button variant="outline" size="icon" onClick={() => navigate(`${basePath}/students/all`)}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>

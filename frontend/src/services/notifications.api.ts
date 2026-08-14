@@ -18,9 +18,11 @@ export interface NotificationItem {
   title: string;
   message: string;
   type: NotificationType;
+  module?: string;
   link?: string | null;
   isRead: boolean;
   readAt?: string | null;
+  metadata?: any;
   createdAt: string;
 }
 
@@ -43,6 +45,8 @@ export interface NotificationFilters {
   page?: number;
   limit?: number;
   type?: NotificationType;
+  module?: string;
+  role?: string;
   unreadOnly?: boolean;
   search?: string;
 }
@@ -53,6 +57,8 @@ export const notificationsApi = {
     if (filters.page) params.append("page", String(filters.page));
     if (filters.limit) params.append("limit", String(filters.limit));
     if (filters.type) params.append("type", filters.type);
+    if (filters.module) params.append("module", filters.module);
+    if (filters.role) params.append("role", filters.role);
     if (filters.unreadOnly) params.append("unreadOnly", "true");
     if (filters.search) params.append("search", filters.search);
 

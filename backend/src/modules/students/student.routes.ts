@@ -58,7 +58,7 @@ router.get(
 // POST /api/v1/students — Create student
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(createStudentSchema),
   controller.create
 );
@@ -66,7 +66,7 @@ router.post(
 // PATCH /api/v1/students/:id — Update student
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(updateStudentSchema),
   controller.update
 );
