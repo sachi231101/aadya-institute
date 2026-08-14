@@ -8,6 +8,6 @@ export default defineConfig({
   },
   datasource: {
     url: process.env.DATABASE_URL,
-    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL || "postgresql://postgres:231101@localhost:5432/aadya_shadow",
+    shadowDatabaseUrl: process.env.SHADOW_DATABASE_URL || "postgresql://postgres:231101@localhost:5433/aadya_shadow",
   },
 });
