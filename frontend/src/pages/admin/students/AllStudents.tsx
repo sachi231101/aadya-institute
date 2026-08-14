@@ -121,7 +121,7 @@ export const AllStudents: React.FC = () => {
           <Button variant="outline" className="text-slate-700 border-slate-300 font-medium bg-white">
             <Download className="h-4 w-4 mr-2 text-slate-500" /> Export Report
           </Button>
-          <Button className="bg-[#1769AA] hover:bg-[#125890] text-white font-medium shadow-sm" onClick={() => navigate("/admin/students/add")}>
+          <Button className="bg-[#1769AA] hover:bg-[#125890] text-white font-medium shadow-sm" onClick={() => navigate("../add")}>
             <Plus className="h-4 w-4 mr-2" /> Add Student
           </Button>
         </div>

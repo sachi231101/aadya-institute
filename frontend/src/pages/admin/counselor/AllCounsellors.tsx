@@ -52,7 +52,7 @@ export const AllCounsellors: React.FC = () => {
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
-  
+
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
 

@@ -67,7 +67,6 @@ const data = {
       isActive: false,
       items: [
         { title: "All Faculty", url: "/admin/faculty/all" },
-        { title: "Add Faculty", url: "/admin/faculty/add" },
         { title: "Assigned Courses", url: "/admin/faculty/courses" },
         { title: "Attendance", url: "/admin/faculty/attendance" },
       ],
