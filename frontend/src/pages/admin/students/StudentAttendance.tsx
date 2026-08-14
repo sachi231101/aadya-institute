@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, Calendar as CalendarIcon, CheckCircle2, Loader2, AlertCircle, Plus, GraduationCap } from "lucide-react";
-import { useAttendanceRoster, useMarkAttendance, useBulkMarkAttendance } from "../../../hooks/useStudents";
+import { useAttendanceRoster } from "../../../hooks/useStudents";
 import { useBranches } from "../../../hooks/useBranches";
 import { AttendanceStatus } from "../../../constants/status";
 
@@ -35,8 +35,6 @@ export const StudentAttendance: React.FC = () => {
   });
 
   const roster = rosterResponse?.data ?? [];
-  const markMutation = useMarkAttendance();
-  const bulkMarkMutation = useBulkMarkAttendance();
 
   // Apply search filter
   const filteredRoster = roster.filter(
@@ -45,26 +43,6 @@ export const StudentAttendance: React.FC = () => {
       (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.studentCode || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
-
-  const handleMarkStatus = (classSessionId: string, studentId: string, status: AttendanceStatus) => {
-    markMutation.mutate({
-      classSessionId,
-      studentId,
-      status,
-    });
-  };
-
-  const handleMarkAllPresent = () => {
-    if (filteredRoster.length === 0) return;
-
-    const entries = filteredRoster.map((item) => ({
-      classSessionId: item.classSessionId,
-      studentId: item.studentId,
-      status: AttendanceStatus.PRESENT as AttendanceStatus,
-    }));
-
-    bulkMarkMutation.mutate({ entries });
-  };
 
   return (
     <div className="space-y-6">
@@ -76,15 +54,6 @@ export const StudentAttendance: React.FC = () => {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            className="text-text-primary border-border/50"
-            onClick={handleMarkAllPresent}
-            disabled={bulkMarkMutation.isPending || filteredRoster.length === 0}
-          >
-            <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-            Mark All Present
-          </Button>
         </div>
       </div>
 
@@ -171,47 +140,16 @@ export const StudentAttendance: React.FC = () => {
                           {item.branchName}
                         </TableCell>
                         <TableCell>
-                          <div className="flex justify-center items-center gap-1 sm:gap-2">
-                            <Button
-                              type="button"
-                              variant={currentStatus === AttendanceStatus.PRESENT ? "default" : "outline"}
-                              size="sm"
-                              className={`h-8 px-3 text-xs ${currentStatus === AttendanceStatus.PRESENT ? 'bg-green-600 hover:bg-green-700 text-white' : 'hover:bg-green-50 hover:text-green-600 border-border/50'}`}
-                              onClick={() => handleMarkStatus(item.classSessionId, item.studentId, AttendanceStatus.PRESENT as AttendanceStatus)}
-                              disabled={markMutation.isPending}
-                            >
-                              Present
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentStatus === AttendanceStatus.ABSENT ? "default" : "outline"}
-                              size="sm"
-                              className={`h-8 px-3 text-xs ${currentStatus === AttendanceStatus.ABSENT ? 'bg-red-600 hover:bg-red-700 text-white' : 'hover:bg-red-50 hover:text-red-600 border-border/50'}`}
-                              onClick={() => handleMarkStatus(item.classSessionId, item.studentId, AttendanceStatus.ABSENT as AttendanceStatus)}
-                              disabled={markMutation.isPending}
-                            >
-                              Absent
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentStatus === AttendanceStatus.LATE ? "default" : "outline"}
-                              size="sm"
-                              className={`h-8 px-3 text-xs ${currentStatus === AttendanceStatus.LATE ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : 'hover:bg-yellow-50 hover:text-yellow-600 border-border/50'}`}
-                              onClick={() => handleMarkStatus(item.classSessionId, item.studentId, AttendanceStatus.LATE as AttendanceStatus)}
-                              disabled={markMutation.isPending}
-                            >
-                              Late
-                            </Button>
-                            <Button
-                              type="button"
-                              variant={currentStatus === AttendanceStatus.EXCUSED ? "default" : "outline"}
-                              size="sm"
-                              className={`h-8 px-3 text-xs ${currentStatus === AttendanceStatus.EXCUSED ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'hover:bg-blue-50 hover:text-blue-600 border-border/50'}`}
-                              onClick={() => handleMarkStatus(item.classSessionId, item.studentId, AttendanceStatus.EXCUSED as AttendanceStatus)}
-                              disabled={markMutation.isPending}
-                            >
-                              Excused
-                            </Button>
+                          <div className="flex justify-center items-center">
+                            <span className={`px-2.5 py-1 text-xs font-semibold rounded-md ${
+                              currentStatus === AttendanceStatus.PRESENT ? 'bg-green-100 text-green-700' :
+                              currentStatus === AttendanceStatus.ABSENT ? 'bg-red-100 text-red-700' :
+                              currentStatus === AttendanceStatus.LATE ? 'bg-yellow-100 text-yellow-700' :
+                              currentStatus === AttendanceStatus.EXCUSED ? 'bg-blue-100 text-blue-700' :
+                              'bg-slate-100 text-slate-700'
+                            }`}>
+                              {currentStatus || "Not Marked"}
+                            </span>
                           </div>
                         </TableCell>
                       </TableRow>

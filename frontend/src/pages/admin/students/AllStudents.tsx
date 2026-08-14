@@ -26,29 +26,20 @@ import {
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useBranchStore } from "@/store/branch.store";
+import { useBranches } from "@/hooks/useBranches";
 
-// ─── MOCK DATA (Matches the UI request while backend catches up) ──────────
-
-const KPI_DATA = {
-  total: { count: 124, sub: "All Students" },
-  active: { count: 98, sub: "79.0%" },
-  completed: { count: 14, sub: "11.3%" },
-  dropped: { count: 12, sub: "9.7%" },
-  attendance: { count: "86%", sub: "This Month" },
-  feesPending: { count: "₹1,25,500", sub: "23 Students" },
-  atRisk: { count: 16, sub: "12.9%" },
-  activeBatches: { count: 8, sub: "This Center" }
-};
+// ─── MOCK DATA WITH BRANCHES ─────────────────────────────────────────────
 
 const STUDENTS_MOCK = [
-  { id: "ST001", name: "Rahul Kumar", email: "rahul.kumar@gmail.com", phone: "9876543210", course: "Digital Marketing", batch: "DM-01", faculty: "Priya", attendance: 92, progress: 78, fees: { total: 35000, paid: 35000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=rahul", joinDate: "10 June 2026", counsellor: "Sneha Reddy" },
-  { id: "ST002", name: "Anjali Sharma", email: "anjali.sharma@gmail.com", phone: "9123456780", course: "Graphic Design", batch: "GD-02", faculty: "Arjun", attendance: 84, progress: 65, fees: { total: 40000, paid: 35000, pending: 5000, status: "Pending" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=anjali", joinDate: "15 June 2026", counsellor: "Arjun" },
-  { id: "ST003", name: "Vikram Rao", email: "vikram.rao@gmail.com", phone: "9988776655", course: "Tally Prime", batch: "TP-01", faculty: "Sneha", attendance: 96, progress: 91, fees: { total: 25000, paid: 25000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=vikram", joinDate: "01 July 2026", counsellor: "Priya" },
-  { id: "ST004", name: "Karan Singh", email: "karan.singh@gmail.com", phone: "8899001122", course: "Python Programming", batch: "PY-03", faculty: "Rahul", attendance: 61, progress: 48, fees: { total: 45000, paid: 37000, pending: 8000, status: "Pending" }, status: "At Risk", avatar: "https://i.pravatar.cc/150?u=karan", joinDate: "20 May 2026", counsellor: "Sneha Reddy" },
-  { id: "ST005", name: "Sneha Iyer", email: "sneha.iyer@gmail.com", phone: "9871234560", course: "Web Design", batch: "WD-01", faculty: "Priya", attendance: 88, progress: 72, fees: { total: 30000, paid: 30000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=snehaiyer", joinDate: "12 June 2026", counsellor: "Rahul" },
-  { id: "ST006", name: "Mohammed Ali", email: "ali.mohammed@gmail.com", phone: "8899776655", course: "Digital Marketing", batch: "DM-02", faculty: "Sneha", attendance: 75, progress: 60, fees: { total: 35000, paid: 31500, pending: 3500, status: "Pending" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=ali", joinDate: "05 July 2026", counsellor: "Sneha Reddy" },
-  { id: "ST007", name: "Pooja Patel", email: "pooja.patel@gmail.com", phone: "7788990011", course: "Graphic Design", batch: "GD-01", faculty: "Arjun", attendance: 52, progress: 30, fees: { total: 40000, paid: 33000, pending: 7000, status: "Pending" }, status: "At Risk", avatar: "https://i.pravatar.cc/150?u=pooja", joinDate: "22 May 2026", counsellor: "Priya" },
-  { id: "ST008", name: "Rakesh Babu", email: "rakesh.babu@gmail.com", phone: "9988001122", course: "Tally Prime", batch: "TP-02", faculty: "Rahul", attendance: 90, progress: 85, fees: { total: 25000, paid: 25000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=rakesh", joinDate: "10 June 2026", counsellor: "Arjun" },
+  { id: "ST001", name: "Rahul Kumar", email: "rahul.kumar@gmail.com", phone: "9876543210", course: "Digital Marketing", batch: "DM-01", faculty: "Priya", branch: "Bengaluru Central", branchId: "b-central", attendance: 92, progress: 78, fees: { total: 35000, paid: 35000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=rahul", joinDate: "10 June 2026", counsellor: "Sneha Reddy" },
+  { id: "ST002", name: "Anjali Sharma", email: "anjali.sharma@gmail.com", phone: "9123456780", course: "Graphic Design", batch: "GD-02", faculty: "Arjun", branch: "Malleswaram", branchId: "b-malleswaram", attendance: 84, progress: 65, fees: { total: 40000, paid: 35000, pending: 5000, status: "Pending" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=anjali", joinDate: "15 June 2026", counsellor: "Arjun" },
+  { id: "ST003", name: "Vikram Rao", email: "vikram.rao@gmail.com", phone: "9988776655", course: "Tally Prime", batch: "TP-01", faculty: "Sneha", branch: "Bengaluru Central", branchId: "b-central", attendance: 96, progress: 91, fees: { total: 25000, paid: 25000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=vikram", joinDate: "01 July 2026", counsellor: "Priya" },
+  { id: "ST004", name: "Karan Singh", email: "karan.singh@gmail.com", phone: "8899001122", course: "Python Programming", batch: "PY-03", faculty: "Rahul", branch: "Ramamurthy Nagar", branchId: "b-ramamurthy", attendance: 61, progress: 48, fees: { total: 45000, paid: 37000, pending: 8000, status: "Pending" }, status: "At Risk", avatar: "https://i.pravatar.cc/150?u=karan", joinDate: "20 May 2026", counsellor: "Sneha Reddy" },
+  { id: "ST005", name: "Sneha Iyer", email: "sneha.iyer@gmail.com", phone: "9871234560", course: "Web Design", batch: "WD-01", faculty: "Priya", branch: "Bengaluru Central", branchId: "b-central", attendance: 88, progress: 72, fees: { total: 30000, paid: 30000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=snehaiyer", joinDate: "12 June 2026", counsellor: "Rahul" },
+  { id: "ST006", name: "Mohammed Ali", email: "ali.mohammed@gmail.com", phone: "8899776655", course: "Digital Marketing", batch: "DM-02", faculty: "Sneha", branch: "Malleswaram", branchId: "b-malleswaram", attendance: 75, progress: 60, fees: { total: 35000, paid: 31500, pending: 3500, status: "Pending" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=ali", joinDate: "05 July 2026", counsellor: "Sneha Reddy" },
+  { id: "ST007", name: "Pooja Patel", email: "pooja.patel@gmail.com", phone: "7788990011", course: "Graphic Design", batch: "GD-01", faculty: "Arjun", branch: "Bengaluru Central", branchId: "b-central", attendance: 52, progress: 30, fees: { total: 40000, paid: 33000, pending: 7000, status: "Pending" }, status: "At Risk", avatar: "https://i.pravatar.cc/150?u=pooja", joinDate: "22 May 2026", counsellor: "Priya" },
+  { id: "ST008", name: "Rakesh Babu", email: "rakesh.babu@gmail.com", phone: "9988001122", course: "Tally Prime", batch: "TP-02", faculty: "Rahul", branch: "Bengaluru Central", branchId: "b-central", attendance: 90, progress: 85, fees: { total: 25000, paid: 25000, pending: 0, status: "Paid" }, status: "Active", avatar: "https://i.pravatar.cc/150?u=rakesh", joinDate: "10 June 2026", counsellor: "Arjun" },
 ];
 
 const MODULE_PROGRESS = [
@@ -89,17 +80,69 @@ const getAttendanceColor = (att: number) => {
 export const AllStudents: React.FC = () => {
   const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("All Students");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCourseFilter, setSelectedCourseFilter] = useState("All Courses");
   const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
-  // In a real scenario, useQuery would fetch the actual students list
-  // const { data } = useQuery({ queryKey: ["students"], queryFn: studentsApi.getAll });
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const branches = branchesResponse?.data || [];
+
+  // Filter students by selected branch, search, and tabs
+  const filteredStudents = STUDENTS_MOCK.filter(student => {
+    // Branch Filter (respects global branch switcher or page filter)
+    const matchesBranch = 
+      selectedBranchId === "ALL" || 
+      student.branchId === selectedBranchId || 
+      branches.find(b => b.id === selectedBranchId)?.name.toLowerCase().includes(student.branch.toLowerCase());
+
+    // Search Filter
+    const matchesSearch = 
+      !searchTerm ||
+      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.phone.includes(searchTerm);
+
+    // Course Filter
+    const matchesCourse = 
+      selectedCourseFilter === "All Courses" || 
+      student.course === selectedCourseFilter;
+
+    // Status Tab Filter
+    const matchesTab = 
+      selectedTab === "All Students" ||
+      (selectedTab === "Active" && student.status === "Active") ||
+      (selectedTab === "At Risk" && student.status === "At Risk") ||
+      (selectedTab === "Completed" && student.status === "Completed") ||
+      (selectedTab === "Dropped" && student.status === "Dropped");
+
+    return matchesBranch && matchesSearch && matchesCourse && matchesTab;
+  });
+
+  // Dynamic KPI counts based on branch selection
+  const branchStudents = STUDENTS_MOCK.filter(s => 
+    selectedBranchId === "ALL" || 
+    s.branchId === selectedBranchId || 
+    branches.find(b => b.id === selectedBranchId)?.name.toLowerCase().includes(s.branch.toLowerCase())
+  );
+
+  const kpis = {
+    total: branchStudents.length,
+    active: branchStudents.filter(s => s.status === "Active").length,
+    atRisk: branchStudents.filter(s => s.status === "At Risk").length,
+    avgAttendance: branchStudents.length 
+      ? Math.round(branchStudents.reduce((acc, s) => acc + s.attendance, 0) / branchStudents.length)
+      : 86,
+    pendingFees: branchStudents.reduce((acc, s) => acc + s.fees.pending, 0)
+  };
 
   const tabs = [
-    { name: "All Students", count: 124, color: "text-[#1769AA]" },
-    { name: "Active", count: 98, color: "text-slate-600" },
-    { name: "At Risk", count: 16, color: "text-red-500" },
-    { name: "Completed", count: 14, color: "text-purple-600" },
-    { name: "Dropped", count: 12, color: "text-slate-600" },
+    { name: "All Students", count: branchStudents.length, color: "text-[#1769AA]" },
+    { name: "Active", count: branchStudents.filter(s => s.status === "Active").length, color: "text-slate-600" },
+    { name: "At Risk", count: branchStudents.filter(s => s.status === "At Risk").length, color: "text-red-500" },
+    { name: "Completed", count: 0, color: "text-purple-600" },
+    { name: "Dropped", count: 0, color: "text-slate-600" },
   ];
 
   return (
@@ -128,16 +171,12 @@ export const AllStudents: React.FC = () => {
       </div>
 
       {/* 2. KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
         {[
-          { label: "Total Students", value: KPI_DATA.total.count, sub: KPI_DATA.total.sub, icon: Users, color: "text-[#1769AA]", bg: "bg-blue-50" },
-          { label: "Active Students", value: KPI_DATA.active.count, sub: KPI_DATA.active.sub, icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Completed Students", value: KPI_DATA.completed.count, sub: KPI_DATA.completed.sub, icon: GraduationCap, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Inactive / Dropped", value: KPI_DATA.dropped.count, sub: KPI_DATA.dropped.sub, icon: UserMinus, color: "text-red-500", bg: "bg-red-50" },
-          { label: "Average Attendance", value: KPI_DATA.attendance.count, sub: KPI_DATA.attendance.sub, icon: CalendarDays, color: "text-orange-500", bg: "bg-orange-50" },
-          { label: "Fees Pending", value: KPI_DATA.feesPending.count, sub: KPI_DATA.feesPending.sub, icon: Wallet, color: "text-amber-500", bg: "bg-amber-50" },
-          { label: "Students At Risk", value: KPI_DATA.atRisk.count, sub: KPI_DATA.atRisk.sub, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
-          { label: "Active Batches", value: KPI_DATA.activeBatches.count, sub: KPI_DATA.activeBatches.sub, icon: Library, color: "text-[#1769AA]", bg: "bg-blue-50" },
+          { label: "Active Students", value: kpis.active, sub: `${Math.round((kpis.active / (kpis.total || 1)) * 100)}% Active`, icon: UserCheck, color: "text-emerald-600", bg: "bg-emerald-50" },
+          { label: "Average Attendance", value: `${kpis.avgAttendance}%`, sub: "This Month", icon: CalendarDays, color: "text-orange-500", bg: "bg-orange-50" },
+          { label: "Fees Pending", value: `₹${kpis.pendingFees.toLocaleString()}`, sub: `${branchStudents.filter(s => s.fees.pending > 0).length} Students`, icon: Wallet, color: "text-amber-500", bg: "bg-amber-50" },
+          { label: "Students At Risk", value: kpis.atRisk, sub: `${Math.round((kpis.atRisk / (kpis.total || 1)) * 100)}% of total`, icon: AlertTriangle, color: "text-red-600", bg: "bg-red-50" },
         ].map((kpi, idx) => (
           <Card key={idx} className="border-slate-200 shadow-sm">
             <CardContent className="p-3">
@@ -146,7 +185,7 @@ export const AllStudents: React.FC = () => {
                   <div className={`p-1 rounded-md ${kpi.bg}`}>
                     <kpi.icon className={`h-3 w-3 ${kpi.color}`} />
                   </div>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide truncate">{kpi.label}</p>
+                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">{kpi.label}</p>
                 </div>
                 <h3 className="text-xl font-black text-slate-800">{kpi.value}</h3>
                 <p className="text-[10px] text-slate-400 font-medium mt-0.5">{kpi.sub}</p>
@@ -164,21 +203,42 @@ export const AllStudents: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search student by name, ID, email or phone..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA] transition-all"
             />
           </div>
           <div className="flex items-center gap-3 w-full lg:w-auto">
-            <select className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]">
-              <option>All Courses</option>
+            {/* Branch Switcher / Filter */}
+            <select 
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="text-sm font-semibold border border-slate-200 rounded-md px-3 py-2 text-slate-700 bg-white focus:outline-none focus:border-[#1769AA]"
+            >
+              <option value="ALL">🌐 All Branches</option>
+              {branches.map(b => (
+                <option key={b.id} value={b.id}>📍 {b.name}</option>
+              ))}
+              {branches.length === 0 && (
+                <>
+                  <option value="b-central">📍 Bengaluru Central</option>
+                  <option value="b-malleswaram">📍 Malleswaram</option>
+                  <option value="b-ramamurthy">📍 Ramamurthy Nagar</option>
+                </>
+              )}
             </select>
-            <select className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]">
-              <option>All Batches</option>
-            </select>
-            <select className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]">
-              <option>All Faculty</option>
-            </select>
-            <select className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]">
-              <option>All Status</option>
+
+            <select 
+              value={selectedCourseFilter}
+              onChange={(e) => setSelectedCourseFilter(e.target.value)}
+              className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]"
+            >
+              <option value="All Courses">All Courses</option>
+              <option value="Digital Marketing">Digital Marketing</option>
+              <option value="Graphic Design">Graphic Design</option>
+              <option value="Tally Prime">Tally Prime</option>
+              <option value="Python Programming">Python Programming</option>
+              <option value="Web Design">Web Design</option>
             </select>
           </div>
         </div>
@@ -223,85 +283,88 @@ export const AllStudents: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {STUDENTS_MOCK.map((student) => (
-                <tr key={student.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-3">
-                      <img src={student.avatar} alt={student.name} className="w-8 h-8 rounded-full border border-slate-200" />
-                      <div>
-                        <p className="font-semibold text-slate-900 text-[13px]">{student.name}</p>
-                        <p className="text-[10px] text-slate-500">{student.email}</p>
+              {filteredStudents.length > 0 ? (
+                filteredStudents.map((student) => (
+                  <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-3">
+                        <img src={student.avatar} alt={student.name} className="w-8 h-8 rounded-full border border-slate-200" />
+                        <div>
+                          <p className="font-semibold text-slate-900 text-[13px]">{student.name}</p>
+                          <p className="text-[10px] text-slate-500 flex items-center gap-1.5">
+                            <span>{student.email}</span>
+                            <span>•</span>
+                            <span className="text-[#1769AA] font-medium">{student.branch}</span>
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{student.id}</td>
-                  <td className="px-4 py-3 font-medium text-slate-800 text-[12px]">{student.course}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-slate-800 text-[12px]">{student.batch}</p>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold">
-                        {student.faculty[0]}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-[11px] text-slate-600">{student.id}</td>
+                    <td className="px-4 py-3 font-medium text-slate-800 text-[12px]">{student.course}</td>
+                    <td className="px-4 py-3">
+                      <p className="font-medium text-slate-800 text-[12px]">{student.batch}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-[9px] font-bold">
+                          {student.faculty[0]}
+                        </div>
+                        <span className="font-medium text-slate-700 text-[12px]">{student.faculty}</span>
                       </div>
-                      <span className="font-medium text-slate-700 text-[12px]">{student.faculty}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 w-32">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-bold text-slate-700">{student.attendance}%</span>
-                    </div>
-                    <ProgressBar value={student.attendance} colorClass={getAttendanceColor(student.attendance)} />
-                  </td>
-                  <td className="px-4 py-3 w-32">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-bold text-slate-700">{student.progress}%</span>
-                    </div>
-                    <ProgressBar value={student.progress} colorClass="bg-blue-600" />
-                  </td>
-                  <td className="px-4 py-3">
-                    {student.fees.status === "Paid" ? (
-                      <span className="text-[10px] font-bold text-emerald-600">Paid</span>
-                    ) : (
-                      <div>
-                        <p className="text-[11px] font-bold text-orange-600">₹{student.fees.pending.toLocaleString()} <br/><span className="text-[9px] font-semibold">Pending</span></p>
+                    </td>
+                    <td className="px-4 py-3 w-32">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-slate-700">{student.attendance}%</span>
                       </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-[10px] font-bold px-2.5 py-1 rounded-sm ${getStatusColor(student.status)}`}>
-                      {student.status}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 px-2.5 text-xs border-[#1769AA]/30 text-[#1769AA] hover:bg-[#1769AA]/5"
-                        onClick={() => setSelectedStudent(student)}
-                      >
-                        View
-                      </Button>
-                      <button className="text-slate-400 hover:text-slate-600"><MoreVertical className="h-4 w-4" /></button>
-                    </div>
+                      <ProgressBar value={student.attendance} colorClass={getAttendanceColor(student.attendance)} />
+                    </td>
+                    <td className="px-4 py-3 w-32">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-slate-700">{student.progress}%</span>
+                      </div>
+                      <ProgressBar value={student.progress} colorClass="bg-blue-600" />
+                    </td>
+                    <td className="px-4 py-3">
+                      {student.fees.status === "Paid" ? (
+                        <span className="text-[10px] font-bold text-emerald-600">Paid</span>
+                      ) : (
+                        <div>
+                          <p className="text-[11px] font-bold text-orange-600">₹{student.fees.pending.toLocaleString()} <br/><span className="text-[9px] font-semibold">Pending</span></p>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-[10px] font-bold px-2.5 py-1 rounded-sm ${getStatusColor(student.status)}`}>
+                        {student.status}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="h-7 px-2.5 text-xs border-[#1769AA]/30 text-[#1769AA] hover:bg-[#1769AA]/5"
+                          onClick={() => navigate(`/admin/students/performance?studentId=${student.id}`)}
+                        >
+                          View
+                        </Button>
+                        <button className="text-slate-400 hover:text-slate-600"><MoreVertical className="h-4 w-4" /></button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={10} className="px-5 py-12 text-center text-slate-400 text-sm">
+                    No students found for the selected branch / filters.
                   </td>
                 </tr>
-              ))}
+              )}
             </tbody>
           </table>
         </div>
         <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-          <span className="text-[11px] text-slate-500 font-medium">Showing 1 to 8 of 124 students</span>
-          <div className="flex items-center gap-1">
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-slate-200 text-slate-500">&lsaquo;</Button>
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 bg-[#1769AA] text-white border-[#1769AA]">1</Button>
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-slate-200 text-slate-600 hover:bg-slate-50">2</Button>
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-slate-200 text-slate-600 hover:bg-slate-50">3</Button>
-            <span className="px-1 text-slate-400 text-xs">...</span>
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-slate-200 text-slate-600 hover:bg-slate-50">16</Button>
-            <Button variant="outline" size="sm" className="h-7 w-7 p-0 border-slate-200 text-slate-500 hover:bg-slate-50">&rsaquo;</Button>
-          </div>
+          <span className="text-[11px] text-slate-500 font-medium">Showing {filteredStudents.length} of {branchStudents.length} students</span>
         </div>
       </Card>
 

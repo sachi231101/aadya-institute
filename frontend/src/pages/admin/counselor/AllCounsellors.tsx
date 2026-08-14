@@ -17,6 +17,7 @@ import {
 import { useCounselorStore } from "@/store/counselor.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -55,10 +56,15 @@ export const AllCounsellors: React.FC = () => {
 
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
 
   useEffect(() => {
-    fetchCounselors(isCenterManager ? (userBranchId || undefined) : undefined);
-  }, [isCenterManager, userBranchId]);
+    if (isCenterManager) {
+      fetchCounselors(userBranchId || undefined);
+    } else {
+      fetchCounselors(selectedBranchId === "ALL" ? undefined : selectedBranchId);
+    }
+  }, [isCenterManager, userBranchId, selectedBranchId]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -87,8 +93,18 @@ export const AllCounsellors: React.FC = () => {
   // Delete Modal State
   const [deleteCounselorId, setDeleteCounselorId] = useState<string | null>(null);
 
-  // Filtered List
-  const filteredCounselors = counselors.filter((c) => {
+  // Branch-filtered Counselors
+  const branchCounselors = counselors.filter((c) => {
+    if (isCenterManager) return true;
+    return (
+      selectedBranchId === "ALL" ||
+      c.branchId === selectedBranchId ||
+      branches.find((b) => b.id === selectedBranchId)?.name.toLowerCase().includes(c.branchName?.toLowerCase() || "")
+    );
+  });
+
+  // Filtered List (Search + Status + Branch)
+  const filteredCounselors = branchCounselors.filter((c) => {
     const matchesSearch =
       c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       c.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -101,10 +117,10 @@ export const AllCounsellors: React.FC = () => {
   });
 
   // Metrics
-  const totalCount = counselors.length;
-  const activeCount = counselors.filter((c) => c.status === "ACTIVE").length;
-  const totalLeads = counselors.reduce((acc, c) => acc + c.assignedLeadsCount, 0);
-  const totalEnrolled = counselors.reduce((acc, c) => acc + c.activeStudentsCount, 0);
+  const totalCount = branchCounselors.length;
+  const activeCount = branchCounselors.filter((c) => c.status === "ACTIVE").length;
+  const totalLeads = branchCounselors.reduce((acc, c) => acc + c.assignedLeadsCount, 0);
+  const totalEnrolled = branchCounselors.reduce((acc, c) => acc + c.activeStudentsCount, 0);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -120,7 +136,6 @@ export const AllCounsellors: React.FC = () => {
       email,
       password: password || undefined,
       phone,
-      branchId,
       branchId: branchId || (branches[0]?.id || ""),
       branchName: selectedBranch?.name || "Bengaluru Central Branch",
       status,
@@ -289,6 +304,28 @@ export const AllCounsellors: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
+          {!isCenterManager && (
+            <select
+              value={selectedBranchId}
+              onChange={(e) => setSelectedBranchId(e.target.value)}
+              className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-semibold w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+            >
+              <option value="ALL">🌐 All Branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  📍 {b.name}
+                </option>
+              ))}
+              {branches.length === 0 && (
+                <>
+                  <option value="b-central">📍 Bengaluru Central</option>
+                  <option value="b-malleswaram">📍 Malleswaram</option>
+                  <option value="b-ramamurthy">📍 Ramamurthy Nagar</option>
+                </>
+              )}
+            </select>
+          )}
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
