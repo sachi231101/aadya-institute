@@ -23,6 +23,7 @@ interface RoleCardConfig {
   badgeTag: string;
   description: string;
   email: string;
+  password: string;
   color: string;
   bgColor: string;
   borderColor: string;
@@ -49,6 +50,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     badgeTag: "Full System Control",
     description: "Access institute configuration, multi-branch overview, user access permissions, financial reports, and global settings.",
     email: "admin@aadya.in",
+    password: "ChangeMe@123",
     color: "#334155",
     bgColor: "rgba(241, 245, 249, 0.9)",
     borderColor: "#cbd5e1",
@@ -72,7 +74,8 @@ const ROLE_CARDS: RoleCardConfig[] = [
     roleEnum: UserRole.CENTER_MANAGER,
     badgeTag: "Branch Operations",
     description: "Manage branch admissions, batches, timetables, attendance summaries, faculty rosters, and branch-level analytics.",
-    email: "center.manager@aadya.in",
+    email: "manager@aadya.in",
+    password: "Manager@123",
     color: "#1769AA",
     bgColor: "rgba(239, 246, 255, 0.9)",
     borderColor: "#93c5fd",
@@ -80,10 +83,10 @@ const ROLE_CARDS: RoleCardConfig[] = [
     icon: Building2,
     dashboardPath: "/center/dashboard",
     demoUser: {
-      id: "cm-001",
-      name: "Center Manager",
-      email: "center.manager@aadya.in",
-      phone: "+91 99999 11111",
+      id: "seed-manager-user",
+      name: "Suresh Sharma",
+      email: "manager@aadya.in",
+      phone: "9876543210",
       role: "CENTER_MANAGER",
       roles: ["CENTER_MANAGER"],
       instituteId: "inst-aadya-01",
@@ -94,9 +97,10 @@ const ROLE_CARDS: RoleCardConfig[] = [
     id: "counselor",
     name: "Counsellor",
     roleEnum: UserRole.COUNSELLOR,
-    badgeTag: "Leads & AI Calling",
-    description: "Review prospective student leads, view Sarvam AI call transcripts & summaries, track follow-up tasks, and add counselor notes.",
-    email: "counselor@aadya.in",
+    badgeTag: "Leads & Follow-ups",
+    description: "Review prospective student leads, manage walk-in enquiries, follow-ups, and convert leads into student admissions.",
+    email: "counsellor@aadya.in",
+    password: "Counsellor@123",
     color: "#10b981",
     bgColor: "rgba(236, 253, 245, 0.9)",
     borderColor: "#6ee7b7",
@@ -104,10 +108,10 @@ const ROLE_CARDS: RoleCardConfig[] = [
     icon: UserCheck,
     dashboardPath: "/counselor/dashboard",
     demoUser: {
-      id: "cns-001",
-      name: "Counsellor User",
-      email: "counselor@aadya.in",
-      phone: "+91 98765 11223",
+      id: "seed-counsellor-user",
+      name: "Priya Singh",
+      email: "counsellor@aadya.in",
+      phone: "9876543211",
       role: "COUNSELLOR",
       roles: ["COUNSELLOR"],
       instituteId: "inst-aadya-01",
@@ -120,7 +124,8 @@ const ROLE_CARDS: RoleCardConfig[] = [
     roleEnum: UserRole.FACULTY,
     badgeTag: "Teaching Desk",
     description: "View daily class schedules, mark student attendance, publish module assignments, review student submissions, and upload recordings.",
-    email: "faculty@aadya.in",
+    email: "ramesh@aadya.in",
+    password: "Faculty@123",
     color: "#d97706",
     bgColor: "rgba(254, 243, 199, 0.9)",
     borderColor: "#fde68a",
@@ -128,10 +133,10 @@ const ROLE_CARDS: RoleCardConfig[] = [
     icon: GraduationCap,
     dashboardPath: "/faculty/dashboard",
     demoUser: {
-      id: "fac-001",
-      name: "Faculty Instructor",
-      email: "faculty@aadya.in",
-      phone: "+91 98765 99887",
+      id: "seed-faculty-user",
+      name: "Ramesh Kumar",
+      email: "ramesh@aadya.in",
+      phone: "9888888888",
       role: "FACULTY",
       roles: ["FACULTY"],
       instituteId: "inst-aadya-01",
@@ -145,6 +150,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     badgeTag: "Learning Portal",
     description: "Check timetable, track class attendance history, watch class recordings, submit assignments, and submit batch feedback.",
     email: "student@aadya.in",
+    password: "Student@123",
     color: "#8b5cf6",
     bgColor: "rgba(245, 243, 255, 0.9)",
     borderColor: "#ddd6fe",
@@ -152,10 +158,10 @@ const ROLE_CARDS: RoleCardConfig[] = [
     icon: Users,
     dashboardPath: "/student/dashboard",
     demoUser: {
-      id: "stu-001",
-      name: "Enrolled Student",
+      id: "seed-student-user",
+      name: "Rahul Verma",
       email: "student@aadya.in",
-      phone: "+91 98765 44332",
+      phone: "9777777777",
       role: "STUDENT",
       roles: ["STUDENT"],
       instituteId: "inst-aadya-01",
@@ -167,8 +173,9 @@ const ROLE_CARDS: RoleCardConfig[] = [
 export const Login: React.FC = () => {
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [emailOrPhone, setEmailOrPhone] = useState("");
-  const [password, setPassword] = useState("ChangeMe@123");
+  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingRoleId, setLoadingRoleId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const { setAuth } = useAuthStore();
@@ -176,24 +183,15 @@ export const Login: React.FC = () => {
 
   const currentRole = ROLE_CARDS.find((r) => r.id === selectedRoleId) || null;
 
-  const handleSelectRoleCard = (roleConfig: RoleCardConfig) => {
-    setSelectedRoleId(roleConfig.id);
-    setEmailOrPhone(roleConfig.email);
-    setPassword("ChangeMe@123");
-    setError("");
-  };
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!currentRole) return;
-
+  const executeLogin = async (loginEmail: string, loginPass: string, roleConfig: RoleCardConfig) => {
     setLoading(true);
+    setLoadingRoleId(roleConfig.id);
     setError("");
 
     try {
-      const result = await authApi.login(emailOrPhone, password);
+      const result = await authApi.login(loginEmail, loginPass);
       
-      const primaryRole = result.user.roles?.[0] || currentRole.roleEnum;
+      const primaryRole = result.user.roles?.[0] || roleConfig.roleEnum;
       const frontendUser = {
         ...result.user,
         role: primaryRole,
@@ -219,21 +217,40 @@ export const Login: React.FC = () => {
           navigate("/student/dashboard");
           break;
         default:
-          navigate(currentRole.dashboardPath);
+          navigate(roleConfig.dashboardPath);
       }
     } catch (err: any) {
       if (err?.response?.data?.message) {
         setError(err.response.data.message);
       } else if (err?.message && !err?.response) {
-        // Only fallback to demo user if network error / server unreachable
-        setAuth(currentRole.demoUser, `demo-${currentRole.id}-token`);
-        navigate(currentRole.dashboardPath);
+        // Fallback to demo user if backend is offline
+        setAuth(roleConfig.demoUser, `demo-${roleConfig.id}-token`);
+        navigate(roleConfig.dashboardPath);
       } else {
         setError("Invalid email or password");
       }
     } finally {
       setLoading(false);
+      setLoadingRoleId(null);
     }
+  };
+
+  const handleSelectRoleCard = (roleConfig: RoleCardConfig) => {
+    setSelectedRoleId(roleConfig.id);
+    setEmailOrPhone(roleConfig.email);
+    setPassword(roleConfig.password);
+    setError("");
+  };
+
+  const handleQuickAutoLogin = (e: React.MouseEvent, roleConfig: RoleCardConfig) => {
+    e.stopPropagation();
+    executeLogin(roleConfig.email, roleConfig.password, roleConfig);
+  };
+
+  const handleLoginSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentRole) return;
+    executeLogin(emailOrPhone, password, currentRole);
   };
 
   return (
@@ -249,7 +266,7 @@ export const Login: React.FC = () => {
       }}
     >
       {/* Brand Header */}
-      <div style={{ textAlign: "center", marginBottom: "2rem", maxWidth: "600px" }}>
+      <div style={{ textAlign: "center", marginBottom: "2rem", maxWidth: "650px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>
           <img src="/aadya-logo.png" alt="Aadya Institute" style={{ height: "68px", objectFit: "contain" }} />
         </div>
@@ -259,7 +276,7 @@ export const Login: React.FC = () => {
         <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginTop: "0.35rem" }}>
           {selectedRoleId
             ? `Sign in below to access the ${currentRole?.name} Portal`
-            : "Select a Role Portal card below to sign in to your dashboard"}
+            : "Click any role card below or use 1-Click Instant Login for quick development access"}
         </p>
       </div>
 
@@ -275,98 +292,150 @@ export const Login: React.FC = () => {
               alignItems: "stretch",
             }}
           >
-            {ROLE_CARDS.map((role) => (
-              <div
-                key={role.id}
-                onClick={() => handleSelectRoleCard(role)}
-                style={{
-                  flex: "1 1 300px",
-                  maxWidth: "350px",
-                  minWidth: "280px",
-                  background: "var(--bg-card, #ffffff)",
-                  border: `2px solid ${role.borderColor}`,
-                  borderRadius: "16px",
-                  padding: "1.35rem 1.25rem",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                  transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                  boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
-                  position: "relative",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "translateY(-5px)";
-                  e.currentTarget.style.boxShadow = `0 12px 28px ${role.color}25`;
-                  e.currentTarget.style.borderColor = role.color;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "translateY(0)";
-                  e.currentTarget.style.boxShadow = "0 4px 18px rgba(0, 0, 0, 0.04)";
-                  e.currentTarget.style.borderColor = role.borderColor;
-                }}
-              >
-                <div>
-                  {/* Top Bar inside Card */}
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
+            {ROLE_CARDS.map((role) => {
+              const isCardLoading = loadingRoleId === role.id;
+              return (
+                <div
+                  key={role.id}
+                  onClick={() => handleSelectRoleCard(role)}
+                  style={{
+                    flex: "1 1 300px",
+                    maxWidth: "350px",
+                    minWidth: "280px",
+                    background: "var(--bg-card, #ffffff)",
+                    border: `2px solid ${role.borderColor}`,
+                    borderRadius: "16px",
+                    padding: "1.35rem 1.25rem",
+                    cursor: "pointer",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
+                    boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
+                    position: "relative",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = "translateY(-5px)";
+                    e.currentTarget.style.boxShadow = `0 12px 28px ${role.color}25`;
+                    e.currentTarget.style.borderColor = role.color;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 4px 18px rgba(0, 0, 0, 0.04)";
+                    e.currentTarget.style.borderColor = role.borderColor;
+                  }}
+                >
+                  <div>
+                    {/* Top Bar inside Card */}
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
+                      <div
+                        style={{
+                          width: "44px",
+                          height: "44px",
+                          borderRadius: "12px",
+                          background: role.bgColor,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <role.icon size={24} style={{ color: role.color }} />
+                      </div>
+                      <span
+                        style={{
+                          padding: "0.25rem 0.6rem",
+                          borderRadius: "20px",
+                          background: role.bgColor,
+                          color: role.color,
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                          border: `1px solid ${role.borderColor}`,
+                        }}
+                      >
+                        {role.badgeTag}
+                      </span>
+                    </div>
+
+                    {/* Role Title & Description */}
+                    <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.35rem" }}>
+                      {role.name}
+                    </h2>
+                    <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: "0.85rem" }}>
+                      {role.description}
+                    </p>
+
+                    {/* Demo Credentials Box */}
                     <div
                       style={{
-                        width: "44px",
-                        height: "44px",
-                        borderRadius: "12px",
-                        background: role.bgColor,
+                        padding: "0.5rem 0.75rem",
+                        borderRadius: "8px",
+                        background: "rgba(0, 0, 0, 0.03)",
+                        border: "1px dashed var(--border-color, #e2e8f0)",
+                        marginBottom: "1rem",
+                        fontSize: "0.75rem",
+                        color: "var(--text-secondary)",
+                      }}
+                    >
+                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
+                        <span style={{ fontWeight: 600 }}>Login:</span>
+                        <code style={{ color: role.color, fontWeight: 700 }}>{role.email}</code>
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between" }}>
+                        <span style={{ fontWeight: 600 }}>Password:</span>
+                        <code style={{ color: "var(--text-primary)" }}>{role.password}</code>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card Action Buttons */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={(e) => handleQuickAutoLogin(e, role)}
+                      style={{
+                        width: "100%",
+                        padding: "0.65rem 0.9rem",
+                        borderRadius: "10px",
+                        background: role.color,
+                        color: "#ffffff",
+                        fontWeight: 700,
+                        fontSize: "0.825rem",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
+                        gap: "0.4rem",
+                        border: "none",
+                        cursor: "pointer",
+                        boxShadow: `0 3px 10px ${role.color}35`,
+                        transition: "all 0.2s",
                       }}
                     >
-                      <role.icon size={24} style={{ color: role.color }} />
-                    </div>
-                    <span
+                      <span>{isCardLoading ? "Logging in..." : `⚡ 1-Click Instant Login`}</span>
+                      {!isCardLoading && <ArrowRight size={15} />}
+                    </button>
+
+                    <div
                       style={{
-                        padding: "0.25rem 0.6rem",
-                        borderRadius: "20px",
+                        padding: "0.45rem 0.9rem",
+                        borderRadius: "8px",
                         background: role.bgColor,
                         color: role.color,
-                        fontSize: "0.75rem",
-                        fontWeight: 700,
+                        fontWeight: 600,
+                        fontSize: "0.775rem",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
                         border: `1px solid ${role.borderColor}`,
                       }}
                     >
-                      {role.badgeTag}
-                    </span>
+                      <span>Custom Credentials</span>
+                      <ChevronRight size={14} />
+                    </div>
                   </div>
-
-                  {/* Role Title & Description */}
-                  <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.35rem" }}>
-                    {role.name}
-                  </h2>
-                  <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: "1rem" }}>
-                    {role.description}
-                  </p>
                 </div>
-
-                {/* Card Action Button */}
-                <div
-                  style={{
-                    padding: "0.65rem 0.9rem",
-                    borderRadius: "10px",
-                    background: role.bgColor,
-                    color: role.color,
-                    fontWeight: 700,
-                    fontSize: "0.825rem",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    border: `1px solid ${role.borderColor}`,
-                    transition: "all 0.2s",
-                  }}
-                >
-                  <span>Sign In to {role.name}</span>
-                  <ChevronRight size={16} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -401,7 +470,7 @@ export const Login: React.FC = () => {
             }}
           >
             <ArrowLeft size={18} />
-            <span>Back to All Role Dashboards</span>
+            <span>Back to All Role Portals</span>
           </button>
 
           {/* Sign In Glass Box */}
@@ -409,14 +478,14 @@ export const Login: React.FC = () => {
             className="glass-card"
             style={{
               width: "100%",
-              padding: "2.5rem 2rem",
+              padding: "2.25rem 2rem",
               borderRadius: "var(--radius-xl)",
               boxShadow: "0 20px 40px rgba(0, 0, 0, 0.08)",
               border: `2px solid ${currentRole?.borderColor}`,
             }}
           >
             {/* Header with active role badge */}
-            <div style={{ textAlign: "center", marginBottom: "1.5rem" }}>
+            <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
               <div
                 style={{
                   width: "56px",
@@ -426,7 +495,7 @@ export const Login: React.FC = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  margin: "0 auto 1rem auto",
+                  margin: "0 auto 0.75rem auto",
                   border: `1px solid ${currentRole?.borderColor}`,
                 }}
               >
@@ -436,9 +505,50 @@ export const Login: React.FC = () => {
                 {currentRole?.name} Portal
               </h2>
               <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-                Enter credentials to access your account
+                Credentials pre-filled for local development
               </p>
             </div>
+
+            {/* Quick Auto-Fill Banner */}
+            {currentRole && (
+              <div
+                style={{
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  background: currentRole.bgColor,
+                  border: `1px solid ${currentRole.borderColor}`,
+                  marginBottom: "1.25rem",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  fontSize: "0.8rem",
+                }}
+              >
+                <div>
+                  <span style={{ color: "var(--text-secondary)", display: "block" }}>Dev Account:</span>
+                  <strong style={{ color: currentRole.color }}>{currentRole.email}</strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEmailOrPhone(currentRole.email);
+                    setPassword(currentRole.password);
+                  }}
+                  style={{
+                    padding: "0.3rem 0.6rem",
+                    borderRadius: "6px",
+                    background: "#ffffff",
+                    border: `1px solid ${currentRole.borderColor}`,
+                    color: currentRole.color,
+                    fontSize: "0.75rem",
+                    fontWeight: 700,
+                    cursor: "pointer",
+                  }}
+                >
+                  Reset Form
+                </button>
+              </div>
+            )}
 
             {error && (
               <div
@@ -604,5 +714,6 @@ export const Login: React.FC = () => {
     </div>
   );
 };
+
 
 
