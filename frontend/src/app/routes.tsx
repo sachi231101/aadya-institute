@@ -8,8 +8,10 @@ import { CounselorLayout } from "../layouts/CounselorLayout";
 import { FacultyLayout } from "../layouts/FacultyLayout";
 import { StudentLayout } from "../layouts/StudentLayout";
 
-// Admin Dashboard
+// Admin Dashboard & AI
 import { AdminDashboard } from "../pages/admin/Dashboard";
+import { AiHome } from "../pages/admin/ai/AiHome";
+import { AskMe } from "../pages/admin/ai/AskMe";
 import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 
 // Students
@@ -95,7 +97,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="ask-me" element={<AskMe />} />
         <Route path="branch/:id/performance" element={<BranchPerformance />} />
 
         {/* Students */}

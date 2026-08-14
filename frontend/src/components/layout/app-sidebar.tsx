@@ -8,14 +8,14 @@ import {
   Settings,
   Bell,
   Users,
-
   Target,
   CreditCard,
   BarChart3,
   ChevronRight,
   LogOut,
   Shield,
-  UserCheck
+  UserCheck,
+  Sparkles
 } from "lucide-react"
 
 import {
@@ -38,10 +38,17 @@ import { useAuthStore } from "@/store/auth.store"
 const data = {
   navMain: [
     {
+      title: "ASK ME",
+      url: "/admin/home",
+      icon: Sparkles,
+      isActive: false,
+      isAi: true,
+    },
+    {
       title: "Dashboard",
       url: "/admin/dashboard",
       icon: LayoutDashboard,
-      isActive: true,
+      isActive: false,
     },
     {
       title: "Center Manager",
@@ -166,7 +173,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/admin/dashboard">
+              <Link to="/admin/home">
                 <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
                 <div className="flex flex-col gap-0.5 leading-none">
                   <span className="font-semibold text-text-primary">Aadya Portal</span>
@@ -181,12 +188,39 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarGroup>
           <SidebarMenu>
             {data.navMain.map((item) => {
-              const isPathActive = location.pathname.startsWith(item.url)
+              const isItemActive = location.pathname === item.url
+              const isGroupActive = item.items?.some((sub) => location.pathname === sub.url || location.pathname.startsWith(sub.url))
 
               if (!item.items) {
+                if (item.isAi) {
+                  return (
+                    <SidebarMenuItem key={item.title} className="mb-2">
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isItemActive}
+                        tooltip={item.title}
+                        className={isItemActive
+                          ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
+                          : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
+                        }
+                      >
+                        <Link to={item.url} className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className={`h-4 w-4 shrink-0 ${isItemActive ? "text-white fill-white" : "text-[#1769AA]"}`} />
+                            <span className="tracking-wide">✦ ASK ME</span>
+                          </div>
+                          <span className={`${isItemActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"} text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}>
+                            AI
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                }
+
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild isActive={location.pathname === item.url} tooltip={item.title}>
+                    <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.title}>
                       <Link to={item.url}>
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
@@ -200,12 +234,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 <Collapsible
                   key={item.title}
                   asChild
-                  defaultOpen={isPathActive}
+                  defaultOpen={isGroupActive}
                   className="group/collapsible"
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title} isActive={isPathActive}>
+                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive}>
                         {item.icon && <item.icon />}
                         <span>{item.title}</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />

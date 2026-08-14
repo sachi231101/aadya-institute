@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { 
+import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from "recharts";
-import { 
-  BookOpen, 
+import {
+  BookOpen,
   User,
   AlertTriangle,
   Loader2,
@@ -553,13 +553,13 @@ export const StudentPerformance: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
-      
+
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3.5">
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <Button
+            variant="outline"
+            size="sm"
             className="h-10 px-3.5 text-slate-700 hover:text-[#1769AA] hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors"
             onClick={() => navigate("/admin/students/all")}
           >
@@ -572,11 +572,11 @@ export const StudentPerformance: React.FC = () => {
             </p>
           </div>
         </div>
-        
+
         <div className="w-full sm:w-80">
           <div className="relative">
             <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-            <select 
+            <select
               value={currentStudent.id}
               onChange={(e) => handleStudentSelect(e.target.value)}
               className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA] font-medium cursor-pointer shadow-sm"
@@ -595,22 +595,21 @@ export const StudentPerformance: React.FC = () => {
       <Card className="border-slate-200 bg-white shadow-sm overflow-hidden">
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row gap-6 items-start lg:items-center">
-            
+
             {/* Left: Avatar + Info */}
             <div className="flex items-center gap-4 min-w-[320px]">
-              <img 
-                src={currentStudent.avatar} 
-                alt={currentStudent.name} 
-                className="h-16 w-16 rounded-full object-cover border border-slate-200 shadow-sm shrink-0" 
+              <img
+                src={currentStudent.avatar}
+                alt={currentStudent.name}
+                className="h-16 w-16 rounded-full object-cover border border-slate-200 shadow-sm shrink-0"
               />
               <div>
                 <div className="flex items-center gap-2.5 mb-1">
                   <h2 className="text-xl font-bold text-slate-900">{currentStudent.name}</h2>
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    currentStudent.status === "AT RISK" 
-                      ? "bg-red-50 text-red-600 border border-red-200/60" 
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${currentStudent.status === "AT RISK"
+                      ? "bg-red-50 text-red-600 border border-red-200/60"
                       : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
-                  }`}>
+                    }`}>
                     {currentStudent.status === "AT RISK" ? "At Risk" : "Active"}
                   </span>
                 </div>
@@ -666,7 +665,7 @@ export const StudentPerformance: React.FC = () => {
 
       {/* 3. 5 KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        
+
         {/* KPI 1 */}
         <Card className="border-slate-200 shadow-sm bg-white">
           <CardContent className="p-4 flex items-start gap-3.5">
@@ -784,7 +783,7 @@ export const StudentPerformance: React.FC = () => {
 
       {/* 5. Three Analytics Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Card 1: Attendance Overview */}
         <Card className="border-slate-200 shadow-sm bg-white">
           <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
@@ -816,7 +815,7 @@ export const StudentPerformance: React.FC = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
-                  <RechartsTooltip 
+                  <RechartsTooltip
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(val: number) => [`${val}%`, 'Attendance']}
                   />
@@ -889,14 +888,14 @@ export const StudentPerformance: React.FC = () => {
                 <AreaChart data={currentStudent.performanceTrend} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
                   <defs>
                     <linearGradient id="purpleGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25}/>
-                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0}/>
+                      <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
-                  <RechartsTooltip 
+                  <RechartsTooltip
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                     formatter={(val: number) => [`${val}%`, 'Score']}
                   />
@@ -911,7 +910,7 @@ export const StudentPerformance: React.FC = () => {
 
       {/* 6. Assessment Results & Enrolled Courses */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Assessment Results Table (Spans 2 cols) */}
         <Card className="border-slate-200 shadow-sm bg-white lg:col-span-2 flex flex-col">
           <CardHeader className="pb-3 border-b border-slate-100">
