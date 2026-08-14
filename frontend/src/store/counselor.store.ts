@@ -12,7 +12,7 @@ interface CounselorState {
   deleteCounselor: (id: string) => Promise<boolean>;
 }
 
-export const useCounselorStore = create<CounselorState>((set) => ({
+export const useCounselorStore = create<CounselorState>((set, get) => ({
   counselors: [],
   isLoading: false,
   error: null,
@@ -20,8 +20,8 @@ export const useCounselorStore = create<CounselorState>((set) => ({
   fetchCounselors: async (branchId?: string) => {
     set({ isLoading: true, error: null });
     try {
-      const res = await usersApi.getUsers({ 
-        role: "COUNSELLOR", 
+      const res = await usersApi.getUsers({
+        role: "COUNSELLOR",
         limit: 100,
         ...(branchId ? { branchId } : {})
       });
@@ -71,8 +71,6 @@ export const useCounselorStore = create<CounselorState>((set) => ({
           email: createdUser.email || "",
           phone: createdUser.phone || "",
           branchId: createdUser.branchId || payload.branchId || "main",
-          branchName: payload.branchName || "Main Campus",
-          branchId: createdUser.branchId || "main",
           branchName: payload.branchName || "Aadya Central Branch",
           assignedLeadsCount: 0,
           activeStudentsCount: 0,
@@ -113,13 +111,13 @@ export const useCounselorStore = create<CounselorState>((set) => ({
           counselors: state.counselors.map((c) =>
             c.id === id
               ? {
-                  ...c,
-                  name: payload.name || c.name,
-                  email: payload.email || c.email,
-                  phone: payload.phone || c.phone,
-                  branchId: payload.branchId || c.branchId,
-                  status: payload.status || c.status,
-                }
+                ...c,
+                name: payload.name || c.name,
+                email: payload.email || c.email,
+                phone: payload.phone || c.phone,
+                branchId: payload.branchId || c.branchId,
+                status: payload.status || c.status,
+              }
               : c
           ),
         }));

@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  UserCheck, 
-  Mail, 
-  Phone, 
-  Building2, 
-  MoreVertical, 
-  Edit3, 
-  Trash2, 
+import {
+  Users,
+  Plus,
+  Search,
+  UserCheck,
+  Mail,
+  Phone,
+  Building2,
+  MoreVertical,
+  Edit3,
+  Trash2,
   TrendingUp,
   CheckCircle2,
   Loader2
@@ -57,7 +57,7 @@ export const AllCounsellors: React.FC = () => {
   const branches = branchesResponse?.data || [];
 
   useEffect(() => {
-    fetchCounselors(isCenterManager ? userBranchId : undefined);
+    fetchCounselors(isCenterManager ? (userBranchId || undefined) : undefined);
   }, [isCenterManager, userBranchId]);
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -120,6 +120,7 @@ export const AllCounsellors: React.FC = () => {
       email,
       password: password || undefined,
       phone,
+      branchId,
       branchId: branchId || (branches[0]?.id || ""),
       branchName: selectedBranch?.name || "Bengaluru Central Branch",
       status,
@@ -378,8 +379,8 @@ export const AllCounsellors: React.FC = () => {
                         <DropdownMenuItem onClick={() => handleOpenEditModal(c)} className="gap-2 cursor-pointer">
                           <Edit3 className="h-4 w-4 text-[#1769AA]" /> Edit Details
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          onClick={() => setDeleteCounselorId(c.id)} 
+                        <DropdownMenuItem
+                          onClick={() => setDeleteCounselorId(c.id)}
                           className="gap-2 text-rose-600 focus:text-rose-600 cursor-pointer"
                         >
                           <Trash2 className="h-4 w-4" /> Delete / Deactivate
@@ -489,10 +490,10 @@ export const AllCounsellors: React.FC = () => {
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
               {isCenterManager ? (
-                <Input 
-                  value={branches.find(b => b.id === branchId)?.name || branchId} 
-                  disabled 
-                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                <Input
+                  value={branches.find(b => b.id === branchId)?.name || branchId}
+                  disabled
+                  className="bg-slate-100 text-slate-700 font-medium h-10"
                 />
               ) : (
                 <select
@@ -600,10 +601,10 @@ export const AllCounsellors: React.FC = () => {
             <div>
               <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
               {isCenterManager ? (
-                <Input 
-                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId} 
-                  disabled 
-                  className="bg-slate-100 text-slate-700 font-medium h-10" 
+                <Input
+                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId}
+                  disabled
+                  className="bg-slate-100 text-slate-700 font-medium h-10"
                 />
               ) : (
                 <select
