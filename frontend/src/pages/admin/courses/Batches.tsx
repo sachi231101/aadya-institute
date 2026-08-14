@@ -67,8 +67,8 @@ export const Batches: React.FC = () => {
 
     const matchesSearch =
       !searchTerm ||
-      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (b.code || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
       facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       courseName.toLowerCase().includes(searchTerm.toLowerCase());
 

@@ -345,35 +345,49 @@ export const upsertRule = async (data: {
   return repo.upsertRule(data);
 };
 
+import { NotificationRepository as CanonicalNotificationRepo } from "../notifications/notification.repository";
+
 export class NotificationService {
   static async getNotifications(
     instituteId: string,
     userId: string,
-    filters: NotificationQueryFilters
+    filters: NotificationQueryFilters,
+    userRoles: string[] = [],
+    userBranchId?: string | null
   ): Promise<NotificationListResponse> {
-    return repo.NotificationRepository.listNotifications(instituteId, userId, filters);
+    return CanonicalNotificationRepo.listNotifications(instituteId, userId, filters, userRoles, userBranchId);
   }
 
-  static async getUnreadCount(instituteId: string, userId: string): Promise<UnreadCountResponse> {
-    return repo.NotificationRepository.getUnreadCount(instituteId, userId);
+  static async getUnreadCount(
+    instituteId: string,
+    userId: string,
+    userRoles: string[] = [],
+    userBranchId?: string | null
+  ): Promise<UnreadCountResponse> {
+    return CanonicalNotificationRepo.getUnreadCount(instituteId, userId, userRoles, userBranchId);
   }
 
   static async markAsRead(notificationId: string, userId: string) {
-    return repo.NotificationRepository.markAsRead(notificationId, userId);
+    return CanonicalNotificationRepo.markAsRead(notificationId, userId);
   }
 
-  static async markAllAsRead(instituteId: string, userId: string) {
-    return repo.NotificationRepository.markAllAsRead(instituteId, userId);
+  static async markAllAsRead(
+    instituteId: string,
+    userId: string,
+    userRoles: string[] = [],
+    userBranchId?: string | null
+  ) {
+    return CanonicalNotificationRepo.markAllAsRead(instituteId, userId, userRoles, userBranchId);
   }
 
   static async createNotification(payload: CreateNotificationPayload) {
     if (!payload.title || !payload.message || !payload.instituteId) {
       throw new Error("Title, message, and instituteId are required");
     }
-    return repo.NotificationRepository.createNotification(payload);
+    return CanonicalNotificationRepo.createNotification(payload);
   }
 
   static async deleteNotification(notificationId: string, userId: string) {
-    return repo.NotificationRepository.deleteNotification(notificationId, userId);
+    return CanonicalNotificationRepo.deleteNotification(notificationId, userId);
   }
 }

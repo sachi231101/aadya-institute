@@ -42,8 +42,8 @@ export const StudentAttendance: React.FC = () => {
   const filteredRoster = roster.filter(
     (item) =>
       !searchTerm ||
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.studentCode.toLowerCase().includes(searchTerm.toLowerCase())
+      (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.studentCode || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleMarkStatus = (classSessionId: string, studentId: string, status: AttendanceStatus) => {

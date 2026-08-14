@@ -8,6 +8,33 @@ export type NotificationType =
   | "AI_CALL"
   | "SYSTEM";
 
+export type CenterManagerModule =
+  | "dashboard"
+  | "students"
+  | "counsellor"
+  | "faculty"
+  | "fees"
+  | "admissions"
+  | "courses"
+  | "settings";
+
+export type FacultyModule =
+  | "dashboard"
+  | "courses"
+  | "students"
+  | "schedule"
+  | "assignments"
+  | "reports"
+  | "settings";
+
+export type StudentModule =
+  | "dashboard"
+  | "attendance"
+  | "schedule"
+  | "assignments"
+  | "recordings"
+  | "settings";
+
 export interface NotificationItem {
   id: string;
   userId?: string | null;
@@ -16,9 +43,11 @@ export interface NotificationItem {
   title: string;
   message: string;
   type: NotificationType;
+  module?: string;
   link?: string | null;
   isRead: boolean;
   readAt?: string | null;
+  metadata?: any;
   createdAt: string;
 }
 
@@ -44,13 +73,17 @@ export interface CreateNotificationPayload {
   title: string;
   message: string;
   type?: NotificationType;
+  module?: string;
   link?: string;
+  metadata?: any;
 }
 
 export interface NotificationQueryFilters {
   page?: number;
   limit?: number;
   type?: NotificationType;
+  module?: string;
+  role?: string;
   unreadOnly?: boolean;
   search?: string;
 }

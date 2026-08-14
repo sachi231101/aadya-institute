@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { Bell, Building2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
@@ -48,7 +48,7 @@ export const CenterLayout: React.FC = () => {
               <SidebarTrigger className="-ml-2" />
               <div className="flex items-center gap-2 text-muted-foreground hidden sm:flex">
                 <Building2 size={18} />
-                <span className="text-sm font-medium">Center Portal — Bengaluru Central Branch</span>
+                <span className="text-sm font-medium">Center Portal — {branchName}</span>
               </div>
             </div>
 

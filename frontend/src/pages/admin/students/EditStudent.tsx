@@ -33,6 +33,15 @@ type StudentFormValues = z.infer<typeof studentSchema>;
 export const EditStudent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = window.location;
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : location.pathname.startsWith("/faculty")
+    ? "/faculty"
+    : "/admin";
+
   const { data: response, isLoading, isError } = useStudent(id);
   const updateMutation = useUpdateStudent();
 
@@ -77,7 +86,7 @@ export const EditStudent: React.FC = () => {
           status: data.status,
         },
       });
-      navigate("/admin/students/all");
+      navigate(`${basePath}/students/all`);
     } catch (error: any) {
       const msg = error?.response?.data?.message || "Failed to update student";
       form.setError("root", { message: msg });
@@ -99,7 +108,7 @@ export const EditStudent: React.FC = () => {
         <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4 opacity-60" />
         <h3 className="text-lg font-medium text-text-primary mb-2">Student not found</h3>
         <p className="text-text-secondary mb-6">The requested student could not be loaded.</p>
-        <Button variant="outline" onClick={() => navigate("/admin/students/all")}>
+        <Button variant="outline" onClick={() => navigate(`${basePath}/students/all`)}>
           Back to Students
         </Button>
       </div>
@@ -112,7 +121,7 @@ export const EditStudent: React.FC = () => {
         <Button 
           variant="outline" 
           size="icon"
-          onClick={() => navigate("/admin/students/all")}
+          onClick={() => navigate(`${basePath}/students/all`)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>

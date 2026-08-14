@@ -203,25 +203,23 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
       <SidebarFooter className="border-t border-border/50">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-            >
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">{user?.name || "Kavita Nair (Counsellor)"}</span>
-                <span className="truncate text-xs text-muted-foreground">{user?.email || "counselor@aadya.in"}</span>
+            <div className="flex items-center justify-between p-2">
+              <div className="flex flex-col gap-1 overflow-hidden">
+                <span className="text-sm font-semibold truncate">{user?.name || "Kavita Nair (Counsellor)"}</span>
+                <span className="text-xs text-muted-foreground truncate">{user?.email || "counselor@aadya.in"}</span>
               </div>
               <button
+                type="button"
                 onClick={() => {
                   logout()
                   navigate("/login")
                 }}
-                className="text-muted-foreground hover:text-destructive transition-colors ml-auto p-1"
+                className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
                 title="Log out"
               >
                 <LogOut className="h-4 w-4" />
               </button>
-            </SidebarMenuButton>
+            </div>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

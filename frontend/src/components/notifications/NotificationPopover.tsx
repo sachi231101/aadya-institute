@@ -37,8 +37,21 @@ export const NotificationPopover: React.FC = () => {
 
   const rolePrefix = isCounselor ? "/counselor" : isCenter ? "/center" : isFaculty ? "/faculty" : isStudent ? "/student" : "/admin";
 
+  const roleParam = isCenter
+    ? "CENTER_MANAGER"
+    : isFaculty
+    ? "FACULTY"
+    : isStudent
+    ? "STUDENT"
+    : isCounselor
+    ? "COUNSELLOR"
+    : undefined;
+
   const { data: unreadData } = useGetUnreadCount();
-  const { data: listData, isLoading } = useGetNotifications({ limit: 5 });
+  const { data: listData, isLoading } = useGetNotifications({
+    limit: 5,
+    role: roleParam,
+  });
   const markAsReadMutation = useMarkAsRead();
   const markAllAsReadMutation = useMarkAllAsRead();
 
@@ -79,22 +92,62 @@ export const NotificationPopover: React.FC = () => {
     }
   };
 
-  const renderIcon = (type: NotificationType) => {
-    switch (type) {
-      case "ADMISSION":
-        return <UserPlus className="h-4 w-4 text-blue-600" />;
-      case "PAYMENT":
-        return <DollarSign className="h-4 w-4 text-emerald-600" />;
-      case "DISCONTINUATION_RISK":
-      case "ATTENDANCE":
-        return <AlertTriangle className="h-4 w-4 text-amber-600" />;
-      case "AI_CALL":
-        return <PhoneCall className="h-4 w-4 text-purple-600" />;
-      case "CLASS_SESSION":
-        return <Calendar className="h-4 w-4 text-indigo-600" />;
+  const getModuleLabel = (item: NotificationItem) => {
+    const mod = item.module?.toLowerCase();
+    switch (mod) {
+      case "students":
+        return "Students";
+      case "attendance":
+        return "Attendance";
+      case "schedule":
+        return "Schedule";
+      case "assignments":
+        return "Assignments";
+      case "recordings":
+        return "Recordings";
+      case "reports":
+        return "Reports";
+      case "fees":
+        return "Fees";
+      case "admissions":
+        return "Admissions";
+      case "courses":
+        return "Courses";
+      case "counsellor":
+      case "counselor":
+        return "Counsellor";
+      case "faculty":
+        return "Faculty";
+      case "settings":
+        return "Settings";
+      case "dashboard":
+        return "Dashboard";
       default:
-        return <Info className="h-4 w-4 text-slate-600" />;
+        return item.type || "System";
     }
+  };
+
+  const renderIcon = (type: NotificationType, module?: string) => {
+    const mod = module?.toLowerCase();
+    if (mod === "fees" || type === "PAYMENT") {
+      return <DollarSign className="h-4 w-4 text-emerald-600" />;
+    }
+    if (mod === "admissions" || type === "ADMISSION") {
+      return <UserPlus className="h-4 w-4 text-blue-600" />;
+    }
+    if (mod === "counsellor" || type === "AI_CALL") {
+      return <PhoneCall className="h-4 w-4 text-purple-600" />;
+    }
+    if (mod === "attendance" || type === "ATTENDANCE") {
+      return <AlertTriangle className="h-4 w-4 text-amber-600" />;
+    }
+    if (mod === "students" || type === "DISCONTINUATION_RISK") {
+      return <AlertTriangle className="h-4 w-4 text-rose-600" />;
+    }
+    if (mod === "courses" || mod === "schedule" || type === "CLASS_SESSION") {
+      return <Calendar className="h-4 w-4 text-indigo-600" />;
+    }
+    return <Info className="h-4 w-4 text-slate-600" />;
   };
 
   const formatRelativeTime = (dateStr: string) => {
@@ -170,13 +223,18 @@ export const NotificationPopover: React.FC = () => {
                   }`}
                 >
                   <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-xs shrink-0">
-                    {renderIcon(item.type)}
+                    {renderIcon(item.type, item.module)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <p className={`text-xs font-bold truncate ${!item.isRead ? "text-slate-900" : "text-slate-700"}`}>
-                        {item.title}
-                      </p>
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                          {getModuleLabel(item)}
+                        </span>
+                        <p className={`text-xs font-bold truncate ${!item.isRead ? "text-slate-900" : "text-slate-700"}`}>
+                          {item.title}
+                        </p>
+                      </div>
                       <span className="text-[10px] text-slate-400 shrink-0">
                         {formatRelativeTime(item.createdAt)}
                       </span>
@@ -192,7 +250,13 @@ export const NotificationPopover: React.FC = () => {
               ))
             ) : (
               <div className="py-8 text-center text-xs text-slate-400">
-                No notifications found.
+                {isCenter
+                  ? "No notifications found for Center Manager modules."
+                  : isFaculty
+                  ? "No notifications found for Faculty Teaching Desk."
+                  : isStudent
+                  ? "No notifications found for Student Portal."
+                  : "No notifications found."}
               </div>
             )}
           </div>

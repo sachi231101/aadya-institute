@@ -52,8 +52,8 @@ export const AllCounsellors: React.FC = () => {
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
-
-  const { data: branchesResponse } = useBranches();
+  
+  const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
 
   useEffect(() => {
@@ -112,6 +112,8 @@ export const AllCounsellors: React.FC = () => {
     setCreateError(null);
     setIsSubmitting(true);
 
+    const selectedBranch = branches.find((b) => b.id === branchId);
+
     const created = await addCounselor({
       name,
       employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
@@ -119,6 +121,8 @@ export const AllCounsellors: React.FC = () => {
       password: password || undefined,
       phone,
       branchId,
+      branchId: branchId || (branches[0]?.id || ""),
+      branchName: selectedBranch?.name || "Bengaluru Central Branch",
       status,
     });
 

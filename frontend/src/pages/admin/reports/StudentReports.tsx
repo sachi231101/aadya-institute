@@ -58,9 +58,9 @@ export const StudentReports: React.FC = () => {
 
   const filteredStudents = studentList.filter((s) => {
     return (
-      s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.courseName.toLowerCase().includes(searchTerm.toLowerCase())
+      (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.studentCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (s.courseName || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
   });
 

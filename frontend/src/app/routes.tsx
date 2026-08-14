@@ -285,6 +285,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="students">
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="all" element={<AllStudents />} />
+          <Route path="add" element={<AddStudent />} />
+          <Route path=":id" element={<StudentDetails />} />
+          <Route path=":id/edit" element={<EditStudent />} />
         </Route>
         <Route path="schedule">
           <Route path="classes" element={<Classes />} />
