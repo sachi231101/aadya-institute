@@ -127,12 +127,12 @@ export const createUserService = async (
     if (existing) throw new AppError("Phone number already in use", 409);
   }
 
-  // Branch override for CENTER_MANAGER
+  // Branch assignment for CENTER_MANAGER
   const branchId = currentUser.roles.includes("CENTER_MANAGER")
-    ? currentUser.branchId
+    ? (currentUser.branchId || input.branchId || null)
     : (input.branchId ?? null);
 
-  const passwordHash = await hashPassword(input.password);
+  const passwordHash = await hashPassword(input.password || "Password@123");
 
   const user = await createUser({
     name: input.name,
