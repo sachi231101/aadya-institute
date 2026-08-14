@@ -47,18 +47,14 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-import { useBranches } from "@/hooks/useBranches";
-
 export const AllCounsellors: React.FC = () => {
   const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
   
-  const { data: branchesResponse } = useBranches();
-  const branches = branchesResponse?.data || [];
   const { data: branchesResponse } = useBranches({ limit: 100 });
-  const apiBranches = branchesResponse?.data || [];
+  const branches = branchesResponse?.data || [];
 
   useEffect(() => {
     fetchCounselors(isCenterManager ? userBranchId : undefined);
@@ -75,8 +71,6 @@ export const AllCounsellors: React.FC = () => {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
   const [branchId, setBranchId] = useState("");
-  const [selectedBranchId, setSelectedBranchId] = useState("");
-  const [branchName, setBranchName] = useState("Bengaluru Central Branch");
   const [status, setStatus] = useState<CounselorStatus>("ACTIVE");
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -118,15 +112,16 @@ export const AllCounsellors: React.FC = () => {
     setCreateError(null);
     setIsSubmitting(true);
 
+    const selectedBranch = branches.find((b) => b.id === branchId);
+
     const created = await addCounselor({
       name,
       employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
       email,
       password: password || undefined,
       phone,
-      branchId: branchId,
-      branchId: selectedBranchId || undefined,
-      branchName,
+      branchId: branchId || (branches[0]?.id || ""),
+      branchName: selectedBranch?.name || "Bengaluru Central Branch",
       status,
     });
 
@@ -148,8 +143,6 @@ export const AllCounsellors: React.FC = () => {
     setPassword("");
     setPhone("");
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
-    setSelectedBranchId("");
-    setBranchName("Bengaluru Central Branch");
     setStatus("ACTIVE");
     setCreateError(null);
   };
@@ -520,25 +513,6 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
-              <select
-                value={selectedBranchId}
-                onChange={(e) => {
-                  const bId = e.target.value;
-                  setSelectedBranchId(bId);
-                  const selectedBranch = apiBranches.find((b) => b.id === bId);
-                  if (selectedBranch) {
-                    setBranchName(selectedBranch.name);
-                  }
-                }}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="">-- Select Branch (Optional) --</option>
-                {apiBranches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <DialogFooter className="pt-4">
@@ -650,18 +624,6 @@ export const AllCounsellors: React.FC = () => {
                   )}
                 </select>
               )}
-              <select
-                value={editBranch}
-                onChange={(e) => setEditBranch(e.target.value)}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="">-- Select Branch --</option>
-                {apiBranches.map((b) => (
-                  <option key={b.id} value={b.name}>
-                    {b.name} ({b.code})
-                  </option>
-                ))}
-              </select>
             </div>
 
             <DialogFooter className="pt-4">
