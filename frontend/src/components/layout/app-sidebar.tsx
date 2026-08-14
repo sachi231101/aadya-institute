@@ -56,7 +56,6 @@ const data = {
       isActive: false,
       items: [
         { title: "All Students", url: "/admin/students/all" },
-        { title: "Add Student", url: "/admin/students/add" },
         { title: "Attendance", url: "/admin/students/attendance" },
         { title: "Performance", url: "/admin/students/performance" },
       ],

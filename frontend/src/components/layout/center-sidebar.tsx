@@ -44,7 +44,6 @@ const centerNavItems = [
     isActive: false,
     items: [
       { title: "All Students", url: "/center/students/all" },
-      { title: "Add Student", url: "/center/students/add" },
       { title: "Attendance", url: "/center/students/attendance" },
       { title: "Performance", url: "/center/students/performance" },
     ],
