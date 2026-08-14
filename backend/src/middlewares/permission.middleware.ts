@@ -34,6 +34,11 @@ export const requirePermission = (permission: string) => {
       return;
     }
 
+    if (userRoles.includes("ADMIN") || (userRoles.includes("CENTER_MANAGER") && permission.startsWith("user."))) {
+      next();
+      return;
+    }
+
     try {
       const match = await prisma.rolePermission.findFirst({
         where: {
