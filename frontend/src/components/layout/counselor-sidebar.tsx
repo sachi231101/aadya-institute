@@ -54,7 +54,6 @@ const counselorNavItems = [
     isActive: false,
     items: [
       { title: "All Students", url: "/counselor/students/all" },
-      { title: "Add Student", url: "/counselor/students/add" },
       { title: "Attendance", url: "/counselor/students/attendance" },
       { title: "Performance", url: "/counselor/students/performance" },
     ],
