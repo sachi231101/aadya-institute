@@ -1,0 +1,197 @@
+{
+  "info": {
+    "name": "Aadya Institute — AI Data Agent",
+    "description": "Secure AI Institute Data Agent API collection for Aadya Institute. Allows ADMIN and CENTER_MANAGER to query authorized operations, student metrics, attendance, leads, admissions, and financial summaries using natural language.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "adminAccessToken", "value": "" },
+    { "key": "managerAccessToken", "value": "" },
+    { "key": "conversationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "14 - AI Data Agent",
+      "item": [
+        {
+          "name": "1. Student Summary Query - Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How many students do we have across all courses?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Admin asks for total student count and course enrollment metrics across the institute."
+          }
+        },
+        {
+          "name": "2. Branch Scoped Student Query - Center Manager",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How many students do we have in our branch?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Center Manager asks for student counts strictly scoped to their assigned branch."
+          }
+        },
+        {
+          "name": "3. Low Attendance Query (< 75%)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How many students have attendance below 75%?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Queries students with attendance below threshold."
+          }
+        },
+        {
+          "name": "4. Pending & Overdue Fees Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"How much fee is pending and which students have overdue payments?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Queries financial pending fee aggregate and list of overdue students."
+          }
+        },
+        {
+          "name": "5. Counsellor Lead Conversion Performance",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Which counsellor converted the most leads this month?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Evaluates lead conversion numbers and conversion rates grouped by counsellor."
+          }
+        },
+        {
+          "name": "6. Lead Follow-ups & Pipeline Query",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Show today's follow-ups and new leads this week.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Retrieves pending follow-ups and lead stage breakdown."
+          }
+        },
+        {
+          "name": "7. Multi-Condition Query (Low Attendance + Pending Fee)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Show students who have attendance below 75% and pending fees.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Executes multiple authorized domain tools (get_low_attendance_students + get_overdue_fees) and synthesizes combined results."
+          }
+        },
+        {
+          "name": "8. Overall Branch Operations Overview",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{managerAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Give me the overall branch performance and today's operations summary.\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Retrieves branch summary and daily schedule/admissions metrics."
+          }
+        },
+        {
+          "name": "9. General Knowledge / Unrelated Query Rejection Test",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"What is Python?\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/ai/chat", "host": ["{{base_url}}"], "path": ["ai", "chat"] },
+            "description": "Verifies that outside knowledge questions are rejected with the standard message: 'I can only answer questions about your institute\\'s data and operations.'"
+          }
+        },
+        {
+          "name": "10. List Past AI Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{base_url}}/ai/conversations", "host": ["{{base_url}}"], "path": ["ai", "conversations"] },
+            "description": "Retrieves the list of past AI conversation threads for the authenticated user."
+          }
+        },
+        {
+          "name": "11. Get Conversation Message History",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{base_url}}/ai/conversations/{{conversationId}}", "host": ["{{base_url}}"], "path": ["ai", "conversations", "{{conversationId}}"] },
+            "description": "Retrieves the complete message and tool audit history for a specific conversation."
+          }
+        },
+        {
+          "name": "12. Delete AI Conversation",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminAccessToken}}" }
+            ],
+            "url": { "raw": "{{base_url}}/ai/conversations/{{conversationId}}", "host": ["{{base_url}}"], "path": ["ai", "conversations", "{{conversationId}}"] },
+            "description": "Deletes an AI conversation thread."
+          }
+        }
+      ]
+    }
+  ]
+}
