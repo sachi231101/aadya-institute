@@ -32,7 +32,7 @@ router.get(
 // POST /api/v1/faculty/courses/assign — Assign faculty to a batch
 router.post(
   "/courses/assign",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(assignCourseSchema),
   controller.assignCourse
 );

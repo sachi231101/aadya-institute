@@ -8,21 +8,39 @@ import type {
 
 export class NotificationService {
   /**
-   * List notifications for user
+   * List notifications for user with role & branch isolation
    */
   static async getNotifications(
     instituteId: string,
     userId: string,
-    filters: NotificationQueryFilters
+    filters: NotificationQueryFilters,
+    userRoles: string[] = [],
+    userBranchId?: string | null
   ): Promise<NotificationListResponse> {
-    return NotificationRepository.listNotifications(instituteId, userId, filters);
+    return NotificationRepository.listNotifications(
+      instituteId,
+      userId,
+      filters,
+      userRoles,
+      userBranchId
+    );
   }
 
   /**
-   * Get unread count
+   * Get unread count with role & branch isolation
    */
-  static async getUnreadCount(instituteId: string, userId: string): Promise<UnreadCountResponse> {
-    return NotificationRepository.getUnreadCount(instituteId, userId);
+  static async getUnreadCount(
+    instituteId: string,
+    userId: string,
+    userRoles: string[] = [],
+    userBranchId?: string | null
+  ): Promise<UnreadCountResponse> {
+    return NotificationRepository.getUnreadCount(
+      instituteId,
+      userId,
+      userRoles,
+      userBranchId
+    );
   }
 
   /**
@@ -35,8 +53,18 @@ export class NotificationService {
   /**
    * Mark all notifications as read
    */
-  static async markAllAsRead(instituteId: string, userId: string) {
-    return NotificationRepository.markAllAsRead(instituteId, userId);
+  static async markAllAsRead(
+    instituteId: string,
+    userId: string,
+    userRoles: string[] = [],
+    userBranchId?: string | null
+  ) {
+    return NotificationRepository.markAllAsRead(
+      instituteId,
+      userId,
+      userRoles,
+      userBranchId
+    );
   }
 
   /**

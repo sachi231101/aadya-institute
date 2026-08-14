@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
+import { useScheduleStore } from "@/store/schedule.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { ClassStatus } from "@/types/schedule.types";
 
 interface AssignedStudentAttendance {
   id: string;
@@ -45,19 +47,22 @@ export const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { students: globalStudents, fetchStudents } = useStudentStore();
   const { batches, fetchBatches } = useCourseStore();
+  const { classes, fetchClasses } = useScheduleStore();
 
   useEffect(() => {
     fetchStudents();
     fetchBatches();
+    fetchClasses();
   }, []);
 
   // Map live students from database cleanly using useMemo
   const liveAssignedStudents = useMemo<AssignedStudentAttendance[]>(() => {
+    if (!Array.isArray(globalStudents)) return [];
     return globalStudents.map((s) => ({
       id: s.id,
-      studentCode: s.studentId || `STD-${s.id.slice(-4).toUpperCase()}`,
-      name: s.name,
-      email: s.email || "",
+      studentCode: s.studentId || (s.id ? `STD-${s.id.slice(-4).toUpperCase()}` : "STD-0000"),
+      name: s.name || (s as any).user?.name || "Student",
+      email: s.email || (s as any).user?.email || "",
       batchName: s.batch?.code || s.batch?.name || "Assigned Batch",
       course: s.course?.name || "Enrolled Course",
       attendanceStatus: "PRESENT" as const,
@@ -86,19 +91,47 @@ export const FacultyDashboard: React.FC = () => {
     );
   };
 
-  const filteredStudents = studentList.filter((stu) => {
+  const filteredStudents = (studentList || []).filter((stu) => {
+    const term = (searchTerm || "").toLowerCase().trim();
+    const name = (stu.name || "").toLowerCase();
+    const code = (stu.studentCode || "").toLowerCase();
+    const course = (stu.course || "").toLowerCase();
+
     const matchesSearch =
-      stu.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stu.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      stu.course.toLowerCase().includes(searchTerm.toLowerCase());
+      !term ||
+      name.includes(term) ||
+      code.includes(term) ||
+      course.includes(term);
     const matchesBatch =
       selectedBatchFilter === "ALL" || stu.batchName === selectedBatchFilter;
     return matchesSearch && matchesBatch;
   });
 
-  const presentCount = studentList.filter((s) => s.attendanceStatus === "PRESENT").length;
-  const totalAssignedCount = studentList.length;
+  const presentCount = (studentList || []).filter((s) => s.attendanceStatus === "PRESENT").length;
+  const totalAssignedCount = (studentList || []).length;
   const attendanceRate = totalAssignedCount > 0 ? Math.round((presentCount / totalAssignedCount) * 100) : 0;
+
+  const todayStr = new Date().toISOString().split("T")[0];
+  const todayClasses = (classes || []).filter((c) => c.date === todayStr);
+  const upcomingClasses = (classes || []).filter(
+    (c) => c.date >= todayStr && c.status !== "CANCELLED"
+  );
+  const nextSession = upcomingClasses[0] || (classes || [])[0];
+
+  const getStatusBadge = (st: ClassStatus) => {
+    switch (st) {
+      case "ONGOING":
+        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 animate-pulse">● Ongoing</Badge>;
+      case "UPCOMING":
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-300">Upcoming</Badge>;
+      case "COMPLETED":
+        return <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>;
+      case "CANCELLED":
+        return <Badge variant="destructive">Cancelled</Badge>;
+      default:
+        return <Badge variant="outline">{st}</Badge>;
+    }
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -120,7 +153,7 @@ export const FacultyDashboard: React.FC = () => {
             variant="outline"
             className="gap-2"
           >
-            <Calendar size={16} /> View Schedule
+            <Calendar size={16} /> Class Timetable
           </Button>
           <Button 
             onClick={() => navigate("/faculty/students/attendance")}
@@ -163,12 +196,19 @@ export const FacultyDashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="border border-border/60 shadow-sm">
+        <Card 
+          className="border border-border/60 shadow-sm cursor-pointer hover:border-amber-400 transition-colors"
+          onClick={() => navigate("/faculty/schedule/classes")}
+        >
           <CardContent className="p-6 flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Today's Classes</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">2 Sessions</h3>
-              <p className="text-xs text-emerald-600 font-medium mt-1">Next: 02:00 PM</p>
+              <p className="text-sm font-medium text-muted-foreground">Scheduled Classes</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">
+                {todayClasses.length > 0 ? `${todayClasses.length} Today` : `${classes.length} Total`}
+              </h3>
+              <p className="text-xs text-emerald-600 font-medium mt-1 truncate max-w-[170px]">
+                {nextSession ? `Next: ${nextSession.startTime} (${nextSession.title})` : "No classes scheduled"}
+              </p>
             </div>
             <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
               <Calendar className="h-6 w-6" />
@@ -191,6 +231,96 @@ export const FacultyDashboard: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Scheduled Lecture Sessions Section */}
+      <Card className="border border-border/60 shadow-sm overflow-hidden">
+        <CardHeader className="bg-bg-tertiary/30 border-b border-border/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <CardTitle className="text-base font-bold text-text-primary flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-amber-600" />
+              Scheduled Class Sessions & Lectures
+            </CardTitle>
+            <CardDescription className="text-xs text-muted-foreground mt-0.5">
+              Live scheduled lectures, lab rooms, and active classroom sessions.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button 
+              size="sm"
+              onClick={() => navigate("/faculty/schedule/classes")}
+              className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs h-8 gap-1.5"
+            >
+              <Calendar className="h-3.5 w-3.5" /> Schedule / View All
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="bg-slate-50/70">
+                <TableHead className="font-semibold text-text-primary">Topic & Course</TableHead>
+                <TableHead className="font-semibold text-text-primary">Batch</TableHead>
+                <TableHead className="font-semibold text-text-primary">Instructor</TableHead>
+                <TableHead className="font-semibold text-text-primary">Date & Time Slot</TableHead>
+                <TableHead className="font-semibold text-text-primary">Location / Mode</TableHead>
+                <TableHead className="font-semibold text-text-primary">Status</TableHead>
+                <TableHead className="font-semibold text-text-primary text-right">Action</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {classes.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
+                    No scheduled classes found. Click "Schedule / View All" to schedule a lecture.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                classes.slice(0, 5).map((cls) => (
+                  <TableRow key={cls.id} className="hover:bg-slate-50/80 transition-colors">
+                    <TableCell>
+                      <span className="font-semibold text-slate-900 text-sm block">{cls.title}</span>
+                      <span className="text-xs text-muted-foreground">{cls.courseName || "Academic Course"}</span>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="font-mono text-xs text-blue-700 bg-blue-50 border-blue-200">
+                        {cls.batchCode}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-slate-700">
+                      {cls.facultyName || "Faculty Instructor"}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs font-bold text-slate-800 block">{cls.date}</span>
+                      <span className="text-[11px] text-muted-foreground">{cls.startTime} - {cls.endTime}</span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-[11px] font-normal">
+                          {cls.mode}
+                        </Badge>
+                        <span className="text-xs text-slate-600">{cls.roomNo || "Main Lab"}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {getStatusBadge(cls.status)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => navigate("/faculty/students/attendance")}
+                        className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
+                      >
+                        Attendance Desk
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
 
       {/* Assigned Students & Attendance Management Table */}
       <Card className="border border-border/60 shadow-sm">

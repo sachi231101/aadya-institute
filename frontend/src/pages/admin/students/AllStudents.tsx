@@ -48,6 +48,8 @@ export const AllStudents: React.FC = () => {
     ? "/counselor"
     : location.pathname.startsWith("/center")
     ? "/center"
+    : location.pathname.startsWith("/faculty")
+    ? "/faculty"
     : "/admin";
 
   const { data: response, isLoading, isError, error } = useStudentList({

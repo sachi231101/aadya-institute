@@ -68,11 +68,12 @@ export const Classes: React.FC = () => {
 
   const filteredClasses = classes.filter((cls) => {
     const matchesSearch =
-      cls.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.batchCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.roomNo.toLowerCase().includes(searchTerm.toLowerCase());
+      !searchTerm ||
+      (cls.title || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cls.batchCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cls.courseName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cls.facultyName || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (cls.roomNo || "").toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesMode = modeFilter === "ALL" || cls.mode === modeFilter;
     const matchesStatus = statusFilter === "ALL" || cls.status === statusFilter;

@@ -98,3 +98,167 @@ describe("Notification Validation Schema Unit Tests", () => {
     assert.strictEqual(parsed.channel, "WHATSAPP");
   });
 });
+
+import {
+  CENTER_MANAGER_ALLOWED_MODULES,
+  FACULTY_ALLOWED_MODULES,
+  STUDENT_ALLOWED_MODULES,
+  inferNotificationModule,
+} from "../modules/notifications/notification.repository";
+
+describe("Center Manager Notification Module Isolation Tests", () => {
+  test("should contain exact 8 Center Manager modules", () => {
+    const expectedModules = [
+      "dashboard",
+      "students",
+      "counsellor",
+      "faculty",
+      "fees",
+      "admissions",
+      "courses",
+      "settings",
+    ];
+    assert.deepStrictEqual([...CENTER_MANAGER_ALLOWED_MODULES].sort(), expectedModules.sort());
+  });
+
+  test("should correctly infer module for each notification type and link", () => {
+    assert.strictEqual(
+      inferNotificationModule({ type: "PAYMENT", link: "/center/fees/payments" }),
+      "fees"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "DISCONTINUATION_RISK", link: "/center/students/attendance" }),
+      "students"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "ATTENDANCE", link: "/center/students/attendance" }),
+      "students"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "ADMISSION", link: "/center/admissions/applications" }),
+      "admissions"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "AI_CALL", link: "/center/admissions/enquiries" }),
+      "admissions"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "CLASS_SESSION", link: "/center/courses/batches" }),
+      "courses"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Faculty Assigned", link: "/center/faculty/courses" }),
+      "faculty"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Counsellor Batch Assignment", link: "/center/counselor/overview" }),
+      "counsellor"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Center Settings Updated", link: "/center/settings" }),
+      "settings"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Branch Operations Summary", link: "/center/dashboard" }),
+      "dashboard"
+    );
+  });
+
+  test("should respect metadata.module when provided", () => {
+    assert.strictEqual(
+      inferNotificationModule({ metadata: { module: "fees" } }),
+      "fees"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ metadata: { module: "counselor" } }),
+      "counsellor"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ metadata: { module: "leads" } }),
+      "admissions"
+    );
+  });
+});
+
+describe("Faculty Notification Module Isolation Tests", () => {
+  test("should contain exact 7 Faculty modules", () => {
+    const expectedModules = [
+      "dashboard",
+      "courses",
+      "students",
+      "schedule",
+      "assignments",
+      "reports",
+      "settings",
+    ];
+    assert.deepStrictEqual([...FACULTY_ALLOWED_MODULES].sort(), expectedModules.sort());
+  });
+
+  test("should correctly infer module for Faculty notifications", () => {
+    assert.strictEqual(
+      inferNotificationModule({ type: "CLASS_SESSION", link: "/faculty/courses" }, "FACULTY"),
+      "courses"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "ATTENDANCE", link: "/faculty/students/attendance" }, "FACULTY"),
+      "students"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "CLASS_SESSION", link: "/faculty/schedule/classes" }, "FACULTY"),
+      "schedule"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "ASSIGNMENT", link: "/faculty/assignments" }, "FACULTY"),
+      "assignments"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Batch Performance Report", link: "/faculty/reports/students" }, "FACULTY"),
+      "reports"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Faculty Availability", link: "/faculty/settings" }, "FACULTY"),
+      "settings"
+    );
+  });
+});
+
+describe("Student Notification Module Isolation Tests", () => {
+  test("should contain exact 6 Student modules", () => {
+    const expectedModules = [
+      "dashboard",
+      "attendance",
+      "schedule",
+      "assignments",
+      "recordings",
+      "settings",
+    ];
+    assert.deepStrictEqual([...STUDENT_ALLOWED_MODULES].sort(), expectedModules.sort());
+  });
+
+  test("should correctly infer module for Student notifications", () => {
+    assert.strictEqual(
+      inferNotificationModule({ type: "ATTENDANCE", link: "/student/attendance" }, "STUDENT"),
+      "attendance"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "CLASS_SESSION", title: "Class Reminder" }, "STUDENT"),
+      "schedule"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ type: "ASSIGNMENT", title: "Homework Due" }, "STUDENT"),
+      "assignments"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Class Video Recording Available" }, "STUDENT"),
+      "recordings"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Notification Preferences", link: "/student/settings" }, "STUDENT"),
+      "settings"
+    );
+    assert.strictEqual(
+      inferNotificationModule({ title: "Welcome to Student Portal", link: "/student/dashboard" }, "STUDENT"),
+      "dashboard"
+    );
+  });
+});

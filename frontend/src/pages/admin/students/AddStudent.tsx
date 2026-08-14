@@ -45,16 +45,12 @@ export const AddStudent: React.FC = () => {
     ? "/counselor"
     : location.pathname.startsWith("/center")
     ? "/center"
+    : location.pathname.startsWith("/faculty")
+    ? "/faculty"
     : "/admin";
 
-  // Try to load branches dynamically; fall back gracefully
-  let branches: { id: string; name: string }[] = [];
-  try {
-    const branchQuery = useBranches();
-    branches = branchQuery.data?.data ?? [];
-  } catch {
-    // useBranchList may not exist yet; we'll show a text input as fallback
-  }
+  const { data: branchResponse } = useBranches();
+  const branches = branchResponse?.data ?? [];
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema),
@@ -66,9 +62,15 @@ export const AddStudent: React.FC = () => {
       password: "Student@123",
       qualification: "",
       dateOfBirth: "",
-      branchId: isCenterManager && user?.branchId ? user.branchId : "",
+      branchId: user?.branchId || "",
     },
   });
+
+  React.useEffect(() => {
+    if (branches.length > 0 && !form.getValues("branchId")) {
+      form.setValue("branchId", user?.branchId || branches[0].id);
+    }
+  }, [branches, user, form]);
 
   const onSubmit = async (data: StudentFormValues) => {
     try {
@@ -261,7 +263,7 @@ export const AddStudent: React.FC = () => {
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => navigate("/admin/students/all")}
+                  onClick={() => navigate(`${basePath}/students/all`)}
                   disabled={createMutation.isPending}
                   className="px-5 font-medium transition-colors"
                 >

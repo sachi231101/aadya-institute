@@ -51,14 +51,44 @@ export const getStudentById = async (id: string) => {
   return student;
 };
 
+import { prisma } from "../../config/database";
+
 /**
  * Create a new student (User + Student + STUDENT role).
  */
 export const createStudent = async (instituteId: string, dto: CreateStudentDto) => {
+  // Validate branch exists
+  const branch = await prisma.branch.findFirst({
+    where: { id: dto.branchId, instituteId },
+  });
+  if (!branch) {
+    throw new AppError("Selected branch not found or does not belong to this institute", 400);
+  }
+
   // Check for duplicate student code
-  const existing = await repo.findStudentByCode(instituteId, dto.studentCode);
-  if (existing) {
+  const existingCode = await repo.findStudentByCode(instituteId, dto.studentCode);
+  if (existingCode) {
     throw new AppError(`Student code '${dto.studentCode}' already exists`, 409);
+  }
+
+  // Check for duplicate email if provided
+  if (dto.email) {
+    const existingEmail = await prisma.user.findFirst({
+      where: { instituteId, email: dto.email },
+    });
+    if (existingEmail) {
+      throw new AppError(`A user with email '${dto.email}' already exists`, 409);
+    }
+  }
+
+  // Check for duplicate phone if provided
+  if (dto.phone) {
+    const existingPhone = await prisma.user.findFirst({
+      where: { instituteId, phone: dto.phone },
+    });
+    if (existingPhone) {
+      throw new AppError(`A user with phone number '${dto.phone}' already exists`, 409);
+    }
   }
 
   // Hash password for the new User

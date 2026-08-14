@@ -194,12 +194,19 @@ const rolePermissions: Record<string, string[]> = {
   ],
 
   FACULTY: [
+    "branch.read",
     "student.read",
+    "student.create",
+    "student.update",
     "faculty.read",
     "course.read",
     "module.read",
     "batch.read",
+    "batch.update",
     "schedule.read",
+    "schedule.create",
+    "schedule.update",
+    "schedule.delete",
     "attendance.read",
     "attendance.mark",
     "assignment.read",
@@ -212,9 +219,12 @@ const rolePermissions: Record<string, string[]> = {
     "recording.delete",
     "feedback.read",
     "dashboard.read",
+    "report.read",
+    "notification.read",
   ],
 
   STUDENT: [
+    "branch.read",
     "course.read",
     "module.read",
     "batch.read",
