@@ -1,484 +1,1718 @@
-import React, { useState, useEffect } from "react";
-import { 
-  HelpCircle, 
-  Plus, 
-  Search, 
-  UserCheck, 
-  PhoneCall, 
-  CheckCircle2, 
-  MoreVertical, 
-  Trash2, 
-  ArrowRight,
-  MessageSquare,
-  Globe,
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import {
+  HelpCircle,
   Users,
+  Phone,
+  CheckCircle2,
+  GraduationCap,
+  XCircle,
+  Plus,
+  Search,
+  Download,
+  Upload,
+  Calendar,
+  MessageSquare,
+  Mail,
+  FileText,
   MapPin,
-  Share2,
-  Loader2
+  Clock,
+  Laptop,
+  Check,
+  ChevronDown,
+  ArrowRight,
+  Filter,
+  Eye,
+  MoreVertical,
+  X,
+  Edit2,
+  Trash2,
+  TrendingUp,
+  AlertTriangle,
+  Flame,
+  LayoutList,
+  Columns3,
+  UserCheck,
+  Send,
+  CalendarCheck
 } from "lucide-react";
 import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
-import { Card, CardContent } from "@/components/ui/card";
+import { useAuthStore } from "../../../store/auth.store";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import type { EnquirySource, EnquiryStatus } from "../../../types/admission.types";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+
+// ─── TYPES & MOCK/SEED DATA MATCHING THE REFERENCE IMAGE ───────────────────
+
+export type LeadPriority = "Hot" | "Warm" | "Cold";
+export type LeadStatus =
+  | "New"
+  | "Contacted"
+  | "Interested"
+  | "Counselling"
+  | "Follow-up"
+  | "Demo"
+  | "Admission"
+  | "Converted"
+  | "Lost";
+
+export interface EnrichedLead {
+  id: string;
+  enquiryNo: string;
+  name: string;
+  phone: string;
+  email: string;
+  course: string;
+  altCourse?: string;
+  source: "Google Ads" | "Instagram" | "Website" | "Referral" | "Meta Ads" | "Walk-in" | "Other";
+  status: LeadStatus;
+  priority: LeadPriority;
+  nextFollowUp: string;
+  nextFollowUpType?: "Call" | "WhatsApp" | "Demo" | "In-Person";
+  lastContact: string;
+  enquiryDate: string;
+  assignedCounselor: string;
+  leadScore: number;
+  location: string;
+  qualification: string;
+  passingYear: string;
+  preferredMode: "Offline" | "Online" | "Hybrid";
+  preferredTime: "Morning" | "Evening" | "Weekend";
+  notesList: { id: string; author: string; date: string; time: string; text: string }[];
+  timeline: { id: string; date: string; time: string; text: string; mode: string }[];
+  documents?: { id: string; name: string; size: string }[];
+  lostReason?: string;
+}
+
+const INITIAL_ENQUIRIES: EnrichedLead[] = [
+  {
+    id: "enq-1",
+    enquiryNo: "ENQ-000256",
+    name: "Rahul Sharma",
+    phone: "9876543210",
+    email: "rahul@gmail.com",
+    course: "Digital Marketing",
+    altCourse: "Graphic Design",
+    source: "Google Ads",
+    status: "Interested",
+    priority: "Hot",
+    nextFollowUp: "Today, 04:00 PM",
+    nextFollowUpType: "Call",
+    lastContact: "Today, 10:30 AM",
+    enquiryDate: "Aug 14, 2025",
+    assignedCounselor: "Priya Singh",
+    leadScore: 85,
+    location: "Bangalore, Karnataka",
+    qualification: "BBA",
+    passingYear: "2023",
+    preferredMode: "Offline",
+    preferredTime: "Weekend",
+    notesList: [
+      {
+        id: "n1",
+        author: "Priya Singh",
+        date: "Today",
+        time: "10:35 AM",
+        text: "Student completed BBA and is looking for a job-oriented digital marketing course. Highly interested in weekend batch.",
+      },
+    ],
+    timeline: [
+      {
+        id: "t1",
+        date: "Today",
+        time: "10:30 AM",
+        text: "Call completed. Student expressed high interest in SEO & SEM modules.",
+        mode: "Phone Call",
+      },
+      {
+        id: "t2",
+        date: "Yesterday",
+        time: "04:20 PM",
+        text: "WhatsApp message sent with full course curriculum brochure.",
+        mode: "WhatsApp",
+      },
+      {
+        id: "t3",
+        date: "Aug 12",
+        time: "11:00 AM",
+        text: "Follow-up scheduled after initial enquiry review.",
+        mode: "Follow-up",
+      },
+      {
+        id: "t4",
+        date: "Aug 10",
+        time: "03:30 PM",
+        text: "New enquiry created from Google Ads landing page.",
+        mode: "Enquiry",
+      },
+    ],
+  },
+  {
+    id: "enq-2",
+    enquiryNo: "ENQ-000257",
+    name: "Sneha Patil",
+    phone: "9876543211",
+    email: "sneha@gmail.com",
+    course: "Graphic Design",
+    altCourse: "UI/UX Design",
+    source: "Instagram",
+    status: "Follow-up",
+    priority: "Warm",
+    nextFollowUp: "Tomorrow, 11:00 AM",
+    nextFollowUpType: "Call",
+    lastContact: "Yesterday, 04:20 PM",
+    enquiryDate: "Aug 13, 2025",
+    assignedCounselor: "Priya Singh",
+    leadScore: 72,
+    location: "Pune, Maharashtra",
+    qualification: "B.Sc Computer Science",
+    passingYear: "2024",
+    preferredMode: "Online",
+    preferredTime: "Morning",
+    notesList: [
+      {
+        id: "n2",
+        author: "Priya Singh",
+        date: "Yesterday",
+        time: "04:30 PM",
+        text: "Discussed Photoshop & Illustrator curriculum. Requesting demo session before payment.",
+      },
+    ],
+    timeline: [
+      {
+        id: "t21",
+        date: "Yesterday",
+        time: "04:20 PM",
+        text: "Connected over phone. Explained demo session schedule.",
+        mode: "Phone Call",
+      },
+    ],
+  },
+  {
+    id: "enq-3",
+    enquiryNo: "ENQ-000258",
+    name: "Amit Kumar",
+    phone: "9876543212",
+    email: "amit@gmail.com",
+    course: "Web Development",
+    source: "Website",
+    status: "Counselling",
+    priority: "Hot",
+    nextFollowUp: "Aug 16, 02:30 PM",
+    nextFollowUpType: "Demo",
+    lastContact: "Today, 09:15 AM",
+    enquiryDate: "Aug 12, 2025",
+    assignedCounselor: "Rahul Kumar",
+    leadScore: 90,
+    location: "Bangalore, Karnataka",
+    qualification: "BCA",
+    passingYear: "2023",
+    preferredMode: "Offline",
+    preferredTime: "Morning",
+    notesList: [],
+    timeline: [],
+  },
+  {
+    id: "enq-4",
+    enquiryNo: "ENQ-000259",
+    name: "Pooja Nair",
+    phone: "9876543213",
+    email: "pooja@gmail.com",
+    course: "Data Science",
+    source: "Referral",
+    status: "New",
+    priority: "Cold",
+    nextFollowUp: "Aug 17, 11:00 AM",
+    nextFollowUpType: "Call",
+    lastContact: "Aug 13, 05:30 PM",
+    enquiryDate: "Aug 13, 2025",
+    assignedCounselor: "Sneha Patil",
+    leadScore: 60,
+    location: "Kochi, Kerala",
+    qualification: "B.Tech IT",
+    passingYear: "2024",
+    preferredMode: "Online",
+    preferredTime: "Evening",
+    notesList: [],
+    timeline: [],
+  },
+  {
+    id: "enq-5",
+    enquiryNo: "ENQ-000260",
+    name: "Vikram Singh",
+    phone: "9876543214",
+    email: "vikram@gmail.com",
+    course: "UI/UX Design",
+    source: "Meta Ads",
+    status: "Demo",
+    priority: "Warm",
+    nextFollowUp: "Aug 16, 04:00 PM",
+    nextFollowUpType: "Demo",
+    lastContact: "Today, 12:40 PM",
+    enquiryDate: "Aug 11, 2025",
+    assignedCounselor: "Arjun Reddy",
+    leadScore: 78,
+    location: "Hyderabad, Telangana",
+    qualification: "B.Des",
+    passingYear: "2022",
+    preferredMode: "Offline",
+    preferredTime: "Weekend",
+    notesList: [],
+    timeline: [],
+  },
+  {
+    id: "enq-6",
+    enquiryNo: "ENQ-000261",
+    name: "Divya Patel",
+    phone: "9876543215",
+    email: "divya@gmail.com",
+    course: "Python Programming",
+    source: "Walk-in",
+    status: "Admission",
+    priority: "Hot",
+    nextFollowUp: "Aug 18, 10:30 AM",
+    nextFollowUpType: "Call",
+    lastContact: "Today, 11:00 AM",
+    enquiryDate: "Aug 10, 2025",
+    assignedCounselor: "Priya Singh",
+    leadScore: 94,
+    location: "Ahmedabad, Gujarat",
+    qualification: "MCA",
+    passingYear: "2023",
+    preferredMode: "Offline",
+    preferredTime: "Morning",
+    notesList: [],
+    timeline: [],
+  },
+  {
+    id: "enq-7",
+    enquiryNo: "ENQ-000262",
+    name: "Rohit Jain",
+    phone: "9876543216",
+    email: "rohit@gmail.com",
+    course: "Full Stack Development",
+    source: "Website",
+    status: "Converted",
+    priority: "Hot",
+    nextFollowUp: "—",
+    lastContact: "Aug 12, 03:30 PM",
+    enquiryDate: "Aug 08, 2025",
+    assignedCounselor: "Priya Singh",
+    leadScore: 98,
+    location: "Bangalore, Karnataka",
+    qualification: "BE Mechanical",
+    passingYear: "2022",
+    preferredMode: "Offline",
+    preferredTime: "Morning",
+    notesList: [],
+    timeline: [],
+  },
+  {
+    id: "enq-8",
+    enquiryNo: "ENQ-000263",
+    name: "Meera Suresh",
+    phone: "9876543217",
+    email: "meera@gmail.com",
+    course: "Digital Marketing",
+    source: "Other",
+    status: "Lost",
+    priority: "Cold",
+    nextFollowUp: "—",
+    lastContact: "Aug 11, 01:20 PM",
+    enquiryDate: "Aug 05, 2025",
+    assignedCounselor: "Rahul Kumar",
+    leadScore: 25,
+    location: "Chennai, Tamil Nadu",
+    qualification: "B.Com",
+    passingYear: "2023",
+    preferredMode: "Online",
+    preferredTime: "Evening",
+    lostReason: "Joined another institute",
+    notesList: [],
+    timeline: [],
+  },
+];
 
 export const Enquiries: React.FC = () => {
-  const { enquiries, isLoading, fetchEnquiries, addEnquiry, updateEnquiry, deleteEnquiry, convertEnquiryToApplication } = useAdmissionStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuthStore();
   const { courses, fetchCourses } = useCourseStore();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const rolePrefix = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
-  // Modal State for New Enquiry
-  const [showModal, setShowModal] = useState(false);
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [source, setSource] = useState<EnquirySource>("WEBSITE");
-  const [status, setStatus] = useState<EnquiryStatus>("NEW");
-  const [notes, setNotes] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [leads, setLeads] = useState<EnrichedLead[]>(INITIAL_ENQUIRIES);
+  const [selectedLead, setSelectedLead] = useState<EnrichedLead | null>(null);
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"Overview" | "Timeline" | "Notes" | "Documents">("Overview");
+
+  // Filter States
+  const [activeTab, setActiveTab] = useState<string>("All Enquiries");
+  const [viewMode, setViewMode] = useState<"List" | "Pipeline">("List");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [sourceFilter, setSourceFilter] = useState("All Sources");
+  const [statusFilter, setStatusFilter] = useState("All Statuses");
+  const [courseFilter, setCourseFilter] = useState("All Courses");
+  const [counselorFilter, setCounselorFilter] = useState("All Counsellors");
+  const [priorityFilter, setPriorityFilter] = useState("All Priority");
+
+  // Selection & Bulk Actions
+  const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
+  const [showBulkActions, setShowBulkActions] = useState(false);
+
+  // Modals
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showLostModal, setShowLostModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [leadToMarkLost, setLeadToMarkLost] = useState<EnrichedLead | null>(null);
+  const [lostReasonChoice, setLostReasonChoice] = useState("Joined another institute");
+
+  // Form states for New Enquiry
+  const [newFormName, setNewFormName] = useState("");
+  const [newFormPhone, setNewFormPhone] = useState("");
+  const [newFormEmail, setNewFormEmail] = useState("");
+  const [newFormCourse, setNewFormCourse] = useState("Digital Marketing");
+  const [newFormSource, setNewFormSource] = useState<EnrichedLead["source"]>("Google Ads");
+  const [newFormPriority, setNewFormPriority] = useState<LeadPriority>("Hot");
+  const [newFormLocation, setNewFormLocation] = useState("Bangalore, Karnataka");
+  const [newFormQualification, setNewFormQualification] = useState("BBA");
+  const [newFormNotes, setNewFormNotes] = useState("");
+  const [duplicateWarning, setDuplicateWarning] = useState<EnrichedLead | null>(null);
+
+  // New Note state in Drawer
+  const [newNoteText, setNewNoteText] = useState("");
 
   useEffect(() => {
-    fetchEnquiries();
-    if (fetchCourses) {
-      fetchCourses();
-    }
+    if (fetchCourses) fetchCourses();
   }, []);
 
+  // Check for duplicates on Phone/Email typing
   useEffect(() => {
-    if (courses.length > 0 && !courseId) {
-      setCourseId(courses[0].id);
+    if (!newFormPhone && !newFormEmail) {
+      setDuplicateWarning(null);
+      return;
     }
-  }, [courses]);
+    const found = leads.find(
+      (l) =>
+        (newFormPhone && l.phone === newFormPhone) ||
+        (newFormEmail && l.email.toLowerCase() === newFormEmail.toLowerCase())
+    );
+    setDuplicateWarning(found || null);
+  }, [newFormPhone, newFormEmail, leads]);
 
-  const filteredEnquiries = enquiries.filter((e) => {
-    const matchesSearch =
-      (e.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (e.phone || "").includes(searchTerm) ||
-      (e.courseName || "").toLowerCase().includes(searchTerm.toLowerCase());
+  // Tab Counts
+  const followupsDueCount = leads.filter((l) => l.nextFollowUp.includes("Today") || l.status === "Follow-up").length;
+  const counsellingScheduledCount = leads.filter((l) => l.status === "Counselling" || l.status === "Demo").length;
 
-    const matchesSource = sourceFilter === "ALL" || e.source === sourceFilter;
-    const matchesStatus = statusFilter === "ALL" || e.status === statusFilter;
+  // Filtered Leads
+  const filteredLeads = useMemo(() => {
+    return leads.filter((lead) => {
+      // Tab filter
+      if (activeTab === "My Enquiries" && lead.assignedCounselor !== (user?.name || "Priya Singh")) return false;
+      if (activeTab === "Follow-ups Due" && !lead.nextFollowUp.includes("Today") && lead.status !== "Follow-up") return false;
+      if (activeTab === "Counselling Scheduled" && lead.status !== "Counselling" && lead.status !== "Demo") return false;
+      if (activeTab === "Converted" && lead.status !== "Converted") return false;
+      if (activeTab === "Lost Leads" && lead.status !== "Lost") return false;
 
-    return matchesSearch && matchesSource && matchesStatus;
-  });
+      // Search
+      if (searchTerm) {
+        const query = searchTerm.toLowerCase();
+        const matches =
+          lead.name.toLowerCase().includes(query) ||
+          lead.phone.includes(query) ||
+          lead.email.toLowerCase().includes(query) ||
+          lead.course.toLowerCase().includes(query);
+        if (!matches) return false;
+      }
 
-  const totalEnquiries = enquiries.length;
-  const newEnquiries = enquiries.filter((e) => e.status === "NEW").length;
-  const pendingFollowups = enquiries.filter((e) => e.status === "FOLLOW_UP" || e.status === "IN_PROGRESS").length;
-  const convertedCount = enquiries.filter((e) => e.status === "CONVERTED").length;
-  const conversionRate = totalEnquiries > 0 ? Math.round((convertedCount / totalEnquiries) * 100) : 0;
+      // Dropdown filters
+      if (sourceFilter !== "All Sources" && lead.source !== sourceFilter) return false;
+      if (statusFilter !== "All Statuses" && lead.status !== statusFilter) return false;
+      if (courseFilter !== "All Courses" && lead.course !== courseFilter) return false;
+      if (counselorFilter !== "All Counsellors" && lead.assignedCounselor !== counselorFilter) return false;
+      if (priorityFilter !== "All Priority" && lead.priority !== priorityFilter) return false;
 
-  const handleCreateSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !phone || !courseId) return;
-
-    setIsSubmitting(true);
-    await addEnquiry({
-      name,
-      email: email || undefined,
-      phone,
-      courseId,
-      source,
-      status,
-      counselorNotes: notes || undefined,
+      return true;
     });
+  }, [leads, activeTab, searchTerm, sourceFilter, statusFilter, courseFilter, counselorFilter, priorityFilter, user]);
 
-    setName("");
-    setEmail("");
-    setPhone("");
-    setNotes("");
-    setIsSubmitting(false);
-    setShowModal(false);
+  // Bulk Selection Handlers
+  const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.checked) {
+      setSelectedLeadIds(filteredLeads.map((l) => l.id));
+    } else {
+      setSelectedLeadIds([]);
+    }
   };
 
-  const getSourceBadge = (src: EnquirySource) => {
-    switch (src) {
-      case "WEBSITE":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><Globe className="w-3 h-3 mr-1" /> Website</Badge>;
-      case "WHATSAPP":
-        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><MessageSquare className="w-3 h-3 mr-1" /> WhatsApp</Badge>;
-      case "WALK_IN":
-        return <Badge variant="outline" className="bg-[#1769AA]/10 text-[#1769AA] border-blue-200"><MapPin className="w-3 h-3 mr-1" /> Walk-in</Badge>;
-      case "REFERRAL":
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><Users className="w-3 h-3 mr-1" /> Referral</Badge>;
-      default:
-        return <Badge variant="outline"><Share2 className="w-3 h-3 mr-1" /> {src}</Badge>;
+  const handleSelectOne = (id: string) => {
+    setSelectedLeadIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleResetFilters = () => {
+    setSearchTerm("");
+    setSourceFilter("All Sources");
+    setStatusFilter("All Statuses");
+    setCourseFilter("All Courses");
+    setCounselorFilter("All Counsellors");
+    setPriorityFilter("All Priority");
+    setActiveTab("All Enquiries");
+  };
+
+  // Add Lead
+  const handleCreateLead = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newFormName || !newFormPhone) return;
+
+    const newEnq: EnrichedLead = {
+      id: `enq-${Date.now()}`,
+      enquiryNo: `ENQ-000${leads.length + 260}`,
+      name: newFormName,
+      phone: newFormPhone,
+      email: newFormEmail || `${newFormName.toLowerCase().replace(/\s+/g, "")}@gmail.com`,
+      course: newFormCourse,
+      source: newFormSource,
+      status: "New",
+      priority: newFormPriority,
+      nextFollowUp: "Tomorrow, 10:00 AM",
+      nextFollowUpType: "Call",
+      lastContact: "Just now",
+      enquiryDate: "Today",
+      assignedCounselor: user?.name || "Priya Singh",
+      leadScore: newFormPriority === "Hot" ? 85 : newFormPriority === "Warm" ? 65 : 45,
+      location: newFormLocation,
+      qualification: newFormQualification,
+      passingYear: "2024",
+      preferredMode: "Offline",
+      preferredTime: "Morning",
+      notesList: newFormNotes
+        ? [
+            {
+              id: `note-${Date.now()}`,
+              author: user?.name || "Priya Singh",
+              date: "Today",
+              time: "Just now",
+              text: newFormNotes,
+            },
+          ]
+        : [],
+      timeline: [
+        {
+          id: `tl-${Date.now()}`,
+          date: "Today",
+          time: "Just now",
+          text: `Enquiry logged from ${newFormSource}.`,
+          mode: "Enquiry",
+        },
+      ],
+    };
+
+    setLeads([newEnq, ...leads]);
+    setSelectedLead(newEnq);
+    setShowAddModal(false);
+    // Reset
+    setNewFormName("");
+    setNewFormPhone("");
+    setNewFormEmail("");
+    setNewFormNotes("");
+    setDuplicateWarning(null);
+  };
+
+  // Mark as Lost Handler
+  const handleConfirmLost = () => {
+    if (!leadToMarkLost) return;
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadToMarkLost.id
+          ? { ...l, status: "Lost", priority: "Cold", lostReason: lostReasonChoice }
+          : l
+      )
+    );
+    if (selectedLead?.id === leadToMarkLost.id) {
+      setSelectedLead({ ...selectedLead, status: "Lost", priority: "Cold", lostReason: lostReasonChoice });
     }
+    setShowLostModal(false);
+    setLeadToMarkLost(null);
+  };
+
+  // Add Note Handler in Drawer
+  const handleAddNote = () => {
+    if (!newNoteText || !selectedLead) return;
+    const newNote = {
+      id: `note-${Date.now()}`,
+      author: user?.name || "Priya Singh",
+      date: "Today",
+      time: "Just now",
+      text: newNoteText,
+    };
+    const updatedLead = {
+      ...selectedLead,
+      notesList: [newNote, ...(selectedLead.notesList || [])],
+    };
+    setSelectedLead(updatedLead);
+    setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)));
+    setNewNoteText("");
+  };
+
+  // Register Student from Lead Action
+  const handleRegisterStudent = (lead: EnrichedLead) => {
+    navigate(`${rolePrefix}/students/add`, {
+      state: {
+        fromEnquiry: true,
+        name: lead.name,
+        email: lead.email,
+        phone: lead.phone,
+        courseName: lead.course,
+        qualification: lead.qualification,
+        location: lead.location,
+      },
+    });
+  };
+
+  // Export CSV Handler
+  const handleExportCSV = () => {
+    const headers = "ID,Name,Phone,Email,Course,Source,Status,Priority,NextFollowUp,AssignedTo\n";
+    const rows = filteredLeads
+      .map(
+        (l) =>
+          `"${l.enquiryNo}","${l.name}","${l.phone}","${l.email}","${l.course}","${l.source}","${l.status}","${l.priority}","${l.nextFollowUp}","${l.assignedCounselor}"`
+      )
+      .join("\n");
+    const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `student_enquiries_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+  };
+
+  // Status Badge Helper
+  const getStatusBadge = (status: LeadStatus) => {
+    switch (status) {
+      case "New":
+        return <Badge className="bg-blue-50 text-blue-700 border-blue-200 font-semibold text-[10px]">New</Badge>;
+      case "Contacted":
+        return <Badge className="bg-sky-50 text-sky-700 border-sky-200 font-semibold text-[10px]">Contacted</Badge>;
+      case "Interested":
+        return <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold text-[10px]">Interested</Badge>;
+      case "Counselling":
+        return <Badge className="bg-purple-50 text-purple-700 border-purple-200 font-semibold text-[10px]">Counselling</Badge>;
+      case "Follow-up":
+        return <Badge className="bg-amber-50 text-amber-700 border-amber-200 font-semibold text-[10px]">Follow-up</Badge>;
+      case "Demo":
+        return <Badge className="bg-yellow-50 text-yellow-700 border-yellow-200 font-semibold text-[10px]">Demo</Badge>;
+      case "Admission":
+        return <Badge className="bg-teal-50 text-teal-700 border-teal-200 font-semibold text-[10px]">Admission</Badge>;
+      case "Converted":
+        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 font-extrabold text-[10px]">Converted</Badge>;
+      case "Lost":
+        return <Badge className="bg-red-50 text-red-700 border-red-200 font-semibold text-[10px]">Lost</Badge>;
+      default:
+        return <Badge className="bg-slate-50 text-slate-700 border-slate-200 font-semibold text-[10px]">{status}</Badge>;
+    }
+  };
+
+  // Source Badge Helper
+  const getSourceBadge = (source: EnrichedLead["source"]) => {
+    switch (source) {
+      case "Google Ads":
+        return <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-blue-200">Google Ads</span>;
+      case "Instagram":
+        return <span className="bg-purple-50 text-purple-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-purple-200">Instagram</span>;
+      case "Website":
+        return <span className="bg-teal-50 text-teal-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-teal-200">Website</span>;
+      case "Referral":
+        return <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-amber-200">Referral</span>;
+      case "Meta Ads":
+        return <span className="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-200">Meta Ads</span>;
+      case "Walk-in":
+        return <span className="bg-cyan-50 text-cyan-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-cyan-200">Walk-in</span>;
+      default:
+        return <span className="bg-slate-100 text-slate-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-slate-200">{source}</span>;
+    }
+  };
+
+  // Priority Dot Helper
+  const getPriorityDot = (p: LeadPriority) => {
+    if (p === "Hot") return <span className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]"><span className="h-2 w-2 rounded-full bg-red-500" /> Hot</span>;
+    if (p === "Warm") return <span className="flex items-center gap-1.5 font-semibold text-slate-700 text-[11px]"><span className="h-2 w-2 rounded-full bg-amber-500" /> Warm</span>;
+    return <span className="flex items-center gap-1.5 font-medium text-slate-600 text-[11px]"><span className="h-2 w-2 rounded-full bg-blue-500" /> Cold</span>;
+  };
+
+  const getInitials = (name: string) => {
+    const parts = name.split(" ");
+    if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+    return name.slice(0, 2).toUpperCase();
   };
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="p-4 md:p-6 max-w-[1750px] w-full mx-auto space-y-5 bg-[#f8fafc] min-h-screen">
+      
+      {/* ─── 1. PAGE HEADER ─── */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Student Enquiries</h2>
-          <p className="text-sm text-text-secondary">
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
+            Student Enquiries
+          </h1>
+          <p className="text-sm text-slate-500 font-medium mt-0.5">
             Manage prospective student leads, follow-up schedules, and admission conversions.
           </p>
         </div>
 
-        <Button 
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Enquiry
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => setShowImportModal(true)}
+            variant="outline"
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all"
+          >
+            <Upload className="h-4 w-4 text-slate-500" /> Import Leads
+          </Button>
+
+          <Button
+            onClick={handleExportCSV}
+            variant="outline"
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all"
+          >
+            <Download className="h-4 w-4 text-slate-500" /> Export
+          </Button>
+
+          <Button
+            onClick={() => setShowAddModal(true)}
+            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all"
+          >
+            <Plus className="h-4 w-4" /> Add New Enquiry
+          </Button>
+        </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
-              <HelpCircle className="h-6 w-6" />
+      {/* ─── 2. TOP 6 COMPACT KPI CARDS ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+        {/* Card 1: Total Enquiries */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/60">
+              <HelpCircle className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Enquiries</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalEnquiries}</h3>
+              <p className="text-[11px] font-semibold text-slate-500">Total Enquiries</p>
+              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">256</h3>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">All time</p>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
-              <UserCheck className="h-6 w-6" />
+        {/* Card 2: New Enquiries */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
+              <Users className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">New Enquiries</p>
-              <h3 className="text-2xl font-bold text-text-primary">{newEnquiries}</h3>
+              <p className="text-[11px] font-semibold text-slate-500">New Enquiries</p>
+              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">24</h3>
+              <p className="text-[10px] font-bold text-emerald-600 mt-0.5">This week <span className="text-[9px]">↑ 12%</span></p>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
-              <PhoneCall className="h-6 w-6" />
+        {/* Card 3: Follow-ups Due */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/60">
+              <Phone className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Follow-ups Pending</p>
-              <h3 className="text-2xl font-bold text-text-primary">{pendingFollowups}</h3>
+              <p className="text-[11px] font-semibold text-slate-500">Follow-ups Due</p>
+              <h3 className="text-xl font-black text-amber-600 mt-0.5 tracking-tight">18</h3>
+              <p className="text-[10px] font-bold text-amber-600 mt-0.5">Due today <span className="text-[9px]">↑ 8%</span></p>
             </div>
-          </CardContent>
+          </div>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
-              <CheckCircle2 className="h-6 w-6" />
+        {/* Card 4: Conversion Rate */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/60">
+              <CheckCircle2 className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Conversion Rate</p>
-              <h3 className="text-2xl font-bold text-text-primary">{conversionRate}%</h3>
+              <p className="text-[11px] font-semibold text-slate-500">Conversion Rate</p>
+              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">18.7%</h3>
+              <p className="text-[10px] font-bold text-purple-600 mt-0.5">This month <span className="text-[9px]">↑ 5%</span></p>
             </div>
-          </CardContent>
+          </div>
+        </Card>
+
+        {/* Card 5: Admissions Converted */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
+              <GraduationCap className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-slate-500">Admissions Converted</p>
+              <h3 className="text-xl font-black text-emerald-600 mt-0.5 tracking-tight">24</h3>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">This month</p>
+            </div>
+          </div>
+        </Card>
+
+        {/* Card 6: Lost Leads */}
+        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100/60">
+              <XCircle className="h-4.5 w-4.5" />
+            </div>
+            <div>
+              <p className="text-[11px] font-semibold text-slate-500">Lost Leads</p>
+              <h3 className="text-xl font-black text-red-600 mt-0.5 tracking-tight">12</h3>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">This month</p>
+            </div>
+          </div>
         </Card>
       </div>
 
-      {/* Main Table & Filters */}
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+      {/* ─── 3. SEARCH & FILTERS BAR ─── */}
+      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4">
+        <div className="space-y-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
+            <Input
+              type="text"
+              placeholder="Search by name, phone, email, or course..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 h-10 text-xs bg-slate-50/50 border-slate-200 focus:bg-white rounded-xl"
+            />
+          </div>
+
+          {/* Compact Dropdown Filters Row */}
+          <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
+            {/* All Sources */}
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Sources">All Sources</option>
+              <option value="Google Ads">Google Ads</option>
+              <option value="Instagram">Instagram</option>
+              <option value="Website">Website</option>
+              <option value="Referral">Referral</option>
+              <option value="Meta Ads">Meta Ads</option>
+              <option value="Walk-in">Walk-in</option>
+            </select>
+
+            {/* All Statuses */}
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Statuses">All Statuses</option>
+              <option value="New">New</option>
+              <option value="Contacted">Contacted</option>
+              <option value="Interested">Interested</option>
+              <option value="Counselling">Counselling</option>
+              <option value="Follow-up">Follow-up</option>
+              <option value="Demo">Demo</option>
+              <option value="Admission">Admission</option>
+              <option value="Converted">Converted</option>
+              <option value="Lost">Lost</option>
+            </select>
+
+            {/* All Courses */}
+            <select
+              value={courseFilter}
+              onChange={(e) => setCourseFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Courses">All Courses</option>
+              <option value="Digital Marketing">Digital Marketing</option>
+              <option value="Graphic Design">Graphic Design</option>
+              <option value="Web Development">Web Development</option>
+              <option value="Data Science">Data Science</option>
+              <option value="UI/UX Design">UI/UX Design</option>
+              <option value="Python Programming">Python Programming</option>
+              <option value="Full Stack Development">Full Stack Development</option>
+            </select>
+
+            {/* All Counsellors */}
+            <select
+              value={counselorFilter}
+              onChange={(e) => setCounselorFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Counsellors">All Counsellors</option>
+              <option value="Priya Singh">Priya Singh</option>
+              <option value="Rahul Kumar">Rahul Kumar</option>
+              <option value="Sneha Patil">Sneha Patil</option>
+              <option value="Arjun Reddy">Arjun Reddy</option>
+            </select>
+
+            {/* Follow-up Date */}
+            <div className="flex items-center h-8 px-2.5 border border-slate-200 rounded-lg text-slate-600 bg-white gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-slate-400" />
+              <span>Follow-up Date</span>
+            </div>
+
+            {/* All Priority */}
+            <select
+              value={priorityFilter}
+              onChange={(e) => setPriorityFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Priority">All Priority</option>
+              <option value="Hot">Hot</option>
+              <option value="Warm">Warm</option>
+              <option value="Cold">Cold</option>
+            </select>
+
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="text-[#1769AA] hover:underline font-bold text-xs ml-auto"
+            >
+              Reset Filters
+            </button>
+          </div>
+        </div>
+      </Card>
+
+      {/* ─── 4. TABS & VIEW TOGGLE ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-200 pb-1">
+        {/* Left: Filter Tabs */}
+        <div className="flex items-center gap-1 overflow-x-auto text-xs font-semibold">
+          {[
+            { label: "All Enquiries", count: null },
+            { label: "My Enquiries", count: null },
+            { label: "Follow-ups Due", count: followupsDueCount, badgeColor: "bg-red-500 text-white" },
+            { label: "Counselling Scheduled", count: counsellingScheduledCount, badgeColor: "bg-amber-500 text-white" },
+            { label: "Converted", count: null },
+            { label: "Lost Leads", count: null },
+          ].map((tab) => (
+            <button
+              key={tab.label}
+              onClick={() => setActiveTab(tab.label)}
+              className={`px-3 py-2 rounded-t-lg transition-all flex items-center gap-1.5 whitespace-nowrap border-b-2 font-bold ${
+                activeTab === tab.label
+                  ? "border-[#1769AA] text-[#1769AA] bg-blue-50/40"
+                  : "border-transparent text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              {tab.label}
+              {tab.count !== null && (
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${tab.badgeColor || "bg-slate-200 text-slate-700"}`}>
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: View Mode Toggle */}
+        <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl shrink-0">
+          <button
+            onClick={() => setViewMode("List")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "List"
+                ? "bg-blue-50 text-[#1769AA] shadow-2xs"
+                : "text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <LayoutList className="h-3.5 w-3.5" /> List View
+          </button>
+          <button
+            onClick={() => setViewMode("Pipeline")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "Pipeline"
+                ? "bg-blue-50 text-[#1769AA] shadow-2xs"
+                : "text-slate-500 hover:text-slate-900"
+            }`}
+          >
+            <Columns3 className="h-3.5 w-3.5" /> Pipeline View
+          </button>
+        </div>
+      </div>
+
+      {/* ─── 5. WORKSPACE CONTAINER (TABLE / PIPELINE + DETAIL DRAWER) ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        {/* Main Content Area */}
+        <div className={selectedLead ? "lg:col-span-7 xl:col-span-8 space-y-4" : "lg:col-span-12 space-y-4"}>
+          {viewMode === "List" ? (
+            <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
+              <CardContent className="p-0 overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/80 text-[11px] uppercase tracking-wider whitespace-nowrap">
+                    <tr>
+                      <th className="py-3 px-3 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0}
+                          onChange={handleSelectAll}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
+                        />
+                      </th>
+                      <th className="py-3 px-3 font-bold">Lead</th>
+                      <th className="py-3 px-3 font-bold">Interested Course</th>
+                      <th className="py-3 px-2 font-bold text-center">Source</th>
+                      <th className="py-3 px-2 font-bold text-center">Status</th>
+                      <th className="py-3 px-2 font-bold text-center">Priority</th>
+                      <th className="py-3 px-3 font-bold">Next Follow-up</th>
+                      <th className="py-3 px-3 font-bold">Last Contact</th>
+                      <th className="py-3 px-3 font-bold text-center w-28">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {filteredLeads.length > 0 ? (
+                      filteredLeads.map((lead) => {
+                        const isSelected = selectedLead?.id === lead.id;
+                        const isChecked = selectedLeadIds.includes(lead.id);
+
+                        return (
+                          <tr
+                            key={lead.id}
+                            onClick={() => setSelectedLead(lead)}
+                            className={`hover:bg-blue-50/40 transition-colors cursor-pointer whitespace-nowrap ${
+                              isSelected ? "bg-blue-50/70 font-medium" : ""
+                            }`}
+                          >
+                            <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleSelectOne(lead.id)}
+                                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
+                              />
+                            </td>
+
+                            {/* Lead Name & Info */}
+                            <td className="py-3.5 px-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-200">
+                                  {getInitials(lead.name)}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-slate-900 text-[13px] leading-tight">{lead.name}</p>
+                                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                    {lead.phone} • {lead.email}
+                                  </p>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Course */}
+                            <td className="py-3.5 px-3 font-semibold text-slate-700">
+                              {lead.course}
+                            </td>
+
+                            {/* Source */}
+                            <td className="py-3.5 px-2 text-center">
+                              {getSourceBadge(lead.source)}
+                            </td>
+
+                            {/* Status */}
+                            <td className="py-3.5 px-2 text-center">
+                              {getStatusBadge(lead.status)}
+                            </td>
+
+                            {/* Priority */}
+                            <td className="py-3.5 px-2 text-center">
+                              <div className="inline-flex items-center justify-center">
+                                {getPriorityDot(lead.priority)}
+                              </div>
+                            </td>
+
+                            {/* Next Follow-up */}
+                            <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
+                              {lead.nextFollowUp !== "—" ? (
+                                <span className="inline-flex items-center gap-1">
+                                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                  {lead.nextFollowUp}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">—</span>
+                              )}
+                            </td>
+
+                            {/* Last Contact */}
+                            <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                              {lead.lastContact}
+                            </td>
+
+                            {/* Actions: Call, WhatsApp, View */}
+                            <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => (window.location.href = `tel:${lead.phone}`)}
+                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
+                                  title="Call Lead"
+                                >
+                                  <Phone className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    window.open(
+                                      `https://wa.me/91${lead.phone}?text=${encodeURIComponent(
+                                        `Hello ${lead.name}, greetings from Aadya Institute!`
+                                      )}`,
+                                      "_blank"
+                                    )
+                                  }
+                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
+                                  title="WhatsApp Lead"
+                                >
+                                  <MessageSquare className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedLead(lead)}
+                                  className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs"
+                                  title="View Details"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
+                          No matching enquiries found. Try adjusting your filters.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </CardContent>
+
+              {/* Bottom Pagination & Bulk Toolbar */}
+              <div className="p-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs bg-white">
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-500 font-medium">
+                    {selectedLeadIds.length} row(s) selected
+                  </span>
+
+                  {selectedLeadIds.length > 0 && (
+                    <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px] font-bold">
+                      <option value="">Bulk Actions ⌵</option>
+                      <option value="status">Change Status</option>
+                      <option value="priority">Change Priority</option>
+                      <option value="counselor">Assign Counsellor</option>
+                      <option value="export">Export Selected</option>
+                    </select>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 text-slate-500 font-medium sm:ml-auto">
+                  <span>Rows per page</span>
+                  <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px]">
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+
+                  <div className="flex items-center gap-1">
+                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50">
+                      &lt;
+                    </button>
+                    <button className="h-6 w-6 rounded bg-[#1769AA] text-white font-bold flex items-center justify-center">
+                      1
+                    </button>
+                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                      2
+                    </button>
+                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                      3
+                    </button>
+                    <span className="px-1 text-slate-400">...</span>
+                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                      26
+                    </button>
+                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                      &gt;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          ) : (
+            /* ─── PIPELINE KANBAN VIEW ─── */
+            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-4">
+              {[
+                { stage: "New", color: "bg-blue-500" },
+                { stage: "Contacted", color: "bg-sky-500" },
+                { stage: "Interested", color: "bg-emerald-500" },
+                { stage: "Counselling", color: "bg-purple-500" },
+                { stage: "Follow-up", color: "bg-amber-500" },
+                { stage: "Demo", color: "bg-yellow-500" },
+                { stage: "Admission", color: "bg-teal-500" },
+                { stage: "Converted", color: "bg-emerald-700" },
+              ].map((col) => {
+                const stageLeads = leads.filter((l) => l.status === col.stage);
+                return (
+                  <div key={col.stage} className="bg-slate-100/70 p-3 rounded-2xl border border-slate-200/60 min-w-[240px] space-y-3">
+                    <div className="flex items-center justify-between font-bold text-xs text-slate-700 pb-1 border-b border-slate-200">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-2 h-2 rounded-full ${col.color}`} />
+                        <span className="uppercase">{col.stage}</span>
+                      </div>
+                      <span className="bg-white px-2 py-0.5 rounded-full text-[10px] text-slate-500 font-bold">
+                        {stageLeads.length}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {stageLeads.map((lead) => (
+                        <div
+                          key={lead.id}
+                          onClick={() => setSelectedLead(lead)}
+                          className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-1.5"
+                        >
+                          <div className="flex items-start justify-between">
+                            <h4 className="font-bold text-slate-900 text-xs">{lead.name}</h4>
+                            {getPriorityDot(lead.priority)}
+                          </div>
+                          <p className="text-[11px] text-slate-600 font-medium">{lead.course}</p>
+                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-50">
+                            <span>{lead.source}</span>
+                            <span className="text-slate-600 font-semibold">{lead.nextFollowUp}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* ─── 6. LEAD DETAIL SIDE PANEL (DRAWER) ─── */}
+        {selectedLead && (
+          <div className="lg:col-span-4 bg-white border border-slate-200/70 rounded-2xl shadow-xs overflow-hidden sticky top-6">
+            
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-100 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm border border-purple-200">
+                    {getInitials(selectedLead.name)}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-extrabold text-slate-900 text-base">{selectedLead.name}</h3>
+                      {getStatusBadge(selectedLead.status)}
+                    </div>
+                    <p className="text-xs text-slate-400 font-mono mt-0.5">
+                      {selectedLead.phone} • {selectedLead.email}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedLead(null)}
+                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-1">
+                <span>Enquiry ID: <strong className="text-slate-800">{selectedLead.enquiryNo}</strong></span>
+                <span>Lead Score: <strong className="text-amber-600">{selectedLead.leadScore} 🔥</strong></span>
+              </div>
+
+              {/* Drawer Tabs */}
+              <div className="grid grid-cols-4 gap-1 border-b border-slate-100 pt-2 text-center text-xs font-bold">
+                {(["Overview", "Timeline", "Notes", "Documents"] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveDrawerTab(tab)}
+                    className={`pb-2 border-b-2 transition-all ${
+                      activeDrawerTab === tab
+                        ? "border-[#1769AA] text-[#1769AA]"
+                        : "border-transparent text-slate-400 hover:text-slate-700"
+                    }`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Drawer Body */}
+            <div className="p-5 space-y-4 text-xs max-h-[calc(100vh-320px)] overflow-y-auto">
+              
+              {activeDrawerTab === "Overview" && (
+                <>
+                  {/* Card 1: Student Information */}
+                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span>Student Information</span>
+                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] text-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-400"><MapPin className="h-3.5 w-3.5" /> Location</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.location}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-400"><GraduationCap className="h-3.5 w-3.5" /> Qualification</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.qualification}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-400"><Calendar className="h-3.5 w-3.5" /> Passing Year</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.passingYear}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-400"><Laptop className="h-3.5 w-3.5" /> Preferred Mode</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.preferredMode}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 text-slate-400"><Clock className="h-3.5 w-3.5" /> Preferred Time</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.preferredTime}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 2: Enquiry Information */}
+                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span>Enquiry Information</span>
+                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
+                    </div>
+
+                    <div className="space-y-1.5 text-[11px] text-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Interested Course</span>
+                        <span className="font-bold text-slate-900">{selectedLead.course}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Alternative Course</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.altCourse || "—"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Source</span>
+                        {getSourceBadge(selectedLead.source)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Enquiry Date</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.enquiryDate}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Assigned Counselor</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.assignedCounselor}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Priority</span>
+                        {getPriorityDot(selectedLead.priority)}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Status</span>
+                        {getStatusBadge(selectedLead.status)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Card 3: Next Follow-up */}
+                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span>Next Follow-up</span>
+                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
+                    </div>
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-2">
+                        <CalendarCheck className="h-4 w-4 text-[#1769AA]" />
+                        <span className="font-bold text-slate-900 text-xs">{selectedLead.nextFollowUp}</span>
+                      </div>
+                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
+                        Scheduled
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Follow-up Type: <strong className="text-slate-700">{selectedLead.nextFollowUpType || "Call"}</strong>
+                    </p>
+                  </div>
+
+                  {/* Quick Actions Strip */}
+                  <div className="space-y-1.5 pt-1">
+                    <p className="font-bold text-slate-800 text-[11px]">Quick Actions</p>
+                    <div className="grid grid-cols-5 gap-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => (window.location.href = `tel:${selectedLead.phone}`)}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group"
+                      >
+                        <Phone className="h-4 w-4 text-emerald-600" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">Call</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.open(`https://wa.me/91${selectedLead.phone}`, "_blank")
+                        }
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group"
+                      >
+                        <MessageSquare className="h-4 w-4 text-emerald-600" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">WhatsApp</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => (window.location.href = `mailto:${selectedLead.email}`)}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-1 group"
+                      >
+                        <Mail className="h-4 w-4 text-blue-600" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-blue-700">Email</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLeadToMarkLost(selectedLead);
+                          setShowLostModal(true);
+                        }}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-1 group"
+                      >
+                        <CalendarCheck className="h-4 w-4 text-purple-600" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-purple-700">Schedule</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setActiveDrawerTab("Notes")}
+                        className="p-2.5 rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all flex flex-col items-center gap-1 group"
+                      >
+                        <FileText className="h-4 w-4 text-amber-600" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-amber-700">Add Note</span>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* TIMELINE TAB */}
+              {activeDrawerTab === "Timeline" && (
+                <div className="space-y-3 relative pl-4 border-l-2 border-slate-200">
+                  {selectedLead.timeline && selectedLead.timeline.length > 0 ? (
+                    selectedLead.timeline.map((item) => (
+                      <div key={item.id} className="relative space-y-1">
+                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#1769AA] ring-4 ring-blue-50" />
+                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-800 text-[11px]">{item.date} — {item.time}</span>
+                            <span className="text-[10px] text-[#1769AA] font-bold">{item.mode}</span>
+                          </div>
+                          <p className="text-slate-600 text-xs mt-1">{item.text}</p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-slate-400 italic">No timeline entries yet.</p>
+                  )}
+                </div>
+              )}
+
+              {/* NOTES TAB */}
+              {activeDrawerTab === "Notes" && (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label className="text-slate-700 font-bold text-xs">Add Counsellor Note</Label>
+                    <textarea
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      placeholder="Type details about this interaction..."
+                      className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-slate-50 focus:bg-white min-h-[70px]"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleAddNote}
+                      className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold"
+                    >
+                      + Save Note
+                    </Button>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <h5 className="font-bold text-slate-800 text-xs">Previous Notes ({selectedLead.notesList?.length || 0})</h5>
+                    {selectedLead.notesList && selectedLead.notesList.length > 0 ? (
+                      selectedLead.notesList.map((n) => (
+                        <div key={n.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
+                          <div className="flex justify-between text-[10px] text-slate-400">
+                            <span className="font-bold text-slate-700">{n.author}</span>
+                            <span>{n.date}, {n.time}</span>
+                          </div>
+                          <p className="text-slate-700 text-xs">{n.text}</p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-slate-400 italic">No notes added yet.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* DOCUMENTS TAB */}
+              {activeDrawerTab === "Documents" && (
+                <div className="space-y-3">
+                  <div className="p-6 border-2 border-dashed border-slate-200 rounded-xl text-center space-y-2">
+                    <Upload className="h-6 w-6 text-slate-400 mx-auto" />
+                    <p className="font-semibold text-slate-700 text-xs">Upload Student Document / Form</p>
+                    <p className="text-[10px] text-slate-400">PDF, JPG, PNG up to 10MB</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Prominent Register Student Button at Bottom */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+              <Button
+                onClick={() => handleRegisterStudent(selectedLead)}
+                className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold h-11 rounded-xl shadow-sm gap-2 text-xs transition-all"
+              >
+                <GraduationCap className="h-4.5 w-4.5" /> Register Student
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── MODAL: ADD NEW ENQUIRY (WITH DUPLICATE DETECTION) ─── */}
+      <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
+        <DialogContent className="max-w-lg bg-white rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Plus className="h-5 w-5 text-[#1769AA]" />
+              New Student Enquiry Registration
+            </DialogTitle>
+          </DialogHeader>
+
+          {duplicateWarning && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-2.5 text-xs text-amber-800">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold">Possible duplicate enquiry found!</p>
+                <p className="text-[11px] mt-0.5">
+                  <strong>{duplicateWarning.name}</strong> ({duplicateWarning.phone}) is already registered in <em>{duplicateWarning.course}</em> with status <strong>{duplicateWarning.status}</strong>.
+                </p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleCreateLead} className="space-y-3.5 pt-2 text-xs">
+            <div>
+              <Label className="text-slate-700 font-semibold">Student Full Name *</Label>
               <Input
-                placeholder="Search by student name, email, phone, or course..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-bg-secondary border-border/50"
+                value={newFormName}
+                onChange={(e) => setNewFormName(e.target.value)}
+                placeholder="e.g. Rahul Sharma"
+                className="mt-1"
+                required
               />
             </div>
 
-            {/* Filter Selectors */}
-            <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="ALL">All Sources</option>
-                <option value="WEBSITE">Website</option>
-                <option value="WHATSAPP">WhatsApp</option>
-                <option value="WALK_IN">Walk-in</option>
-                <option value="REFERRAL">Referral</option>
-                <option value="SOCIAL_MEDIA">Social Media</option>
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="NEW">New Lead</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="FOLLOW_UP">Follow-up</option>
-                <option value="CONVERTED">Converted</option>
-                <option value="REJECTED">Closed</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Enquiries Data Table */}
-          <div className="rounded-md border border-border/50 overflow-hidden bg-white">
-            <Table>
-              <TableHeader className="bg-bg-secondary/50">
-                <TableRow>
-                  <TableHead className="font-semibold text-text-primary">Lead Details</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Target Course</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Source</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Counsellor Remarks</TableHead>
-                  <TableHead className="font-semibold text-text-primary">Date</TableHead>
-                  <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                      <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
-                        Loading enquiries...
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ) : filteredEnquiries.length > 0 ? (
-                  filteredEnquiries.map((enquiry) => (
-                    <TableRow key={enquiry.id} className="hover:bg-slate-50 transition-colors">
-                      <TableCell>
-                        <div>
-                          <span className="font-semibold text-text-primary text-sm block">
-                            {enquiry.name}
-                          </span>
-                          <span className="text-xs text-text-secondary block">
-                            {enquiry.email ? `${enquiry.email} • ` : ""}{enquiry.phone}
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-xs font-medium text-[#1769AA]">
-                        {enquiry.courseName}
-                      </TableCell>
-                      <TableCell>{getSourceBadge(enquiry.source)}</TableCell>
-                      <TableCell>
-                        <select
-                          value={enquiry.status}
-                          onChange={(e) => updateEnquiry(enquiry.id, { status: e.target.value as EnquiryStatus })}
-                          className="text-xs p-1 border rounded bg-transparent font-medium"
-                        >
-                          <option value="NEW">New Lead</option>
-                          <option value="IN_PROGRESS">In Progress</option>
-                          <option value="FOLLOW_UP">Follow-up</option>
-                          <option value="CONVERTED">Converted</option>
-                          <option value="REJECTED">Closed</option>
-                        </select>
-                      </TableCell>
-                      <TableCell className="text-xs text-text-secondary max-w-xs truncate">
-                        {enquiry.counselorNotes || "—"}
-                      </TableCell>
-                      <TableCell className="text-xs text-text-secondary">
-                        {enquiry.createdAt ? new Date(enquiry.createdAt).toLocaleDateString() : "—"}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                            <DropdownMenuLabel>Lead Options</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            {enquiry.status !== "CONVERTED" && (
-                              <DropdownMenuItem 
-                                className="text-[#1769AA] font-semibold"
-                                onClick={() => convertEnquiryToApplication(enquiry.id)}
-                              >
-                                <ArrowRight className="mr-2 h-4 w-4" /> Convert to Application
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive focus:text-destructive"
-                              onClick={() => deleteEnquiry(enquiry.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Lead
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="h-32 text-center text-text-muted">
-                      No enquiries found. Add your first live lead!
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Modal Dialog for New Enquiry */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <HelpCircle className="h-5 w-5 text-[#1769AA]" />
-              New Student Enquiry
-            </h3>
-
-            <form onSubmit={handleCreateSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Student Full Name *</label>
+                <Label className="text-slate-700 font-semibold">Contact Phone *</Label>
                 <Input
-                  type="text"
-                  placeholder="e.g. Rahul Verma"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={newFormPhone}
+                  onChange={(e) => setNewFormPhone(e.target.value)}
+                  placeholder="9876543210"
+                  className="mt-1"
                   required
-                  className="bg-white border-slate-300 text-slate-900"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Mobile Number *</label>
-                  <Input
-                    type="text"
-                    placeholder="+91 98765 43210"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
-                    className="bg-white border-slate-300 text-slate-900"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
-                  <Input
-                    type="email"
-                    placeholder="student@gmail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
-                  />
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Preferred Course *</label>
+                <Label className="text-slate-700 font-semibold">Email Address</Label>
+                <Input
+                  type="email"
+                  value={newFormEmail}
+                  onChange={(e) => setNewFormEmail(e.target.value)}
+                  placeholder="rahul@gmail.com"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Interested Course</Label>
                 <select
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                  required
+                  value={newFormCourse}
+                  onChange={(e) => setNewFormCourse(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
                 >
-                  <option value="" disabled>Select a course</option>
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.code})
-                    </option>
-                  ))}
+                  <option value="Digital Marketing">Digital Marketing</option>
+                  <option value="Graphic Design">Graphic Design</option>
+                  <option value="Web Development">Web Development</option>
+                  <option value="Data Science">Data Science</option>
+                  <option value="UI/UX Design">UI/UX Design</option>
+                  <option value="Python Programming">Python Programming</option>
+                  <option value="Full Stack Development">Full Stack Development</option>
                 </select>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Lead Source</label>
-                  <select
-                    value={source}
-                    onChange={(e) => setSource(e.target.value as EnquirySource)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="WEBSITE">Website</option>
-                    <option value="WHATSAPP">WhatsApp</option>
-                    <option value="WALK_IN">Walk-in</option>
-                    <option value="REFERRAL">Referral</option>
-                    <option value="SOCIAL_MEDIA">Social Media</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Initial Status</label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value as EnquiryStatus)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="NEW">New Lead</option>
-                    <option value="IN_PROGRESS">In Progress</option>
-                    <option value="FOLLOW_UP">Follow-up</option>
-                  </select>
-                </div>
-              </div>
-
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Counsellor Remarks / Notes</label>
+                <Label className="text-slate-700 font-semibold">Lead Source</Label>
+                <select
+                  value={newFormSource}
+                  onChange={(e: any) => setNewFormSource(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="Google Ads">Google Ads</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Website">Website</option>
+                  <option value="Referral">Referral</option>
+                  <option value="Meta Ads">Meta Ads</option>
+                  <option value="Walk-in">Walk-in</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">City / Location</Label>
                 <Input
-                  type="text"
-                  placeholder="e.g. Interested in morning batch; requested brochure."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                  className="bg-white border-slate-300 text-slate-900"
+                  value={newFormLocation}
+                  onChange={(e) => setNewFormLocation(e.target.value)}
+                  placeholder="Bangalore, Karnataka"
+                  className="mt-1"
                 />
               </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setShowModal(false)}
-                  disabled={isSubmitting}
+              <div>
+                <Label className="text-slate-700 font-semibold">Priority</Label>
+                <select
+                  value={newFormPriority}
+                  onChange={(e: any) => setNewFormPriority(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-bold"
                 >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    "Save Enquiry"
-                  )}
-                </Button>
+                  <option value="Hot">🔥 Hot</option>
+                  <option value="Warm">⚡ Warm</option>
+                  <option value="Cold">❄️ Cold</option>
+                </select>
               </div>
-            </form>
+            </div>
+
+            <div>
+              <Label className="text-slate-700 font-semibold">Initial Counsellor Notes</Label>
+              <textarea
+                value={newFormNotes}
+                onChange={(e) => setNewFormNotes(e.target.value)}
+                placeholder="Candidate enquired about fees and weekend batch timings..."
+                className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[65px]"
+              />
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">
+                Save & Add Enquiry
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: MARK LEAD AS LOST (WITH REASON) ─── */}
+      <Dialog open={showLostModal} onOpenChange={setShowLostModal}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-red-600" />
+              Mark Lead as Lost — {leadToMarkLost?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3.5 pt-2 text-xs">
+            <p className="text-slate-500">
+              Please specify the primary reason why this prospective student was marked as lost for reporting purposes:
+            </p>
+            <div>
+              <Label className="text-slate-700 font-semibold">Lost Reason *</Label>
+              <select
+                value={lostReasonChoice}
+                onChange={(e) => setLostReasonChoice(e.target.value)}
+                className="w-full mt-1 border border-slate-200 rounded-lg p-2.5 text-xs bg-white font-medium"
+              >
+                <option value="Fee too high">Fee too high / Budget constraint</option>
+                <option value="Joined another institute">Joined another institute</option>
+                <option value="Not interested">Not interested in course</option>
+                <option value="Course unavailable">Course / batch timing unavailable</option>
+                <option value="Timing issue">Schedule / timing clash</option>
+                <option value="Location issue">Location / distance issue</option>
+                <option value="No response">No response after multiple attempts</option>
+                <option value="Postponed">Postponed for future batch</option>
+                <option value="Other">Other reason</option>
+              </select>
+            </div>
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowLostModal(false)}>
+                Cancel
+              </Button>
+              <Button type="button" onClick={handleConfirmLost} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+                Confirm Mark as Lost
+              </Button>
+            </DialogFooter>
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: IMPORT LEADS ─── */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Upload className="h-5 w-5 text-[#1769AA]" />
+              Import Student Enquiries (CSV)
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2 text-xs">
+            <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl text-center space-y-2 bg-slate-50/50">
+              <Upload className="h-8 w-8 text-[#1769AA] mx-auto" />
+              <p className="font-bold text-slate-800">Select CSV file with lead data</p>
+              <p className="text-[11px] text-slate-400">Supported columns: Name, Phone, Email, Course, Source</p>
+              <input type="file" accept=".csv" className="hidden" id="csv-upload-input" />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById("csv-upload-input")?.click()}
+                className="mt-2 text-xs font-semibold"
+              >
+                Choose File
+              </Button>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setShowImportModal(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
