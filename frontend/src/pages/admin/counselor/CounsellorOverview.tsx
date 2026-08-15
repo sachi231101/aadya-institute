@@ -1,482 +1,542 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
   UserCheck,
-  PhoneCall,
-  CalendarCheck,
-  ClipboardList,
-  CheckCircle2,
-  XCircle,
-  TrendingUp,
-  ThumbsUp,
-  ChevronDown,
   Phone,
   Calendar,
-  AlertCircle,
-  Trophy,
+  CheckCircle2,
+  ThumbsUp,
+  XCircle,
   Activity,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useAuthStore } from "@/store/auth.store";
+import { useBranch } from "@/hooks/useBranches";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
-// ─── MOCK DATA ─────────────────────────────────────────────────────────────
-
-const KPI_DATA = {
-  totalLeads: 245,
-  assignedLeads: 220,
-  contactedLeads: 185,
-  interestedLeads: 96,
-  followUpLeads: 58,
-  convertedLeads: 38,
-  lostLeads: 27,
-  conversionRate: 15.5
-};
-
-const TOP_PERFORMERS = [
-  { id: 1, name: "Priya", metric: "Conversion Rate", value: "23.1%", color: "text-emerald-600", avatar: "https://i.pravatar.cc/150?u=priya" },
-  { id: 2, name: "Rahul", metric: "Most Leads Handled", value: "52 Leads", color: "text-[#1769AA]", avatar: "https://i.pravatar.cc/150?u=rahul" },
-  { id: 3, name: "Sneha", metric: "Most Converted Leads", value: "15 Leads", color: "text-emerald-600", avatar: "https://i.pravatar.cc/150?u=sneha" },
-  { id: 4, name: "Arjun", metric: "Needs Attention", value: "12.7%", color: "text-red-500", avatar: "https://i.pravatar.cc/150?u=arjun" },
-];
+// ─── DATA MATCHING SCREENSHOT 2 ──────────────────────────────────────────
 
 const COUNSELLOR_PERFORMANCE = [
-  { id: "c1", name: "Priya", avatar: "https://i.pravatar.cc/150?u=priya", assigned: 65, contacted: 58, interested: 35, followUps: 18, converted: 15, lost: 5, rate: 23.1 },
-  { id: "c2", name: "Rahul", avatar: "https://i.pravatar.cc/150?u=rahul", assigned: 52, contacted: 44, interested: 27, followUps: 15, converted: 9, lost: 8, rate: 17.3 },
-  { id: "c3", name: "Sneha", avatar: "https://i.pravatar.cc/150?u=sneha", assigned: 48, contacted: 41, interested: 21, followUps: 12, converted: 7, lost: 6, rate: 14.6 },
-  { id: "c4", name: "Arjun", avatar: "https://i.pravatar.cc/150?u=arjun", assigned: 55, contacted: 42, interested: 18, followUps: 13, converted: 7, lost: 8, rate: 12.7 },
+  {
+    id: "c1",
+    name: "Priya",
+    avatar: "https://i.pravatar.cc/150?u=priya_singh",
+    assigned: 65,
+    contacted: 58,
+    interested: 35,
+    followUps: 18,
+    converted: 15,
+    lost: 5,
+    rate: "23.1%",
+  },
+  {
+    id: "c2",
+    name: "Rahul",
+    avatar: "https://i.pravatar.cc/150?u=rahul_kumar",
+    assigned: 52,
+    contacted: 44,
+    interested: 27,
+    followUps: 15,
+    converted: 9,
+    lost: 8,
+    rate: "17.3%",
+  },
+  {
+    id: "c3",
+    name: "Sneha",
+    avatar: "https://i.pravatar.cc/150?u=sneha_patil",
+    assigned: 48,
+    contacted: 41,
+    interested: 21,
+    followUps: 12,
+    converted: 7,
+    lost: 6,
+    rate: "14.6%",
+  },
+  {
+    id: "c4",
+    name: "Arjun",
+    avatar: "https://i.pravatar.cc/150?u=arjun_reddy",
+    assigned: 55,
+    contacted: 42,
+    interested: 18,
+    followUps: 13,
+    converted: 7,
+    lost: 8,
+    rate: "12.7%",
+  },
 ];
 
-const RECENT_ACTIVITIES = [
-  { id: 1, lead: "Rahul Kumar", course: "Digital Marketing", action: "Contacted by Priya", time: "Today, 10:30 AM", icon: Phone, color: "bg-purple-100 text-purple-600" },
-  { id: 2, lead: "Anjali Sharma", course: "Graphic Designing", action: "Follow-up scheduled", time: "Today, 09:45 AM", icon: Calendar, color: "bg-pink-100 text-pink-600" },
-  { id: 3, lead: "Vikram Rao", course: "Tally Prime", action: "Converted to Admission", time: "Yesterday, 06:20 PM", icon: CheckCircle2, color: "bg-emerald-100 text-emerald-600" },
-  { id: 4, lead: "Sneha Iyer", course: "Web Designing", action: "Interested", time: "Yesterday, 04:10 PM", icon: ThumbsUp, color: "bg-orange-100 text-orange-600" },
-  { id: 5, lead: "Karan Singh", course: "Python Programming", action: "Marked as Lost", time: "Yesterday, 02:30 PM", icon: XCircle, color: "bg-red-100 text-red-600" },
+const RECENT_LEAD_ACTIVITIES = [
+  {
+    id: "a1",
+    lead: "Rahul Kumar",
+    course: "Digital Marketing",
+    action: "Contacted by Priya",
+    time: "Today, 10:30 AM",
+    icon: Phone,
+    iconColor: "text-purple-600 bg-purple-50",
+  },
+  {
+    id: "a2",
+    lead: "Anjali Sharma",
+    course: "Graphic Designing",
+    action: "Follow-up scheduled",
+    time: "Today, 09:45 AM",
+    icon: Calendar,
+    iconColor: "text-pink-600 bg-pink-50",
+  },
+  {
+    id: "a3",
+    lead: "Vikram Rao",
+    course: "Tally Prime",
+    action: "Converted to Admission",
+    time: "Yesterday, 05:20 PM",
+    icon: CheckCircle2,
+    iconColor: "text-emerald-600 bg-emerald-50",
+  },
+  {
+    id: "a4",
+    lead: "Sneha Iyer",
+    course: "Web Designing",
+    action: "Interested",
+    time: "Yesterday, 04:10 PM",
+    icon: ThumbsUp,
+    iconColor: "text-amber-600 bg-amber-50",
+  },
+  {
+    id: "a5",
+    lead: "Karan Singh",
+    course: "Python Programming",
+    action: "Marked as Lost",
+    time: "Yesterday, 02:30 PM",
+    icon: XCircle,
+    iconColor: "text-red-600 bg-red-50",
+  },
 ];
 
-const LEAD_TRACKING = [
-  { id: "l1", name: "Rahul Kumar", course: "Digital Marketing", phone: "9876543210", assignedTo: "Priya", assignedDate: "14 Aug 2026", progress: { assigned: true, contacted: true, interested: true, followUp: false, converted: false, lost: false }, stage: "Interested", nextFollowUp: "18 Aug 2026", stageColor: "bg-orange-100 text-orange-700" },
-  { id: "l2", name: "Anjali Sharma", course: "Graphic Designing", phone: "9123456780", assignedTo: "Rahul", assignedDate: "14 Aug 2026", progress: { assigned: true, contacted: true, interested: false, followUp: false, converted: false, lost: false }, stage: "Contacted", nextFollowUp: "17 Aug 2026", stageColor: "bg-purple-100 text-purple-700" },
-  { id: "l3", name: "Vikram Rao", course: "Tally Prime", phone: "9988776655", assignedTo: "Sneha", assignedDate: "13 Aug 2026", progress: { assigned: true, contacted: true, interested: true, followUp: true, converted: true, lost: false }, stage: "Converted", nextFollowUp: "-", stageColor: "bg-emerald-100 text-emerald-700" },
-  { id: "l4", name: "Karan Singh", course: "Python Programming", phone: "8899001122", assignedTo: "Arjun", assignedDate: "12 Aug 2026", progress: { assigned: true, contacted: true, interested: false, followUp: false, converted: false, lost: true }, stage: "Lost", nextFollowUp: "-", stageColor: "bg-red-100 text-red-700" },
+const LEAD_TRACKING_DATA = [
+  {
+    id: "lt-1",
+    name: "Rahul Kumar",
+    course: "Digital Marketing",
+    contact: "9876543210",
+    assignedTo: "Priya",
+    assignedDate: "14 Aug 2026",
+    newChecked: true,
+    contactedChecked: true,
+    interestedChecked: true,
+    followUpChecked: false,
+    convertedChecked: false,
+    isLost: false,
+    stage: "Interested",
+    stageColor: "bg-amber-50 text-amber-700 border-amber-200",
+    nextFollowUp: "18 Aug 2026",
+  },
+  {
+    id: "lt-2",
+    name: "Anjali Sharma",
+    course: "Graphic Designing",
+    contact: "9123456789",
+    assignedTo: "Rahul",
+    assignedDate: "14 Aug 2026",
+    newChecked: true,
+    contactedChecked: true,
+    interestedChecked: false,
+    followUpChecked: false,
+    convertedChecked: false,
+    isLost: false,
+    stage: "Contacted",
+    stageColor: "bg-purple-50 text-purple-700 border-purple-200",
+    nextFollowUp: "17 Aug 2026",
+  },
+  {
+    id: "lt-3",
+    name: "Vikram Rao",
+    course: "Tally Prime",
+    contact: "9988776655",
+    assignedTo: "Sneha",
+    assignedDate: "13 Aug 2026",
+    newChecked: true,
+    contactedChecked: true,
+    interestedChecked: true,
+    followUpChecked: true,
+    convertedChecked: true,
+    isLost: false,
+    stage: "Converted",
+    stageColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    nextFollowUp: "—",
+  },
+  {
+    id: "lt-4",
+    name: "Karan Singh",
+    course: "Python Programming",
+    contact: "8899001122",
+    assignedTo: "Arjun",
+    assignedDate: "12 Aug 2026",
+    newChecked: true,
+    contactedChecked: true,
+    interestedChecked: false,
+    followUpChecked: false,
+    convertedChecked: false,
+    isLost: true,
+    stage: "Lost",
+    stageColor: "bg-red-50 text-red-700 border-red-200",
+    nextFollowUp: "—",
+  },
 ];
-
-// ─── COMPONENTS ────────────────────────────────────────────────────────────
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
-  const basePath = "/admin";
+  const location = useLocation();
+  const { user } = useAuthStore();
 
-  const [funnelFilters, setFunnelFilters] = useState({
-    assigned: true,
-    contacted: true,
-    interested: true,
-    followUp: true,
-    converted: true,
-    lost: false
-  });
+  const isCenterScope = location.pathname.startsWith("/center");
+  const basePath = isCenterScope ? "/center" : "/admin";
 
-  const toggleFilter = (key: keyof typeof funnelFilters) => {
-    setFunnelFilters(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  const { data: branchResponse } = useBranch(user?.branchId || undefined);
+  const branchName = branchResponse?.data?.name || "Aadya Central Branch";
+
+  const [selectedCounsellor, setSelectedCounsellor] = useState<any | null>(null);
+  const [selectedLead, setSelectedLead] = useState<any | null>(null);
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
+    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
       
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            <UserCheck className="h-6 w-6 text-[#1769AA]" />
-            Counsellor Portal & Operations
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Manage counsellors, assign leads, and track lead performance of your team.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="text-slate-700 border-slate-300 font-medium" onClick={() => navigate(`${basePath}/counselor/all`)}>
-            <Users className="h-4 w-4 mr-2 text-slate-500" /> Manage Counsellors
-          </Button>
-          <Button className="bg-[#1769AA] hover:bg-[#125890] text-white font-medium shadow-sm">
-            + Assign Lead
-          </Button>
-          <Button variant="outline" className="text-slate-700 border-slate-300 font-medium ml-2">
-            <CalendarCheck className="h-4 w-4 mr-2 text-slate-500" /> This Month <ChevronDown className="h-4 w-4 ml-1" />
-          </Button>
-        </div>
-      </div>
-
-      {/* KPI CARDS (8-COL GRID) */}
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-        {[
-          { label: "Total Leads", value: KPI_DATA.totalLeads, sub: "100%", icon: Users, color: "text-[#1769AA]", bg: "bg-blue-50" },
-          { label: "Assigned Leads", value: KPI_DATA.assignedLeads, sub: "89.8%", icon: UserCheck, color: "text-purple-600", bg: "bg-purple-50" },
-          { label: "Contacted Leads", value: KPI_DATA.contactedLeads, sub: "75.5%", icon: PhoneCall, color: "text-orange-500", bg: "bg-orange-50" },
-          { label: "Interested Leads", value: KPI_DATA.interestedLeads, sub: "39.2%", icon: ThumbsUp, color: "text-emerald-500", bg: "bg-emerald-50" },
-          { label: "Follow-up Leads", value: KPI_DATA.followUpLeads, sub: "23.7%", icon: Calendar, color: "text-pink-500", bg: "bg-pink-50" },
-          { label: "Converted Leads", value: KPI_DATA.convertedLeads, sub: "15.5%", icon: CheckCircle2, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Lost Leads", value: KPI_DATA.lostLeads, sub: "11.0%", icon: XCircle, color: "text-red-500", bg: "bg-red-50" },
-          { label: "Conversion Rate", value: `${KPI_DATA.conversionRate}%`, sub: "(38 / 245)", icon: TrendingUp, color: "text-[#1769AA]", bg: "bg-blue-50" },
-        ].map((kpi, idx) => (
-          <Card key={idx} className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                    <kpi.icon className={`h-3.5 w-3.5 ${kpi.color}`} /> {kpi.label}
-                  </p>
-                  <h3 className="text-xl font-bold text-slate-900">{kpi.value}</h3>
-                  <p className="text-[10px] text-slate-500 font-medium mt-0.5">{kpi.sub}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* MIDDLE SECTION: FUNNEL & TOP PERFORMERS */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* ─── TOP ROW: COUNSELLOR PERFORMANCE & RECENT ACTIVITIES ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
-        {/* LEAD FUNNEL */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-2">
-          <CardHeader className="pb-2 border-b border-slate-100">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-              Lead Funnel <AlertCircle className="h-3.5 w-3.5 text-slate-400" />
+        {/* Left: Counsellor Performance Table */}
+        <Card className="lg:col-span-8 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
+          <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
+              <UserCheck className="h-4 w-4 text-[#1769AA]" />
+              Counsellor Performance
             </CardTitle>
           </CardHeader>
-          <CardContent className="pt-4 pb-6">
-            
-            {/* Checkbox Filters */}
-            <div className="flex flex-wrap items-center gap-6 mb-8 text-sm font-medium text-slate-700">
-              {[
-                { key: 'assigned', label: 'Assigned', color: 'accent-[#1769AA]' },
-                { key: 'contacted', label: 'Contacted', color: 'accent-purple-600' },
-                { key: 'interested', label: 'Interested', color: 'accent-orange-500' },
-                { key: 'followUp', label: 'Follow-up', color: 'accent-pink-500' },
-                { key: 'converted', label: 'Converted', color: 'accent-emerald-600' },
-                { key: 'lost', label: 'Lost', color: 'accent-red-500' }
-              ].map(filter => (
-                <label key={filter.key} className="flex items-center gap-2 cursor-pointer">
-                  <input 
-                    type="checkbox" 
-                    checked={funnelFilters[filter.key as keyof typeof funnelFilters]}
-                    onChange={() => toggleFilter(filter.key as keyof typeof funnelFilters)}
-                    className={`h-4 w-4 rounded border-slate-300 ${filter.color}`} 
-                  />
-                  {filter.label}
-                </label>
-              ))}
-            </div>
-
-            {/* Funnel Visual */}
-            <div className="flex items-stretch justify-between gap-1 w-full relative">
-              
-              {funnelFilters.assigned && (
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="text-center mb-3">
-                    <p className="text-xs font-bold text-[#1769AA] uppercase tracking-wide">Assigned</p>
-                    <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.assignedLeads}</p>
-                  </div>
-                  <div className="w-full h-16 bg-blue-100/60 rounded-l-lg flex items-center justify-center">
-                    <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[#1769AA]">
-                      <Users className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
-              
-              {funnelFilters.assigned && funnelFilters.contacted && (
-                <div className="flex flex-col justify-end pb-5 px-1"><ArrowRight className="h-4 w-4 text-slate-300" /></div>
-              )}
-
-              {funnelFilters.contacted && (
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="text-center mb-3">
-                    <p className="text-xs font-bold text-purple-600 uppercase tracking-wide">Contacted</p>
-                    <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.contactedLeads}</p>
-                  </div>
-                  <div className="w-full h-16 bg-purple-100/60 flex items-center justify-center">
-                    <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-purple-600">
-                      <PhoneCall className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {funnelFilters.contacted && funnelFilters.interested && (
-                <div className="flex flex-col justify-end pb-5 px-1"><ArrowRight className="h-4 w-4 text-slate-300" /></div>
-              )}
-
-              {funnelFilters.interested && (
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="text-center mb-3">
-                    <p className="text-xs font-bold text-orange-500 uppercase tracking-wide">Interested</p>
-                    <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.interestedLeads}</p>
-                  </div>
-                  <div className="w-full h-16 bg-orange-100/60 flex items-center justify-center">
-                    <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-orange-500">
-                      <ThumbsUp className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {funnelFilters.interested && funnelFilters.followUp && (
-                <div className="flex flex-col justify-end pb-5 px-1"><ArrowRight className="h-4 w-4 text-slate-300" /></div>
-              )}
-
-              {funnelFilters.followUp && (
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="text-center mb-3">
-                    <p className="text-xs font-bold text-pink-500 uppercase tracking-wide">Follow-up</p>
-                    <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.followUpLeads}</p>
-                  </div>
-                  <div className="w-full h-16 bg-pink-100/60 flex items-center justify-center">
-                    <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-pink-500">
-                      <Calendar className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {funnelFilters.followUp && funnelFilters.converted && (
-                <div className="flex flex-col justify-end pb-5 px-1"><ArrowRight className="h-4 w-4 text-slate-300" /></div>
-              )}
-
-              {funnelFilters.converted && (
-                <div className="flex-1 flex flex-col items-center">
-                  <div className="text-center mb-3">
-                    <p className="text-xs font-bold text-emerald-600 uppercase tracking-wide">Converted</p>
-                    <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.convertedLeads}</p>
-                  </div>
-                  <div className="w-full h-16 bg-emerald-100/60 flex items-center justify-center rounded-r-lg">
-                    <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-emerald-600">
-                      <CheckCircle2 className="h-4 w-4" />
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* LOST (Separate) */}
-              {funnelFilters.lost && (
-                <>
-                  <div className="flex flex-col justify-end pb-5 px-3"></div>
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="text-center mb-3">
-                      <p className="text-xs font-bold text-red-500 uppercase tracking-wide">Lost</p>
-                      <p className="text-2xl font-black text-slate-800 mt-1">{KPI_DATA.lostLeads}</p>
-                    </div>
-                    <div className="w-full h-16 bg-red-100/60 rounded-lg flex items-center justify-center border border-red-100 border-dashed">
-                      <div className="h-8 w-8 rounded-full bg-white shadow-sm flex items-center justify-center text-red-500">
-                        <XCircle className="h-4 w-4" />
-                      </div>
-                    </div>
-                  </div>
-                </>
-              )}
-
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* TOP PERFORMERS */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="pb-2 border-b border-slate-100">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-              <Trophy className="h-4 w-4 text-amber-500" /> Top Performers
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="space-y-4">
-              {TOP_PERFORMERS.map(perf => (
-                <div key={perf.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img src={perf.avatar} alt={perf.name} className="w-8 h-8 rounded-full bg-slate-200 object-cover border border-slate-200" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900">{perf.name}</p>
-                      <p className="text-[11px] text-slate-500">{perf.metric}</p>
-                    </div>
-                  </div>
-                  <div className={`text-sm font-bold ${perf.color}`}>
-                    {perf.value}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* LOWER MIDDLE SECTION: PERFORMANCE TABLE & ACTIVITIES */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* COUNSELLOR PERFORMANCE TABLE */}
-        <Card className="border-slate-200 shadow-sm lg:col-span-2 overflow-hidden">
-          <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-              <Users className="h-4 w-4 text-[#1769AA]" /> Counsellor Performance
-            </CardTitle>
-          </CardHeader>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left">
-              <thead className="text-[11px] text-slate-500 font-bold uppercase bg-white border-b border-slate-100">
+          <CardContent className="p-0 flex-1 overflow-x-auto">
+            <table className="w-full text-left text-xs min-w-[650px]">
+              <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider">
                 <tr>
-                  <th className="px-5 py-3">Counsellor</th>
-                  <th className="px-3 py-3 text-center">Assigned</th>
-                  <th className="px-3 py-3 text-center">Contacted</th>
-                  <th className="px-3 py-3 text-center">Interested</th>
-                  <th className="px-3 py-3 text-center">Follow-ups</th>
-                  <th className="px-3 py-3 text-center">Converted</th>
-                  <th className="px-3 py-3 text-center">Lost</th>
-                  <th className="px-4 py-3 text-right">Conversion Rate</th>
-                  <th className="px-4 py-3 text-center">Action</th>
+                  <th className="py-3 px-4">Counsellor</th>
+                  <th className="py-3 px-2 text-center">Assigned</th>
+                  <th className="py-3 px-2 text-center">Contacted</th>
+                  <th className="py-3 px-2 text-center">Interested</th>
+                  <th className="py-3 px-2 text-center">Follow-ups</th>
+                  <th className="py-3 px-2 text-center">Converted</th>
+                  <th className="py-3 px-2 text-center">Lost</th>
+                  <th className="py-3 px-3 text-center">Conversion Rate</th>
+                  <th className="py-3 px-4 text-center">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
-                {COUNSELLOR_PERFORMANCE.map(c => (
-                  <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3">
-                      <div className="flex items-center gap-2">
-                        <img src={c.avatar} alt={c.name} className="w-6 h-6 rounded-full bg-slate-200 object-cover" />
-                        <span className="font-semibold text-slate-900">{c.name}</span>
+                {COUNSELLOR_PERFORMANCE.map((c) => (
+                  <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="py-3 px-4">
+                      <div className="flex items-center gap-2.5">
+                        <img
+                          src={c.avatar}
+                          alt={c.name}
+                          className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                        />
+                        <span className="font-bold text-slate-800 text-[13px]">{c.name}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-3 text-center text-slate-600 font-medium">{c.assigned}</td>
-                    <td className="px-3 py-3 text-center text-slate-600">{c.contacted}</td>
-                    <td className="px-3 py-3 text-center text-slate-600">{c.interested}</td>
-                    <td className="px-3 py-3 text-center text-slate-600">{c.followUps}</td>
-                    <td className="px-3 py-3 text-center text-slate-600">{c.converted}</td>
-                    <td className="px-3 py-3 text-center text-slate-600">{c.lost}</td>
-                    <td className="px-4 py-3 text-right font-bold text-emerald-600">{c.rate}%</td>
-                    <td className="px-4 py-3 text-center">
-                      <Button variant="outline" size="sm" className="h-7 text-xs border-[#1769AA]/30 text-[#1769AA] hover:bg-[#1769AA]/5">View Details</Button>
+                    <td className="py-3 px-2 text-center font-medium text-slate-700">{c.assigned}</td>
+                    <td className="py-3 px-2 text-center text-slate-600">{c.contacted}</td>
+                    <td className="py-3 px-2 text-center text-slate-600">{c.interested}</td>
+                    <td className="py-3 px-2 text-center text-slate-600">{c.followUps}</td>
+                    <td className="py-3 px-2 text-center text-slate-600">{c.converted}</td>
+                    <td className="py-3 px-2 text-center text-slate-600">{c.lost}</td>
+                    <td className="py-3 px-3 text-center font-extrabold text-emerald-600 text-xs">
+                      {c.rate}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedCounsellor(c)}
+                        className="h-7 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
+                      >
+                        View Details
+                      </Button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-          <div className="px-5 py-2.5 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
-            Showing 1 to 4 of 4 counsellors
+          </CardContent>
+          <div className="px-5 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 font-medium bg-white">
+            Showing 1 to {COUNSELLOR_PERFORMANCE.length} of {COUNSELLOR_PERFORMANCE.length} counsellors
           </div>
         </Card>
 
-        {/* RECENT LEAD ACTIVITIES */}
-        <Card className="border-slate-200 shadow-sm">
-          <CardHeader className="pb-3 border-b border-slate-100 flex flex-row items-center justify-between bg-slate-50/50">
-            <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
+        {/* Right: Recent Lead Activities Card */}
+        <Card className="lg:col-span-4 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
+          <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
+            <CardTitle className="text-sm md:text-base font-bold text-[#0A2540]">
               Recent Lead Activities
             </CardTitle>
-            <span className="text-xs font-bold text-[#1769AA] cursor-pointer hover:underline">View All</span>
+            <button
+              type="button"
+              onClick={() => navigate(`${basePath}/admissions/enquiries`)}
+              className="text-xs font-bold text-[#1769AA] hover:underline"
+            >
+              View All
+            </button>
           </CardHeader>
-          <CardContent className="pt-4 pb-2">
-            <div className="space-y-4">
-              {RECENT_ACTIVITIES.map(act => (
+          <CardContent className="pt-3 px-5 pb-3 flex-1 space-y-3">
+            {RECENT_LEAD_ACTIVITIES.map((act) => {
+              const Icon = act.icon;
+              return (
                 <div key={act.id} className="flex items-start gap-3">
-                  <div className={`p-1.5 rounded-full mt-0.5 ${act.color}`}>
-                    <act.icon className="h-3.5 w-3.5" />
+                  <div className={`p-1.5 rounded-lg shrink-0 ${act.iconColor}`}>
+                    <Icon className="h-3.5 w-3.5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{act.lead}</p>
-                    <p className="text-[11px] text-slate-500 truncate">{act.course}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs font-medium text-slate-700">{act.action}</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{act.time}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-800 truncate">{act.lead}</p>
+                      <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-1">
+                        {act.time}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                      {act.course} <span className="text-slate-300">•</span> <strong className="text-slate-700 font-semibold">{act.action}</strong>
+                    </p>
                   </div>
                 </div>
-              ))}
-            </div>
+              );
+            })}
           </CardContent>
         </Card>
-
       </div>
 
-      {/* BOTTOM SECTION: LEAD TRACKING TABLE */}
-      <Card className="border-slate-200 shadow-sm overflow-hidden">
-        <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50">
-          <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800">
-            <Activity className="h-4 w-4 text-[#1769AA]" /> Lead Tracking (All Leads)
+      {/* ─── BOTTOM SECTION: LEAD TRACKING (ALL LEADS) TABLE ─── */}
+      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
+        <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
+          <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
+            <Activity className="h-4 w-4 text-[#1769AA]" />
+            Lead Tracking (All Leads)
           </CardTitle>
         </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full text-[13px] text-left">
-            <thead className="text-[10px] text-slate-500 font-bold uppercase bg-white border-b border-slate-100 whitespace-nowrap">
+        <CardContent className="p-0 overflow-x-auto">
+          <table className="w-full text-left text-xs min-w-[900px]">
+            <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider whitespace-nowrap">
               <tr>
-                <th className="px-3 py-3">Lead</th>
-                <th className="px-3 py-3">Course</th>
-                <th className="px-3 py-3">Contact</th>
-                <th className="px-3 py-3">Assigned To</th>
-                <th className="px-3 py-3">Assigned Date</th>
-                <th className="px-2 py-3 text-center">New</th>
-                <th className="px-2 py-3 text-center">Contacted</th>
-                <th className="px-2 py-3 text-center">Interested</th>
-                <th className="px-2 py-3 text-center">Follow-up</th>
-                <th className="px-2 py-3 text-center">Converted</th>
-                <th className="px-2 py-3 text-center">Lost</th>
-                <th className="px-3 py-3 text-center">Stage</th>
-                <th className="px-3 py-3 text-center">Next Follow-up</th>
-                <th className="px-3 py-3 text-center">Action</th>
+                <th className="py-3 px-4 font-bold">Lead</th>
+                <th className="py-3 px-3 font-bold">Course</th>
+                <th className="py-3 px-3 font-bold">Contact</th>
+                <th className="py-3 px-3 font-bold">Assigned To</th>
+                <th className="py-3 px-3 font-bold">Assigned Date</th>
+                <th className="py-3 px-2 font-bold text-center">New</th>
+                <th className="py-3 px-2 font-bold text-center">Contacted</th>
+                <th className="py-3 px-2 font-bold text-center">Interested</th>
+                <th className="py-3 px-2 font-bold text-center">Follow-up</th>
+                <th className="py-3 px-2 font-bold text-center">Converted</th>
+                <th className="py-3 px-2 font-bold text-center">Lost</th>
+                <th className="py-3 px-3 font-bold text-center">Stage</th>
+                <th className="py-3 px-3 font-bold text-center">Next Follow-up</th>
+                <th className="py-3 px-4 font-bold text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {LEAD_TRACKING.map(lead => (
-                <tr key={lead.id} className="hover:bg-slate-50 transition-colors group text-[12px] whitespace-nowrap">
-                  <td className="px-3 py-3 font-semibold text-slate-900">{lead.name}</td>
-                  <td className="px-3 py-3 text-slate-600">{lead.course}</td>
-                  <td className="px-3 py-3 text-slate-600 font-mono text-[11px]">{lead.phone}</td>
-                  <td className="px-3 py-3 text-slate-700 font-medium">{lead.assignedTo}</td>
-                  <td className="px-3 py-3 text-slate-500 text-[11px]">{lead.assignedDate}</td>
-                  
-                  {/* Progress Checkboxes */}
-                  <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={lead.progress.assigned} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-0 opacity-80 cursor-default" />
+              {LEAD_TRACKING_DATA.map((lead) => (
+                <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors whitespace-nowrap">
+                  <td className="py-3.5 px-4 font-bold text-slate-800">{lead.name}</td>
+                  <td className="py-3.5 px-3 text-slate-600 font-medium">{lead.course}</td>
+                  <td className="py-3.5 px-3 text-slate-500 font-mono text-[11px]">{lead.contact}</td>
+                  <td className="py-3.5 px-3 text-slate-700 font-semibold">{lead.assignedTo}</td>
+                  <td className="py-3.5 px-3 text-slate-400 text-[11px]">{lead.assignedDate}</td>
+
+                  {/* Stage Step Checkboxes */}
+                  <td className="py-3.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={lead.newChecked}
+                      readOnly
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                    />
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={lead.progress.contacted} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-0 opacity-80 cursor-default" />
+                  <td className="py-3.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={lead.contactedChecked}
+                      readOnly
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                    />
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={lead.progress.interested} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-0 opacity-80 cursor-default" />
+                  <td className="py-3.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={lead.interestedChecked}
+                      readOnly
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                    />
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={lead.progress.followUp} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-0 opacity-80 cursor-default" />
+                  <td className="py-3.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={lead.followUpChecked}
+                      readOnly
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                    />
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    <input type="checkbox" checked={lead.progress.converted} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-emerald-500 focus:ring-0 opacity-80 cursor-default" />
+                  <td className="py-3.5 px-2 text-center">
+                    <input
+                      type="checkbox"
+                      checked={lead.convertedChecked}
+                      readOnly
+                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                    />
                   </td>
-                  <td className="px-2 py-3 text-center">
-                    {lead.progress.lost ? (
+                  <td className="py-3.5 px-2 text-center">
+                    {lead.isLost ? (
                       <XCircle className="h-4 w-4 text-red-500 mx-auto" />
                     ) : (
-                      <input type="checkbox" checked={false} readOnly className="h-3.5 w-3.5 rounded border-slate-300 text-red-500 focus:ring-0 opacity-40 cursor-default" />
+                      <input
+                        type="checkbox"
+                        checked={false}
+                        readOnly
+                        className="h-4 w-4 rounded border-slate-300 text-slate-300 accent-slate-300 opacity-40 cursor-default"
+                      />
                     )}
                   </td>
 
-                  <td className="px-3 py-3 text-center">
-                    <span className={`text-[10px] font-bold px-2 py-1 rounded-sm ${lead.stageColor}`}>
+                  {/* Stage Badge */}
+                  <td className="py-3.5 px-3 text-center">
+                    <span
+                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${lead.stageColor}`}
+                    >
                       {lead.stage}
                     </span>
                   </td>
-                  <td className="px-3 py-3 text-center text-[11px] font-medium text-slate-600">
+
+                  {/* Next Follow-up */}
+                  <td className="py-3.5 px-3 text-center text-[11px] font-medium text-slate-600">
                     {lead.nextFollowUp}
                   </td>
-                  <td className="px-3 py-3 text-center">
-                    <Button variant="outline" size="sm" className="h-6 px-2 text-[10px] border-slate-200 text-[#1769AA] group-hover:border-[#1769AA]/30">View</Button>
+
+                  {/* Action */}
+                  <td className="py-3.5 px-4 text-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setSelectedLead(lead)}
+                      className="h-6 px-2.5 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors rounded-md"
+                    >
+                      View
+                    </Button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
-        <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500 font-medium">
-          Showing 1 to 4 of 4 leads
+        </CardContent>
+        <div className="px-5 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 font-medium bg-white">
+          Showing 1 to {LEAD_TRACKING_DATA.length} of {LEAD_TRACKING_DATA.length} leads
         </div>
       </Card>
-      
+
+      {/* ─── MODAL: COUNSELLOR DETAILS ─── */}
+      <Dialog open={!!selectedCounsellor} onOpenChange={() => setSelectedCounsellor(null)}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <UserCheck className="h-5 w-5 text-[#1769AA]" />
+              {selectedCounsellor?.name} — Performance Profile
+            </DialogTitle>
+          </DialogHeader>
+          {selectedCounsellor && (
+            <div className="space-y-4 pt-2 text-xs">
+              <div className="flex items-center gap-3 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+                <img
+                  src={selectedCounsellor.avatar}
+                  alt={selectedCounsellor.name}
+                  className="w-12 h-12 rounded-full object-cover border-2 border-white shadow-xs"
+                />
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900">{selectedCounsellor.name}</h4>
+                  <p className="text-slate-500">Counsellor • {branchName}</p>
+                </div>
+                <div className="ml-auto text-right">
+                  <span className="text-emerald-700 font-extrabold text-sm bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">
+                    {selectedCounsellor.rate}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-slate-400 font-semibold text-[10px] uppercase">Assigned Leads</p>
+                  <p className="text-lg font-black text-slate-800 mt-0.5">{selectedCounsellor.assigned}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-slate-400 font-semibold text-[10px] uppercase">Contacted</p>
+                  <p className="text-lg font-black text-slate-800 mt-0.5">{selectedCounsellor.contacted}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-slate-400 font-semibold text-[10px] uppercase">Interested</p>
+                  <p className="text-lg font-black text-emerald-600 mt-0.5">{selectedCounsellor.interested}</p>
+                </div>
+                <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <p className="text-slate-400 font-semibold text-[10px] uppercase">Converted</p>
+                  <p className="text-lg font-black text-blue-600 mt-0.5">{selectedCounsellor.converted}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: LEAD DETAILS ─── */}
+      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
+        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Activity className="h-5 w-5 text-[#1769AA]" />
+              Lead Details — {selectedLead?.name}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedLead && (
+            <div className="space-y-3 pt-2 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 border border-slate-100">
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Course Interested:</span>
+                  <span className="font-bold text-slate-800">{selectedLead.course}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Phone Number:</span>
+                  <span className="font-mono font-bold text-slate-800">{selectedLead.contact}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Assigned Counsellor:</span>
+                  <span className="font-bold text-slate-800">{selectedLead.assignedTo}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Current Stage:</span>
+                  <span className={`font-bold px-2 py-0.5 rounded-full border ${selectedLead.stageColor}`}>
+                    {selectedLead.stage}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500">Next Scheduled Follow-up:</span>
+                  <span className="font-semibold text-slate-800">{selectedLead.nextFollowUp}</span>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
