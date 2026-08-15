@@ -13,6 +13,7 @@ import { AdminDashboard } from "../pages/admin/Dashboard";
 import { AiHome } from "../pages/admin/ai/AiHome";
 import { AskMe } from "../pages/admin/ai/AskMe";
 import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
+import { BranchRevenueDetails } from "../pages/admin/branch/BranchRevenueDetails";
 
 // Students
 import { AllStudents } from "../pages/admin/students/AllStudents";
@@ -102,6 +103,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="ask-me" element={<AskMe />} />
         <Route path="branch/:id/performance" element={<BranchPerformance />} />
+        <Route path="branch/:id/revenue" element={<BranchRevenueDetails />} />
 
         {/* Students */}
         <Route path="students">
@@ -176,7 +178,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Center Manager Routes */}
       <Route path="/center" element={<CenterLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CenterDashboard />} />
+        <Route path="ask-me" element={<AskMe />} />
 
         {/* Students */}
         <Route path="students">
@@ -235,7 +240,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Counselor Routes */}
       <Route path="/counselor" element={<CounselorLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CounselorDashboard />} />
+        <Route path="ask-me" element={<AskMe />} />
 
         {/* Admissions / Leads */}
         <Route path="admissions">
@@ -285,7 +293,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Faculty Routes */}
       <Route path="/faculty" element={<FacultyLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<FacultyDashboard />} />
+        <Route path="ask-me" element={<AskMe />} />
         <Route path="courses" element={<FacultyCourses />} />
         <Route path="students">
           <Route path="attendance" element={<StudentAttendance />} />
@@ -306,7 +317,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Student Routes */}
       <Route path="/student" element={<StudentLayout />}>
+        <Route index element={<Navigate to="home" replace />} />
+        <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<StudentDashboard />} />
+        <Route path="ask-me" element={<AskMe />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />

@@ -41,12 +41,6 @@ const getStatusText = (status: string) => {
   return "text-gray-700 bg-gray-50 border-gray-200";
 };
 
-const ProgressBar = ({ value, colorClass }: { value: number, colorClass: string }) => (
-  <div className="w-full bg-slate-100 rounded-full h-2 mt-1.5 overflow-hidden">
-    <div className={`h-full rounded-full ${colorClass}`} style={{ width: `${value}%` }} />
-  </div>
-);
-
 // ─── MANAGER CARD COMPONENT ──────────────────────────────────────────────────
 
 const ManagerCard = ({ 
@@ -253,13 +247,11 @@ export const AdminPanel: React.FC = () => {
   // Unique assigned branches
   const assignedBranchesCount = new Set(centerManagers.map(m => m.branchId).filter(Boolean)).size;
 
-  // Modals & Drawer State
+  // Modals State
   const [activeModal, setActiveModal] = useState<
     "deactivate" | "activate" | "delete" | "resetPassword" | "changeBranch" | null
   >(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [drawerData, setDrawerData] = useState<{manager: UserResponse, branch: BranchResponse} | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -300,8 +292,7 @@ export const AdminPanel: React.FC = () => {
   };
 
   const handleViewBranch = (manager: UserResponse, branch: BranchResponse) => {
-    setDrawerData({ manager, branch });
-    setDrawerOpen(true);
+    navigate(`/admin/branch/${branch.id}/performance`);
   };
 
   const closeModal = () => {
@@ -355,14 +346,6 @@ export const AdminPanel: React.FC = () => {
       </div>
     );
   }
-
-  // Temporary mock for Drawer stats
-  const drawerStats = {
-    attendance: 86,
-    leadConversion: 15.5,
-    feeCollection: 78,
-    batchCompletion: 72
-  };
 
   return (
     <div className="p-8 max-w-screen-2xl mx-auto bg-[#f8fafc] min-h-screen relative overflow-x-hidden">
@@ -483,112 +466,6 @@ export const AdminPanel: React.FC = () => {
           ))}
         </div>
       )}
-
-      {/* ─── BRANCH OVERVIEW DRAWER ─── */}
-      <div className={`fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 transition-opacity duration-300 ${drawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`} onClick={() => setDrawerOpen(false)}>
-        <div 
-          className={`absolute right-0 top-0 h-full w-full max-w-md bg-[#f8fafc] shadow-2xl transition-transform duration-300 transform flex flex-col ${drawerOpen ? "translate-x-0" : "translate-x-full"}`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Drawer Header */}
-          <div className="p-6 bg-white border-b border-slate-100 flex items-center justify-between sticky top-0 z-10 shrink-0">
-            <div>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Branch Overview</p>
-              <h2 className="text-lg font-black text-slate-900 leading-tight">{drawerData?.branch?.name}</h2>
-            </div>
-            <button onClick={() => setDrawerOpen(false)} className="h-8 w-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 transition-colors">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            
-            {/* Drawer: Branch Info */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Branch Information</h3>
-              <div className="bg-white rounded-xl border border-slate-100 p-4 space-y-3 shadow-sm">
-                <div className="grid grid-cols-3 text-sm">
-                  <span className="text-slate-500 font-medium">Branch Code</span>
-                  <span className="col-span-2 font-semibold text-slate-800">{drawerData?.branch?.code}</span>
-                </div>
-                <div className="grid grid-cols-3 text-sm">
-                  <span className="text-slate-500 font-medium">Location</span>
-                  <span className="col-span-2 font-semibold text-slate-800">{drawerData?.branch?.address || "N/A"}</span>
-                </div>
-                <div className="grid grid-cols-3 text-sm">
-                  <span className="text-slate-500 font-medium">Manager</span>
-                  <span className="col-span-2 font-semibold text-[#1769AA]">{drawerData?.manager?.name}</span>
-                </div>
-                <div className="grid grid-cols-3 text-sm">
-                  <span className="text-slate-500 font-medium">Status</span>
-                  <span className="col-span-2">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-600 uppercase border border-emerald-100">
-                      Active
-                    </span>
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer: Branch Performance */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Branch Performance</h3>
-              <div className="bg-white rounded-xl border border-slate-100 p-5 space-y-5 shadow-sm">
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1.5">
-                    <span className="text-slate-600">Student Attendance</span>
-                    <span className="text-emerald-600">{drawerStats.attendance}%</span>
-                  </div>
-                  <ProgressBar value={drawerStats.attendance} colorClass="bg-emerald-500" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1.5">
-                    <span className="text-slate-600">Lead Conversion</span>
-                    <span className="text-blue-600">{drawerStats.leadConversion}%</span>
-                  </div>
-                  <ProgressBar value={drawerStats.leadConversion} colorClass="bg-blue-500" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1.5">
-                    <span className="text-slate-600">Fee Collection</span>
-                    <span className="text-purple-600">{drawerStats.feeCollection}%</span>
-                  </div>
-                  <ProgressBar value={drawerStats.feeCollection} colorClass="bg-purple-500" />
-                </div>
-                <div>
-                  <div className="flex justify-between text-xs font-bold mb-1.5">
-                    <span className="text-slate-600">Batch Completion</span>
-                    <span className="text-orange-600">{drawerStats.batchCompletion}%</span>
-                  </div>
-                  <ProgressBar value={drawerStats.batchCompletion} colorClass="bg-orange-500" />
-                </div>
-              </div>
-            </div>
-
-            {/* Drawer: Navigation */}
-            <div>
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Quick Navigation</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { label: "Students", icon: Users, color: "text-blue-600", bg: "bg-blue-50" },
-                  { label: "Faculty", icon: GraduationCap, color: "text-emerald-600", bg: "bg-emerald-50" },
-                  { label: "Counsellors", icon: UserCheck, color: "text-orange-600", bg: "bg-orange-50" },
-                  { label: "Batches", icon: BookOpen, color: "text-purple-600", bg: "bg-purple-50" },
-                  { label: "Admissions", icon: FileText, color: "text-rose-600", bg: "bg-rose-50" },
-                  { label: "Fees", icon: CreditCard, color: "text-teal-600", bg: "bg-teal-50" },
-                ].map((item, idx) => (
-                  <button key={idx} className="bg-white border border-slate-100 rounded-xl p-3 flex flex-col items-start gap-3 hover:border-slate-300 hover:shadow-sm transition-all text-left">
-                    <div className={`p-2 rounded-lg ${item.bg} ${item.color}`}>
-                      <item.icon className="h-4 w-4" />
-                    </div>
-                    <span className="text-sm font-bold text-slate-800">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* ─── MODALS ─── */}
       <Dialog open={activeModal === "deactivate"} onOpenChange={(open) => !open && closeModal()}>

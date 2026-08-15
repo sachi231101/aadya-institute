@@ -14,7 +14,7 @@ export const CenterLayout: React.FC = () => {
 
   const { token, user } = useAuthStore();
   const { data: branchResponse } = useBranch(user?.branchId || undefined);
-  const branchName = branchResponse?.data?.name || "Bengaluru Main Campus";
+  const branchName = branchResponse?.data?.name || "Aadya Central Branch";
 
   const { fetchStudents } = useStudentStore();
   const { fetchBatches } = useCourseStore();

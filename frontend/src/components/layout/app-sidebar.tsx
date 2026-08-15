@@ -39,7 +39,7 @@ const data = {
   navMain: [
     {
       title: "ASK ME",
-      url: "/admin/home",
+      url: "/admin/ask-me",
       icon: Sparkles,
       isActive: false,
       isAi: true,

@@ -9,7 +9,8 @@ import {
   BarChart3,
   Settings,
   ChevronRight,
-  LogOut
+  LogOut,
+  Sparkles
 } from "lucide-react"
 
 import {
@@ -30,6 +31,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuthStore } from "@/store/auth.store"
 
 const counselorNavItems = [
+  {
+    title: "ASK ME",
+    url: "/counselor/ask-me",
+    icon: Sparkles,
+    isActive: false,
+    isAi: true,
+  },
   {
     title: "Dashboard",
     url: "/counselor/dashboard",
@@ -110,7 +118,7 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/counselor/dashboard">
+              <Link to="/counselor/home">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-emerald-600 text-sidebar-primary-foreground font-bold">
                   C
                 </div>
@@ -133,6 +141,41 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
               const isExpanded = isSubItemActive || isDirectActive
 
               if (!item.items) {
+                if ((item as any).isAi) {
+                  return (
+                    <SidebarMenuItem key={item.title} className="mb-2">
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isDirectActive}
+                        tooltip={item.title}
+                        className={
+                          isDirectActive
+                            ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
+                            : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
+                        }
+                      >
+                        <Link to={item.url} className="flex items-center justify-between w-full">
+                          <div className="flex items-center gap-2">
+                            <Sparkles
+                              className={`h-4 w-4 shrink-0 ${
+                                isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
+                              }`}
+                            />
+                            <span className="tracking-wide">✦ ASK ME</span>
+                          </div>
+                          <span
+                            className={`${
+                              isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
+                            } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
+                          >
+                            AI
+                          </span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                }
+
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
