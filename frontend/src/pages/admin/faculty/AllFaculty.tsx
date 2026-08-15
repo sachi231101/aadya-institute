@@ -9,6 +9,21 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+} from "recharts";
+
+const getWorkloadState = (hrs: number) => {
+  if (hrs > 30) return { label: "High", color: "bg-red-500", text: "text-red-600", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
+  if (hrs > 20) return { label: "Moderate", color: "bg-amber-500", text: "text-amber-600", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
+  return { label: "Optimal", color: "bg-emerald-500", text: "text-emerald-600", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
+};
 
 // ─── MOCK DATA & CONSTANTS ─────────────────────────────────────────────────
 

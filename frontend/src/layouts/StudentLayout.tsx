@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, CheckSquare, Settings } from "lucide-react";
+import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, CheckSquare, Settings, Sparkles } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
@@ -36,6 +36,8 @@ export const StudentLayout: React.FC = () => {
     { label: "Settings", icon: Settings, path: "/student/settings" },
   ];
 
+  const isAiActive = location.pathname === "/student/ask-me";
+
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
       <aside
@@ -48,7 +50,7 @@ export const StudentLayout: React.FC = () => {
           padding: "1.5rem 1rem",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0 0.5rem 1.5rem" }}>
+        <Link to="/student/home" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0 0.5rem 1.5rem", textDecoration: "none" }}>
           <div
             style={{
               width: "40px",
@@ -65,17 +67,54 @@ export const StudentLayout: React.FC = () => {
             S
           </div>
           <div>
-            <h2 style={{ fontSize: "1.1rem", color: "var(--text-primary)" }}>Aadya Student</h2>
+            <h2 style={{ fontSize: "1.1rem", color: "var(--text-primary)", margin: 0 }}>Aadya Student</h2>
             <span style={{ fontSize: "0.75rem", color: "var(--accent-secondary)", fontWeight: 600 }}>
               LEARNER PORTAL
             </span>
           </div>
+        </Link>
+
+        {/* AI ASK ME BUTTON */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <Link
+            to="/student/ask-me"
+            className={
+              isAiActive
+                ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
+                : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
+            }
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0.75rem 1rem",
+              borderRadius: "0.75rem",
+              textDecoration: "none",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <Sparkles size={16} className={isAiActive ? "text-white fill-white" : "text-[#1769AA]"} />
+              <span style={{ fontSize: "0.9rem" }}>✦ ASK ME</span>
+            </div>
+            <span
+              style={{
+                fontSize: "0.65rem",
+                fontWeight: 900,
+                padding: "2px 6px",
+                borderRadius: "9999px",
+                background: isAiActive ? "rgba(255,255,255,0.2)" : "#1769AA",
+                color: "#fff",
+              }}
+            >
+              AI
+            </span>
+          </Link>
         </div>
 
         <nav style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname.startsWith(item.path);
+            const isActive = location.pathname === item.path;
             return (
               <Link
                 key={item.path}

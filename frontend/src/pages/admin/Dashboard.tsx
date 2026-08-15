@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Building2,
   Plus,
@@ -39,6 +40,7 @@ const ACCENT_TEXT = ["text-blue-600", "text-purple-600", "text-orange-600", "tex
 const ACCENT_BG_LIGHT = ["bg-blue-50", "bg-purple-50", "bg-orange-50", "bg-emerald-50", "bg-pink-50"];
 
 export const AdminDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>("This Month");
 
@@ -385,71 +387,14 @@ export const AdminDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* View Details Drawer */}
-                    <Sheet>
-                      <SheetTrigger asChild>
-                        <button className={`w-full py-3 text-sm font-bold ${branch.accentText} hover:${branch.accentBg} transition-colors flex items-center justify-center gap-1`}>
-                          View Revenue Details <ArrowRight className="h-4 w-4" />
-                        </button>
-                      </SheetTrigger>
-                      <SheetContent className="w-full sm:max-w-md overflow-y-auto">
-                        <SheetHeader className="mb-6">
-                          <SheetTitle className="text-xl font-bold text-[#0A2540]">Branch Revenue</SheetTitle>
-                        </SheetHeader>
-
-                        <div className="space-y-6">
-                          <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 space-y-3">
-                            <div className="flex justify-between">
-                              <span className="text-sm text-slate-500">Branch Name</span>
-                              <span className="text-sm font-bold text-[#0A2540]">{branch.name}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-slate-500">Branch Code</span>
-                              <Badge variant="outline" className={`font-mono text-xs ${branch.accentText} bg-white`}>{branch.code}</Badge>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-slate-500">Center Manager</span>
-                              <span className="text-sm font-medium text-[#0A2540]">{branch.assignedManagerName}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-sm text-slate-500">Status</span>
-                              <Badge variant="success">Active</Badge>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <h4 className="font-bold text-[#0A2540] border-b pb-2">Revenue Breakdown</h4>
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="p-3 rounded-lg border border-slate-100">
-                                <p className="text-xs text-slate-500 mb-1">Total Revenue</p>
-                                <p className="text-lg font-bold text-[#0A2540]">₹{branch.totalRevenue.toLocaleString()}</p>
-                              </div>
-                              <div className="p-3 rounded-lg border border-slate-100">
-                                <p className="text-xs text-slate-500 mb-1">Collection Rate</p>
-                                <p className="text-lg font-bold text-[#0A2540]">{branch.collectionRate}%</p>
-                              </div>
-                              <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-100">
-                                <p className="text-xs text-emerald-700 mb-1">Paid Fees</p>
-                                <p className="text-lg font-bold text-emerald-700">₹{branch.collected.toLocaleString()}</p>
-                              </div>
-                              <div className="p-3 rounded-lg bg-orange-50 border border-orange-100">
-                                <p className="text-xs text-orange-700 mb-1">Pending Fees</p>
-                                <p className="text-lg font-bold text-orange-700">₹{branch.pending.toLocaleString()}</p>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-3">
-                            <h4 className="font-bold text-[#0A2540] border-b pb-2">Course-wise Revenue (Mock)</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between"><span>Full Stack Web</span><span className="font-medium">₹{(branch.totalRevenue * 0.4).toLocaleString()}</span></div>
-                              <div className="flex justify-between"><span>Data Science</span><span className="font-medium">₹{(branch.totalRevenue * 0.35).toLocaleString()}</span></div>
-                              <div className="flex justify-between"><span>UI/UX Design</span><span className="font-medium">₹{(branch.totalRevenue * 0.25).toLocaleString()}</span></div>
-                            </div>
-                          </div>
-                        </div>
-                      </SheetContent>
-                    </Sheet>
+                    {/* View Details Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/branch/${branch.id}/revenue`)}
+                      className={`w-full py-3 text-sm font-bold ${branch.accentText} hover:${branch.accentBg} transition-colors flex items-center justify-center gap-1 border-t border-slate-100`}
+                    >
+                      View Revenue Details <ArrowRight className="h-4 w-4" />
+                    </button>
                   </div>
                 </CardContent>
               </Card>

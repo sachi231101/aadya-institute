@@ -81,7 +81,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#93c5fd",
     activeBg: "rgba(219, 234, 254, 1)",
     icon: Building2,
-    dashboardPath: "/center/dashboard",
+    dashboardPath: "/center/home",
     demoUser: {
       id: "seed-manager-user",
       name: "Suresh Sharma",
@@ -106,7 +106,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#6ee7b7",
     activeBg: "rgba(209, 250, 229, 1)",
     icon: UserCheck,
-    dashboardPath: "/counselor/dashboard",
+    dashboardPath: "/counselor/home",
     demoUser: {
       id: "seed-counsellor-user",
       name: "Priya Singh",
@@ -131,7 +131,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#fde68a",
     activeBg: "rgba(253, 230, 138, 1)",
     icon: GraduationCap,
-    dashboardPath: "/faculty/dashboard",
+    dashboardPath: "/faculty/home",
     demoUser: {
       id: "seed-faculty-user",
       name: "Ramesh Kumar",
@@ -156,7 +156,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#ddd6fe",
     activeBg: "rgba(237, 233, 254, 1)",
     icon: Users,
-    dashboardPath: "/student/dashboard",
+    dashboardPath: "/student/home",
     demoUser: {
       id: "seed-student-user",
       name: "Rahul Verma",
@@ -205,16 +205,16 @@ export const Login: React.FC = () => {
           navigate("/admin/home");
           break;
         case UserRole.CENTER_MANAGER:
-          navigate("/center/dashboard");
+          navigate("/center/home");
           break;
         case UserRole.COUNSELLOR:
-          navigate("/counselor/dashboard");
+          navigate("/counselor/home");
           break;
         case UserRole.FACULTY:
-          navigate("/faculty/dashboard");
+          navigate("/faculty/home");
           break;
         case UserRole.STUDENT:
-          navigate("/student/dashboard");
+          navigate("/student/home");
           break;
         default:
           navigate(roleConfig.dashboardPath);
