@@ -10,7 +10,7 @@ const startServer = async () => {
   });
 };
 
-// Server restarted with PostgreSQL connection on port 5433
+// Server started with PostgreSQL connection on port 5432
 startServer();
 
 

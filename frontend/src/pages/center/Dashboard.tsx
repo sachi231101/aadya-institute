@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -7,25 +7,16 @@ import {
   CreditCard,
   Users,
   IndianRupee,
-  GraduationCap,
   Calendar,
-  DollarSign,
   UserCheck,
-  BookOpen,
   ArrowRight,
-  UserPlus,
-  Clock,
-  CheckCircle2,
   FileText,
-  Loader2,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranch, useBranchStats, useBranches } from "@/hooks/useBranches";
-import { useFinancialReport, useStudentReport, useFacultyReport } from "@/hooks/useReports";
-import { useBatches } from "@/hooks/useBatches";
+import { useFinancialReport } from "@/hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   PieChart,
   Pie,
@@ -84,19 +75,16 @@ export const CenterDashboard: React.FC = () => {
   // Find all branches to ensure we have a fallback if branchId is not yet linked
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const allBranches = branchesResponse?.data || [];
-  
+
   // Resolve current center manager's branch ID strictly
   const effectiveBranchId = user?.branchId || allBranches[0]?.id || "cmspriqwy0001nw66ideumbe3";
-  const { data: branchResponse, isLoading: isBranchLoading } = useBranch(effectiveBranchId);
+  const { data: branchResponse } = useBranch(effectiveBranchId);
   const currentBranch = branchResponse?.data || allBranches.find((b) => b.id === effectiveBranchId) || allBranches[0];
   const branchName = currentBranch?.name || "Aadya Central Branch";
 
   // Branch-specific live reports strictly filtered by branchId
-  const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(effectiveBranchId);
-  const { data: studentReport, isLoading: isStudentLoading } = useStudentReport(effectiveBranchId);
-  const { data: facultyReport } = useFacultyReport(effectiveBranchId);
+  const { data: financialReport } = useFinancialReport(effectiveBranchId);
   const { data: branchStats } = useBranchStats(effectiveBranchId);
-  const { batches: branchBatches } = useBatches({ status: "ACTIVE" });
 
   const formatINR = (val: number) => `₹${val.toLocaleString("en-IN")}`;
 
