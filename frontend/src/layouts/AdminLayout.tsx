@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { Bell, Building2, Loader2, Plus } from "lucide-react";
+import { Building2, Loader2, Plus } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";

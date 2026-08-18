@@ -2,8 +2,8 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Users, UserCheck, GraduationCap, Clock, AlertTriangle, BookOpen, Search, Download, Plus,
-  MoreVertical, X, Mail, Phone, Calendar, CheckCircle2, Circle, AlertCircle, FileText, Bell,
-  CalendarDays, BarChart3, TrendingUp, TrendingDown, BookMarked, MonitorPlay, Star, UserMinus
+  X, Mail, Phone, Calendar, CheckCircle2, AlertCircle,
+  BarChart3, TrendingUp, BookMarked, MonitorPlay, Star, UserMinus
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

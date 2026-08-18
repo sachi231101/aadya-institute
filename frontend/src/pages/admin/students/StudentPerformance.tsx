@@ -1,27 +1,18 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
   PieChart, Pie, Cell, LineChart, Line, AreaChart, Area
 } from "recharts";
 import {
   BookOpen,
   User,
-  AlertTriangle,
-  Loader2,
-  AlertCircle,
-  Phone,
-  Mail,
   Calendar,
-  MapPin,
   ClipboardList,
-  GraduationCap,
   Download,
   Star,
-  CheckCircle2,
   LayoutGrid,
   FileEdit,
-  CircleDashed,
   ArrowLeft,
   ArrowRight,
   TrendingUp,
@@ -31,10 +22,9 @@ import {
   Layers,
   FileText,
   Building,
-  Check
 } from "lucide-react";
-import { useStudentList, useStudentPerformance, useStudent } from "../../../hooks/useStudents";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { useStudentList } from "../../../hooks/useStudents";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 // ─── COMPREHENSIVE STUDENT DIRECTORY DATA ──────────────────────────────────
@@ -454,7 +444,7 @@ export const StudentPerformance: React.FC = () => {
   const queryStudentId = searchParams.get("studentId");
 
   // Fetch real students from API
-  const { data: studentListResponse, isLoading: isLoadingStudents } = useStudentList({ limit: 100 });
+  const { data: studentListResponse } = useStudentList({ limit: 100 });
   const apiStudents = studentListResponse?.data ?? [];
 
   // Build unified student list
@@ -817,7 +807,7 @@ export const StudentPerformance: React.FC = () => {
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
                   <RechartsTooltip
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: number) => [`${val}%`, 'Attendance']}
+                    formatter={(val: any) => [`${val}%`, 'Attendance']}
                   />
                   <Line type="monotone" dataKey="attendance" stroke="#2563eb" strokeWidth={2.5} dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -897,7 +887,7 @@ export const StudentPerformance: React.FC = () => {
                   <YAxis tick={{ fontSize: 11, fill: '#64748b' }} tickLine={false} axisLine={false} domain={[0, 100]} ticks={[0, 25, 50, 75, 100]} tickFormatter={(v) => `${v}%`} />
                   <RechartsTooltip
                     contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(val: number) => [`${val}%`, 'Score']}
+                    formatter={(val: any) => [`${val}%`, 'Score']}
                   />
                   <Area type="monotone" dataKey="score" stroke="#8b5cf6" strokeWidth={2.5} fillOpacity={1} fill="url(#purpleGradient)" dot={{ r: 4, fill: '#8b5cf6', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 </AreaChart>

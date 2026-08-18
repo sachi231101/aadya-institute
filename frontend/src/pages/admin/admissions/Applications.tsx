@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { useLocation } from "react-router-dom";
 import {
   FileCheck2,
   Plus,
   Search,
   CheckCircle2,
   MoreVertical,
-  Trash2,
   ArrowRight,
   Eye,
   Copy,
@@ -14,16 +12,11 @@ import {
   Filter,
   SlidersHorizontal,
   FileText,
-  Clock,
   UserCheck,
-  AlertCircle,
   XCircle,
-  Sparkles,
   Phone,
   Mail,
-  Calendar,
   CreditCard,
-  Building,
   GraduationCap,
   ShieldCheck,
   Upload,
@@ -32,13 +25,9 @@ import {
   ChevronRight,
   X,
   Send,
-  ExternalLink,
   RefreshCw,
-  FolderCheck,
   User,
   MapPin,
-  FileCode2,
-  Layers,
   Award
 } from "lucide-react";
 import { useAdmissionStore } from "../../../store/admission.store";
@@ -66,9 +55,6 @@ import {
 import {
   Sheet,
   SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
 } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
@@ -534,8 +520,7 @@ const SAMPLE_APPLICATIONS: EnrichedApplication[] = [
 ];
 
 export const Applications: React.FC = () => {
-  const location = useLocation();
-  const { courses, batches, fetchCourses, fetchBatches } = useCourseStore();
+  const { batches, fetchCourses, fetchBatches } = useCourseStore();
   const { convertApplicationToAdmission } = useAdmissionStore();
 
   // Local state for enriched application items initialized with realistic sample data
@@ -569,7 +554,7 @@ export const Applications: React.FC = () => {
   const [createCourse, setCreateCourse] = useState("Digital Marketing");
   const [createDuration, setCreateDuration] = useState("(1 Year Program)");
   const [createFeeStatus, setCreateFeeStatus] = useState<"PAID" | "NOT_PAID">("PAID");
-  const [createFeeAmount, setCreateFeeAmount] = useState<number>(500);
+  const [createFeeAmount] = useState<number>(500);
   const [createStatus, setCreateStatus] = useState<DetailedStatus>("UNDER_REVIEW_BLUE");
   const [createNotes, setCreateNotes] = useState("");
 
@@ -644,7 +629,6 @@ export const Applications: React.FC = () => {
   }, [applicationsList, searchTerm, feeFilter, statusFilter, selectedCourseFilter, selectedModeFilter]);
 
   // Paginated Rows
-  const totalPages = Math.ceil(filteredList.length / pageSize) || 1;
   const currentRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredList.slice(start, start + pageSize);
@@ -2151,7 +2135,7 @@ export const Applications: React.FC = () => {
                   <option value="">Auto-Assign Next Available Batch</option>
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.code || b.name} ({b.course?.name || "General"})
+                      {b.code || b.name} ({(b as any).course?.name || "General"})
                     </option>
                   ))}
                 </select>

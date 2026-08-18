@@ -3,11 +3,9 @@ import { useNavigate } from "react-router-dom";
 import {
   MoreVertical, Eye, Edit, Shield, Key, Power, Trash2, Loader2,
   Users, Building2, MapPin, Search, Plus, Mail, Phone, GraduationCap, 
-  BookOpen, UserCheck, X, Activity, CreditCard, ChevronRight, FileText,
-  AlertTriangle
+  BookOpen, UserCheck, AlertTriangle
 } from "lucide-react";
 
-import { useAuthStore } from "@/store/auth.store";
 import { useNotificationStore } from "@/store/notification.store";
 import { useAdminUsers, useUpdateUserStatus, useDeleteUser } from "@/hooks/useUsers";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
@@ -15,7 +13,6 @@ import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -55,7 +52,7 @@ const ManagerCard = ({
   onViewBranch: (manager: UserResponse, branch: BranchResponse) => void;
 }) => {
   // Fetch live stats for this branch using existing hook
-  const { data: statsResponse, isLoading: isStatsLoading } = useBranchStats(branch?.id);
+  const { data: statsResponse } = useBranchStats(branch?.id);
   const stats = statsResponse?.data;
 
   // Use backend stats or fallback to 0
@@ -225,7 +222,6 @@ const ManagerCard = ({
 
 export const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
   const addNotification = useNotificationStore((state) => state.addNotification);
 
   // Fetch all admins
@@ -291,7 +287,7 @@ export const AdminPanel: React.FC = () => {
     }
   };
 
-  const handleViewBranch = (manager: UserResponse, branch: BranchResponse) => {
+  const handleViewBranch = (_manager: UserResponse, branch: BranchResponse) => {
     navigate(`/admin/branch/${branch.id}/performance`);
   };
 

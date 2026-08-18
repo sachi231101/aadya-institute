@@ -15,7 +15,8 @@ import {
   LogOut,
   Shield,
   UserCheck,
-  Sparkles
+  Sparkles,
+  Layers
 } from "lucide-react"
 
 import {
@@ -150,6 +151,12 @@ const data = {
       title: "Notifications",
       url: "/admin/notifications",
       icon: Bell,
+      isActive: false,
+    },
+    {
+      title: "Masters",
+      url: "/admin/masters",
+      icon: Layers,
       isActive: false,
     },
     {

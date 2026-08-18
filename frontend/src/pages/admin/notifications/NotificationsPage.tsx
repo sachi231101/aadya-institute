@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Bell, 
-  UserPlus, 
   DollarSign, 
   AlertTriangle, 
   PhoneCall, 
@@ -16,8 +15,6 @@ import {
   SlidersHorizontal,
   LayoutDashboard,
   Users,
-  UserCheck,
-  CreditCard,
   Target,
   BookOpen,
   Settings as SettingsIcon,
@@ -25,7 +22,6 @@ import {
   FileText,
   BarChart3,
   CheckSquare,
-  Info
 } from "lucide-react";
 import { 
   useGetNotifications, 
@@ -105,41 +101,6 @@ export const NotificationsPage: React.FC = () => {
     if (item.link) {
       const mappedLink = item.link.replace(/^\/(admin|center|faculty|student|counselor)/, rolePrefix);
       navigate(mappedLink);
-    }
-  };
-
-  const getModuleLabel = (item: NotificationItem) => {
-    const mod = item.module?.toLowerCase();
-    switch (mod) {
-      case "students":
-        return "Students";
-      case "attendance":
-        return "Attendance";
-      case "schedule":
-        return "Schedule";
-      case "assignments":
-        return "Assignments";
-      case "recordings":
-        return "Recordings";
-      case "reports":
-        return "Reports";
-      case "fees":
-        return "Fees";
-      case "admissions":
-        return "Admissions";
-      case "courses":
-        return "Courses";
-      case "counsellor":
-      case "counselor":
-        return "Counsellor";
-      case "faculty":
-        return "Faculty";
-      case "settings":
-        return "Settings";
-      case "dashboard":
-        return "Dashboard";
-      default:
-        return item.type || "General";
     }
   };
 

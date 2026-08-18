@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { Bell, UserCheck } from "lucide-react";
+import { UserCheck } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CounselorSidebar } from "@/components/layout/counselor-sidebar";
 import { useAuthStore } from "@/store/auth.store";

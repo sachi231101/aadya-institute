@@ -58,15 +58,15 @@ export const FacultyDashboard: React.FC = () => {
   // Map live students from database cleanly using useMemo
   const liveAssignedStudents = useMemo<AssignedStudentAttendance[]>(() => {
     if (!Array.isArray(globalStudents)) return [];
-    return globalStudents.map((s) => ({
+    return globalStudents.map((s: any) => ({
       id: s.id,
-      studentCode: s.studentId || (s.id ? `STD-${s.id.slice(-4).toUpperCase()}` : "STD-0000"),
-      name: s.name || (s as any).user?.name || "Student",
-      email: s.email || (s as any).user?.email || "",
-      batchName: s.batch?.code || s.batch?.name || "Assigned Batch",
-      course: s.course?.name || "Enrolled Course",
+      studentCode: s.studentCode || s.studentId || (s.id ? `STD-${s.id.slice(-4).toUpperCase()}` : "STD-0000"),
+      name: s.name || s.user?.name || "Student",
+      email: s.email || s.user?.email || "",
+      batchName: s.batch?.code || s.batch?.name || s.batchName || "Assigned Batch",
+      course: s.course?.name || s.courseName || "Enrolled Course",
       attendanceStatus: "PRESENT" as const,
-      attendancePercentage: 100,
+      attendancePercentage: s.attendance?.overallPercentage ?? 100,
       lastMarked: "Registered",
       performanceGrade: "A" as const,
     }));

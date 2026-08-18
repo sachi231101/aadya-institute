@@ -5,21 +5,16 @@ import {
   Search,
   CheckCircle2,
   MoreVertical,
-  Trash2,
   Eye,
   Copy,
   Check,
   SlidersHorizontal,
   FileText,
-  Clock,
   UserCheck,
-  AlertCircle,
   XCircle,
   Phone,
   Mail,
-  Calendar,
   CreditCard,
-  Building,
   ShieldCheck,
   Upload,
   Download,
@@ -30,16 +25,9 @@ import {
   User,
   MapPin,
   Layers,
-  Award,
-  BookOpen,
   Edit,
   RefreshCw,
-  Users,
-  Percent,
-  CheckCircle,
-  DollarSign
 } from "lucide-react";
-import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -545,8 +533,7 @@ const SAMPLE_ADMISSIONS: EnrichedAdmission[] = [
 ];
 
 export const AllAdmissions: React.FC = () => {
-  const { courses, batches, fetchCourses, fetchBatches } = useCourseStore();
-  const { addAdmission } = useAdmissionStore();
+  const { fetchCourses, fetchBatches } = useCourseStore();
 
   const [admissionsList, setAdmissionsList] = useState<EnrichedAdmission[]>(SAMPLE_ADMISSIONS);
 
@@ -573,19 +560,19 @@ export const AllAdmissions: React.FC = () => {
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formDob, setFormDob] = useState("2003-05-15");
-  const [formGender, setFormGender] = useState<"Female" | "Male" | "Other">("Female");
+  const [formGender] = useState<"Female" | "Male" | "Other">("Female");
   const [formAddress, setFormAddress] = useState("");
   const [formCourse, setFormCourse] = useState("Digital Marketing");
   const [formDuration, setFormDuration] = useState("(1 Year Program)");
   const [formBatch, setFormBatch] = useState("DM-JUN-2025");
   const [formBatchType, setFormBatchType] = useState<BatchType>("Morning Batch");
-  const [formBatchTiming, setFormBatchTiming] = useState("9:00 AM – 11:00 AM");
-  const [formFaculty, setFormFaculty] = useState("Prof. Rajesh Verma");
+  const [formBatchTiming] = useState("9:00 AM – 11:00 AM");
+  const [formFaculty] = useState("Prof. Rajesh Verma");
   const [formFeePlan, setFormFeePlan] = useState<FeePlanType>("Standard Plan");
   const [formCourseFee, setFormCourseFee] = useState<number>(30000);
   const [formDiscount, setFormDiscount] = useState<number>(5000);
   const [formAmountPaid, setFormAmountPaid] = useState<number>(25000);
-  const [formPaymentMethod, setFormPaymentMethod] = useState("UPI / QR");
+  const [formPaymentMethod] = useState("UPI / QR");
   const [formNotes, setFormNotes] = useState("");
 
   // Change Batch Modal
@@ -655,7 +642,6 @@ export const AllAdmissions: React.FC = () => {
   }, [admissionsList, searchTerm, courseFilter, statusFilter, batchTypeFilter, feeStatusFilter]);
 
   // Paginated Rows
-  const totalPages = Math.ceil(filteredAdmissions.length / pageSize) || 1;
   const currentRows = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredAdmissions.slice(start, start + pageSize);

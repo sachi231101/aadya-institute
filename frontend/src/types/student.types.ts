@@ -8,12 +8,69 @@ export interface StudentUser {
   email: string | null;
   phone: string | null;
   status: string;
+  whatsappEnabled?: boolean;
 }
 
 export interface StudentBranch {
   id: string;
   name: string;
   code: string;
+  address?: string;
+  phone?: string;
+}
+
+export interface StudentGuardian {
+  name?: string;
+  relation?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface StudentAddress {
+  street?: string;
+  city?: string;
+  state?: string;
+  pincode?: string;
+  country?: string;
+}
+
+export interface StudentFeeSummary {
+  totalFee: number;
+  discount: number;
+  finalFee: number;
+  amountPaid: number;
+  dueAmount: number;
+  feePlan: "FULL_PAYMENT" | "INSTALLMENT";
+  status: "Paid" | "Pending" | "Overdue";
+  nextDueDate?: string;
+}
+
+export interface StudentAttendanceSummary {
+  overallPercentage: number;
+  totalClasses: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+  consecutiveAbsences: number;
+  isDiscontinuationRisk: boolean;
+}
+
+export interface StudentAICallLog {
+  id: string;
+  date: string;
+  durationSeconds: number;
+  status: "ANSWERED" | "NO_ANSWER" | "CALLBACK_REQUESTED" | "BUSY" | "FAILED";
+  intent: "HIGH_INTEREST" | "NEUTRAL" | "NOT_INTERESTED" | "QUERY";
+  summary: string;
+  transcriptSnippet?: string;
+}
+
+export interface StudentWhatsAppLog {
+  id: string;
+  timestamp: string;
+  type: "CLASS_REMINDER" | "FEE_REMINDER" | "ABSENCE_ALERT" | "GENERAL";
+  message: string;
+  status: "DELIVERED" | "READ" | "FAILED";
 }
 
 export interface Student {
@@ -29,6 +86,23 @@ export interface Student {
   updatedAt: string;
   user: StudentUser | null;
   branch: StudentBranch;
+
+  // Extended optional attributes for rich UI presentation
+  gender?: "Male" | "Female" | "Other" | string;
+  bloodGroup?: string;
+  emergencyContact?: string;
+  guardian?: StudentGuardian;
+  address?: StudentAddress;
+  leadSource?: string;
+  counsellorName?: string;
+  courseName?: string;
+  batchName?: string;
+  batchTiming?: string;
+  facultyName?: string;
+  fees?: StudentFeeSummary;
+  attendance?: StudentAttendanceSummary;
+  recentAICalls?: StudentAICallLog[];
+  recentWhatsAppLogs?: StudentWhatsAppLog[];
 }
 
 // ─── Student with details (from getById) ────────────────────────────────
@@ -38,6 +112,8 @@ export interface StudentAdmission {
   courseId: string;
   admissionDate: string;
   status: string;
+  feePlan?: string;
+  notes?: string;
   course: { id: string; name: string; code: string };
 }
 
@@ -51,13 +127,53 @@ export interface StudentBatchEnrollment {
     name: string;
     code: string;
     status: string;
+    timeSlot?: string;
+    schedulePattern?: string;
+    faculty?: { id: string; user?: { name: string } };
     course: { id: string; name: string; code: string };
   };
+}
+
+export interface StudentAttendanceRecord {
+  id: string;
+  status: "PRESENT" | "ABSENT" | "LEAVE";
+  markedAt: string;
+  remarks?: string;
+  classSession: {
+    id: string;
+    scheduledDate: string;
+    startTime: string;
+    endTime: string;
+    title?: string;
+  };
+}
+
+export interface StudentAssignmentItem {
+  id: string;
+  title: string;
+  dueDate: string | null;
+  submittedAt: string | null;
+  marks: number | null;
+  feedback: string | null;
+  status: "PENDING" | "SUBMITTED" | "GRADED";
+}
+
+export interface StudentPaymentRecord {
+  id: string;
+  receiptNo: string;
+  amount: number;
+  date: string;
+  method: "UPI" | "NET_BANKING" | "CARD" | "CASH" | "CHEQUE";
+  status: "SUCCESS" | "PENDING" | "FAILED";
+  transactionRef?: string;
 }
 
 export interface StudentDetail extends Student {
   admissions: StudentAdmission[];
   batchEnrollments: StudentBatchEnrollment[];
+  attendanceRecords?: StudentAttendanceRecord[];
+  assignments?: StudentAssignmentItem[];
+  payments?: StudentPaymentRecord[];
 }
 
 // ─── Student Performance Metrics ────────────────────────────────────────
@@ -91,7 +207,7 @@ export interface StudentPerformanceMetrics {
   maxConsecutiveAbsences: number;
 }
 
-// ─── API Payloads ───────────────────────────────────────────────────────
+// ─── API Payloads (Strictly matching Backend Validation) ────────────────
 
 export interface CreateStudentPayload {
   name: string;
@@ -102,6 +218,18 @@ export interface CreateStudentPayload {
   dateOfBirth?: string;
   qualification?: string;
   branchId: string;
+
+  // Extended UI fields for progressive enhancement
+  gender?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
+  courseId?: string;
+  batchId?: string;
+  totalFee?: number;
+  feePlan?: string;
 }
 
 export interface UpdateStudentPayload {
@@ -111,6 +239,14 @@ export interface UpdateStudentPayload {
   dateOfBirth?: string;
   qualification?: string;
   status?: StudentStatus;
+
+  // Extended UI fields
+  gender?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  address?: string;
+  city?: string;
+  pincode?: string;
 }
 
 export interface StudentListParams {

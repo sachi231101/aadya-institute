@@ -1,25 +1,18 @@
-import React, { useState } from "react";
+import React from "react";
 import { 
   Calendar, 
-  Download, 
-  Clock, 
   UserCircle, 
   BookOpen, 
   CheckCircle2, 
   AlertCircle,
   CreditCard,
-  Phone,
-  Mail,
-  ChevronRight
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "../../store/auth.store";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
-  const [downloading, setDownloading] = useState(false);
 
   const studentName = user?.name || "Student";
   const studentBatchCode = user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE";
