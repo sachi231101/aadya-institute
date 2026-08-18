@@ -607,8 +607,8 @@ export const StudentPerformance: React.FC = () => {
                 <div className="flex items-center gap-2.5 mb-1">
                   <h2 className="text-xl font-bold text-slate-900">{currentStudent.name}</h2>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${currentStudent.status === "AT RISK"
-                      ? "bg-red-50 text-red-600 border border-red-200/60"
-                      : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
+                    ? "bg-red-50 text-red-600 border border-red-200/60"
+                    : "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
                     }`}>
                     {currentStudent.status === "AT RISK" ? "At Risk" : "Active"}
                   </span>
