@@ -7,22 +7,15 @@ import {
   CreditCard,
   PieChart as PieIcon,
   BarChart3,
-  Calendar,
   MapPin,
-  Building2,
   Phone,
-  BookOpen,
-  Users,
   GraduationCap,
   Briefcase,
   Loader2,
   CheckCircle2,
-  AlertCircle,
   Clock,
   ExternalLink,
   Receipt,
-  Download,
-  Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -31,8 +24,6 @@ import { useBranches, useBranch, useBranchStats } from "@/hooks/useBranches";
 import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
 import { useAdminUsers } from "@/hooks/useUsers";
 import {
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -77,7 +68,6 @@ export const BranchRevenueDetails: React.FC = () => {
   const phone = apiBranch?.phone || "+91 98765 43210";
   const status = apiBranch?.status || "ACTIVE";
   const managerName = realManager?.name || "Assigned Manager";
-  const managerEmail = realManager?.email || "branch@aadya.in";
 
   const isLoading = isBranchLoading || isStatsLoading || isFinancialLoading || isStudentLoading;
 
@@ -567,7 +557,7 @@ export const BranchRevenueDetails: React.FC = () => {
                   <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
                   <Tooltip
-                    formatter={(val: number) => [formatINR(val), ""]}
+                    formatter={(val: any) => [formatINR(Number(val)), ""]}
                     contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />

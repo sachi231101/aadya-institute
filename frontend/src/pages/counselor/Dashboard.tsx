@@ -10,23 +10,14 @@ import {
   Calendar,
   Phone,
   MessageSquare,
-  Clock,
-  CheckCircle2,
   Plus,
   TrendingUp,
-  AlertTriangle,
   ArrowRight,
   Filter,
   Wallet,
   PhoneCall,
-  Loader2,
-  ExternalLink,
-  Edit2,
   Trash2,
   History,
-  XCircle,
-  MoreVertical,
-  ChevronRight
 } from "lucide-react";
 import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
@@ -258,7 +249,7 @@ export const CounselorDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { students, fetchStudents } = useStudentStore();
   const { fetchCounselors } = useCounselorStore();
-  const { enquiries, admissions, isLoading, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
+  const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
   const { data: financialReport } = useFinancialReport(user?.branchId || undefined);
 
   // Managed Leads State (allows full in-memory & store CRUD with persistent checkbox workflow)
@@ -268,7 +259,6 @@ export const CounselorDashboard: React.FC = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogAttemptModal, setShowLogAttemptModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [activeLead, setActiveLead] = useState<ManagedLead | null>(null);
 
   // Form states for Add / Edit Lead
@@ -277,8 +267,8 @@ export const CounselorDashboard: React.FC = () => {
   const [formEmail, setFormEmail] = useState("");
   const [formCourse, setFormCourse] = useState("Digital Marketing");
   const [formSource, setFormSource] = useState("Website");
-  const [formStage, setFormStage] = useState<ManagedLead["stage"]>("NEW");
-  const [formPriority, setFormPriority] = useState<ManagedLead["priority"]>("Upcoming");
+  const [formStage] = useState<ManagedLead["stage"]>("NEW");
+  const [formPriority] = useState<ManagedLead["priority"]>("Upcoming");
   const [formNotes, setFormNotes] = useState("");
 
   // Form states for Log Attempt
@@ -886,7 +876,7 @@ export const CounselorDashboard: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <RechartsTooltip
-                      formatter={(val: number) => [`${val} Leads`, "Count"]}
+                      formatter={(val: any) => [`${val} Leads`, "Count"]}
                       contentStyle={{ borderRadius: "8px", fontSize: "10px", border: "none", boxShadow: "0 2px 4px rgb(0 0 0 / 0.1)" }}
                     />
                     <Pie

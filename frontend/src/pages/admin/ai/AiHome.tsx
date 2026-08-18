@@ -14,7 +14,6 @@ import {
   Mic,
   ArrowUp,
   ChevronDown,
-  Sparkles,
   BookOpen,
   CheckCircle,
   Video,

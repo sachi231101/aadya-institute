@@ -1,6 +1,6 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { BookOpen, Bell } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FacultySidebar } from "@/components/layout/faculty-sidebar";

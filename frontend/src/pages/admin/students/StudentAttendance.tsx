@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Calendar as CalendarIcon, CheckCircle2, Loader2, AlertCircle, Plus, GraduationCap } from "lucide-react";
+import { Search, Calendar as CalendarIcon, Loader2, AlertCircle, Plus, GraduationCap } from "lucide-react";
 import { useAttendanceRoster } from "../../../hooks/useStudents";
 import { useBranches } from "../../../hooks/useBranches";
 import { AttendanceStatus } from "../../../constants/status";

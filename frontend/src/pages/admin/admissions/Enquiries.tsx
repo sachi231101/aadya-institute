@@ -18,28 +18,16 @@ import {
   MapPin,
   Clock,
   Laptop,
-  Check,
-  ChevronDown,
-  ArrowRight,
-  Filter,
   Eye,
-  MoreVertical,
   X,
-  Edit2,
-  Trash2,
-  TrendingUp,
   AlertTriangle,
-  Flame,
   LayoutList,
   Columns3,
-  UserCheck,
-  Send,
   CalendarCheck
 } from "lucide-react";
-import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
 import { useAuthStore } from "../../../store/auth.store";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -347,7 +335,7 @@ export const Enquiries: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
-  const { courses, fetchCourses } = useCourseStore();
+  const { fetchCourses } = useCourseStore();
 
   const rolePrefix = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -371,7 +359,6 @@ export const Enquiries: React.FC = () => {
 
   // Selection & Bulk Actions
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>([]);
-  const [showBulkActions, setShowBulkActions] = useState(false);
 
   // Modals
   const [showAddModal, setShowAddModal] = useState(false);
@@ -391,6 +378,31 @@ export const Enquiries: React.FC = () => {
   const [newFormQualification, setNewFormQualification] = useState("BBA");
   const [newFormNotes, setNewFormNotes] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState<EnrichedLead | null>(null);
+
+  // ZenoxERP-aligned additional enquiry fields
+  const [newFormEnquiryDate, setNewFormEnquiryDate] = useState(new Date().toISOString().split("T")[0]);
+  const [newFormAltPhone, setNewFormAltPhone] = useState("");
+  const [newFormGender, setNewFormGender] = useState("Male");
+  const [newFormDob, setNewFormDob] = useState("");
+  const [newFormParentName, setNewFormParentName] = useState("");
+  const [newFormParentPhone, setNewFormParentPhone] = useState("");
+  const [newFormLeadStage, setNewFormLeadStage] = useState<LeadStatus>("New");
+  const [newFormCounsellor, setNewFormCounsellor] = useState(user?.name || "Priya Singh");
+  const [newFormNextFollowupDate, setNewFormNextFollowupDate] = useState("");
+  const [newFormFollowupSlot, setNewFormFollowupSlot] = useState("Morning (9 AM - 12 PM)");
+  const [newFormWhatsappWelcome, setNewFormWhatsappWelcome] = useState(true);
+
+  // Follow-up Interaction Modal
+  const [showFollowupModal, setShowFollowupModal] = useState(false);
+  const [fuInteractionDate, setFuInteractionDate] = useState(new Date().toISOString().split("T")[0]);
+  const [fuContactMode, setFuContactMode] = useState("Phone Call");
+  const [fuCallOutcome, setFuCallOutcome] = useState("Connected - Highly Interested");
+  const [fuStageProgression, setFuStageProgression] = useState<LeadStatus>("Follow-up");
+  const [fuLostReason, setFuLostReason] = useState("Fee too high");
+  const [fuNextDate, setFuNextDate] = useState("");
+  const [fuTimeSlot, setFuTimeSlot] = useState("09:00 AM - 12:00 PM");
+  const [fuNotes, setFuNotes] = useState("");
+  const [fuWhatsappReminder, setFuWhatsappReminder] = useState(false);
 
   // New Note state in Drawer
   const [newNoteText, setNewNoteText] = useState("");
@@ -525,12 +537,48 @@ export const Enquiries: React.FC = () => {
     setLeads([newEnq, ...leads]);
     setSelectedLead(newEnq);
     setShowAddModal(false);
-    // Reset
+    // Reset all form fields
     setNewFormName("");
     setNewFormPhone("");
     setNewFormEmail("");
     setNewFormNotes("");
+    setNewFormAltPhone("");
+    setNewFormGender("Male");
+    setNewFormDob("");
+    setNewFormQualification("BBA");
+    setNewFormParentName("");
+    setNewFormParentPhone("");
+    setNewFormLeadStage("New");
+    setNewFormCounsellor(user?.name || "Priya Singh");
+    setNewFormNextFollowupDate("");
+    setNewFormFollowupSlot("Morning (9 AM - 12 PM)");
+    setNewFormWhatsappWelcome(true);
+    setNewFormEnquiryDate(new Date().toISOString().split("T")[0]);
     setDuplicateWarning(null);
+  };
+
+  // Log Follow-up Interaction
+  const handleLogFollowup = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedLead || !fuNotes) return;
+    const newTimeline = {
+      id: `tl-${Date.now()}`,
+      date: "Today",
+      time: "Just now",
+      text: `[${fuContactMode}] ${fuCallOutcome} — ${fuNotes}`,
+      mode: fuContactMode,
+    };
+    const updatedLead = {
+      ...selectedLead,
+      status: fuStageProgression,
+      nextFollowUp: fuNextDate || selectedLead.nextFollowUp,
+      timeline: [newTimeline, ...(selectedLead.timeline || [])],
+    };
+    setSelectedLead(updatedLead);
+    setLeads((prev) => prev.map((l) => (l.id === selectedLead.id ? updatedLead : l)));
+    setShowFollowupModal(false);
+    setFuNotes("");
+    setFuNextDate("");
   };
 
   // Mark as Lost Handler
@@ -1500,14 +1548,15 @@ export const Enquiries: React.FC = () => {
         )}
       </div>
 
-      {/* ─── MODAL: ADD NEW ENQUIRY (WITH DUPLICATE DETECTION) ─── */}
+      {/* ─── MODAL: ADD NEW ENQUIRY (WITH DUPLICATE DETECTION) — ZENOX-ALIGNED ─── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-lg bg-white rounded-2xl p-6">
+        <DialogContent className="max-w-2xl bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Plus className="h-5 w-5 text-[#1769AA]" />
               New Student Enquiry Registration
             </DialogTitle>
+            <p className="text-[11px] text-slate-500 mt-0.5">Complete enquiry intake form aligned with ZenoxERP standards</p>
           </DialogHeader>
 
           {duplicateWarning && (
@@ -1522,19 +1571,33 @@ export const Enquiries: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleCreateLead} className="space-y-3.5 pt-2 text-xs">
-            <div>
-              <Label className="text-slate-700 font-semibold">Student Full Name *</Label>
-              <Input
-                value={newFormName}
-                onChange={(e) => setNewFormName(e.target.value)}
-                placeholder="e.g. Rahul Sharma"
-                className="mt-1"
-                required
-              />
+          <form onSubmit={handleCreateLead} className="space-y-4 pt-2 text-xs">
+            {/* Section: Enquiry Date & Student Name */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Enquiry Date *</Label>
+                <Input
+                  type="date"
+                  value={newFormEnquiryDate}
+                  onChange={(e) => setNewFormEnquiryDate(e.target.value)}
+                  className="mt-1"
+                  required
+                />
+              </div>
+              <div className="col-span-2">
+                <Label className="text-slate-700 font-semibold">Student Full Name *</Label>
+                <Input
+                  value={newFormName}
+                  onChange={(e) => setNewFormName(e.target.value)}
+                  placeholder="e.g. Rahul Sharma"
+                  className="mt-1"
+                  required
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Section: Contact Info */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <Label className="text-slate-700 font-semibold">Contact Phone *</Label>
                 <Input
@@ -1543,6 +1606,15 @@ export const Enquiries: React.FC = () => {
                   placeholder="9876543210"
                   className="mt-1"
                   required
+                />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Alternative Mobile</Label>
+                <Input
+                  value={newFormAltPhone}
+                  onChange={(e) => setNewFormAltPhone(e.target.value)}
+                  placeholder="Parent / Secondary"
+                  className="mt-1"
                 />
               </div>
               <div>
@@ -1557,9 +1629,82 @@ export const Enquiries: React.FC = () => {
               </div>
             </div>
 
+            {/* Section: Demographics */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Gender *</Label>
+                <select
+                  value={newFormGender}
+                  onChange={(e) => setNewFormGender(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Date of Birth</Label>
+                <Input
+                  type="date"
+                  value={newFormDob}
+                  onChange={(e) => setNewFormDob(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Education / Qualification</Label>
+                <select
+                  value={newFormQualification}
+                  onChange={(e) => setNewFormQualification(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="10th Standard">10th Standard</option>
+                  <option value="12th / PUC">12th / PUC</option>
+                  <option value="Diploma">Diploma</option>
+                  <option value="BBA">Graduate (BA/B.Sc/B.Com/BBA)</option>
+                  <option value="B.E/B.Tech">Engineering (B.E/B.Tech)</option>
+                  <option value="MBA/MCA">Post Graduate (MBA/MCA)</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Section: Parent / Guardian */}
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Parent / Guardian Name</Label>
+                <Input
+                  value={newFormParentName}
+                  onChange={(e) => setNewFormParentName(e.target.value)}
+                  placeholder="Father / Guardian"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Parent Contact No</Label>
+                <Input
+                  value={newFormParentPhone}
+                  onChange={(e) => setNewFormParentPhone(e.target.value)}
+                  placeholder="9845012345"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">City / Location</Label>
+                <Input
+                  value={newFormLocation}
+                  onChange={(e) => setNewFormLocation(e.target.value)}
+                  placeholder="Bangalore, Karnataka"
+                  className="mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Section: Course & Source */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-slate-700 font-semibold">Interested Course</Label>
+                <Label className="text-slate-700 font-semibold">Course Interested *</Label>
                 <select
                   value={newFormCourse}
                   onChange={(e) => setNewFormCourse(e.target.value)}
@@ -1575,55 +1720,110 @@ export const Enquiries: React.FC = () => {
                 </select>
               </div>
               <div>
-                <Label className="text-slate-700 font-semibold">Lead Source</Label>
+                <Label className="text-slate-700 font-semibold">Lead Source *</Label>
                 <select
                   value={newFormSource}
                   onChange={(e: any) => setNewFormSource(e.target.value)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
                 >
-                  <option value="Google Ads">Google Ads</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="Website">Website</option>
-                  <option value="Referral">Referral</option>
-                  <option value="Meta Ads">Meta Ads</option>
                   <option value="Walk-in">Walk-in</option>
-                  <option value="Other">Other</option>
+                  <option value="Google Ads">Google Search / Ads</option>
+                  <option value="Instagram">Instagram / Meta</option>
+                  <option value="Website">Website Enquiry</option>
+                  <option value="Referral">Friend / Alumni Reference</option>
+                  <option value="Meta Ads">Telecalling</option>
+                  <option value="Other">College Seminar / Other</option>
                 </select>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Section: Lead Classification */}
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-slate-700 font-semibold">City / Location</Label>
-                <Input
-                  value={newFormLocation}
-                  onChange={(e) => setNewFormLocation(e.target.value)}
-                  placeholder="Bangalore, Karnataka"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Priority</Label>
+                <Label className="text-slate-700 font-semibold">Lead Type / Priority</Label>
                 <select
                   value={newFormPriority}
                   onChange={(e: any) => setNewFormPriority(e.target.value)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-bold"
                 >
-                  <option value="Hot">🔥 Hot</option>
-                  <option value="Warm">⚡ Warm</option>
-                  <option value="Cold">❄️ Cold</option>
+                  <option value="Hot">🔥 Hot (Immediate)</option>
+                  <option value="Warm">⚡ Warm (Considering)</option>
+                  <option value="Cold">❄️ Cold (Exploring)</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Lead Stage *</Label>
+                <select
+                  value={newFormLeadStage}
+                  onChange={(e: any) => setNewFormLeadStage(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="New">New Enquiry</option>
+                  <option value="Follow-up">Followup In-Progress</option>
+                  <option value="Demo">Demo Class Booked</option>
+                  <option value="Admission">Ready for Admission</option>
+                  <option value="Lost">Dropped / Lost</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Assigned Counsellor *</Label>
+                <select
+                  value={newFormCounsellor}
+                  onChange={(e) => setNewFormCounsellor(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="Priya Singh">Priya Singh</option>
+                  <option value="Rahul Kumar">Rahul Kumar</option>
+                  <option value="Sneha Patil">Sneha Patil</option>
+                  <option value="Arjun Reddy">Arjun Reddy</option>
                 </select>
               </div>
             </div>
 
+            {/* Section: Follow-up Scheduling */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Next Follow-up Date *</Label>
+                <Input
+                  type="date"
+                  value={newFormNextFollowupDate}
+                  onChange={(e) => setNewFormNextFollowupDate(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Follow-up Time Slot</Label>
+                <select
+                  value={newFormFollowupSlot}
+                  onChange={(e) => setNewFormFollowupSlot(e.target.value)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                >
+                  <option value="Morning (9 AM - 12 PM)">Morning (9 AM - 12 PM)</option>
+                  <option value="Afternoon (12 PM - 3 PM)">Afternoon (12 PM - 3 PM)</option>
+                  <option value="Evening (3 PM - 7 PM)">Evening (3 PM - 7 PM)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Section: Notes & WhatsApp */}
             <div>
-              <Label className="text-slate-700 font-semibold">Initial Counsellor Notes</Label>
+              <Label className="text-slate-700 font-semibold">Counsellor Remarks / Notes</Label>
               <textarea
                 value={newFormNotes}
                 onChange={(e) => setNewFormNotes(e.target.value)}
                 placeholder="Candidate enquired about fees and weekend batch timings..."
-                className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[65px]"
+                className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[55px]"
               />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                checked={newFormWhatsappWelcome}
+                onChange={(e) => setNewFormWhatsappWelcome(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+              />
+              <Label className="text-slate-600 font-medium text-[11px]">Send WhatsApp Welcome Message automatically</Label>
             </div>
 
             <DialogFooter className="pt-2">
@@ -1633,6 +1833,112 @@ export const Enquiries: React.FC = () => {
               <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">
                 Save & Add Enquiry
               </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL: LOG FOLLOW-UP INTERACTION ─── */}
+      <Dialog open={showFollowupModal} onOpenChange={setShowFollowupModal}>
+        <DialogContent className="max-w-lg bg-white rounded-2xl p-6 max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Phone className="h-5 w-5 text-[#1769AA]" />
+              Log Follow-up Interaction — {selectedLead?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleLogFollowup} className="space-y-3.5 pt-2 text-xs">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Interaction Date *</Label>
+                <Input type="date" value={fuInteractionDate} onChange={(e) => setFuInteractionDate(e.target.value)} className="mt-1" required />
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Contact Mode *</Label>
+                <select value={fuContactMode} onChange={(e) => setFuContactMode(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
+                  <option value="Phone Call">📞 Phone Call</option>
+                  <option value="WhatsApp Chat">💬 WhatsApp Chat</option>
+                  <option value="Campus Visit">🏢 Campus Visit / Meeting</option>
+                  <option value="Email">📧 Email</option>
+                  <option value="Demo Class">🎓 Demo Class</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-slate-700 font-semibold">Call Outcome / Response *</Label>
+                <select value={fuCallOutcome} onChange={(e) => setFuCallOutcome(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
+                  <option value="Connected - Highly Interested">Connected - Highly Interested</option>
+                  <option value="Connected - Needs Time">Connected - Needs Time</option>
+                  <option value="Connected - Fee Constraint">Connected - Fee Constraint</option>
+                  <option value="Call Back Requested">Call Back Requested</option>
+                  <option value="Ringing - No Response">Ringing - No Response</option>
+                  <option value="Switched Off">Switched Off / Not Reachable</option>
+                  <option value="Wrong Number">Wrong Number</option>
+                  <option value="Attended Demo">Attended Demo</option>
+                  <option value="Ready for Admission">Ready for Admission</option>
+                  <option value="Not Interested">Not Interested</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-slate-700 font-semibold">Stage Progression *</Label>
+                <select value={fuStageProgression} onChange={(e: any) => setFuStageProgression(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
+                  <option value="New">New</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Demo">Demo Scheduled</option>
+                  <option value="Admission">Ready for Admission</option>
+                  <option value="Converted">Admitted / Converted</option>
+                  <option value="Lost">Lost</option>
+                </select>
+              </div>
+            </div>
+
+            {fuStageProgression === "Lost" && (
+              <div>
+                <Label className="text-slate-700 font-semibold">Lost Reason *</Label>
+                <select value={fuLostReason} onChange={(e) => setFuLostReason(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
+                  <option value="Fee too high">Course Fee Too High</option>
+                  <option value="Location / Distance">Location / Distance Far</option>
+                  <option value="Timing Not Suitable">Timing Not Suitable</option>
+                  <option value="Joined Competitor">Joined Competitor Institute</option>
+                  <option value="Financial Emergency">Financial Emergency</option>
+                  <option value="Higher Studies">Decided Higher Studies</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            )}
+
+            {fuStageProgression !== "Converted" && fuStageProgression !== "Lost" && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label className="text-slate-700 font-semibold">Next Follow-up Date</Label>
+                  <Input type="date" value={fuNextDate} onChange={(e) => setFuNextDate(e.target.value)} className="mt-1" />
+                </div>
+                <div>
+                  <Label className="text-slate-700 font-semibold">Follow-up Time Slot</Label>
+                  <select value={fuTimeSlot} onChange={(e) => setFuTimeSlot(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
+                    <option value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</option>
+                    <option value="12:00 PM - 03:00 PM">12:00 PM - 03:00 PM</option>
+                    <option value="03:00 PM - 06:00 PM">03:00 PM - 06:00 PM</option>
+                  </select>
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label className="text-slate-700 font-semibold">Detailed Conversation Notes *</Label>
+              <textarea value={fuNotes} onChange={(e) => setFuNotes(e.target.value)} placeholder="Summary of interaction..." className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[65px]" required />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input type="checkbox" checked={fuWhatsappReminder} onChange={(e) => setFuWhatsappReminder(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#1769AA]" />
+              <Label className="text-slate-600 font-medium text-[11px]">Trigger WhatsApp Reminder to Student</Label>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowFollowupModal(false)}>Cancel</Button>
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">Save Follow-up</Button>
             </DialogFooter>
           </form>
         </DialogContent>

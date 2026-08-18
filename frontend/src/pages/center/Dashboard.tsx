@@ -314,7 +314,7 @@ export const CenterDashboard: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Tooltip
-                      formatter={(val: number) => [`${val} Students`, "Count"]}
+                      formatter={(val: any) => [`${val} Students`, "Count"]}
                       contentStyle={{ borderRadius: "8px", fontSize: "11px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
                     />
                     <Pie

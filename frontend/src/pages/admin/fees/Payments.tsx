@@ -69,6 +69,12 @@ export const Payments: React.FC = () => {
   const [method, setMethod] = useState<PaymentMethod>("UPI");
   const [transactionRef, setTransactionRef] = useState("");
   const [notes, setNotes] = useState("");
+  // ZenoxERP-aligned additional fee fields
+  const [feeHead, setFeeHead] = useState("Tuition Fee");
+  const [lateFee, setLateFee] = useState<number>(0);
+  const [bankAccount, setBankAccount] = useState("");
+  const [chequeDate, setChequeDate] = useState("");
+  const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
 
   const payments = paymentsData?.data?.data || [];
   const stats = statsData?.data || {
@@ -471,6 +477,34 @@ export const Payments: React.FC = () => {
                 </select>
               </div>
 
+              {/* ZenoxERP: Fee Head */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head *</label>
+                  <select
+                    value={feeHead}
+                    onChange={(e) => setFeeHead(e.target.value)}
+                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
+                  >
+                    <option value="Tuition Fee">Tuition Fee</option>
+                    <option value="Exam Fee">Exam Fee</option>
+                    <option value="Registration Fee">Registration Fee</option>
+                    <option value="Lab / Kit Fee">Lab / Kit Fee</option>
+                    <option value="Certification Fee">Certification Fee</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Late Fee / Fine (₹)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={lateFee}
+                    onChange={(e) => setLateFee(Number(e.target.value))}
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method</label>
@@ -479,8 +513,8 @@ export const Payments: React.FC = () => {
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
                     className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                   >
-                    <option value="UPI">UPI</option>
-                    <option value="NET_BANKING">Net Banking</option>
+                    <option value="UPI">UPI / QR Code</option>
+                    <option value="NET_BANKING">Net Banking (NEFT/IMPS)</option>
                     <option value="CARD">Debit / Credit Card</option>
                     <option value="CASH">Cash</option>
                     <option value="CHEQUE">Cheque</option>
@@ -495,6 +529,34 @@ export const Payments: React.FC = () => {
                     onChange={(e) => setDate(e.target.value)}
                   />
                 </div>
+              </div>
+
+              {/* ZenoxERP: Bank Account & Cheque Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Bank / Deposit Account</label>
+                  <select
+                    value={bankAccount}
+                    onChange={(e) => setBankAccount(e.target.value)}
+                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
+                  >
+                    <option value="">Select Bank Account</option>
+                    <option value="HDFC - Main">HDFC Bank - Main A/C</option>
+                    <option value="SBI - Operations">SBI - Operations A/C</option>
+                    <option value="ICICI - Fee Collection">ICICI - Fee Collection A/C</option>
+                    <option value="Cash Counter">Cash Counter</option>
+                  </select>
+                </div>
+                {method === "CHEQUE" && (
+                  <div>
+                    <label className="text-xs font-semibold text-slate-700 block mb-1">Cheque Date</label>
+                    <Input
+                      type="date"
+                      value={chequeDate}
+                      onChange={(e) => setChequeDate(e.target.value)}
+                    />
+                  </div>
+                )}
               </div>
 
               <div>
@@ -515,6 +577,17 @@ export const Payments: React.FC = () => {
                 />
               </div>
 
+              {/* ZenoxERP: WhatsApp Receipt */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  checked={sendWhatsAppReceipt}
+                  onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                />
+                <label className="text-xs font-medium text-slate-600">Send WhatsApp Receipt to Student</label>
+              </div>
+
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                   Cancel
@@ -524,7 +597,7 @@ export const Payments: React.FC = () => {
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
                   disabled={createPaymentMutation.isPending}
                 >
-                  {createPaymentMutation.isPending ? "Generating Receipt..." : "Record & Issue Receipt"}
+                  {createPaymentMutation.isPending ? "Generating Receipt..." : "Submit & Print Receipt"}
                 </Button>
               </div>
             </form>

@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -15,17 +15,33 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, Edit, Save, Loader2, AlertCircle } from "lucide-react";
-
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  ArrowLeft,
+  Save,
+  Loader2,
+  AlertCircle,
+  User,
+  Phone,
+  Mail,
+  Calendar,
+  HeartHandshake,
+} from "lucide-react";
 
 const studentSchema = z.object({
-  name: z.string().min(2, "Name is required"),
+  name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
   qualification: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]),
+  gender: z.string().optional().or(z.literal("")),
+  bloodGroup: z.string().optional().or(z.literal("")),
+  guardianName: z.string().optional().or(z.literal("")),
+  guardianPhone: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  city: z.string().optional().or(z.literal("")),
+  pincode: z.string().optional().or(z.literal("")),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -33,7 +49,8 @@ type StudentFormValues = z.infer<typeof studentSchema>;
 export const EditStudent: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = window.location;
+  const location = useLocation();
+
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
@@ -56,6 +73,13 @@ export const EditStudent: React.FC = () => {
       qualification: "",
       dateOfBirth: "",
       status: "ACTIVE",
+      gender: "Male",
+      bloodGroup: "",
+      guardianName: "",
+      guardianPhone: "",
+      address: "",
+      city: "Bengaluru",
+      pincode: "",
     },
   });
 
@@ -68,6 +92,13 @@ export const EditStudent: React.FC = () => {
         qualification: student.qualification || "",
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
         status: student.status,
+        gender: student.gender || "Male",
+        bloodGroup: student.bloodGroup || "",
+        guardianName: student.guardian?.name || "",
+        guardianPhone: student.guardian?.phone || "",
+        address: student.address?.street || "",
+        city: student.address?.city || "Bengaluru",
+        pincode: student.address?.pincode || "",
       });
     }
   }, [student, form]);
@@ -78,12 +109,18 @@ export const EditStudent: React.FC = () => {
       await updateMutation.mutateAsync({
         id,
         data: {
-          name: data.name,
-          email: data.email || undefined,
-          phone: data.phone || undefined,
-          qualification: data.qualification || undefined,
+          name: data.name.trim(),
+          email: data.email ? data.email.trim() : undefined,
+          phone: data.phone ? data.phone.trim() : undefined,
+          qualification: data.qualification ? data.qualification.trim() : undefined,
           dateOfBirth: data.dateOfBirth || undefined,
           status: data.status,
+          gender: data.gender || undefined,
+          guardianName: data.guardianName || undefined,
+          guardianPhone: data.guardianPhone || undefined,
+          address: data.address || undefined,
+          city: data.city || undefined,
+          pincode: data.pincode || undefined,
         },
       });
       navigate(`${basePath}/students/all`);
@@ -96,8 +133,8 @@ export const EditStudent: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-accent-primary" />
-        <span className="ml-3 text-text-secondary">Loading student...</span>
+        <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+        <span className="ml-3 text-slate-600 font-medium">Loading student profile...</span>
       </div>
     );
   }
@@ -105,58 +142,89 @@ export const EditStudent: React.FC = () => {
   if (isError || !student) {
     return (
       <div className="text-center py-16">
-        <AlertCircle className="mx-auto h-12 w-12 text-destructive mb-4 opacity-60" />
-        <h3 className="text-lg font-medium text-text-primary mb-2">Student not found</h3>
-        <p className="text-text-secondary mb-6">The requested student could not be loaded.</p>
+        <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4 opacity-70" />
+        <h3 className="text-lg font-semibold text-slate-900 mb-2">Student not found</h3>
+        <p className="text-slate-500 mb-6">The requested student could not be located in database.</p>
         <Button variant="outline" onClick={() => navigate(`${basePath}/students/all`)}>
-          Back to Students
+          Back to Student Tracker
         </Button>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
-          size="icon"
-          onClick={() => navigate(`${basePath}/students/all`)}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Edit Student</h2>
-          <p className="text-sm text-text-secondary">
-            Update information for {student.user?.name || student.studentCode}.
-          </p>
+    <div className="space-y-6 max-w-5xl mx-auto pb-12">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => navigate(`${basePath}/students/all`)}
+            className="h-9 w-9 rounded-lg"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+              Edit Student Profile
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">
+              Updating records for {student.user?.name || student.studentCode} ({student.studentCode})
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => navigate(`${basePath}/students/all`)}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="button"
+            onClick={form.handleSubmit(onSubmit)}
+            disabled={updateMutation.isPending}
+            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-6 shadow-sm"
+          >
+            {updateMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                Save Changes
+              </>
+            )}
+          </Button>
         </div>
       </div>
 
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
-        <CardHeader className="border-b border-border/50 pb-4">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Edit className="h-5 w-5 text-accent-primary" />
-            Student Details
-          </CardTitle>
-          <CardDescription>
-            Update the student's personal and academic information below.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {form.formState.errors.root && (
-                <div className="bg-destructive/10 text-destructive border border-destructive/20 rounded-md p-3 text-sm">
-                  {form.formState.errors.root.message}
-                </div>
-              )}
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          {form.formState.errors.root && (
+            <div className="bg-red-50 text-red-700 border border-red-200 rounded-lg p-4 text-sm font-medium">
+              {form.formState.errors.root.message}
+            </div>
+          )}
 
-              {/* Read-only Student Code */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Section 1: Basic Info & Status */}
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
+              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <User className="h-4 w-4 text-[#1769AA]" />
+                Identity & Status Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div>
-                  <label className="text-sm font-medium text-text-secondary">Student Code</label>
-                  <Input value={student.studentCode} disabled className="mt-1 bg-bg-secondary/50" />
+                  <label className="text-xs font-semibold uppercase text-slate-600">Student ID</label>
+                  <Input value={student.studentCode} disabled className="mt-1 bg-slate-100 font-mono font-bold text-slate-700" />
                 </div>
 
                 <FormField
@@ -164,65 +232,11 @@ export const EditStudent: React.FC = () => {
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name *</FormLabel>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Full Name *
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. John Doe" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email Address</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="e.g. john@example.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone Number</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. +91 9876543210" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="qualification"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Highest Qualification</FormLabel>
-                      <FormControl>
-                        <Input placeholder="e.g. B.Tech Computer Science" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="dateOfBirth"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Date of Birth</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
+                        <Input placeholder="e.g. Rahul Sharma" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -234,56 +248,277 @@ export const EditStudent: React.FC = () => {
                   name="status"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Enrollment Status *</FormLabel>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Enrollment Status *
+                      </FormLabel>
                       <FormControl>
-                        <select 
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                        <select
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
                           {...field}
                         >
-                          <option value="ACTIVE">Active</option>
-                          <option value="ON_LEAVE">On Leave</option>
-                          <option value="COMPLETED">Completed</option>
-                          <option value="DISCONTINUED">Discontinued</option>
-                          <option value="CANCELLED">Cancelled</option>
+                          <option value="ACTIVE">🟢 Active Student</option>
+                          <option value="ON_LEAVE">🟡 On Approved Leave</option>
+                          <option value="COMPLETED">🎓 Graduated / Completed</option>
+                          <option value="DISCONTINUED">🔴 Discontinued</option>
+                          <option value="CANCELLED">⚪ Admission Cancelled</option>
                         </select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
 
-              <div className="flex justify-end gap-4 pt-4 border-t border-border/50">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => navigate("/admin/students/all")}
-                  disabled={updateMutation.isPending}
-                >
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-accent-primary hover:bg-accent-secondary text-white"
-                  disabled={updateMutation.isPending}
-                >
-                  {updateMutation.isPending ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="mr-2 h-4 w-4" />
-                      Save Changes
-                    </>
+                <FormField
+                  control={form.control}
+                  name="phone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Phone Number
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input placeholder="9876543210" {...field} className="pl-9" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                   )}
-                </Button>
+                />
+
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Email Address
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input type="email" placeholder="student@gmail.com" {...field} className="pl-9" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dateOfBirth"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Date of Birth
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                          <Input type="date" {...field} className="pl-9" />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Gender
+                      </FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          {...field}
+                        >
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="bloodGroup"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Blood Group
+                      </FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          {...field}
+                        >
+                          <option value="">Select (Optional)</option>
+                          <option value="O+">O positive (O+)</option>
+                          <option value="A+">A positive (A+)</option>
+                          <option value="B+">B positive (B+)</option>
+                          <option value="AB+">AB positive (AB+)</option>
+                          <option value="O-">O negative (O-)</option>
+                          <option value="A-">A negative (A-)</option>
+                          <option value="B-">B negative (B-)</option>
+                          <option value="AB-">AB negative (AB-)</option>
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="qualification"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Highest Qualification
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. B.Tech Computer Science" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+
+          {/* Section 2: Guardian & Address */}
+          <Card className="border-slate-200 shadow-sm overflow-hidden">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
+              <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
+                <HeartHandshake className="h-4 w-4 text-[#1769AA]" />
+                Parent/Guardian & Residence Info
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-6 space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <FormField
+                  control={form.control}
+                  name="guardianName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Parent / Guardian Name
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Suresh Sharma" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="guardianPhone"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Guardian Phone Number
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. 9845012345" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="address"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Residential Address
+                      </FormLabel>
+                      <FormControl>
+                        <Input placeholder="Street address" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="city"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                          City
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="Bengaluru" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="pincode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                          PIN Code
+                        </FormLabel>
+                        <FormControl>
+                          <Input placeholder="560038" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => navigate(`${basePath}/students/all`)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateMutation.isPending}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-6 shadow-sm"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Update Profile
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </Form>
     </div>
   );
 };

@@ -6,22 +6,14 @@ import {
   GraduationCap,
   Calendar,
   DollarSign,
-  Activity,
   MapPin,
   Building2,
   Phone,
-  BookOpen,
   PieChart as PieIcon,
   LineChart as LineIcon,
   TrendingUp,
-  CreditCard,
-  UserCheck,
   Briefcase,
   Loader2,
-  CheckCircle2,
-  AlertTriangle,
-  Clock,
-  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -37,9 +29,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  BarChart,
-  Bar,
-  Legend,
   PieChart,
   Pie,
   Cell,
@@ -390,7 +379,7 @@ export const BranchPerformance: React.FC = () => {
                       tickFormatter={(v) => `₹${Math.round(v / 1000)}k`}
                     />
                     <Tooltip
-                      formatter={(val: number) => [formatINR(val), "Revenue"]}
+                      formatter={(val: any) => [formatINR(Number(val)), "Revenue"]}
                       contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
                     />
                     <Area
@@ -411,7 +400,7 @@ export const BranchPerformance: React.FC = () => {
                     <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <Tooltip
-                      formatter={(val: number) => [`${val} Students`, "Enrolled"]}
+                      formatter={(val: any) => [`${val} Students`, "Enrolled"]}
                       contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
                     />
                     <Line

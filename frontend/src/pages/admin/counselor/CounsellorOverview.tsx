@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Users,
   UserCheck,
   Phone,
   Calendar,
@@ -9,9 +8,6 @@ import {
   ThumbsUp,
   XCircle,
   Activity,
-  ArrowRight,
-  Plus,
-  Filter,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

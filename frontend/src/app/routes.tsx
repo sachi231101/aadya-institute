@@ -70,9 +70,10 @@ import { FacultyReports } from "../pages/admin/reports/FacultyReports";
 import { CourseReports } from "../pages/admin/reports/CourseReports";
 import { FinancialReports } from "../pages/admin/reports/FinancialReports";
 
-// Settings
+// Settings & Masters
 import { Settings } from "../pages/admin/settings/Settings";
 import { NotificationsPage } from "../pages/admin/notifications/NotificationsPage";
+import { MasterSetup } from "../pages/admin/masters/MasterSetup";
 
 
 // Other roles dashboards
@@ -170,7 +171,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="financial" element={<FinancialReports />} />
         </Route>
 
-        {/* Settings & Notifications */}
+        {/* Settings, Notifications & Masters */}
+        <Route path="masters" element={<MasterSetup />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
@@ -233,7 +235,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="curriculum" element={<Curriculum />} />
         </Route>
 
-        {/* Settings & Notifications */}
+        {/* Settings, Notifications & Masters */}
+        <Route path="masters" element={<MasterSetup />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>

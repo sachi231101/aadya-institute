@@ -4,8 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar, Filter, Plus } from "lucide-react";
 
-const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 export const StudentAttendance: React.FC = () => {
   const { user } = useAuthStore();
   const firstName = user?.name?.split(" ")[0] || "Student";

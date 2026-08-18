@@ -28,6 +28,15 @@ const facultySchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   specialization: z.string().optional().or(z.literal("")),
   branchId: z.string().min(1, "Branch is required"),
+  // ZenoxERP-aligned additional fields
+  dateOfBirth: z.string().optional().or(z.literal("")),
+  gender: z.string().optional().or(z.literal("")),
+  designation: z.string().optional().or(z.literal("")),
+  department: z.string().optional().or(z.literal("")),
+  dateOfJoining: z.string().optional().or(z.literal("")),
+  employmentType: z.string().optional().or(z.literal("")),
+  address: z.string().optional().or(z.literal("")),
+  qualification: z.string().optional().or(z.literal("")),
 });
 
 type FacultyFormValues = z.infer<typeof facultySchema>;
@@ -58,6 +67,14 @@ export const AddFaculty: React.FC = () => {
       password: "",
       specialization: "",
       branchId: isCenterManager && user?.branchId ? user.branchId : "",
+      dateOfBirth: "",
+      gender: "Male",
+      designation: "Faculty Trainer",
+      department: "",
+      dateOfJoining: new Date().toISOString().split("T")[0],
+      employmentType: "Full-Time",
+      address: "",
+      qualification: "",
     },
   });
 
@@ -236,7 +253,7 @@ export const AddFaculty: React.FC = () => {
                   control={form.control}
                   name="specialization"
                   render={({ field }) => (
-                    <FormItem className="md:col-span-2">
+                    <FormItem>
                       <FormLabel>Subject / Specialization</FormLabel>
                       <FormControl>
                         <Input placeholder="e.g. Full Stack MERN Architecture" {...field} />
@@ -245,6 +262,160 @@ export const AddFaculty: React.FC = () => {
                     </FormItem>
                   )}
                 />
+              </div>
+
+              {/* ZenoxERP-aligned: Extended Faculty Details */}
+              <div className="pt-5 border-t border-border/50">
+                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <UserPlus className="h-4 w-4 text-[#1769AA]" />
+                  Job & Academic Details
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                  {/* Date of Birth */}
+                  <FormField
+                    control={form.control}
+                    name="dateOfBirth"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Birth</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Gender */}
+                  <FormField
+                    control={form.control}
+                    name="gender"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Gender</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
+                            {...field}
+                          >
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Designation */}
+                  <FormField
+                    control={form.control}
+                    name="designation"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Designation</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
+                            {...field}
+                          >
+                            <option value="Faculty Trainer">Faculty Trainer</option>
+                            <option value="Sr. Faculty">Sr. Faculty</option>
+                            <option value="HOD">Head of Department (HOD)</option>
+                            <option value="Lab Assistant">Lab Assistant</option>
+                            <option value="Guest Faculty">Guest / Visiting Faculty</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Department */}
+                  <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Department</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. Computer Science" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Date of Joining */}
+                  <FormField
+                    control={form.control}
+                    name="dateOfJoining"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Date of Joining *</FormLabel>
+                        <FormControl>
+                          <Input type="date" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Employment Type */}
+                  <FormField
+                    control={form.control}
+                    name="employmentType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employment Type</FormLabel>
+                        <FormControl>
+                          <select
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
+                            {...field}
+                          >
+                            <option value="Full-Time">Full-Time</option>
+                            <option value="Part-Time">Part-Time</option>
+                            <option value="Visiting Faculty">Visiting Faculty</option>
+                            <option value="Contract">Contract</option>
+                          </select>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Qualification */}
+                  <FormField
+                    control={form.control}
+                    name="qualification"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Qualification</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g. M.Tech, MBA, MCA" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  {/* Address */}
+                  <FormField
+                    control={form.control}
+                    name="address"
+                    render={({ field }) => (
+                      <FormItem className="md:col-span-2">
+                        <FormLabel>Address</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Full residential address" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
 
               {/* Bottom Action Footer */}

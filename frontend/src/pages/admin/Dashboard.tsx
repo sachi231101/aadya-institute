@@ -2,7 +2,6 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
-  Plus,
   Users,
   GraduationCap,
   Calendar,
@@ -10,30 +9,24 @@ import {
   MapPin,
   DollarSign,
   CheckCircle2,
-  Bell,
   TrendingUp,
   Filter,
-  ArrowUpRight,
   ArrowRight,
-  UserCheck,
   UserPlus,
   Trash2,
   Loader2,
   Briefcase
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch } from "@/hooks/useBranches";
-import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
-import { useStudentList } from "@/hooks/useStudents";
+import { useAdminUsers } from "@/hooks/useUsers";
 import { useFacultyList } from "@/hooks/useFaculty";
 import { useBatches } from "@/hooks/useBatches";
-import { useFinancialReport, useStudentReport } from "@/hooks/useReports";
+import { useStudentReport } from "@/hooks/useReports";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import type { Branch } from "@/types/branch.types";
 
 const ACCENT_COLORS = ["bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-emerald-500", "bg-pink-500"];
 const ACCENT_TEXT = ["text-blue-600", "text-purple-600", "text-orange-600", "text-emerald-600", "text-pink-600"];
@@ -47,28 +40,21 @@ export const AdminDashboard: React.FC = () => {
   // Real API hooks
   const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
   const { data: usersResponse } = useAdminUsers({ limit: 100 });
-  const { data: studentsResponse } = useStudentList();
   const { data: facultyResponse } = useFacultyList();
   const { batches: allBatches } = useBatches();
-  const { data: financialReport } = useFinancialReport();
   const { data: studentReport } = useStudentReport();
-
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
-  const counsellors = usersResponse?.data?.filter((u) => u.roles.includes("COUNSELLOR")) || [];
 
   const createBranchMutation = useCreateBranch();
   const updateBranchMutation = useUpdateBranch();
-  const updateUserMutation = useUpdateUser();
 
   // Create Branch Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCode, setBranchCode] = useState("");
-  const [city, setCity] = useState("Bengaluru");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [managerName, setManagerName] = useState("");
-  const [managerEmail, setManagerEmail] = useState("");
+  const [city] = useState("Bengaluru");
+  const [address] = useState("");
+  const [phone] = useState("");
 
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -118,10 +104,8 @@ export const AdminDashboard: React.FC = () => {
     : branchesData.filter(b => b.id === selectedBranchId);
 
   // Global KPIs (Filtered)
-  const kpiTotalBranches = filteredBranches.length;
   const kpiTotalStudents = filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
   const kpiTotalFaculty = selectedBranchId === "all" ? (facultyResponse?.meta?.total || facultyResponse?.data?.length || 24) : Math.floor((facultyResponse?.meta?.total || 24) / apiBranches.length || 1);
-  const kpiTotalCounsellors = selectedBranchId === "all" ? counsellors.length || 11 : Math.floor(counsellors.length / apiBranches.length || 1) || 2;
   const kpiActiveBatches = filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
   const kpiTotalLeads = filteredBranches.reduce((acc, b) => acc + b.admissionCount * 3, 0) || 548;
   const kpiTotalRevenue = filteredBranches.reduce((acc, b) => acc + b.totalRevenue, 0);
@@ -161,22 +145,12 @@ export const AdminDashboard: React.FC = () => {
     setErrorMsg(null);
 
     try {
-      const createdRes = await createBranchMutation.mutateAsync({
+      await createBranchMutation.mutateAsync({
         name: branchName,
         code: branchCode,
         address: address,
         phone: phone,
       });
-
-      if (managerEmail && createdRes?.data?.id) {
-        const selectedUser = centerManagers.find(m => m.email === managerEmail);
-        if (selectedUser) {
-          await updateUserMutation.mutateAsync({
-            id: selectedUser.id,
-            data: { branchId: createdRes.data.id }
-          });
-        }
-      }
 
       setNotificationMsg(`New Branch "${branchName}" created successfully!`);
       setTimeout(() => setNotificationMsg(null), 3000);
@@ -428,7 +402,7 @@ export const AdminDashboard: React.FC = () => {
                   <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(value) => `${value / 100000}L`} dx={-10} />
                   <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: number) => [`₹${(value / 100000).toFixed(2)}L`, "Revenue"]}
+                    formatter={(value: any) => [`₹${(Number(value) / 100000).toFixed(2)}L`, "Revenue"]}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#1769AA" strokeWidth={3} dot={{ r: 4, fill: '#1769AA', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 </LineChart>

@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Video, FileText, LogOut, Bell, CheckSquare, Settings, Sparkles } from "lucide-react";
+import { LayoutDashboard, Calendar, Video, FileText, LogOut, CheckSquare, Settings, Sparkles } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
