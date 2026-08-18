@@ -30,7 +30,11 @@ import {
   Download,
   Edit2,
   Trash2,
-  ChevronRight
+  ChevronRight,
+  HelpCircle,
+  ArrowLeft,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,10 +69,11 @@ export interface MasterCategory {
 }
 
 export const MASTER_CATEGORIES: MasterCategory[] = [
-  // BASIC MASTERS (20)
+  // ─── BASIC MASTERS (Exact 20 Entities matching ZenoxERP) ────────────────────
+  // Row 1
   {
     id: "area",
-    name: "Area Master",
+    name: "Area",
     group: "BASIC",
     icon: MapPin,
     description: "Manage student catchment zones, postal codes, and city localities",
@@ -83,7 +88,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "classroom",
-    name: "Class Room Master",
+    name: "Class Room",
     group: "BASIC",
     icon: School,
     description: "Lecture rooms, labs, seminar halls, projector equipment and seat capacity",
@@ -99,7 +104,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "designation",
-    name: "Designation Master",
+    name: "Designation",
     group: "BASIC",
     icon: Briefcase,
     description: "Staff organizational roles, hierarchy grades, and departments",
@@ -114,7 +119,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "education",
-    name: "Education Master",
+    name: "Education",
     group: "BASIC",
     icon: GraduationCap,
     description: "Prior educational qualifications, degrees, and academic streams",
@@ -126,9 +131,11 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
       { key: "status", label: "Status" },
     ],
   },
+
+  // Row 2
   {
     id: "parent_info",
-    name: "Parent Info Master",
+    name: "Parent Info",
     group: "BASIC",
     icon: Users,
     description: "Guardian relationship tags, alert preferences, and contact protocols",
@@ -142,7 +149,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "employee",
-    name: "Employee / Faculty Master",
+    name: "Employee",
     group: "BASIC",
     icon: UserCheck,
     description: "Trainers, administrative staff, payroll codes, and center allocations",
@@ -162,7 +169,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
     group: "BASIC",
     icon: Boxes,
     description: "Kit materials, study books, merchandise, and classroom assets",
-    count: 6,
+    count: 5,
     columns: [
       { key: "code", label: "Cat Code" },
       { key: "name", label: "Category Name" },
@@ -171,8 +178,25 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
     ],
   },
   {
+    id: "inventory_sub",
+    name: "Inventory Sub Category",
+    group: "BASIC",
+    icon: Boxes,
+    description: "Sub-items under kits, textbooks, lab hardware, and uniform merchandise",
+    count: 6,
+    columns: [
+      { key: "catName", label: "Parent Category" },
+      { key: "code", label: "Sub Code" },
+      { key: "name", label: "Sub Category Name" },
+      { key: "cost", label: "Unit Value (₹)" },
+      { key: "status", label: "Status" },
+    ],
+  },
+
+  // Row 3
+  {
     id: "lead_source",
-    name: "Lead Source Master",
+    name: "Lead Source",
     group: "BASIC",
     icon: Compass,
     description: "Marketing channels: Walk-in, Google, Meta Ads, Seminars, Referrals",
@@ -186,7 +210,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "lead_stage",
-    name: "Lead Stage Master",
+    name: "Lead Stage",
     group: "BASIC",
     icon: GitCommit,
     description: "Pipeline progression stages with pipeline order and colors",
@@ -201,7 +225,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "notification",
-    name: "Notification Templates",
+    name: "Notification Template",
     group: "BASIC",
     icon: Bell,
     description: "Automated WhatsApp and SMS templates with dynamic tags",
@@ -216,7 +240,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "batch",
-    name: "Admission Batch Master",
+    name: "Admission Batch",
     group: "BASIC",
     icon: Calendar,
     description: "Batch codes, session timings, seat capacities, and assigned instructors",
@@ -230,24 +254,11 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
       { key: "status", label: "Status" },
     ],
   },
-  {
-    id: "timeslot",
-    name: "Time Slot Master",
-    group: "BASIC",
-    icon: Clock,
-    description: "Standard morning, afternoon, and weekend class time slots",
-    count: 7,
-    columns: [
-      { key: "name", label: "Slot Label" },
-      { key: "start", label: "Start Time" },
-      { key: "end", label: "End Time" },
-      { key: "sessionType", label: "Type" },
-      { key: "status", label: "Status" },
-    ],
-  },
+
+  // Row 4
   {
     id: "holiday",
-    name: "Holiday Master",
+    name: "Holiday",
     group: "BASIC",
     icon: Sun,
     description: "Institute public holidays, academic closures, and branch festivals",
@@ -262,7 +273,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "admission_status",
-    name: "Admission Status Master",
+    name: "Admission Status",
     group: "BASIC",
     icon: ShieldCheck,
     description: "Student lifecycle flags: Active, Completed, Discontinued, On Leave",
@@ -275,8 +286,23 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
     ],
   },
   {
+    id: "timeslot",
+    name: "Time Slot",
+    group: "BASIC",
+    icon: Clock,
+    description: "Standard morning, afternoon, and weekend class time slots",
+    count: 7,
+    columns: [
+      { key: "name", label: "Slot Label" },
+      { key: "start", label: "Start Time" },
+      { key: "end", label: "End Time" },
+      { key: "sessionType", label: "Type" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  {
     id: "events",
-    name: "Event Master",
+    name: "Events",
     group: "BASIC",
     icon: CalendarCheck,
     description: "Workshops, hackathons, guest lectures, and placement drives",
@@ -288,9 +314,11 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
       { key: "status", label: "Status" },
     ],
   },
+
+  // Row 5
   {
     id: "exam_term",
-    name: "Exam Term Master",
+    name: "Exam Term",
     group: "BASIC",
     icon: FileCheck,
     description: "Academic evaluation terms, module exams, and final capstone reviews",
@@ -304,7 +332,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "course_review",
-    name: "Course Review Rubric",
+    name: "Course Review",
     group: "BASIC",
     icon: Star,
     description: "Student feedback survey questions and faculty evaluation parameters",
@@ -318,7 +346,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "lead_type",
-    name: "Lead Type Master",
+    name: "Lead Type",
     group: "BASIC",
     icon: Tag,
     description: "Enquiry prioritization: Hot, Warm, Cold with SLAs",
@@ -332,7 +360,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "assignment_type",
-    name: "Assignment Type Master",
+    name: "Assignment Type",
     group: "BASIC",
     icon: BookMarked,
     description: "Practical Lab Task, Theory Homework, Coding Challenge, Project Submission",
@@ -345,10 +373,10 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
     ],
   },
 
-  // ACCOUNTING MASTERS (5)
+  // ─── ACCOUNTING MASTERS (5 Entities) ────────────────────────────────────────
   {
     id: "bank_accounts",
-    name: "Bank Accounts Master",
+    name: "Bank Accounts",
     group: "ACCOUNTING",
     icon: Landmark,
     description: "Aadya Institute official bank deposit accounts, QR codes, and IFSCs",
@@ -363,7 +391,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "fee_heads",
-    name: "Fee Heads Master",
+    name: "Fee Heads",
     group: "ACCOUNTING",
     icon: Receipt,
     description: "Tuition Fee, Registration, Lab Fee, Exam Fee, Certification Head",
@@ -378,7 +406,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "ledgers",
-    name: "Ledgers Master",
+    name: "Ledgers",
     group: "ACCOUNTING",
     icon: BookOpen,
     description: "Chart of accounts, revenue heads, vendor ledgers, and expense accounts",
@@ -393,7 +421,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "payment_modes",
-    name: "Payment Modes Master",
+    name: "Payment Modes",
     group: "ACCOUNTING",
     icon: CreditCard,
     description: "Cash, UPI/GPay, Bank NEFT/IMPS, Cheque, POS Card swipe",
@@ -407,7 +435,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
   {
     id: "concession_heads",
-    name: "Concession Heads Master",
+    name: "Concession Heads",
     group: "ACCOUNTING",
     icon: Percent,
     description: "Merit scholarships, early-bird discounts, director discretion waivers",
@@ -421,7 +449,7 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   },
 ];
 
-// Initial mock records for the masters
+// Initial mock records for all masters
 const INITIAL_RECORDS: Record<string, any[]> = {
   area: [
     { id: "1", code: "AR-101", name: "Malleswaram", city: "Bengaluru", pincode: "560003", status: "Active" },
@@ -482,6 +510,14 @@ const INITIAL_RECORDS: Record<string, any[]> = {
     { id: "4", code: "INV-HW", name: "Lab Raspberry Pi / Dev Boards", uom: "Units", status: "Active" },
     { id: "5", code: "INV-CRT", name: "Course Completion Certificate Folders", uom: "Pcs", status: "Active" },
   ],
+  inventory_sub: [
+    { id: "1", catName: "Course Textbooks & Workbooks", code: "SUB-BK-01", name: "Full Stack MERN Developer Guide", cost: "850", status: "Active" },
+    { id: "2", catName: "Course Textbooks & Workbooks", code: "SUB-BK-02", name: "AI & Machine Learning Handbook", cost: "1200", status: "Active" },
+    { id: "3", catName: "Student Welcome Kit & Bag", code: "SUB-KT-01", name: "Aadya Institute Premium Backpack", cost: "650", status: "Active" },
+    { id: "4", catName: "Student Welcome Kit & Bag", code: "SUB-KT-02", name: "Aadya Notebook + Metal Pen Set", cost: "250", status: "Active" },
+    { id: "5", catName: "RFID Student Smart ID Cards", code: "SUB-ID-01", name: "NFC / RFID Lanyard Smart Card", cost: "150", status: "Active" },
+    { id: "6", catName: "Lab Raspberry Pi / Dev Boards", code: "SUB-HW-01", name: "Raspberry Pi 4 Model B (4GB)", cost: "4500", status: "Active" },
+  ],
   lead_source: [
     { id: "1", name: "Walk-in Enquiry", type: "Direct Campus", isOnline: "No", status: "Active" },
     { id: "2", name: "Google Search Ads", type: "Digital Paid", isOnline: "Yes", status: "Active" },
@@ -515,13 +551,6 @@ const INITIAL_RECORDS: Record<string, any[]> = {
     { id: "4", code: "BATCH-2026-FSD2", name: "Full Stack Evening Batch (TTS)", course: "Full Stack Software Engineering", time: "06:00 PM - 08:00 PM", trainer: "Karthik Sundaram", status: "Active" },
     { id: "5", code: "BATCH-2026-WKND", name: "Executive Weekend Data Science", course: "Artificial Intelligence & Data Science", time: "Sat/Sun 10:00 AM - 02:00 PM", trainer: "Dr. Rajesh Sharma", status: "Active" },
   ],
-  timeslot: [
-    { id: "1", name: "Early Morning Slot (MWF)", start: "07:30 AM", end: "09:30 AM", sessionType: "Theory + Lab", status: "Active" },
-    { id: "2", name: "Morning Primary Slot (TTS)", start: "10:00 AM", end: "12:00 PM", sessionType: "Theory + Lab", status: "Active" },
-    { id: "3", name: "Afternoon Intensive Slot", start: "02:00 PM", end: "04:00 PM", sessionType: "Lab Coding", status: "Active" },
-    { id: "4", name: "Evening Professional Slot", start: "06:00 PM", end: "08:00 PM", sessionType: "Theory + Project", status: "Active" },
-    { id: "5", name: "Weekend Extended Batch", start: "10:00 AM", end: "02:00 PM", sessionType: "Weekend Marathon", status: "Active" },
-  ],
   holiday: [
     { id: "1", date: "26/01/2026", name: "Republic Day", branch: "All Branches", type: "National Holiday", status: "Active" },
     { id: "2", date: "15/08/2026", name: "Independence Day", branch: "All Branches", type: "National Holiday", status: "Active" },
@@ -535,6 +564,13 @@ const INITIAL_RECORDS: Record<string, any[]> = {
     { id: "3", code: "CMP", name: "Course Completed & Certified", allowAttendance: "No", status: "Active" },
     { id: "4", code: "DSC", name: "Discontinued (3 Consecutive Absences)", allowAttendance: "No", status: "Active" },
     { id: "5", code: "CAN", name: "Admission Cancelled / Refunded", allowAttendance: "No", status: "Active" },
+  ],
+  timeslot: [
+    { id: "1", name: "Early Morning Slot (MWF)", start: "07:30 AM", end: "09:30 AM", sessionType: "Theory + Lab", status: "Active" },
+    { id: "2", name: "Morning Primary Slot (TTS)", start: "10:00 AM", end: "12:00 PM", sessionType: "Theory + Lab", status: "Active" },
+    { id: "3", name: "Afternoon Intensive Slot", start: "02:00 PM", end: "04:00 PM", sessionType: "Lab Coding", status: "Active" },
+    { id: "4", name: "Evening Professional Slot", start: "06:00 PM", end: "08:00 PM", sessionType: "Theory + Project", status: "Active" },
+    { id: "5", name: "Weekend Extended Batch", start: "10:00 AM", end: "02:00 PM", sessionType: "Weekend Marathon", status: "Active" },
   ],
   events: [
     { id: "1", name: "24-Hour GenAI Hackathon 2026", category: "Technical Hackathon", coordinator: "Dr. Rajesh Sharma", status: "Active" },
@@ -606,7 +642,7 @@ const INITIAL_RECORDS: Record<string, any[]> = {
 };
 
 export const MasterSetup: React.FC = () => {
-  const [activeGroup, setActiveGroup] = useState<"BASIC" | "ACCOUNTING">("BASIC");
+  const [viewMode, setViewMode] = useState<"GRID" | "DETAIL">("GRID");
   const [selectedMasterId, setSelectedMasterId] = useState<string>("area");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -621,9 +657,32 @@ export const MasterSetup: React.FC = () => {
     return MASTER_CATEGORIES.find((m) => m.id === selectedMasterId) || MASTER_CATEGORIES[0];
   }, [selectedMasterId]);
 
-  const filteredCategories = useMemo(() => {
-    return MASTER_CATEGORIES.filter((m) => m.group === activeGroup);
-  }, [activeGroup]);
+  const basicMasters = useMemo(() => {
+    return MASTER_CATEGORIES.filter((m) => m.group === "BASIC");
+  }, []);
+
+  const accountingMasters = useMemo(() => {
+    return MASTER_CATEGORIES.filter((m) => m.group === "ACCOUNTING");
+  }, []);
+
+  // Filtered by global search for the grid view
+  const filteredBasicMasters = useMemo(() => {
+    if (!searchQuery.trim()) return basicMasters;
+    return basicMasters.filter(
+      (m) =>
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [basicMasters, searchQuery]);
+
+  const filteredAccountingMasters = useMemo(() => {
+    if (!searchQuery.trim()) return accountingMasters;
+    return accountingMasters.filter(
+      (m) =>
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [accountingMasters, searchQuery]);
 
   const activeRecords = useMemo(() => {
     const raw = records[selectedMasterId] || [];
@@ -701,10 +760,16 @@ export const MasterSetup: React.FC = () => {
     document.body.removeChild(link);
   };
 
+  const handleSelectMasterCard = (id: string) => {
+    setSelectedMasterId(id);
+    setViewMode("DETAIL");
+    setSearchQuery("");
+  };
+
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
-      {/* Top Banner Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-gradient-to-r from-[#1769AA]/10 via-[#F39A16]/10 to-transparent p-6 rounded-2xl border border-[#1769AA]/20 shadow-sm">
+      {/* ─── TOP HEADER BAR ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
         <div>
           <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-[#1769AA] flex items-center justify-center text-white shadow-md shadow-[#1769AA]/30">
@@ -712,144 +777,226 @@ export const MasterSetup: React.FC = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                ZenoxERP Master Encyclopedia & Setup
+                Master Setup
                 <Badge variant="outline" className="bg-[#1769AA]/10 text-[#1769AA] border-[#1769AA]/30 font-bold text-xs">
-                  25+ Entities
+                  25 Entities
                 </Badge>
               </h1>
-              <p className="text-xs text-slate-600 font-medium mt-0.5">
-                Centralized configuration matrix for Aadya Institute operations, classrooms, financial ledgers, and CRM parameters.
+              <p className="text-xs text-slate-500 font-medium">
+                ZenoxERP Centralized Matrix Configuration for Aadya Institute of Technology
               </p>
             </div>
           </div>
         </div>
 
-        {/* Master Group Switcher (Basic vs Accounting) */}
-        <div className="flex items-center gap-2 bg-white/80 p-1.5 rounded-xl border border-slate-200 shadow-sm">
+        {/* View Mode Toggle */}
+        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
           <Button
             size="sm"
-            variant={activeGroup === "BASIC" ? "default" : "ghost"}
-            onClick={() => {
-              setActiveGroup("BASIC");
-              setSelectedMasterId("area");
-            }}
+            variant={viewMode === "GRID" ? "default" : "ghost"}
+            onClick={() => setViewMode("GRID")}
             className={`font-bold text-xs gap-1.5 transition-all ${
-              activeGroup === "BASIC"
+              viewMode === "GRID"
                 ? "bg-[#1769AA] text-white hover:bg-[#1769AA]/90 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Boxes size={14} />
-            Basic Masters (20)
+            <LayoutGrid size={14} />
+            Zenox Grid View
           </Button>
 
           <Button
             size="sm"
-            variant={activeGroup === "ACCOUNTING" ? "default" : "ghost"}
-            onClick={() => {
-              setActiveGroup("ACCOUNTING");
-              setSelectedMasterId("bank_accounts");
-            }}
+            variant={viewMode === "DETAIL" ? "default" : "ghost"}
+            onClick={() => setViewMode("DETAIL")}
             className={`font-bold text-xs gap-1.5 transition-all ${
-              activeGroup === "ACCOUNTING"
-                ? "bg-[#F39A16] text-white hover:bg-[#F39A16]/90 shadow-sm"
+              viewMode === "DETAIL"
+                ? "bg-[#1769AA] text-white hover:bg-[#1769AA]/90 shadow-sm"
                 : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Landmark size={14} />
-            Accounting Masters (5)
+            <List size={14} />
+            Table & CRUD View
           </Button>
         </div>
       </div>
 
-      {/* Main Grid: Left Category Selector + Right Master Table & Management */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Entity Tiles (Scrollable) */}
-        <div className="lg:col-span-4 xl:col-span-3 space-y-2">
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-            <div className="flex items-center justify-between px-2 pb-2 mb-1 border-b border-slate-100">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                {activeGroup === "BASIC" ? "Basic Operational Masters" : "Financial & Accounting"}
-              </span>
-              <span className="text-[11px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
-                {filteredCategories.length} Categories
+      {/* ─── FULL-WIDTH ZENOX SEARCH INPUT BAR ─────────────────────────── */}
+      <div className="relative w-full">
+        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+        <Input
+          placeholder="Search master modules, entities, codes, descriptions..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 h-11 text-sm bg-white border border-slate-300 rounded-lg shadow-xs focus-visible:ring-1 focus-visible:ring-[#1769AA]"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded"
+          >
+            Clear
+          </button>
+        )}
+      </div>
+
+      {/* ─── MODE 1: AUTHENTIC ZENOXERP GRID VIEW (Exact Screenshot Parity) ── */}
+      {viewMode === "GRID" && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* SECTION 1: BASIC MASTERS (20 TILES IN 4 COLUMNS) */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
+                Basic
+              </h2>
+              <span className="text-xs text-slate-500 font-medium">
+                {filteredBasicMasters.length} Modules
               </span>
             </div>
 
-            <div className="max-h-[640px] overflow-y-auto space-y-1.5 pr-1 custom-scrollbar">
-              {filteredCategories.map((cat) => {
-                const IconComponent = cat.icon;
-                const isSelected = selectedMasterId === cat.id;
-                const recCount = records[cat.id]?.length ?? cat.count;
-
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredBasicMasters.map((cat) => {
+                const count = records[cat.id]?.length ?? cat.count;
                 return (
-                  <button
+                  <div
                     key={cat.id}
-                    onClick={() => {
-                      setSelectedMasterId(cat.id);
-                      setSearchQuery("");
-                    }}
-                    className={`w-full text-left p-2.5 rounded-xl transition-all flex items-center justify-between group border ${
-                      isSelected
-                        ? "bg-gradient-to-r from-[#1769AA]/10 to-blue-50/50 border-[#1769AA]/40 shadow-xs"
-                        : "bg-slate-50/60 hover:bg-slate-100/80 border-slate-100 text-slate-700"
-                    }`}
+                    onClick={() => handleSelectMasterCard(cat.id)}
+                    className="group relative flex items-center justify-between bg-[#1185E0] hover:bg-[#0E70BD] text-white px-5 py-3.5 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all duration-150 active:scale-[0.99] border border-[#0E70BD]"
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <div
-                        className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
-                          isSelected
-                            ? "bg-[#1769AA] text-white shadow-xs"
-                            : "bg-white text-slate-600 group-hover:text-[#1769AA] border border-slate-200"
-                        }`}
-                      >
-                        <IconComponent size={16} />
-                      </div>
-                      <div className="truncate">
-                        <div className={`text-xs font-bold truncate ${isSelected ? "text-[#1769AA]" : "text-slate-800"}`}>
-                          {cat.name}
-                        </div>
-                        <div className="text-[10px] text-slate-500 truncate max-w-[170px]">
-                          {cat.description}
-                        </div>
-                      </div>
-                    </div>
+                    <span className="text-sm font-semibold tracking-wide select-none">
+                      {cat.name}
+                    </span>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <span
-                        className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                          isSelected
-                            ? "bg-[#1769AA] text-white"
-                            : "bg-slate-200/80 text-slate-700 group-hover:bg-slate-300"
-                        }`}
-                      >
-                        {recCount}
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white group-hover:bg-white/30">
+                        {count}
                       </span>
-                      <ChevronRight
-                        size={14}
-                        className={`transition-transform ${isSelected ? "text-[#1769AA] translate-x-0.5" : "text-slate-400"}`}
-                      />
+                      <div
+                        title={cat.description}
+                        className="h-5 w-5 rounded-full bg-white/15 group-hover:bg-white/25 flex items-center justify-center transition-colors"
+                      >
+                        <HelpCircle size={13} className="text-white" />
+                      </div>
                     </div>
-                  </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* SECTION 2: ACCOUNTING MASTERS (5 TILES IN 4 COLUMNS) */}
+          <div className="space-y-3 pt-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
+                Accounting
+              </h2>
+              <span className="text-xs text-slate-500 font-medium">
+                {filteredAccountingMasters.length} Modules
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredAccountingMasters.map((cat) => {
+                const count = records[cat.id]?.length ?? cat.count;
+                return (
+                  <div
+                    key={cat.id}
+                    onClick={() => handleSelectMasterCard(cat.id)}
+                    className="group relative flex items-center justify-between bg-[#1185E0] hover:bg-[#0E70BD] text-white px-5 py-3.5 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all duration-150 active:scale-[0.99] border border-[#0E70BD]"
+                  >
+                    <span className="text-sm font-semibold tracking-wide select-none">
+                      {cat.name}
+                    </span>
+
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white group-hover:bg-white/30">
+                        {count}
+                      </span>
+                      <div
+                        title={cat.description}
+                        className="h-5 w-5 rounded-full bg-white/15 group-hover:bg-white/25 flex items-center justify-center transition-colors"
+                      >
+                        <HelpCircle size={13} className="text-white" />
+                      </div>
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
         </div>
+      )}
 
-        {/* Right Column: Active Master Data Management */}
-        <div className="lg:col-span-8 xl:col-span-9 space-y-4">
+      {/* ─── MODE 2: INTERACTIVE TABLE & CRUD DETAIL VIEW ───────────────── */}
+      {viewMode === "DETAIL" && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          {/* Breadcrumb & Navigation Bar */}
+          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setViewMode("GRID")}
+                className="gap-1.5 text-xs font-bold text-slate-700 bg-white border-slate-300 hover:bg-slate-100"
+              >
+                <ArrowLeft size={14} />
+                Back to Master Grid
+              </Button>
+
+              <div className="h-4 w-[1px] bg-slate-300" />
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-500 uppercase">
+                  {currentCategory.group === "BASIC" ? "Basic Masters" : "Accounting Masters"}
+                </span>
+                <ChevronRight size={14} className="text-slate-400" />
+                <span className="text-xs font-bold text-[#1769AA] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
+                  {currentCategory.name}
+                </span>
+              </div>
+            </div>
+
+            {/* Quick Switcher Dropdown */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-slate-500 hidden md:inline">Jump to Master:</span>
+              <select
+                value={selectedMasterId}
+                onChange={(e) => {
+                  setSelectedMasterId(e.target.value);
+                  setSearchQuery("");
+                }}
+                className="h-8 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 focus:outline-none cursor-pointer"
+              >
+                <optgroup label="── Basic Masters (20) ──">
+                  {basicMasters.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="── Accounting Masters (5) ──">
+                  {accountingMasters.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name}
+                    </option>
+                  ))}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+
+          {/* Master Table Card */}
           <Card className="border-slate-200 shadow-sm overflow-hidden">
-            <CardHeader className="bg-slate-50/70 border-b border-slate-200/80 pb-4">
+            <CardHeader className="bg-slate-50/80 border-b border-slate-200 pb-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-[#1769AA] shadow-xs">
+                  <div className="h-10 w-10 rounded-xl bg-[#1185E0] text-white flex items-center justify-center shadow-xs">
                     {React.createElement(currentCategory.icon, { size: 20 })}
                   </div>
                   <div>
                     <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      {currentCategory.name}
-                      <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-100 text-[#1769AA]">
+                      {currentCategory.name} Master
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-[#1769AA]">
                         {activeRecords.length} Records
                       </span>
                     </CardTitle>
@@ -859,13 +1006,13 @@ export const MasterSetup: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Master Actions: Add New & Export */}
+                {/* Actions */}
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={exportToCSV}
-                    className="font-semibold text-xs gap-1.5 text-slate-700 bg-white border-slate-200 hover:bg-slate-50"
+                    className="font-semibold text-xs gap-1.5 text-slate-700 bg-white border-slate-300 hover:bg-slate-50"
                   >
                     <Download size={14} />
                     Export CSV
@@ -877,34 +1024,23 @@ export const MasterSetup: React.FC = () => {
                     className="font-bold text-xs gap-1.5 bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-xs transition-colors"
                   >
                     <Plus size={15} />
-                    Add {currentCategory.name.replace(" Master", "")}
+                    Add {currentCategory.name}
                   </Button>
                 </div>
               </div>
 
-              {/* Search & Filter Bar */}
-              <div className="flex flex-col sm:flex-row items-center gap-3 pt-3">
-                <div className="relative flex-1 w-full">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <Input
-                    placeholder={`Search in ${currentCategory.name}...`}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-xs bg-white border-slate-200"
-                  />
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-9 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-3 focus:outline-none cursor-pointer"
-                  >
-                    <option value="ALL">All Statuses</option>
-                    <option value="Active">Active Only</option>
-                    <option value="Inactive">Inactive Only</option>
-                  </select>
-                </div>
+              {/* Status Filter */}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <span className="text-xs font-semibold text-slate-500">Status:</span>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="h-8 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 focus:outline-none cursor-pointer"
+                >
+                  <option value="ALL">All Statuses</option>
+                  <option value="Active">Active Only</option>
+                  <option value="Inactive">Inactive Only</option>
+                </select>
               </div>
             </CardHeader>
 
@@ -1015,9 +1151,9 @@ export const MasterSetup: React.FC = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+      )}
 
-      {/* Dynamic Add / Edit Modal for Master Entity */}
+      {/* ─── DYNAMIC ADD / EDIT MODAL FOR MASTER ENTITY ─────────────────── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
