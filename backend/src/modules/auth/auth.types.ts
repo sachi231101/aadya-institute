@@ -10,6 +10,7 @@ export interface TokenPair {
 
 export interface AuthUser {
   id: string;
+  userId?: string;
   name: string;
   email?: string | null;
   phone?: string | null;

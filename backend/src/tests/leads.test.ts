@@ -141,28 +141,34 @@ describe("Lead Management Module Tests", () => {
     });
 
     counsellorAUser = {
+      id: uCounsellorA.id,
       userId: uCounsellorA.id,
       instituteId,
       branchId: branchAId,
       roles: ["COUNSELLOR"],
+      permissions: ["lead.create", "lead.read", "lead.update", "lead.assign"],
       name: uCounsellorA.name,
       email: uCounsellorA.email ?? "",
     };
 
     counsellorBUser = {
+      id: uCounsellorB.id,
       userId: uCounsellorB.id,
       instituteId,
       branchId: branchBId,
       roles: ["COUNSELLOR"],
+      permissions: ["lead.create", "lead.read", "lead.update", "lead.assign"],
       name: uCounsellorB.name,
       email: uCounsellorB.email ?? "",
     };
 
     managerAUser = {
+      id: uManagerA.id,
       userId: uManagerA.id,
       instituteId,
       branchId: branchAId,
       roles: ["CENTER_MANAGER"],
+      permissions: ["lead.create", "lead.read", "lead.update", "lead.assign", "lead.delete"],
       name: uManagerA.name,
       email: uManagerA.email ?? "",
     };
@@ -180,10 +186,12 @@ describe("Lead Management Module Tests", () => {
     });
 
     adminUser = {
+      id: uAdmin.id,
       userId: uAdmin.id,
       instituteId,
       branchId: undefined,
       roles: ["ADMIN"],
+      permissions: ["*"],
       name: uAdmin.name,
       email: uAdmin.email ?? "",
     };
@@ -383,11 +391,11 @@ describe("Lead Management Module Tests", () => {
 
     test("Manager reassigns lead to Counsellor A", async () => {
       const result = await LeadService.assignLead(leadId, managerAUser, {
-        counsellorId: counsellorAUser.userId,
+        counsellorId: counsellorAUser.id,
         notes: "Reassigned by center manager",
       });
 
-      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.userId);
+      assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
       assert.strictEqual(result.assignment.isCurrent, true);
     });
 

@@ -13,6 +13,9 @@ export interface CreateLeadDTO {
   phoneNumber: string;
   email?: string;
   interestedIn: string;
+  courseId?: string;
+  branchId?: string;
+  assignedCounsellorId?: string;
   source: LeadSource;
   priority?: string;
   notes?: string;

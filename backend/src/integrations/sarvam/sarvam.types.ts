@@ -34,6 +34,7 @@ export interface SarvamTranscriptTurn {
 
 export interface SarvamWebhookPayload {
   attempt_id: string;
+  customer_number?: string;
   status: "connected" | "no_answer" | "busy" | "failed" | string;
   interaction_id?: string;
   duration?: number;

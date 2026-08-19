@@ -11,7 +11,8 @@ import {
   ChevronRight,
   LogOut,
   UserCheck,
-  Sparkles
+  Sparkles,
+  Bot
 } from "lucide-react"
 
 import {
@@ -46,59 +47,24 @@ const centerNavItems = [
     isActive: true,
   },
   {
-    title: "Students",
-    url: "/center/students/all",
-    icon: GraduationCap,
+    title: "Leads & AI Calling",
+    url: "/center/leads",
+    icon: Bot,
     isActive: false,
     items: [
-      { title: "All Students", url: "/center/students/all" },
-      { title: "Attendance", url: "/center/students/attendance" },
+      { title: "All Leads", url: "/center/leads" },
+      { title: "Add Lead", url: "/center/leads/add" },
     ],
   },
   {
-    title: "Counsellor",
-    url: "/center/counselor/overview",
-    icon: UserCheck,
-    isActive: false,
-    items: [
-      { title: "Overview", url: "/center/counselor/overview" },
-      { title: "Manage Counsellors", url: "/center/counselor/all" },
-      { title: "Create & Manage Batches", url: "/center/counselor/batches" },
-      { title: "Assign Students", url: "/center/counselor/assign-students" },
-      { title: "Assign Faculty", url: "/center/counselor/assign-faculty" },
-    ],
-  },
-  {
-    title: "Faculty",
-    url: "/center/faculty/all",
-    icon: Users,
-    isActive: false,
-    items: [
-      { title: "All Faculty", url: "/center/faculty/all" },
-      { title: "Assigned Courses", url: "/center/faculty/courses" },
-      { title: "Attendance", url: "/center/faculty/attendance" },
-    ],
-  },
-  {
-    title: "Fees",
-    url: "/center/fees/payments",
-    icon: CreditCard,
-    isActive: false,
-    items: [
-      { title: "Payments", url: "/center/fees/payments" },
-      { title: "Pending Fees", url: "/center/fees/pending" },
-      { title: "Fee Reports", url: "/center/fees/reports" },
-    ],
-  },
-  {
-    title: "Admissions / Leads",
-    url: "/center/admissions/enquiries",
+    title: "Admissions",
+    url: "/center/admissions/all",
     icon: Target,
     isActive: false,
     items: [
-      { title: "Enquiries", url: "/center/admissions/enquiries" },
-      { title: "Applications", url: "/center/admissions/applications" },
       { title: "All Admissions", url: "/center/admissions/all" },
+      { title: "Applications", url: "/center/admissions/applications" },
+      { title: "Enquiries", url: "/center/admissions/enquiries" },
     ],
   },
   {

@@ -16,7 +16,8 @@ import {
   Shield,
   UserCheck,
   Sparkles,
-  Layers
+  Layers,
+  Bot
 } from "lucide-react"
 
 import {
@@ -65,6 +66,7 @@ const data = {
       items: [
         { title: "All Students", url: "/admin/students/all" },
         { title: "Attendance", url: "/admin/students/attendance" },
+        { title: "Discontinuation Risk", url: "/admin/students/discontinuation-risk" },
       ],
     },
     {
@@ -76,6 +78,7 @@ const data = {
         { title: "All Faculty", url: "/admin/faculty/all" },
         { title: "Assigned Courses", url: "/admin/faculty/courses" },
         { title: "Attendance", url: "/admin/faculty/attendance" },
+        { title: "Faculty Ratings", url: "/admin/faculty/ratings" },
       ],
     },
     {
@@ -90,14 +93,24 @@ const data = {
       ],
     },
     {
-      title: "Admissions / Leads",
+      title: "Leads & AI Calling",
+      url: "/admin/leads",
+      icon: Bot,
+      isActive: false,
+      items: [
+        { title: "All Leads", url: "/admin/leads" },
+        { title: "Add Lead", url: "/admin/leads/add" },
+      ],
+    },
+    {
+      title: "Admissions",
       url: "/admin/admissions",
       icon: Target,
       isActive: false,
       items: [
-        { title: "Enquiries", url: "/admin/admissions/enquiries" },
-        { title: "Applications", url: "/admin/admissions/applications" },
         { title: "All Admissions", url: "/admin/admissions/all" },
+        { title: "Applications", url: "/admin/admissions/applications" },
+        { title: "Enquiries", url: "/admin/admissions/enquiries" },
       ],
     },
     {
@@ -122,6 +135,8 @@ const data = {
         { title: "Classes", url: "/admin/schedule/classes" },
         { title: "Timetable", url: "/admin/schedule/timetable" },
         { title: "Upcoming Classes", url: "/admin/schedule/upcoming" },
+        { title: "Recordings", url: "/admin/schedule/recordings" },
+        { title: "Assignments", url: "/admin/schedule/assignments" },
       ],
     },
     {
@@ -145,6 +160,7 @@ const data = {
         { title: "Faculty Reports", url: "/admin/reports/faculty" },
         { title: "Course Reports", url: "/admin/reports/courses" },
         { title: "Financial Reports", url: "/admin/reports/financial" },
+        { title: "Placement Export", url: "/admin/reports/placement" },
       ],
     },
     {
@@ -152,6 +168,10 @@ const data = {
       url: "/admin/notifications",
       icon: Bell,
       isActive: false,
+      items: [
+        { title: "All Notifications", url: "/admin/notifications" },
+        { title: "WhatsApp Monitor", url: "/admin/notifications/whatsapp" },
+      ],
     },
     {
       title: "Masters",

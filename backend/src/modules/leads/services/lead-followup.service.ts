@@ -29,14 +29,14 @@ export const LeadFollowupService = {
     }
 
     const scheduledDate = new Date(dto.scheduledAt);
-    const counsellorId = lead.assignedCounsellorId ?? currentUser.userId;
+    const counsellorId = lead.assignedCounsellorId ?? (currentUser.userId || currentUser.id);
 
     return prisma.$transaction(async (tx) => {
       const followUp = await tx.leadFollowUp.create({
         data: {
           leadId,
           counsellorId,
-          createdById: currentUser.userId,
+          createdById: currentUser.userId || currentUser.id,
           type: dto.type ?? "CALL",
           status: "PENDING",
           scheduledAt: scheduledDate,

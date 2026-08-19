@@ -10,7 +10,8 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  Sparkles
+  Sparkles,
+  Bot
 } from "lucide-react"
 
 import {
@@ -45,14 +46,24 @@ const counselorNavItems = [
     isActive: true,
   },
   {
-    title: "Admissions / Leads",
-    url: "/counselor/admissions/enquiries",
+    title: "Leads & AI Calling",
+    url: "/counselor/leads",
+    icon: Bot,
+    isActive: false,
+    items: [
+      { title: "My Leads", url: "/counselor/leads" },
+      { title: "Add New Lead", url: "/counselor/leads/add" },
+    ],
+  },
+  {
+    title: "Admissions",
+    url: "/counselor/admissions/all",
     icon: Target,
     isActive: false,
     items: [
-      { title: "Enquiries", url: "/counselor/admissions/enquiries" },
-      { title: "Applications", url: "/counselor/admissions/applications" },
       { title: "All Admissions", url: "/counselor/admissions/all" },
+      { title: "Applications", url: "/counselor/admissions/applications" },
+      { title: "Enquiries", url: "/counselor/admissions/enquiries" },
     ],
   },
   {
@@ -157,16 +168,14 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
                         <Link to={item.url} className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <Sparkles
-                              className={`h-4 w-4 shrink-0 ${
-                                isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
-                              }`}
+                              className={`h-4 w-4 shrink-0 ${isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
+                                }`}
                             />
                             <span className="tracking-wide">✦ ASK ME</span>
                           </div>
                           <span
-                            className={`${
-                              isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
-                            } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
+                            className={`${isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
+                              } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
                           >
                             AI
                           </span>

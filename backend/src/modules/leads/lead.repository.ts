@@ -41,6 +41,10 @@ export const leadInclude = {
     orderBy: { createdAt: "desc" as const },
     take: 5,
   },
+  callLogs: {
+    orderBy: { createdAt: "desc" as const },
+    take: 5,
+  },
 } satisfies Prisma.LeadInclude;
 
 export const LeadRepository = {
@@ -204,6 +208,9 @@ export const LeadRepository = {
           include: {
             user: { select: { id: true, name: true } },
           },
+          orderBy: { createdAt: "desc" },
+        },
+        callLogs: {
           orderBy: { createdAt: "desc" },
         },
       },

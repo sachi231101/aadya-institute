@@ -82,7 +82,7 @@ export const LeadAssignmentService = {
         data: {
           leadId,
           counsellorId,
-          assignedById: currentUser.userId,
+          assignedById: currentUser.userId || currentUser.id,
           isCurrent: true,
           notes: notes ?? null,
         },

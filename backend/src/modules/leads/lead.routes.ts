@@ -19,6 +19,7 @@ import {
   getDashboardSummary,
   getCounsellorPerformance,
   getFollowUpDashboard,
+  triggerLeadCall,
 } from "./lead.controller";
 import {
   createLeadSchema,
@@ -112,6 +113,12 @@ router.post(
   requirePermission("lead.convert"),
   validate(convertLeadSchema),
   convertLead
+);
+
+router.post(
+  "/:id/ai-call",
+  requirePermission("lead.update"),
+  triggerLeadCall
 );
 
 // ─── Follow-ups & Activities ─────────────────────────────────────────────────

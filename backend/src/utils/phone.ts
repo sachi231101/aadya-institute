@@ -9,5 +9,8 @@ export const normalizePhone = (phone: string): string => {
   return `+${digits}`;
 };
 
-export const isValidIndianPhone = (phone: string): boolean =>
-  /^[6-9]\d{9}$/.test(phone.replace(/\D/g, "").replace(/^91/, ""));
+export const isValidIndianPhone = (phone: string): boolean => {
+  const digits = phone.replace(/\D/g, "");
+  const last10 = digits.slice(-10);
+  return last10.length === 10 && /^[6-9]\d{9}$/.test(last10);
+};
