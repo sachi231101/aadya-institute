@@ -9,7 +9,8 @@ import {
   Settings,
   ChevronRight,
   LogOut,
-  Sparkles
+  Sparkles,
+  FileText
 } from "lucide-react"
 
 import {
@@ -58,6 +59,12 @@ const facultyNavItems = [
       { title: "Attendance Desk", url: "/faculty/students/attendance" },
       { title: "Enrolled Students", url: "/faculty/students/all" },
     ],
+  },
+  {
+    title: "Assignments",
+    url: "/faculty/assignments",
+    icon: FileText,
+    isActive: false,
   },
   {
     title: "Class Schedule",

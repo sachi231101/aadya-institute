@@ -1,6 +1,6 @@
 import React from "react";
 import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-dom";
-import { LayoutDashboard, Calendar, Video, FileText, LogOut, CheckSquare, Settings, Sparkles } from "lucide-react";
+import { LayoutDashboard, Calendar, Video, FileText, LogOut, CheckSquare, Settings, Sparkles, Star, User } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 
@@ -33,6 +33,8 @@ export const StudentLayout: React.FC = () => {
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
+    { label: "Feedback", icon: Star, path: "/student/feedback" },
+    { label: "My Profile", icon: User, path: "/student/profile" },
     { label: "Settings", icon: Settings, path: "/student/settings" },
   ];
 

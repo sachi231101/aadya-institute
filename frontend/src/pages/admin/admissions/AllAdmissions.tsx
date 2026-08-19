@@ -28,7 +28,9 @@ import {
   Edit,
   RefreshCw,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useCourseStore } from "../../../store/course.store";
+import { admissionsApi } from "../../../services/admissions.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -536,6 +538,76 @@ export const AllAdmissions: React.FC = () => {
   const { fetchCourses, fetchBatches } = useCourseStore();
 
   const [admissionsList, setAdmissionsList] = useState<EnrichedAdmission[]>(SAMPLE_ADMISSIONS);
+
+  // Fetch live admissions from PostgreSQL database
+  const { data: dbAdmissionsRes } = useQuery({
+    queryKey: ["admissions"],
+    queryFn: () => admissionsApi.getAdmissions(),
+  });
+
+  useEffect(() => {
+    const rawList = dbAdmissionsRes?.data || [];
+    if (rawList.length > 0) {
+      const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => ({
+        id: adm.id,
+        admissionNo: adm.admissionNo || `ADM-${adm.id.slice(-6).toUpperCase()}`,
+        studentName: adm.studentName || adm.student?.user?.name || "Admitted Student",
+        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
+        email: adm.email || adm.student?.user?.email || "student@aadya.in",
+        phone: adm.phone || adm.student?.user?.phone || "",
+        dob: "2003-05-15",
+        gender: "Female",
+        address: "Aadya Campus",
+        city: "Bengaluru",
+        state: "Karnataka",
+        pincode: "560001",
+        guardianName: "Guardian",
+        counselorName: "Priya Singh",
+        admissionSource: "Enquiry Conversion",
+        courseId: adm.courseId || "c-wd",
+        courseName: adm.course?.name || "Full Stack Web Development",
+        programDuration: "(6 Months Program)",
+        batchId: adm.batchId || "b-wd-jun",
+        batchCode: adm.batch?.code || adm.batch?.name || "Pending Batch Assignment",
+        batchType: "Weekend Batch",
+        batchTiming: "10:00 AM – 1:00 PM",
+        batchStartDate: "Upcoming",
+        assignedFaculty: "Faculty Mentor",
+        batchCapacity: 30,
+        enrolledCount: 1,
+        feePlan: adm.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
+        feePaymentStatus: adm.status === "CONFIRMED" ? "Paid" : "Due",
+        totalCourseFee: 25000,
+        discountAmount: 0,
+        finalFee: 25000,
+        amountPaid: adm.status === "CONFIRMED" ? 25000 : 5000,
+        amountDue: adm.status === "CONFIRMED" ? 0 : 20000,
+        paymentHistory: [
+          {
+            id: `p-${adm.id}`,
+            receiptNo: `REC-${adm.id.slice(-6).toUpperCase()}`,
+            amount: adm.status === "CONFIRMED" ? 25000 : 5000,
+            paymentMode: "UPI / QR",
+            transactionId: `TXN/${adm.id.slice(-8)}`,
+            date: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+            status: "Completed",
+          }
+        ],
+        status: adm.status === "CONFIRMED" ? "Confirmed" : "Provisional",
+        workflowStep: 3,
+        admissionDate: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        admissionTime: "10:00 AM",
+        documents: [],
+        counsellorNotes: adm.notes ? [{ id: `n-${adm.id}`, author: "Counsellor", role: "Senior Counsellor", date: "Today", time: "Now", text: adm.notes }] : [],
+      }));
+
+      setAdmissionsList((prev) => {
+        const existingIds = new Set(mappedDbAdmissions.map((d) => d.id));
+        const filteredPrev = prev.filter((p) => !existingIds.has(p.id));
+        return [...mappedDbAdmissions, ...filteredPrev];
+      });
+    }
+  }, [dbAdmissionsRes]);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");

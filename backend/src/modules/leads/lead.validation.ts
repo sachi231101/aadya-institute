@@ -91,9 +91,28 @@ export const createLeadSchema = z.object({
     (v) => (typeof v === "string" ? v.trim() : v),
     z.string().min(1, "Interested in is required")
   ),
+  courseId: z
+    .preprocess(
+      (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
+      z.string().optional()
+    ),
+  branchId: z
+    .preprocess(
+      (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
+      z.string().optional()
+    ),
+  assignedCounsellorId: z
+    .preprocess(
+      (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
+      z.string().optional()
+    ),
   source: LeadSourceEnum.default("WALK_IN"),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().default("MEDIUM"),
-  notes: z.string().optional(),
+  notes: z
+    .preprocess(
+      (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
+      z.string().optional()
+    ),
 });
 
 export const updateLeadSchema = z.object({
@@ -159,7 +178,7 @@ export const addActivitySchema = z.object({
   type: LeadActivityTypeEnum.optional().default("NOTE_ADDED"),
   title: z.string().min(1, "Title is required").trim(),
   description: z.string().optional(),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const queryLeadsSchema = z.object({
