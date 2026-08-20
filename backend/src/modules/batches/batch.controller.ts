@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
+import { prisma } from "../../config/database";
 import * as service from "./batch.service";
 
 export const getAll = async (
@@ -10,10 +11,33 @@ export const getAll = async (
   try {
     const instituteId = req.user!.instituteId;
     const branchId = req.user!.branchId || undefined;
+    const roles = req.user?.roles || [];
+    const isPureFaculty = roles.includes("FACULTY") &&
+      !roles.includes("ADMIN") &&
+      !roles.includes("CENTER_MANAGER") &&
+      !roles.includes("COUNSELLOR");
+
+    let facultyFilter = req.query.facultyId as string;
+
+    if (isPureFaculty) {
+      const facultyRecord = await prisma.faculty.findFirst({
+        where: { userId: req.user!.userId },
+      });
+      if (!facultyRecord) {
+        res.json({
+          success: true,
+          message: "Batches retrieved successfully",
+          data: [],
+        });
+        return;
+      }
+      facultyFilter = facultyRecord.id;
+    }
+
     const filters = {
       search: req.query.search as string,
       courseId: req.query.courseId as string,
-      facultyId: req.query.facultyId as string,
+      facultyId: facultyFilter,
       status: req.query.status as string,
     };
     const batches = await service.getBatches(instituteId, branchId, filters);

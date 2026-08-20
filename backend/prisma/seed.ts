@@ -178,6 +178,7 @@ const rolePermissions: Record<string, string[]> = {
   ],
 
   COUNSELLOR: [
+    "branch.read",
     "user.read",
     "student.read",
     "student.create",

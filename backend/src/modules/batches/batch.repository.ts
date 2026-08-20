@@ -31,6 +31,13 @@ const batchInclude = {
     },
   },
   schedules: true,
+  enrollments: {
+    where: { status: "ACTIVE" },
+    select: {
+      id: true,
+      studentId: true,
+    },
+  },
   _count: {
     select: {
       enrollments: true,
