@@ -24,7 +24,7 @@ const addAdminSchema = z.object({
   email: z.string().email("Invalid email address."),
   phone: z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional().or(z.literal("")),
   branchId: z.string().optional().or(z.literal("")),
-  role: z.string().min(1, "Role is required."),
+  role: z.string().default("CENTER_MANAGER"),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters.")
@@ -180,30 +180,6 @@ export const AddAdmin: React.FC = () => {
                               {branch.name} ({branch.code})
                             </option>
                           ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <FormField
-                  control={form.control}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>System Role</FormLabel>
-                      <FormControl>
-                        <select
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          {...field}
-                        >
-                          <option value="ADMIN">Admin</option>
-                          <option value="CENTER_MANAGER">Center Manager</option>
-                          <option value="FACULTY">Faculty</option>
-                          <option value="COUNSELLOR">Counsellor</option>
                         </select>
                       </FormControl>
                       <FormMessage />
