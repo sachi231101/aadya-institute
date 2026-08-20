@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 
 import { useNotificationStore } from "@/store/notification.store";
-import { useAdminUsers, useUpdateUserStatus, useDeleteUser } from "@/hooks/useUsers";
+import { useAdminUsers, useDeleteUser } from "@/hooks/useUsers";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
@@ -59,36 +59,34 @@ const ManagerCard = ({
   const studentCount = stats?.totalStudents || 0;
   const facultyCount = stats?.totalFaculty || 0;
   const batchCount = stats?.totalBatches || 0;
-  // Counsellors count is not natively in the stats response, use Admissions or 0
   const counsellorCount = 0; 
 
   return (
-    <Card className="border border-slate-200/60 shadow-sm hover:shadow-md transition-shadow rounded-2xl bg-white overflow-hidden flex flex-col h-full">
+    <Card className="border border-slate-200/70 shadow-sm hover:shadow-md transition-all rounded-xl bg-white overflow-hidden flex flex-col h-full">
       <CardContent className="p-0 flex flex-col h-full">
         
         {/* Profile Header */}
-        <div className="p-6 pb-4">
-          <div className="flex justify-between items-start">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-slate-100 border-2 border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
-                {/* Fallback Avatar */}
-                <UserCheck className="h-8 w-8 text-slate-400" />
+        <div className="p-4 pb-3">
+          <div className="flex justify-between items-start gap-2">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-11 w-11 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 overflow-hidden shrink-0">
+                <UserCheck className="h-5 w-5 text-[#1769AA]" />
               </div>
-              <div>
-                <h3 className="text-xl font-bold text-slate-900 leading-tight">{manager.name}</h3>
-                <p className="text-sm font-medium text-slate-500 mb-2">Center Manager</p>
-                <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
-                  <span className="flex items-center gap-1.5 truncate max-w-[150px]">
-                    <Mail className="h-3.5 w-3.5 shrink-0" /> {manager.email || "No Email"}
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-slate-900 leading-tight truncate">{manager.name}</h3>
+                <p className="text-xs font-medium text-slate-500 mb-1">Center Manager</p>
+                <div className="flex flex-col gap-0.5 text-[11px] font-medium text-slate-500">
+                  <span className="flex items-center gap-1.5 truncate">
+                    <Mail className="h-3 w-3 text-slate-400 shrink-0" /> <span className="truncate">{manager.email || "No Email"}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 shrink-0" /> {manager.phone || "No Phone"}
+                    <Phone className="h-3 w-3 text-slate-400 shrink-0" /> <span>{manager.phone || "No Phone"}</span>
                   </span>
                 </div>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full border flex items-center gap-1.5 uppercase tracking-wider ${getStatusText(manager.status)}`}>
+            <div className="shrink-0">
+              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 uppercase tracking-wider ${getStatusText(manager.status)}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${getStatusColor(manager.status)}`} />
                 {manager.status}
               </span>
@@ -97,58 +95,46 @@ const ManagerCard = ({
         </div>
 
         {/* Assigned Branch Section */}
-        <div className="px-6 py-4 mx-6 rounded-xl bg-blue-50/50 border border-blue-100/50 flex-1">
-          <p className="text-[10px] font-bold text-[#1769AA]/70 uppercase tracking-wider mb-2">Assigned Branch</p>
+        <div className="px-3.5 py-2.5 mx-4 rounded-lg bg-blue-50/50 border border-blue-100/60 flex-1">
+          <p className="text-[9px] font-bold text-[#1769AA]/70 uppercase tracking-wider mb-1">Assigned Branch</p>
           {branch ? (
             <>
-              <h4 className="text-[15px] font-bold text-slate-800 leading-tight mb-2 flex items-start gap-2">
-                <Building2 className="h-5 w-5 text-[#1769AA] shrink-0" />
-                {branch.name}
+              <h4 className="text-xs font-bold text-slate-800 leading-tight mb-1 flex items-center gap-1.5 truncate">
+                <Building2 className="h-3.5 w-3.5 text-[#1769AA] shrink-0" />
+                <span className="truncate">{branch.name}</span>
               </h4>
-              <div className="flex items-center gap-2 text-xs font-medium text-slate-500 ml-7">
-                <MapPin className="h-3.5 w-3.5" />
-                <span>{branch.address || "No Location"}</span>
+              <div className="flex items-center gap-1.5 text-[10px] font-medium text-slate-500">
+                <MapPin className="h-3 w-3 text-slate-400 shrink-0" />
+                <span className="truncate">{branch.address || "No Location"}</span>
                 <span className="text-slate-300">|</span>
-                <span>Code: {branch.code}</span>
+                <span className="font-mono text-slate-600">{branch.code}</span>
               </div>
             </>
           ) : (
-            <div className="flex items-center gap-2 text-amber-600 font-medium text-sm py-2">
-              <AlertTriangle className="h-4 w-4" /> No Branch Assigned
+            <div className="flex items-center gap-1.5 text-amber-600 font-medium text-xs py-1">
+              <AlertTriangle className="h-3.5 w-3.5" /> No Branch Assigned
             </div>
           )}
         </div>
 
         {/* Branch Statistics (Bottom) */}
-        <div className="p-6 pt-4 mt-auto">
-          <div className="grid grid-cols-4 gap-2 mb-5">
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-                <div className="p-1 bg-blue-50 rounded text-blue-600"><Users className="h-3 w-3" /></div>
-                Students
-              </div>
-              <span className="text-xl font-black text-slate-800">{studentCount}</span>
+        <div className="p-4 pt-3 mt-auto">
+          <div className="grid grid-cols-4 gap-1 mb-3.5 text-center">
+            <div className="flex flex-col items-center p-1.5 rounded-md bg-slate-50 border border-slate-100/60">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Students</span>
+              <span className="text-sm font-black text-slate-800">{studentCount}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-                <div className="p-1 bg-emerald-50 rounded text-emerald-600"><GraduationCap className="h-3 w-3" /></div>
-                Faculty
-              </div>
-              <span className="text-xl font-black text-slate-800">{facultyCount}</span>
+            <div className="flex flex-col items-center p-1.5 rounded-md bg-slate-50 border border-slate-100/60">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Faculty</span>
+              <span className="text-sm font-black text-slate-800">{facultyCount}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-                <div className="p-1 bg-orange-50 rounded text-orange-600"><UserCheck className="h-3 w-3" /></div>
-                Counsels
-              </div>
-              <span className="text-xl font-black text-slate-800">{counsellorCount}</span>
+            <div className="flex flex-col items-center p-1.5 rounded-md bg-slate-50 border border-slate-100/60">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Counsels</span>
+              <span className="text-sm font-black text-slate-800">{counsellorCount}</span>
             </div>
-            <div className="flex flex-col items-center">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase mb-1.5">
-                <div className="p-1 bg-purple-50 rounded text-purple-600"><BookOpen className="h-3 w-3" /></div>
-                Batches
-              </div>
-              <span className="text-xl font-black text-slate-800">{batchCount}</span>
+            <div className="flex flex-col items-center p-1.5 rounded-md bg-slate-50 border border-slate-100/60">
+              <span className="text-[9px] font-bold text-slate-400 uppercase">Batches</span>
+              <span className="text-sm font-black text-slate-800">{batchCount}</span>
             </div>
           </div>
 
@@ -156,15 +142,17 @@ const ManagerCard = ({
             {branch ? (
               <Button 
                 variant="outline" 
-                className="flex-1 text-[#1769AA] border-[#1769AA]/30 hover:bg-blue-50 font-bold"
+                size="sm"
+                className="flex-1 text-[#1769AA] border-[#1769AA]/30 hover:bg-blue-50 font-bold text-xs h-8"
                 onClick={() => onViewBranch(manager, branch)}
               >
-                <Eye className="h-4 w-4 mr-2" /> View Branch Details
+                <Eye className="h-3.5 w-3.5 mr-1.5" /> View Branch
               </Button>
             ) : (
               <Button 
                 variant="outline" 
-                className="flex-1 text-amber-600 border-amber-200 hover:bg-amber-50 font-bold"
+                size="sm"
+                className="flex-1 text-amber-600 border-amber-200 hover:bg-amber-50 font-bold text-xs h-8"
                 onClick={() => onAction(manager.id, "changeBranch")}
               >
                 Assign Branch
@@ -173,39 +161,18 @@ const ManagerCard = ({
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="px-3 border-slate-200">
-                  <MoreVertical className="h-4 w-4 text-slate-500" />
+                <Button variant="outline" size="sm" className="px-2.5 h-8 border-slate-200">
+                  <MoreVertical className="h-3.5 w-3.5 text-slate-500" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 font-medium">
                 <DropdownMenuItem onClick={() => onAction(manager.id, "viewManager")}>
-                  <Eye className="mr-2 h-4 w-4" /> View Manager Details
-                </DropdownMenuItem>
-                {branch && (
-                  <DropdownMenuItem onClick={() => onViewBranch(manager, branch)}>
-                    <Building2 className="mr-2 h-4 w-4" /> View Branch
-                  </DropdownMenuItem>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onAction(manager.id, "editManager")}>
-                  <Edit className="mr-2 h-4 w-4" /> Edit Manager
+                  <Eye className="mr-2 h-4 w-4 text-[#1769AA]" /> View Manager Details
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => onAction(manager.id, "changeBranch")}>
-                  <MapPin className="mr-2 h-4 w-4" /> Change Branch
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAction(manager.id, "resetPassword")}>
-                  <Key className="mr-2 h-4 w-4" /> Reset Password
+                  <MapPin className="mr-2 h-4 w-4 text-slate-500" /> Change Branch
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {manager.status === "ACTIVE" ? (
-                  <DropdownMenuItem onClick={() => onAction(manager.id, "deactivate")}>
-                    <Power className="mr-2 h-4 w-4" /> Deactivate Manager
-                  </DropdownMenuItem>
-                ) : (
-                  <DropdownMenuItem onClick={() => onAction(manager.id, "activate")}>
-                    <Power className="mr-2 h-4 w-4 text-emerald-600" /> <span className="text-emerald-600">Activate Manager</span>
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem onClick={() => onAction(manager.id, "delete")} className="text-red-600 focus:text-red-600 focus:bg-red-50">
                   <Trash2 className="mr-2 h-4 w-4" /> Delete Manager
                 </DropdownMenuItem>
@@ -228,7 +195,6 @@ export const AdminPanel: React.FC = () => {
   const { data: usersResponse, isLoading: usersLoading } = useAdminUsers({ limit: 100 });
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100 });
   
-  const updateStatusMutation = useUpdateUserStatus();
   const deleteUserMutation = useDeleteUser();
 
   // Extract Center Managers only
@@ -245,7 +211,7 @@ export const AdminPanel: React.FC = () => {
 
   // Modals State
   const [activeModal, setActiveModal] = useState<
-    "deactivate" | "activate" | "delete" | "resetPassword" | "changeBranch" | null
+    "delete" | "resetPassword" | "changeBranch" | null
   >(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
 
@@ -254,11 +220,13 @@ export const AdminPanel: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("All");
 
   const filteredManagers = useMemo(() => {
-    return centerManagers.filter(m => {
-      const matchesSearch = m.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                            m.email?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus = statusFilter === "All" || 
-                            (statusFilter === "Unassigned" ? !m.branchId : m.status === statusFilter.toUpperCase());
+    return centerManagers.filter((m) => {
+      const matchesSearch =
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.email?.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesStatus =
+        statusFilter === "All" ||
+        (statusFilter === "Unassigned" ? !m.branchId : m.status === "ACTIVE");
       return matchesSearch && matchesStatus;
     });
   }, [centerManagers, searchQuery, statusFilter]);
@@ -294,21 +262,6 @@ export const AdminPanel: React.FC = () => {
   const closeModal = () => {
     setActiveModal(null);
     setSelectedManagerId(null);
-  };
-
-  const handleStatusChange = (status: "ACTIVE" | "INACTIVE") => {
-    if (selectedManagerId) {
-      updateStatusMutation.mutate(
-        { id: selectedManagerId, data: { status } },
-        {
-          onSuccess: () => {
-            addNotification(`Manager ${status === "ACTIVE" ? "activated" : "deactivated"} successfully.`, "success");
-            closeModal();
-          },
-          onError: (err: any) => addNotification(err?.response?.data?.message || "Operation failed.", "error"),
-        }
-      );
-    }
   };
 
   const handleDelete = () => {
@@ -417,7 +370,7 @@ export const AdminPanel: React.FC = () => {
           />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
-          {["All", "Active", "Inactive", "Blocked", "Unassigned"].map((status) => (
+          {["All", "Active", "Unassigned"].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
@@ -450,7 +403,7 @@ export const AdminPanel: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredManagers.map((manager) => (
             <ManagerCard 
               key={manager.id}
@@ -464,36 +417,6 @@ export const AdminPanel: React.FC = () => {
       )}
 
       {/* ─── MODALS ─── */}
-      <Dialog open={activeModal === "deactivate"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Deactivate Manager?</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to deactivate <strong>{selectedManager?.name}</strong>? They will no longer be able to access the portal.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button variant="destructive" onClick={() => handleStatusChange("INACTIVE")}>Deactivate</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={activeModal === "activate"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Activate Manager?</DialogTitle>
-            <DialogDescription>
-              Activate <strong>{selectedManager?.name}</strong> to restore their access to the portal.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={closeModal}>Cancel</Button>
-            <Button className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => handleStatusChange("ACTIVE")}>Activate</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={activeModal === "delete"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent>
           <DialogHeader>
