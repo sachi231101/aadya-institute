@@ -8,11 +8,14 @@ import {
   GraduationCap,
   UserCheck,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Calendar,
+  Layers
 } from "lucide-react";
 import { batchesApi, type CreateBatchPayload } from "../../../services/batches.api";
 import { coursesApi } from "../../../services/courses.api";
 import { facultyApi } from "../../../services/faculty.api";
+import { useTimetableStore } from "@/store/timetable.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -117,6 +120,41 @@ export const CounsellorBatches: React.FC = () => {
       return;
     }
 
+    const matchedCourse = courses.find((c) => c.id === courseId);
+    const matchedFaculty = facultyList.find((f) => f.id === facultyId);
+
+    const facName = matchedFaculty?.user?.name || matchedFaculty?.employeeCode || "Ramesh Kumar";
+    const facId = facultyId || "FA-RAMESH";
+    const crsName = matchedCourse?.name || "Digital Marketing";
+
+    let category: "Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Others" = "Digital Marketing";
+    if (crsName.includes("Design") || crsName.includes("UI")) category = "Design";
+    else if (crsName.includes("Data") || crsName.includes("Excel")) category = "Data Analytics";
+    else if (crsName.includes("MERN") || crsName.includes("Full Stack") || crsName.includes("Programming")) category = "Programming";
+
+    const days: Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT"> =
+      schedulePattern === "TTS" ? ["TUE", "THU", "SAT"] : ["MON", "WED", "FRI"];
+
+    // Publish to Timetable store
+    useTimetableStore.getState().createBatchWithSchedule({
+      code,
+      name,
+      courseId,
+      courseName: crsName,
+      category,
+      facultyId: facId,
+      facultyName: facName,
+      branchId: "b-central",
+      branchName: "Aadya Central Branch",
+      capacity,
+      studentIds: [],
+      days,
+      period: 1,
+      startTime: "09:00 AM",
+      endTime: "10:00 AM",
+      roomNo: "Room 201",
+    });
+
     createBatchMutation.mutate({
       name,
       code,
@@ -155,9 +193,17 @@ export const CounsellorBatches: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/counselor/timetable")}
+            className="border-slate-200 text-slate-700 hover:bg-slate-50 gap-2"
+          >
+            <Calendar size={16} className="text-[#1769AA]" /> View Faculty Timetable
+          </Button>
+
           <Button 
             onClick={handleOpenModal} 
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors"
+            className="bg-[#1769AA] hover:bg-[#125890] text-white gap-2 transition-colors"
           >
             <Plus size={16} /> Create New Batch
           </Button>

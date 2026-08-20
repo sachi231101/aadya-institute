@@ -18,11 +18,18 @@ import {
   PhoneCall,
   Trash2,
   History,
+  Layers,
+  CheckCircle2,
+  Clock,
+  Check,
+  BookOpen,
+  Search,
 } from "lucide-react";
 import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
 import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
+import { useTimetableStore } from "@/store/timetable.store";
 import { useFinancialReport } from "@/hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -278,6 +285,62 @@ export const CounselorDashboard: React.FC = () => {
   const [attemptNextDate, setAttemptNextDate] = useState("Tomorrow, 11:00 AM");
   const [attemptNewStage, setAttemptNewStage] = useState<ManagedLead["stage"]>("INTERESTED");
 
+  // Batch & Timetable Assignment State
+  const [showCreateBatchModal, setShowCreateBatchModal] = useState(false);
+  const [batchCode, setBatchCode] = useState("");
+  const [batchName, setBatchName] = useState("");
+  const [batchCourse, setBatchCourse] = useState("Digital Marketing");
+  const [batchCategory, setBatchCategory] = useState<"Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Others">("Digital Marketing");
+  const [batchFacultyId, setBatchFacultyId] = useState("FA-RAMESH");
+  const [batchFacultyName, setBatchFacultyName] = useState("Ramesh Kumar");
+  const [batchBranchId, setBatchBranchId] = useState("b-central");
+  const [batchBranchName, setBatchBranchName] = useState("Aadya Central Branch");
+  const [batchCapacity, setBatchCapacity] = useState<number>(40);
+  const [selectedBatchStudentIds, setSelectedBatchStudentIds] = useState<string[]>([]);
+  const [studentSearchTerm, setStudentSearchTerm] = useState("");
+  const [batchDays, setBatchDays] = useState<Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT">>(["MON", "WED", "FRI"]);
+  const [batchPeriod, setBatchPeriod] = useState<number>(1);
+  const [batchStartTime, setBatchStartTime] = useState("09:00 AM");
+  const [batchEndTime, setBatchEndTime] = useState("10:00 AM");
+  const [batchRoomNo, setBatchRoomNo] = useState("Room 201");
+  const [batchSuccessMsg, setBatchSuccessMsg] = useState<string | null>(null);
+
+  const handleCreateBatchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batchCode.trim() || !batchName.trim()) {
+      alert("Please provide both Batch Code and Batch Name.");
+      return;
+    }
+
+    useTimetableStore.getState().createBatchWithSchedule({
+      code: batchCode.trim(),
+      name: batchName.trim(),
+      courseId: `c-${batchCourse.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
+      courseName: batchCourse,
+      category: batchCategory,
+      facultyId: batchFacultyId,
+      facultyName: batchFacultyName,
+      branchId: batchBranchId,
+      branchName: batchBranchName,
+      capacity: batchCapacity,
+      studentIds: selectedBatchStudentIds,
+      days: batchDays,
+      period: batchPeriod,
+      startTime: batchStartTime,
+      endTime: batchEndTime,
+      roomNo: batchRoomNo,
+    });
+
+    setBatchSuccessMsg(`✓ Batch ${batchCode} successfully created with ${selectedBatchStudentIds.length || batchCapacity} students and scheduled to ${batchFacultyName}'s timetable!`);
+    setTimeout(() => setBatchSuccessMsg(null), 5000);
+    setShowCreateBatchModal(false);
+
+    // Reset form
+    setBatchCode("");
+    setBatchName("");
+    setSelectedBatchStudentIds([]);
+  };
+
   useEffect(() => {
     fetchCounselors();
     fetchEnquiries();
@@ -477,7 +540,14 @@ export const CounselorDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            onClick={() => setShowCreateBatchModal(true)}
+            className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-2 h-10 transition-all"
+          >
+            <Layers className="h-4 w-4" /> Create Batch & Schedule
+          </Button>
+
           <Button
             onClick={() => setShowAddModal(true)}
             variant="outline"
@@ -494,6 +564,23 @@ export const CounselorDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      {/* ─── BATCH CREATION SUCCESS NOTIFICATION ─── */}
+      {batchSuccessMsg && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>{batchSuccessMsg}</span>
+          </div>
+          <Button
+            size="sm"
+            onClick={() => navigate("/counselor/timetable")}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-7"
+          >
+            View in Timetable →
+          </Button>
+        </div>
+      )}
 
       {/* ─── 2. TOP 5 KPI CARDS ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -1255,6 +1342,288 @@ export const CounselorDashboard: React.FC = () => {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+      {/* ─── MODAL 4: CREATE BATCH & TIMETABLE ASSIGNMENT ─── */}
+      <Dialog open={showCreateBatchModal} onOpenChange={setShowCreateBatchModal}>
+        <DialogContent className="max-w-2xl bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <Layers className="h-5 w-5 text-[#1769AA]" />
+              Create Batch & Assign Faculty / Timetable
+            </DialogTitle>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Create a batch, enroll students, and automatically publish the scheduled period to the assigned faculty's timetable.
+            </p>
+          </DialogHeader>
+
+          <form onSubmit={handleCreateBatchSubmit} className="space-y-4 pt-3 text-xs">
+            {/* 1. Batch Details */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+              <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4 text-[#1769AA]" /> 1. Batch & Course Information
+              </h5>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Batch Code *</Label>
+                  <Input
+                    required
+                    placeholder="e.g. Batch FS-02"
+                    value={batchCode}
+                    onChange={(e) => setBatchCode(e.target.value)}
+                    className="h-9 text-xs font-bold"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Batch Name *</Label>
+                  <Input
+                    required
+                    placeholder="e.g. Full Stack MERN Fast-Track"
+                    value={batchName}
+                    onChange={(e) => setBatchName(e.target.value)}
+                    className="h-9 text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Course *</Label>
+                  <select
+                    value={batchCourse}
+                    onChange={(e) => {
+                      setBatchCourse(e.target.value);
+                      if (e.target.value.includes("Marketing") || e.target.value.includes("SEO")) setBatchCategory("Digital Marketing");
+                      else if (e.target.value.includes("Design") || e.target.value.includes("Photoshop")) setBatchCategory("Design");
+                      else if (e.target.value.includes("Analytics") || e.target.value.includes("Excel")) setBatchCategory("Data Analytics");
+                      else if (e.target.value.includes("MERN") || e.target.value.includes("Stack")) setBatchCategory("Programming");
+                    }}
+                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
+                  >
+                    <option value="Digital Marketing">Digital Marketing</option>
+                    <option value="SEO Masterclass">SEO Masterclass</option>
+                    <option value="Google Ads (PPC)">Google Ads (PPC)</option>
+                    <option value="Full Stack MERN">Full Stack MERN</option>
+                    <option value="Graphic Design">Graphic Design & UI/UX</option>
+                    <option value="Data Analytics">Data Analytics & AI</option>
+                    <option value="Advanced Excel">Advanced Excel & SQL</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Branch *</Label>
+                  <select
+                    value={batchBranchName}
+                    onChange={(e) => setBatchBranchName(e.target.value)}
+                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
+                  >
+                    <option value="Aadya Central Branch">Aadya Central Branch</option>
+                    <option value="Ramanagar Branch">Ramanagar Branch</option>
+                    <option value="Malleshwaram Branch">Malleshwaram Branch</option>
+                    <option value="Jayanagar Branch">Jayanagar Branch</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. Assign Faculty */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+              <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <UserCheck className="h-4 w-4 text-emerald-600" /> 2. Assign Faculty Member
+              </h5>
+              <div className="space-y-1">
+                <Label className="text-[11px] font-bold text-slate-700">Select Instructor (Will appear in their timetable) *</Label>
+                <select
+                  value={batchFacultyName}
+                  onChange={(e) => {
+                    const name = e.target.value;
+                    setBatchFacultyName(name);
+                    if (name === "Ramesh Kumar") setBatchFacultyId("FA-RAMESH");
+                    else if (name === "Priya Sharma") setBatchFacultyId("FA002");
+                    else if (name === "Arjun Das") setBatchFacultyId("FA005");
+                    else if (name === "Neha Reddy") setBatchFacultyId("FA008");
+                    else if (name === "HM Adithya") setBatchFacultyId("FA001");
+                  }}
+                  className="w-full h-9 px-3 text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
+                >
+                  <option value="Ramesh Kumar">👨‍🏫 Ramesh Kumar (Digital Marketing & SEO Lead)</option>
+                  <option value="Priya Sharma">👩‍🏫 Priya Sharma (Digital Marketing)</option>
+                  <option value="Arjun Das">👨‍🎨 Arjun Das (Graphic Design & UI/UX)</option>
+                  <option value="Neha Reddy">👩‍💻 Neha Reddy (Data Analytics & AI)</option>
+                  <option value="HM Adithya">👨‍💻 HM Adithya (Full Stack MERN)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* 3. Assign Students */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+              <div className="flex items-center justify-between">
+                <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                  <Users className="h-4 w-4 text-indigo-600" /> 3. Assign Students ({selectedBatchStudentIds.length} Selected)
+                </h5>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    if (selectedBatchStudentIds.length === (students?.length || 0)) {
+                      setSelectedBatchStudentIds([]);
+                    } else {
+                      setSelectedBatchStudentIds(students.map((s) => s.id));
+                    }
+                  }}
+                  className="text-[10px] font-bold h-6 px-2 text-indigo-700 bg-indigo-50 border-indigo-200 hover:bg-indigo-100"
+                >
+                  {selectedBatchStudentIds.length === (students?.length || 0) ? "Deselect All" : "Select All Available"}
+                </Button>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder="Search students by name or email..."
+                  value={studentSearchTerm}
+                  onChange={(e) => setStudentSearchTerm(e.target.value)}
+                  className="h-8 pl-8 text-xs bg-white"
+                />
+              </div>
+
+              <div className="max-h-36 overflow-y-auto space-y-1.5 bg-white p-2 rounded-xl border border-slate-200">
+                {students && students.length > 0 ? (
+                  students
+                    .filter((s) => {
+                      const name = s.user?.name || s.studentCode || "";
+                      const email = s.user?.email || "";
+                      const term = studentSearchTerm.toLowerCase();
+                      return !studentSearchTerm || name.toLowerCase().includes(term) || email.toLowerCase().includes(term);
+                    })
+                    .map((s) => {
+                      const isChecked = selectedBatchStudentIds.includes(s.id);
+                      const displayName = s.user?.name || s.studentCode || `Student #${s.id.slice(0, 8)}`;
+                      return (
+                        <label
+                          key={s.id}
+                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
+                            isChecked ? "bg-indigo-50/70 font-bold text-indigo-900" : "hover:bg-slate-50 text-slate-700"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => {
+                                setSelectedBatchStudentIds((prev) =>
+                                  prev.includes(s.id) ? prev.filter((id) => id !== s.id) : [...prev, s.id]
+                                );
+                              }}
+                              className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] h-3.5 w-3.5"
+                            />
+                            <span>{displayName}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-mono">{s.studentCode || s.id.slice(0, 8)}</span>
+                        </label>
+                      );
+                    })
+                ) : (
+                  <p className="text-slate-400 text-center py-3 text-xs italic">
+                    Sample batch cohort (40 students) will be assigned automatically.
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* 4. Timetable Schedule Slot */}
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+              <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                <Calendar className="h-4 w-4 text-purple-600" /> 4. Schedule Timetable Slot
+              </h5>
+
+              <div className="space-y-2">
+                <Label className="text-[11px] font-bold text-slate-700">Days of the Week *</Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(["MON", "TUE", "WED", "THU", "FRI", "SAT"] as const).map((day) => {
+                    const isSelected = batchDays.includes(day);
+                    return (
+                      <button
+                        type="button"
+                        key={day}
+                        onClick={() => {
+                          setBatchDays((prev) =>
+                            prev.includes(day) ? (prev.length > 1 ? prev.filter((d) => d !== day) : prev) : [...prev, day]
+                          );
+                        }}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
+                          isSelected
+                            ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
+                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Period Slot *</Label>
+                  <select
+                    value={batchPeriod}
+                    onChange={(e) => {
+                      const p = Number(e.target.value);
+                      setBatchPeriod(p);
+                      if (p === 1) { setBatchStartTime("09:00 AM"); setBatchEndTime("10:00 AM"); }
+                      else if (p === 2) { setBatchStartTime("10:00 AM"); setBatchEndTime("11:00 AM"); }
+                      else if (p === 3) { setBatchStartTime("11:15 AM"); setBatchEndTime("12:15 PM"); }
+                      else if (p === 4) { setBatchStartTime("12:15 PM"); setBatchEndTime("01:15 PM"); }
+                      else if (p === 5) { setBatchStartTime("02:00 PM"); setBatchEndTime("03:00 PM"); }
+                      else if (p === 6) { setBatchStartTime("03:00 PM"); setBatchEndTime("04:00 PM"); }
+                      else if (p === 7) { setBatchStartTime("04:15 PM"); setBatchEndTime("05:15 PM"); }
+                    }}
+                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
+                  >
+                    <option value={1}>Period 1 (09:00 - 10:00 AM)</option>
+                    <option value={2}>Period 2 (10:00 - 11:00 AM)</option>
+                    <option value={3}>Period 3 (11:15 - 12:15 PM)</option>
+                    <option value={4}>Period 4 (12:15 - 01:15 PM)</option>
+                    <option value={5}>Period 5 (02:00 - 03:00 PM)</option>
+                    <option value={6}>Period 6 (03:00 - 04:00 PM)</option>
+                    <option value={7}>Period 7 (04:15 - 05:15 PM)</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Time Range</Label>
+                  <Input
+                    value={`${batchStartTime} – ${batchEndTime}`}
+                    readOnly
+                    className="h-9 text-xs bg-slate-100 font-medium"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[11px] font-bold text-slate-700">Room / Lab *</Label>
+                  <select
+                    value={batchRoomNo}
+                    onChange={(e) => setBatchRoomNo(e.target.value)}
+                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
+                  >
+                    <option value="Room 201">Room 201 (Theory)</option>
+                    <option value="Room 202">Room 202 (Theory)</option>
+                    <option value="Room 203">Room 203 (Interactive)</option>
+                    <option value="Lab 1">Computer Lab 1</option>
+                    <option value="Lab 2">Digital Marketing Lab 2</option>
+                    <option value="Design Lab 1">Design Studio 1</option>
+                    <option value="Analytics Lab 3">Analytics Lab 3</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button type="button" variant="outline" onClick={() => setShowCreateBatchModal(false)} className="text-xs">
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5 shadow-md">
+                <Check className="h-4 w-4" /> Create & Publish to Faculty Timetable
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

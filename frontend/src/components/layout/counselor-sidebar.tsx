@@ -11,7 +11,8 @@ import {
   ChevronRight,
   LogOut,
   Sparkles,
-  Bot
+  Bot,
+  Layers,
 } from "lucide-react"
 
 import {
@@ -85,6 +86,17 @@ const counselorNavItems = [
       { title: "All Faculty", url: "/counselor/faculty/all" },
       { title: "Assigned Courses", url: "/counselor/faculty/courses" },
       { title: "Attendance", url: "/counselor/faculty/attendance" },
+      { title: "Timetable Schedule", url: "/counselor/faculty/timetable" },
+    ],
+  },
+  {
+    title: "Batches & Timetable",
+    url: "/counselor/batches",
+    icon: Layers,
+    isActive: false,
+    items: [
+      { title: "All Batches", url: "/counselor/batches" },
+      { title: "Class Timetable", url: "/counselor/timetable" },
     ],
   },
   {
