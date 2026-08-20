@@ -67,12 +67,6 @@ const facultyNavItems = [
     isActive: false,
   },
   {
-    title: "Class Schedule",
-    url: "/faculty/schedule/classes",
-    icon: Calendar,
-    isActive: false,
-  },
-  {
     title: "Student Performance",
     url: "/faculty/reports/students",
     icon: BarChart3,
@@ -136,16 +130,14 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                         <Link to={item.url} className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <Sparkles
-                              className={`h-4 w-4 shrink-0 ${
-                                isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
-                              }`}
+                              className={`h-4 w-4 shrink-0 ${isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
+                                }`}
                             />
                             <span className="tracking-wide">✦ ASK ME</span>
                           </div>
                           <span
-                            className={`${
-                              isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
-                            } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
+                            className={`${isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
+                              } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
                           >
                             AI
                           </span>

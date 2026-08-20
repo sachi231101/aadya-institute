@@ -9,25 +9,13 @@ import {
   Search,
   Download,
   Plus,
-  MoreVertical,
-  X,
   Eye,
-  Edit,
-  Bot,
   MessageSquare,
   ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useStudentList } from "@/hooks/useStudents";
@@ -218,7 +206,6 @@ export const AllStudents: React.FC = () => {
   const [selectedTab, setSelectedTab] = useState("All Students");
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCourseFilter, setSelectedCourseFilter] = useState("All Courses");
-  const [selectedStudent, setSelectedStudent] = useState<any | null>(null);
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -513,7 +500,7 @@ export const AllStudents: React.FC = () => {
                 filteredStudents.map((s) => (
                   <tr
                     key={s.id}
-                    onClick={() => setSelectedStudent(s)}
+                    onClick={() => navigate(`${basePath}/students/${s.id}`)}
                     className="hover:bg-blue-50/30 transition-colors cursor-pointer group"
                   >
                     {/* Student Name & Code */}
@@ -620,33 +607,15 @@ export const AllStudents: React.FC = () => {
 
                     {/* Actions */}
                     <td className="p-3.5 text-right pr-5" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-700">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuLabel className="text-xs">Student Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => navigate(`${basePath}/students/${s.id}`)}>
-                            <Eye className="h-3.5 w-3.5 mr-2 text-[#1769AA]" /> View 360° Dossier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => navigate(`${basePath}/students/${s.id}/edit`)}>
-                            <Edit className="h-3.5 w-3.5 mr-2 text-slate-600" /> Edit Information
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => setSelectedStudent(s)}>
-                            <Users className="h-3.5 w-3.5 mr-2 text-slate-600" /> Quick Slide-over
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => alert(`Triggering Sarvam AI call to ${s.phone}`)}>
-                            <Bot className="h-3.5 w-3.5 mr-2 text-indigo-600" /> Call with Sarvam AI
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => alert(`Opening WhatsApp chat with ${s.phone}`)}>
-                            <MessageSquare className="h-3.5 w-3.5 mr-2 text-emerald-600" /> Send WhatsApp Message
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`${basePath}/students/${s.id}`)}
+                        className="h-7 px-3 text-xs font-semibold text-[#1769AA] border-[#1769AA]/30 hover:bg-[#1769AA] hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
+                      >
+                        <Eye className="h-3.5 w-3.5" />
+                        View Details
+                      </Button>
                     </td>
                   </tr>
                 ))
@@ -655,140 +624,6 @@ export const AllStudents: React.FC = () => {
           </table>
         </div>
       </Card>
-
-      {/* ─── 5. SLIDE-OVER QUICK VIEW DOSSIER DRAWER ──────────────────── */}
-      {selectedStudent && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex justify-end transition-opacity">
-          <div className="bg-white w-full max-w-lg h-full shadow-2xl p-6 overflow-y-auto space-y-5 animate-in slide-in-from-right duration-200">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-              <div className="flex items-center gap-3">
-                <Avatar className="h-12 w-12 border border-slate-200">
-                  <AvatarFallback className="bg-[#1769AA] text-white font-bold text-base">
-                    {selectedStudent.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">{selectedStudent.name}</h3>
-                  <p className="font-mono text-xs text-[#1769AA] font-semibold">{selectedStudent.studentCode}</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedStudent(null)}
-                className="h-8 w-8 rounded-full"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                size="sm"
-                className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-semibold"
-                onClick={() => {
-                  const id = selectedStudent.id;
-                  setSelectedStudent(null);
-                  navigate(`${basePath}/students/${id}`);
-                }}
-              >
-                <Eye className="h-3.5 w-3.5 mr-1.5" /> Full 360° Dossier
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs font-semibold"
-                onClick={() => alert(`WhatsApp message sent to ${selectedStudent.phone}`)}
-              >
-                <MessageSquare className="h-3.5 w-3.5 mr-1.5 text-emerald-600" /> WhatsApp
-              </Button>
-            </div>
-
-            {/* Personal & Guardian Info */}
-            <div className="space-y-3 text-xs">
-              <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1">
-                Personal & Family Details
-              </h4>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-slate-400 font-semibold">Phone Number</p>
-                  <p className="text-slate-900 font-bold mt-0.5">{selectedStudent.phone}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold">Email Address</p>
-                  <p className="text-slate-900 font-bold mt-0.5 truncate">{selectedStudent.email}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold">Parent / Guardian</p>
-                  <p className="text-slate-900 font-bold mt-0.5">{selectedStudent.guardianName}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold">Guardian Phone</p>
-                  <p className="text-slate-900 font-bold mt-0.5">{selectedStudent.guardianPhone}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold">Gender & DOB</p>
-                  <p className="text-slate-800 mt-0.5">{selectedStudent.gender} • {selectedStudent.dob}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold">Qualification</p>
-                  <p className="text-slate-800 mt-0.5">{selectedStudent.qualification}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Academic & Batch */}
-            <div className="space-y-3 text-xs">
-              <h4 className="font-bold text-slate-800 uppercase tracking-wider text-[11px] border-b border-slate-100 pb-1">
-                Academic & Fee Status
-              </h4>
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Course:</span>
-                  <span className="font-bold text-slate-800">{selectedStudent.course}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Batch:</span>
-                  <span className="font-mono text-slate-700">{selectedStudent.batch}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Faculty:</span>
-                  <span className="font-medium text-slate-700">{selectedStudent.faculty}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-500">Attendance:</span>
-                  <span className="font-bold text-emerald-700">{selectedStudent.attendance}%</span>
-                </div>
-                <div className="flex items-center justify-between border-t border-slate-200 pt-2">
-                  <span className="text-slate-500">Fee Balance:</span>
-                  <span className={`font-bold ${selectedStudent.fees?.pending > 0 ? "text-amber-700" : "text-emerald-700"}`}>
-                    {selectedStudent.fees?.pending > 0 ? `₹${selectedStudent.fees.pending.toLocaleString()} Due` : "Fully Paid"}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* AI Call Trigger Card */}
-            <div className="p-3.5 rounded-lg border border-indigo-200 bg-indigo-50/50 text-xs flex items-center justify-between">
-              <div className="flex items-center gap-2.5">
-                <Bot className="h-5 w-5 text-indigo-600" />
-                <div>
-                  <p className="font-bold text-slate-800">Sarvam AI Assistant</p>
-                  <p className="text-[11px] text-slate-500">Automated Voice check-in available</p>
-                </div>
-              </div>
-              <Button
-                size="sm"
-                onClick={() => alert(`Initiating Sarvam AI voice call to ${selectedStudent.phone}`)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-3"
-              >
-                Call Now
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

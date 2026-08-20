@@ -27,6 +27,7 @@ import { StudentPerformance } from "../pages/admin/students/StudentPerformance";
 import { AllFaculty } from "../pages/admin/faculty/AllFaculty";
 import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
 import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
+import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
 import { FacultyCourses } from "../pages/admin/faculty/FacultyCourses";
 import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
 
@@ -146,6 +147,7 @@ export const AppRoutes: React.FC = () => {
         {/* Faculty */}
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
+          <Route path="timetable" element={<FacultyTimetable />} />
           <Route path="add" element={<AddFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
@@ -311,14 +313,19 @@ export const AppRoutes: React.FC = () => {
           <Route path="performance" element={<StudentPerformance />} />
         </Route>
 
-        {/* Faculty */}
+        {/* Faculty & Timetable */}
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
           <Route path="add" element={<AddFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
+          <Route path="timetable" element={<FacultyTimetable />} />
         </Route>
+
+        {/* Batches & Schedules */}
+        <Route path="batches" element={<CounsellorBatches />} />
+        <Route path="timetable" element={<FacultyTimetable />} />
 
         {/* Fees */}
         <Route path="fees">
@@ -362,7 +369,8 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id/edit" element={<EditStudent />} />
         </Route>
         <Route path="schedule">
-          <Route path="classes" element={<Classes />} />
+          <Route path="classes" element={<FacultyTimetable />} />
+          <Route path="timetable" element={<FacultyTimetable />} />
         </Route>
         <Route path="reports">
           <Route path="students" element={<StudentReports />} />
