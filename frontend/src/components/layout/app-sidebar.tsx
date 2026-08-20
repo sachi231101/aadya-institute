@@ -89,7 +89,6 @@ const data = {
       items: [
         { title: "All Courses", url: "/admin/courses/all" },
         { title: "Batches", url: "/admin/courses/batches" },
-        { title: "Curriculum", url: "/admin/courses/curriculum" },
       ],
     },
     {
@@ -97,10 +96,6 @@ const data = {
       url: "/admin/leads",
       icon: Bot,
       isActive: false,
-      items: [
-        { title: "All Leads", url: "/admin/leads" },
-        { title: "Add Lead", url: "/admin/leads/add" },
-      ],
     },
     {
       title: "Admissions",

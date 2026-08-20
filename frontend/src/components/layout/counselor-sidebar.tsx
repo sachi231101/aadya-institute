@@ -51,10 +51,6 @@ const counselorNavItems = [
     url: "/counselor/leads",
     icon: Bot,
     isActive: false,
-    items: [
-      { title: "My Leads", url: "/counselor/leads" },
-      { title: "Add New Lead", url: "/counselor/leads/add" },
-    ],
   },
   {
     title: "Admissions",
