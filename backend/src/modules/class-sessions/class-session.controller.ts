@@ -1,5 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
+import { prisma } from "../../config/database";
 import { classSessionService } from "./class-session.service";
 import { sendSuccess, sendError } from "../../utils/response";
 
@@ -11,9 +12,28 @@ export const getSessions = async (
   try {
     const instituteId = req.user!.instituteId;
     const branchId = req.user!.branchId || undefined;
+    const roles = req.user?.roles || [];
+    const isPureFaculty = roles.includes("FACULTY") &&
+      !roles.includes("ADMIN") &&
+      !roles.includes("CENTER_MANAGER") &&
+      !roles.includes("COUNSELLOR");
+
+    let facultyFilter = req.query.facultyId as string;
+
+    if (isPureFaculty) {
+      const facultyRecord = await prisma.faculty.findFirst({
+        where: { userId: req.user!.userId },
+      });
+      if (!facultyRecord) {
+        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        return;
+      }
+      facultyFilter = facultyRecord.id;
+    }
+
     const filters = {
       batchId: req.query.batchId as string,
-      facultyId: req.query.facultyId as string,
+      facultyId: facultyFilter,
       status: req.query.status as any,
       mode: req.query.mode as any,
       startDate: req.query.startDate as string,

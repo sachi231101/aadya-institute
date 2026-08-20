@@ -110,14 +110,20 @@ export const getAllFacultyCourses = async (
 
   let targetFacultyId = query.facultyId && query.facultyId !== "ALL" ? query.facultyId : undefined;
 
-  // If user has FACULTY role and targetFacultyId is not set, resolve their faculty profile ID
-  if (currentUser.roles.includes("FACULTY") && !targetFacultyId) {
+  const isPureFaculty = currentUser.roles.includes("FACULTY") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("COUNSELLOR");
+
+  // If user is a faculty member, strictly enforce filtering to their own faculty record
+  if (isPureFaculty) {
     const facultyRecord = await prisma.faculty.findFirst({
       where: { userId: currentUser.id },
     });
-    if (facultyRecord) {
-      targetFacultyId = facultyRecord.id;
+    if (!facultyRecord) {
+      return { data: [], meta: buildMeta(0, page, limit) };
     }
+    targetFacultyId = facultyRecord.id;
   }
 
   const params: repo.FindFacultyCoursesParams = {
