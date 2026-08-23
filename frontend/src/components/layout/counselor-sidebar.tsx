@@ -51,6 +51,12 @@ const counselorNavItems = [
     url: "/counselor/leads",
     icon: Bot,
     isActive: false,
+    items: [
+      { title: "All Leads", url: "/counselor/leads" },
+      { title: "Enquiries", url: "/counselor/leads/enquiries" },
+      { title: "AI Calling", url: "/counselor/leads/ai-calling" },
+      { title: "Follow-ups", url: "/counselor/leads/follow-ups" },
+    ],
   },
   {
     title: "Admissions",
@@ -60,7 +66,6 @@ const counselorNavItems = [
     items: [
       { title: "All Admissions", url: "/counselor/admissions/all" },
       { title: "Applications", url: "/counselor/admissions/applications" },
-      { title: "Enquiries", url: "/counselor/admissions/enquiries" },
     ],
   },
   {

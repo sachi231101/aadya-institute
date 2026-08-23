@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   GraduationCap,
   Plus,
@@ -535,6 +536,14 @@ const SAMPLE_ADMISSIONS: EnrichedAdmission[] = [
 ];
 
 export const AllAdmissions: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
+
   const { fetchCourses, fetchBatches } = useCourseStore();
 
   const [admissionsList, setAdmissionsList] = useState<EnrichedAdmission[]>(SAMPLE_ADMISSIONS);
@@ -966,7 +975,7 @@ export const AllAdmissions: React.FC = () => {
           </div>
 
           <Button
-            onClick={() => setIsDirectModalOpen(true)}
+            onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
             className="bg-[#1769AA] hover:bg-[#12558c] text-white font-medium px-4.5 py-2.5 rounded-lg shadow-sm flex items-center gap-2 text-sm transition-all shrink-0 h-10"
           >
             <Plus className="h-4 w-4" />

@@ -6,10 +6,13 @@ export interface ClassSession {
   title: string;
   batchId: string;
   batchCode: string;
+  branchId?: string;
   courseId: string;
   courseName: string;
   facultyId: string;
   facultyName: string;
+  facultyDesignation?: string;
+  facultyAvatar?: string;
   date: string; // YYYY-MM-DD
   startTime: string; // e.g. "10:00 AM"
   endTime: string; // e.g. "12:00 PM"
@@ -17,6 +20,7 @@ export interface ClassSession {
   mode: ClassMode;
   status: ClassStatus;
   attendanceMarked: boolean;
+  attendanceStatus?: "PENDING" | "IN_PROGRESS" | "MARKED";
   meetingUrl?: string;
   notes?: string;
 }

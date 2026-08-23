@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Calendar } from "lucide-react";
+import { Calendar, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useCourseStore } from "../../../store/course.store";
@@ -10,9 +10,10 @@ import type { ClassSession, ClassMode, ClassStatus } from "../../../types/schedu
 interface EditClassModalProps {
   session: ClassSession | null;
   onClose: () => void;
+  onSave?: (updated: ClassSession) => void;
 }
 
-export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose }) => {
+export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose, onSave }) => {
   const { batches } = useCourseStore();
   const { data: facultyResponse } = useFacultyList({ limit: 100 });
   const facultyList = facultyResponse?.data ?? [];
@@ -30,15 +31,15 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
 
   useEffect(() => {
     if (session) {
-      setTitle(session.title);
-      setBatchId(session.batchId);
-      setFacultyId(session.facultyId);
-      setDate(session.date);
-      setStartTime(session.startTime);
-      setEndTime(session.endTime);
-      setRoomNo(session.roomNo || "");
-      setMode(session.mode);
-      setStatus(session.status);
+      setTitle(session.title || "Class Session");
+      setBatchId(session.batchId || "");
+      setFacultyId(session.facultyId || "");
+      setDate(session.date || "");
+      setStartTime(session.startTime || "09:00");
+      setEndTime(session.endTime || "17:00");
+      setRoomNo(session.roomNo || "Room 101");
+      setMode(session.mode || "OFFLINE");
+      setStatus(session.status || "UPCOMING");
     }
   }, [session]);
 
@@ -46,6 +47,24 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
     e.preventDefault();
     if (!session) return;
     
+    const selectedBatch = batches.find((b) => b.id === batchId);
+    const selectedFaculty = facultyList.find((f) => f.id === facultyId);
+
+    const updatedSession: ClassSession = {
+      ...session,
+      title,
+      batchId,
+      batchCode: selectedBatch?.code || session.batchCode,
+      facultyId,
+      facultyName: selectedFaculty?.user?.name || (selectedFaculty as any)?.name || session.facultyName,
+      date,
+      startTime,
+      endTime,
+      roomNo,
+      mode,
+      status,
+    };
+
     await updateClassSession(session.id, {
       title,
       batchId,
@@ -57,6 +76,10 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       mode,
       status,
     });
+
+    if (onSave) {
+      onSave(updatedSession);
+    }
     
     onClose();
   };
@@ -64,142 +87,181 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
   if (!session) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
-        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-          <Calendar className="h-5 w-5 text-[#1769AA]" />
-          Edit Class Session
-        </h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4 text-slate-900">
+        <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-[#1769AA]" />
+            Edit Class Timetable Entry
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Class Topic / Lecture Title *</label>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Class Topic / Title *
+            </label>
             <Input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              className="bg-white border-slate-300 text-slate-900"
+              className="rounded-xl border-slate-200"
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Target Batch *</label>
-            <select
-              value={batchId}
-              onChange={(e) => setBatchId(e.target.value)}
-              className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              required
-            >
-              <option value="">Select Batch</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name} ({b.code})
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Target Batch *
+              </label>
+              <select
+                value={batchId}
+                onChange={(e) => setBatchId(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
+                required
+              >
+                <option value="">Select Batch</option>
+                <option value="b-wd-a">WD-2026-A</option>
+                <option value="b-js-a">JS-2026-A</option>
+                <option value="b-re-a">RE-2026-A</option>
+                <option value="b-wd-b">WD-2026-B</option>
+                <option value="b-js-b">JS-2026-B</option>
+                {batches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Faculty *</label>
-            <select
-              value={facultyId}
-              onChange={(e) => setFacultyId(e.target.value)}
-              className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              required
-            >
-              <option value="">Select Faculty</option>
-              {facultyList.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Assigned Faculty *
+              </label>
+              <select
+                value={facultyId}
+                onChange={(e) => setFacultyId(e.target.value)}
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
+                required
+              >
+                <option value="">Select Faculty</option>
+                <option value="f-1">HM Adithya</option>
+                <option value="f-2">Ramesh Kumar</option>
+                <option value="f-3">Priya Sharma</option>
+                <option value="f-4">Suresh Babu</option>
+                <option value="f-5">Neha Patil</option>
+                {facultyList.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Date *</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Date *
+              </label>
               <Input
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 required
-                className="bg-white border-slate-300 text-slate-900 text-xs"
+                className="rounded-xl border-slate-200 text-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Start Time</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Start Time
+              </label>
               <Input
                 type="text"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
-                placeholder="10:00 AM"
-                className="bg-white border-slate-300 text-slate-900 text-xs"
+                placeholder="09:00"
+                className="rounded-xl border-slate-200 text-xs"
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">End Time</label>
-              <Input
-                type="text"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                placeholder="12:00 PM"
-                className="bg-white border-slate-300 text-slate-900 text-xs"
-              />
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                End Time
+              </label>
+                <Input
+                  type="text"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  placeholder="17:00"
+                  className="rounded-xl border-slate-200 text-xs"
+                />
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Class Mode</label>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Location / Room
+              </label>
+              <Input
+                type="text"
+                value={roomNo}
+                onChange={(e) => setRoomNo(e.target.value)}
+                placeholder="Room 101 / Lab 1"
+                className="rounded-xl border-slate-200 text-xs"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1">
+                Class Mode
+              </label>
               <select
                 value={mode}
                 onChange={(e) => setMode(e.target.value as ClassMode)}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
               >
-                <option value="OFFLINE">Campus Offline</option>
-                <option value="ONLINE">Online Virtual</option>
-                <option value="HYBRID">Hybrid Mode</option>
+                <option value="OFFLINE">Campus (OFFLINE)</option>
+                <option value="ONLINE">Online (ONLINE)</option>
+                <option value="HYBRID">Hybrid (HYBRID)</option>
               </select>
             </div>
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Status</label>
-              <select
-                value={status}
-                onChange={(e) => setStatus(e.target.value as ClassStatus)}
-                className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="UPCOMING">Upcoming</option>
-                <option value="ONGOING">Ongoing</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">Room / Lab Allocation</label>
-            <Input
-              type="text"
-              value={roomNo}
-              onChange={(e) => setRoomNo(e.target.value)}
-              placeholder="Lab 201"
-              className="bg-white border-slate-300 text-slate-900"
-            />
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">
+              Session Status
+            </label>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value as ClassStatus)}
+              className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
+            >
+              <option value="UPCOMING">Upcoming</option>
+              <option value="ONGOING">Ongoing</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
+              className="rounded-xl border-slate-200 text-xs"
             >
               Cancel
             </Button>
             <Button
               type="submit"
-              className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+              className="bg-[#1769AA] hover:bg-[#145a92] text-white rounded-xl text-xs font-semibold px-4"
             >
               Save Changes
             </Button>
