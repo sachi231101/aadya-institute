@@ -23,15 +23,16 @@ import {
   X,
   ArrowLeft,
   Check,
-  Lock,
-  Lightbulb,
   MoreVertical,
   SlidersHorizontal,
   Info,
   ShieldCheck,
   UserCheck,
   ChevronDown,
-  XCircle
+  XCircle,
+  Save,
+  Video,
+  ArrowRight
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useFacultyList } from "@/hooks/useFaculty";
@@ -239,6 +247,7 @@ export const FacultyTimetable: React.FC = () => {
   const [attendanceStatusFilter, setAttendanceStatusFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
   const [autoSaveState, setAutoSaveState] = useState<"saved" | "saving">("saved");
   const [validationWarning, setValidationWarning] = useState<string | null>(null);
+  const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
 
   // When active attendance session changes, load students for that specific batch
   useEffect(() => {
@@ -481,7 +490,14 @@ export const FacultyTimetable: React.FC = () => {
     }
 
     setNotificationMsg(`✓ Attendance saved successfully for ${activeAttendanceSession?.batchCode} (${present} P • ${absent} A • ${excused} E)`);
+    setIsSavedPopupOpen(true);
     setTimeout(() => setNotificationMsg(null), 4000);
+  };
+
+  // Save Attendance and Immediately Transition to Live Class
+  const handleSaveAndGoLive = () => {
+    handleSaveAttendance();
+    navigate("/faculty/class-session?mode=live", { state: { live: true } });
   };
 
   // Export CSV
@@ -1005,31 +1021,102 @@ export const FacultyTimetable: React.FC = () => {
           </div>
         </Card>
 
-        {/* ─── STICKY SAVE ATTENDANCE BANNER ───────────────────────────── */}
-        <div className="p-4 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0">
-              <Lightbulb className="h-5 w-5" />
-            </div>
-            <div>
-              <h5 className="text-xs font-black text-amber-900">
-                {activeAttendanceSession.attendanceStatus === "COMPLETED" ? "Attendance Already Recorded" : "Don't forget to save your attendance!"}
-              </h5>
-              <p className="text-[11px] text-amber-800/90 font-medium mt-0.5">
-                Attendance is permanently linked to {activeAttendanceSession.batchCode} for Period {activeAttendanceSession.period} on {currentDayObj.label}, {currentDayObj.sub}.
-              </p>
-            </div>
+        {/* ─── BOTTOM STICKY ACTION BAR ───────────────────────────────── */}
+        <div className="sticky bottom-4 z-20 p-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
+          {/* Left Side: Count & Helper Text */}
+          <div>
+            <span className="text-sm font-black text-slate-900 block leading-tight">
+              {sessionMarked} / {sessionTotal} Students Marked
+            </span>
+            <span className="text-xs text-slate-500 font-medium mt-0.5 block">
+              All attendance changes are ready to be saved.
+            </span>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right Side: Exactly Two Buttons */}
+          <div className="flex items-center gap-3">
+            {/* Save Attendance Button */}
             <Button
+              variant="outline"
               onClick={handleSaveAttendance}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02]"
+              className="bg-white hover:bg-slate-50 text-[#1769AA] border-[#1769AA] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
             >
-              <Lock className="h-4 w-4" /> {activeAttendanceSession.attendanceStatus === "COMPLETED" ? "Update Attendance" : "Save Attendance"}
+              <Save className="h-4 w-4 text-[#1769AA]" />
+              <span>Save Attendance</span>
+            </Button>
+
+            {/* Save & Go Live Button */}
+            <Button
+              onClick={handleSaveAndGoLive}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group"
+            >
+              <Video className="h-4 w-4 fill-white/20 stroke-[2.2]" />
+              <span>Save & Go Live</span>
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
         </div>
+
+        {/* ─── ATTENDANCE SAVED CONFIRMATION POPUP MODAL ───────────────── */}
+        <Dialog open={isSavedPopupOpen} onOpenChange={setIsSavedPopupOpen}>
+          <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 sm:p-8 border-slate-200/90 shadow-2xl">
+            <DialogHeader className="text-center sm:text-center space-y-3">
+              {/* Animated Check Icon */}
+              <div className="w-16 h-16 rounded-full bg-emerald-100/90 border-4 border-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-sm animate-in zoom-in-75 duration-300">
+                <Check className="w-8 h-8 stroke-[3]" />
+              </div>
+
+              <div className="space-y-1.5">
+                <DialogTitle className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                  Attendance Successfully Saved!
+                </DialogTitle>
+                <DialogDescription className="text-xs sm:text-sm font-semibold text-slate-600 leading-relaxed">
+                  Student attendance records have been successfully saved for{" "}
+                  <span className="text-slate-900 font-bold">{activeAttendanceSession?.batchCode || "Batch DM-01"}</span>.
+                </DialogDescription>
+              </div>
+            </DialogHeader>
+
+            <div className="space-y-4 my-2">
+              {/* Status Stats */}
+              <div className="flex items-center justify-center gap-3 py-2">
+                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold">
+                  ✓ {sessionPresent} Present
+                </span>
+                <span className="px-3 py-1 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold">
+                  ✕ {sessionAbsent} Absent
+                </span>
+                <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold">
+                  ◷ {sessionExcused} Excused
+                </span>
+              </div>
+            </div>
+
+            {/* SINGLE PROMINENT ACTION BUTTON: Go Online & Take Classes */}
+            <div className="pt-2">
+              <Button
+                onClick={() => {
+                  setIsSavedPopupOpen(false);
+                  navigate("/faculty/class-session?mode=live", { state: { live: true } });
+                }}
+                className="w-full bg-[#1769AA] hover:bg-[#125890] text-white py-4 h-auto rounded-2xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 cursor-pointer group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
+                  <Video className="w-4 h-4 fill-white/20 stroke-[2.2]" />
+                </div>
+                <div className="text-left">
+                  <span className="text-sm font-black tracking-tight block leading-tight">
+                    Go Online & Take Classes
+                  </span>
+                  <span className="text-[10px] font-medium text-blue-100 block leading-tight">
+                    Start your live online class
+                  </span>
+                </div>
+                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     );
   }

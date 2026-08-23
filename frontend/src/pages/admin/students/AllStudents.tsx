@@ -347,7 +347,7 @@ export const AllStudents: React.FC = () => {
           </Button>
           <Button
             className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
-            onClick={() => navigate(`${basePath}/students/add`)}
+            onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
           >
             <Plus className="h-4 w-4 mr-2" /> Register Student
           </Button>

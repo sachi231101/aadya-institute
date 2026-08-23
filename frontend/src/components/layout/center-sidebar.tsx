@@ -51,6 +51,12 @@ const centerNavItems = [
     url: "/center/leads",
     icon: Bot,
     isActive: false,
+    items: [
+      { title: "All Leads", url: "/center/leads" },
+      { title: "Enquiries", url: "/center/leads/enquiries" },
+      { title: "AI Calling", url: "/center/leads/ai-calling" },
+      { title: "Follow-ups", url: "/center/leads/follow-ups" },
+    ],
   },
   {
     title: "Admissions",
@@ -60,7 +66,6 @@ const centerNavItems = [
     items: [
       { title: "All Admissions", url: "/center/admissions/all" },
       { title: "Applications", url: "/center/admissions/applications" },
-      { title: "Enquiries", url: "/center/admissions/enquiries" },
     ],
   },
   {

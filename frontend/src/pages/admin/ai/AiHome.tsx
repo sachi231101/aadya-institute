@@ -20,6 +20,7 @@ import {
   ClipboardList,
   MessageSquareQuote,
   TrendingUp,
+  ArrowLeft,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -188,31 +189,43 @@ export const AiHome: React.FC = () => {
 
   return (
     <div className="p-6 md:p-8 max-w-[1500px] mx-auto bg-[#fafbfc] min-h-screen relative flex flex-col justify-between space-y-6">
-      {/* ─── TOP RIGHT CONTROLS ─── */}
-      <div className="flex justify-end items-center gap-3 w-full">
-        {/* Date Filter */}
-        <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-xs">
-          <Calendar className="h-4 w-4 text-slate-500" />
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer pr-1"
-          >
-            <option value="This Month">This Month</option>
-            <option value="Last Month">Last Month</option>
-            <option value="This Quarter">This Quarter</option>
-            <option value="This Year">This Year</option>
-          </select>
-        </div>
-
-        {/* Refresh Action */}
+      {/* ─── TOP HEADER BAR WITH BACK BUTTON ─── */}
+      <div className="flex items-center justify-between gap-3 w-full">
+        {/* Back Button */}
         <button
-          onClick={() => setInputValue("")}
-          title="Reset"
-          className="p-2.5 bg-white border border-slate-200/80 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 shadow-xs transition-colors"
+          onClick={() => navigate(-1)}
+          className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
         >
-          <RotateCw className="h-4 w-4" />
+          <ArrowLeft className="w-4 h-4 text-slate-500" />
+          <span>Back</span>
         </button>
+
+        {/* Right Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Date Filter */}
+          <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-xs">
+            <Calendar className="h-4 w-4 text-slate-500" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer pr-1"
+            >
+              <option value="This Month">This Month</option>
+              <option value="Last Month">Last Month</option>
+              <option value="This Quarter">This Quarter</option>
+              <option value="This Year">This Year</option>
+            </select>
+          </div>
+
+          {/* Refresh Action */}
+          <button
+            onClick={() => setInputValue("")}
+            title="Reset"
+            className="p-2.5 bg-white border border-slate-200/80 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
+          >
+            <RotateCw className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* ─── MAIN AI COMMAND CENTER HERO ─── */}
