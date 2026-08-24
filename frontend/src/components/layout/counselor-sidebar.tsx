@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
+import { InstallAppButton } from "@/components/common/InstallAppButton"
 
 const counselorNavItems = [
   {
@@ -250,6 +251,9 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/50">
+        <div className="px-2 pt-2">
+          <InstallAppButton variant="sidebar" />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center justify-between p-2">

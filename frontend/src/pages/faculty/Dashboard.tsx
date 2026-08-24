@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import {
   Table,
   TableBody,
@@ -163,6 +164,8 @@ export const FacultyDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <InstallDashboardBanner />
 
       {/* Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

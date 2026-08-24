@@ -10,6 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "../../store/auth.store";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
@@ -36,6 +37,8 @@ export const StudentDashboard: React.FC = () => {
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute top-10 right-20 w-32 h-32 bg-[#F39A16]/20 rounded-full blur-2xl" />
       </div>
+
+      <InstallDashboardBanner />
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         

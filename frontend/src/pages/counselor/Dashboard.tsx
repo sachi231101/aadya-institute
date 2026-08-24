@@ -27,6 +27,7 @@ import { useFinancialReport } from "@/hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import {
   Dialog,
   DialogContent,
@@ -494,6 +495,8 @@ export const CounselorDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <InstallDashboardBanner />
 
       {/* ─── 2. TOP 5 KPI CARDS ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

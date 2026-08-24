@@ -3,6 +3,8 @@ import { Link, Navigate, Outlet, useNavigate, useLocation } from "react-router-d
 import { LayoutDashboard, Calendar, Video, FileText, LogOut, CheckSquare, Settings, Sparkles, Star, User } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 
 export const StudentLayout: React.FC = () => {
@@ -42,6 +44,7 @@ export const StudentLayout: React.FC = () => {
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
+      <InstallLoginPopup />
       <aside
         style={{
           width: "260px",
@@ -146,10 +149,11 @@ export const StudentLayout: React.FC = () => {
             borderTop: "1px solid var(--border-color)",
             display: "flex",
             flexDirection: "column",
-            gap: "1rem",
+            gap: "0.75rem",
             marginTop: "1.5rem",
           }}
         >
+          <InstallAppButton variant="sidebar" />
           <div style={{ textAlign: "center" }}>
             <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>
               {user?.name || "Student"}
@@ -193,7 +197,10 @@ export const StudentLayout: React.FC = () => {
           }}
         >
           <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>Student Learning Portal</span>
-          <NotificationPopover />
+          <div className="flex items-center gap-3">
+            <InstallAppButton variant="header" />
+            <NotificationPopover />
+          </div>
         </header>
 
         <main style={{ flex: 1, padding: "2rem", overflowY: "auto" }}>

@@ -5,7 +5,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CounselorSidebar } from "@/components/layout/counselor-sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
-
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 export const CounselorLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -20,6 +21,7 @@ export const CounselorLayout: React.FC = () => {
   }
   return (
     <SidebarProvider>
+      <InstallLoginPopup />
       <div className="flex min-h-screen w-full bg-background">
         <CounselorSidebar />
         
@@ -33,7 +35,8 @@ export const CounselorLayout: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <InstallAppButton variant="header" />
               <NotificationPopover />
             </div>
 
