@@ -1,1238 +1,534 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useMemo } from "react";
 import {
-  Users,
-  Calendar,
-  Clock,
-  BookOpen,
-  Plus,
-  ChevronLeft,
-  ChevronRight,
   Download,
+  Bell,
+  SlidersHorizontal,
+  Building2,
+  BookOpen,
   Search,
   Filter,
-  Sparkles,
-  AlertTriangle,
-  Building2,
-  CheckCircle2,
-  Trash2,
-  Layers,
-  GraduationCap,
-  TrendingUp,
-  MapPin,
-  X,
-  ArrowLeft,
-  Check,
-  MoreVertical,
-  SlidersHorizontal,
+  Calendar,
+  Coffee,
+  UtensilsCrossed,
+  Plus,
+  Edit3,
+  Users,
   Info,
-  ShieldCheck,
-  UserCheck,
-  ChevronDown,
-  XCircle,
   Save,
-  Video,
-  ArrowRight
+  CheckCircle2,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
-import { useBranches } from "@/hooks/useBranches";
-import { useFacultyList } from "@/hooks/useFaculty";
-import { useBatches } from "@/hooks/useBatches";
-import { useCourses } from "@/hooks/useCourses";
-import { useStudentStore } from "@/store/student.store";
-import { useTimetableStore, type TimetableSlotItem } from "@/store/timetable.store";
 
-// ─── TYPES & DATA STRUCTURES ───────────────────────────────────────────────
+// ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
-export type SlotAttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED" | "UNMARKED";
+export type SlotType =
+  | "CLASS"
+  | "FREE"
+  | "BREAK"
+  | "LUNCH"
+  | "LEAVE"
+  | "NOT_ASSIGNED";
 
-export interface BatchStudentItem {
+export interface FacultyTimetableSlot {
   id: string;
-  studentCode: string;
-  name: string;
-  email: string;
-  avatar?: string;
-  status: SlotAttendanceStatus;
-  remarks: string;
-  leaveReason?: string;
+  period: number;
+  timeRange: string;
+  type: SlotType;
+  courseName?: string;
+  batchCode?: string;
+  roomNo?: string;
+  studentCount?: number;
+  attendanceStatus?: "PENDING" | "IN_PROGRESS" | "COMPLETED";
 }
 
-const EXCUSED_REASONS = [
-  "Medical Leave",
-  "Personal Emergency",
-  "Official Leave",
-  "Family Reason",
-  "Academic Event",
-  "Other",
+export interface FacultyDaySchedule {
+  dayKey: "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
+  dayName: string;
+  dayShort: string;
+  dateStr: string;
+  isHoliday?: boolean;
+  holidayTitle?: string;
+  slots: Record<number, FacultyTimetableSlot>;
+}
+
+const TIME_SLOT_COLUMNS = [
+  { period: 1, label: "09:00 – 10:00 AM", timeTitle: "09:00 – 10:00", subTitle: "AM" },
+  { period: 2, label: "10:00 – 11:00 AM", timeTitle: "10:00 – 11:00", subTitle: "AM" },
+  { period: 3, label: "11:00 – 12:00 PM", timeTitle: "11:00 – 12:00", subTitle: "PM" },
+  { period: 4, label: "12:00 – 01:00 PM", timeTitle: "12:00 – 01:00", subTitle: "PM", isBreak: true },
+  { period: 5, label: "01:00 – 02:00 PM", timeTitle: "01:00 – 02:00", subTitle: "PM", isLunch: true },
+  { period: 6, label: "02:00 – 03:00 PM", timeTitle: "02:00 – 03:00", subTitle: "PM" },
+  { period: 7, label: "03:00 – 04:00 PM", timeTitle: "03:00 – 04:00", subTitle: "PM" },
+  { period: 8, label: "04:00 – 05:00 PM", timeTitle: "04:00 – 05:00", subTitle: "PM" },
 ];
 
-const PERIODS = [1, 2, 3, 4, 5, 6, 7];
-
-const DAYS_OF_WEEK = [
-  { key: "MON", label: "Mon", sub: "18 Aug", dateStr: "18 Aug 2026" },
-  { key: "TUE", label: "Tue", sub: "19 Aug", dateStr: "19 Aug 2026" },
-  { key: "WED", label: "Wed", sub: "20 Aug", dateStr: "20 Aug 2026" },
-  { key: "THU", label: "Thu", sub: "21 Aug", dateStr: "21 Aug 2026" },
-  { key: "FRI", label: "Fri", sub: "22 Aug", dateStr: "22 Aug 2026" },
-  { key: "SAT", label: "Sat", sub: "23 Aug", dateStr: "23 Aug 2026" },
-];
-
-const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string; dot: string }> = {
-  "Digital Marketing": { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200/80", dot: "bg-purple-500" },
-  "Design": { bg: "bg-amber-50", text: "text-amber-800", border: "border-amber-200/80", dot: "bg-amber-500" },
-  "Data Analytics": { bg: "bg-emerald-50", text: "text-emerald-800", border: "border-emerald-200/80", dot: "bg-emerald-500" },
-  "Programming": { bg: "bg-blue-50", text: "text-blue-800", border: "border-blue-200/80", dot: "bg-blue-500" },
-  "Others": { bg: "bg-slate-50", text: "text-slate-700", border: "border-slate-200/80", dot: "bg-slate-500" },
-};
-
-// ─── INITIAL MOCK BATCH STUDENTS ───────────────────────────────────────────
-
-const GENERATE_MOCK_STUDENTS = (batchCode: string, count: number = 42): BatchStudentItem[] => {
-  const sampleNames = [
-    "Rahul Verma", "Priya Sharma", "Aman Kumar", "Neha Gupta", "Vikram Singh",
-    "Sneha Reddy", "Rohit Das", "Ananya Roy", "Karan Johar", "Divya Patel",
-    "Siddharth Rao", "Pooja Hegde", "Aditya Joshi", "Kavya Menon", "Rohan Nair",
-    "Meera Pillai", "Gaurav Sen", "Tanvi Shah", "Arnav Malhotra", "Shreya Ghoshal",
-    "Manish Paul", "Isha Ambani", "Tarun Tahiliani", "Deepika Padukone", "Ranveer Singh",
-    "Varun Dhawan", "Alia Bhatt", "Kartik Aaryan", "Kiara Advani", "Ayushmann Khurrana",
-    "Rajkummar Rao", "Shraddha Kapoor", "Tiger Shroff", "Kriti Sanon", "Vicky Kaushal",
-    "Katrina Kaif", "Ranbir Kapoor", "Anushka Sharma", "Virat Kohli", "Hardik Pandya",
-    "Smriti Mandhana", "Rishabh Pant"
-  ];
-
-  const avatars = [
-    "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
-    "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150",
-  ];
-
-  return Array.from({ length: Math.min(count, sampleNames.length) }, (_, i) => {
-    const name = sampleNames[i] || `Student ${i + 1}`;
-    const codeNum = String(i + 1).padStart(3, "0");
-    return {
-      id: `stu-${batchCode.toLowerCase().replace(/[^a-z0-9]/g, "")}-${i + 1}`,
-      studentCode: `STU-${codeNum}`,
-      name,
-      email: `${name.toLowerCase().replace(/\s+/g, ".")}@aadya.in`,
-      avatar: avatars[i % avatars.length],
-      status: i < 36 ? "PRESENT" : i < 40 ? "ABSENT" : "EXCUSED",
-      remarks: i === 40 ? "Medical Leave" : i === 41 ? "Family Emergency" : "",
-      leaveReason: i === 40 ? "Medical Leave" : i === 41 ? "Family Emergency" : undefined,
-    };
+const createDefaultDaySlots = (
+  custom?: Partial<Record<number, Partial<FacultyTimetableSlot>>>
+): Record<number, FacultyTimetableSlot> => {
+  const slots: Record<number, FacultyTimetableSlot> = {};
+  TIME_SLOT_COLUMNS.forEach((col) => {
+    if (col.isBreak) {
+      slots[col.period] = {
+        id: `slot-break-${col.period}`,
+        period: col.period,
+        timeRange: col.label,
+        type: "BREAK",
+      };
+    } else if (col.isLunch) {
+      slots[col.period] = {
+        id: `slot-lunch-${col.period}`,
+        period: col.period,
+        timeRange: col.label,
+        type: "LUNCH",
+      };
+    } else {
+      slots[col.period] = {
+        id: `slot-free-${col.period}`,
+        period: col.period,
+        timeRange: col.label,
+        type: "FREE",
+      };
+    }
   });
+
+  if (custom) {
+    Object.entries(custom).forEach(([pStr, override]) => {
+      const p = Number(pStr);
+      if (slots[p] && override) {
+        slots[p] = { ...slots[p], ...override } as FacultyTimetableSlot;
+      }
+    });
+  }
+  return slots;
 };
 
-const INITIAL_FACULTY = [
+// ─── INITIAL LOGGED-IN FACULTY WEEKLY SCHEDULE (MATCHING IMAGE SPEC) ──────────
+
+const INITIAL_FACULTY_WEEK: FacultyDaySchedule[] = [
   {
-    id: "FA-RAMESH",
-    name: "Ramesh Kumar",
-    employeeCode: "FA001",
-    specialization: "Digital Marketing & SEO",
-    branchId: "b-central",
-    branchName: "Aadya Central Branch",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    status: "Active",
+    dayKey: "MON",
+    dayName: "Monday",
+    dayShort: "Mon",
+    dateStr: "18 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "mon-1", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "COMPLETED" },
+      2: { id: "mon-2", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "COMPLETED" },
+      3: { id: "mon-3", type: "FREE" },
+      6: { id: "mon-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
+      7: { id: "mon-7", type: "FREE" },
+      8: { id: "mon-8", type: "NOT_ASSIGNED" },
+    }),
   },
   {
-    id: "FA002",
-    name: "Priya Sharma",
-    employeeCode: "FA002",
-    specialization: "Digital Marketing",
-    branchId: "b-ramamurthy",
-    branchName: "Ramanagar Branch",
-    avatar: "https://i.pravatar.cc/150?u=priya",
-    status: "Active",
+    dayKey: "TUE",
+    dayName: "Tuesday",
+    dayShort: "Tue",
+    dateStr: "19 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "tue-1", type: "FREE" },
+      2: { id: "tue-2", type: "FREE" },
+      3: { id: "tue-3", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "PENDING" },
+      6: { id: "tue-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
+      7: { id: "tue-7", type: "FREE" },
+      8: { id: "tue-8", type: "NOT_ASSIGNED" },
+    }),
   },
   {
-    id: "FA005",
-    name: "Arjun Das",
-    employeeCode: "FA005",
-    specialization: "Graphic Design",
-    branchId: "b-malleswaram",
-    branchName: "Malleshwaram Branch",
-    avatar: "https://i.pravatar.cc/150?u=arjun",
-    status: "Active",
+    dayKey: "WED",
+    dayName: "Wednesday",
+    dayShort: "Wed",
+    dateStr: "20 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "wed-1", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "PENDING" },
+      2: { id: "wed-2", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "PENDING" },
+      3: { id: "wed-3", type: "FREE" },
+      6: { id: "wed-6", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
+      7: { id: "wed-7", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
+      8: { id: "wed-8", type: "FREE" },
+    }),
   },
   {
-    id: "FA008",
-    name: "Neha Reddy",
-    employeeCode: "FA008",
-    specialization: "Data Analytics",
-    branchId: "b-central",
-    branchName: "Jayanagar Branch",
-    avatar: "https://i.pravatar.cc/150?u=neha",
-    status: "Active",
+    dayKey: "THU",
+    dayName: "Thursday",
+    dayShort: "Thu",
+    dateStr: "21 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "thu-1", type: "FREE" },
+      2: { id: "thu-2", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "PENDING" },
+      3: { id: "thu-3", type: "CLASS", courseName: "OOP Concepts", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
+      6: { id: "thu-6", type: "FREE" },
+      7: { id: "thu-7", type: "CLASS", courseName: "Data Structures", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
+      8: { id: "thu-8", type: "NOT_ASSIGNED" },
+    }),
   },
   {
-    id: "FA001",
-    name: "HM Adithya",
-    employeeCode: "FA003",
-    specialization: "MERN Full Stack",
-    branchId: "b-central",
-    branchName: "Bengaluru Central",
-    avatar: "https://i.pravatar.cc/150?u=adithya",
-    status: "Active",
+    dayKey: "FRI",
+    dayName: "Friday",
+    dayShort: "Fri",
+    dateStr: "22 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "fri-1", type: "CLASS", courseName: "Data Structures", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
+      2: { id: "fri-2", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
+      3: { id: "fri-3", type: "FREE" },
+      6: { id: "fri-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
+      7: { id: "fri-7", type: "FREE" },
+      8: { id: "fri-8", type: "FREE" },
+    }),
+  },
+  {
+    dayKey: "SAT",
+    dayName: "Saturday",
+    dayShort: "Sat",
+    dateStr: "23 Aug",
+    slots: createDefaultDaySlots({
+      1: { id: "sat-1", type: "CLASS", courseName: "OOP Concepts", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
+      2: { id: "sat-2", type: "FREE" },
+      3: { id: "sat-3", type: "CLASS", courseName: "Mini Project", batchCode: "Batch C", roomNo: "Room 305", studentCount: 18, attendanceStatus: "PENDING" },
+      6: { id: "sat-6", type: "CLASS", courseName: "Mini Project", batchCode: "Batch C", roomNo: "Room 305", studentCount: 18, attendanceStatus: "PENDING" },
+      7: { id: "sat-7", type: "FREE" },
+      8: { id: "sat-8", type: "NOT_ASSIGNED" },
+    }),
+  },
+  {
+    dayKey: "SUN",
+    dayName: "Sunday",
+    dayShort: "Sun",
+    dateStr: "24 Aug",
+    isHoliday: true,
+    holidayTitle: "HOLIDAY",
+    slots: createDefaultDaySlots(),
   },
 ];
 
 export const FacultyTimetable: React.FC = () => {
-  const navigate = useNavigate();
   const { user } = useAuthStore();
 
-  // Role permissions
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  const isAdmin = userRoles.includes("ADMIN");
-  const isBranchManager = userRoles.includes("CENTER_MANAGER");
-  const isCounsellor = userRoles.includes("COUNSELLOR");
-  const isFacultyOnly = userRoles.includes("FACULTY") && !isAdmin && !isBranchManager && !isCounsellor;
-  const canEditTimetable = isAdmin || isBranchManager || isCounsellor;
+  const facultyCenterName = (user as any)?.branchName || "Bangalore Center";
 
-  // Real Database hooks & Store
-  const { classes: timetableClasses, updateClass } = useTimetableStore();
-  const { data: branchesResponse } = useBranches({ limit: 100 });
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const { batches: allBatches } = useBatches();
-  const { courses: allCourses } = useCourses();
-  const { students: globalStudents, fetchStudents } = useStudentStore();
-
-  useEffect(() => {
-    fetchStudents();
-  }, []);
-
-  // Filter States
-  const [selectedBranch, setSelectedBranch] = useState<string>("ALL");
+  // State
+  const [scheduleData, setScheduleData] = useState<FacultyDaySchedule[]>(INITIAL_FACULTY_WEEK);
+  const [selectedBranch, setSelectedBranch] = useState<string>("Bangalore Center");
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [viewMode, setViewMode] = useState<"week" | "day">("week");
-  const [selectedDay, setSelectedDay] = useState<string>("MON");
-  const [weekOffset, setWeekOffset] = useState<number>(0);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  // ─── ACTIVE CLASS ATTENDANCE DESK SESSION ─────────────────────────────────
-  const [activeAttendanceSession, setActiveAttendanceSession] = useState<TimetableSlotItem | null>(null);
-  const [sessionStudents, setSessionStudents] = useState<BatchStudentItem[]>([]);
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
-  const [attendanceSearchTerm, setAttendanceSearchTerm] = useState<string>("");
-  const [attendanceStatusFilter, setAttendanceStatusFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
-  const [autoSaveState, setAutoSaveState] = useState<"saved" | "saving">("saved");
-  const [validationWarning, setValidationWarning] = useState<string | null>(null);
-  const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
+  // Modals
+  const [selectedSlot, setSelectedSlot] = useState<{ day: FacultyDaySchedule; slot: FacultyTimetableSlot } | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
-  // When active attendance session changes, load students for that specific batch
-  useEffect(() => {
-    if (activeAttendanceSession) {
-      const batchCode = activeAttendanceSession.batchCode;
-      const count = activeAttendanceSession.studentCount || 42;
-      const generated = GENERATE_MOCK_STUDENTS(batchCode, count);
+  // Edit / Add Form State
+  const [formDayKey, setFormDayKey] = useState<string>("MON");
+  const [formPeriod, setFormPeriod] = useState<number>(1);
+  const [formType, setFormType] = useState<SlotType>("CLASS");
+  const [formCourseName, setFormCourseName] = useState<string>("");
+  const [formBatchCode, setFormBatchCode] = useState<string>("Batch C");
+  const [formRoomNo, setFormRoomNo] = useState<string>("Room 301");
+  const [formStudentCount, setFormStudentCount] = useState<number>(28);
 
-      if (activeAttendanceSession.attendanceStatus === "COMPLETED" && activeAttendanceSession.attendanceSummary) {
-        setSessionStudents(generated);
-      } else {
-        setSessionStudents(generated);
-      }
-      setSelectedStudentIds(new Set());
-      setValidationWarning(null);
-    }
-  }, [activeAttendanceSession]);
+  // Filtered schedule
+  const filteredSchedule = useMemo(() => {
+    return scheduleData.map((day) => {
+      if (day.isHoliday) return day;
 
-  // Logged-in faculty identification
-  const loggedInFaculty = useMemo(() => {
-    if (!user) return INITIAL_FACULTY[0];
-    const userName = (user.name || "").trim().toLowerCase();
-    const userEmail = (user.email || "").trim().toLowerCase();
+      const filteredSlots: Record<number, FacultyTimetableSlot> = {};
+      Object.entries(day.slots).forEach(([pStr, slot]) => {
+        const p = Number(pStr);
+        let matches = true;
 
-    const match = INITIAL_FACULTY.find(
-      (f) =>
-        f.id === (user as any).facultyId ||
-        f.id === user.id ||
-        f.name.toLowerCase() === userName ||
-        f.name.toLowerCase().includes(userName) ||
-        userName.includes(f.name.toLowerCase()) ||
-        (userEmail && f.name.toLowerCase().includes(userEmail.split("@")[0].toLowerCase()))
-    );
+        if (selectedCourse !== "ALL") {
+          if (slot.type !== "CLASS" || slot.courseName !== selectedCourse) {
+            matches = false;
+          }
+        }
 
-    return match || {
-      id: user.id || "FA-RAMESH",
-      name: user.name || "Ramesh Kumar",
-      employeeCode: "FA001",
-      specialization: "Digital Marketing Faculty",
-      branchId: user.branchId || "b-central",
-      branchName: "Aadya Central Branch",
-      avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-      status: "Active",
-    };
-  }, [user]);
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          if (slot.type === "CLASS") {
+            const mCourse = slot.courseName?.toLowerCase().includes(q);
+            const mBatch = slot.batchCode?.toLowerCase().includes(q);
+            const mRoom = slot.roomNo?.toLowerCase().includes(q);
+            if (!mCourse && !mBatch && !mRoom) matches = false;
+          } else {
+            matches = false;
+          }
+        }
 
-  // Filtered Faculty List
-  const facultyList = useMemo(() => {
-    const apiFac = facultyResponse?.data || [];
-    if (apiFac.length > 0) {
-      const formatted = apiFac.map((f: any) => ({
-        id: f.id,
-        name: f.name || f.user?.name || "Faculty Member",
-        employeeCode: f.employeeCode || `FA-${f.id.slice(-4).toUpperCase()}`,
-        specialization: f.specialization || "Instructor",
-        branchId: f.branchId || "b-central",
-        branchName: f.branch?.name || "Aadya Central Branch",
-        avatar: `https://i.pravatar.cc/150?u=${f.id}`,
-        status: f.status || "Active",
-      }));
-      // Merge with initial faculty list ensuring Ramesh Kumar and others exist
-      const existingNames = new Set(formatted.map((f: any) => f.name.toLowerCase()));
-      const extras = INITIAL_FACULTY.filter((f) => !existingNames.has(f.name.toLowerCase()));
-      return [...formatted, ...extras];
-    }
-    return INITIAL_FACULTY;
-  }, [facultyResponse]);
-
-  const filteredFaculty = useMemo(() => {
-    if (isFacultyOnly) {
-      return [loggedInFaculty];
-    }
-    return facultyList.filter((f) => {
-      const matchBranch = selectedBranch === "ALL" || f.branchId === selectedBranch || f.branchName === selectedBranch;
-      const matchSearch = !searchQuery || f.name.toLowerCase().includes(searchQuery.toLowerCase()) || f.employeeCode.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchBranch && matchSearch;
-    });
-  }, [facultyList, selectedBranch, searchQuery, isFacultyOnly, loggedInFaculty]);
-
-  // Filtered Classes for Grid
-  const filteredClasses = useMemo(() => {
-    return timetableClasses.filter((c) => {
-      const matchCourse = selectedCourse === "ALL" || c.courseName === selectedCourse || c.category === selectedCourse;
-      const matchSearch =
-        !searchQuery ||
-        c.courseName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.batchCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.facultyName.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchBranch = selectedBranch === "ALL" || c.branchId === selectedBranch || c.branchName === selectedBranch;
-
-      if (isFacultyOnly) {
-        const facName = loggedInFaculty.name.toLowerCase();
-        const matchesFac =
-          c.facultyId === loggedInFaculty.id ||
-          c.facultyName.toLowerCase() === facName ||
-          c.facultyName.toLowerCase().includes(facName) ||
-          facName.includes(c.facultyName.toLowerCase());
-        return matchesFac && matchCourse && matchSearch;
-      }
-      return matchCourse && matchSearch && matchBranch;
-    });
-  }, [timetableClasses, selectedCourse, searchQuery, selectedBranch, isFacultyOnly, loggedInFaculty]);
-
-  // Key KPI Summary Calculations
-  const kpis = useMemo(() => {
-    const totalFaculty = isFacultyOnly ? 1 : filteredFaculty.length;
-    const totalClasses = filteredClasses.length;
-    const uniqueBatches = new Set(filteredClasses.map((c) => c.batchCode)).size;
-    const teachingHours = filteredClasses.length * 1.5;
-    const totalStudents = filteredClasses.reduce((acc, curr) => acc + (curr.studentCount || 42), 0);
-
-    return {
-      totalFaculty,
-      totalClasses,
-      totalBatches: uniqueBatches,
-      teachingHours: Math.round(teachingHours),
-      totalStudents,
-      avgAttendance: "94%",
-    };
-  }, [filteredFaculty, filteredClasses, isFacultyOnly]);
-
-  // Dynamic Week Date Label
-  const weekDateLabel = useMemo(() => {
-    if (weekOffset === 0) return "18 Aug – 23 Aug 2026";
-    if (weekOffset > 0) return `Week +${weekOffset} (Aug 2026)`;
-    return `Week ${weekOffset} (Aug 2026)`;
-  }, [weekOffset]);
-
-  // ─── SLOT CLICK HANDLER: INTERACTIVE ATTENDANCE DESK ───────────────────────
-  const handleSlotClick = (cls: TimetableSlotItem) => {
-    setActiveAttendanceSession(cls);
-  };
-
-  const handleFreeSlotClick = (dayLabel: string, periodNum: number) => {
-    setNotificationMsg(`No class is scheduled for Period ${periodNum} on ${dayLabel}.`);
-    setTimeout(() => setNotificationMsg(null), 3000);
-  };
-
-  // ─── ATTENDANCE DESK ACTIONS ───────────────────────────────────────────────
-
-  const triggerAutoSave = () => {
-    setAutoSaveState("saving");
-    setTimeout(() => setAutoSaveState("saved"), 400);
-  };
-
-  const handleStudentStatusChange = (studentId: string, status: SlotAttendanceStatus) => {
-    setSessionStudents((prev) =>
-      prev.map((s) => {
-        if (s.id === studentId) {
-          const remarks = status === "EXCUSED" && !s.remarks ? "Medical Leave" : status === "PRESENT" ? "" : s.remarks;
-          return {
-            ...s,
-            status,
-            remarks,
-            leaveReason: status === "EXCUSED" ? s.leaveReason || "Medical Leave" : undefined,
+        if (matches) {
+          filteredSlots[p] = slot;
+        } else {
+          // If filtered out, show as neutral not matching
+          filteredSlots[p] = {
+            id: `slot-unmatched-${p}`,
+            period: p,
+            timeRange: slot.timeRange,
+            type: "NOT_ASSIGNED",
           };
         }
-        return s;
+      });
+
+      return { ...day, slots: filteredSlots };
+    });
+  }, [scheduleData, selectedCourse, searchQuery]);
+
+  // Handle Slot Click (Open Details or Add)
+  const handleSlotClick = (day: FacultyDaySchedule, slot: FacultyTimetableSlot) => {
+    if (day.isHoliday) return;
+
+    if (slot.type === "CLASS") {
+      setSelectedSlot({ day, slot });
+      setIsDetailsModalOpen(true);
+    } else {
+      // Open add / configure slot
+      setFormDayKey(day.dayKey);
+      setFormPeriod(slot.period);
+      setFormType(slot.type);
+      setFormCourseName(slot.courseName || "Java Programming");
+      setFormBatchCode(slot.batchCode || "Batch C");
+      setFormRoomNo(slot.roomNo || "Room 301");
+      setFormStudentCount(slot.studentCount || 28);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  // Open Edit for active class
+  const handleOpenEditFromDetails = () => {
+    if (!selectedSlot) return;
+    const { day, slot } = selectedSlot;
+    setFormDayKey(day.dayKey);
+    setFormPeriod(slot.period);
+    setFormType(slot.type);
+    setFormCourseName(slot.courseName || "");
+    setFormBatchCode(slot.batchCode || "");
+    setFormRoomNo(slot.roomNo || "");
+    setFormStudentCount(slot.studentCount || 28);
+    setIsDetailsModalOpen(false);
+    setIsEditModalOpen(true);
+  };
+
+  // Save changes
+  const handleSaveSlotForm = () => {
+    setScheduleData((prev) =>
+      prev.map((d) => {
+        if (d.dayKey !== formDayKey) return d;
+        const col = TIME_SLOT_COLUMNS.find((c) => c.period === formPeriod);
+        const updatedSlots = { ...d.slots };
+
+        if (formType === "CLASS") {
+          updatedSlots[formPeriod] = {
+            id: `slot-${formDayKey}-${formPeriod}-${Date.now()}`,
+            period: formPeriod,
+            timeRange: col?.label || "09:00 – 10:00 AM",
+            type: "CLASS",
+            courseName: formCourseName,
+            batchCode: formBatchCode,
+            roomNo: formRoomNo,
+            studentCount: formStudentCount,
+            attendanceStatus: "PENDING",
+          };
+        } else {
+          updatedSlots[formPeriod] = {
+            id: `slot-${formDayKey}-${formPeriod}-${Date.now()}`,
+            period: formPeriod,
+            timeRange: col?.label || "09:00 – 10:00 AM",
+            type: formType,
+          };
+        }
+
+        return { ...d, slots: updatedSlots };
       })
     );
-    setValidationWarning(null);
-    triggerAutoSave();
-  };
 
-  const handleStudentRemarksChange = (studentId: string, remarks: string) => {
-    setSessionStudents((prev) =>
-      prev.map((s) => (s.id === studentId ? { ...s, remarks } : s))
-    );
-    triggerAutoSave();
-  };
-
-  const handleMarkAllPresent = () => {
-    setSessionStudents((prev) =>
-      prev.map((s) => ({
-        ...s,
-        status: "PRESENT",
-        remarks: "",
-      }))
-    );
-    setValidationWarning(null);
-    triggerAutoSave();
-    setNotificationMsg("All students marked as Present.");
+    setIsEditModalOpen(false);
+    setNotificationMsg(`✓ Schedule updated for ${formDayKey} Period ${formPeriod}.`);
     setTimeout(() => setNotificationMsg(null), 3000);
   };
 
-  const handleBulkStatusChange = (status: SlotAttendanceStatus) => {
-    if (selectedStudentIds.size === 0) return;
-    setSessionStudents((prev) =>
-      prev.map((s) => (selectedStudentIds.has(s.id) ? { ...s, status } : s))
+  // Quick state change (Mark Free, Break, Leave)
+  const handleQuickStatusChange = (newType: SlotType) => {
+    if (!selectedSlot) return;
+    const { day, slot } = selectedSlot;
+
+    setScheduleData((prev) =>
+      prev.map((d) => {
+        if (d.dayKey !== day.dayKey) return d;
+        const updatedSlots = { ...d.slots };
+        updatedSlots[slot.period] = {
+          ...slot,
+          type: newType,
+          courseName: undefined,
+          batchCode: undefined,
+          roomNo: undefined,
+        };
+        return { ...d, slots: updatedSlots };
+      })
     );
-    setSelectedStudentIds(new Set());
-    setValidationWarning(null);
-    triggerAutoSave();
-  };
 
-  const handleToggleSelectStudent = (id: string) => {
-    setSelectedStudentIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const handleSelectAllStudents = () => {
-    if (selectedStudentIds.size === filteredSessionStudents.length) {
-      setSelectedStudentIds(new Set());
-    } else {
-      setSelectedStudentIds(new Set(filteredSessionStudents.map((s) => s.id)));
-    }
-  };
-
-  // Save Attendance & Sync Timetable Slot
-  const handleSaveAttendance = () => {
-    const unmarked = sessionStudents.filter((s) => s.status === "UNMARKED");
-    if (unmarked.length > 0) {
-      setValidationWarning(`${unmarked.length} students have not been marked. Please complete attendance before saving.`);
-      return;
-    }
-
-    const present = sessionStudents.filter((s) => s.status === "PRESENT").length;
-    const absent = sessionStudents.filter((s) => s.status === "ABSENT").length;
-    const excused = sessionStudents.filter((s) => s.status === "EXCUSED").length;
-
-    if (activeAttendanceSession) {
-      updateClass(activeAttendanceSession.id, {
-        attendanceStatus: "COMPLETED",
-        attendanceSummary: { present, absent, excused },
-      });
-
-      setActiveAttendanceSession((prev) =>
-        prev
-          ? {
-              ...prev,
-              attendanceStatus: "COMPLETED",
-              attendanceSummary: { present, absent, excused },
-            }
-          : null
-      );
-    }
-
-    setNotificationMsg(`✓ Attendance saved successfully for ${activeAttendanceSession?.batchCode} (${present} P • ${absent} A • ${excused} E)`);
-    setIsSavedPopupOpen(true);
-    setTimeout(() => setNotificationMsg(null), 4000);
-  };
-
-  // Save Attendance and Immediately Transition to Live Class
-  const handleSaveAndGoLive = () => {
-    handleSaveAttendance();
-    navigate("/faculty/class-session?mode=live", { state: { live: true } });
+    setIsDetailsModalOpen(false);
+    setNotificationMsg(`✓ Slot marked as ${newType}.`);
+    setTimeout(() => setNotificationMsg(null), 3000);
   };
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = "Faculty,Employee Code,Branch,Day,Period,Course,Batch,Time,Room,Mode,Attendance Status\n";
-    const rows = filteredClasses
-      .map(
-        (c) =>
-          `"${c.facultyName}","${c.facultyId}","${c.branchName}","${c.dayOfWeek}","Period ${c.period}","${c.courseName}","${c.batchCode}","${c.startTime} - ${c.endTime}","${c.roomNo}","${c.mode}","${c.attendanceStatus || "PENDING"}"`
-      )
+    const headers = "Day,Date,09-10 AM,10-11 AM,11-12 PM,12-01 PM,01-02 PM,02-03 PM,03-04 PM,04-05 PM\n";
+    const rows = scheduleData
+      .map((day) => {
+        if (day.isHoliday) {
+          return `"${day.dayName}","${day.dateStr}","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY"`;
+        }
+        const slotsStr = TIME_SLOT_COLUMNS.map((col) => {
+          const s = day.slots[col.period];
+          if (!s) return "Not Assigned";
+          if (s.type === "CLASS") return `${s.courseName} (${s.batchCode}) [${s.roomNo}]`;
+          return s.type;
+        }).join('","');
+        return `"${day.dayName}","${day.dateStr}","${slotsStr}"`;
+      })
       .join("\n");
 
     const blob = new Blob([headers + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `Aadya_Faculty_Timetable_${weekDateLabel.replace(/\s+/g, "_")}.csv`);
+    link.href = url;
+    link.download = `Faculty_Timetable_Weekly.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  // Filtered session students
-  const filteredSessionStudents = useMemo(() => {
-    return sessionStudents.filter((s) => {
-      const matchSearch =
-        !attendanceSearchTerm ||
-        s.name.toLowerCase().includes(attendanceSearchTerm.toLowerCase()) ||
-        s.studentCode.toLowerCase().includes(attendanceSearchTerm.toLowerCase()) ||
-        s.email.toLowerCase().includes(attendanceSearchTerm.toLowerCase());
-      const matchStatus = attendanceStatusFilter === "ALL" || s.status === attendanceStatusFilter;
-      return matchSearch && matchStatus;
-    });
-  }, [sessionStudents, attendanceSearchTerm, attendanceStatusFilter]);
+  return (
+    <div className="p-4 sm:p-6 space-y-4 text-slate-800 font-sans w-full max-w-[1720px] mx-auto animate-in fade-in duration-200">
+      {/* ─── 1. TOP ESSENTIAL ACTIONS (NO LARGE HEADING OR WEEK CARDS) ──── */}
+      <div className="flex items-center justify-end gap-2.5">
+        <Button
+          variant="outline"
+          onClick={handleExportCSV}
+          className="text-xs font-bold h-9 px-4 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs rounded-xl cursor-pointer"
+        >
+          <Download className="h-3.5 w-3.5 text-slate-500" /> Export CSV
+        </Button>
+        <button
+          className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
+          title="Notifications"
+        >
+          <Bell className="h-4 w-4" />
+          <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow-xs">
+            6
+          </span>
+        </button>
+        <button
+          className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer"
+          title="Timetable Controls & Settings"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+        </button>
+      </div>
 
-  // Attendance Session Statistics
-  const sessionTotal = sessionStudents.length;
-  const sessionPresent = sessionStudents.filter((s) => s.status === "PRESENT").length;
-  const sessionAbsent = sessionStudents.filter((s) => s.status === "ABSENT").length;
-  const sessionExcused = sessionStudents.filter((s) => s.status === "EXCUSED").length;
-  const sessionMarked = sessionPresent + sessionAbsent + sessionExcused;
-
-  const sessionPercentage = sessionTotal > 0 ? ((sessionPresent / sessionTotal) * 100).toFixed(2) : "0.00";
-  const radius = 38;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (parseFloat(sessionPercentage) / 100) * circumference;
-
-  const currentDayObj = DAYS_OF_WEEK.find((d) => d.key === activeAttendanceSession?.dayOfWeek) || DAYS_OF_WEEK[0];
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // VIEW: IF ACTIVE ATTENDANCE SESSION IS OPEN → RENDER CLASS ATTENDANCE DESK
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  if (activeAttendanceSession) {
-    return (
-      <div className="space-y-6 max-w-[1680px] mx-auto pb-20 animate-in fade-in duration-200">
-        {/* ─── BREADCRUMB & BACK NAVIGATION ────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-200/80 pb-4">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 flex-wrap">
-            <button
-              onClick={() => setActiveAttendanceSession(null)}
-              className="hover:text-[#1769AA] flex items-center gap-1 font-bold text-slate-700 transition-colors"
+      {/* ─── 2. COMPACT FILTER BAR ──────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Assigned Center Dropdown */}
+          <div className="relative min-w-[190px]">
+            <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <select
+              value={selectedBranch}
+              onChange={(e) => setSelectedBranch(e.target.value)}
+              className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#5B50EC]/30 outline-none transition-all appearance-none cursor-pointer"
             >
-              <ArrowLeft className="h-4 w-4" /> My Timetable
-            </button>
-            <span>/</span>
-            <span className="text-slate-600">{currentDayObj.label}, {currentDayObj.sub}</span>
-            <span>/</span>
-            <span className="text-slate-600">Period {activeAttendanceSession.period}</span>
-            <span>/</span>
-            <span className="text-[#1769AA] font-bold">
-              {activeAttendanceSession.courseName} – {activeAttendanceSession.batchCode}
-            </span>
+              <option value="Bangalore Center">🏢 {facultyCenterName}</option>
+              <option value="Mysore Center">🏢 Mysore Center</option>
+              <option value="Hubli Center">🏢 Hubli Center</option>
+            </select>
           </div>
 
+          {/* All Courses Dropdown */}
+          <div className="relative min-w-[180px]">
+            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <select
+              value={selectedCourse}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#5B50EC]/30 outline-none transition-all appearance-none cursor-pointer"
+            >
+              <option value="ALL">📚 All Courses</option>
+              <option value="Java Programming">Java Programming</option>
+              <option value="Advanced Java">Advanced Java</option>
+              <option value="Python Basics">Python Basics</option>
+              <option value="Database Systems">Database Systems</option>
+              <option value="OOP Concepts">OOP Concepts</option>
+              <option value="Data Structures">Data Structures</option>
+              <option value="Mini Project">Mini Project</option>
+            </select>
+          </div>
+
+          {/* Search Input */}
+          <div className="relative flex-1 min-w-[240px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search subjects or batch codes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-10 pl-9 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:ring-2 focus:ring-[#5B50EC]/30"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => setActiveAttendanceSession(null)}
-            className="text-xs font-bold h-8 px-3 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 shadow-2xs gap-1.5 self-start sm:self-auto"
+            onClick={() => {
+              setSelectedCourse("ALL");
+              setSearchQuery("");
+            }}
+            className="text-xs font-bold h-10 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl shrink-0 gap-1.5 cursor-pointer"
           >
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to Timetable
+            <Filter className="h-3.5 w-3.5" /> More Filters
           </Button>
-        </div>
-
-        {/* ─── TOAST NOTIFICATION ──────────────────────────────────────── */}
-        {notificationMsg && (
-          <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-            <span>{notificationMsg}</span>
-          </div>
-        )}
-
-        {/* ─── TOP CLASS CONTEXT CARD ──────────────────────────────────── */}
-        <div className="p-6 rounded-2xl bg-gradient-to-r from-[#1769AA] to-indigo-700 text-white shadow-md relative overflow-hidden">
-          <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            <div>
-              <div className="flex items-center gap-2.5">
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-white/20 uppercase tracking-wider text-white">
-                  Period {activeAttendanceSession.period} • {activeAttendanceSession.startTime} – {activeAttendanceSession.endTime}
-                </span>
-                {activeAttendanceSession.attendanceStatus === "COMPLETED" ? (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white uppercase tracking-wider flex items-center gap-1">
-                    <Check className="h-3 w-3" /> Attendance Completed
-                  </span>
-                ) : (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-400 text-slate-900 uppercase tracking-wider">
-                    ● Attendance In Progress
-                  </span>
-                )}
-              </div>
-
-              <h2 className="text-2xl font-black mt-2">
-                {activeAttendanceSession.courseName} – {activeAttendanceSession.batchCode}
-              </h2>
-              <p className="text-xs text-blue-100 font-medium mt-1">
-                {currentDayObj.label}, {currentDayObj.sub} 2026 • {activeAttendanceSession.batchName}
-              </p>
-
-              <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-indigo-100 font-medium">
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg">
-                  <Building2 className="h-3.5 w-3.5" /> {activeAttendanceSession.branchName}
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg">
-                  <MapPin className="h-3.5 w-3.5" /> {activeAttendanceSession.roomNo}
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg">
-                  <UserCheck className="h-3.5 w-3.5" /> {activeAttendanceSession.facultyName}
-                </span>
-                <span className="flex items-center gap-1.5 bg-white/10 px-2.5 py-1 rounded-lg font-bold text-white">
-                  <Users className="h-3.5 w-3.5" /> {sessionTotal} Assigned Students
-                </span>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Button
-                onClick={handleMarkAllPresent}
-                className="bg-white hover:bg-slate-100 text-[#1769AA] text-xs font-black h-10 px-4 rounded-xl shadow-xs gap-1.5"
-              >
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" /> Mark All Present
-              </Button>
-            </div>
-          </div>
-          <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-        </div>
-
-        {/* ─── SMART ATTENDANCE SUMMARY & PERCENTAGE RING ───────────────── */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-          <Card className="border-slate-200/80 shadow-2xs bg-white rounded-2xl">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Total Students</p>
-                <h3 className="text-2xl font-black text-slate-900 mt-1">{sessionTotal}</h3>
-                <p className="text-[11px] text-slate-500 font-medium mt-0.5">Assigned to {activeAttendanceSession.batchCode}</p>
-              </div>
-              <div className="p-3 bg-indigo-50 rounded-2xl text-[#6366F1]">
-                <Users className="h-6 w-6" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 shadow-2xs bg-white rounded-2xl">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Present</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <h3 className="text-2xl font-black text-slate-900">{sessionPresent}</h3>
-                  <span className="text-xs font-black text-emerald-600">{sessionPercentage}%</span>
-                </div>
-                <p className="text-[11px] text-emerald-600 font-medium mt-0.5">Active in class</p>
-              </div>
-              <div className="p-3 bg-emerald-50 rounded-2xl text-emerald-600">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 shadow-2xs bg-white rounded-2xl">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Absent</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <h3 className="text-2xl font-black text-slate-900">{sessionAbsent}</h3>
-                  <span className="text-xs font-black text-rose-600">
-                    {sessionTotal > 0 ? ((sessionAbsent / sessionTotal) * 100).toFixed(1) : 0}%
-                  </span>
-                </div>
-                <p className="text-[11px] text-rose-600 font-medium mt-0.5">Unexcused</p>
-              </div>
-              <div className="p-3 bg-rose-50 rounded-2xl text-rose-600">
-                <XCircle className="h-6 w-6" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 shadow-2xs bg-white rounded-2xl">
-            <CardContent className="p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Excused</p>
-                <div className="flex items-baseline gap-2 mt-1">
-                  <h3 className="text-2xl font-black text-slate-900">{sessionExcused}</h3>
-                  <span className="text-xs font-black text-amber-600">
-                    {sessionTotal > 0 ? ((sessionExcused / sessionTotal) * 100).toFixed(1) : 0}%
-                  </span>
-                </div>
-                <p className="text-[11px] text-amber-600 font-medium mt-0.5">Approved leave</p>
-              </div>
-              <div className="p-3 bg-amber-50 rounded-2xl text-amber-600">
-                <Clock className="h-6 w-6" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="border-slate-200/80 shadow-2xs bg-white rounded-2xl col-span-2 md:col-span-1">
-            <CardContent className="p-3.5 flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Presence Rate</p>
-                <h3 className="text-xl font-black text-slate-900 mt-1">{sessionPercentage}%</h3>
-                <p className="text-[10px] text-slate-500 font-medium">Session Attendance</p>
-              </div>
-              <div className="relative w-16 h-16 shrink-0">
-                <svg className="w-16 h-16 -rotate-90" viewBox="0 0 100 100">
-                  <circle cx="50" cy="50" r={radius} className="stroke-slate-100" strokeWidth="10" fill="transparent" />
-                  <circle
-                    cx="50"
-                    cy="50"
-                    r={radius}
-                    stroke="currentColor"
-                    strokeWidth="10"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={strokeDashoffset}
-                    strokeLinecap="round"
-                    className="text-emerald-500 transition-all duration-500 ease-out"
-                    fill="transparent"
-                  />
-                </svg>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-slate-800">
-                    {Math.round(parseFloat(sessionPercentage))}%
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* ─── VALIDATION WARNING ALERT ────────────────────────────────── */}
-        {validationWarning && (
-          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 flex items-center justify-between gap-3 text-xs font-bold shadow-2xs animate-in shake duration-300">
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-              <span>{validationWarning}</span>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleMarkAllPresent}
-              className="text-xs font-bold border-amber-300 bg-white text-amber-800 hover:bg-amber-100 h-7"
-            >
-              Mark Remaining as Present
-            </Button>
-          </div>
-        )}
-
-        {/* ─── FILTERS & SEARCH ────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder={`Search in ${activeAttendanceSession.batchCode}...`}
-              value={attendanceSearchTerm}
-              onChange={(e) => setAttendanceSearchTerm(e.target.value)}
-              className="w-full h-10 pl-9 pr-3 text-xs font-medium text-slate-800 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none shadow-2xs placeholder:text-slate-400"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-2xs">
-              <button
-                onClick={() => setAttendanceStatusFilter("ALL")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  attendanceStatusFilter === "ALL" ? "bg-[#1769AA] text-white shadow-xs" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                All ({sessionTotal})
-              </button>
-              <button
-                onClick={() => setAttendanceStatusFilter("PRESENT")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  attendanceStatusFilter === "PRESENT" ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                Present ({sessionPresent})
-              </button>
-              <button
-                onClick={() => setAttendanceStatusFilter("ABSENT")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  attendanceStatusFilter === "ABSENT" ? "bg-rose-50 text-rose-700 border border-rose-200" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                Absent ({sessionAbsent})
-              </button>
-              <button
-                onClick={() => setAttendanceStatusFilter("EXCUSED")}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                  attendanceStatusFilter === "EXCUSED" ? "bg-amber-50 text-amber-700 border border-amber-200" : "text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                Excused ({sessionExcused})
-              </button>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-xs font-bold pl-2">
-              <span className={`h-2 w-2 rounded-full ${autoSaveState === "saved" ? "bg-emerald-500" : "bg-amber-500 animate-ping"}`} />
-              <span className={autoSaveState === "saved" ? "text-emerald-700" : "text-amber-700"}>
-                {autoSaveState === "saved" ? "Auto-saved" : "Saving..."}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* ─── INTERACTIVE ATTENDANCE TABLE ────────────────────────────── */}
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/80 border-b border-slate-200/80">
-                  <TableHead className="w-12 text-center">
-                    <input
-                      type="checkbox"
-                      checked={filteredSessionStudents.length > 0 && selectedStudentIds.size === filteredSessionStudents.length}
-                      onChange={handleSelectAllStudents}
-                      className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] h-4 w-4 cursor-pointer"
-                    />
-                  </TableHead>
-                  <TableHead className="w-12 text-center text-xs font-bold text-slate-600">#</TableHead>
-                  <TableHead className="w-32 text-xs font-bold text-slate-600">Student ID</TableHead>
-                  <TableHead className="min-w-[200px] text-xs font-bold text-slate-600">Student Name</TableHead>
-                  <TableHead className="min-w-[320px] text-xs font-bold text-slate-600 text-center">Attendance Status</TableHead>
-                  <TableHead className="min-w-[240px] text-xs font-bold text-slate-600">Remarks (Optional)</TableHead>
-                  <TableHead className="w-16 text-center text-xs font-bold text-slate-600">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSessionStudents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12 text-slate-400 text-sm font-medium">
-                      No students found in batch {activeAttendanceSession.batchCode}.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredSessionStudents.map((stu, index) => {
-                    const isSelected = selectedStudentIds.has(stu.id);
-                    return (
-                      <TableRow
-                        key={stu.id}
-                        className={`border-b border-slate-100 hover:bg-slate-50/70 transition-colors ${
-                          isSelected ? "bg-indigo-50/40" : ""
-                        }`}
-                      >
-                        <TableCell className="text-center">
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => handleToggleSelectStudent(stu.id)}
-                            className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] h-4 w-4 cursor-pointer"
-                          />
-                        </TableCell>
-                        <TableCell className="text-center text-xs font-bold text-slate-500">{index + 1}</TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-slate-700">{stu.studentCode}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <Avatar className="h-8 w-8 border border-slate-200">
-                              <AvatarImage src={stu.avatar} />
-                              <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-600 text-white text-[10px] font-bold">
-                                {stu.name.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <span className="font-bold text-slate-900 text-xs block">{stu.name}</span>
-                              <span className="text-[11px] text-slate-400 font-medium block">{stu.email}</span>
-                            </div>
-                          </div>
-                        </TableCell>
-
-                        {/* Interactive Status Buttons */}
-                        <TableCell>
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleStudentStatusChange(stu.id, "PRESENT")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs ${
-                                stu.status === "PRESENT"
-                                  ? "bg-emerald-600 text-white shadow-emerald-500/20 shadow-md ring-2 ring-emerald-600/30"
-                                  : "bg-emerald-50/70 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60"
-                              }`}
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                              <span>Present</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleStudentStatusChange(stu.id, "ABSENT")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs ${
-                                stu.status === "ABSENT"
-                                  ? "bg-rose-600 text-white shadow-rose-500/20 shadow-md ring-2 ring-rose-600/30"
-                                  : "bg-rose-50/70 text-rose-700 hover:bg-rose-100 border border-rose-200/60"
-                              }`}
-                            >
-                              <XCircle className="h-3.5 w-3.5" />
-                              <span>Absent</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleStudentStatusChange(stu.id, "EXCUSED")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs ${
-                                stu.status === "EXCUSED"
-                                  ? "bg-amber-500 text-white shadow-amber-500/20 shadow-md ring-2 ring-amber-500/30"
-                                  : "bg-amber-50/70 text-amber-700 hover:bg-amber-100 border border-amber-200/60"
-                              }`}
-                            >
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>Excused</span>
-                            </button>
-                          </div>
-                        </TableCell>
-
-                        {/* Remarks */}
-                        <TableCell>
-                          <div className="relative flex items-center">
-                            <input
-                              type="text"
-                              value={stu.remarks}
-                              onChange={(e) => handleStudentRemarksChange(stu.id, e.target.value)}
-                              placeholder="Add remarks..."
-                              className="w-full h-8 px-3 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all placeholder:text-slate-400"
-                            />
-                            {stu.status === "EXCUSED" && (
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button className="absolute right-1.5 p-1 text-slate-400 hover:text-slate-600" title="Quick leave reasons">
-                                    <ChevronDown className="h-3.5 w-3.5" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-44 text-xs font-medium">
-                                  {EXCUSED_REASONS.map((reason) => (
-                                    <DropdownMenuItem key={reason} onClick={() => handleStudentRemarksChange(stu.id, reason)} className="cursor-pointer">
-                                      {reason}
-                                    </DropdownMenuItem>
-                                  ))}
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            )}
-                          </div>
-                        </TableCell>
-
-                        {/* 3-Dots Action */}
-                        <TableCell className="text-center">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-slate-400 hover:text-slate-700">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 text-xs font-medium">
-                              <DropdownMenuItem onClick={() => navigate("/faculty/students/all")} className="cursor-pointer">
-                                View Student Profile
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleStudentStatusChange(stu.id, "EXCUSED")} className="cursor-pointer">
-                                Mark as Approved Leave
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-          </div>
-
-          {/* ─── FLOATING BULK TOOLBAR ─────────────────────────────────── */}
-          {selectedStudentIds.size > 0 && (
-            <div className="p-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 animate-in slide-in-from-bottom-2">
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-black shadow-2xs">
-                  {selectedStudentIds.size} Students Selected
-                </span>
-                <div className="flex items-center gap-1.5">
-                  <Button size="sm" onClick={() => handleBulkStatusChange("PRESENT")} className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 px-3 gap-1">
-                    <Check className="h-3 w-3" /> Mark Present
-                  </Button>
-                  <Button size="sm" onClick={() => handleBulkStatusChange("ABSENT")} className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-8 px-3 gap-1">
-                    <XCircle className="h-3 w-3" /> Mark Absent
-                  </Button>
-                  <Button size="sm" onClick={() => handleBulkStatusChange("EXCUSED")} className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold h-8 px-3 gap-1">
-                    <Clock className="h-3 w-3" /> Mark Excused
-                  </Button>
-                </div>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => setSelectedStudentIds(new Set())} className="text-slate-300 hover:text-white hover:bg-slate-800 text-xs">
-                Clear Selection
-              </Button>
-            </div>
-          )}
-
-          {/* Table Footer Progress */}
-          <div className="p-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 font-medium">
-            <span>Showing {filteredSessionStudents.length} of {sessionTotal} Students in {activeAttendanceSession.batchCode}</span>
-            <div className="flex items-center gap-3">
-              <span className="font-bold text-slate-700">{sessionMarked} / {sessionTotal} Students Marked</span>
-              <div className="w-32 bg-slate-200 h-2 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full transition-all duration-300" style={{ width: `${sessionTotal > 0 ? (sessionMarked / sessionTotal) * 100 : 0}%` }} />
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* ─── BOTTOM STICKY ACTION BAR ───────────────────────────────── */}
-        <div className="sticky bottom-4 z-20 p-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-          {/* Left Side: Count & Helper Text */}
-          <div>
-            <span className="text-sm font-black text-slate-900 block leading-tight">
-              {sessionMarked} / {sessionTotal} Students Marked
-            </span>
-            <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-              All attendance changes are ready to be saved.
-            </span>
-          </div>
-
-          {/* Right Side: Exactly Two Buttons */}
-          <div className="flex items-center gap-3">
-            {/* Save Attendance Button */}
-            <Button
-              variant="outline"
-              onClick={handleSaveAttendance}
-              className="bg-white hover:bg-slate-50 text-[#1769AA] border-[#1769AA] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
-            >
-              <Save className="h-4 w-4 text-[#1769AA]" />
-              <span>Save Attendance</span>
-            </Button>
-
-            {/* Save & Go Live Button */}
-            <Button
-              onClick={handleSaveAndGoLive}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group"
-            >
-              <Video className="h-4 w-4 fill-white/20 stroke-[2.2]" />
-              <span>Save & Go Live</span>
-              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-            </Button>
-          </div>
-        </div>
-
-        {/* ─── ATTENDANCE SAVED CONFIRMATION POPUP MODAL ───────────────── */}
-        <Dialog open={isSavedPopupOpen} onOpenChange={setIsSavedPopupOpen}>
-          <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 sm:p-8 border-slate-200/90 shadow-2xl">
-            <DialogHeader className="text-center sm:text-center space-y-3">
-              {/* Animated Check Icon */}
-              <div className="w-16 h-16 rounded-full bg-emerald-100/90 border-4 border-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-sm animate-in zoom-in-75 duration-300">
-                <Check className="w-8 h-8 stroke-[3]" />
-              </div>
-
-              <div className="space-y-1.5">
-                <DialogTitle className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                  Attendance Successfully Saved!
-                </DialogTitle>
-                <DialogDescription className="text-xs sm:text-sm font-semibold text-slate-600 leading-relaxed">
-                  Student attendance records have been successfully saved for{" "}
-                  <span className="text-slate-900 font-bold">{activeAttendanceSession?.batchCode || "Batch DM-01"}</span>.
-                </DialogDescription>
-              </div>
-            </DialogHeader>
-
-            <div className="space-y-4 my-2">
-              {/* Status Stats */}
-              <div className="flex items-center justify-center gap-3 py-2">
-                <span className="px-3 py-1 bg-emerald-50 text-emerald-700 rounded-lg text-xs font-bold">
-                  ✓ {sessionPresent} Present
-                </span>
-                <span className="px-3 py-1 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold">
-                  ✕ {sessionAbsent} Absent
-                </span>
-                <span className="px-3 py-1 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold">
-                  ◷ {sessionExcused} Excused
-                </span>
-              </div>
-            </div>
-
-            {/* SINGLE PROMINENT ACTION BUTTON: Go Online & Take Classes */}
-            <div className="pt-2">
-              <Button
-                onClick={() => {
-                  setIsSavedPopupOpen(false);
-                  navigate("/faculty/class-session?mode=live", { state: { live: true } });
-                }}
-                className="w-full bg-[#1769AA] hover:bg-[#125890] text-white py-4 h-auto rounded-2xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 cursor-pointer group"
-              >
-                <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
-                  <Video className="w-4 h-4 fill-white/20 stroke-[2.2]" />
-                </div>
-                <div className="text-left">
-                  <span className="text-sm font-black tracking-tight block leading-tight">
-                    Go Online & Take Classes
-                  </span>
-                  <span className="text-[10px] font-medium text-blue-100 block leading-tight">
-                    Start your live online class
-                  </span>
-                </div>
-                <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // MAIN VIEW: TIMETABLE MATRIX (WEEK & DAY VIEW)
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  return (
-    <div className="space-y-6 max-w-[1680px] mx-auto pb-16 animate-in fade-in duration-200">
-      {/* ─── 1. PAGE HEADER & TIMETABLE CONTROLS ──────────────────────── */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          {!isFacultyOnly && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => navigate("/admin/faculty/all")}
-              className="h-10 w-10 rounded-xl border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-xs shrink-0"
-              title="Back to Faculty Directory"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          )}
-          <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0 shadow-2xs">
-            <Users className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900">
-                {isFacultyOnly ? "My Teaching Timetable" : "All Faculty Timetable"}
-              </h1>
-              {isFacultyOnly && (
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-800 uppercase tracking-wider">
-                  Assigned by Admin / Counsellor
-                </span>
-              )}
-            </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              {isFacultyOnly
-                ? `Click any assigned class slot to mark or review student attendance (${loggedInFaculty?.name || "Faculty"} • ${loggedInFaculty?.branchName || "All Branches"})`
-                : "Weekly & Daily schedule overview for all faculty across branch locations."}
-            </p>
-          </div>
-        </div>
-
-        {/* Top Controls */}
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Week Date Selector */}
-          <div className="flex items-center bg-white border border-slate-200 rounded-xl p-1 shadow-xs">
-            <button
-              onClick={() => setWeekOffset((prev) => prev - 1)}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
-              title="Previous Week"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <div className="flex items-center gap-2 px-3 text-xs font-bold text-slate-800">
-              <Calendar className="h-3.5 w-3.5 text-[#1769AA]" />
-              <span>{weekDateLabel}</span>
-            </div>
-            <button
-              onClick={() => setWeekOffset((prev) => prev + 1)}
-              className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-600 transition-colors"
-              title="Next Week"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-
-          {/* View Toggles (Week View / Day View) */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60">
-            <button
-              onClick={() => setViewMode("week")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                viewMode === "week"
-                  ? "bg-[#6366F1] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Week View
-            </button>
-            <button
-              onClick={() => setViewMode("day")}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${
-                viewMode === "day"
-                  ? "bg-[#6366F1] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Day View
-            </button>
-          </div>
-
-          {/* Export Button */}
-          <Button
-            variant="outline"
-            onClick={handleExportCSV}
-            className="text-xs font-bold h-9 px-3.5 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs"
-          >
-            <Download className="h-3.5 w-3.5 text-slate-500" /> Export
-          </Button>
-
-          {/* Direct Mark Attendance Shortcut Button for Faculty */}
-          {isFacultyOnly && (
-            <Button
-              onClick={() => navigate("/faculty/students/attendance")}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 px-4 flex items-center gap-1.5 shadow-xs transition-all hover:shadow-md"
-            >
-              <CheckCircle2 className="h-4 w-4" /> Mark Student Attendance
-            </Button>
-          )}
         </div>
       </div>
 
-      {/* Notifications */}
+      {/* ─── 3. STATUS LEGEND ────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-5 px-1 py-1 text-xs font-semibold text-slate-600">
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#4F46E5]" />
+          <span>Class</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          <span>Free</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#EA580C]" />
+          <span>Break</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-[#D97706]" />
+          <span>Lunch</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
+          <span>Leave</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
+          <span>Not Assigned</span>
+        </div>
+      </div>
+
+      {/* Notification Toast */}
       {notificationMsg && (
         <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
           <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
@@ -1240,474 +536,456 @@ export const FacultyTimetable: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 2. SUMMARY KPI CARDS ─────────────────────────────────────── */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-        {[
-          { label: "Total Faculty", value: kpis.totalFaculty, sub: "Across all branches", icon: Users, color: "text-[#6366F1]", bg: "bg-indigo-50" },
-          { label: "Total Classes", value: kpis.totalClasses, sub: "This Week", icon: BookOpen, color: "text-emerald-600", bg: "bg-emerald-50" },
-          { label: "Total Batches", value: kpis.totalBatches, sub: "This Week", icon: GraduationCap, color: "text-blue-600", bg: "bg-blue-50" },
-          { label: "Total Students", value: kpis.totalStudents.toLocaleString(), sub: "This Week", icon: Layers, color: "text-amber-600", bg: "bg-amber-50" },
-          { label: "Teaching Hours", value: `${kpis.teachingHours}h`, sub: "This Week", icon: Clock, color: "text-rose-600", bg: "bg-rose-50" },
-          { label: "Avg. Attendance", value: kpis.avgAttendance, sub: "This Week", icon: TrendingUp, color: "text-cyan-600", bg: "bg-cyan-50" },
-        ].map((kpi, idx) => (
-          <Card key={idx} className="border-slate-200/80 shadow-2xs bg-white hover:shadow-xs transition-shadow">
-            <CardContent className="p-4 flex items-start gap-3">
-              <div className={`p-2.5 rounded-xl ${kpi.bg} ${kpi.color} shrink-0`}>
-                <kpi.icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider truncate">{kpi.label}</p>
-                <h3 className="text-xl font-black text-slate-900 mt-0.5">{kpi.value}</h3>
-                <p className="text-[10px] text-slate-400 font-medium truncate">{kpi.sub}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* ─── 3. FILTER BAR ────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Branch Dropdown */}
-          {!isFacultyOnly && (
-            <div className="relative min-w-[180px]">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
-              >
-                <option value="ALL">🏢 All Branches</option>
-                <option value="b-ramamurthy">Ramanagar Branch</option>
-                <option value="b-malleswaram">Malleshwaram Branch</option>
-                <option value="b-central">Jayanagar Branch</option>
-              </select>
-            </div>
-          )}
-
-          {/* Course Category Dropdown */}
-          <div className="relative min-w-[170px]">
-            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <select
-              value={selectedCourse}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
-            >
-              <option value="ALL">📚 All Courses</option>
-              <option value="Digital Marketing">Digital Marketing</option>
-              <option value="Design">Design (UI/UX / Graphic)</option>
-              <option value="Data Analytics">Data Analytics & AI</option>
-              <option value="Programming">Full Stack MERN</option>
-            </select>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search subjects or batch codes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-10 pl-9 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:ring-2 focus:ring-[#1769AA]/30"
-            />
-          </div>
-        </div>
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => {
-            setSelectedBranch("ALL");
-            setSelectedCourse("ALL");
-            setSearchQuery("");
-          }}
-          className="text-xs font-bold h-10 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl shrink-0 gap-1.5"
-        >
-          <Filter className="h-3.5 w-3.5" /> Reset Filter
-        </Button>
-      </div>
-
-      {/* ─── 4. MAIN TIMETABLE GRID ───────────────────────────────────── */}
+      {/* ─── 4. TIMETABLE MATRIX TABLE (DAYS AS ROWS × TIME SLOTS) ───────── */}
       <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-        {/* Day Mode Switcher (Day View Only) */}
-        {viewMode === "day" && (
-          <div className="p-3 bg-slate-50 border-b border-slate-200/80 flex items-center gap-2 overflow-x-auto">
-            <span className="text-xs font-black text-slate-500 uppercase tracking-wider pl-2 pr-1">Day:</span>
-            {DAYS_OF_WEEK.map((d) => (
-              <button
-                key={d.key}
-                onClick={() => setSelectedDay(d.key)}
-                className={`px-4 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
-                  selectedDay === d.key
-                    ? "bg-[#1769AA] text-white shadow-xs"
-                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <span>{d.label}</span>
-                <span className={`text-[10px] font-normal ${selectedDay === d.key ? "text-white/80" : "text-slate-400"}`}>
-                  ({d.sub})
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="overflow-x-auto w-full scrollbar-thin">
+          <table className="w-full min-w-[1240px] border-collapse text-left table-fixed">
+            <thead>
+              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-700 uppercase tracking-wider">
+                {/* 1st Column: DAY / DATE (Sticky Left) */}
+                <th className="py-3.5 px-4 w-[130px] border-r border-slate-200/60 sticky left-0 bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                  DAY / DATE
+                </th>
 
-        <div className="overflow-x-auto">
-          {isFacultyOnly ? (
-            /* ─── FACULTY PORTAL HORIZONTAL TIMETABLE MATRIX ─── */
-            viewMode === "week" ? (
-              /* HORIZONTAL WEEKLY MATRIX: ROWS = DAYS (MON–SAT), COLS = PERIODS (1–7) */
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                    <th className="p-3.5 pl-5 min-w-[150px] border-r border-slate-200/60">Day & Date</th>
-                    {PERIODS.map((pNum) => (
-                      <th key={pNum} className="p-3 text-center min-w-[175px] border-r border-slate-200/60 last:border-r-0">
-                        <div className="font-bold text-slate-800">Period {pNum}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/80 bg-white">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const currentFacId = loggedInFaculty?.id || filteredFaculty[0]?.id;
-                    const currentFacName = loggedInFaculty?.name?.toLowerCase();
-                    const dayClasses = filteredClasses.filter(
-                      (c) =>
-                        (c.facultyId === currentFacId ||
-                          c.facultyName.toLowerCase() === currentFacName ||
-                          c.facultyName.toLowerCase().includes(currentFacName || "") ||
-                          (currentFacName && currentFacName.includes(c.facultyName.toLowerCase()))) &&
-                        c.dayOfWeek === day.key
-                    );
+                {/* 8 Time Slot Columns */}
+                {TIME_SLOT_COLUMNS.map((col) => (
+                  <th
+                    key={col.period}
+                    className="py-3 px-2 text-center w-[135px] border-r border-slate-200/60 last:border-r-0 font-bold text-slate-800 whitespace-nowrap"
+                  >
+                    <div className="text-[11px] font-bold text-slate-800 tracking-tight whitespace-nowrap">
+                      {col.timeTitle}
+                    </div>
+                    <div className="text-[9px] text-slate-400 font-semibold tracking-wider uppercase">
+                      {col.subTitle}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
 
-                    return (
-                      <tr key={day.key} className="hover:bg-slate-50/40 transition-colors">
-                        {/* Day & Date Header Cell */}
-                        <td className="p-3.5 pl-5 border-r border-slate-200/60 align-middle bg-slate-50/50 min-w-[150px]">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0 shadow-2xs">
-                              <Calendar className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <span className="font-black text-slate-900 text-xs block">{day.label}</span>
-                              <span className="text-[10px] text-slate-500 font-medium">{day.sub}</span>
-                            </div>
+            <tbody className="divide-y divide-slate-100 bg-white">
+              {filteredSchedule.map((day) => {
+                // If this is a Holiday (e.g. Sunday)
+                if (day.isHoliday) {
+                  return (
+                    <tr key={day.dayKey} className="bg-rose-50/40 hover:bg-rose-50/60 transition-colors">
+                      {/* Day Column */}
+                      <td className="py-3 px-4 border-r border-rose-200/60 align-middle bg-rose-50/40 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="h-4 w-4 text-rose-500 shrink-0" />
+                          <div>
+                            <div className="font-extrabold text-xs text-rose-900">{day.dayShort}</div>
+                            <div className="text-[10px] font-semibold text-rose-700/80">{day.dateStr}</div>
                           </div>
-                        </td>
+                        </div>
+                      </td>
 
-                        {/* Period Columns (1 to 7) */}
-                        {PERIODS.map((pNum) => {
-                          const classInPeriod = dayClasses.find((c) => c.period === pNum);
-                          const styling = classInPeriod
-                            ? CATEGORY_COLORS[classInPeriod.category] || CATEGORY_COLORS["Others"]
-                            : null;
+                      {/* Full-width Holiday banner across all time slots */}
+                      <td colSpan={8} className="py-3 px-4 text-center align-middle">
+                        <div className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-rose-100/70 border border-rose-200 text-rose-700 text-xs font-black tracking-wider uppercase shadow-2xs">
+                          <Calendar className="h-3.5 w-3.5" />
+                          <span>{day.holidayTitle || "HOLIDAY"}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                }
 
-                          return (
-                            <td
-                              key={pNum}
-                              className="p-2.5 border-r border-slate-200/60 last:border-r-0 align-middle bg-white/60 min-w-[175px]"
-                            >
-                              {classInPeriod ? (
-                                <div
-                                  onClick={() => handleSlotClick(classInPeriod)}
-                                  className={`p-3 rounded-xl border ${styling?.bg} ${styling?.border} cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all text-left group relative`}
-                                >
-                                  <div className="flex items-center justify-between gap-1">
-                                    <span className={`text-[11px] font-black truncate ${styling?.text}`}>
-                                      {classInPeriod.courseName}
-                                    </span>
-                                  </div>
-                                  <p className="text-[10px] text-slate-700 font-bold truncate mt-0.5">
-                                    {classInPeriod.batchCode}
-                                  </p>
-
-                                  <div className="flex items-center justify-between text-[9px] text-slate-500 mt-1.5">
-                                    <span className="font-bold text-slate-800">
-                                      {classInPeriod.startTime && classInPeriod.endTime
-                                        ? `${classInPeriod.startTime} – ${classInPeriod.endTime}`
-                                        : `Period ${pNum}`}
-                                    </span>
-                                    <span className="font-medium text-slate-500">{classInPeriod.roomNo}</span>
-                                  </div>
-
-                                  {/* Student Count & Attendance Status Pill */}
-                                  <div className="flex items-center justify-between gap-1 mt-2 pt-1.5 border-t border-slate-200/60">
-                                    <span className="text-[9px] font-bold text-slate-600 flex items-center gap-1">
-                                      <Users className="h-3 w-3 text-slate-400" />
-                                      {classInPeriod.studentCount || 42} Students
-                                    </span>
-
-                                    {classInPeriod.attendanceStatus === "COMPLETED" ? (
-                                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-100 text-emerald-800 flex items-center gap-0.5 shadow-2xs">
-                                        <Check className="h-2.5 w-2.5" />
-                                        {classInPeriod.attendanceSummary
-                                          ? `${classInPeriod.attendanceSummary.present}P • ${classInPeriod.attendanceSummary.absent}A • ${classInPeriod.attendanceSummary.excused}E`
-                                          : "Completed"}
-                                      </span>
-                                    ) : classInPeriod.attendanceStatus === "IN_PROGRESS" ? (
-                                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-blue-100 text-blue-800">
-                                        ● In Progress
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-800 group-hover:bg-amber-200 transition-colors">
-                                        ● Mark Attendance →
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div
-                                  onClick={() => handleFreeSlotClick(day.label, pNum)}
-                                  className="h-20 rounded-xl border border-dashed border-slate-200/90 bg-slate-50/40 hover:bg-slate-100/50 cursor-pointer flex flex-col items-center justify-center text-slate-300 transition-colors group"
-                                  title="No class is scheduled for this period."
-                                >
-                                  <span className="text-xs font-bold text-slate-400 group-hover:text-slate-500">Free Slot</span>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            ) : (
-              /* HORIZONTAL DAILY VIEW FOR FACULTY */
-              <table className="w-full border-collapse text-left">
-                <thead>
-                  <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                    <th className="p-3.5 pl-5 min-w-[150px] border-r border-slate-200/60">Selected Day</th>
-                    {PERIODS.map((pNum) => (
-                      <th key={pNum} className="p-3 text-center min-w-[175px] border-r border-slate-200/60 last:border-r-0">
-                        <div className="font-bold text-slate-800">Period {pNum}</div>
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-200/80 bg-white">
-                  {(() => {
-                    const currentFacId = loggedInFaculty?.id || filteredFaculty[0]?.id;
-                    const currentFacName = loggedInFaculty?.name?.toLowerCase();
-                    const dayClasses = filteredClasses.filter(
-                      (c) =>
-                        (c.facultyId === currentFacId ||
-                          c.facultyName.toLowerCase() === currentFacName ||
-                          c.facultyName.toLowerCase().includes(currentFacName || "") ||
-                          (currentFacName && currentFacName.includes(c.facultyName.toLowerCase()))) &&
-                        c.dayOfWeek === selectedDay
-                    );
-                    const dayObj = DAYS_OF_WEEK.find((d) => d.key === selectedDay) || DAYS_OF_WEEK[0];
-
-                    return (
-                      <tr className="hover:bg-slate-50/40 transition-colors">
-                        <td className="p-4 pl-5 border-r border-slate-200/60 align-middle bg-slate-50/50 min-w-[150px]">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0 shadow-2xs">
-                              <Calendar className="h-4 w-4" />
-                            </div>
-                            <div>
-                              <span className="font-black text-slate-900 text-xs block">{dayObj.label}</span>
-                              <span className="text-[10px] text-slate-500 font-medium">{dayObj.sub}</span>
-                            </div>
-                          </div>
-                        </td>
-
-                        {PERIODS.map((pNum) => {
-                          const classInPeriod = dayClasses.find((c) => c.period === pNum);
-                          const styling = classInPeriod
-                            ? CATEGORY_COLORS[classInPeriod.category] || CATEGORY_COLORS["Others"]
-                            : null;
-
-                          return (
-                            <td
-                              key={pNum}
-                              className="p-3 border-r border-slate-200/60 last:border-r-0 align-middle bg-white/60 min-w-[175px]"
-                            >
-                              {classInPeriod ? (
-                                <div
-                                  onClick={() => handleSlotClick(classInPeriod)}
-                                  className={`p-3.5 rounded-xl border ${styling?.bg} ${styling?.border} cursor-pointer hover:shadow-md hover:scale-[1.01] transition-all text-left group`}
-                                >
-                                  <span className={`text-[11px] font-black block truncate ${styling?.text}`}>
-                                    {classInPeriod.courseName}
-                                  </span>
-                                  <p className="text-[10px] text-slate-700 font-bold truncate mt-0.5">
-                                    {classInPeriod.batchCode}
-                                  </p>
-
-                                  <div className="flex items-center justify-between text-[9px] text-slate-500 mt-2">
-                                    <span className="font-bold text-slate-800">
-                                      {classInPeriod.startTime && classInPeriod.endTime
-                                        ? `${classInPeriod.startTime} – ${classInPeriod.endTime}`
-                                        : `Period ${pNum}`}
-                                    </span>
-                                    <span className="font-medium text-slate-500">{classInPeriod.roomNo}</span>
-                                  </div>
-
-                                  {/* Student Count & Attendance Status Pill */}
-                                  <div className="flex items-center justify-between gap-1 mt-2.5 pt-2 border-t border-slate-200/60">
-                                    <span className="text-[9px] font-bold text-slate-600 flex items-center gap-1">
-                                      <Users className="h-3 w-3 text-slate-400" />
-                                      {classInPeriod.studentCount || 42} Students
-                                    </span>
-
-                                    {classInPeriod.attendanceStatus === "COMPLETED" ? (
-                                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-emerald-100 text-emerald-800 flex items-center gap-0.5 shadow-2xs">
-                                        <Check className="h-2.5 w-2.5" />
-                                        {classInPeriod.attendanceSummary
-                                          ? `${classInPeriod.attendanceSummary.present}P • ${classInPeriod.attendanceSummary.absent}A • ${classInPeriod.attendanceSummary.excused}E`
-                                          : "Completed"}
-                                      </span>
-                                    ) : (
-                                      <span className="px-2 py-0.5 rounded-md text-[9px] font-black bg-amber-100 text-amber-800 group-hover:bg-amber-200 transition-colors">
-                                        ● Mark Attendance →
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                              ) : (
-                                <div
-                                  onClick={() => handleFreeSlotClick(dayObj.label, pNum)}
-                                  className="h-24 rounded-xl border border-dashed border-slate-200 bg-slate-50/40 hover:bg-slate-100/50 cursor-pointer flex flex-col items-center justify-center text-slate-300 transition-colors group"
-                                  title="No class is scheduled for this period."
-                                >
-                                  <span className="text-xs font-bold text-slate-400 group-hover:text-slate-500">Free Slot</span>
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })()}
-                </tbody>
-              </table>
-            )
-          ) : (
-            /* ─── ADMIN / CENTER MANAGER / COUNSELLOR MULTI-FACULTY VIEW ─── */
-            <table className="w-full border-collapse text-left">
-              <thead>
-                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                  <th className="p-3.5 pl-5 min-w-[200px] border-r border-slate-200/60">Faculty</th>
-                  <th className="p-3.5 min-w-[150px] border-r border-slate-200/60">Branch</th>
-                  {DAYS_OF_WEEK.map((day) => (
-                    <th key={day.key} className="p-3 text-center min-w-[190px] border-r border-slate-200/60 last:border-r-0">
-                      <div className="font-bold text-slate-800">{day.label}</div>
-                      <div className="text-[10px] text-slate-400 font-medium">{day.sub}</div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-200/80 bg-white">
-                {filteredFaculty.length > 0 ? (
-                  filteredFaculty.map((fac) => {
-                    return (
-                      <tr key={fac.id} className="hover:bg-slate-50/40 transition-colors">
-                        {/* Faculty Info */}
-                        <td className="p-3.5 pl-5 border-r border-slate-200/60 align-middle bg-white">
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={fac.avatar}
-                              alt={fac.name}
-                              className="w-10 h-10 rounded-full border border-slate-200 shrink-0 object-cover"
-                            />
-                            <div className="min-w-0">
-                              <h4 className="font-bold text-slate-900 text-xs truncate">{fac.name}</h4>
-                              <p className="text-[10px] text-slate-400 font-mono mt-0.5">{fac.employeeCode}</p>
-                              <p className="text-[11px] text-slate-600 font-medium truncate mt-0.5">{fac.specialization}</p>
-                            </div>
-                          </div>
-                        </td>
-
-                        {/* Branch Info */}
-                        <td className="p-3.5 border-r border-slate-200/60 align-middle text-center bg-white">
-                          <span className="text-[11px] font-bold text-slate-800">{fac.branchName}</span>
-                        </td>
-
-                        {/* Day Columns */}
-                        {DAYS_OF_WEEK.map((day) => {
-                          const dayClasses = filteredClasses.filter(
-                            (c) => (c.facultyId === fac.id || c.facultyName === fac.name) && c.dayOfWeek === day.key
-                          );
-
-                          return (
-                            <td key={day.key} className="p-2 border-r border-slate-200/60 last:border-r-0 align-top bg-white/60 min-w-[190px]">
-                              {dayClasses.length === 0 ? (
-                                <div className="h-full min-h-[160px] flex flex-col items-center justify-center text-slate-300 p-4 border border-dashed border-slate-200/80 rounded-xl bg-slate-50/40">
-                                  <Calendar className="h-5 w-5 mb-1 text-slate-300" />
-                                  <span className="text-[11px] font-bold text-slate-400">No Classes</span>
-                                </div>
-                              ) : (
-                                <div className="space-y-1.5">
-                                  {dayClasses.map((cls) => {
-                                    const styling = CATEGORY_COLORS[cls.category] || CATEGORY_COLORS["Others"];
-                                    return (
-                                      <div
-                                        key={cls.id}
-                                        onClick={() => handleSlotClick(cls)}
-                                        className={`p-2.5 rounded-xl border ${styling.bg} ${styling.border} cursor-pointer hover:shadow-sm transition-all text-left`}
-                                      >
-                                        <div className="flex items-center justify-between gap-1">
-                                          <span className={`text-[11px] font-bold truncate ${styling.text}`}>
-                                            {cls.courseName}
-                                          </span>
-                                          {cls.attendanceStatus === "COMPLETED" && (
-                                            <Check className="h-3 w-3 text-emerald-600 shrink-0" />
-                                          )}
-                                        </div>
-                                        <p className="text-[10px] text-slate-600 font-medium truncate mt-0.5">
-                                          {cls.batchCode}
-                                        </p>
-                                        <div className="flex items-center justify-between text-[9px] text-slate-500 mt-1 pt-1 border-t border-slate-200/50">
-                                          <span className="font-bold text-slate-700">
-                                            {cls.startTime && cls.endTime ? `${cls.startTime} - ${cls.endTime}` : `Period ${cls.period}`}
-                                          </span>
-                                          <span className="font-medium text-slate-500">{cls.roomNo}</span>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })
-                ) : (
-                  <tr>
-                    <td colSpan={8} className="p-12 text-center text-slate-400 text-sm">
-                      No faculty found matching the selected branch/filters.
+                return (
+                  <tr key={day.dayKey} className="hover:bg-slate-50/40 transition-colors">
+                    {/* Day / Date Column (Sticky) */}
+                    <td className="py-3 px-4 border-r border-slate-200/60 align-middle bg-white sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-[#5B50EC] shrink-0" />
+                        <div>
+                          <div className="font-extrabold text-xs text-slate-900">{day.dayShort}</div>
+                          <div className="text-[10px] font-semibold text-slate-400">{day.dateStr}</div>
+                        </div>
+                      </div>
                     </td>
+
+                    {/* 8 Time Slot Cells */}
+                    {TIME_SLOT_COLUMNS.map((col) => {
+                      const slot = day.slots[col.period] || {
+                        id: `slot-${col.period}`,
+                        period: col.period,
+                        timeRange: col.label,
+                        type: col.isBreak ? "BREAK" : col.isLunch ? "LUNCH" : "FREE",
+                      };
+
+                      // 1. CLASS CARD
+                      if (slot.type === "CLASS") {
+                        return (
+                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <div
+                              onClick={() => handleSlotClick(day, slot)}
+                              className="h-[74px] p-2 rounded-xl border border-blue-200/80 bg-blue-50/40 hover:bg-blue-50/90 hover:border-blue-300 hover:shadow-xs transition-all text-left flex flex-col justify-between cursor-pointer group"
+                            >
+                              <div className="text-[11px] font-bold text-[#1E293B] group-hover:text-[#4F46E5] truncate">
+                                {slot.courseName}
+                              </div>
+                              <div className="text-[10px] font-semibold text-slate-600 truncate">
+                                {slot.batchCode}
+                              </div>
+                              <div className="flex items-center justify-between text-[9px] text-slate-500 pt-0.5 border-t border-blue-200/40">
+                                <span className="truncate">{slot.roomNo}</span>
+                                <span className="flex items-center gap-0.5 font-bold text-slate-700 shrink-0">
+                                  <Users className="h-2.5 w-2.5 text-slate-400" />
+                                  {slot.studentCount || 24}
+                                </span>
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // 2. FREE SLOT
+                      if (slot.type === "FREE") {
+                        return (
+                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <div
+                              onClick={() => handleSlotClick(day, slot)}
+                              className="h-[74px] rounded-xl border border-emerald-200/70 bg-emerald-50/30 hover:bg-emerald-100/50 hover:border-emerald-300 transition-all flex flex-col items-center justify-center cursor-pointer group text-center"
+                            >
+                              <span className="text-[11px] font-bold text-emerald-700 tracking-wide uppercase">FREE</span>
+                              <span className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
+                                <Plus className="h-2.5 w-2.5" /> Add Class
+                              </span>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // 3. BREAK SLOT
+                      if (slot.type === "BREAK") {
+                        return (
+                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <div
+                              onClick={() => handleSlotClick(day, slot)}
+                              className="h-[74px] rounded-xl border border-amber-200/60 bg-amber-50/40 hover:bg-amber-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-[#C2410C]"
+                            >
+                              <span className="text-[11px] font-bold tracking-wide uppercase">BREAK</span>
+                              <Coffee className="h-3.5 w-3.5 mt-1 text-[#EA580C]" />
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // 4. LUNCH SLOT
+                      if (slot.type === "LUNCH") {
+                        return (
+                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <div
+                              onClick={() => handleSlotClick(day, slot)}
+                              className="h-[74px] rounded-xl border border-yellow-200/60 bg-yellow-50/40 hover:bg-yellow-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-[#B45309]"
+                            >
+                              <span className="text-[11px] font-bold tracking-wide uppercase">LUNCH</span>
+                              <UtensilsCrossed className="h-3.5 w-3.5 mt-1 text-[#D97706]" />
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // 5. LEAVE SLOT
+                      if (slot.type === "LEAVE") {
+                        return (
+                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <div
+                              onClick={() => handleSlotClick(day, slot)}
+                              className="h-[74px] rounded-xl border border-rose-200/60 bg-rose-50/40 hover:bg-rose-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-700"
+                            >
+                              <span className="text-[11px] font-bold tracking-wide uppercase">ON LEAVE</span>
+                              <span className="text-[9px] text-rose-500 font-semibold mt-0.5">Off</span>
+                            </div>
+                          </td>
+                        );
+                      }
+
+                      // 6. NOT ASSIGNED SLOT
+                      return (
+                        <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                          <div
+                            onClick={() => handleSlotClick(day, slot)}
+                            className="h-[74px] rounded-xl border border-slate-200/60 bg-slate-50/50 hover:bg-slate-100/60 transition-colors flex flex-col items-center justify-center cursor-pointer group text-center"
+                          >
+                            <span className="text-[10px] font-medium text-slate-500">Not Assigned</span>
+                            <span className="text-[9px] font-bold text-slate-400 mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                              <Plus className="h-2.5 w-2.5" /> Add Class
+                            </span>
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
-                )}
-              </tbody>
-            </table>
-          )}
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
-        {/* ─── FOOTER LEGEND ────────────────────────────────────────── */}
-        <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-slate-500 font-bold text-[11px] uppercase tracking-wider">Categories:</span>
-            {Object.entries(CATEGORY_COLORS).map(([cat, colors]) => (
-              <div key={cat} className="flex items-center gap-1.5">
-                <div className={`h-2.5 w-2.5 rounded-full ${colors.dot}`} />
-                <span className="text-slate-700 font-medium text-xs">{cat}</span>
-              </div>
-            ))}
-          </div>
+        {/* ─── 5. TABLE PAGINATION & STATS BAR ───────────────────────────── */}
+        <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <span className="text-slate-600 font-medium">
+            Showing 1 to {filteredSchedule.length} of {filteredSchedule.length} days
+          </span>
 
-          <div className="flex items-center gap-3">
-            <span className="text-[11px] font-bold text-slate-500">
-              ● Click any assigned slot to mark classroom attendance
-            </span>
+          <div className="flex items-center gap-2">
+            <span className="text-slate-500">Rows per page:</span>
+            <select className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none cursor-pointer">
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
           </div>
         </div>
       </Card>
+
+      {/* ─── 6. BOTTOM INFORMATION & ADD NEW CLASS BAR ──────────────────── */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+          <Info className="h-4 w-4 text-[#5B50EC] shrink-0" />
+          <span>Click on any cell to view or edit the schedule.</span>
+        </div>
+
+        <Button
+          onClick={() => {
+            setFormDayKey("MON");
+            setFormPeriod(1);
+            setFormType("CLASS");
+            setFormCourseName("Java Programming");
+            setFormBatchCode("Batch C");
+            setFormRoomNo("Room 301");
+            setFormStudentCount(28);
+            setIsEditModalOpen(true);
+          }}
+          className="text-xs font-bold h-10 px-5 bg-[#5B50EC] hover:bg-[#4F46E5] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
+        >
+          <Plus className="h-4 w-4" /> Add New Class
+        </Button>
+      </div>
+
+      {/* ─── MODAL 1: CLASS DETAILS PANEL ───────────────────────────────── */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          {selectedSlot && (
+            <>
+              <DialogHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-50 text-[#5B50EC] border border-indigo-200 uppercase">
+                    {selectedSlot.day.dayName} • {selectedSlot.slot.timeRange}
+                  </span>
+                </div>
+                <DialogTitle className="text-xl font-black text-slate-900">
+                  {selectedSlot.slot.courseName}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 font-medium">
+                  {selectedSlot.slot.batchCode} • {selectedSlot.slot.roomNo}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 my-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Classroom</span>
+                    <p className="font-bold text-slate-800 text-sm mt-0.5">{selectedSlot.slot.roomNo || "Room 301"}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Enrolled Students</span>
+                    <p className="font-bold text-slate-800 text-sm mt-0.5 flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-slate-500" />
+                      {selectedSlot.slot.studentCount || 28} Students
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-200/60 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Attendance Status</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-700">
+                    {selectedSlot.slot.attendanceStatus || "PENDING"}
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="space-y-2 pt-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Quick Actions</span>
+                <div className="grid grid-cols-3 gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickStatusChange("FREE")}
+                    className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 h-8 rounded-lg"
+                  >
+                    Mark Free
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickStatusChange("BREAK")}
+                    className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200 h-8 rounded-lg"
+                  >
+                    Mark Break
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuickStatusChange("LEAVE")}
+                    className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200 h-8 rounded-lg"
+                  >
+                    Mark Leave
+                  </Button>
+                </div>
+              </div>
+
+              <DialogFooter className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="text-xs font-bold rounded-xl"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={handleOpenEditFromDetails}
+                  className="bg-[#5B50EC] hover:bg-[#4F46E5] text-white text-xs font-bold rounded-xl gap-1.5"
+                >
+                  <Edit3 className="h-3.5 w-3.5" /> Edit Class Details
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 2: ADD / EDIT CLASS FORM ─────────────────────────────── */}
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl font-black text-slate-900">
+              Manage Class Schedule
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 font-medium">
+              Configure course details, timings, classroom, or slot type for your timetable.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 my-2 text-xs">
+            {/* Day & Period */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Day of Week</Label>
+                <select
+                  value={formDayKey}
+                  onChange={(e) => setFormDayKey(e.target.value)}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                >
+                  {scheduleData.filter((d) => !d.isHoliday).map((d) => (
+                    <option key={d.dayKey} value={d.dayKey}>
+                      {d.dayName} ({d.dateStr})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Time Slot</Label>
+                <select
+                  value={formPeriod}
+                  onChange={(e) => setFormPeriod(Number(e.target.value))}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                >
+                  {TIME_SLOT_COLUMNS.map((col) => (
+                    <option key={col.period} value={col.period}>
+                      {col.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Slot Type */}
+            <div>
+              <Label className="text-[11px] font-bold text-slate-700">Slot Status</Label>
+              <select
+                value={formType}
+                onChange={(e) => setFormType(e.target.value as SlotType)}
+                className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#5B50EC] outline-none"
+              >
+                <option value="CLASS">Class Scheduled</option>
+                <option value="FREE">Free</option>
+                <option value="BREAK">Break</option>
+                <option value="LUNCH">Lunch</option>
+                <option value="LEAVE">Leave</option>
+                <option value="NOT_ASSIGNED">Not Assigned</option>
+              </select>
+            </div>
+
+            {/* Class Details (If Class) */}
+            {formType === "CLASS" && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700">Course / Subject Name *</Label>
+                    <Input
+                      value={formCourseName}
+                      onChange={(e) => setFormCourseName(e.target.value)}
+                      placeholder="e.g. Java Programming"
+                      className="h-9 mt-1 text-xs rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700">Batch Code *</Label>
+                    <Input
+                      value={formBatchCode}
+                      onChange={(e) => setFormBatchCode(e.target.value)}
+                      placeholder="e.g. Batch C"
+                      className="h-9 mt-1 text-xs rounded-xl"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab *</Label>
+                    <Input
+                      value={formRoomNo}
+                      onChange={(e) => setFormRoomNo(e.target.value)}
+                      placeholder="e.g. Room 301"
+                      className="h-9 mt-1 text-xs rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700">Student Count</Label>
+                    <Input
+                      type="number"
+                      value={formStudentCount}
+                      onChange={(e) => setFormStudentCount(Number(e.target.value))}
+                      className="h-9 mt-1 text-xs rounded-xl"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter className="flex gap-2 mt-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsEditModalOpen(false)}
+              className="text-xs font-bold h-9 rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveSlotForm}
+              className="bg-[#5B50EC] hover:bg-[#4F46E5] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
+            >
+              <Save className="h-3.5 w-3.5" /> Save Class Schedule
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
