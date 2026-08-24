@@ -1,53 +1,49 @@
 import React, { useState, useMemo } from "react";
 import {
-  Layers,
   MapPin,
   School,
   Briefcase,
   GraduationCap,
   Users,
   UserCheck,
-  Boxes,
-  Compass,
-  GitCommit,
-  Bell,
   Calendar,
   Clock,
-  Sun,
-  ShieldCheck,
   CalendarCheck,
   FileCheck,
+  PhoneCall,
+  Flag,
+  UserCircle,
+  ClipboardList,
+  UsersRound,
   Star,
-  Tag,
-  BookMarked,
+  Bell,
+  FileText,
+  Box,
+  Boxes,
   Landmark,
-  Receipt,
-  BookOpen,
+  IndianRupee,
+  BookMarked,
   CreditCard,
   Percent,
-  Plus,
   Search,
-  Download,
+  ChevronRight,
+  Plus,
   Edit2,
   Trash2,
-  ChevronRight,
-  HelpCircle,
-  ArrowLeft,
+  Download,
+  Info,
+  History,
+  CheckCircle2,
   LayoutGrid,
-  List
+  List,
+  Eye,
+  SlidersHorizontal,
+  Layers,
 } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
@@ -57,27 +53,44 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Master Entity Definition
-export interface MasterCategory {
+// ─── MASTER ENTITY CATEGORY DEFINITIONS ──────────────────────────────────────
+
+export type MasterCategoryGroup =
+  | "ACADEMIC_ORG"
+  | "ADMISSIONS_LEADS"
+  | "COMMUNICATION_SYSTEM"
+  | "INVENTORY"
+  | "ACCOUNTING_FEES";
+
+export interface MasterEntity {
   id: string;
   name: string;
-  group: "BASIC" | "ACCOUNTING";
+  category: MasterCategoryGroup;
+  categoryName: string;
   icon: React.ElementType;
+  iconBgColor: string;
+  iconColor: string;
   description: string;
   count: number;
+  lastUpdated: string;
+  status: "ACTIVE" | "INACTIVE";
   columns: { key: string; label: string }[];
 }
 
-export const MASTER_CATEGORIES: MasterCategory[] = [
-  // ─── BASIC MASTERS (Exact 20 Entities matching ZenoxERP) ────────────────────
-  // Row 1
+export const ALL_25_MASTERS: MasterEntity[] = [
+  // ─── CATEGORY 1: ACADEMIC & ORGANIZATION (10) ─────────────────────────────
   {
     id: "area",
     name: "Area",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: MapPin,
-    description: "Manage student catchment zones, postal codes, and city localities",
+    iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
+    iconColor: "text-blue-600",
+    description: "Manage areas / regions for operations",
     count: 8,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "code", label: "Area Code" },
       { key: "name", label: "Area Name" },
@@ -89,1138 +102,1416 @@ export const MASTER_CATEGORIES: MasterCategory[] = [
   {
     id: "classroom",
     name: "Class Room",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: School,
-    description: "Lecture rooms, labs, seminar halls, projector equipment and seat capacity",
+    iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    iconColor: "text-emerald-600",
+    description: "Manage classrooms and locations",
     count: 6,
+    lastUpdated: "23 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "code", label: "Room Code" },
       { key: "name", label: "Room Name" },
       { key: "capacity", label: "Capacity" },
       { key: "type", label: "Room Type" },
-      { key: "projector", label: "Equipped" },
       { key: "status", label: "Status" },
     ],
   },
   {
     id: "designation",
     name: "Designation",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: Briefcase,
-    description: "Staff organizational roles, hierarchy grades, and departments",
+    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
+    iconColor: "text-purple-600",
+    description: "Manage employee designations",
     count: 7,
+    lastUpdated: "22 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "code", label: "Code" },
-      { key: "name", label: "Designation" },
-      { key: "dept", label: "Department" },
-      { key: "level", label: "Level" },
+      { key: "title", label: "Designation Title" },
+      { key: "level", label: "Hierarchy Level" },
+      { key: "department", label: "Department" },
       { key: "status", label: "Status" },
     ],
   },
   {
     id: "education",
     name: "Education",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: GraduationCap,
-    description: "Prior educational qualifications, degrees, and academic streams",
+    iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
+    iconColor: "text-amber-600",
+    description: "Manage education levels & groups",
     count: 9,
+    lastUpdated: "21 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "name", label: "Degree / Qualification" },
-      { key: "category", label: "Category" },
-      { key: "stream", label: "Stream" },
+      { key: "code", label: "Code" },
+      { key: "qualification", label: "Degree / Qualification" },
+      { key: "stream", label: "Stream / Field" },
       { key: "status", label: "Status" },
     ],
   },
-
-  // Row 2
   {
-    id: "parent_info",
+    id: "parentinfo",
     name: "Parent Info",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: Users,
-    description: "Guardian relationship tags, alert preferences, and contact protocols",
+    iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
+    iconColor: "text-teal-600",
+    description: "Manage parent information types",
     count: 5,
+    lastUpdated: "20 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "relation", label: "Relation Type" },
-      { key: "notifyAbsence", label: "Absence SMS" },
-      { key: "notifyFee", label: "Fee Alert" },
+      { key: "occupationGroup", label: "Occupation Group" },
+      { key: "incomeBracket", label: "Income Bracket" },
       { key: "status", label: "Status" },
     ],
   },
   {
     id: "employee",
     name: "Employee",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: UserCheck,
-    description: "Trainers, administrative staff, payroll codes, and center allocations",
-    count: 14,
+    iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
+    iconColor: "text-orange-600",
+    description: "Manage employees and staff",
+    count: 5,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "code", label: "Emp Code" },
-      { key: "name", label: "Full Name" },
-      { key: "designation", label: "Designation" },
-      { key: "mobile", label: "Mobile" },
+      { key: "empCode", label: "Emp Code" },
+      { key: "name", label: "Staff Name" },
+      { key: "role", label: "Role" },
       { key: "branch", label: "Branch" },
       { key: "status", label: "Status" },
     ],
   },
   {
-    id: "inventory_cat",
-    name: "Inventory Category",
-    group: "BASIC",
-    icon: Boxes,
-    description: "Kit materials, study books, merchandise, and classroom assets",
-    count: 5,
-    columns: [
-      { key: "code", label: "Cat Code" },
-      { key: "name", label: "Category Name" },
-      { key: "uom", label: "Unit of Measure" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "inventory_sub",
-    name: "Inventory Sub Category",
-    group: "BASIC",
-    icon: Boxes,
-    description: "Sub-items under kits, textbooks, lab hardware, and uniform merchandise",
-    count: 6,
-    columns: [
-      { key: "catName", label: "Parent Category" },
-      { key: "code", label: "Sub Code" },
-      { key: "name", label: "Sub Category Name" },
-      { key: "cost", label: "Unit Value (₹)" },
-      { key: "status", label: "Status" },
-    ],
-  },
-
-  // Row 3
-  {
-    id: "lead_source",
-    name: "Lead Source",
-    group: "BASIC",
-    icon: Compass,
-    description: "Marketing channels: Walk-in, Google, Meta Ads, Seminars, Referrals",
-    count: 8,
-    columns: [
-      { key: "name", label: "Source Name" },
-      { key: "type", label: "Channel Type" },
-      { key: "isOnline", label: "Online Channel" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "lead_stage",
-    name: "Lead Stage",
-    group: "BASIC",
-    icon: GitCommit,
-    description: "Pipeline progression stages with pipeline order and colors",
-    count: 6,
-    columns: [
-      { key: "order", label: "Seq" },
-      { key: "name", label: "Stage Name" },
-      { key: "color", label: "Badge Color" },
-      { key: "isTerminal", label: "Terminal State" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "notification",
-    name: "Notification Template",
-    group: "BASIC",
-    icon: Bell,
-    description: "Automated WhatsApp and SMS templates with dynamic tags",
-    count: 6,
-    columns: [
-      { key: "name", label: "Template Name" },
-      { key: "channel", label: "Channel" },
-      { key: "trigger", label: "Event Trigger" },
-      { key: "tags", label: "Dynamic Tags" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "batch",
-    name: "Admission Batch",
-    group: "BASIC",
-    icon: Calendar,
-    description: "Batch codes, session timings, seat capacities, and assigned instructors",
-    count: 10,
-    columns: [
-      { key: "code", label: "Batch Code" },
-      { key: "name", label: "Batch Title" },
-      { key: "course", label: "Course" },
-      { key: "time", label: "Timing" },
-      { key: "trainer", label: "Primary Trainer" },
-      { key: "status", label: "Status" },
-    ],
-  },
-
-  // Row 4
-  {
     id: "holiday",
     name: "Holiday",
-    group: "BASIC",
-    icon: Sun,
-    description: "Institute public holidays, academic closures, and branch festivals",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
+    icon: Calendar,
+    iconBgColor: "bg-rose-50 text-rose-600 border-rose-100",
+    iconColor: "text-rose-600",
+    description: "Manage institute holidays",
     count: 5,
+    lastUpdated: "19 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "date", label: "Holiday Date" },
-      { key: "name", label: "Occasion" },
-      { key: "branch", label: "Branch Applicable" },
+      { key: "title", label: "Holiday Title" },
+      { key: "date", label: "Date" },
       { key: "type", label: "Holiday Type" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "admission_status",
-    name: "Admission Status",
-    group: "BASIC",
-    icon: ShieldCheck,
-    description: "Student lifecycle flags: Active, Completed, Discontinued, On Leave",
-    count: 5,
-    columns: [
-      { key: "code", label: "Status Code" },
-      { key: "name", label: "Status Label" },
-      { key: "allowAttendance", label: "Allow Attendance" },
-      { key: "status", label: "Status" },
+      { key: "description", label: "Details" },
     ],
   },
   {
     id: "timeslot",
     name: "Time Slot",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: Clock,
-    description: "Standard morning, afternoon, and weekend class time slots",
-    count: 7,
+    iconBgColor: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    iconColor: "text-indigo-600",
+    description: "Manage time slots for scheduling",
+    count: 5,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "name", label: "Slot Label" },
-      { key: "start", label: "Start Time" },
-      { key: "end", label: "End Time" },
-      { key: "sessionType", label: "Type" },
+      { key: "code", label: "Slot Code" },
+      { key: "startTime", label: "Start Time" },
+      { key: "endTime", label: "End Time" },
+      { key: "period", label: "Period" },
       { key: "status", label: "Status" },
     ],
   },
   {
     id: "events",
     name: "Events",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: CalendarCheck,
-    description: "Workshops, hackathons, guest lectures, and placement drives",
+    iconBgColor: "bg-violet-50 text-violet-600 border-violet-100",
+    iconColor: "text-violet-600",
+    description: "Manage events and important days",
     count: 4,
+    lastUpdated: "18 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "name", label: "Event Name" },
-      { key: "category", label: "Category" },
-      { key: "coordinator", label: "Coordinator" },
-      { key: "status", label: "Status" },
+      { key: "date", label: "Event Date" },
+      { key: "venue", label: "Venue / Branch" },
+      { key: "category", label: "Event Type" },
     ],
   },
-
-  // Row 5
   {
-    id: "exam_term",
+    id: "examterm",
     name: "Exam Term",
-    group: "BASIC",
+    category: "ACADEMIC_ORG",
+    categoryName: "Academic & Organization",
     icon: FileCheck,
-    description: "Academic evaluation terms, module exams, and final capstone reviews",
+    iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    iconColor: "text-emerald-600",
+    description: "Manage exam terms and sessions",
     count: 4,
+    lastUpdated: "17 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "code", label: "Term Code" },
-      { key: "name", label: "Term Title" },
-      { key: "duration", label: "Duration" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "course_review",
-    name: "Course Review",
-    group: "BASIC",
-    icon: Star,
-    description: "Student feedback survey questions and faculty evaluation parameters",
-    count: 5,
-    columns: [
-      { key: "question", label: "Rubric Question" },
-      { key: "scale", label: "Max Score" },
-      { key: "category", label: "Category" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "lead_type",
-    name: "Lead Type",
-    group: "BASIC",
-    icon: Tag,
-    description: "Enquiry prioritization: Hot, Warm, Cold with SLAs",
-    count: 3,
-    columns: [
-      { key: "name", label: "Lead Priority" },
-      { key: "sla", label: "Follow-up SLA" },
-      { key: "color", label: "Tag Color" },
-      { key: "status", label: "Status" },
-    ],
-  },
-  {
-    id: "assignment_type",
-    name: "Assignment Type",
-    group: "BASIC",
-    icon: BookMarked,
-    description: "Practical Lab Task, Theory Homework, Coding Challenge, Project Submission",
-    count: 4,
-    columns: [
-      { key: "name", label: "Assignment Type" },
-      { key: "maxMarks", label: "Default Max Marks" },
-      { key: "submissionFormat", label: "Submission Format" },
+      { key: "name", label: "Term Name" },
+      { key: "academicYear", label: "Academic Year" },
       { key: "status", label: "Status" },
     ],
   },
 
-  // ─── ACCOUNTING MASTERS (5 Entities) ────────────────────────────────────────
+  // ─── CATEGORY 2: ADMISSIONS & LEADS (6) ───────────────────────────────────
   {
-    id: "bank_accounts",
-    name: "Bank Accounts",
-    group: "ACCOUNTING",
-    icon: Landmark,
-    description: "Aadya Institute official bank deposit accounts, QR codes, and IFSCs",
-    count: 3,
+    id: "leadsource",
+    name: "Lead Source",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: PhoneCall,
+    iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
+    iconColor: "text-blue-600",
+    description: "Manage lead sources",
+    count: 8,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "bankName", label: "Bank Name" },
-      { key: "accountNo", label: "Account Number" },
-      { key: "ifsc", label: "IFSC Code" },
-      { key: "branch", label: "Branch" },
+      { key: "code", label: "Source Code" },
+      { key: "name", label: "Source Channel" },
+      { key: "channelType", label: "Channel Type" },
       { key: "status", label: "Status" },
     ],
   },
   {
-    id: "fee_heads",
-    name: "Fee Heads",
-    group: "ACCOUNTING",
-    icon: Receipt,
-    description: "Tuition Fee, Registration, Lab Fee, Exam Fee, Certification Head",
-    count: 5,
+    id: "leadstage",
+    name: "Lead Stage",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: Flag,
+    iconBgColor: "bg-green-50 text-green-600 border-green-100",
+    iconColor: "text-green-600",
+    description: "Manage lead stages and pipeline",
+    count: 6,
+    lastUpdated: "23 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "name", label: "Fee Head" },
-      { key: "isGst", label: "GST Applicable" },
-      { key: "defaultAmount", label: "Default ₹" },
-      { key: "type", label: "Frequency" },
+      { key: "stageNumber", label: "Order" },
+      { key: "name", label: "Stage Name" },
+      { key: "description", label: "Pipeline Action" },
+      { key: "color", label: "Badge Color" },
+    ],
+  },
+  {
+    id: "leadtype",
+    name: "Lead Type",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: UserCircle,
+    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
+    iconColor: "text-purple-600",
+    description: "Manage types of leads",
+    count: 3,
+    lastUpdated: "20 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Type Code" },
+      { key: "name", label: "Lead Category" },
+      { key: "slaHours", label: "Follow-up SLA" },
       { key: "status", label: "Status" },
+    ],
+  },
+  {
+    id: "admissionstatus",
+    name: "Admission Status",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: ClipboardList,
+    iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
+    iconColor: "text-amber-600",
+    description: "Manage admission statuses",
+    count: 5,
+    lastUpdated: "22 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Status Code" },
+      { key: "name", label: "Status Title" },
+      { key: "step", label: "Enrollment Step" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  {
+    id: "admissionbatch",
+    name: "Admission Batch",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: UsersRound,
+    iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
+    iconColor: "text-teal-600",
+    description: "Manage admission batches",
+    count: 5,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "batchCode", label: "Batch Code" },
+      { key: "batchName", label: "Batch Name" },
+      { key: "capacity", label: "Seat Capacity" },
+      { key: "targetIntake", label: "Target Intake" },
+    ],
+  },
+  {
+    id: "coursereview",
+    name: "Course Review",
+    category: "ADMISSIONS_LEADS",
+    categoryName: "Admissions & Leads",
+    icon: Star,
+    iconBgColor: "bg-pink-50 text-pink-600 border-pink-100",
+    iconColor: "text-pink-600",
+    description: "Manage course reviews",
+    count: 5,
+    lastUpdated: "21 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "reviewType", label: "Feedback Type" },
+      { key: "frequency", label: "Frequency" },
+      { key: "ratingScale", label: "Rating Scale" },
+      { key: "status", label: "Status" },
+    ],
+  },
+
+  // ─── CATEGORY 3: COMMUNICATION & SYSTEM (2) ───────────────────────────────
+  {
+    id: "notificationtemplate",
+    name: "Notification Template",
+    category: "COMMUNICATION_SYSTEM",
+    categoryName: "Communication & System",
+    icon: Bell,
+    iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
+    iconColor: "text-blue-600",
+    description: "Manage notification templates",
+    count: 6,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Template Code" },
+      { key: "channel", label: "Channel" },
+      { key: "trigger", label: "System Trigger" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  {
+    id: "assignmenttype",
+    name: "Assignment Type",
+    category: "COMMUNICATION_SYSTEM",
+    categoryName: "Communication & System",
+    icon: FileText,
+    iconBgColor: "bg-green-50 text-green-600 border-green-100",
+    iconColor: "text-green-600",
+    description: "Manage assignment types",
+    count: 4,
+    lastUpdated: "19 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Type Code" },
+      { key: "name", label: "Assignment Type" },
+      { key: "maxMarks", label: "Standard Max Marks" },
+      { key: "status", label: "Status" },
+    ],
+  },
+
+  // ─── CATEGORY 4: INVENTORY (2) ────────────────────────────────────────────
+  {
+    id: "inventorycategory",
+    name: "Inventory Category",
+    category: "INVENTORY",
+    categoryName: "Inventory",
+    icon: Box,
+    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
+    iconColor: "text-purple-600",
+    description: "Manage inventory categories",
+    count: 5,
+    lastUpdated: "20 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Category Code" },
+      { key: "name", label: "Category Name" },
+      { key: "department", label: "Custodian Dept" },
+      { key: "status", label: "Status" },
+    ],
+  },
+  {
+    id: "inventorysubcategory",
+    name: "Inventory Sub Category",
+    category: "INVENTORY",
+    categoryName: "Inventory",
+    icon: Boxes,
+    iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
+    iconColor: "text-orange-600",
+    description: "Manage inventory subcategories",
+    count: 6,
+    lastUpdated: "18 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "parentCategory", label: "Parent Category" },
+      { key: "code", label: "Sub Category Code" },
+      { key: "name", label: "Sub Category Name" },
+      { key: "status", label: "Status" },
+    ],
+  },
+
+  // ─── CATEGORY 5: ACCOUNTING & FEES (5) ────────────────────────────────────
+  {
+    id: "bankaccounts",
+    name: "Bank Accounts",
+    category: "ACCOUNTING_FEES",
+    categoryName: "Accounting & Fees",
+    icon: Landmark,
+    iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
+    iconColor: "text-blue-600",
+    description: "Manage bank accounts",
+    count: 3,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "accountName", label: "Bank Name" },
+      { key: "accountNumber", label: "Account No" },
+      { key: "ifsc", label: "IFSC Code" },
+      { key: "branch", label: "Bank Branch" },
+    ],
+  },
+  {
+    id: "feeheads",
+    name: "Fee Heads",
+    category: "ACCOUNTING_FEES",
+    categoryName: "Accounting & Fees",
+    icon: IndianRupee,
+    iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
+    iconColor: "text-emerald-600",
+    description: "Manage fee heads",
+    count: 5,
+    lastUpdated: "22 Aug 2026",
+    status: "ACTIVE",
+    columns: [
+      { key: "code", label: "Head Code" },
+      { key: "name", label: "Fee Head Title" },
+      { key: "type", label: "Fee Type" },
+      { key: "gstApplicable", label: "GST Rate" },
     ],
   },
   {
     id: "ledgers",
     name: "Ledgers",
-    group: "ACCOUNTING",
-    icon: BookOpen,
-    description: "Chart of accounts, revenue heads, vendor ledgers, and expense accounts",
+    category: "ACCOUNTING_FEES",
+    categoryName: "Accounting & Fees",
+    icon: BookMarked,
+    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
+    iconColor: "text-purple-600",
+    description: "Manage financial ledgers",
     count: 8,
+    lastUpdated: "23 Aug 2026",
+    status: "ACTIVE",
     columns: [
       { key: "code", label: "Ledger Code" },
       { key: "name", label: "Ledger Name" },
       { key: "group", label: "Account Group" },
-      { key: "type", label: "Dr/Cr Type" },
-      { key: "status", label: "Status" },
+      { key: "openingBalance", label: "Opening Balance" },
     ],
   },
   {
-    id: "payment_modes",
+    id: "paymentmodes",
     name: "Payment Modes",
-    group: "ACCOUNTING",
+    category: "ACCOUNTING_FEES",
+    categoryName: "Accounting & Fees",
     icon: CreditCard,
-    description: "Cash, UPI/GPay, Bank NEFT/IMPS, Cheque, POS Card swipe",
+    iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
+    iconColor: "text-amber-600",
+    description: "Manage payment modes",
     count: 5,
+    lastUpdated: "24 Aug 2026",
+    status: "ACTIVE",
     columns: [
+      { key: "code", label: "Mode Code" },
       { key: "name", label: "Payment Mode" },
-      { key: "requiresRef", label: "Requires Txn ID" },
-      { key: "gateway", label: "Gateway Link" },
+      { key: "processingFee", label: "Gateway Charge" },
       { key: "status", label: "Status" },
     ],
   },
   {
-    id: "concession_heads",
+    id: "concessionheads",
     name: "Concession Heads",
-    group: "ACCOUNTING",
+    category: "ACCOUNTING_FEES",
+    categoryName: "Accounting & Fees",
     icon: Percent,
-    description: "Merit scholarships, early-bird discounts, director discretion waivers",
+    iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
+    iconColor: "text-teal-600",
+    description: "Manage concession heads",
     count: 4,
+    lastUpdated: "19 Aug 2026",
+    status: "ACTIVE",
     columns: [
-      { key: "name", label: "Discount Category" },
-      { key: "maxPct", label: "Max Limit %" },
-      { key: "approver", label: "Approval Required" },
-      { key: "status", label: "Status" },
+      { key: "code", label: "Code" },
+      { key: "name", label: "Scholarship / Discount" },
+      { key: "percentage", label: "Max Discount" },
+      { key: "approvalLevel", label: "Approval Required" },
     ],
   },
 ];
 
-// Initial mock records for all masters
-const INITIAL_RECORDS: Record<string, any[]> = {
+// Sample records per master entity
+const INITIAL_RECORDS: Record<string, Record<string, string>[]> = {
   area: [
-    { id: "1", code: "AR-101", name: "Malleswaram", city: "Bengaluru", pincode: "560003", status: "Active" },
-    { id: "2", code: "AR-102", name: "Ramamurthy Nagar", city: "Bengaluru", pincode: "560016", status: "Active" },
-    { id: "3", code: "AR-103", name: "Indiranagar", city: "Bengaluru", pincode: "560038", status: "Active" },
-    { id: "4", code: "AR-104", name: "Hebbal", city: "Bengaluru", pincode: "560024", status: "Active" },
-    { id: "5", code: "AR-105", name: "Koramangala", city: "Bengaluru", pincode: "560034", status: "Active" },
-    { id: "6", code: "AR-106", name: "Whitefield", city: "Bengaluru", pincode: "560066", status: "Active" },
-    { id: "7", code: "AR-107", name: "Rajajinagar", city: "Bengaluru", pincode: "560010", status: "Active" },
-    { id: "8", code: "AR-108", name: "Electronic City", city: "Bengaluru", pincode: "560100", status: "Active" },
+    { id: "1", code: "AR-01", name: "Koramangala", city: "Bengaluru", pincode: "560034", status: "Active" },
+    { id: "2", code: "AR-02", name: "Indiranagar", city: "Bengaluru", pincode: "560038", status: "Active" },
+    { id: "3", code: "AR-03", name: "Whitefield", city: "Bengaluru", pincode: "560066", status: "Active" },
+    { id: "4", code: "AR-04", name: "Jayanagar", city: "Bengaluru", pincode: "560041", status: "Active" },
+    { id: "5", code: "AR-05", name: "HSR Layout", city: "Bengaluru", pincode: "560102", status: "Active" },
+    { id: "6", code: "AR-06", name: "Jayalakshmipuram", city: "Mysore", pincode: "570012", status: "Active" },
+    { id: "7", code: "AR-07", name: "Kuvempunagar", city: "Mysore", pincode: "570023", status: "Active" },
+    { id: "8", code: "AR-08", name: "Vidyanagar", city: "Hubli", pincode: "580021", status: "Active" },
   ],
   classroom: [
-    { id: "1", code: "LAB-01", name: "AI & Fullstack Lab", capacity: 40, type: "Computer Lab", projector: "Yes (Smart Screen)", status: "Active" },
-    { id: "2", code: "LAB-02", name: "Data Analytics Lab", capacity: 35, type: "Computer Lab", projector: "Yes (Dual Display)", status: "Active" },
-    { id: "3", code: "TH-201", name: "Lecture Room A", capacity: 50, type: "Theory Class", projector: "Yes (HD Projector)", status: "Active" },
-    { id: "4", code: "TH-202", name: "Lecture Room B", capacity: 45, type: "Theory Class", projector: "Yes", status: "Active" },
-    { id: "5", code: "SEM-01", name: "Main Seminar Hall", capacity: 120, type: "Auditorium", projector: "Yes (Audio-Visual)", status: "Active" },
-    { id: "6", code: "CONF-1", name: "Board & Telecalling Room", capacity: 15, type: "Meeting Room", projector: "Yes", status: "Active" },
+    { id: "1", code: "CR-101", name: "Lab 1 (Java Full Stack)", capacity: "30 Seats", type: "Computer Lab", status: "Available" },
+    { id: "2", code: "CR-102", name: "Lecture Hall A", capacity: "60 Seats", type: "Theory Hall", status: "In Use" },
+    { id: "3", code: "CR-103", name: "Lab 2 (Python & AI)", capacity: "28 Seats", type: "Computer Lab", status: "Available" },
+    { id: "4", code: "CR-201", name: "Seminar Room 1", capacity: "45 Seats", type: "Conference", status: "Available" },
+    { id: "5", code: "CR-202", name: "Classroom 202", capacity: "35 Seats", type: "Classroom", status: "In Use" },
+    { id: "6", code: "CR-203", name: "Classroom 203", capacity: "30 Seats", type: "Classroom", status: "Available" },
   ],
   designation: [
-    { id: "1", code: "DES-01", name: "Center Manager", dept: "Administration", level: "Senior", status: "Active" },
-    { id: "2", code: "DES-02", name: "Senior Counsellor", dept: "Admissions & CRM", level: "Lead", status: "Active" },
-    { id: "3", code: "DES-03", name: "Lead Technical Trainer", dept: "Academic Faculty", level: "Principal", status: "Active" },
-    { id: "4", code: "DES-04", name: "Junior Faculty / Mentor", dept: "Academic Faculty", level: "Associate", status: "Active" },
-    { id: "5", code: "DES-05", name: "Telecalling Specialist", dept: "Admissions & CRM", level: "Executive", status: "Active" },
-    { id: "6", code: "DES-06", name: "Senior Accountant", dept: "Accounts & Finance", level: "Lead", status: "Active" },
-    { id: "7", code: "DES-07", name: "Lab Administrator", dept: "IT Infrastructure", level: "Executive", status: "Active" },
+    { id: "1", code: "DES-01", title: "Senior Faculty Instructor", level: "L3", department: "Academics", status: "Active" },
+    { id: "2", code: "DES-02", title: "Assistant Faculty", level: "L1", department: "Academics", status: "Active" },
+    { id: "3", code: "DES-03", title: "Senior Academic Counsellor", level: "L2", department: "Admissions", status: "Active" },
+    { id: "4", code: "DES-04", title: "Center Operations Manager", level: "L4", department: "Operations", status: "Active" },
+    { id: "5", code: "DES-05", title: "Lab Assistant / Administrator", level: "L1", department: "Infrastructure", status: "Active" },
+    { id: "6", code: "DES-06", title: "Student Relationship Executive", level: "L1", department: "Support", status: "Active" },
+    { id: "7", code: "DES-07", title: "Accounts & Billing Lead", level: "L2", department: "Finance", status: "Active" },
   ],
   education: [
-    { id: "1", name: "10th Standard (SSLC / CBSE)", category: "Schooling", stream: "General", status: "Active" },
-    { id: "2", name: "12th / PUC (Science - PCMB/PCMC)", category: "Pre-University", stream: "Science", status: "Active" },
-    { id: "3", name: "12th / PUC (Commerce)", category: "Pre-University", stream: "Commerce", status: "Active" },
-    { id: "4", name: "Diploma in Computer Science", category: "Polytechnic", stream: "Engineering", status: "Active" },
-    { id: "5", name: "B.E / B.Tech (Computer Science / IT)", category: "Undergraduate", stream: "Engineering", status: "Active" },
-    { id: "6", name: "B.Sc (Computer Science / Electronics)", category: "Undergraduate", stream: "Science", status: "Active" },
-    { id: "7", name: "BCA (Bachelor of Computer Applications)", category: "Undergraduate", stream: "Computer Apps", status: "Active" },
-    { id: "8", name: "B.Com / BBA", category: "Undergraduate", stream: "Commerce & Mgmt", status: "Active" },
-    { id: "9", name: "MCA / M.Tech / MBA", category: "Postgraduate", stream: "Master Degree", status: "Active" },
+    { id: "1", code: "EDU-01", qualification: "B.E. / B.Tech", stream: "Computer Science / IT", status: "Active" },
+    { id: "2", code: "EDU-02", qualification: "B.E. / B.Tech", stream: "Electronics / ECE", status: "Active" },
+    { id: "3", code: "EDU-03", qualification: "B.E. / B.Tech", stream: "Mechanical / Civil / Other", status: "Active" },
+    { id: "4", code: "EDU-04", qualification: "B.C.A.", stream: "Computer Applications", status: "Active" },
+    { id: "5", code: "EDU-05", qualification: "B.Sc.", stream: "Computer Science / Electronics", status: "Active" },
+    { id: "6", code: "EDU-06", qualification: "M.C.A. / M.Sc.", stream: "Computer Applications", status: "Active" },
+    { id: "7", code: "EDU-07", qualification: "M.E. / M.Tech", stream: "Information Technology", status: "Active" },
+    { id: "8", code: "EDU-08", qualification: "Diploma", stream: "Computer Science / IT", status: "Active" },
+    { id: "9", code: "EDU-09", qualification: "Non-Technical Graduate", stream: "B.Com / B.B.A / B.A", status: "Active" },
   ],
-  parent_info: [
-    { id: "1", relation: "Father", notifyAbsence: "Yes", notifyFee: "Yes", status: "Active" },
-    { id: "2", relation: "Mother", notifyAbsence: "Yes", notifyFee: "Yes", status: "Active" },
-    { id: "3", relation: "Legal Guardian", notifyAbsence: "Yes", notifyFee: "Yes", status: "Active" },
-    { id: "4", relation: "Spouse", notifyAbsence: "Yes", notifyFee: "No", status: "Active" },
-    { id: "5", relation: "Sibling / Relative", notifyAbsence: "No", notifyFee: "No", status: "Active" },
+  parentinfo: [
+    { id: "1", relation: "Father", occupationGroup: "Salaried (Private / IT)", incomeBracket: "₹5L - ₹10L", status: "Active" },
+    { id: "2", relation: "Mother", occupationGroup: "Government Service", incomeBracket: "₹5L - ₹10L", status: "Active" },
+    { id: "3", relation: "Guardian", occupationGroup: "Business / Self-Employed", incomeBracket: "₹10L - ₹20L", status: "Active" },
+    { id: "4", relation: "Father", occupationGroup: "Agriculture / Farming", incomeBracket: "Below ₹5L", status: "Active" },
+    { id: "5", relation: "Mother", occupationGroup: "Professional (Doctor/Lawyer)", incomeBracket: "Above ₹20L", status: "Active" },
   ],
   employee: [
-    { id: "1", code: "EMP-101", name: "Vidya Y A", designation: "Senior Counsellor", mobile: "9845012345", branch: "Malleswaram", status: "Active" },
-    { id: "2", code: "EMP-102", name: "Dr. Rajesh Sharma", designation: "Lead Technical Trainer", mobile: "9880198765", branch: "Ramamurthy Nagar", status: "Active" },
-    { id: "3", code: "EMP-103", name: "Suresh Gowda", designation: "Center Manager", mobile: "9741234567", branch: "Malleswaram", status: "Active" },
-    { id: "4", code: "EMP-104", name: "Ananya Rao", designation: "Telecalling Specialist", mobile: "9900112233", branch: "Malleswaram", status: "Active" },
-    { id: "5", code: "EMP-105", name: "Karthik Sundaram", designation: "Junior Faculty / Mentor", mobile: "9844556677", branch: "Ramamurthy Nagar", status: "Active" },
-  ],
-  inventory_cat: [
-    { id: "1", code: "INV-BK", name: "Course Textbooks & Workbooks", uom: "Books", status: "Active" },
-    { id: "2", code: "INV-KT", name: "Student Welcome Kit & Bag", uom: "Sets", status: "Active" },
-    { id: "3", code: "INV-ID", name: "RFID Student Smart ID Cards", uom: "Cards", status: "Active" },
-    { id: "4", code: "INV-HW", name: "Lab Raspberry Pi / Dev Boards", uom: "Units", status: "Active" },
-    { id: "5", code: "INV-CRT", name: "Course Completion Certificate Folders", uom: "Pcs", status: "Active" },
-  ],
-  inventory_sub: [
-    { id: "1", catName: "Course Textbooks & Workbooks", code: "SUB-BK-01", name: "Full Stack MERN Developer Guide", cost: "850", status: "Active" },
-    { id: "2", catName: "Course Textbooks & Workbooks", code: "SUB-BK-02", name: "AI & Machine Learning Handbook", cost: "1200", status: "Active" },
-    { id: "3", catName: "Student Welcome Kit & Bag", code: "SUB-KT-01", name: "Aadya Institute Premium Backpack", cost: "650", status: "Active" },
-    { id: "4", catName: "Student Welcome Kit & Bag", code: "SUB-KT-02", name: "Aadya Notebook + Metal Pen Set", cost: "250", status: "Active" },
-    { id: "5", catName: "RFID Student Smart ID Cards", code: "SUB-ID-01", name: "NFC / RFID Lanyard Smart Card", cost: "150", status: "Active" },
-    { id: "6", catName: "Lab Raspberry Pi / Dev Boards", code: "SUB-HW-01", name: "Raspberry Pi 4 Model B (4GB)", cost: "4500", status: "Active" },
-  ],
-  lead_source: [
-    { id: "1", name: "Walk-in Enquiry", type: "Direct Campus", isOnline: "No", status: "Active" },
-    { id: "2", name: "Google Search Ads", type: "Digital Paid", isOnline: "Yes", status: "Active" },
-    { id: "3", name: "Instagram / Meta Campaign", type: "Social Paid", isOnline: "Yes", status: "Active" },
-    { id: "4", name: "Website Direct Form", type: "Organic Web", isOnline: "Yes", status: "Active" },
-    { id: "5", name: "Student / Alumni Reference", type: "Word of Mouth", isOnline: "No", status: "Active" },
-    { id: "6", name: "Telecalling Campaign", type: "Outbound CRM", isOnline: "No", status: "Active" },
-    { id: "7", name: "College Workshop / Seminar", type: "Campus Event", isOnline: "No", status: "Active" },
-    { id: "8", name: "Outdoor Banner / Hoarding", type: "Print Media", isOnline: "No", status: "Active" },
-  ],
-  lead_stage: [
-    { id: "1", order: "1", name: "New Enquiry", color: "Blue", isTerminal: "No", status: "Active" },
-    { id: "2", order: "2", name: "Followup In-Progress", color: "Orange", isTerminal: "No", status: "Active" },
-    { id: "3", order: "3", name: "Demo Class Scheduled", color: "Purple", isTerminal: "No", status: "Active" },
-    { id: "4", order: "4", name: "Ready for Admission", color: "Teal", isTerminal: "No", status: "Active" },
-    { id: "5", order: "5", name: "Admitted / Enrolled", color: "Green", isTerminal: "Yes (Success)", status: "Active" },
-    { id: "6", order: "6", name: "Lost / Dropped", color: "Red", isTerminal: "Yes (Lost)", status: "Active" },
-  ],
-  notification: [
-    { id: "1", name: "WhatsApp Welcome Message", channel: "WhatsApp", trigger: "New Lead Creation", tags: "{StudentName}, {Course}", status: "Active" },
-    { id: "2", name: "Class 2hr Reminder", channel: "WhatsApp", trigger: "2 Hours Before Class", tags: "{StudentName}, {Batch}, {Time}", status: "Active" },
-    { id: "3", name: "Absence Alert to Parent", channel: "SMS / WhatsApp", trigger: "Daily Attendance Absence", tags: "{StudentName}, {Date}, {Parent}", status: "Active" },
-    { id: "4", name: "Fee Payment Receipt PDF", channel: "WhatsApp", trigger: "Payment Received", tags: "{ReceiptNo}, {Amount}, {Course}", status: "Active" },
-    { id: "5", name: "Fee Overdue Reminder", channel: "SMS", trigger: "Installment Due Date", tags: "{StudentName}, {DueAmount}, {DueDate}", status: "Active" },
-    { id: "6", name: "First Day Rules & Onboarding", channel: "WhatsApp", trigger: "Admission Confirmed", tags: "{StudentName}, {BatchStart}, {Room}", status: "Active" },
-  ],
-  batch: [
-    { id: "1", code: "BATCH-2026-FSD1", name: "Full Stack Web Dev (Morning MWF)", course: "Full Stack Software Engineering", time: "07:30 AM - 09:30 AM", trainer: "Dr. Rajesh Sharma", status: "Active" },
-    { id: "2", code: "BATCH-2026-AI1", name: "Applied AI & GenAI Masterclass", course: "Artificial Intelligence & Data Science", time: "10:00 AM - 12:00 PM", trainer: "Karthik Sundaram", status: "Active" },
-    { id: "3", code: "BATCH-2026-CYB", name: "Cybersecurity & Ethical Hacking", course: "Cybersecurity & Cloud Security", time: "02:00 PM - 04:00 PM", trainer: "Dr. Rajesh Sharma", status: "Active" },
-    { id: "4", code: "BATCH-2026-FSD2", name: "Full Stack Evening Batch (TTS)", course: "Full Stack Software Engineering", time: "06:00 PM - 08:00 PM", trainer: "Karthik Sundaram", status: "Active" },
-    { id: "5", code: "BATCH-2026-WKND", name: "Executive Weekend Data Science", course: "Artificial Intelligence & Data Science", time: "Sat/Sun 10:00 AM - 02:00 PM", trainer: "Dr. Rajesh Sharma", status: "Active" },
+    { id: "1", empCode: "EMP-001", name: "Ramesh Kumar", role: "Faculty Instructor", branch: "Bengaluru", status: "Active" },
+    { id: "2", empCode: "EMP-002", name: "Priya Sharma", role: "Faculty Instructor", branch: "Bengaluru", status: "Active" },
+    { id: "3", empCode: "EMP-003", name: "Sneha Patil", role: "Academic Counsellor", branch: "Bengaluru", status: "Active" },
+    { id: "4", empCode: "EMP-004", name: "HM Adithya", role: "Center Manager", branch: "Bengaluru", status: "Active" },
+    { id: "5", empCode: "EMP-005", name: "Sanjay Verma", role: "Faculty Instructor", branch: "Mysore", status: "Active" },
   ],
   holiday: [
-    { id: "1", date: "26/01/2026", name: "Republic Day", branch: "All Branches", type: "National Holiday", status: "Active" },
-    { id: "2", date: "15/08/2026", name: "Independence Day", branch: "All Branches", type: "National Holiday", status: "Active" },
-    { id: "3", date: "02/10/2026", name: "Gandhi Jayanti", branch: "All Branches", type: "National Holiday", status: "Active" },
-    { id: "4", date: "01/11/2026", name: "Kannada Rajyotsava", branch: "Karnataka Branches", type: "State Holiday", status: "Active" },
-    { id: "5", date: "25/12/2026", name: "Christmas Day", branch: "All Branches", type: "Festival Holiday", status: "Active" },
-  ],
-  admission_status: [
-    { id: "1", code: "ACT", name: "Active Enrolled", allowAttendance: "Yes", status: "Active" },
-    { id: "2", code: "LV", name: "On Approved Leave", allowAttendance: "No", status: "Active" },
-    { id: "3", code: "CMP", name: "Course Completed & Certified", allowAttendance: "No", status: "Active" },
-    { id: "4", code: "DSC", name: "Discontinued (3 Consecutive Absences)", allowAttendance: "No", status: "Active" },
-    { id: "5", code: "CAN", name: "Admission Cancelled / Refunded", allowAttendance: "No", status: "Active" },
+    { id: "1", title: "Independence Day", date: "15 Aug 2026", type: "National Holiday", description: "Institute closed for holiday" },
+    { id: "2", title: "Ganesh Chaturthi", date: "14 Sep 2026", type: "Festival", description: "Holiday for students and staff" },
+    { id: "3", title: "Gandhi Jayanti", date: "02 Oct 2026", type: "National Holiday", description: "Institute holiday" },
+    { id: "4", title: "Vijayadashami / Dussehra", date: "20 Oct 2026", type: "Festival", description: "Special festive break" },
+    { id: "5", title: "Diwali / Deepavali", date: "08 Nov 2026", type: "Festival", description: "Diwali celebration holiday" },
   ],
   timeslot: [
-    { id: "1", name: "Early Morning Slot (MWF)", start: "07:30 AM", end: "09:30 AM", sessionType: "Theory + Lab", status: "Active" },
-    { id: "2", name: "Morning Primary Slot (TTS)", start: "10:00 AM", end: "12:00 PM", sessionType: "Theory + Lab", status: "Active" },
-    { id: "3", name: "Afternoon Intensive Slot", start: "02:00 PM", end: "04:00 PM", sessionType: "Lab Coding", status: "Active" },
-    { id: "4", name: "Evening Professional Slot", start: "06:00 PM", end: "08:00 PM", sessionType: "Theory + Project", status: "Active" },
-    { id: "5", name: "Weekend Extended Batch", start: "10:00 AM", end: "02:00 PM", sessionType: "Weekend Marathon", status: "Active" },
+    { id: "1", code: "SLOT-01", startTime: "09:00 AM", endTime: "10:00 AM", period: "Period 1", status: "Active" },
+    { id: "2", code: "SLOT-02", startTime: "10:00 AM", endTime: "11:30 AM", period: "Period 2", status: "Active" },
+    { id: "3", code: "SLOT-03", startTime: "11:30 AM", endTime: "01:00 PM", period: "Period 3", status: "Active" },
+    { id: "4", code: "SLOT-04", startTime: "02:00 PM", endTime: "03:30 PM", period: "Period 4", status: "Active" },
+    { id: "5", code: "SLOT-05", startTime: "03:30 PM", endTime: "05:00 PM", period: "Period 5", status: "Active" },
   ],
   events: [
-    { id: "1", name: "24-Hour GenAI Hackathon 2026", category: "Technical Hackathon", coordinator: "Dr. Rajesh Sharma", status: "Active" },
-    { id: "2", name: "Industry Tech Leaders Placement Summit", category: "Placement Drive", coordinator: "Vidya Y A", status: "Active" },
-    { id: "3", name: "Open Source CodeFest Workshop", category: "Hands-on Workshop", coordinator: "Karthik Sundaram", status: "Active" },
-    { id: "4", name: "Aadya Alumni Annual Meet", category: "Institutional Event", coordinator: "Suresh Gowda", status: "Active" },
+    { id: "1", name: "Campus Recruitment Drive", date: "28 Aug 2026", venue: "Bengaluru Campus", category: "Placement" },
+    { id: "2", name: "AI & Cloud Tech Hackathon", date: "10 Sep 2026", venue: "Online & Labs", category: "Competition" },
+    { id: "3", name: "Guest Lecture: Industry DevOps", date: "22 Sep 2026", venue: "Seminar Hall 1", category: "Workshop" },
+    { id: "4", name: "Alumni Interaction Meet", date: "05 Oct 2026", venue: "Bengaluru Central", category: "Alumni" },
   ],
-  exam_term: [
-    { id: "1", code: "TERM-M1", name: "Module 1: Foundations & Core Logic", duration: "90 Minutes", status: "Active" },
-    { id: "2", code: "TERM-M2", name: "Module 2: Advanced Architecture & DB", duration: "120 Minutes", status: "Active" },
-    { id: "3", code: "TERM-CAP", name: "Capstone Project Code Review & Defense", duration: "45 Minutes / Student", status: "Active" },
-    { id: "4", code: "TERM-MOCK", name: "Mock Technical Interview & DSA Exam", duration: "60 Minutes", status: "Active" },
+  examterm: [
+    { id: "1", code: "TERM-M1", name: "Module 1 Assessment", academicYear: "2026-27", status: "Active" },
+    { id: "2", code: "TERM-M2", name: "Module 2 Intermediate", academicYear: "2026-27", status: "Active" },
+    { id: "3", code: "TERM-FINAL", name: "Final Certification Exam", academicYear: "2026-27", status: "Active" },
+    { id: "4", code: "TERM-MOCK", name: "Placement Mock Technical", academicYear: "2026-27", status: "Active" },
   ],
-  course_review: [
-    { id: "1", question: "Faculty technical clarity and concept explanation", scale: "5 Stars", category: "Teaching Quality", status: "Active" },
-    { id: "2", question: "Hands-on lab exercises and practical mentorship", scale: "5 Stars", category: "Lab Support", status: "Active" },
-    { id: "3", question: "Class schedule punctuality and pace of syllabus", scale: "5 Stars", category: "Punctuality", status: "Active" },
-    { id: "4", question: "Doubt resolution & 1-on-1 assistance", scale: "5 Stars", category: "Support", status: "Active" },
-    { id: "5", question: "Overall satisfaction with Aadya Institute facilities", scale: "5 Stars", category: "Infrastructure", status: "Active" },
+  leadsource: [
+    { id: "1", code: "SRC-WEB", name: "Website Direct Enquiry", channelType: "Inbound Web", status: "Active" },
+    { id: "2", code: "SRC-IG", name: "Instagram Ads Campaign", channelType: "Social Media", status: "Active" },
+    { id: "3", code: "SRC-WA", name: "WhatsApp Chatbot", channelType: "Messaging", status: "Active" },
+    { id: "4", code: "SRC-WALK", name: "Walk-in Center Visit", channelType: "Offline Direct", status: "Active" },
+    { id: "5", code: "SRC-REF", name: "Student Referral", channelType: "Word of Mouth", status: "Active" },
+    { id: "6", code: "SRC-SARV", name: "Sarvam AI Voice Outreach", channelType: "AI Telephony", status: "Active" },
+    { id: "7", code: "SRC-CAMP", name: "College Workshop", channelType: "Outreach", status: "Active" },
+    { id: "8", code: "SRC-GOOG", name: "Google Search Ads", channelType: "Paid Search", status: "Active" },
   ],
-  lead_type: [
-    { id: "1", name: "Hot (Immediate Enrolment)", sla: "< 2 Hours", color: "Red", status: "Active" },
-    { id: "2", name: "Warm (Deciding in 1-2 Weeks)", sla: "< 24 Hours", color: "Amber", status: "Active" },
-    { id: "3", name: "Cold (Exploring Future Batches)", sla: "< 3 Days", color: "Slate", status: "Active" },
+  leadstage: [
+    { id: "1", stageNumber: "1", name: "New Lead", description: "Initial contact received", color: "Blue" },
+    { id: "2", stageNumber: "2", name: "AI Call Qualified", description: "Sarvam AI verified interest", color: "Teal" },
+    { id: "3", stageNumber: "3", name: "Counselling Scheduled", description: "Counselor consultation booked", color: "Purple" },
+    { id: "4", stageNumber: "4", name: "Demo Attended", description: "Free masterclass attended", color: "Amber" },
+    { id: "5", stageNumber: "5", name: "Enrolled", description: "Fee token paid", color: "Green" },
+    { id: "6", stageNumber: "6", name: "Lost / Not Interested", description: "Unqualified or dropped", color: "Rose" },
   ],
-  assignment_type: [
-    { id: "1", name: "Practical Lab Coding Task", maxMarks: "50", submissionFormat: "GitHub Repo URL", status: "Active" },
-    { id: "2", name: "Theoretical Quiz & Multiple Choice", maxMarks: "25", submissionFormat: "Online Quiz Form", status: "Active" },
-    { id: "3", name: "Full Stack Mini Project", maxMarks: "100", submissionFormat: "Live URL + Code ZIP", status: "Active" },
-    { id: "4", name: "Database Schema Design & Query Test", maxMarks: "50", submissionFormat: "SQL Script Upload", status: "Active" },
+  leadtype: [
+    { id: "1", code: "HOT", name: "Hot Lead (Ready to Join)", slaHours: "2 Hours", status: "Active" },
+    { id: "2", code: "WARM", name: "Warm Lead (Exploring Courses)", slaHours: "24 Hours", status: "Active" },
+    { id: "3", code: "COLD", name: "Cold Lead (Long-term Nurture)", slaHours: "72 Hours", status: "Active" },
   ],
-
-  // ACCOUNTING MASTERS
-  bank_accounts: [
-    { id: "1", bankName: "HDFC Bank Ltd", accountNo: "50200088991122", ifsc: "HDFC0001234", branch: "Malleswaram Branch, Bengaluru", status: "Active" },
-    { id: "2", bankName: "State Bank of India (SBI)", accountNo: "308945678912", ifsc: "SBIN0040123", branch: "Ramamurthy Nagar, Bengaluru", status: "Active" },
-    { id: "3", bankName: "ICICI Bank Ltd", accountNo: "001205009988", ifsc: "ICIC0000012", branch: "MG Road, Bengaluru", status: "Active" },
+  admissionstatus: [
+    { id: "1", code: "ADM-INIT", name: "Application Submitted", step: "Step 1", status: "Active" },
+    { id: "2", code: "ADM-DOCS", name: "Documents Verified", step: "Step 2", status: "Active" },
+    { id: "3", code: "ADM-FEE", name: "Seat Deposit Paid", step: "Step 3", status: "Active" },
+    { id: "4", code: "ADM-CONF", name: "Admission Confirmed", step: "Step 4", status: "Active" },
+    { id: "5", code: "ADM-CANC", name: "Admission Cancelled", step: "Step 0", status: "Active" },
   ],
-  fee_heads: [
-    { id: "1", name: "Tuition / Course Fee", isGst: "Yes (18% Included)", defaultAmount: "45000", type: "Core Course", status: "Active" },
-    { id: "2", name: "Registration & Admission Kit", isGst: "Yes", defaultAmount: "5000", type: "One-Time", status: "Active" },
-    { id: "3", name: "Lab & Cloud Sandbox Access Fee", isGst: "Yes", defaultAmount: "3000", type: "Per Semester", status: "Active" },
-    { id: "4", name: "Examination & Assessment Fee", isGst: "No", defaultAmount: "1500", type: "Per Term", status: "Active" },
-    { id: "5", name: "Global Certification Processing Fee", isGst: "Yes", defaultAmount: "4500", type: "Optional / Exit", status: "Active" },
+  admissionbatch: [
+    { id: "1", batchCode: "JFS-2026-A", batchName: "Java Full Stack 2026 A", capacity: "30", targetIntake: "30 Students" },
+    { id: "2", batchCode: "PY-2026-A", batchName: "Python & AI Morning", capacity: "30", targetIntake: "28 Students" },
+    { id: "3", batchCode: "DM-2026-B", batchName: "Digital Marketing Weekend", capacity: "25", targetIntake: "25 Students" },
+    { id: "4", batchCode: "EX-2026-A", batchName: "Advanced Excel Fastrack", capacity: "35", targetIntake: "35 Students" },
+    { id: "5", batchCode: "WD-2026-C", batchName: "Web Development Evening", capacity: "25", targetIntake: "25 Students" },
+  ],
+  coursereview: [
+    { id: "1", reviewType: "Weekly Module Feedback", frequency: "Weekly", ratingScale: "1 to 5 Stars", status: "Active" },
+    { id: "2", reviewType: "Faculty Delivery Rating", frequency: "Post Session", ratingScale: "1 to 5 Stars", status: "Active" },
+    { id: "3", reviewType: "Lab & Infrastructure Rating", frequency: "Monthly", ratingScale: "1 to 5 Stars", status: "Active" },
+    { id: "4", reviewType: "Placement Support Review", frequency: "Course Completion", ratingScale: "1 to 5 Stars", status: "Active" },
+    { id: "5", reviewType: "Overall Academy Experience", frequency: "Graduation", ratingScale: "1 to 10 NPS", status: "Active" },
+  ],
+  notificationtemplate: [
+    { id: "1", code: "TPL-CLASS-2HR", channel: "WhatsApp", trigger: "2 Hours Pre-Class", status: "Active" },
+    { id: "2", code: "TPL-ABSENT", channel: "WhatsApp + SMS", trigger: "Class Absence Recorded", status: "Active" },
+    { id: "3", code: "TPL-FEE-DUE", channel: "WhatsApp + Email", trigger: "Fee Installment Due in 3 Days", status: "Active" },
+    { id: "4", code: "TPL-FEE-RCPT", channel: "WhatsApp + Email", trigger: "Payment Received Confirmation", status: "Active" },
+    { id: "5", code: "TPL-ADMIT-CON", channel: "WhatsApp + Email", trigger: "Admission Approved", status: "Active" },
+    { id: "6", code: "TPL-ASSIGN-NEW", channel: "Portal + WhatsApp", trigger: "New Assignment Published", status: "Active" },
+  ],
+  assignmenttype: [
+    { id: "1", code: "ASG-CODE", name: "Practical Coding Challenge", maxMarks: "50 Marks", status: "Active" },
+    { id: "2", code: "ASG-MINI", name: "Mini Project Capstone", maxMarks: "100 Marks", status: "Active" },
+    { id: "3", code: "ASG-QUIZ", name: "Online Multiple Choice Quiz", maxMarks: "25 Marks", status: "Active" },
+    { id: "4", code: "ASG-THEORY", name: "Architecture & Design Paper", maxMarks: "50 Marks", status: "Active" },
+  ],
+  inventorycategory: [
+    { id: "1", code: "INV-IT", name: "IT Hardware & Laptops", department: "IT Infrastructure", status: "Active" },
+    { id: "2", code: "INV-AV", name: "Audio-Visual & Projectors", department: "Classroom Ops", status: "Active" },
+    { id: "3", code: "INV-FURN", name: "Classroom Furniture", department: "Admin Facilities", status: "Active" },
+    { id: "4", code: "INV-STAT", name: "Stationery & Course Kits", department: "Student Supplies", status: "Active" },
+    { id: "5", code: "INV-NET", name: "Networking & Routers", department: "IT Network", status: "Active" },
+  ],
+  inventorysubcategory: [
+    { id: "1", parentCategory: "IT Hardware", code: "SUB-MON", name: "Monitors (24 inch)", status: "Active" },
+    { id: "2", parentCategory: "IT Hardware", code: "SUB-KEY", name: "Keyboards & Mice", status: "Active" },
+    { id: "3", parentCategory: "Audio-Visual", code: "SUB-PROJ", name: "Laser Projectors", status: "Active" },
+    { id: "4", parentCategory: "Audio-Visual", code: "SUB-MIC", name: "Wireless Lapel Mics", status: "Active" },
+    { id: "5", parentCategory: "Stationery", code: "SUB-KIT", name: "Aadya Student Kit", status: "Active" },
+    { id: "6", parentCategory: "Networking", code: "SUB-SW", name: "Gigabit PoE Switches", status: "Active" },
+  ],
+  bankaccounts: [
+    { id: "1", accountName: "HDFC Bank - Central Fee Account", accountNumber: "50200084920192", ifsc: "HDFC0001024", branch: "Koramangala, Bengaluru" },
+    { id: "2", accountName: "ICICI Bank - Academy Operations", accountNumber: "002405018392", ifsc: "ICIC0000024", branch: "Indiranagar, Bengaluru" },
+    { id: "3", accountName: "State Bank of India - Mysore Branch", accountNumber: "38920194820", ifsc: "SBIN0040182", branch: "Jayalakshmipuram, Mysore" },
+  ],
+  feeheads: [
+    { id: "1", code: "HEAD-TUI", name: "Tuition & Training Fee", type: "Core Fee", gstApplicable: "18% GST" },
+    { id: "2", code: "HEAD-REG", name: "Registration & Kit Fee", type: "Admission Fee", gstApplicable: "18% GST" },
+    { id: "3", code: "HEAD-LAB", name: "Lab & Cloud Access Fee", type: "Infrastructure", gstApplicable: "18% GST" },
+    { id: "4", code: "HEAD-EXAM", name: "Certification Exam Fee", type: "Assessment", gstApplicable: "Exempt" },
+    { id: "5", code: "HEAD-PLACE", name: "Placement Assistance Fee", type: "Career Services", gstApplicable: "18% GST" },
   ],
   ledgers: [
-    { id: "1", code: "LED-401", name: "Course Tuition Revenue A/c", group: "Direct Incomes", type: "Credit", status: "Active" },
-    { id: "2", code: "LED-402", name: "Admission & Kit Registration A/c", group: "Direct Incomes", type: "Credit", status: "Active" },
-    { id: "3", code: "LED-201", name: "Student Advance Fees Ledger", group: "Current Liabilities", type: "Credit", status: "Active" },
-    { id: "4", code: "LED-501", name: "Faculty Trainer Remuneration A/c", group: "Direct Expenses", type: "Debit", status: "Active" },
-    { id: "5", code: "LED-502", name: "Center Lease & Rent A/c", group: "Indirect Expenses", type: "Debit", status: "Active" },
-    { id: "6", code: "LED-503", name: "WhatsApp & SMS Gateway Expenses", group: "Operating Expenses", type: "Debit", status: "Active" },
-    { id: "7", code: "LED-504", name: "Electricity & High-Speed Internet", group: "Indirect Expenses", type: "Debit", status: "Active" },
-    { id: "8", code: "LED-101", name: "HDFC Bank Operating Ledger", group: "Bank Accounts", type: "Debit", status: "Active" },
+    { id: "1", code: "LEDG-FEE", name: "Student Fee Income Ledger", group: "Direct Incomes", openingBalance: "₹0.00" },
+    { id: "2", code: "LEDG-FAC", name: "Faculty Remuneration Ledger", group: "Direct Expenses", openingBalance: "₹0.00" },
+    { id: "3", code: "LEDG-RENT", name: "Center Branch Rent Ledger", group: "Indirect Expenses", openingBalance: "₹0.00" },
+    { id: "4", code: "LEDG-MKT", name: "Marketing & Lead Gen Ads", group: "Indirect Expenses", openingBalance: "₹0.00" },
+    { id: "5", code: "LEDG-UTIL", name: "Electricity & Internet Bills", group: "Administrative Expenses", openingBalance: "₹0.00" },
+    { id: "6", code: "LEDG-BANK", name: "HDFC Bank Operating Ledger", group: "Bank Accounts", openingBalance: "₹18,50,000" },
+    { id: "7", code: "LEDG-PETTY", name: "Center Petty Cash Ledger", group: "Cash-in-Hand", openingBalance: "₹25,000" },
+    { id: "8", code: "LEDG-GST", name: "GST Output Payable Ledger", group: "Duties & Taxes", openingBalance: "₹1,42,000" },
   ],
-  payment_modes: [
-    { id: "1", name: "UPI / QR Code (GPay, PhonePe, Paytm)", requiresRef: "Yes (UPI UTR No)", gateway: "Direct Dynamic QR", status: "Active" },
-    { id: "2", name: "Cash (At Center Counter)", requiresRef: "No (Physical Receipt)", gateway: "Cash Register", status: "Active" },
-    { id: "3", name: "Net Banking (NEFT / IMPS / RTGS)", requiresRef: "Yes (Bank Txn ID)", gateway: "Bank Statement Sync", status: "Active" },
-    { id: "4", name: "Credit / Debit Card (POS Terminal)", requiresRef: "Yes (Approval Code)", gateway: "Pine Labs POS", status: "Active" },
-    { id: "5", name: "Cheque / Demand Draft", requiresRef: "Yes (Cheque No & Bank)", gateway: "Cheque Clearing", status: "Active" },
+  paymentmodes: [
+    { id: "1", code: "PAY-UPI", name: "UPI / QR Code Transfer", processingFee: "0.0%", status: "Active" },
+    { id: "2", code: "PAY-CARD", name: "Credit / Debit Card", processingFee: "1.2%", status: "Active" },
+    { id: "3", code: "PAY-NET", name: "NetBanking Transfer", processingFee: "₹15 Flat", status: "Active" },
+    { id: "4", code: "PAY-EMI", name: "Student NBFC 0% EMI", processingFee: "2.5%", status: "Active" },
+    { id: "5", code: "PAY-CASH", name: "Cash at Center Counter", processingFee: "0.0%", status: "Active" },
   ],
-  concession_heads: [
-    { id: "1", name: "Merit Academic Scholarship (>85% in Degree)", maxPct: "20%", approver: "Center Manager", status: "Active" },
-    { id: "2", name: "Early Bird Enrolment Incentive", maxPct: "10%", approver: "Senior Counsellor", status: "Active" },
-    { id: "3", name: "Sibling / Alumni Referral Discount", maxPct: "15%", approver: "Senior Counsellor", status: "Active" },
-    { id: "4", name: "Director Discretionary Special Concession", maxPct: "50%", approver: "Managing Director", status: "Active" },
+  concessionheads: [
+    { id: "1", code: "DISC-MERIT", name: "Merit Academic Scholarship", percentage: "20% Max", approvalLevel: "Center Manager" },
+    { id: "2", code: "DISC-REF", name: "Sibling / Alumni Referral", percentage: "10% Flat", approvalLevel: "Counsellor Lead" },
+    { id: "3", code: "DISC-EARLY", name: "Early Bird Admission Discount", percentage: "15% Max", approvalLevel: "Admissions Head" },
+    { id: "4", code: "DISC-DIR", name: "Director Discretionary Waiver", percentage: "50% Max", approvalLevel: "Admin Director" },
   ],
 };
 
 export const MasterSetup: React.FC = () => {
-  const [viewMode, setViewMode] = useState<"GRID" | "DETAIL">("GRID");
-  const [selectedMasterId, setSelectedMasterId] = useState<string>("area");
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [records, setRecords] = useState<Record<string, any[]>>(INITIAL_RECORDS);
+  // View switcher: "GRID" or "CRUD"
+  const [viewMode, setViewMode] = useState<"GRID" | "CRUD">("GRID");
 
-  // Modal State
-  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [editingRecord, setEditingRecord] = useState<any | null>(null);
-  const [formFields, setFormFields] = useState<Record<string, string>>({});
+  // Search & Filter
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedModuleFilter, setSelectedModuleFilter] = useState<string>("ALL");
 
-  const currentCategory = useMemo(() => {
-    return MASTER_CATEGORIES.find((m) => m.id === selectedMasterId) || MASTER_CATEGORIES[0];
-  }, [selectedMasterId]);
+  // Active Entity Selection (for modal/records drill-down)
+  const [selectedMasterEntity, setSelectedMasterEntity] = useState<MasterEntity | null>(null);
+  const [isRecordsModalOpen, setIsRecordsModalOpen] = useState(false);
 
-  const basicMasters = useMemo(() => {
-    return MASTER_CATEGORIES.filter((m) => m.group === "BASIC");
-  }, []);
+  // Record CRUD Store
+  const [recordsData, setRecordsData] = useState<Record<string, Record<string, string>[]>>(INITIAL_RECORDS);
+  const [isAddEditRecordOpen, setIsAddEditRecordOpen] = useState(false);
+  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [recordFormValues, setRecordFormValues] = useState<Record<string, string>>({});
+  const [recordSearchQuery, setRecordSearchQuery] = useState("");
 
-  const accountingMasters = useMemo(() => {
-    return MASTER_CATEGORIES.filter((m) => m.group === "ACCOUNTING");
-  }, []);
+  // History & Toast
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Filtered by global search for the grid view
-  const filteredBasicMasters = useMemo(() => {
-    if (!searchQuery.trim()) return basicMasters;
-    return basicMasters.filter(
-      (m) =>
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [basicMasters, searchQuery]);
+  // Filtered Master Entities
+  const filteredMasters = useMemo(() => {
+    return ALL_25_MASTERS.filter((entity) => {
+      // Category filter
+      if (selectedModuleFilter !== "ALL" && entity.category !== selectedModuleFilter) {
+        return false;
+      }
 
-  const filteredAccountingMasters = useMemo(() => {
-    if (!searchQuery.trim()) return accountingMasters;
-    return accountingMasters.filter(
-      (m) =>
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.description.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-  }, [accountingMasters, searchQuery]);
+      // Search filter
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchName = entity.name.toLowerCase().includes(q);
+        const matchDesc = entity.description.toLowerCase().includes(q);
+        const matchCat = entity.categoryName.toLowerCase().includes(q);
+        if (!matchName && !matchDesc && !matchCat) {
+          return false;
+        }
+      }
 
-  const activeRecords = useMemo(() => {
-    const raw = records[selectedMasterId] || [];
-    return raw.filter((r) => {
-      const matchesSearch = Object.values(r).some((val) =>
-        String(val).toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      const matchesStatus = statusFilter === "ALL" || r.status === statusFilter;
-      return matchesSearch && matchesStatus;
+      return true;
     });
-  }, [records, selectedMasterId, searchQuery, statusFilter]);
+  }, [searchQuery, selectedModuleFilter]);
 
-  const handleOpenAdd = () => {
-    setEditingRecord(null);
-    const initial: Record<string, string> = { status: "Active" };
-    currentCategory.columns.forEach((col) => {
-      initial[col.key] = "";
+  // Grouped filtered entities by Category
+  const academicMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACADEMIC_ORG"), [filteredMasters]);
+  const admissionsMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ADMISSIONS_LEADS"), [filteredMasters]);
+  const communicationMasters = useMemo(() => filteredMasters.filter((m) => m.category === "COMMUNICATION_SYSTEM"), [filteredMasters]);
+  const inventoryMasters = useMemo(() => filteredMasters.filter((m) => m.category === "INVENTORY"), [filteredMasters]);
+  const accountingMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACCOUNTING_FEES"), [filteredMasters]);
+
+  // Open records drilldown for an entity
+  const handleOpenMasterRecords = (entity: MasterEntity) => {
+    setSelectedMasterEntity(entity);
+    setRecordSearchQuery("");
+    setIsRecordsModalOpen(true);
+  };
+
+  // Open Add Record Dialog
+  const handleOpenAddRecord = (entity: MasterEntity) => {
+    setSelectedMasterEntity(entity);
+    setEditingRecordId(null);
+    const initialForm: Record<string, string> = {};
+    entity.columns.forEach((col) => {
+      initialForm[col.key] = "";
     });
-    setFormFields(initial);
-    setIsModalOpen(true);
+    setRecordFormValues(initialForm);
+    setIsAddEditRecordOpen(true);
   };
 
-  const handleOpenEdit = (item: any) => {
-    setEditingRecord(item);
-    setFormFields({ ...item });
-    setIsModalOpen(true);
+  // Open Edit Record Dialog
+  const handleOpenEditRecord = (entity: MasterEntity, rec: Record<string, string>) => {
+    setSelectedMasterEntity(entity);
+    setEditingRecordId(rec.id);
+    setRecordFormValues({ ...rec });
+    setIsAddEditRecordOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (window.confirm("Are you sure you want to remove this master entry?")) {
-      setRecords((prev) => ({
+  // Save Add/Edit Record
+  const handleSaveRecord = () => {
+    if (!selectedMasterEntity) return;
+    const entityId = selectedMasterEntity.id;
+
+    if (editingRecordId) {
+      // Update
+      setRecordsData((prev) => ({
         ...prev,
-        [selectedMasterId]: (prev[selectedMasterId] || []).filter((r) => r.id !== id),
-      }));
-    }
-  };
-
-  const handleSaveModal = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingRecord) {
-      // Edit
-      setRecords((prev) => ({
-        ...prev,
-        [selectedMasterId]: (prev[selectedMasterId] || []).map((r) =>
-          r.id === editingRecord.id ? { ...r, ...formFields } : r
+        [entityId]: (prev[entityId] || []).map((r) =>
+          r.id === editingRecordId ? { ...recordFormValues, id: editingRecordId } : r
         ),
       }));
+      setToastMessage(`✓ Record updated in ${selectedMasterEntity.name}.`);
     } else {
-      // Add
-      const newEntry = {
-        id: String(Date.now()),
-        ...formFields,
-        status: formFields.status || "Active",
-      };
-      setRecords((prev) => ({
+      // Add New
+      const newRec = { ...recordFormValues, id: `rec-${Date.now()}` };
+      setRecordsData((prev) => ({
         ...prev,
-        [selectedMasterId]: [newEntry, ...(prev[selectedMasterId] || [])],
+        [entityId]: [newRec, ...(prev[entityId] || [])],
       }));
+      setToastMessage(`✓ New record added to ${selectedMasterEntity.name}.`);
     }
-    setIsModalOpen(false);
+
+    setIsAddEditRecordOpen(false);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const exportToCSV = () => {
-    const headers = currentCategory.columns.map((c) => c.label).join(",");
-    const rows = activeRecords.map((r) =>
-      currentCategory.columns.map((c) => `"${r[c.key] || ""}"`).join(",")
-    );
-    const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
+  // Delete Record
+  const handleDeleteRecord = (entityId: string, recId: string) => {
+    setRecordsData((prev) => ({
+      ...prev,
+      [entityId]: (prev[entityId] || []).filter((r) => r.id !== recId),
+    }));
+    setToastMessage(`✓ Record removed from ${selectedMasterEntity?.name || "master"}.`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  // Export CSV
+  const handleExportCSV = (entity: MasterEntity) => {
+    const list = recordsData[entity.id] || [];
+    if (list.length === 0) {
+      setToastMessage("⚠ No records to export.");
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
+
+    const headers = entity.columns.map((c) => c.label).join(",");
+    const rows = list
+      .map((r) => entity.columns.map((c) => `"${r[c.key] || ""}"`).join(","))
+      .join("\n");
+    const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `${selectedMasterId}_master_export.csv`);
+    link.setAttribute("download", `Aadya_${entity.name.replace(/\s+/g, "_")}_Master.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+
+    setToastMessage(`✓ Exported ${list.length} records for ${entity.name}.`);
+    setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSelectMasterCard = (id: string) => {
-    setSelectedMasterId(id);
-    setViewMode("DETAIL");
-    setSearchQuery("");
+  // Helper renderer for entity card in Grid View
+  const renderEntityCard = (entity: MasterEntity) => {
+    const currentCount = recordsData[entity.id]?.length ?? entity.count;
+    const IconComp = entity.icon;
+
+    return (
+      <div
+        key={entity.id}
+        onClick={() => handleOpenMasterRecords(entity)}
+        className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all duration-200 cursor-pointer flex flex-col justify-between group min-h-[140px]"
+      >
+        <div>
+          {/* Top Icon & Status */}
+          <div className="flex items-start justify-between gap-2">
+            <div className={`p-2.5 rounded-xl border ${entity.iconBgColor} shrink-0 transition-transform group-hover:scale-105`}>
+              <IconComp className="h-5 w-5 stroke-[2.2]" />
+            </div>
+          </div>
+
+          {/* Name & Description */}
+          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#1769AA] transition-colors">
+            {entity.name}
+          </h4>
+          <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mt-0.5 leading-relaxed">
+            {entity.description}
+          </p>
+        </div>
+
+        {/* Bottom Counts and Arrow */}
+        <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+          <span className="text-[11px] font-bold text-slate-500">
+            {currentCount} Records
+          </span>
+          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1769AA] group-hover:translate-x-0.5 transition-all" />
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="p-6 space-y-6 max-w-[1600px] mx-auto animate-in fade-in duration-300">
-      {/* ─── TOP HEADER BAR ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 pb-4">
+    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-20 animate-in fade-in duration-200">
+      {/* ─── 1. COMPACT PAGE HEADER & VIEW SWITCHER ───────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-[#1769AA] flex items-center justify-center text-white shadow-md shadow-[#1769AA]/30">
-              <Layers size={22} />
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 shadow-2xs">
+              <Layers className="h-5 w-5 stroke-[2.4]" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-                Master Setup
-                <Badge variant="outline" className="bg-[#1769AA]/10 text-[#1769AA] border-[#1769AA]/30 font-bold text-xs">
-                  25 Entities
-                </Badge>
-              </h1>
-              <p className="text-xs text-slate-500 font-medium">
-                ZenoxERP Centralized Matrix Configuration for Aadya Institute of Technology
-              </p>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+              Master Setup
+            </h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-[#1769AA] border border-blue-200">
+              25 Entities
+            </span>
           </div>
+          <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
+            Configure and manage all master data used across the institute. Changes here will reflect throughout the system.
+          </p>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-          <Button
-            size="sm"
-            variant={viewMode === "GRID" ? "default" : "ghost"}
-            onClick={() => setViewMode("GRID")}
-            className={`font-bold text-xs gap-1.5 transition-all ${
-              viewMode === "GRID"
-                ? "bg-[#1769AA] text-white hover:bg-[#1769AA]/90 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <LayoutGrid size={14} />
-            Zenox Grid View
-          </Button>
-
-          <Button
-            size="sm"
-            variant={viewMode === "DETAIL" ? "default" : "ghost"}
-            onClick={() => setViewMode("DETAIL")}
-            className={`font-bold text-xs gap-1.5 transition-all ${
-              viewMode === "DETAIL"
-                ? "bg-[#1769AA] text-white hover:bg-[#1769AA]/90 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
-          >
-            <List size={14} />
-            Table & CRUD View
-          </Button>
-        </div>
-      </div>
-
-      {/* ─── FULL-WIDTH ZENOX SEARCH INPUT BAR ─────────────────────────── */}
-      <div className="relative w-full">
-        <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-        <Input
-          placeholder="Search master modules, entities, codes, descriptions..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-11 text-sm bg-white border border-slate-300 rounded-lg shadow-xs focus-visible:ring-1 focus-visible:ring-[#1769AA]"
-        />
-        {searchQuery && (
+        {/* Segmented View Switcher */}
+        <div className="inline-flex p-1 rounded-2xl bg-slate-100/90 border border-slate-200/80 shadow-2xs shrink-0 self-start sm:self-auto">
           <button
-            onClick={() => setSearchQuery("")}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 hover:text-slate-700 bg-slate-100 px-1.5 py-0.5 rounded"
+            type="button"
+            onClick={() => setViewMode("GRID")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "GRID"
+                ? "bg-[#1769AA] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
           >
-            Clear
+            <LayoutGrid className="h-4 w-4" />
+            <span>Grid View</span>
           </button>
-        )}
+
+          <button
+            type="button"
+            onClick={() => setViewMode("CRUD")}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              viewMode === "CRUD"
+                ? "bg-[#1769AA] text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
+            }`}
+          >
+            <List className="h-4 w-4" />
+            <span>CRUD View</span>
+          </button>
+        </div>
       </div>
 
-      {/* ─── MODE 1: AUTHENTIC ZENOXERP GRID VIEW (Exact Screenshot Parity) ── */}
+      {/* Notification Toast */}
+      {toastMessage && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* ─── 2. SEARCH & MODULE CATEGORY FILTER BAR ───────────────────────── */}
+      <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Search Field */}
+        <div className="relative flex-1">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search master by name, code, or description..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-10 pl-10 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:bg-white"
+          />
+        </div>
+
+        {/* Category Module Filter */}
+        <div className="relative min-w-[220px]">
+          <SlidersHorizontal className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+          <select
+            value={selectedModuleFilter}
+            onChange={(e) => setSelectedModuleFilter(e.target.value)}
+            className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
+          >
+            <option value="ALL">All Modules (25)</option>
+            <option value="ACADEMIC_ORG">Academic & Organization (10)</option>
+            <option value="ADMISSIONS_LEADS">Admissions & Leads (6)</option>
+            <option value="COMMUNICATION_SYSTEM">Communication & System (2)</option>
+            <option value="INVENTORY">Inventory (2)</option>
+            <option value="ACCOUNTING_FEES">Accounting & Fees (5)</option>
+          </select>
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+            ▼
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 3. GRID VIEW (5 CATEGORIZED CONTAINERS) ─────────────────────── */}
       {viewMode === "GRID" && (
-        <div className="space-y-8 animate-in fade-in duration-200">
-          {/* SECTION 1: BASIC MASTERS (20 TILES IN 4 COLUMNS) */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
-                Basic
-              </h2>
-              <span className="text-xs text-slate-500 font-medium">
-                {filteredBasicMasters.length} Modules
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredBasicMasters.map((cat) => {
-                const count = records[cat.id]?.length ?? cat.count;
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => handleSelectMasterCard(cat.id)}
-                    className="group relative flex items-center justify-between bg-[#1185E0] hover:bg-[#0E70BD] text-white px-5 py-3.5 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all duration-150 active:scale-[0.99] border border-[#0E70BD]"
-                  >
-                    <span className="text-sm font-semibold tracking-wide select-none">
-                      {cat.name}
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white group-hover:bg-white/30">
-                        {count}
-                      </span>
-                      <div
-                        title={cat.description}
-                        className="h-5 w-5 rounded-full bg-white/15 group-hover:bg-white/25 flex items-center justify-center transition-colors"
-                      >
-                        <HelpCircle size={13} className="text-white" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* SECTION 2: ACCOUNTING MASTERS (5 TILES IN 4 COLUMNS) */}
-          <div className="space-y-3 pt-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-bold text-slate-800 tracking-wide uppercase">
-                Accounting
-              </h2>
-              <span className="text-xs text-slate-500 font-medium">
-                {filteredAccountingMasters.length} Modules
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredAccountingMasters.map((cat) => {
-                const count = records[cat.id]?.length ?? cat.count;
-                return (
-                  <div
-                    key={cat.id}
-                    onClick={() => handleSelectMasterCard(cat.id)}
-                    className="group relative flex items-center justify-between bg-[#1185E0] hover:bg-[#0E70BD] text-white px-5 py-3.5 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all duration-150 active:scale-[0.99] border border-[#0E70BD]"
-                  >
-                    <span className="text-sm font-semibold tracking-wide select-none">
-                      {cat.name}
-                    </span>
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-bold bg-white/20 px-1.5 py-0.5 rounded text-white group-hover:bg-white/30">
-                        {count}
-                      </span>
-                      <div
-                        title={cat.description}
-                        className="h-5 w-5 rounded-full bg-white/15 group-hover:bg-white/25 flex items-center justify-center transition-colors"
-                      >
-                        <HelpCircle size={13} className="text-white" />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ─── MODE 2: INTERACTIVE TABLE & CRUD DETAIL VIEW ───────────────── */}
-      {viewMode === "DETAIL" && (
-        <div className="space-y-4 animate-in fade-in duration-200">
-          {/* Breadcrumb & Navigation Bar */}
-          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-200">
-            <div className="flex items-center gap-3">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setViewMode("GRID")}
-                className="gap-1.5 text-xs font-bold text-slate-700 bg-white border-slate-300 hover:bg-slate-100"
-              >
-                <ArrowLeft size={14} />
-                Back to Master Grid
-              </Button>
-
-              <div className="h-4 w-[1px] bg-slate-300" />
-
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-slate-500 uppercase">
-                  {currentCategory.group === "BASIC" ? "Basic Masters" : "Accounting Masters"}
-                </span>
-                <ChevronRight size={14} className="text-slate-400" />
-                <span className="text-xs font-bold text-[#1769AA] bg-blue-50 px-2 py-0.5 rounded-md border border-blue-200">
-                  {currentCategory.name}
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Switcher Dropdown */}
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-slate-500 hidden md:inline">Jump to Master:</span>
-              <select
-                value={selectedMasterId}
-                onChange={(e) => {
-                  setSelectedMasterId(e.target.value);
-                  setSearchQuery("");
-                }}
-                className="h-8 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg px-2.5 focus:outline-none cursor-pointer"
-              >
-                <optgroup label="── Basic Masters (20) ──">
-                  {basicMasters.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="── Accounting Masters (5) ──">
-                  {accountingMasters.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-          </div>
-
-          {/* Master Table Card */}
-          <Card className="border-slate-200 shadow-sm overflow-hidden">
-            <CardHeader className="bg-slate-50/80 border-b border-slate-200 pb-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-xl bg-[#1185E0] text-white flex items-center justify-center shadow-xs">
-                    {React.createElement(currentCategory.icon, { size: 20 })}
-                  </div>
-                  <div>
-                    <CardTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                      {currentCategory.name} Master
-                      <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-blue-100 text-[#1769AA]">
-                        {activeRecords.length} Records
-                      </span>
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      {currentCategory.description}
-                    </CardDescription>
-                  </div>
+        <div className="space-y-6">
+          {/* CATEGORY 1: ACADEMIC & ORGANIZATION (10) */}
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACADEMIC_ORG") && academicMasters.length > 0 && (
+            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
+                    Academic & Organization
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Manage academic structure, staff, classrooms and institutional setup.
+                  </p>
                 </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={exportToCSV}
-                    className="font-semibold text-xs gap-1.5 text-slate-700 bg-white border-slate-300 hover:bg-slate-50"
-                  >
-                    <Download size={14} />
-                    Export CSV
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    onClick={handleOpenAdd}
-                    className="font-bold text-xs gap-1.5 bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-xs transition-colors"
-                  >
-                    <Plus size={15} />
-                    Add {currentCategory.name}
-                  </Button>
-                </div>
-              </div>
-
-              {/* Status Filter */}
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <span className="text-xs font-semibold text-slate-500">Status:</span>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-8 text-xs font-semibold text-slate-700 bg-white border border-slate-200 rounded-lg px-2.5 focus:outline-none cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => setSelectedModuleFilter("ACADEMIC_ORG")}
+                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
                 >
-                  <option value="ALL">All Statuses</option>
-                  <option value="Active">Active Only</option>
-                  <option value="Inactive">Inactive Only</option>
-                </select>
+                  <span>View All (10)</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
               </div>
-            </CardHeader>
 
-            <CardContent className="p-0">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader className="bg-slate-100/80">
-                    <TableRow>
-                      <TableHead className="w-12 text-center text-xs font-bold text-slate-600">#</TableHead>
-                      {currentCategory.columns.map((col) => (
-                        <TableHead key={col.key} className="text-xs font-bold text-slate-700">
-                          {col.label}
-                        </TableHead>
-                      ))}
-                      <TableHead className="text-right text-xs font-bold text-slate-700 pr-6">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {activeRecords.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={currentCategory.columns.length + 2}
-                          className="h-32 text-center text-slate-500 text-xs"
-                        >
-                          <div className="flex flex-col items-center justify-center gap-2">
-                            <Boxes size={28} className="text-slate-300" />
-                            <p className="font-semibold text-slate-600">No entries found matching criteria</p>
-                            <Button size="sm" variant="outline" onClick={handleOpenAdd} className="text-xs mt-1">
-                              + Create first entry
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      activeRecords.map((row, idx) => (
-                        <TableRow key={row.id || idx} className="hover:bg-slate-50/80 transition-colors">
-                          <TableCell className="text-center text-xs font-medium text-slate-400">
-                            {idx + 1}
-                          </TableCell>
-                          {currentCategory.columns.map((col) => {
-                            const val = row[col.key];
-
-                            if (col.key === "status") {
-                              return (
-                                <TableCell key={col.key}>
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[11px] font-bold ${
-                                      val === "Active"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                                        : "bg-rose-50 text-rose-700 border-rose-200"
-                                    }`}
-                                  >
-                                    {val || "Active"}
-                                  </Badge>
-                                </TableCell>
-                              );
-                            }
-
-                            if (col.key === "color") {
-                              return (
-                                <TableCell key={col.key}>
-                                  <div className="flex items-center gap-2">
-                                    <div
-                                      className="h-3 w-3 rounded-full border border-slate-300"
-                                      style={{ backgroundColor: String(val).toLowerCase() }}
-                                    />
-                                    <span className="text-xs font-medium text-slate-700">{val}</span>
-                                  </div>
-                                </TableCell>
-                              );
-                            }
-
-                            return (
-                              <TableCell key={col.key} className="text-xs font-medium text-slate-800">
-                                {val || "—"}
-                              </TableCell>
-                            );
-                          })}
-
-                          {/* Action Buttons */}
-                          <TableCell className="text-right pr-6">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleOpenEdit(row)}
-                                className="h-7 w-7 p-0 text-slate-500 hover:text-[#1769AA] hover:bg-blue-50 rounded-md"
-                              >
-                                <Edit2 size={13} />
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleDelete(row.id)}
-                                className="h-7 w-7 p-0 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-md"
-                              >
-                                <Trash2 size={13} />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
+                {academicMasters.map(renderEntityCard)}
               </div>
-            </CardContent>
-          </Card>
+            </Card>
+          )}
+
+          {/* CATEGORY 2: ADMISSIONS & LEADS (6) */}
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ADMISSIONS_LEADS") && admissionsMasters.length > 0 && (
+            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
+                    Admissions & Leads
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Configure lead management and admission related masters.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedModuleFilter("ADMISSIONS_LEADS")}
+                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+                >
+                  <span>View All (6)</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+                {admissionsMasters.map(renderEntityCard)}
+              </div>
+            </Card>
+          )}
+
+          {/* ROW 3: CATEGORY 3 (COMMUNICATION & SYSTEM) & CATEGORY 4 (INVENTORY) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* CATEGORY 3: COMMUNICATION & SYSTEM (2) */}
+            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "COMMUNICATION_SYSTEM") && communicationMasters.length > 0 && (
+              <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
+                  <div>
+                    <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight uppercase">
+                      Communication & System
+                    </h2>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Templates and system-level configurations.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModuleFilter("COMMUNICATION_SYSTEM")}
+                    className="text-xs font-bold text-[#1769AA] hover:underline cursor-pointer"
+                  >
+                    View All (2) →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {communicationMasters.map(renderEntityCard)}
+                </div>
+              </Card>
+            )}
+
+            {/* CATEGORY 4: INVENTORY (2) */}
+            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "INVENTORY") && inventoryMasters.length > 0 && (
+              <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
+                  <div>
+                    <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight uppercase">
+                      Inventory
+                    </h2>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      Manage inventory and stock related masters.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedModuleFilter("INVENTORY")}
+                    className="text-xs font-bold text-[#1769AA] hover:underline cursor-pointer"
+                  >
+                    View All (2) →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {inventoryMasters.map(renderEntityCard)}
+                </div>
+              </Card>
+            )}
+          </div>
+
+          {/* ROW 4: CATEGORY 5: ACCOUNTING & FEES (5) - FULL WIDTH SPACIOUS 5 COLUMNS */}
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACCOUNTING_FEES") && accountingMasters.length > 0 && (
+            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+                <div>
+                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
+                    Accounting & Fees
+                  </h2>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Financial and accounting master configurations.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedModuleFilter("ACCOUNTING_FEES")}
+                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+                >
+                  <span>View All (5)</span>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                {accountingMasters.map(renderEntityCard)}
+              </div>
+            </Card>
+          )}
         </div>
       )}
 
-      {/* ─── DYNAMIC ADD / EDIT MODAL FOR MASTER ENTITY ─────────────────── */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+      {/* ─── 4. CRUD VIEW (STRUCTURED CATALOG TABLE) ──────────────────────── */}
+      {viewMode === "CRUD" && (
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden">
+          <div className="overflow-x-auto w-full">
+            <table className="w-full min-w-[950px] border-collapse text-left text-xs">
+              <thead>
+                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                  <th className="py-3.5 px-4 pl-5">ENTITY NAME</th>
+                  <th className="py-3.5 px-4">CATEGORY</th>
+                  <th className="py-3.5 px-4">DESCRIPTION</th>
+                  <th className="py-3.5 px-3 text-center">RECORDS</th>
+                  <th className="py-3.5 px-3">LAST UPDATED</th>
+                  <th className="py-3.5 px-3 text-center">STATUS</th>
+                  <th className="py-3.5 px-4 text-center">ACTIONS</th>
+                </tr>
+              </thead>
+
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {filteredMasters.map((item) => {
+                  const currentCount = recordsData[item.id]?.length ?? item.count;
+                  const IconComp = item.icon;
+
+                  return (
+                    <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
+                      {/* Entity Name */}
+                      <td className="py-3.5 px-4 pl-5 font-bold text-slate-900 align-middle">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-2 rounded-xl border ${item.iconBgColor} shrink-0`}>
+                            <IconComp className="h-4 w-4 stroke-[2.2]" />
+                          </div>
+                          <span>{item.name}</span>
+                        </div>
+                      </td>
+
+                      {/* Category */}
+                      <td className="py-3.5 px-4 align-middle">
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
+                          {item.categoryName}
+                        </span>
+                      </td>
+
+                      {/* Description */}
+                      <td className="py-3.5 px-4 text-slate-500 font-medium align-middle max-w-xs truncate">
+                        {item.description}
+                      </td>
+
+                      {/* Records */}
+                      <td className="py-3.5 px-3 text-center font-bold text-slate-800 align-middle">
+                        {currentCount}
+                      </td>
+
+                      {/* Last Updated */}
+                      <td className="py-3.5 px-3 text-slate-500 font-medium align-middle">
+                        {item.lastUpdated}
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-3.5 px-3 text-center align-middle">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
+                        </span>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-center align-middle">
+                        <div className="inline-flex items-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenMasterRecords(item)}
+                            className="h-8 px-2.5 text-[11px] font-bold text-[#1769AA] border-blue-200 bg-blue-50/50 hover:bg-blue-100 rounded-lg gap-1 cursor-pointer"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                            <span>View</span>
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenAddRecord(item)}
+                            className="h-8 px-2.5 text-[11px] font-bold text-emerald-700 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 rounded-lg gap-1 cursor-pointer"
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                            <span>Add</span>
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      )}
+
+      {/* ─── 5. BOTTOM INFORMATION PANEL ─────────────────────────────────── */}
+      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-blue-50 text-[#1769AA] shrink-0">
+            <Info className="h-4 w-4 stroke-[2.2]" />
+          </div>
+          <div>
+            <span className="font-extrabold text-slate-900 text-xs block">
+              About Master Setup
+            </span>
+            <p className="text-[11px] text-slate-500 font-medium">
+              Masters are the foundation of your ERP system. Changes here will apply across all modules.
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={() => setIsHistoryModalOpen(true)}
+          className="h-9 text-xs font-bold text-slate-700 border-slate-200 hover:bg-slate-50 rounded-xl gap-2 shrink-0 cursor-pointer"
+        >
+          <History className="h-3.5 w-3.5 text-slate-500" />
+          <span>View Change History</span>
+        </Button>
+      </Card>
+
+      {/* ─── MODAL 1: DRILL-DOWN ENTITY RECORDS CRUD VIEW ──────────────────── */}
+      <Dialog open={isRecordsModalOpen} onOpenChange={setIsRecordsModalOpen}>
+        <DialogContent className="sm:max-w-4xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          {selectedMasterEntity && (
+            <>
+              <DialogHeader className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`p-2 rounded-xl border ${selectedMasterEntity.iconBgColor}`}>
+                      <selectedMasterEntity.icon className="h-4 w-4" />
+                    </div>
+                    <DialogTitle className="text-xl font-black text-slate-900">
+                      {selectedMasterEntity.name} Master
+                    </DialogTitle>
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#1769AA]">
+                      {recordsData[selectedMasterEntity.id]?.length || 0} Records
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleExportCSV(selectedMasterEntity)}
+                      className="h-8 text-xs font-bold border-slate-200 rounded-xl gap-1.5"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Export CSV
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenAddRecord(selectedMasterEntity)}
+                      className="h-8 text-xs font-bold bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> + Add Record
+                    </Button>
+                  </div>
+                </div>
+                <DialogDescription className="text-xs text-slate-500 font-medium">
+                  {selectedMasterEntity.description}
+                </DialogDescription>
+              </DialogHeader>
+
+              {/* Records Filter */}
+              <div className="relative my-2">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  placeholder={`Search ${selectedMasterEntity.name.toLowerCase()} records...`}
+                  value={recordSearchQuery}
+                  onChange={(e) => setRecordSearchQuery(e.target.value)}
+                  className="h-9 pl-9 text-xs rounded-xl bg-slate-50"
+                />
+              </div>
+
+              {/* Records Table */}
+              <div className="border border-slate-200/80 rounded-2xl overflow-hidden max-h-[360px] overflow-y-auto">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                    <tr>
+                      {selectedMasterEntity.columns.map((col) => (
+                        <th key={col.key} className="py-2.5 px-3">
+                          {col.label}
+                        </th>
+                      ))}
+                      <th className="py-2.5 px-3 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 bg-white">
+                    {(recordsData[selectedMasterEntity.id] || [])
+                      .filter((r) => {
+                        if (!recordSearchQuery.trim()) return true;
+                        return Object.values(r).some((val) =>
+                          val.toLowerCase().includes(recordSearchQuery.toLowerCase())
+                        );
+                      })
+                      .map((rec) => (
+                        <tr key={rec.id} className="hover:bg-slate-50">
+                          {selectedMasterEntity.columns.map((col) => (
+                            <td key={col.key} className="py-2.5 px-3 text-slate-800 font-medium">
+                              {rec[col.key] || "—"}
+                            </td>
+                          ))}
+                          <td className="py-2.5 px-3 text-center">
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditRecord(selectedMasterEntity, rec)}
+                                className="p-1 hover:bg-blue-50 text-blue-600 rounded-lg cursor-pointer"
+                                title="Edit Record"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteRecord(selectedMasterEntity.id, rec.id)}
+                                className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
+                                title="Delete Record"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <DialogFooter className="mt-3">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsRecordsModalOpen(false)}
+                  className="text-xs font-bold rounded-xl"
+                >
+                  Close
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 2: ADD / EDIT RECORD DIALOG ─────────────────────────────── */}
+      <Dialog open={isAddEditRecordOpen} onOpenChange={setIsAddEditRecordOpen}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          {selectedMasterEntity && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-lg font-black text-slate-900">
+                  {editingRecordId ? "Edit Record" : "Add New Record"} — {selectedMasterEntity.name}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Fill in the details for this master entity record.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 my-3 text-xs">
+                {selectedMasterEntity.columns.map((col) => (
+                  <div key={col.key} className="space-y-1">
+                    <Label className="text-[11px] font-bold text-slate-700">{col.label}</Label>
+                    <Input
+                      value={recordFormValues[col.key] || ""}
+                      onChange={(e) =>
+                        setRecordFormValues((prev) => ({
+                          ...prev,
+                          [col.key]: e.target.value,
+                        }))
+                      }
+                      placeholder={`Enter ${col.label.toLowerCase()}...`}
+                      className="h-9 text-xs rounded-xl bg-slate-50"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <DialogFooter className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAddEditRecordOpen(false)}
+                  className="text-xs font-bold rounded-xl"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveRecord}
+                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl"
+                >
+                  {editingRecordId ? "Save Changes" : "Create Record"}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 3: AUDIT HISTORY MODAL ─────────────────────────────────── */}
+      <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              {editingRecord ? `Edit ${currentCategory.name}` : `Add New ${currentCategory.name}`}
+            <DialogTitle className="text-lg font-black text-slate-900">
+              Master Setup Audit Log
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
-              Fill in required parameters according to ZenoxERP field specifications.
+              Recent master record modifications made by administrators.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleSaveModal} className="space-y-3.5 py-2">
-            {currentCategory.columns.map((col) => {
-              if (col.key === "status") {
-                return (
-                  <div key={col.key} className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700">{col.label}</label>
-                    <select
-                      value={formFields.status || "Active"}
-                      onChange={(e) => setFormFields((prev) => ({ ...prev, status: e.target.value }))}
-                      className="w-full h-9 text-xs font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 focus:outline-none"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                  </div>
-                );
-              }
+          <div className="space-y-2.5 my-3 divide-y divide-slate-100 text-xs">
+            <div className="pt-2">
+              <span className="font-bold text-slate-800 block">Added 'Vidyanagar' to Area Master</span>
+              <span className="text-[11px] text-slate-500">By Aadya Admin • 24 Aug 2026, 11:20 AM</span>
+            </div>
+            <div className="pt-2">
+              <span className="font-bold text-slate-800 block">Updated Time Slot 'SLOT-03' Timings</span>
+              <span className="text-[11px] text-slate-500">By Aadya Admin • 23 Aug 2026, 04:15 PM</span>
+            </div>
+            <div className="pt-2">
+              <span className="font-bold text-slate-800 block">Created 'Campus Recruitment' in Events</span>
+              <span className="text-[11px] text-slate-500">By Aadya Admin • 22 Aug 2026, 02:40 PM</span>
+            </div>
+          </div>
 
-              return (
-                <div key={col.key} className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">{col.label}</label>
-                  <Input
-                    placeholder={`Enter ${col.label}...`}
-                    value={formFields[col.key] || ""}
-                    onChange={(e) =>
-                      setFormFields((prev) => ({
-                        ...prev,
-                        [col.key]: e.target.value,
-                      }))
-                    }
-                    required
-                    className="h-9 text-xs"
-                  />
-                </div>
-              );
-            })}
-
-            <DialogFooter className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setIsModalOpen(false)}
-                className="text-xs"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs font-bold"
-              >
-                {editingRecord ? "Save Changes" : "Create Master Entry"}
-              </Button>
-            </DialogFooter>
-          </form>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsHistoryModalOpen(false)}
+              className="text-xs font-bold rounded-xl"
+            >
+              Close
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

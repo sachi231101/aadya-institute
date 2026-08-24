@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Download,
   Bell,
@@ -213,6 +214,7 @@ const INITIAL_FACULTY_WEEK: FacultyDaySchedule[] = [
 ];
 
 export const FacultyTimetable: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   const facultyCenterName = (user as any)?.branchName || "Bangalore Center";
@@ -288,8 +290,17 @@ export const FacultyTimetable: React.FC = () => {
     if (day.isHoliday) return;
 
     if (slot.type === "CLASS") {
-      setSelectedSlot({ day, slot });
-      setIsDetailsModalOpen(true);
+      navigate(
+        `/faculty/class-session?course=${encodeURIComponent(
+          slot.courseName || "Java Programming"
+        )}&batch=${encodeURIComponent(
+          slot.batchCode || "Batch C"
+        )}&room=${encodeURIComponent(
+          slot.roomNo || "Room 301"
+        )}&time=${encodeURIComponent(
+          slot.timeRange || "09:00 AM - 10:00 AM"
+        )}&students=${slot.studentCount || 28}`
+      );
     } else {
       // Open add / configure slot
       setFormDayKey(day.dayKey);
