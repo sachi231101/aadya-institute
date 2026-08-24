@@ -95,12 +95,26 @@ export const updateBranchService = async (
   // If changing code, check uniqueness
   if (input.code && input.code !== existing.code) {
     const codeDuplicate = await findBranchByCode(input.code, currentUser.instituteId);
-    if (codeDuplicate) {
+    if (codeDuplicate && codeDuplicate.id !== branchId) {
       throw new AppError(`Branch code '${input.code}' is already in use`, 409);
     }
   }
 
   return updateBranch(branchId, currentUser.instituteId, input);
+};
+
+export const deleteBranchService = async (
+  currentUser: AuthUser,
+  branchId: string
+) => {
+  if (!currentUser.roles.includes("ADMIN")) {
+    throw new AppError("Forbidden — Admin access required to delete branches", 403);
+  }
+
+  const existing = await findBranchById(branchId, currentUser.instituteId);
+  if (!existing) throw new AppError("Branch not found", 404);
+
+  return updateBranch(branchId, currentUser.instituteId, { status: "DELETED" });
 };
 
 export const getBranchStatsService = async (

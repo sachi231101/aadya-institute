@@ -6,6 +6,7 @@ import {
   getBranchService,
   createBranchService,
   updateBranchService,
+  deleteBranchService,
   getBranchStatsService,
 } from "./branch.service";
 import type { AuthUser } from "../auth/auth.types";
@@ -70,6 +71,22 @@ export const updateBranch = async (
       req.body
     );
     sendSuccess(res, branch, 200, "Branch updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const deleteBranch = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const branch = await deleteBranchService(
+      req.user as unknown as AuthUser,
+      req.params.id as string
+    );
+    sendSuccess(res, branch, 200, "Branch deleted successfully");
   } catch (err) {
     next(err);
   }

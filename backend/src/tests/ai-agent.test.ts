@@ -294,37 +294,45 @@ describe("AI Institute Data Agent Module Tests", () => {
     studentBId = stuB.id;
 
     adminUser = {
+      id: uAdmin.id,
       userId: uAdmin.id,
       instituteId,
       branchId: undefined,
       roles: ["ADMIN"],
+      permissions: [],
       name: uAdmin.name,
       email: uAdmin.email ?? "",
     };
 
     managerAUser = {
+      id: uManagerA.id,
       userId: uManagerA.id,
       instituteId,
       branchId: branchAId,
       roles: ["CENTER_MANAGER"],
+      permissions: [],
       name: uManagerA.name,
       email: uManagerA.email ?? "",
     };
 
     managerBUser = {
+      id: uManagerB.id,
       userId: uManagerB.id,
       instituteId,
       branchId: branchBId,
       roles: ["CENTER_MANAGER"],
+      permissions: [],
       name: uManagerB.name,
       email: uManagerB.email ?? "",
     };
 
     studentUser = {
+      id: uStudent.id,
       userId: uStudent.id,
       instituteId,
       branchId: branchAId,
       roles: ["STUDENT"],
+      permissions: [],
       name: uStudent.name,
       email: uStudent.email ?? "",
     };

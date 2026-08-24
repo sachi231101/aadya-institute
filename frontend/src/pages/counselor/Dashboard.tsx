@@ -20,7 +20,6 @@ import {
   History,
   Layers,
   CheckCircle2,
-  Clock,
   Check,
   BookOpen,
   Search,
@@ -294,9 +293,9 @@ export const CounselorDashboard: React.FC = () => {
   const [batchCategory, setBatchCategory] = useState<"Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Others">("Digital Marketing");
   const [batchFacultyId, setBatchFacultyId] = useState("FA-RAMESH");
   const [batchFacultyName, setBatchFacultyName] = useState("Ramesh Kumar");
-  const [batchBranchId, setBatchBranchId] = useState("b-central");
+  const [batchBranchId] = useState("b-central");
   const [batchBranchName, setBatchBranchName] = useState("Aadya Central Branch");
-  const [batchCapacity, setBatchCapacity] = useState<number>(40);
+  const [batchCapacity] = useState<number>(40);
   const [selectedBatchStudentIds, setSelectedBatchStudentIds] = useState<string[]>([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [batchDays, setBatchDays] = useState<Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT">>(["MON", "WED", "FRI"]);

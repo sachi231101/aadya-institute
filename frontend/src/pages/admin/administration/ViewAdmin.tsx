@@ -78,7 +78,7 @@ export const ViewAdmin: React.FC = () => {
   const assignedBranch = branches.find((b) => b.id === admin?.branchId);
 
   // Fetch branch statistics if assigned
-  const { data: branchStatsResponse } = useBranchStats(admin?.branchId);
+  const { data: branchStatsResponse } = useBranchStats(admin?.branchId || undefined);
   const branchStats = branchStatsResponse?.data;
 
   // Tabs & Modals
@@ -159,7 +159,7 @@ export const ViewAdmin: React.FC = () => {
       return;
     }
     updateUserMutation.mutate(
-      { id: admin.id, data: { password: newPassword } },
+      { id: admin.id, data: { password: newPassword } as any },
       {
         onSuccess: () => {
           addNotification("Password reset successfully.", "success");

@@ -131,7 +131,7 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
   const facultyName = user?.name || "Ramesh Kumar"
   const facultyDesignation = (user as any)?.specialization || (user as any)?.department || "Java Faculty"
   const facultyCenter = (user as any)?.branchName || "Bangalore Center"
-  const facultyAvatar = user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
+  const facultyAvatar = (user as any)?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-slate-200/80 bg-white">

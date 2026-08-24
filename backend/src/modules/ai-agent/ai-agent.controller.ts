@@ -39,7 +39,7 @@ export const getConversation = async (
 ): Promise<void> => {
   try {
     const currentUser = req.user as unknown as AuthUser;
-    const result = await AIAgentService.getConversationById(req.params.id, currentUser);
+    const result = await AIAgentService.getConversationById(String(req.params.id), currentUser);
     sendSuccess(res, result, 200, "Conversation retrieved successfully");
   } catch (err) {
     next(err);
@@ -53,7 +53,7 @@ export const deleteConversation = async (
 ): Promise<void> => {
   try {
     const currentUser = req.user as unknown as AuthUser;
-    const result = await AIAgentService.deleteConversation(req.params.id, currentUser);
+    const result = await AIAgentService.deleteConversation(String(req.params.id), currentUser);
     sendSuccess(res, result, 200, "Conversation deleted successfully");
   } catch (err) {
     next(err);

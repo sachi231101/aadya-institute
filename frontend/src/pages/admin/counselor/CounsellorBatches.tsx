@@ -121,7 +121,7 @@ export const CounsellorBatches: React.FC = () => {
   const activeBatchForStudentsId = studentsModalBatch?.id || detailsModalBatch?.id;
   const { data: batchStudentsRes, refetch: refetchBatchStudents, isLoading: loadingBatchStudents } = useQuery({
     queryKey: ["batch-students", activeBatchForStudentsId],
-    queryFn: () => (activeBatchForStudentsId ? batchesApi.getStudents(activeBatchForStudentsId) : Promise.resolve({ data: [] })),
+    queryFn: () => (activeBatchForStudentsId ? batchesApi.getStudents(activeBatchForStudentsId) : Promise.resolve({ success: true, data: [] })),
     enabled: !!activeBatchForStudentsId,
   });
 
@@ -129,7 +129,7 @@ export const CounsellorBatches: React.FC = () => {
   const courses = coursesRes?.data || [];
   const facultyList = facultyRes?.data || [];
   const allStudents = studentsRes?.data || [];
-  const currentBatchStudents = batchStudentsRes?.data || [];
+  const currentBatchStudents: any[] = (batchStudentsRes as any)?.data || [];
 
   // Mutation for creating a batch
   const createBatchMutation = useMutation({
@@ -337,7 +337,7 @@ export const CounsellorBatches: React.FC = () => {
   };
 
   // Eligible students for the batch (excluding already enrolled students)
-  const enrolledStudentIdSet = new Set(currentBatchStudents.map((s) => s.studentId || s.student?.id));
+  const enrolledStudentIdSet = new Set(currentBatchStudents.map((s: any) => s.studentId || s.student?.id));
   const eligibleStudents = allStudents.filter((st) => {
     if (enrolledStudentIdSet.has(st.id)) return false;
     const name = st.user?.name || "";
@@ -876,7 +876,7 @@ export const CounsellorBatches: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      currentBatchStudents.map((enr) => {
+                      currentBatchStudents.map((enr: any) => {
                         const student = enr.student;
                         return (
                           <TableRow key={enr.id} className="text-xs hover:bg-slate-50">
@@ -1118,7 +1118,7 @@ export const CounsellorBatches: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      currentBatchStudents.map((enr) => (
+                      currentBatchStudents.map((enr: any) => (
                         <TableRow key={enr.id} className="text-xs">
                           <TableCell>
                             <span className="font-semibold text-slate-900">{enr.student?.user?.name || "Student"}</span>

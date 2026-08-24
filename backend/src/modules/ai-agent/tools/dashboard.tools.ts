@@ -108,7 +108,7 @@ export const executeGetDailyOperationsSummary = async (
       faculty: s.faculty?.user?.name || "N/A",
       startTime: s.startTime,
       endTime: s.endTime,
-      isCompleted: s.isCompleted,
+      isCompleted: s.sessionStatus === "COMPLETED",
     })),
     summaryText: `Daily Operations (${todayStart.toISOString().split("T")[0]}): ${todaySessions.length} classes scheduled, ${todayAdmissions} new admissions, and ${todayFollowUps} follow-ups due today.`,
   };

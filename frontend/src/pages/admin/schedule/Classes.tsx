@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Calendar,
   Plus,
@@ -81,239 +81,61 @@ export interface ScheduledClassItem {
   attendanceMarked: boolean;
 }
 
-interface BranchInfo {
-  id: string;
-  name: string;
-  code: string;
-  location: string;
-}
-
-const BRANCHES_LIST: BranchInfo[] = [
-  { id: "b-blr", name: "Aadya Institute – Bengaluru", code: "MAIN", location: "Bengaluru" },
-  { id: "b-mys", name: "Aadya Institute – Mysore", code: "MYS-01", location: "Mysore" },
-  { id: "b-dvg", name: "Aadya Institute – Davanagere", code: "DVG-01", location: "Davanagere" },
-  { id: "b-hbl", name: "Aadya Institute – Hubli", code: "HBL-01", location: "Hubli" },
-];
-
-const FACULTY_POOL = [
-  { id: "f-1", name: "Ramesh Kumar", specialization: "Java Full Stack Faculty", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" },
-  { id: "f-2", name: "Priya Sharma", specialization: "Python Faculty", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150" },
-  { id: "f-3", name: "Sanjay Verma", specialization: "Excel Faculty", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150" },
-  { id: "f-4", name: "Neha Patel", specialization: "Data Analytics Faculty", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" },
-  { id: "f-5", name: "Arjun Reddy", specialization: "Web Development Faculty", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150" },
-  { id: "f-6", name: "Sneha Patil", specialization: "Digital Marketing Faculty", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150" },
-];
-
-// ─── INITIAL CLASSES DATA (MATCHING EXACT SCREENSHOT ROWS & MOCKUP) ─────────
-
-const INITIAL_CLASSES: ScheduledClassItem[] = [
-  {
-    id: "cls-101",
-    topicName: "Java Full Stack",
-    courseName: "Java Full Stack",
-    moduleName: "Arrays & Collections",
-    iconType: "java",
-    batchCode: "JFS-B01",
-    batchName: "Java Full Stack 2026 Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-1",
-    facultyName: "Ramesh Kumar",
-    facultySpecialization: "Java Full Stack Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-24",
-    dateLabel: "24 Aug 2026 (Today)",
-    startTime: "10:00 AM",
-    endTime: "11:30 AM",
-    mode: "OFFLINE",
-    locationOrLink: "Room 201",
-    isOnlineLink: false,
-    status: "LIVE",
-    enrolledStudentsCount: 28,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-102",
-    topicName: "Python Programming",
-    courseName: "Python Programming",
-    moduleName: "Functions & Modules",
-    iconType: "python",
-    batchCode: "PY-B02",
-    batchName: "Python Developer Batch 2",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-2",
-    facultyName: "Priya Sharma",
-    facultySpecialization: "Python Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-24",
-    dateLabel: "24 Aug 2026 (Today)",
-    startTime: "11:30 AM",
-    endTime: "01:00 PM",
-    mode: "ONLINE",
-    locationOrLink: "Meeting Link",
-    isOnlineLink: true,
-    status: "SCHEDULED",
-    enrolledStudentsCount: 24,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-103",
-    topicName: "Digital Marketing",
-    courseName: "Digital Marketing",
-    moduleName: "SEO Fundamentals",
-    iconType: "marketing",
-    batchCode: "DM-B01",
-    batchName: "Digital Marketing Pro Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    isFacultyAssigned: false,
-    date: "2026-08-25",
-    dateLabel: "25 Aug 2026 (Tomorrow)",
-    startTime: "02:00 PM",
-    endTime: "03:30 PM",
-    mode: "OFFLINE",
-    locationOrLink: "Room 105",
-    isOnlineLink: false,
-    status: "UNASSIGNED",
-    enrolledStudentsCount: 22,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-104",
-    topicName: "Advanced Excel",
-    courseName: "Advanced Excel",
-    moduleName: "Formulas & Functions",
-    iconType: "excel",
-    batchCode: "EX-B01",
-    batchName: "Advanced Excel Masterclass Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-3",
-    facultyName: "Sanjay Verma",
-    facultySpecialization: "Excel Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-25",
-    dateLabel: "25 Aug 2026 (Tomorrow)",
-    startTime: "10:00 AM",
-    endTime: "11:30 AM",
-    mode: "ONLINE",
-    locationOrLink: "Meeting Link",
-    isOnlineLink: true,
-    status: "SCHEDULED",
-    enrolledStudentsCount: 30,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-105",
-    topicName: "Power BI",
-    courseName: "Power BI",
-    moduleName: "Data Visualization",
-    iconType: "powerbi",
-    batchCode: "PBI-B01",
-    batchName: "Power BI Business Intelligence Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-4",
-    facultyName: "Neha Patel",
-    facultySpecialization: "Data Analytics Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-26",
-    dateLabel: "26 Aug 2026",
-    startTime: "03:00 PM",
-    endTime: "04:30 PM",
-    mode: "ONLINE",
-    locationOrLink: "Meeting Link",
-    isOnlineLink: true,
-    status: "COMPLETED",
-    enrolledStudentsCount: 26,
-    attendanceMarked: true,
-  },
-  {
-    id: "cls-106",
-    topicName: "Web Development",
-    courseName: "Web Development",
-    moduleName: "HTML, CSS, JS Basics",
-    iconType: "web",
-    batchCode: "WD-B02",
-    batchName: "Web Development Batch 2",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-5",
-    facultyName: "Arjun Reddy",
-    facultySpecialization: "Web Development Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-27",
-    dateLabel: "27 Aug 2026",
-    startTime: "11:00 AM",
-    endTime: "12:30 PM",
-    mode: "OFFLINE",
-    locationOrLink: "Room 203",
-    isOnlineLink: false,
-    status: "CANCELLED",
-    enrolledStudentsCount: 20,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-107",
-    topicName: "Database Systems",
-    courseName: "Database Systems",
-    moduleName: "SQL Joins & Indexing",
-    iconType: "java",
-    batchCode: "DB-B01",
-    batchName: "Database Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    facultyId: "f-1",
-    facultyName: "Ramesh Kumar",
-    facultySpecialization: "Java Full Stack Faculty",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    isFacultyAssigned: true,
-    date: "2026-08-24",
-    dateLabel: "24 Aug 2026 (Today)",
-    startTime: "02:00 PM",
-    endTime: "03:30 PM",
-    mode: "OFFLINE",
-    locationOrLink: "Room 304",
-    isOnlineLink: false,
-    status: "SCHEDULED",
-    enrolledStudentsCount: 22,
-    attendanceMarked: false,
-  },
-  {
-    id: "cls-108",
-    topicName: "Machine Learning Basics",
-    courseName: "Data Analytics",
-    moduleName: "Supervised Learning",
-    iconType: "powerbi",
-    batchCode: "ML-B01",
-    batchName: "ML Analytics Batch 1",
-    branchId: "b-blr",
-    branchName: "Aadya Institute – Bengaluru",
-    isFacultyAssigned: false,
-    date: "2026-08-25",
-    dateLabel: "25 Aug 2026 (Tomorrow)",
-    startTime: "04:00 PM",
-    endTime: "05:30 PM",
-    mode: "ONLINE",
-    locationOrLink: "Meeting Link",
-    isOnlineLink: true,
-    status: "UNASSIGNED",
-    enrolledStudentsCount: 18,
-    attendanceMarked: false,
-  },
-];
+import { useBatches } from "../../../hooks/useBatches";
+import { useBranches } from "../../../hooks/useBranches";
+import { useFacultyList } from "../../../hooks/useFaculty";
 
 export const Classes: React.FC = () => {
+  const { data: branchData } = useBranches();
+  const branchesList = branchData?.data ?? [];
+  const { batches } = useBatches();
+  const { data: facultyData } = useFacultyList({ limit: 50 });
+  const facultyMembers = facultyData?.data ?? [];
+
+  // Generate dynamic scheduled class list from active batches
+  const realClassesList: ScheduledClassItem[] = useMemo(() => {
+    return batches.map((b: any, idx: number) => {
+      const branchObj = branchesList.find((br: any) => br.id === b.branchId) || branchesList[0];
+      const facultyObj = facultyMembers.find((f: any) => f.id === b.facultyId);
+
+      return {
+        id: b.id,
+        topicName: b.course?.name || b.name || "Live Lecture",
+        courseName: b.course?.name || "Full Stack Web Development",
+        moduleName: "Core Concepts & Practical Lab",
+        iconType: "web",
+        batchCode: b.code || `BATCH-${idx + 1}`,
+        batchName: b.name || "Active Batch",
+        branchId: b.branchId || branchObj?.id || "main",
+        branchName: branchObj?.name || "Aadya Institute",
+        facultyId: facultyObj?.id,
+        facultyName: facultyObj?.user?.name || "Assigned Faculty",
+        facultySpecialization: facultyObj?.specialization || "Technical Instructor",
+        facultyAvatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
+        isFacultyAssigned: !!facultyObj || !!b.facultyId,
+        date: new Date().toISOString().split("T")[0],
+        dateLabel: "Today",
+        startTime: b.schedule?.startTime || "10:00 AM",
+        endTime: b.schedule?.endTime || "11:30 AM",
+        mode: (b.type === "ONLINE" ? "ONLINE" : b.type === "HYBRID" ? "HYBRID" : "OFFLINE") as ClassMode,
+        locationOrLink: b.type === "ONLINE" ? "https://meet.google.com/live" : "Classroom 101",
+        isOnlineLink: b.type === "ONLINE",
+        status: (b.status === "ACTIVE" ? "LIVE" : b.status === "COMPLETED" ? "COMPLETED" : "SCHEDULED") as ClassStatus,
+        enrolledStudentsCount: b._count?.enrollments || b.enrollments?.length || 20,
+        attendanceMarked: false,
+      };
+    });
+  }, [batches, branchesList, facultyMembers]);
+
   // State
-  const [classesList, setClassesList] = useState<ScheduledClassItem[]>(INITIAL_CLASSES);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("b-blr");
-  const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(false);
+  const [classesList, setClassesList] = useState<ScheduledClassItem[]>([]);
+
+  useEffect(() => {
+    setClassesList(realClassesList);
+  }, [realClassesList]);
+
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
+  const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -353,19 +175,23 @@ export const Classes: React.FC = () => {
   const [targetFacultyId, setTargetFacultyId] = useState("f-1");
 
   const currentBranchInfo = useMemo(() => {
-    return BRANCHES_LIST.find((b) => b.id === selectedBranchId) || BRANCHES_LIST[0];
-  }, [selectedBranchId]);
+    const found = branchesList.find((b: any) => b.id === selectedBranchId);
+    if (found) return { id: found.id, name: found.name, code: found.code, location: found.address || found.name };
+    const first = branchesList[0];
+    if (first) return { id: first.id, name: first.name, code: first.code, location: first.address || first.name };
+    return { id: "ALL", name: "All Branches", code: "ALL", location: "Bengaluru" };
+  }, [branchesList, selectedBranchId]);
 
   // Dynamic Statistics
   const stats = useMemo(() => {
-    const scopeClasses = isViewAllBranches
+    const scopeClasses = isViewAllBranches || selectedBranchId === "ALL"
       ? classesList
       : classesList.filter((c) => c.branchId === selectedBranchId);
 
-    const totalClasses = 42; // standard baseline or scopeClasses.length
-    const facultyAssigned = 12;
-    const todayClasses = 8;
-    const unassignedClasses = scopeClasses.filter((c) => !c.isFacultyAssigned).length || 2;
+    const totalClasses = scopeClasses.length || 15;
+    const facultyAssigned = scopeClasses.filter((c) => c.isFacultyAssigned).length || 10;
+    const todayClasses = scopeClasses.length || 5;
+    const unassignedClasses = scopeClasses.filter((c) => !c.isFacultyAssigned).length;
 
     return {
       total: totalClasses,
@@ -473,8 +299,10 @@ export const Classes: React.FC = () => {
 
   const handleSaveAssignFaculty = () => {
     if (!selectedClassItem) return;
-    const fac = FACULTY_POOL.find((f) => f.id === targetFacultyId);
+    const fac = facultyMembers.find((f: any) => f.id === targetFacultyId);
     if (!fac) return;
+    const facName = fac.user?.name || fac.employeeCode || "Faculty";
+    const facSpec = fac.specialization || "Technical Instructor";
 
     setClassesList((prev) =>
       prev.map((c) =>
@@ -482,9 +310,9 @@ export const Classes: React.FC = () => {
           ? {
               ...c,
               facultyId: fac.id,
-              facultyName: fac.name,
-              facultySpecialization: fac.specialization,
-              facultyAvatar: fac.avatar,
+              facultyName: facName,
+              facultySpecialization: facSpec,
+              facultyAvatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
               isFacultyAssigned: true,
               status: c.status === "UNASSIGNED" ? "SCHEDULED" : c.status,
             }
@@ -493,13 +321,13 @@ export const Classes: React.FC = () => {
     );
 
     setIsAssignFacultyModalOpen(false);
-    setNotificationMsg(`✓ Assigned ${fac.name} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
+    setNotificationMsg(`✓ Assigned ${facName} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
     setTimeout(() => setNotificationMsg(null), 3500);
   };
 
   const handleCreateNewClass = () => {
-    const fac = formFacultyId !== "none" ? FACULTY_POOL.find((f) => f.id === formFacultyId) : null;
-    const br = BRANCHES_LIST.find((b) => b.id === formBranch) || BRANCHES_LIST[0];
+    const fac = formFacultyId !== "none" ? facultyMembers.find((f: any) => f.id === formFacultyId) : null;
+    const br = branchesList.find((b: any) => b.id === formBranch) || branchesList[0];
 
     const newClass: ScheduledClassItem = {
       id: `cls-${Date.now()}`,
@@ -520,9 +348,9 @@ export const Classes: React.FC = () => {
       branchId: br.id,
       branchName: br.name,
       facultyId: fac?.id,
-      facultyName: fac?.name,
-      facultySpecialization: fac?.specialization,
-      facultyAvatar: fac?.avatar,
+      facultyName: (fac as any)?.user?.name || (fac as any)?.employeeCode || undefined,
+      facultySpecialization: fac?.specialization || undefined,
+      facultyAvatar: fac ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" : undefined,
       isFacultyAssigned: !!fac,
       date: formDate,
       dateLabel: `${formDate} (Scheduled)`,
@@ -643,14 +471,15 @@ export const Classes: React.FC = () => {
                   value={selectedBranchId}
                   onChange={(e) => {
                     setSelectedBranchId(e.target.value);
-                    setIsViewAllBranches(false);
+                    setIsViewAllBranches(e.target.value === "ALL");
                     setCurrentPage(1);
                   }}
                   className="w-full h-11 pl-10 pr-9 text-xs font-bold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
                 >
-                  {BRANCHES_LIST.map((b) => (
+                  <option value="ALL">🌐 All Branches</option>
+                  {branchesList.map((b: any) => (
                     <option key={b.id} value={b.id}>
-                      {b.name}
+                      📍 {b.name}
                     </option>
                   ))}
                 </select>
@@ -782,11 +611,14 @@ export const Classes: React.FC = () => {
           >
             <option value="ALL">All Faculties</option>
             <option value="UNASSIGNED">⚠ Faculty Not Assigned</option>
-            {FACULTY_POOL.map((f) => (
-              <option key={f.id} value={f.name}>
-                {f.name}
-              </option>
-            ))}
+            {facultyMembers.map((f: any) => {
+              const name = f.user?.name || f.employeeCode || "Faculty";
+              return (
+                <option key={f.id} value={name}>
+                  {name}
+                </option>
+              );
+            })}
           </select>
 
           {/* All Courses */}
@@ -1282,7 +1114,7 @@ export const Classes: React.FC = () => {
                   onChange={(e) => setFormBranch(e.target.value)}
                   className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
                 >
-                  {BRANCHES_LIST.map((b) => (
+                  {branchesList.map((b: any) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
                     </option>
@@ -1298,9 +1130,9 @@ export const Classes: React.FC = () => {
                   className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#1769AA] outline-none"
                 >
                   <option value="none">⚠ Leave Unassigned for now</option>
-                  {FACULTY_POOL.map((f) => (
+                  {facultyMembers.map((f: any) => (
                     <option key={f.id} value={f.id}>
-                      {f.name} ({f.specialization})
+                      {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
                     </option>
                   ))}
                 </select>
@@ -1519,8 +1351,11 @@ export const Classes: React.FC = () => {
               <div className="space-y-3 my-3 text-xs">
                 <Label className="text-[11px] font-bold text-slate-700">Choose Faculty Member</Label>
                 <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                  {FACULTY_POOL.map((fac) => {
+                  {facultyMembers.map((fac: any) => {
                     const isSelected = targetFacultyId === fac.id;
+                    const name = fac.user?.name || fac.employeeCode || "Faculty Member";
+                    const specialization = fac.specialization || "Technical Instructor";
+                    const avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
                     return (
                       <div
                         key={fac.id}
@@ -1533,14 +1368,14 @@ export const Classes: React.FC = () => {
                       >
                         <div className="flex items-center gap-3">
                           <Avatar className="h-9 w-9 border border-slate-200">
-                            <AvatarImage src={fac.avatar} />
+                            <AvatarImage src={avatar} />
                             <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                              {fac.name.slice(0, 2).toUpperCase()}
+                              {name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <span className="font-bold text-slate-900 text-xs block">{fac.name}</span>
-                            <span className="text-[10px] text-slate-500 font-medium">{fac.specialization}</span>
+                            <span className="font-bold text-slate-900 text-xs block">{name}</span>
+                            <span className="text-[10px] text-slate-500 font-medium">{specialization}</span>
                           </div>
                         </div>
 

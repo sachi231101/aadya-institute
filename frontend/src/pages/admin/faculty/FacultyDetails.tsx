@@ -7,7 +7,6 @@ import {
   Award,
   BookOpen,
   Clock,
-  UserCheck,
   MapPin,
   Loader2,
   AlertCircle,
@@ -18,7 +17,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   BarChart3,
-  MessageSquare,
   Users
 } from "lucide-react";
 import { useFacultyMember, useFacultyCourses, useFacultyAttendance } from "../../../hooks/useFaculty";
@@ -35,146 +33,14 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 
-const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 const ATTENDANCE_TREND = [
-  { name: "Mar", val: 84 },
-  { name: "Apr", val: 91 },
-  { name: "May", val: 87 },
-  { name: "Jun", val: 93 },
-  { name: "Jul", val: 89 },
-  { name: "Aug", val: 94 },
+  { name: "Mar", val: 88 },
+  { name: "Apr", val: 92 },
+  { name: "May", val: 90 },
+  { name: "Jun", val: 94 },
+  { name: "Jul", val: 91 },
+  { name: "Aug", val: 95 },
 ];
-
-const MOCK_FACULTY_DETAILS: Record<string, any> = {
-  FA001: {
-    id: "FA001",
-    name: "HM Adithya",
-    email: "adithyahm0@gmail.com",
-    phone: "8217312051",
-    specialization: "MERN Full Stack",
-    branch: "Bengaluru Central",
-    batchesCount: 4,
-    studentsCount: 86,
-    attendance: 88,
-    workloadHrs: 27,
-    status: "Active",
-    avatar: "https://i.pravatar.cc/150?u=adithya",
-    joinDate: "12 June 2024",
-    experience: "3.8 Years",
-    rating: 4.8,
-    feedback: [
-      { student: "Rahul K.", text: "Excellent teaching style, explains complex React concepts very well.", rating: 5, date: "10 Aug 2026" },
-      { student: "Sneha M.", text: "Very helpful during doubt sessions.", rating: 4, date: "05 Aug 2026" },
-      { student: "Ankit P.", text: "Good pacing, but sometimes goes a bit fast.", rating: 4, date: "22 Jul 2026" },
-    ],
-    batches: [
-      { id: "MERN-01", name: "MERN Full Stack", students: 24, status: "Active", progress: 72, time: "10:00 AM" },
-      { id: "MERN-02", name: "MERN Full Stack", students: 18, status: "Active", progress: 45, time: "02:00 PM" },
-      { id: "JS-03", name: "JavaScript Fundamentals", students: 22, status: "Active", progress: 85, time: "04:00 PM" },
-      { id: "REACT-01", name: "React JS Advanced", students: 22, status: "Completed", progress: 100, time: "06:00 PM" },
-    ],
-    studentPerf: { excellent: 24, good: 38, needsImp: 17, atRisk: 7 },
-    schedule: {
-      MON: [{ time: "10:00 AM", batch: "MERN-01" }, { time: "02:00 PM", batch: "MERN-02" }],
-      TUE: [{ time: "10:00 AM", batch: "MERN-01" }, { time: "04:00 PM", batch: "JS-03" }],
-      WED: [{ time: "10:00 AM", batch: "MERN-01" }, { time: "06:00 PM", batch: "REACT-01" }],
-      THU: [{ time: "10:00 AM", batch: "MERN-01" }, { time: "02:00 PM", batch: "MERN-02" }],
-      FRI: [{ time: "10:00 AM", batch: "MERN-01" }, { time: "04:00 PM", batch: "JS-03" }],
-      SAT: [{ time: "11:00 AM", batch: "Doubt Clearing Clinic" }],
-    },
-    alerts: [
-      { type: "warning", text: "Faculty is handling 27 hours/week across 4 batches." },
-      { type: "success", text: "Student attendance increased by 6% this month." },
-      { type: "danger", text: "7 students have attendance below the configured threshold." },
-    ],
-  },
-  FA002: {
-    id: "FA002",
-    name: "Priya Sharma",
-    email: "priya.sharma@gmail.com",
-    phone: "9876543210",
-    specialization: "Digital Marketing",
-    branch: "Ramamurthy Nagar",
-    batchesCount: 3,
-    studentsCount: 62,
-    attendance: 92,
-    workloadHrs: 21,
-    status: "Active",
-    avatar: "https://i.pravatar.cc/150?u=priya",
-    joinDate: "05 Jan 2025",
-    experience: "5.2 Years",
-    rating: 4.5,
-    feedback: [
-      { student: "Karan S.", text: "Great practical examples for SEO and analytics.", rating: 5, date: "01 Aug 2026" },
-      { student: "Pooja D.", text: "Assignments are challenging and comprehensive.", rating: 4, date: "15 Jul 2026" },
-    ],
-    batches: [
-      { id: "DM-01", name: "Digital Marketing Masterclass", students: 25, status: "Active", progress: 60, time: "11:00 AM" },
-      { id: "SEO-02", name: "Search Engine Optimization", students: 20, status: "Active", progress: 40, time: "03:00 PM" },
-    ],
-    studentPerf: { excellent: 30, good: 20, needsImp: 10, atRisk: 2 },
-    schedule: {
-      MON: [{ time: "11:00 AM", batch: "DM-01" }],
-      WED: [{ time: "11:00 AM", batch: "DM-01" }, { time: "03:00 PM", batch: "SEO-02" }],
-      FRI: [{ time: "11:00 AM", batch: "DM-01" }],
-    },
-    alerts: [{ type: "success", text: "DM-01 syllabus is 60% complete." }],
-  },
-  FA003: {
-    id: "FA003",
-    name: "Rahul Verma",
-    email: "rahul.verma@gmail.com",
-    phone: "9988776655",
-    specialization: "Python Programming",
-    branch: "Bengaluru Central",
-    batchesCount: 2,
-    studentsCount: 45,
-    attendance: 86,
-    workloadHrs: 16,
-    status: "On Leave",
-    avatar: "https://i.pravatar.cc/150?u=rahul",
-    joinDate: "20 Mar 2023",
-    experience: "4.0 Years",
-    rating: 3.9,
-    feedback: [],
-    batches: [
-      { id: "PY-01", name: "Python for Data Science", students: 25, status: "Active", progress: 35, time: "09:00 AM" },
-    ],
-    studentPerf: { excellent: 10, good: 20, needsImp: 10, atRisk: 5 },
-    schedule: {},
-    alerts: [{ type: "warning", text: "Currently on approved leave." }],
-  },
-  FA004: {
-    id: "FA004",
-    name: "Sneha Reddy",
-    email: "sneha.reddy@gmail.com",
-    phone: "9123456780",
-    specialization: "UI/UX Design",
-    branch: "Malleswaram",
-    batchesCount: 1,
-    studentsCount: 18,
-    attendance: 98,
-    workloadHrs: 8,
-    status: "Active",
-    avatar: "https://i.pravatar.cc/150?u=sneha",
-    joinDate: "10 Feb 2026",
-    experience: "2.5 Years",
-    rating: 4.9,
-    feedback: [
-      { student: "Akash R.", text: "Amazing mentor! Loved the hands-on Figma sessions.", rating: 5, date: "12 Aug 2026" },
-    ],
-    batches: [
-      { id: "UIUX-01", name: "UI/UX Product Design", students: 18, status: "Active", progress: 50, time: "05:00 PM" },
-    ],
-    studentPerf: { excellent: 12, good: 5, needsImp: 1, atRisk: 0 },
-    schedule: {
-      TUE: [{ time: "05:00 PM", batch: "UIUX-01" }],
-      THU: [{ time: "05:00 PM", batch: "UIUX-01" }],
-    },
-    alerts: [{ type: "success", text: "Highest student satisfaction rating (4.9/5)." }],
-  },
-};
 
 const getWorkloadState = (hrs: number) => {
   if (hrs > 30) return { label: "High", color: "bg-red-500", text: "text-red-600", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
@@ -199,19 +65,16 @@ export const FacultyDetails: React.FC = () => {
   const facultyAssignments = coursesResponse?.data ?? [];
   const facultyAttendance = attendanceResponse?.data ?? [];
 
-  // Match mock fallback if present
-  const mockFallback = id ? MOCK_FACULTY_DETAILS[id] : null;
-
-  if (isLoading && !mockFallback) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center py-28">
         <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
-        <span className="ml-3 text-slate-600 font-medium">Loading faculty profile...</span>
+        <span className="ml-3 text-slate-600 font-medium">Loading faculty profile from database...</span>
       </div>
     );
   }
 
-  if ((isError || !backendFaculty) && !mockFallback) {
+  if (isError || !backendFaculty) {
     return (
       <div className="p-12 text-center max-w-md mx-auto">
         <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4 opacity-70" />
@@ -226,44 +89,43 @@ export const FacultyDetails: React.FC = () => {
     );
   }
 
-  // Unified faculty data object
+  const assignedStudentsCount = facultyAssignments.reduce((sum, a: any) => sum + (a._count?.enrollments ?? a.enrollments?.length ?? 0), 0);
+  const totalClasses = facultyAttendance.length;
+  const presentClasses = facultyAttendance.filter((a: any) => a.status === "PRESENT").length;
+  const attendanceRate = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 100;
+
+  // Unified real faculty data object
   const faculty = {
-    id: backendFaculty?.id || mockFallback?.id || id || "FA001",
-    name: backendFaculty?.user?.name || mockFallback?.name || "Faculty Member",
-    email: backendFaculty?.user?.email || mockFallback?.email || "faculty@aadya.in",
-    phone: backendFaculty?.user?.phone || mockFallback?.phone || "N/A",
-    specialization: backendFaculty?.specialization || mockFallback?.specialization || "Technical Instructor",
-    employeeCode: backendFaculty?.employeeCode || mockFallback?.id || "EMP-101",
-    branch: backendFaculty?.branch?.name || mockFallback?.branch || "Bengaluru Central",
-    status: backendFaculty?.status || mockFallback?.status || "Active",
-    avatar: mockFallback?.avatar || `https://i.pravatar.cc/150?u=${id}`,
-    joinDate: backendFaculty?.createdAt
+    id: backendFaculty.id,
+    name: backendFaculty.user?.name || "Faculty Member",
+    email: backendFaculty.user?.email || "N/A",
+    phone: backendFaculty.user?.phone || "N/A",
+    specialization: backendFaculty.specialization || "Technical Instructor",
+    employeeCode: backendFaculty.employeeCode || "EMP-001",
+    branch: backendFaculty.branch?.name || "Aadya Branch",
+    status: backendFaculty.status || "Active",
+    avatar: `https://i.pravatar.cc/150?u=${id}`,
+    joinDate: backendFaculty.createdAt
       ? new Date(backendFaculty.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
-      : mockFallback?.joinDate || "12 June 2024",
-    experience: mockFallback?.experience || "3.5 Years",
-    rating: mockFallback?.rating || 4.8,
-    batchesCount: facultyAssignments.length || mockFallback?.batchesCount || 3,
-    studentsCount:
-      facultyAssignments.reduce((sum, a) => sum + (a._count?.enrollments ?? 0), 0) ||
-      mockFallback?.studentsCount ||
-      65,
-    workloadHrs: mockFallback?.workloadHrs || 24,
-    attendance: mockFallback?.attendance || 90,
-    feedback: mockFallback?.feedback || [
-      { student: "Student A", text: "Very supportive and thorough trainer.", rating: 5, date: "08 Aug 2026" },
-      { student: "Student B", text: "Clear explanations and practical assignments.", rating: 4, date: "28 Jul 2026" },
-    ],
-    batches: mockFallback?.batches || [
-      { id: "BATCH-01", name: "Full Stack Development", students: 25, status: "Active", progress: 65, time: "10:00 AM" },
-      { id: "BATCH-02", name: "Frontend Engineering", students: 20, status: "Active", progress: 40, time: "02:00 PM" },
-    ],
-    studentPerf: mockFallback?.studentPerf || { excellent: 20, good: 30, needsImp: 10, atRisk: 5 },
-    schedule: mockFallback?.schedule || {
-      MON: [{ time: "10:00 AM", batch: "Regular Batch 1" }],
-      WED: [{ time: "10:00 AM", batch: "Regular Batch 1" }, { time: "02:00 PM", batch: "Batch 2" }],
-      FRI: [{ time: "10:00 AM", batch: "Regular Batch 1" }],
-    },
-    alerts: mockFallback?.alerts || [{ type: "success", text: "Class delivery on schedule." }],
+      : "N/A",
+    experience: "Certified Faculty",
+    rating: 4.8,
+    batchesCount: facultyAssignments.length,
+    studentsCount: assignedStudentsCount,
+    workloadHrs: facultyAssignments.length * 6,
+    attendance: attendanceRate,
+    feedback: [],
+    batches: facultyAssignments.map((a: any) => ({
+      id: a.code || a.id,
+      name: a.course?.name || a.name || "Assigned Batch",
+      students: a._count?.enrollments || 0,
+      status: a.status || "Active",
+      progress: 50,
+      time: "Scheduled",
+    })),
+    studentPerf: { excellent: 0, good: 0, needsImp: 0, atRisk: 0 },
+    schedule: {} as Record<string, any[]>,
+    alerts: [],
   };
 
   const workloadState = getWorkloadState(faculty.workloadHrs);
@@ -344,7 +206,7 @@ export const FacultyDetails: React.FC = () => {
                   <h2 className="text-2xl font-bold text-slate-900">{faculty.name}</h2>
                   <span
                     className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
-                      faculty.status === "Active"
+                      String(faculty.status).toUpperCase() === "ACTIVE"
                         ? "bg-emerald-50 text-emerald-600 border border-emerald-200/60"
                         : "bg-amber-50 text-amber-600 border border-amber-200/60"
                     }`}

@@ -81,6 +81,11 @@ export const branchesApi = {
     return response.data;
   },
 
+  deleteBranch: async (id: string): Promise<SingleResponse<BranchResponse>> => {
+    const response = await api.delete<SingleResponse<BranchResponse>>(`/branches/${id}`);
+    return response.data;
+  },
+
   getBranchStats: async (id: string): Promise<SingleResponse<BranchStatsResponse>> => {
     const response = await api.get<SingleResponse<BranchStatsResponse>>(`/branches/${id}/stats`);
     return response.data;

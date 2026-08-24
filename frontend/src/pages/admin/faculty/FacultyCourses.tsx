@@ -4,15 +4,12 @@ import {
   BookOpen, 
   Users, 
   Clock, 
-  Calendar, 
   Plus, 
-  Filter, 
   GraduationCap,
   Layers,
   Loader2,
   AlertCircle,
   Building2,
-  CheckCircle2,
   ChevronRight,
   ArrowRight
 } from "lucide-react";
@@ -21,7 +18,7 @@ import { useCourseStore } from "../../../store/course.store";
 import { useAuthStore } from "../../../store/auth.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -100,7 +97,7 @@ export const FacultyCourses: React.FC = () => {
         const userName = (user.name || "").trim().toLowerCase();
         const facultyUserName = (a.faculty?.user?.name || "").trim().toLowerCase();
         const matchesFacultyUser = a.faculty?.user?.id === user.id || 
-          a.faculty?.userId === user.id ||
+          (a.faculty as any)?.userId === user.id ||
           facultyUserName === userName ||
           (userName && facultyUserName.includes(userName));
         
@@ -322,7 +319,7 @@ export const FacultyCourses: React.FC = () => {
             const batchCode = item.code;
             const branchName = item.branch?.name || "Aadya Central Branch";
             const studentCount = item._count?.enrollments ?? 0;
-            const scheduleDisplay = formatSchedules(item.schedules) || item.timeSlot || "Mon–Sat • 10:00 AM – 11:00 AM";
+            const scheduleDisplay = formatSchedules(item.schedules) || (item as any).timeSlot || "Mon–Sat • 10:00 AM – 11:00 AM";
             const facultyName = item.faculty?.user?.name || user?.name || "Faculty Member";
 
             const statusVariant = 

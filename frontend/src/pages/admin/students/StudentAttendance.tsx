@@ -10,26 +10,18 @@ import {
   ShieldCheck,
   Building2,
   GraduationCap,
-  Sparkles,
   QrCode,
   SlidersHorizontal,
   MoreVertical,
-  Bell,
   Check,
   Lock,
   Lightbulb,
-  ArrowRight,
   TrendingUp,
-  AlertTriangle,
-  RotateCcw,
   Users,
   Camera,
   Info,
   ChevronDown
 } from "lucide-react";
-import { useBranches } from "@/hooks/useBranches";
-import { useAuthStore } from "@/store/auth.store";
-import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,7 +42,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -82,201 +73,73 @@ const EXCUSED_REASONS = [
   "Other",
 ];
 
-const INITIAL_MOCK_STUDENTS: StudentAttendanceItem[] = [
-  {
-    id: "stu-1",
-    studentCode: "STU-001",
-    name: "Rahul Verma",
-    email: "rahul.verma@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-  {
-    id: "stu-2",
-    studentCode: "STU-002",
-    name: "Priya Sharma",
-    email: "priya.sharma@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
-    status: "ABSENT",
-    remarks: "Medical Leave",
-    leaveReason: "Medical Leave",
-  },
-  {
-    id: "stu-3",
-    studentCode: "STU-003",
-    name: "Aman Kumar",
-    email: "aman.kumar@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    status: "EXCUSED",
-    remarks: "Medical Leave",
-    leaveReason: "Medical Leave",
-  },
-  {
-    id: "stu-4",
-    studentCode: "STU-004",
-    name: "Neha Gupta",
-    email: "neha.gupta@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-  {
-    id: "stu-5",
-    studentCode: "STU-005",
-    name: "Vikram Singh",
-    email: "vikram.singh@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-  {
-    id: "stu-6",
-    studentCode: "STU-006",
-    name: "Sneha Reddy",
-    email: "sneha.reddy@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&q=80&w=150",
-    status: "ABSENT",
-    remarks: "Family Emergency",
-    leaveReason: "Family Emergency",
-  },
-  {
-    id: "stu-7",
-    studentCode: "STU-007",
-    name: "Rohit Das",
-    email: "rohit.das@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
-    status: "EXCUSED",
-    remarks: "Official Leave",
-    leaveReason: "Official Leave",
-  },
-  {
-    id: "stu-8",
-    studentCode: "STU-008",
-    name: "Ananya Roy",
-    email: "ananya.roy@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-  {
-    id: "stu-9",
-    studentCode: "STU-009",
-    name: "Karan Johar",
-    email: "karan.j@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-  {
-    id: "stu-10",
-    studentCode: "STU-010",
-    name: "Divya Patel",
-    email: "divya.p@aadya.in",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
-    status: "PRESENT",
-    remarks: "",
-  },
-];
-
-const MOCK_HISTORY = [
-  {
-    id: "hist-1",
-    date: "19-08-2026",
-    topic: "SEO Strategy & Google Analytics 4",
-    total: 10,
-    present: 9,
-    absent: 1,
-    excused: 0,
-    percentage: "90.00%",
-    recordedBy: "Ramesh Kumar",
-  },
-  {
-    id: "hist-2",
-    date: "18-08-2026",
-    topic: "Keyword Research & Content Marketing",
-    total: 10,
-    present: 8,
-    absent: 1,
-    excused: 1,
-    percentage: "80.00%",
-    recordedBy: "Ramesh Kumar",
-  },
-  {
-    id: "hist-3",
-    date: "17-08-2026",
-    topic: "Introduction to Search Engine Marketing",
-    total: 10,
-    present: 10,
-    absent: 0,
-    excused: 0,
-    percentage: "100.00%",
-    recordedBy: "Ramesh Kumar",
-  },
-  {
-    id: "hist-4",
-    date: "15-08-2026",
-    topic: "Digital Marketing Landscape & Fundamentals",
-    total: 10,
-    present: 9,
-    absent: 0,
-    excused: 1,
-    percentage: "90.00%",
-    recordedBy: "Ramesh Kumar",
-  },
-];
+import { useBranches } from "@/hooks/useBranches";
+import { useBatches } from "@/hooks/useBatches";
+import { useBranchStore } from "@/store/branch.store";
+import { useStudentList } from "../../../hooks/useStudents";
 
 export const StudentAttendance: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
-  const { data: branchResponse } = useBranches();
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
+  const { data: branchResponse } = useBranches({ limit: 100 });
   const branches = branchResponse?.data ?? [];
-  const { students: globalStudents, fetchStudents } = useStudentStore();
-  const { batches, fetchBatches } = useCourseStore();
+  const { batches } = useBatches();
 
-  useEffect(() => {
-    fetchStudents();
-    fetchBatches();
-  }, []);
-
-  // Filter selections
-  const [selectedBranch, setSelectedBranch] = useState<string>("Aadya Central Branch");
-  const [selectedBatch, setSelectedBatch] = useState<string>("DM-01");
-  const [selectedDate, setSelectedDate] = useState<string>("2026-08-20");
+  const [selectedBranch, setSelectedBranch] = useState<string>(selectedBranchId !== "ALL" ? selectedBranchId : (branches[0]?.id || "ALL"));
+  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
   const [activeTab, setActiveTab] = useState<"list" | "summary" | "history">("list");
 
-  // Roster state
-  const [students, setStudents] = useState<StudentAttendanceItem[]>(INITIAL_MOCK_STUDENTS);
+  // Fetch real students filtered by selected branch
+  const { data: studentListResponse } = useStudentList({
+    limit: 100,
+    branchId: selectedBranch !== "ALL" ? selectedBranch : undefined,
+  });
+  const apiStudents = studentListResponse?.data ?? [];
+
+  // Roster state from real students
+  const [students, setStudents] = useState<StudentAttendanceItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [autoSaveState, setAutoSaveState] = useState<"saved" | "saving">("saved");
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modals
-  const [isMarkAllModalOpen, setIsMarkAllModalOpen] = useState(false);
   const [isScanQrModalOpen, setIsScanQrModalOpen] = useState(false);
   const [manualQrCode, setManualQrCode] = useState("");
 
-  // Sync with global database if available
+  const sessionHistory = useMemo(() => {
+    return [
+      {
+        id: "hist-1",
+        date: selectedDate,
+        topic: `${selectedBatch} Core Session`,
+        total: students.length,
+        present: students.filter((s) => s.status === "PRESENT").length,
+        absent: students.filter((s) => s.status === "ABSENT").length,
+        excused: students.filter((s) => s.status === "EXCUSED").length,
+        percentage: students.length > 0 ? `${Math.round((students.filter((s) => s.status === "PRESENT").length / students.length) * 100)}%` : "100%",
+      }
+    ];
+  }, [selectedDate, selectedBatch, students]);
+
+  // Sync with real students from PostgreSQL
   useEffect(() => {
-    if (Array.isArray(globalStudents) && globalStudents.length > 0) {
-      const mapped = globalStudents.slice(0, 10).map((s: any, idx) => {
-        const fallback = INITIAL_MOCK_STUDENTS[idx] || INITIAL_MOCK_STUDENTS[0];
-        return {
-          id: s.id,
-          studentCode: s.studentCode || s.studentId || `STU-00${idx + 1}`,
-          name: s.name || s.user?.name || fallback.name,
-          email: s.email || s.user?.email || fallback.email,
-          avatar: fallback.avatar,
-          status: (fallback.status as AttendanceDeskStatus) || "PRESENT",
-          remarks: fallback.remarks || "",
-          leaveReason: fallback.leaveReason,
-        };
-      });
+    if (apiStudents.length > 0) {
+      const mapped: StudentAttendanceItem[] = apiStudents.map((s: any, idx: number) => ({
+        id: s.id,
+        studentCode: s.studentCode || `STU-00${idx + 1}`,
+        name: s.user?.name || `Student ${s.studentCode}`,
+        email: s.user?.email || "student@aadya.in",
+        avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150`,
+        status: "PRESENT",
+        remarks: "",
+        leaveReason: undefined,
+      }));
       setStudents(mapped);
     }
-  }, [globalStudents]);
+  }, [apiStudents]);
 
   // Calculations
   const totalStudents = students.length;
@@ -354,21 +217,6 @@ export const StudentAttendance: React.FC = () => {
     setSelectedIds(new Set());
     triggerAutoSave();
     setToastMessage(`Marked ${selectedIds.size} students as ${status}.`);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
-  // Mark all present
-  const handleConfirmMarkAllPresent = () => {
-    setStudents((prev) =>
-      prev.map((s) => ({
-        ...s,
-        status: "PRESENT",
-        remarks: "",
-      }))
-    );
-    setIsMarkAllModalOpen(false);
-    triggerAutoSave();
-    setToastMessage("All students marked as Present.");
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -464,13 +312,16 @@ export const StudentAttendance: React.FC = () => {
             <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#1769AA]" />
             <select
               value={selectedBranch}
-              onChange={(e) => setSelectedBranch(e.target.value)}
+              onChange={(e) => {
+                setSelectedBranch(e.target.value);
+                setSelectedBranchId(e.target.value);
+              }}
               className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
             >
-              <option value="Aadya Central Branch">Aadya Central Branch</option>
+              <option value="ALL">🌐 All Branches</option>
               {branches.map((b) => (
-                <option key={b.id} value={b.name}>
-                  {b.name}
+                <option key={b.id} value={b.id}>
+                  📍 {b.name}
                 </option>
               ))}
             </select>
@@ -488,15 +339,14 @@ export const StudentAttendance: React.FC = () => {
               onChange={(e) => setSelectedBatch(e.target.value)}
               className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#6366F1]/30 focus:border-[#6366F1] outline-none transition-all appearance-none cursor-pointer"
             >
-              <option value="DM-01">Digital Marketing – DM-01</option>
-              <option value="FS-02">Full Stack Web Dev – FS-02</option>
-              <option value="DS-01">Data Science AI – DS-01</option>
-              <option value="UI-03">UI/UX Design – UI-03</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.code || b.name}>
-                  {b.name} – {b.code}
-                </option>
-              ))}
+              <option value="ALL">All Batches</option>
+              {batches
+                .filter((b) => selectedBranch === "ALL" || b.branchId === selectedBranch || b.branch?.id === selectedBranch)
+                .map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
             </select>
             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 pointer-events-none" />
           </div>
@@ -1202,7 +1052,7 @@ export const StudentAttendance: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {MOCK_HISTORY.map((h) => (
+              {sessionHistory.map((h: any) => (
                 <TableRow key={h.id} className="border-b border-slate-100 hover:bg-slate-50/70">
                   <TableCell className="font-bold text-xs text-slate-900">{h.date}</TableCell>
                   <TableCell className="text-xs text-slate-700 font-medium">{h.topic}</TableCell>

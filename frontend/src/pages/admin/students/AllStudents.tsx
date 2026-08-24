@@ -10,7 +10,6 @@ import {
   Download,
   Plus,
   Eye,
-  MessageSquare,
   ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,6 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useStudentList } from "@/hooks/useStudents";
+import { useCourses } from "@/hooks/useCourses";
 
 const getFeeDetails = (fees?: any) => {
   const total = Number(fees?.totalFee ?? fees?.total ?? 45000);
@@ -26,179 +26,6 @@ const getFeeDetails = (fees?: any) => {
   const pending = Number(fees?.dueAmount ?? fees?.pending ?? Math.max(0, total - paid));
   return { total, paid, pending };
 };
-
-// ─── BASE DATA WITH ENRICHED PROFILES ────────────────────────────────────
-
-const SEED_STUDENTS = [
-  {
-    id: "ST001",
-    studentCode: "AAD-2026-001",
-    name: "Rahul Kumar",
-    email: "rahul.kumar@gmail.com",
-    phone: "9876543210",
-    course: "Full Stack Web Development",
-    batch: "FSWD-01 (MWF)",
-    faculty: "Prof. Rajesh Kumar",
-    branch: "Bengaluru Central",
-    branchId: "b-central",
-    attendance: 92,
-    consecutiveAbsences: 0,
-    progress: 78,
-    gender: "Male",
-    dob: "15 May 2002",
-    qualification: "B.Tech Computer Science",
-    guardianName: "Suresh Kumar",
-    guardianPhone: "9845012345",
-    fees: { total: 45000, paid: 45000, pending: 0, status: "Paid" },
-    status: "Active",
-    joinDate: "10 June 2026",
-    counsellor: "Sneha Reddy",
-  },
-  {
-    id: "ST002",
-    studentCode: "AAD-2026-002",
-    name: "Anjali Sharma",
-    email: "anjali.sharma@gmail.com",
-    phone: "9123456780",
-    course: "Graphic Design & UI/UX",
-    batch: "GD-02 (TTS)",
-    faculty: "Arjun Verma",
-    branch: "Malleswaram",
-    branchId: "b-malleswaram",
-    attendance: 84,
-    consecutiveAbsences: 0,
-    progress: 65,
-    gender: "Female",
-    dob: "22 Aug 2003",
-    qualification: "BCA",
-    guardianName: "Ramesh Sharma",
-    guardianPhone: "9811223344",
-    fees: { total: 40000, paid: 35000, pending: 5000, status: "Pending" },
-    status: "Active",
-    joinDate: "15 June 2026",
-    counsellor: "Arjun",
-  },
-  {
-    id: "ST003",
-    studentCode: "AAD-2026-003",
-    name: "Vikram Rao",
-    email: "vikram.rao@gmail.com",
-    phone: "9988776655",
-    course: "Tally Prime & Financial Accounting",
-    batch: "TP-01 (Morning)",
-    faculty: "Sneha Iyer",
-    branch: "Bengaluru Central",
-    branchId: "b-central",
-    attendance: 96,
-    consecutiveAbsences: 0,
-    progress: 91,
-    gender: "Male",
-    dob: "10 Jan 2001",
-    qualification: "B.Com",
-    guardianName: "Narayana Rao",
-    guardianPhone: "9900112233",
-    fees: { total: 25000, paid: 25000, pending: 0, status: "Paid" },
-    status: "Active",
-    joinDate: "01 July 2026",
-    counsellor: "Priya",
-  },
-  {
-    id: "ST004",
-    studentCode: "AAD-2026-004",
-    name: "Karan Singh",
-    email: "karan.singh@gmail.com",
-    phone: "8899001122",
-    course: "Python & Data Science",
-    batch: "PY-03 (Weekend)",
-    faculty: "Rahul Dev",
-    branch: "Ramamurthy Nagar",
-    branchId: "b-ramamurthy",
-    attendance: 58,
-    consecutiveAbsences: 3,
-    progress: 42,
-    gender: "Male",
-    dob: "04 Nov 2002",
-    qualification: "B.Sc Statistics",
-    guardianName: "Baldev Singh",
-    guardianPhone: "8877665544",
-    fees: { total: 50000, paid: 35000, pending: 15000, status: "Pending" },
-    status: "At Risk",
-    joinDate: "20 May 2026",
-    counsellor: "Sneha Reddy",
-  },
-  {
-    id: "ST005",
-    studentCode: "AAD-2026-005",
-    name: "Sneha Iyer",
-    email: "sneha.iyer@gmail.com",
-    phone: "9871234560",
-    course: "Digital Marketing Mastery",
-    batch: "DM-01 (MWF)",
-    faculty: "Priya Menon",
-    branch: "Bengaluru Central",
-    branchId: "b-central",
-    attendance: 88,
-    consecutiveAbsences: 0,
-    progress: 72,
-    gender: "Female",
-    dob: "18 Sep 2003",
-    qualification: "BBA",
-    guardianName: "Subramanian Iyer",
-    guardianPhone: "9822334455",
-    fees: { total: 35000, paid: 35000, pending: 0, status: "Paid" },
-    status: "Active",
-    joinDate: "12 June 2026",
-    counsellor: "Rahul",
-  },
-  {
-    id: "ST006",
-    studentCode: "AAD-2026-006",
-    name: "Mohammed Ali",
-    email: "ali.mohammed@gmail.com",
-    phone: "8899776655",
-    course: "Full Stack Web Development",
-    batch: "FSWD-02 (Evening)",
-    faculty: "Prof. Rajesh Kumar",
-    branch: "Malleswaram",
-    branchId: "b-malleswaram",
-    attendance: 75,
-    consecutiveAbsences: 1,
-    progress: 60,
-    gender: "Male",
-    dob: "29 Dec 2001",
-    qualification: "Diploma in CS",
-    guardianName: "Ahmed Ali",
-    guardianPhone: "8811223344",
-    fees: { total: 45000, paid: 40000, pending: 5000, status: "Pending" },
-    status: "Active",
-    joinDate: "05 July 2026",
-    counsellor: "Sneha Reddy",
-  },
-  {
-    id: "ST007",
-    studentCode: "AAD-2026-007",
-    name: "Pooja Patel",
-    email: "pooja.patel@gmail.com",
-    phone: "7788990011",
-    course: "Graphic Design & UI/UX",
-    batch: "GD-01 (Morning)",
-    faculty: "Arjun Verma",
-    branch: "Bengaluru Central",
-    branchId: "b-central",
-    attendance: 52,
-    consecutiveAbsences: 2,
-    progress: 30,
-    gender: "Female",
-    dob: "14 Feb 2004",
-    qualification: "12th Standard",
-    guardianName: "Dinesh Patel",
-    guardianPhone: "7766554433",
-    fees: { total: 40000, paid: 30000, pending: 10000, status: "Pending" },
-    status: "At Risk",
-    joinDate: "22 May 2026",
-    counsellor: "Priya",
-  },
-];
 
 export const AllStudents: React.FC = () => {
   const navigate = useNavigate();
@@ -218,15 +45,18 @@ export const AllStudents: React.FC = () => {
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
+  const { courses: allCourses } = useCourses();
 
-  // Live database students
-  const { data: liveStudentsResponse } = useStudentList({ limit: 100 });
+  // Live database students filtered by branch
+  const { data: liveStudentsResponse, isLoading } = useStudentList({
+    limit: 200,
+    branchId: selectedBranchId !== "ALL" ? selectedBranchId : undefined,
+  });
   const liveStudents = liveStudentsResponse?.data || [];
 
-  // Merge live database records with demo seed dataset
   const combinedStudents = useMemo(() => {
-    const liveFormatted = liveStudents.map((s) => {
-      const isRisk = s.status === "DISCONTINUED" || (s.attendance && s.attendance.overallPercentage < 65);
+    return liveStudents.map((s) => {
+      const isRisk = s.status === "DISCONTINUED" || (s.attendance && s.attendance.overallPercentage < 65) || (s.attendance && s.attendance.consecutiveAbsences >= 2);
       return {
         id: s.id,
         studentCode: s.studentCode,
@@ -236,11 +66,11 @@ export const AllStudents: React.FC = () => {
         course: s.courseName || "Full Stack Web Development",
         batch: s.batchName || "Regular Batch",
         faculty: s.facultyName || "Assigned Faculty",
-        branch: s.branch?.name || "Bengaluru Central",
+        branch: s.branch?.name || "Aadya Branch",
         branchId: s.branchId,
         attendance: s.attendance?.overallPercentage ?? 92,
         consecutiveAbsences: s.attendance?.consecutiveAbsences ?? (isRisk ? 3 : 0),
-        progress: 75,
+        progress: s.status === "COMPLETED" ? 100 : 75,
         gender: s.gender || "Male",
         dob: s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : "—",
         qualification: s.qualification || "Graduate",
@@ -252,13 +82,6 @@ export const AllStudents: React.FC = () => {
         counsellor: s.counsellorName || "Admissions Desk",
       };
     });
-
-    // Remove duplicates if live ID matches seed
-    const seedFiltered = SEED_STUDENTS.filter(
-      (seed) => !liveFormatted.some((l) => l.studentCode === seed.studentCode)
-    );
-
-    return [...liveFormatted, ...seedFiltered];
   }, [liveStudents]);
 
   // Filter students by selected branch, search, course, and tab
@@ -440,11 +263,11 @@ export const AllStudents: React.FC = () => {
               className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]"
             >
               <option value="All Courses">All Courses</option>
-              <option value="Full Stack Web Development">Full Stack Web Development</option>
-              <option value="Graphic Design & UI/UX">Graphic Design & UI/UX</option>
-              <option value="Tally Prime & Financial Accounting">Tally Prime & Accounting</option>
-              <option value="Python & Data Science">Python & Data Science</option>
-              <option value="Digital Marketing Mastery">Digital Marketing</option>
+              {allCourses.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
         </div>

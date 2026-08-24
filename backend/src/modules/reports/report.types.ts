@@ -26,6 +26,7 @@ export interface StudentPerformanceRow {
   id: string;
   studentCode: string;
   name: string;
+  branchId?: string;
   branchName: string;
   courseName: string;
   attendancePercentage: number;

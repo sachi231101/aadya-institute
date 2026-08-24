@@ -299,7 +299,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { selectedBranchId, branches } = useBranchStore();
+  const { selectedBranchId } = useBranchStore();
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"

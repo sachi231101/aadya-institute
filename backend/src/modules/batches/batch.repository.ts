@@ -32,7 +32,7 @@ const batchInclude = {
   },
   schedules: true,
   enrollments: {
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE" as any },
     select: {
       id: true,
       studentId: true,

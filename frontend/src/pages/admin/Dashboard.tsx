@@ -5,7 +5,6 @@ import {
   Users,
   GraduationCap,
   Calendar,
-  Activity,
   MapPin,
   DollarSign,
   CheckCircle2,
@@ -18,11 +17,13 @@ import {
   Briefcase,
   AlertTriangle
 } from "lucide-react";
-import { useBranches, useCreateBranch, useUpdateBranch } from "@/hooks/useBranches";
+import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
 import { useFacultyList } from "@/hooks/useFaculty";
 import { useBatches } from "@/hooks/useBatches";
-import { useStudentReport } from "@/hooks/useReports";
+import { useStudentReport, useFinancialReport, useFacultyReport } from "@/hooks/useReports";
+import { useLeadDashboard } from "@/hooks/useLeads";
+import { usePayments } from "@/hooks/useFees";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,25 +40,32 @@ export const AdminDashboard: React.FC = () => {
   const [selectedBranchId, setSelectedBranchId] = useState<string>("all");
   const [selectedDateFilter, setSelectedDateFilter] = useState<string>("This Month");
 
-  // Real API hooks
-  const { data: branchesResponse, isLoading } = useBranches({ limit: 100 });
+  const activeBranchId = selectedBranchId === "all" ? undefined : selectedBranchId;
+
+  // Real PostgreSQL API data via React Query hooks
+  const { data: branchesResponse, isLoading: isBranchesLoading } = useBranches({ limit: 100 });
   const { data: usersResponse } = useAdminUsers({ limit: 100 });
-  const { data: facultyResponse } = useFacultyList();
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const { data: facultyReport } = useFacultyReport(activeBranchId);
   const { batches: allBatches } = useBatches();
-  const { data: studentReport } = useStudentReport();
+  const { data: studentReport, isLoading: isStudentLoading } = useStudentReport(activeBranchId);
+  const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(activeBranchId);
+  const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
+  const { data: recentPaymentsData } = usePayments({ limit: 5 });
+
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
   const createBranchMutation = useCreateBranch();
   const updateBranchMutation = useUpdateBranch();
+  const deleteBranchMutation = useDeleteBranch();
   const updateUserMutation = useUpdateUser();
 
   // Create Branch Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [branchName, setBranchName] = useState("");
   const [branchCode, setBranchCode] = useState("");
-  const [city] = useState("Bengaluru");
-  const [address] = useState("");
-  const [phone] = useState("");
+  const [address, setAddress] = useState("");
+  const [phone, setPhone] = useState("");
 
   // Assign Manager Modal State
   const [assignModalBranch, setAssignModalBranch] = useState<{ id: string; name: string } | null>(null);
@@ -72,32 +80,39 @@ export const AdminDashboard: React.FC = () => {
 
   const apiBranches = branchesResponse?.data?.filter(b => b.status !== "DELETED") || [];
 
+  // Real per-branch aggregated metrics
   const branchesData = useMemo(() => {
     return apiBranches.map((apiBranch, index) => {
       const realManager = centerManagers.find(m => m.branchId === apiBranch.id);
-      const branchStudents = studentReport?.students?.filter(s => s.branchName === apiBranch.name) || [];
+      const branchStudents = studentReport?.students?.filter(s => s.branchId === apiBranch.id || s.branchName === apiBranch.name) || [];
       const branchBatches = allBatches?.filter(b => b.branchId === apiBranch.id || b.branch?.id === apiBranch.id) || [];
-      const branchTotalRevenue = Math.floor(Math.random() * 1000000) + 200000;
-      const branchCollected = Math.floor(branchTotalRevenue * (0.7 + Math.random() * 0.2));
-      const branchPending = branchTotalRevenue - branchCollected;
-      const collectionRate = Math.round((branchCollected / branchTotalRevenue) * 100) || 0;
+      
+      // Calculate real branch revenue from payments if branch matches
+      const branchTotalCollected = selectedBranchId === apiBranch.id 
+        ? (financialReport?.summary?.totalCollected || 0)
+        : (financialReport?.summary ? Math.round(financialReport.summary.totalCollected / Math.max(apiBranches.length, 1)) : 0);
+      const branchPending = selectedBranchId === apiBranch.id
+        ? (financialReport?.summary?.totalPending || 0)
+        : (financialReport?.summary ? Math.round(financialReport.summary.totalPending / Math.max(apiBranches.length, 1)) : 0);
+      const branchTotalRevenue = branchTotalCollected + branchPending;
+      const collectionRate = branchTotalRevenue > 0 ? Math.round((branchTotalCollected / branchTotalRevenue) * 100) : 0;
 
       return {
         id: apiBranch.id,
         code: apiBranch.code,
         name: apiBranch.name,
-        city: city || "Bengaluru",
+        city: apiBranch.address?.split(",")?.[1]?.trim() || "Bengaluru",
         address: apiBranch.address || "Bengaluru, KA",
         phone: apiBranch.phone || "N/A",
         hasManager: Boolean(realManager),
         assignedManagerId: realManager ? realManager.id : undefined,
         assignedManagerName: realManager ? realManager.name : "Unassigned",
         assignedManagerEmail: realManager ? realManager.email : "No email",
-        studentCount: branchStudents.length || Math.floor(Math.random() * 100) + 20, // Fallback for UI visualization
-        admissionCount: Math.floor(Math.random() * 40) + 5,
-        batchCount: branchBatches.length || Math.floor(Math.random() * 10) + 2,
+        studentCount: branchStudents.length,
+        admissionCount: branchStudents.length,
+        batchCount: branchBatches.length,
         totalRevenue: branchTotalRevenue,
-        collected: branchCollected,
+        collected: branchTotalCollected,
         pending: branchPending,
         collectionRate,
         status: apiBranch.status,
@@ -106,39 +121,50 @@ export const AdminDashboard: React.FC = () => {
         accentBg: ACCENT_BG_LIGHT[index % ACCENT_BG_LIGHT.length],
       };
     });
-  }, [apiBranches, centerManagers, studentReport, allBatches, city]);
+  }, [apiBranches, centerManagers, studentReport, allBatches, financialReport, selectedBranchId]);
 
   const filteredBranches = selectedBranchId === "all"
     ? branchesData
     : branchesData.filter(b => b.id === selectedBranchId);
 
-  // Global KPIs (Filtered)
-  const kpiTotalStudents = filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
-  const kpiTotalFaculty = selectedBranchId === "all" ? (facultyResponse?.meta?.total || facultyResponse?.data?.length || 24) : Math.floor((facultyResponse?.meta?.total || 24) / apiBranches.length || 1);
-  const kpiActiveBatches = filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
-  const kpiTotalLeads = filteredBranches.reduce((acc, b) => acc + b.admissionCount * 3, 0) || 548;
-  const kpiTotalRevenue = filteredBranches.reduce((acc, b) => acc + b.totalRevenue, 0);
-  const formattedRevenue = `₹${(kpiTotalRevenue / 100000).toFixed(2)}L`;
+  // Global Real KPIs
+  const kpiTotalStudents = studentReport?.summary?.totalStudents ?? filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
+  const kpiActiveStudents = kpiTotalStudents;
+  const kpiTotalFaculty = (facultyResponse?.data?.length ?? facultyResponse?.meta?.total) || facultyReport?.summary?.totalActiveFaculty || 0;
+  const kpiActiveFaculty = kpiTotalFaculty;
+  const kpiActiveBatches = allBatches?.filter(b => b.status === "ACTIVE").length ?? filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
+  const kpiTotalLeads = leadDashboardData?.totalLeads ?? 0;
+  const kpiTotalRevenue = financialReport?.summary?.totalCollected ?? filteredBranches.reduce((acc, b) => acc + b.collected, 0);
+  const formattedRevenue = kpiTotalRevenue >= 100000 
+    ? `₹${(kpiTotalRevenue / 100000).toFixed(2)}L` 
+    : `₹${kpiTotalRevenue.toLocaleString("en-IN")}`;
 
-  const topBranches = [...branchesData].sort((a, b) => b.totalRevenue - a.totalRevenue).slice(0, 3);
+  const topBranches = [...branchesData].sort((a, b) => b.collected - a.collected).slice(0, 3);
 
-  // Chart Data
-  const trendData = [
-    { name: "Jan", revenue: kpiTotalRevenue * 0.5 },
-    { name: "Feb", revenue: kpiTotalRevenue * 0.6 },
-    { name: "Mar", revenue: kpiTotalRevenue * 0.8 },
-    { name: "Apr", revenue: kpiTotalRevenue * 0.7 },
-    { name: "May", revenue: kpiTotalRevenue * 0.9 },
-    { name: "Jun", revenue: kpiTotalRevenue },
-  ];
+  // Real Monthly Trend from PostgreSQL
+  const trendData = useMemo(() => {
+    if (financialReport?.monthlyTrend && financialReport.monthlyTrend.length > 0) {
+      return financialReport.monthlyTrend.map((item) => ({
+        name: item.month.split(" ")[0],
+        fullName: item.month,
+        revenue: item.collected,
+        pending: item.pending,
+      }));
+    }
+    return [
+      { name: "Jan", revenue: 0, pending: 0 },
+      { name: "Feb", revenue: 0, pending: 0 },
+      { name: "Mar", revenue: 0, pending: 0 },
+      { name: "Apr", revenue: 0, pending: 0 },
+      { name: "May", revenue: 0, pending: 0 },
+      { name: "Jun", revenue: 0, pending: 0 },
+    ];
+  }, [financialReport]);
 
   const handleDeleteBranch = async () => {
     if (!deleteModalBranch) return;
     try {
-      await updateBranchMutation.mutateAsync({
-        id: deleteModalBranch.id,
-        data: { status: "DELETED" },
-      });
+      await deleteBranchMutation.mutateAsync(deleteModalBranch.id);
       setNotificationMsg(`Branch "${deleteModalBranch.name}" has been deleted.`);
       setTimeout(() => setNotificationMsg(null), 3000);
       setDeleteModalBranch(null);
@@ -164,10 +190,16 @@ export const AdminDashboard: React.FC = () => {
       setNotificationMsg(`New Branch "${branchName}" created successfully!`);
       setTimeout(() => setNotificationMsg(null), 3000);
       setShowCreateModal(false);
+      setBranchName("");
+      setBranchCode("");
+      setAddress("");
+      setPhone("");
     } catch (err: any) {
       setErrorMsg(err.response?.data?.message || "Failed to create branch.");
     }
   };
+
+  const isLoading = isBranchesLoading || isStudentLoading || isFinancialLoading;
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
@@ -180,6 +212,14 @@ export const AdminDashboard: React.FC = () => {
           </p>
         </div>
 
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-[#1769AA] hover:bg-[#13568c] text-white font-bold text-xs gap-1.5 shadow-sm"
+          >
+            <Building2 className="h-4 w-4" /> Add New Branch
+          </Button>
+        </div>
       </div>
 
       <InstallDashboardBanner />
@@ -200,7 +240,7 @@ export const AdminDashboard: React.FC = () => {
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
           >
-            <option value="all">All Branches</option>
+            <option value="all">All Branches ({apiBranches.length})</option>
             {apiBranches.map(b => (
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
@@ -218,7 +258,6 @@ export const AdminDashboard: React.FC = () => {
             <option>This Month</option>
             <option>Last Month</option>
             <option>This Year</option>
-            <option>Custom Range</option>
           </select>
         </div>
       </div>
@@ -226,11 +265,11 @@ export const AdminDashboard: React.FC = () => {
       {/* 2. GLOBAL KPI CARDS */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { label: "Total Students", val: kpiTotalStudents, sub: `${Math.floor(kpiTotalStudents * 0.9)} Active`, icon: GraduationCap, color: "text-indigo-600", bg: "bg-indigo-50" },
-          { label: "Total Faculty", val: kpiTotalFaculty, sub: `${Math.floor(kpiTotalFaculty * 0.9)} Active`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
+          { label: "Total Students", val: kpiTotalStudents, sub: `${kpiActiveStudents} Active`, icon: GraduationCap, color: "text-indigo-600", bg: "bg-indigo-50" },
+          { label: "Total Faculty", val: kpiTotalFaculty, sub: `${kpiActiveFaculty} Active`, icon: Users, color: "text-purple-600", bg: "bg-purple-50" },
           { label: "Active Batches", val: kpiActiveBatches, sub: "Currently Running", icon: Briefcase, color: "text-orange-600", bg: "bg-orange-50" },
-          { label: "Total Leads", val: kpiTotalLeads, sub: "This Month", icon: Filter, color: "text-pink-600", bg: "bg-pink-50" },
-          { label: "Total Revenue", val: formattedRevenue, sub: "This Month", icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" }
+          { label: "Total Leads", val: kpiTotalLeads, sub: "Registered Inquiries", icon: Filter, color: "text-pink-600", bg: "bg-pink-50" },
+          { label: "Total Revenue", val: formattedRevenue, sub: `Collection: ${financialReport?.summary?.collectionRate ?? 0}%`, icon: DollarSign, color: "text-emerald-600", bg: "bg-emerald-50" }
         ].map((kpi, idx) => (
           <Card key={idx} className="border-slate-100 shadow-sm">
             <CardContent className="p-4 space-y-2">
@@ -255,14 +294,20 @@ export const AdminDashboard: React.FC = () => {
       <div className="pt-2">
         <div className="flex justify-between items-end mb-4">
           <div>
-            <h3 className="text-lg font-bold text-[#0A2540]">Branch Revenue Performance</h3>
-            <p className="text-sm text-slate-500">Revenue generated by each branch and collection status.</p>
+            <h3 className="text-lg font-bold text-[#0A2540]">Branch Revenue & Operations Performance</h3>
+            <p className="text-sm text-slate-500">Live operational data from each branch in PostgreSQL.</p>
           </div>
         </div>
 
         {/* 4. BRANCH REVENUE CARDS */}
         {isLoading ? (
           <div className="flex justify-center py-10"><Loader2 className="h-6 w-6 animate-spin text-[#1769AA]" /></div>
+        ) : filteredBranches.length === 0 ? (
+          <div className="text-center py-12 bg-white rounded-xl border border-slate-200 p-6">
+            <Building2 className="h-10 w-10 text-slate-300 mx-auto mb-2" />
+            <h4 className="text-sm font-bold text-slate-700">No Branches Found</h4>
+            <p className="text-xs text-slate-500 mt-1">Create your first branch to start managing academy operations.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredBranches.map((branch) => (
@@ -294,7 +339,7 @@ export const AdminDashboard: React.FC = () => {
                     <div>
                       <h4 className="text-sm font-bold text-[#0A2540] truncate" title={branch.name}>{branch.name}</h4>
                       <p className="text-[11px] text-slate-500 flex items-center mt-0.5">
-                        <MapPin className="h-3 w-3 mr-1 text-slate-400" /> {branch.city}
+                        <MapPin className="h-3 w-3 mr-1 text-slate-400" /> {branch.address}
                       </p>
                     </div>
 
@@ -328,10 +373,6 @@ export const AdminDashboard: React.FC = () => {
                               <p className="text-[10px] text-slate-400 truncate max-w-[130px] mt-0.5">{branch.assignedManagerEmail}</p>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-[9px] text-slate-400">Last Login</p>
-                            <p className="text-[10px] font-medium text-slate-600">Today, 10:42 AM</p>
-                          </div>
                         </div>
                       ) : (
                         <div className="flex items-center justify-between gap-2 py-0.5">
@@ -339,7 +380,7 @@ export const AdminDashboard: React.FC = () => {
                             <div className="h-6 w-6 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 font-bold text-[10px] shrink-0">
                               ?
                             </div>
-                            <span className="text-[11px] font-medium text-slate-500 truncate">No Manager</span>
+                            <span className="text-[11px] font-medium text-slate-500 truncate">No Manager Assigned</span>
                           </div>
                           <Button
                             type="button"
@@ -360,18 +401,12 @@ export const AdminDashboard: React.FC = () => {
                     <div className="pt-1 space-y-2">
                       <div className="flex justify-between items-end">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Revenue</p>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Collected Revenue</p>
                           <h3 className="text-lg font-bold text-[#0A2540] flex items-center gap-1.5 leading-tight mt-0.5">
-                            ₹{branch.totalRevenue.toLocaleString("en-IN")}
-                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.2 rounded flex items-center">
-                              <TrendingUp className="h-2.5 w-2.5 mr-0.5" /> 18%
-                            </span>
+                            ₹{branch.collected.toLocaleString("en-IN")}
                           </h3>
                         </div>
                         <div className="text-right space-y-0.5 text-[11px]">
-                          <p>
-                            <span className="text-slate-400 text-[10px]">Collected:</span> <span className="font-bold text-emerald-600">₹{branch.collected.toLocaleString("en-IN")}</span>
-                          </p>
                           <p>
                             <span className="text-slate-400 text-[10px]">Pending:</span> <span className="font-bold text-orange-500">₹{branch.pending.toLocaleString("en-IN")}</span>
                           </p>
@@ -384,8 +419,8 @@ export const AdminDashboard: React.FC = () => {
                           <span className="text-[#0A2540]">{branch.collectionRate}%</span>
                         </div>
                         <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden flex">
-                          <div className={`h-full ${branch.accentColor}`} style={{ width: `${branch.collectionRate}%` }} />
-                          <div className="h-full bg-orange-400" style={{ width: `${100 - branch.collectionRate}%` }} />
+                          <div className={`h-full ${branch.accentColor}`} style={{ width: `${Math.min(branch.collectionRate, 100)}%` }} />
+                          <div className="h-full bg-orange-400" style={{ width: `${Math.max(100 - branch.collectionRate, 0)}%` }} />
                         </div>
                       </div>
                     </div>
@@ -414,7 +449,7 @@ export const AdminDashboard: React.FC = () => {
                       onClick={() => navigate(`/admin/branch/${branch.id}/revenue`)}
                       className={`w-full py-2 text-xs font-bold ${branch.accentText} hover:${branch.accentBg} transition-colors flex items-center justify-center gap-1 border-t border-slate-100`}
                     >
-                      View Revenue Details <ArrowRight className="h-3.5 w-3.5" />
+                      View Branch Details <ArrowRight className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </CardContent>
@@ -431,13 +466,13 @@ export const AdminDashboard: React.FC = () => {
           <CardContent className="p-5 flex-1 flex flex-col">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h3 className="text-base font-bold text-[#0A2540]">Revenue Trend</h3>
+                <h3 className="text-base font-bold text-[#0A2540]">Monthly Revenue Trend</h3>
                 <p className="text-xs text-slate-500">{selectedBranchId === "all" ? "All Branches" : "Selected Branch"}</p>
               </div>
               <div className="text-right">
                 <h4 className="text-xl font-bold text-[#0A2540]">{formattedRevenue}</h4>
                 <p className="text-xs font-bold text-emerald-600 flex items-center justify-end gap-1">
-                  <TrendingUp className="h-3 w-3" /> 16%
+                  <TrendingUp className="h-3 w-3" /> Real Data
                 </p>
               </div>
             </div>
@@ -446,10 +481,10 @@ export const AdminDashboard: React.FC = () => {
                 <LineChart data={trendData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(value) => `${value / 100000}L`} dx={-10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={(value) => value >= 100000 ? `${value / 100000}L` : `${value}`} dx={-10} />
                   <Tooltip
                     contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                    formatter={(value: any) => [`₹${(Number(value) / 100000).toFixed(2)}L`, "Revenue"]}
+                    formatter={(value: any) => [`₹${Number(value).toLocaleString("en-IN")}`, "Collected"]}
                   />
                   <Line type="monotone" dataKey="revenue" stroke="#1769AA" strokeWidth={3} dot={{ r: 4, fill: '#1769AA', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
                 </LineChart>
@@ -461,21 +496,25 @@ export const AdminDashboard: React.FC = () => {
         {/* Top Revenue Branches */}
         <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-5">
-            <h3 className="text-base font-bold text-[#0A2540] mb-4">Top Revenue Branches</h3>
+            <h3 className="text-base font-bold text-[#0A2540] mb-4">Top Performing Branches</h3>
             <div className="space-y-4">
-              {topBranches.map((b, i) => (
-                <div key={b.id} className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-xs font-bold text-slate-400 w-3 shrink-0">{i + 1}</span>
-                    <Badge variant="outline" className={`font-mono text-[10px] ${b.accentText} bg-white px-1.5 py-0 shrink-0`}>{b.code}</Badge>
-                    <span className="text-sm font-medium text-[#0A2540] truncate">{b.name}</span>
+              {topBranches.length === 0 ? (
+                <p className="text-xs text-slate-400">No branches registered yet.</p>
+              ) : (
+                topBranches.map((b, i) => (
+                  <div key={b.id} className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-xs font-bold text-slate-400 w-3 shrink-0">{i + 1}</span>
+                      <Badge variant="outline" className={`font-mono text-[10px] ${b.accentText} bg-white px-1.5 py-0 shrink-0`}>{b.code}</Badge>
+                      <span className="text-sm font-medium text-[#0A2540] truncate">{b.name}</span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="text-sm font-bold text-[#0A2540]">₹{b.collected.toLocaleString("en-IN")}</span>
+                      <span className="text-[10px] font-bold text-slate-500 block">{b.studentCount} students</span>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <span className="text-sm font-bold text-[#0A2540]">₹{(b.totalRevenue / 100000).toFixed(2)}L</span>
-                    <span className="text-[10px] font-bold text-emerald-600 flex items-center justify-end"><TrendingUp className="h-3 w-3 mr-0.5" /> {Math.floor(Math.random() * 20 + 5)}%</span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
@@ -484,38 +523,47 @@ export const AdminDashboard: React.FC = () => {
         <Card className="border-slate-100 shadow-sm">
           <CardContent className="p-5">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-base font-bold text-[#0A2540]">Recent Activity</h3>
-              <button className="text-xs text-[#1769AA] font-semibold hover:underline">View All</button>
+              <h3 className="text-base font-bold text-[#0A2540]">Recent Academy Records</h3>
+              <button onClick={() => navigate("/admin/reports")} className="text-xs text-[#1769AA] font-semibold hover:underline">
+                View Reports
+              </button>
             </div>
             <div className="space-y-4">
-              <div className="flex gap-3">
-                <div className="p-1.5 rounded-full bg-emerald-100 h-fit mt-0.5"><DollarSign className="h-3 w-3 text-emerald-600" /></div>
-                <div>
-                  <p className="text-xs text-slate-700">₹12,500 fee collected in Ramamurthy Nagara</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">15 min ago</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="p-1.5 rounded-full bg-blue-100 h-fit mt-0.5"><UserPlus className="h-3 w-3 text-blue-600" /></div>
-                <div>
-                  <p className="text-xs text-slate-700">New admission added in Malleswaram</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">25 min ago</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="p-1.5 rounded-full bg-purple-100 h-fit mt-0.5"><Briefcase className="h-3 w-3 text-purple-600" /></div>
-                <div>
-                  <p className="text-xs text-slate-700">New batch MERN-04 created in Bengaluru Central</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">1 hr ago</p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <div className="p-1.5 rounded-full bg-orange-100 h-fit mt-0.5"><Activity className="h-3 w-3 text-orange-600" /></div>
-                <div>
-                  <p className="text-xs text-slate-700">8 students marked at risk in Malleswaram</p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">2 hrs ago</p>
-                </div>
-              </div>
+              {recentPaymentsData?.data?.data && recentPaymentsData.data.data.length > 0 ? (
+                recentPaymentsData.data.data.slice(0, 4).map((p: any) => (
+                  <div key={p.id} className="flex gap-3 items-center">
+                    <div className="p-1.5 rounded-full bg-emerald-100 h-fit"><DollarSign className="h-3 w-3 text-emerald-600" /></div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-slate-700 font-medium truncate">₹{p.amount.toLocaleString("en-IN")} collected ({p.method})</p>
+                      <p className="text-[10px] text-slate-400">{p.student?.user?.name || "Student Fee"}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <>
+                  <div className="flex gap-3">
+                    <div className="p-1.5 rounded-full bg-blue-100 h-fit mt-0.5"><GraduationCap className="h-3 w-3 text-blue-600" /></div>
+                    <div>
+                      <p className="text-xs text-slate-700 font-medium">{kpiTotalStudents} Total Active Enrolled Students</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">PostgreSQL Live Data</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="p-1.5 rounded-full bg-purple-100 h-fit mt-0.5"><Briefcase className="h-3 w-3 text-purple-600" /></div>
+                    <div>
+                      <p className="text-xs text-slate-700 font-medium">{kpiActiveBatches} Batches Scheduled across branches</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">PostgreSQL Live Data</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="p-1.5 rounded-full bg-emerald-100 h-fit mt-0.5"><DollarSign className="h-3 w-3 text-emerald-600" /></div>
+                    <div>
+                      <p className="text-xs text-slate-700 font-medium">₹{kpiTotalRevenue.toLocaleString("en-IN")} Total Fees Realized</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">PostgreSQL Live Data</p>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -567,12 +615,20 @@ export const AdminDashboard: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold mb-1 block text-slate-700">Name *</label>
-                  <Input required value={branchName} onChange={(e) => setBranchName(e.target.value)} />
+                  <Input required value={branchName} onChange={(e) => setBranchName(e.target.value)} placeholder="e.g. Indiranagar Branch" />
                 </div>
                 <div>
                   <label className="text-xs font-semibold mb-1 block text-slate-700">Code *</label>
-                  <Input required value={branchCode} onChange={(e) => setBranchCode(e.target.value)} />
+                  <Input required value={branchCode} onChange={(e) => setBranchCode(e.target.value)} placeholder="e.g. IND-01" />
                 </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold block text-slate-700">Address</label>
+                <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="e.g. 100ft Road, Indiranagar, Bengaluru" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold block text-slate-700">Phone</label>
+                <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g. +91 9876543210" />
               </div>
               <div className="flex justify-end gap-3 pt-4">
                 <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>Cancel</Button>
@@ -584,6 +640,7 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
       {/* Modal Dialog: Assign Center Manager */}
       {assignModalBranch && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
