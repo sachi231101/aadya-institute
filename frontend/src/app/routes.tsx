@@ -150,7 +150,7 @@ export const AppRoutes: React.FC = () => {
         {/* Faculty */}
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
-          <Route path="timetable" element={<FacultyTimetable />} />
+          <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
@@ -232,6 +232,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CenterDashboard />} />
         <Route path="ask-me" element={<AskMe />} />
+        <Route path="timetable" element={<Timetable />} />
 
         {/* Students */}
         <Route path="students">
@@ -255,10 +256,16 @@ export const AppRoutes: React.FC = () => {
         {/* Faculty */}
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
+          <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
+        </Route>
+
+        {/* Schedule */}
+        <Route path="schedule">
+          <Route path="timetable" element={<Timetable />} />
         </Route>
 
         {/* Fees */}
@@ -333,13 +340,13 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
-          <Route path="timetable" element={<FacultyTimetable />} />
+          <Route path="timetable" element={<Timetable />} />
           <Route path="ratings" element={<FacultyRatings />} />
         </Route>
 
         {/* Batches & Schedules */}
         <Route path="batches" element={<CounsellorBatches />} />
-        <Route path="timetable" element={<FacultyTimetable />} />
+        <Route path="timetable" element={<Timetable />} />
 
         {/* Fees */}
         <Route path="fees">
@@ -390,6 +397,8 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id" element={<StudentDetails />} />
           <Route path=":id/edit" element={<EditStudent />} />
         </Route>
+        <Route path="timetable" element={<FacultyTimetable />} />
+        <Route path="classes" element={<FacultyTimetable />} />
         <Route path="schedule">
           <Route path="classes" element={<FacultyTimetable />} />
           <Route path="timetable" element={<FacultyTimetable />} />

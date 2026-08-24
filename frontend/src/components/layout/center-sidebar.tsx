@@ -8,7 +8,8 @@ import {
   ChevronRight,
   LogOut,
   Sparkles,
-  Bot
+  Bot,
+  Calendar
 } from "lucide-react"
 
 import {
@@ -74,6 +75,12 @@ const centerNavItems = [
       { title: "All Courses", url: "/center/courses/all" },
       { title: "Batches", url: "/center/courses/batches" },
     ],
+  },
+  {
+    title: "Timetable",
+    url: "/center/timetable",
+    icon: Calendar,
+    isActive: false,
   },
   {
     title: "Settings",
