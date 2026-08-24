@@ -8,6 +8,7 @@ import {
   getBranch,
   createBranch,
   updateBranch,
+  deleteBranch,
   getBranchStats,
 } from "./branch.controller";
 import {
@@ -52,6 +53,14 @@ router.patch(
   requireBranchAccess("id"),
   validate(updateBranchSchema),
   updateBranch
+);
+
+// DELETE /api/v1/branches/:id — Delete branch (Admin only)
+router.delete(
+  "/:id",
+  requirePermission("branch.delete"),
+  requireBranchAccess("id"),
+  deleteBranch
 );
 
 // GET /api/v1/branches/:id/stats — Branch summary dashboard metrics

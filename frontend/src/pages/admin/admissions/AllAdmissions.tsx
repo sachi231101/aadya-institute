@@ -687,11 +687,11 @@ export const AllAdmissions: React.FC = () => {
     setTimeout(() => setCopiedAdmNo(null), 2000);
   };
 
-  // KPI Calculations
-  const totalAdmissionsCount = 128; // Static benchmark matching the mockup
-  const confirmedCount = 86;
-  const provisionalCount = 32;
-  const activeBatchesCount = 18;
+  // KPI Calculations strictly from real data
+  const totalAdmissionsCount = admissionsList.length;
+  const confirmedCount = admissionsList.filter((a) => (a.status as string) === "CONFIRMED" || (a.status as string) === "Active").length;
+  const provisionalCount = admissionsList.filter((a) => (a.status as string) === "PROVISIONAL" || (a.status as string) === "Pending").length;
+  const activeBatchesCount = new Set(admissionsList.map((a) => a.batchCode).filter(Boolean)).size;
 
   // Filter Logic
   const filteredAdmissions = useMemo(() => {

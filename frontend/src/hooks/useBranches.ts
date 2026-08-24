@@ -14,7 +14,16 @@ const BRANCHES_KEY = "branches";
 export const useBranches = (params?: BranchListParams) => {
   return useQuery({
     queryKey: [BRANCHES_KEY, params],
-    queryFn: () => branchesApi.getBranches(params),
+    queryFn: async () => {
+      const res = await branchesApi.getBranches(params);
+      if (res && Array.isArray(res.data)) {
+        return {
+          ...res,
+          data: res.data.filter((b) => b.status !== "DELETED"),
+        };
+      }
+      return res;
+    },
   });
 };
 
@@ -50,6 +59,19 @@ export const useUpdateBranch = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBranchPayload }) =>
       branchesApi.updateBranch(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [BRANCHES_KEY] });
+    },
+  });
+};
+
+/**
+ * Delete / Soft-delete a branch.
+ */
+export const useDeleteBranch = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => branchesApi.deleteBranch(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [BRANCHES_KEY] });
     },

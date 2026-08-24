@@ -112,7 +112,7 @@ interface TimetableStore {
 
 export const useTimetableStore = create<TimetableStore>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       classes: DEFAULT_SCHEDULES,
       batches: [],
       addClass: (cls) =>

@@ -13,8 +13,8 @@ export const findBranches = async (params: {
 
   const where: Prisma.BranchWhereInput = {
     instituteId,
+    status: status ? status : { not: "DELETED" },
     ...(branchId && { id: branchId }),
-    ...(status && { status }),
     ...(search && {
       OR: [
         { name: { contains: search, mode: "insensitive" } },
@@ -39,18 +39,13 @@ export const findBranches = async (params: {
 
 export const findBranchById = async (id: string, instituteId: string) => {
   return prisma.branch.findFirst({
-    where: { id, instituteId },
+    where: { id, instituteId, status: { not: "DELETED" } },
   });
 };
 
 export const findBranchByCode = async (code: string, instituteId: string) => {
-  return prisma.branch.findUnique({
-    where: {
-      instituteId_code: {
-        instituteId,
-        code,
-      },
-    },
+  return prisma.branch.findFirst({
+    where: { code, instituteId, status: { not: "DELETED" } },
   });
 };
 

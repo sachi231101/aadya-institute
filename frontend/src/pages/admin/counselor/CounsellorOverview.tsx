@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserCheck,
@@ -8,11 +8,18 @@ import {
   ThumbsUp,
   XCircle,
   Activity,
+  Loader2,
+  Search,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 import { useBranch } from "@/hooks/useBranches";
+import { useAdminUsers } from "@/hooks/useUsers";
+import { useLeads } from "@/hooks/useLeads";
+import type { Lead } from "@/services/leads.api";
+import type { UserResponse } from "@/services/users.api";
 import {
   Dialog,
   DialogContent,
@@ -20,197 +27,212 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// ─── DATA MATCHING SCREENSHOT 2 ──────────────────────────────────────────
-
-const COUNSELLOR_PERFORMANCE = [
-  {
-    id: "c1",
-    name: "Priya",
-    avatar: "https://i.pravatar.cc/150?u=priya_singh",
-    assigned: 65,
-    contacted: 58,
-    interested: 35,
-    followUps: 18,
-    converted: 15,
-    lost: 5,
-    rate: "23.1%",
-  },
-  {
-    id: "c2",
-    name: "Rahul",
-    avatar: "https://i.pravatar.cc/150?u=rahul_kumar",
-    assigned: 52,
-    contacted: 44,
-    interested: 27,
-    followUps: 15,
-    converted: 9,
-    lost: 8,
-    rate: "17.3%",
-  },
-  {
-    id: "c3",
-    name: "Sneha",
-    avatar: "https://i.pravatar.cc/150?u=sneha_patil",
-    assigned: 48,
-    contacted: 41,
-    interested: 21,
-    followUps: 12,
-    converted: 7,
-    lost: 6,
-    rate: "14.6%",
-  },
-  {
-    id: "c4",
-    name: "Arjun",
-    avatar: "https://i.pravatar.cc/150?u=arjun_reddy",
-    assigned: 55,
-    contacted: 42,
-    interested: 18,
-    followUps: 13,
-    converted: 7,
-    lost: 8,
-    rate: "12.7%",
-  },
-];
-
-const RECENT_LEAD_ACTIVITIES = [
-  {
-    id: "a1",
-    lead: "Rahul Kumar",
-    course: "Digital Marketing",
-    action: "Contacted by Priya",
-    time: "Today, 10:30 AM",
-    icon: Phone,
-    iconColor: "text-purple-600 bg-purple-50",
-  },
-  {
-    id: "a2",
-    lead: "Anjali Sharma",
-    course: "Graphic Designing",
-    action: "Follow-up scheduled",
-    time: "Today, 09:45 AM",
-    icon: Calendar,
-    iconColor: "text-pink-600 bg-pink-50",
-  },
-  {
-    id: "a3",
-    lead: "Vikram Rao",
-    course: "Tally Prime",
-    action: "Converted to Admission",
-    time: "Yesterday, 05:20 PM",
-    icon: CheckCircle2,
-    iconColor: "text-emerald-600 bg-emerald-50",
-  },
-  {
-    id: "a4",
-    lead: "Sneha Iyer",
-    course: "Web Designing",
-    action: "Interested",
-    time: "Yesterday, 04:10 PM",
-    icon: ThumbsUp,
-    iconColor: "text-amber-600 bg-amber-50",
-  },
-  {
-    id: "a5",
-    lead: "Karan Singh",
-    course: "Python Programming",
-    action: "Marked as Lost",
-    time: "Yesterday, 02:30 PM",
-    icon: XCircle,
-    iconColor: "text-red-600 bg-red-50",
-  },
-];
-
-const LEAD_TRACKING_DATA = [
-  {
-    id: "lt-1",
-    name: "Rahul Kumar",
-    course: "Digital Marketing",
-    contact: "9876543210",
-    assignedTo: "Priya",
-    assignedDate: "14 Aug 2026",
-    newChecked: true,
-    contactedChecked: true,
-    interestedChecked: true,
-    followUpChecked: false,
-    convertedChecked: false,
-    isLost: false,
-    stage: "Interested",
-    stageColor: "bg-amber-50 text-amber-700 border-amber-200",
-    nextFollowUp: "18 Aug 2026",
-  },
-  {
-    id: "lt-2",
-    name: "Anjali Sharma",
-    course: "Graphic Designing",
-    contact: "9123456789",
-    assignedTo: "Rahul",
-    assignedDate: "14 Aug 2026",
-    newChecked: true,
-    contactedChecked: true,
-    interestedChecked: false,
-    followUpChecked: false,
-    convertedChecked: false,
-    isLost: false,
-    stage: "Contacted",
-    stageColor: "bg-purple-50 text-purple-700 border-purple-200",
-    nextFollowUp: "17 Aug 2026",
-  },
-  {
-    id: "lt-3",
-    name: "Vikram Rao",
-    course: "Tally Prime",
-    contact: "9988776655",
-    assignedTo: "Sneha",
-    assignedDate: "13 Aug 2026",
-    newChecked: true,
-    contactedChecked: true,
-    interestedChecked: true,
-    followUpChecked: true,
-    convertedChecked: true,
-    isLost: false,
-    stage: "Converted",
-    stageColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    nextFollowUp: "—",
-  },
-  {
-    id: "lt-4",
-    name: "Karan Singh",
-    course: "Python Programming",
-    contact: "8899001122",
-    assignedTo: "Arjun",
-    assignedDate: "12 Aug 2026",
-    newChecked: true,
-    contactedChecked: true,
-    interestedChecked: false,
-    followUpChecked: false,
-    convertedChecked: false,
-    isLost: true,
-    stage: "Lost",
-    stageColor: "bg-red-50 text-red-700 border-red-200",
-    nextFollowUp: "—",
-  },
-];
+interface CounsellorPerf {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  branchName: string;
+  avatar: string;
+  assigned: number;
+  contacted: number;
+  interested: number;
+  followUps: number;
+  converted: number;
+  lost: number;
+  rate: string;
+}
 
 export const CounsellorOverview: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
+  const { selectedBranchId } = useBranchStore();
 
   const isCenterScope = location.pathname.startsWith("/center");
   const basePath = isCenterScope ? "/center" : "/admin";
+  const activeBranchId = isCenterScope
+    ? user?.branchId || undefined
+    : selectedBranchId === "ALL" || !selectedBranchId
+    ? undefined
+    : selectedBranchId;
 
   const { data: branchResponse } = useBranch(user?.branchId || undefined);
   const branchName = branchResponse?.data?.name || "Aadya Central Branch";
 
-  const [selectedCounsellor, setSelectedCounsellor] = useState<any | null>(null);
+  // Real Queries from PostgreSQL backend
+  const { data: usersResponse, isLoading: loadingUsers } = useAdminUsers({
+    role: "COUNSELLOR",
+    limit: 100,
+  });
+
+  const { data: leadsResponse, isLoading: loadingLeads } = useLeads({
+    limit: 100,
+    branchId: activeBranchId,
+  });
+
+  const [selectedCounsellor, setSelectedCounsellor] = useState<CounsellorPerf | null>(null);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  const allCounsellorUsers: UserResponse[] = useMemo(() => {
+    const rawUsers = (usersResponse?.data as UserResponse[]) || [];
+    if (!activeBranchId) return rawUsers;
+    return rawUsers.filter((u: UserResponse) => !u.branchId || u.branchId === activeBranchId);
+  }, [usersResponse?.data, activeBranchId]);
+
+  const allLeads: Lead[] = useMemo(() => {
+    return (leadsResponse?.data as Lead[]) || [];
+  }, [leadsResponse?.data]);
+
+  // Compute live performance metrics for each real counsellor
+  const counsellorPerformance: CounsellorPerf[] = useMemo(() => {
+    return allCounsellorUsers.map((c: UserResponse) => {
+      const counsellorLeads = allLeads.filter(
+        (l: Lead) => l.assignedCounsellorId === c.id || l.assignedCounsellor?.id === c.id
+      );
+
+      const assigned = counsellorLeads.length;
+      const contacted = counsellorLeads.filter(
+        (l: Lead) => l.stage !== "NEW" && l.stage !== "ASSIGNED"
+      ).length;
+      const interested = counsellorLeads.filter((l: Lead) =>
+        ["INTERESTED", "FOLLOW_UP", "CONVERTED"].includes(l.stage)
+      ).length;
+      const followUps = counsellorLeads.filter((l: Lead) => l.stage === "FOLLOW_UP").length;
+      const converted = counsellorLeads.filter((l: Lead) => l.stage === "CONVERTED").length;
+      const lost = counsellorLeads.filter((l: Lead) => l.stage === "LOST").length;
+      const rate = assigned > 0 ? `${((converted / assigned) * 100).toFixed(1)}%` : "0.0%";
+
+      const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
+        c.name
+      )}`;
+
+      return {
+        id: c.id,
+        name: c.name,
+        email: c.email || null,
+        phone: c.phone || null,
+        branchName: c.branch?.name || branchName,
+        avatar,
+        assigned,
+        contacted,
+        interested,
+        followUps,
+        converted,
+        lost,
+        rate,
+      };
+    });
+  }, [allCounsellorUsers, allLeads, branchName]);
+
+  // Live Recent Lead Activities derived from real PostgreSQL leads
+  const recentActivities = useMemo(() => {
+    const sorted = [...allLeads].sort((a: Lead, b: Lead) => {
+      const timeA = new Date(a.updatedAt || a.createdAt).getTime();
+      const timeB = new Date(b.updatedAt || b.createdAt).getTime();
+      return timeB - timeA;
+    });
+
+    return sorted.slice(0, 5).map((lead: Lead) => {
+      let action = "Contacted";
+      let icon = Phone;
+      let iconColor = "text-purple-600 bg-purple-50";
+
+      if (lead.stage === "CONVERTED") {
+        action = "Converted to Admission";
+        icon = CheckCircle2;
+        iconColor = "text-emerald-600 bg-emerald-50";
+      } else if (lead.stage === "LOST") {
+        action = "Marked as Lost";
+        icon = XCircle;
+        iconColor = "text-red-600 bg-red-50";
+      } else if (lead.stage === "FOLLOW_UP") {
+        action = "Follow-up scheduled";
+        icon = Calendar;
+        iconColor = "text-blue-600 bg-blue-50";
+      } else if (lead.stage === "INTERESTED") {
+        action = "Expressed Interest";
+        icon = ThumbsUp;
+        iconColor = "text-amber-600 bg-amber-50";
+      } else {
+        action = `Contacted by ${lead.assignedCounsellor?.name || "Counsellor"}`;
+      }
+
+      const dateObj = new Date(lead.updatedAt || lead.createdAt);
+      const isToday = new Date().toDateString() === dateObj.toDateString();
+      const timeStr = isToday
+        ? `Today, ${dateObj.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`
+        : dateObj.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+
+      return {
+        id: lead.id,
+        lead: lead.name,
+        course: lead.course?.name || lead.interestedIn || "Full Stack Web Dev",
+        action,
+        time: timeStr,
+        icon,
+        iconColor,
+      };
+    });
+  }, [allLeads]);
+
+  // Live Lead Tracking Data
+  const leadTrackingData = useMemo(() => {
+    const filtered = allLeads.filter((l: Lead) => {
+      if (!searchTerm) return true;
+      const term = searchTerm.toLowerCase();
+      return (
+        l.name.toLowerCase().includes(term) ||
+        (l.course?.name || l.interestedIn || "").toLowerCase().includes(term) ||
+        (l.phoneNumber || "").includes(term) ||
+        (l.assignedCounsellor?.name || "").toLowerCase().includes(term)
+      );
+    });
+
+    return filtered.map((l: Lead) => {
+      let stageColor = "bg-slate-50 text-slate-700 border-slate-200";
+      if (l.stage === "CONVERTED") stageColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+      else if (l.stage === "INTERESTED") stageColor = "bg-amber-50 text-amber-700 border-amber-200";
+      else if (l.stage === "FOLLOW_UP") stageColor = "bg-blue-50 text-blue-700 border-blue-200";
+      else if (l.stage === "CONTACTED") stageColor = "bg-purple-50 text-purple-700 border-purple-200";
+      else if (l.stage === "LOST") stageColor = "bg-red-50 text-red-700 border-red-200";
+
+      return {
+        id: l.id,
+        name: l.name,
+        course: l.course?.name || l.interestedIn || "General Course",
+        contact: l.phoneNumber,
+        assignedTo: l.assignedCounsellor?.name || "Unassigned",
+        assignedDate: new Date(l.createdAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+        }),
+        newChecked: true,
+        contactedChecked: l.stage !== "NEW" && l.stage !== "ASSIGNED",
+        interestedChecked: ["INTERESTED", "FOLLOW_UP", "CONVERTED"].includes(l.stage),
+        followUpChecked: ["FOLLOW_UP", "CONVERTED"].includes(l.stage),
+        convertedChecked: l.stage === "CONVERTED",
+        isLost: l.stage === "LOST",
+        stage: l.stage,
+        stageColor,
+        nextFollowUp: l.nextFollowUpAt
+          ? new Date(l.nextFollowUpAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—",
+      };
+    });
+  }, [allLeads, searchTerm]);
+
+  const isLoading = loadingUsers || loadingLeads;
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
-      
       {/* ─── TOP ROW: COUNSELLOR PERFORMANCE & RECENT ACTIVITIES ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        
         {/* Left: Counsellor Performance Table */}
         <Card className="lg:col-span-8 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
           <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
@@ -218,61 +240,83 @@ export const CounsellorOverview: React.FC = () => {
               <UserCheck className="h-4 w-4 text-[#1769AA]" />
               Counsellor Performance
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`${basePath}/counselor/all`)}
+              className="text-xs h-7 text-[#1769AA] border-blue-200 hover:bg-blue-50"
+            >
+              Manage Counsellors
+            </Button>
           </CardHeader>
           <CardContent className="p-0 flex-1 overflow-x-auto">
-            <table className="w-full text-left text-xs min-w-[650px]">
-              <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider">
-                <tr>
-                  <th className="py-3 px-4">Counsellor</th>
-                  <th className="py-3 px-2 text-center">Assigned</th>
-                  <th className="py-3 px-2 text-center">Contacted</th>
-                  <th className="py-3 px-2 text-center">Interested</th>
-                  <th className="py-3 px-2 text-center">Follow-ups</th>
-                  <th className="py-3 px-2 text-center">Converted</th>
-                  <th className="py-3 px-2 text-center">Lost</th>
-                  <th className="py-3 px-3 text-center">Conversion Rate</th>
-                  <th className="py-3 px-4 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
-                {COUNSELLOR_PERFORMANCE.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
-                    <td className="py-3 px-4">
-                      <div className="flex items-center gap-2.5">
-                        <img
-                          src={c.avatar}
-                          alt={c.name}
-                          className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
-                        />
-                        <span className="font-bold text-slate-800 text-[13px]">{c.name}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-2 text-center font-medium text-slate-700">{c.assigned}</td>
-                    <td className="py-3 px-2 text-center text-slate-600">{c.contacted}</td>
-                    <td className="py-3 px-2 text-center text-slate-600">{c.interested}</td>
-                    <td className="py-3 px-2 text-center text-slate-600">{c.followUps}</td>
-                    <td className="py-3 px-2 text-center text-slate-600">{c.converted}</td>
-                    <td className="py-3 px-2 text-center text-slate-600">{c.lost}</td>
-                    <td className="py-3 px-3 text-center font-extrabold text-emerald-600 text-xs">
-                      {c.rate}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setSelectedCounsellor(c)}
-                        className="h-7 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
-                      >
-                        View Details
-                      </Button>
-                    </td>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 text-blue-600 animate-spin mr-2" />
+                <span className="text-xs font-semibold text-slate-500">Loading performance data...</span>
+              </div>
+            ) : counsellorPerformance.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs font-medium">
+                No counsellors found for this center.
+              </div>
+            ) : (
+              <table className="w-full text-left text-xs min-w-[650px]">
+                <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider">
+                  <tr>
+                    <th className="py-3 px-4">Counsellor</th>
+                    <th className="py-3 px-2 text-center">Assigned</th>
+                    <th className="py-3 px-2 text-center">Contacted</th>
+                    <th className="py-3 px-2 text-center">Interested</th>
+                    <th className="py-3 px-2 text-center">Follow-ups</th>
+                    <th className="py-3 px-2 text-center">Converted</th>
+                    <th className="py-3 px-2 text-center">Lost</th>
+                    <th className="py-3 px-3 text-center">Conversion Rate</th>
+                    <th className="py-3 px-4 text-center">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {counsellorPerformance.map((c: CounsellorPerf) => (
+                    <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2.5">
+                          <img
+                            src={c.avatar}
+                            alt={c.name}
+                            className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
+                          />
+                          <div>
+                            <span className="font-bold text-slate-800 text-[13px] block">{c.name}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{c.branchName}</span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-2 text-center font-medium text-slate-700">{c.assigned}</td>
+                      <td className="py-3 px-2 text-center text-slate-600">{c.contacted}</td>
+                      <td className="py-3 px-2 text-center text-slate-600">{c.interested}</td>
+                      <td className="py-3 px-2 text-center text-slate-600">{c.followUps}</td>
+                      <td className="py-3 px-2 text-center text-slate-600">{c.converted}</td>
+                      <td className="py-3 px-2 text-center text-slate-600">{c.lost}</td>
+                      <td className="py-3 px-3 text-center font-extrabold text-emerald-600 text-xs">
+                        {c.rate}
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedCounsellor(c)}
+                          className="h-7 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
+                        >
+                          View Details
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </CardContent>
           <div className="px-5 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 font-medium bg-white">
-            Showing 1 to {COUNSELLOR_PERFORMANCE.length} of {COUNSELLOR_PERFORMANCE.length} counsellors
+            Showing {counsellorPerformance.length} counsellors
           </div>
         </Card>
 
@@ -291,141 +335,174 @@ export const CounsellorOverview: React.FC = () => {
             </button>
           </CardHeader>
           <CardContent className="pt-3 px-5 pb-3 flex-1 space-y-3">
-            {RECENT_LEAD_ACTIVITIES.map((act) => {
-              const Icon = act.icon;
-              return (
-                <div key={act.id} className="flex items-start gap-3">
-                  <div className={`p-1.5 rounded-lg shrink-0 ${act.iconColor}`}>
-                    <Icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-800 truncate">{act.lead}</p>
-                      <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-1">
-                        {act.time}
-                      </span>
+            {isLoading ? (
+              <div className="flex items-center justify-center py-10">
+                <Loader2 className="h-5 w-5 text-blue-600 animate-spin mr-2" />
+                <span className="text-xs text-slate-500 font-medium">Loading activities...</span>
+              </div>
+            ) : recentActivities.length === 0 ? (
+              <div className="text-center py-10 text-slate-400 text-xs font-medium">
+                No recent lead interactions recorded.
+              </div>
+            ) : (
+              recentActivities.map((act) => {
+                const Icon = act.icon;
+                return (
+                  <div key={act.id} className="flex items-start gap-3">
+                    <div className={`p-1.5 rounded-lg shrink-0 ${act.iconColor}`}>
+                      <Icon className="h-3.5 w-3.5" />
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">
-                      {act.course} <span className="text-slate-300">•</span> <strong className="text-slate-700 font-semibold">{act.action}</strong>
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-bold text-slate-800 truncate">{act.lead}</p>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0 ml-1">
+                          {act.time}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {act.course} <span className="text-slate-300">•</span>{" "}
+                        <strong className="text-slate-700 font-semibold">{act.action}</strong>
+                      </p>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </CardContent>
         </Card>
       </div>
 
       {/* ─── BOTTOM SECTION: LEAD TRACKING (ALL LEADS) TABLE ─── */}
       <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
-        <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
+        <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
             <Activity className="h-4 w-4 text-[#1769AA]" />
             Lead Tracking (All Leads)
           </CardTitle>
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search leads or counsellor..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500"
+            />
+          </div>
         </CardHeader>
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[900px]">
-            <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider whitespace-nowrap">
-              <tr>
-                <th className="py-3 px-4 font-bold">Lead</th>
-                <th className="py-3 px-3 font-bold">Course</th>
-                <th className="py-3 px-3 font-bold">Contact</th>
-                <th className="py-3 px-3 font-bold">Assigned To</th>
-                <th className="py-3 px-3 font-bold">Assigned Date</th>
-                <th className="py-3 px-2 font-bold text-center">New</th>
-                <th className="py-3 px-2 font-bold text-center">Contacted</th>
-                <th className="py-3 px-2 font-bold text-center">Interested</th>
-                <th className="py-3 px-2 font-bold text-center">Follow-up</th>
-                <th className="py-3 px-2 font-bold text-center">Converted</th>
-                <th className="py-3 px-2 font-bold text-center">Lost</th>
-                <th className="py-3 px-3 font-bold text-center">Stage</th>
-                <th className="py-3 px-3 font-bold text-center">Next Follow-up</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {LEAD_TRACKING_DATA.map((lead) => (
-                <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors whitespace-nowrap">
-                  <td className="py-3.5 px-4 font-bold text-slate-800">{lead.name}</td>
-                  <td className="py-3.5 px-3 text-slate-600 font-medium">{lead.course}</td>
-                  <td className="py-3.5 px-3 text-slate-500 font-mono text-[11px]">{lead.contact}</td>
-                  <td className="py-3.5 px-3 text-slate-700 font-semibold">{lead.assignedTo}</td>
-                  <td className="py-3.5 px-3 text-slate-400 text-[11px]">{lead.assignedDate}</td>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 text-blue-600 animate-spin mr-2" />
+              <span className="text-xs font-semibold text-slate-500">Loading leads...</span>
+            </div>
+          ) : leadTrackingData.length === 0 ? (
+            <div className="text-center py-16 text-slate-400 text-xs font-medium">
+              No leads found matching your criteria.
+            </div>
+          ) : (
+            <table className="w-full text-left text-xs min-w-[900px]">
+              <thead className="bg-white text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider whitespace-nowrap">
+                <tr>
+                  <th className="py-3 px-4 font-bold">Lead</th>
+                  <th className="py-3 px-3 font-bold">Course</th>
+                  <th className="py-3 px-3 font-bold">Contact</th>
+                  <th className="py-3 px-3 font-bold">Assigned To</th>
+                  <th className="py-3 px-3 font-bold">Assigned Date</th>
+                  <th className="py-3 px-2 font-bold text-center">New</th>
+                  <th className="py-3 px-2 font-bold text-center">Contacted</th>
+                  <th className="py-3 px-2 font-bold text-center">Interested</th>
+                  <th className="py-3 px-2 font-bold text-center">Follow-up</th>
+                  <th className="py-3 px-2 font-bold text-center">Converted</th>
+                  <th className="py-3 px-2 font-bold text-center">Lost</th>
+                  <th className="py-3 px-3 font-bold text-center">Stage</th>
+                  <th className="py-3 px-3 font-bold text-center">Next Follow-up</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {leadTrackingData.map((lead) => (
+                  <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors whitespace-nowrap">
+                    <td className="py-3.5 px-4 font-bold text-slate-800">{lead.name}</td>
+                    <td className="py-3.5 px-3 text-slate-600 font-medium">{lead.course}</td>
+                    <td className="py-3.5 px-3 text-slate-500 font-mono text-[11px]">{lead.contact}</td>
+                    <td className="py-3.5 px-3 text-slate-700 font-semibold">{lead.assignedTo}</td>
+                    <td className="py-3.5 px-3 text-slate-400 text-[11px]">{lead.assignedDate}</td>
 
-                  {/* Stage Step Checkboxes */}
-                  <td className="py-3.5 px-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={lead.newChecked}
-                      readOnly
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
-                    />
-                  </td>
-                  <td className="py-3.5 px-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={lead.contactedChecked}
-                      readOnly
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
-                    />
-                  </td>
-                  <td className="py-3.5 px-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={lead.interestedChecked}
-                      readOnly
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
-                    />
-                  </td>
-                  <td className="py-3.5 px-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={lead.followUpChecked}
-                      readOnly
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
-                    />
-                  </td>
-                  <td className="py-3.5 px-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={lead.convertedChecked}
-                      readOnly
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
-                    />
-                  </td>
-                  <td className="py-3.5 px-2 text-center">
-                    {lead.isLost ? (
-                      <XCircle className="h-4 w-4 text-red-500 mx-auto" />
-                    ) : (
+                    {/* Stage Step Checkboxes */}
+                    <td className="py-3.5 px-2 text-center">
                       <input
                         type="checkbox"
-                        checked={false}
+                        checked={lead.newChecked}
                         readOnly
-                        className="h-4 w-4 rounded border-slate-300 text-slate-300 accent-slate-300 opacity-40 cursor-default"
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
                       />
-                    )}
-                  </td>
+                    </td>
+                    <td className="py-3.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={lead.contactedChecked}
+                        readOnly
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={lead.interestedChecked}
+                        readOnly
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={lead.followUpChecked}
+                        readOnly
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={lead.convertedChecked}
+                        readOnly
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-default"
+                      />
+                    </td>
+                    <td className="py-3.5 px-2 text-center">
+                      {lead.isLost ? (
+                        <XCircle className="h-4 w-4 text-red-500 mx-auto" />
+                      ) : (
+                        <input
+                          type="checkbox"
+                          checked={false}
+                          readOnly
+                          className="h-4 w-4 rounded border-slate-300 text-slate-300 accent-slate-300 opacity-40 cursor-default"
+                        />
+                      )}
+                    </td>
 
-                  {/* Stage Badge */}
-                  <td className="py-3.5 px-3 text-center">
-                    <span
-                      className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${lead.stageColor}`}
-                    >
-                      {lead.stage}
-                    </span>
-                  </td>
+                    {/* Stage Badge */}
+                    <td className="py-3.5 px-3 text-center">
+                      <span
+                        className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${lead.stageColor}`}
+                      >
+                        {lead.stage}
+                      </span>
+                    </td>
 
-                  {/* Next Follow-up */}
-                  <td className="py-3.5 px-3 text-center text-[11px] font-medium text-slate-600">
-                    {lead.nextFollowUp}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                    {/* Next Follow-up */}
+                    <td className="py-3.5 px-3 text-center text-[11px] font-medium text-slate-600">
+                      {lead.nextFollowUp}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </CardContent>
         <div className="px-5 py-2.5 border-t border-slate-100 text-[11px] text-slate-400 font-medium bg-white">
-          Showing 1 to {LEAD_TRACKING_DATA.length} of {LEAD_TRACKING_DATA.length} leads
+          Showing {leadTrackingData.length} leads
         </div>
       </Card>
 
@@ -448,7 +525,7 @@ export const CounsellorOverview: React.FC = () => {
                 />
                 <div>
                   <h4 className="text-sm font-bold text-slate-900">{selectedCounsellor.name}</h4>
-                  <p className="text-slate-500">Counsellor • {branchName}</p>
+                  <p className="text-slate-500">Counsellor • {selectedCounsellor.branchName}</p>
                 </div>
                 <div className="ml-auto text-right">
                   <span className="text-emerald-700 font-extrabold text-sm bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">

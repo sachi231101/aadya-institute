@@ -27,6 +27,38 @@ const studentInclude = {
       code: true,
     },
   },
+  admissions: {
+    include: {
+      course: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { createdAt: "desc" as const },
+    take: 1,
+  },
+  batchEnrollments: {
+    include: {
+      batch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          status: true,
+          course: { select: { id: true, name: true, code: true } },
+          faculty: { select: { id: true, user: { select: { name: true } } } },
+        },
+      },
+    },
+    where: { status: "ACTIVE" },
+    take: 1,
+  },
+  studentAttendances: {
+    select: {
+      id: true,
+      status: true,
+      markedAt: true,
+    },
+    orderBy: { markedAt: "desc" as const },
+    take: 20,
+  },
 };
 
 /**

@@ -79,6 +79,7 @@ export class ReportRepository {
         id: s.id,
         studentCode: s.studentCode,
         name: studentName,
+        branchId: s.branchId,
         branchName,
         courseName,
         attendancePercentage: attendancePct,

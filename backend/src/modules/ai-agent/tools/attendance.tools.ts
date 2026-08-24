@@ -122,7 +122,7 @@ export const executeGetBatchAttendance = async (
       course: { select: { name: true } },
       classSessions: {
         include: {
-          studentAttendances: { select: { status: true } },
+          attendance: { select: { status: true } },
         },
       },
     },
@@ -137,8 +137,8 @@ export const executeGetBatchAttendance = async (
 
   let totalRecords = 0;
   let presentRecords = 0;
-  for (const session of batch.classSessions) {
-    for (const att of session.studentAttendances) {
+  for (const session of (batch as any).classSessions || []) {
+    for (const att of (session as any).attendance || []) {
       totalRecords++;
       if (att.status === "PRESENT") presentRecords++;
     }
@@ -151,10 +151,10 @@ export const executeGetBatchAttendance = async (
     batch: {
       id: batch.id,
       name: batch.name,
-      course: batch.course?.name,
-      totalSessions: batch.classSessions.length,
+      course: (batch as any).course?.name,
+      totalSessions: ((batch as any).classSessions || []).length,
       attendancePercentage: `${attendancePercentage}%`,
     },
-    summaryText: `Batch "${batch.name}" has an overall attendance rate of ${attendancePercentage}% across ${batch.classSessions.length} sessions.`,
+    summaryText: `Batch "${batch.name}" has an overall attendance rate of ${attendancePercentage}% across ${((batch as any).classSessions || []).length} sessions.`,
   };
 };

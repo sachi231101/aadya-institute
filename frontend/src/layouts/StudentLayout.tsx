@@ -264,7 +264,7 @@ export const StudentLayout: React.FC = () => {
               <DropdownMenuTrigger asChild>
                 <button className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 py-1 rounded-xl hover:bg-slate-50 border border-slate-200/70 transition-colors cursor-pointer">
                   <Avatar className="w-8 h-8 rounded-lg border border-slate-200 bg-[#8B5CF6] text-white font-bold text-xs">
-                    <AvatarImage src={user?.avatar} alt={studentName} />
+                    <AvatarImage src={(user as any)?.avatar} alt={studentName} />
                     <AvatarFallback className="bg-[#8B5CF6] text-white font-bold text-xs">
                       {studentInitials}
                     </AvatarFallback>

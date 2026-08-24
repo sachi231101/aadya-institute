@@ -47,7 +47,7 @@ export const AddAdmin: React.FC = () => {
   const branches = branchesResponse?.data ?? [];
 
   const form = useForm<AddAdminFormValues>({
-    resolver: zodResolver(addAdminSchema),
+    resolver: zodResolver(addAdminSchema) as any,
     defaultValues: {
       name: "",
       email: "",

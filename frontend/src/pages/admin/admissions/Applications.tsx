@@ -588,11 +588,11 @@ export const Applications: React.FC = () => {
     setTimeout(() => setCopiedAppNo(null), 2000);
   };
 
-  // KPI Calculations
-  const totalAppsCount = 24; // Static benchmark matching the mockup
-  const underReviewCount = applicationsList.filter((a) => a.status === "UNDER_REVIEW_BLUE" || a.status === "UNDER_REVIEW_ORANGE").length + 6;
-  const feePaidCount = applicationsList.filter((a) => a.feeStatus === "PAID").length + 7;
-  const approvedCount = applicationsList.filter((a) => a.status === "APPROVED" || a.status === "ADMITTED").length + 2;
+  // KPI Calculations strictly from real data
+  const totalAppsCount = applicationsList.length;
+  const underReviewCount = applicationsList.filter((a) => a.status === "UNDER_REVIEW_BLUE" || a.status === "UNDER_REVIEW_ORANGE").length;
+  const feePaidCount = applicationsList.filter((a) => a.feeStatus === "PAID").length;
+  const approvedCount = applicationsList.filter((a) => a.status === "APPROVED" || a.status === "ADMITTED").length;
 
   // Filter Logic
   const filteredList = useMemo(() => {

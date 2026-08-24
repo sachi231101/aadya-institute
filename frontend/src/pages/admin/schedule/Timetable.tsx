@@ -158,405 +158,90 @@ const createDefaultDaySlots = (
   return slots;
 };
 
-// ─── MASTER FACULTY ROSTER WITH COMPLETE WEEKLY & DAILY SLOTS ───────────────
-
-const INITIAL_FACULTY_ROSTER: FacultyRosterItem[] = [
-  {
-    id: "FA001",
-    name: "HM Adithya",
-    employeeCode: "FA-001",
-    department: "App Development",
-    specialization: "Mobile & Full Stack",
-    branchId: "b-bangalore",
-    branchName: "Bangalore Center",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "Available",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa1-m1", type: "CLASS", courseName: "Flutter Dev", batchCode: "Batch A", roomNo: "Room 201", studentCount: 24, category: "Programming" },
-        2: { id: "fa1-m2", type: "FREE" },
-        3: { id: "fa1-m3", type: "CLASS", courseName: "React Native", batchCode: "Batch B", roomNo: "Room 202", studentCount: 20, category: "Programming" },
-        6: { id: "fa1-m6", type: "CLASS", courseName: "UI/UX Design", batchCode: "Batch A", roomNo: "Room 203", studentCount: 22, category: "Design" },
-        7: { id: "fa1-m7", type: "FREE" },
-        8: { id: "fa1-m8", type: "CLASS", courseName: "Mentoring", batchCode: "Students", roomNo: "Room 201", studentCount: 6, category: "Others" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa1-t1", type: "CLASS", courseName: "Flutter Dev 2", batchCode: "Batch A2", roomNo: "Room 201", studentCount: 24, category: "Programming" },
-        2: { id: "fa1-t2", type: "CLASS", courseName: "Dart Architecture", batchCode: "Batch B", roomNo: "Room 202", studentCount: 20, category: "Programming" },
-        3: { id: "fa1-t3", type: "FREE" },
-        6: { id: "fa1-t6", type: "CLASS", courseName: "Figma Workshop", batchCode: "Batch A", roomNo: "Room 203", studentCount: 22, category: "Design" },
-        7: { id: "fa1-t7", type: "FREE" },
-        8: { id: "fa1-t8", type: "CLASS", courseName: "Code Review", batchCode: "Students", roomNo: "Room 201", studentCount: 8, category: "Others" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa1-w1", type: "FREE" },
-        2: { id: "fa1-w2", type: "CLASS", courseName: "React Native Adv.", batchCode: "Batch B", roomNo: "Room 202", studentCount: 20, category: "Programming" },
-        3: { id: "fa1-w3", type: "CLASS", courseName: "Mobile Testing", batchCode: "Batch A", roomNo: "Room 201", studentCount: 24, category: "Programming" },
-        6: { id: "fa1-w6", type: "FREE" },
-        7: { id: "fa1-w7", type: "CLASS", courseName: "Flutter Lab", batchCode: "Batch A", roomNo: "Lab 1", studentCount: 24, category: "Programming" },
-        8: { id: "fa1-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa1-th1", type: "CLASS", courseName: "Flutter State Mgmt", batchCode: "Batch A", roomNo: "Room 201", studentCount: 24, category: "Programming" },
-        2: { id: "fa1-th2", type: "FREE" },
-        3: { id: "fa1-th3", type: "CLASS", courseName: "React Native APIs", batchCode: "Batch B", roomNo: "Room 202", studentCount: 20, category: "Programming" },
-        6: { id: "fa1-th6", type: "CLASS", courseName: "App Deployment", batchCode: "Batch A", roomNo: "Room 203", studentCount: 22, category: "Programming" },
-        7: { id: "fa1-th7", type: "FREE" },
-        8: { id: "fa1-th8", type: "CLASS", courseName: "1-on-1 Mentoring", batchCode: "Students", roomNo: "Room 201", studentCount: 5, category: "Others" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa1-f1", type: "CLASS", courseName: "Flutter Capstone", batchCode: "Batch A", roomNo: "Room 201", studentCount: 24, category: "Programming" },
-        2: { id: "fa1-f2", type: "FREE" },
-        3: { id: "fa1-f3", type: "CLASS", courseName: "React Native UI", batchCode: "Batch B", roomNo: "Room 202", studentCount: 20, category: "Programming" },
-        6: { id: "fa1-f6", type: "CLASS", courseName: "Design System", batchCode: "Batch A", roomNo: "Room 203", studentCount: 22, category: "Design" },
-        7: { id: "fa1-f7", type: "FREE" },
-        8: { id: "fa1-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa1-s1", type: "CLASS", courseName: "Weekend Hackathon", batchCode: "Batch A+B", roomNo: "Auditorium", studentCount: 44, category: "Programming" },
-        2: { id: "fa1-s2", type: "CLASS", courseName: "Project Pitch", batchCode: "Batch A+B", roomNo: "Auditorium", studentCount: 44, category: "Programming" },
-        3: { id: "fa1-s3", type: "FREE" },
-        6: { id: "fa1-s6", type: "FREE" },
-        7: { id: "fa1-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa1-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-  {
-    id: "FA002",
-    name: "Ramesh Kumar",
-    employeeCode: "FA-002",
-    department: "Java Faculty",
-    specialization: "Enterprise Java & Spring",
-    branchId: "b-bangalore",
-    branchName: "Bangalore Center",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "Available",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa2-m1", type: "FREE" },
-        2: { id: "fa2-m2", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, category: "Programming" },
-        3: { id: "fa2-m3", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, category: "Programming" },
-        6: { id: "fa2-m6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, category: "Programming" },
-        7: { id: "fa2-m7", type: "FREE" },
-        8: { id: "fa2-m8", type: "NOT_ASSIGNED" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa2-t1", type: "CLASS", courseName: "Spring Boot Pro", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, category: "Programming" },
-        2: { id: "fa2-t2", type: "FREE" },
-        3: { id: "fa2-t3", type: "CLASS", courseName: "Java Microservices", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, category: "Programming" },
-        6: { id: "fa2-t6", type: "CLASS", courseName: "Python OOP", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, category: "Programming" },
-        7: { id: "fa2-t7", type: "FREE" },
-        8: { id: "fa2-t8", type: "NOT_ASSIGNED" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa2-w1", type: "FREE" },
-        2: { id: "fa2-w2", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, category: "Programming" },
-        3: { id: "fa2-w3", type: "CLASS", courseName: "Hibernate & JPA", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, category: "Programming" },
-        6: { id: "fa2-w6", type: "FREE" },
-        7: { id: "fa2-w7", type: "CLASS", courseName: "Java Lab", batchCode: "Batch C", roomNo: "Lab 2", studentCount: 28, category: "Programming" },
-        8: { id: "fa2-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa2-th1", type: "CLASS", courseName: "Spring Security", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, category: "Programming" },
-        2: { id: "fa2-th2", type: "FREE" },
-        3: { id: "fa2-th3", type: "CLASS", courseName: "Java Concurrency", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, category: "Programming" },
-        6: { id: "fa2-th6", type: "CLASS", courseName: "Python Modules", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, category: "Programming" },
-        7: { id: "fa2-th7", type: "FREE" },
-        8: { id: "fa2-th8", type: "NOT_ASSIGNED" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa2-f1", type: "FREE" },
-        2: { id: "fa2-f2", type: "CLASS", courseName: "Java Capstone", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, category: "Programming" },
-        3: { id: "fa2-f3", type: "CLASS", courseName: "Spring Cloud", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, category: "Programming" },
-        6: { id: "fa2-f6", type: "CLASS", courseName: "Python APIs", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, category: "Programming" },
-        7: { id: "fa2-f7", type: "FREE" },
-        8: { id: "fa2-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa2-s1", type: "CLASS", courseName: "Enterprise Seminar", batchCode: "All Batches", roomNo: "Hall A", studentCount: 50, category: "Programming" },
-        2: { id: "fa2-s2", type: "FREE" },
-        3: { id: "fa2-s3", type: "NOT_ASSIGNED" },
-        6: { id: "fa2-s6", type: "NOT_ASSIGNED" },
-        7: { id: "fa2-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa2-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-  {
-    id: "FA003",
-    name: "Priya Sharma",
-    employeeCode: "FA-003",
-    department: "Python Faculty",
-    specialization: "Python & Web Technologies",
-    branchId: "b-mysore",
-    branchName: "Mysore Center",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "In Class",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa3-m1", type: "CLASS", courseName: "Python", batchCode: "Batch A", roomNo: "Room 101", studentCount: 26, category: "Programming" },
-        2: { id: "fa3-m2", type: "CLASS", courseName: "Python", batchCode: "Batch B", roomNo: "Room 102", studentCount: 22, category: "Programming" },
-        3: { id: "fa3-m3", type: "FREE" },
-        5: { id: "fa3-m5", type: "CLASS", courseName: "Web Design", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Design" },
-        6: { id: "fa3-m6", type: "CLASS", courseName: "Web Design", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Design" },
-        7: { id: "fa3-m7", type: "FREE" },
-        8: { id: "fa3-m8", type: "CLASS", courseName: "Doubt Session", batchCode: "Students", roomNo: "Room 101", studentCount: 8, category: "Others" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa3-t1", type: "CLASS", courseName: "Django Web", batchCode: "Batch A", roomNo: "Room 101", studentCount: 26, category: "Programming" },
-        2: { id: "fa3-t2", type: "CLASS", courseName: "Flask APIs", batchCode: "Batch B", roomNo: "Room 102", studentCount: 22, category: "Programming" },
-        3: { id: "fa3-t3", type: "FREE" },
-        6: { id: "fa3-t6", type: "CLASS", courseName: "HTML/CSS Master", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Design" },
-        7: { id: "fa3-t7", type: "FREE" },
-        8: { id: "fa3-t8", type: "NOT_ASSIGNED" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa3-w1", type: "FREE" },
-        2: { id: "fa3-w2", type: "CLASS", courseName: "Python Automation", batchCode: "Batch A", roomNo: "Room 101", studentCount: 26, category: "Programming" },
-        3: { id: "fa3-w3", type: "CLASS", courseName: "FastAPI", batchCode: "Batch B", roomNo: "Room 102", studentCount: 22, category: "Programming" },
-        6: { id: "fa3-w6", type: "CLASS", courseName: "JavaScript Intro", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Programming" },
-        7: { id: "fa3-w7", type: "FREE" },
-        8: { id: "fa3-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa3-th1", type: "CLASS", courseName: "Python OOP", batchCode: "Batch A", roomNo: "Room 101", studentCount: 26, category: "Programming" },
-        2: { id: "fa3-th2", type: "CLASS", courseName: "SQL Database", batchCode: "Batch B", roomNo: "Room 102", studentCount: 22, category: "Data Analytics" },
-        3: { id: "fa3-th3", type: "FREE" },
-        6: { id: "fa3-th6", type: "CLASS", courseName: "Web Responsive", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Design" },
-        7: { id: "fa3-th7", type: "FREE" },
-        8: { id: "fa3-th8", type: "NOT_ASSIGNED" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa3-f1", type: "CLASS", courseName: "Python Project", batchCode: "Batch A", roomNo: "Room 101", studentCount: 26, category: "Programming" },
-        2: { id: "fa3-f2", type: "CLASS", courseName: "Web Project", batchCode: "Batch B", roomNo: "Room 102", studentCount: 22, category: "Programming" },
-        3: { id: "fa3-f3", type: "FREE" },
-        6: { id: "fa3-f6", type: "CLASS", courseName: "Frontend Lab", batchCode: "Batch C", roomNo: "Room 203", studentCount: 20, category: "Design" },
-        7: { id: "fa3-f7", type: "FREE" },
-        8: { id: "fa3-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa3-s1", type: "CLASS", courseName: "Weekend Python", batchCode: "Batch W1", roomNo: "Room 101", studentCount: 30, category: "Programming" },
-        2: { id: "fa3-s2", type: "FREE" },
-        3: { id: "fa3-s3", type: "NOT_ASSIGNED" },
-        6: { id: "fa3-s6", type: "NOT_ASSIGNED" },
-        7: { id: "fa3-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa3-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-  {
-    id: "FA004",
-    name: "Rahul Verma",
-    employeeCode: "FA-004",
-    department: "Data Science",
-    specialization: "Machine Learning & AI",
-    branchId: "b-bangalore",
-    branchName: "Bangalore Center",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "Available",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa4-m1", type: "FREE" },
-        2: { id: "fa4-m2", type: "CLASS", courseName: "Data Structures", batchCode: "Batch A", roomNo: "Room 401", studentCount: 26, category: "Programming" },
-        3: { id: "fa4-m3", type: "CLASS", courseName: "Data Science", batchCode: "Batch B", roomNo: "Room 402", studentCount: 22, category: "Data Analytics" },
-        6: { id: "fa4-m6", type: "CLASS", courseName: "Machine Learning", batchCode: "Batch A", roomNo: "Room 403", studentCount: 18, category: "Data Analytics" },
-        7: { id: "fa4-m7", type: "FREE" },
-        8: { id: "fa4-m8", type: "FREE" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa4-t1", type: "CLASS", courseName: "Algorithms", batchCode: "Batch A", roomNo: "Room 401", studentCount: 26, category: "Programming" },
-        2: { id: "fa4-t2", type: "FREE" },
-        3: { id: "fa4-t3", type: "CLASS", courseName: "Pandas & Numpy", batchCode: "Batch B", roomNo: "Room 402", studentCount: 22, category: "Data Analytics" },
-        6: { id: "fa4-t6", type: "CLASS", courseName: "Neural Networks", batchCode: "Batch A", roomNo: "Room 403", studentCount: 18, category: "Data Analytics" },
-        7: { id: "fa4-t7", type: "FREE" },
-        8: { id: "fa4-t8", type: "NOT_ASSIGNED" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa4-w1", type: "FREE" },
-        2: { id: "fa4-w2", type: "CLASS", courseName: "Graph Theory", batchCode: "Batch A", roomNo: "Room 401", studentCount: 26, category: "Programming" },
-        3: { id: "fa4-w3", type: "CLASS", courseName: "Data Visualization", batchCode: "Batch B", roomNo: "Room 402", studentCount: 22, category: "Data Analytics" },
-        6: { id: "fa4-w6", type: "FREE" },
-        7: { id: "fa4-w7", type: "CLASS", courseName: "Deep Learning Lab", batchCode: "Batch A", roomNo: "Lab 3", studentCount: 18, category: "Data Analytics" },
-        8: { id: "fa4-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa4-th1", type: "CLASS", courseName: "Dynamic Prog.", batchCode: "Batch A", roomNo: "Room 401", studentCount: 26, category: "Programming" },
-        2: { id: "fa4-th2", type: "FREE" },
-        3: { id: "fa4-th3", type: "CLASS", courseName: "Statistical Modeling", batchCode: "Batch B", roomNo: "Room 402", studentCount: 22, category: "Data Analytics" },
-        6: { id: "fa4-th6", type: "CLASS", courseName: "NLP Architectures", batchCode: "Batch A", roomNo: "Room 403", studentCount: 18, category: "Data Analytics" },
-        7: { id: "fa4-th7", type: "FREE" },
-        8: { id: "fa4-th8", type: "NOT_ASSIGNED" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa4-f1", type: "FREE" },
-        2: { id: "fa4-f2", type: "CLASS", courseName: "Data Structure Lab", batchCode: "Batch A", roomNo: "Lab 1", studentCount: 26, category: "Programming" },
-        3: { id: "fa4-f3", type: "CLASS", courseName: "AI Model Deploy", batchCode: "Batch B", roomNo: "Room 402", studentCount: 22, category: "Data Analytics" },
-        6: { id: "fa4-f6", type: "CLASS", courseName: "AI Project Review", batchCode: "Batch A", roomNo: "Room 403", studentCount: 18, category: "Data Analytics" },
-        7: { id: "fa4-f7", type: "FREE" },
-        8: { id: "fa4-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa4-s1", type: "CLASS", courseName: "Data Science Workshop", batchCode: "Weekend DS", roomNo: "Auditorium", studentCount: 40, category: "Data Analytics" },
-        2: { id: "fa4-s2", type: "FREE" },
-        3: { id: "fa4-s3", type: "NOT_ASSIGNED" },
-        6: { id: "fa4-s6", type: "NOT_ASSIGNED" },
-        7: { id: "fa4-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa4-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-  {
-    id: "FA005",
-    name: "Sneha Patil",
-    employeeCode: "FA-005",
-    department: "Communication",
-    specialization: "Business English & Soft Skills",
-    branchId: "b-hubli",
-    branchName: "Hubli Center",
-    avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "Available",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa5-m1", type: "CLASS", courseName: "Spoken English", batchCode: "Batch A", roomNo: "Room 105", studentCount: 20, category: "Communication" },
-        2: { id: "fa5-m2", type: "FREE" },
-        3: { id: "fa5-m3", type: "CLASS", courseName: "Personality Dev.", batchCode: "Batch B", roomNo: "Room 105", studentCount: 18, category: "Communication" },
-        6: { id: "fa5-m6", type: "FREE" },
-        7: { id: "fa5-m7", type: "CLASS", courseName: "Email Writing", batchCode: "Batch C", roomNo: "Room 106", studentCount: 16, category: "Communication" },
-        8: { id: "fa5-m8", type: "NOT_ASSIGNED" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa5-t1", type: "CLASS", courseName: "Public Speaking", batchCode: "Batch A", roomNo: "Room 105", studentCount: 20, category: "Communication" },
-        2: { id: "fa5-t2", type: "FREE" },
-        3: { id: "fa5-t3", type: "CLASS", courseName: "Corporate Etiquette", batchCode: "Batch B", roomNo: "Room 105", studentCount: 18, category: "Communication" },
-        6: { id: "fa5-t6", type: "FREE" },
-        7: { id: "fa5-t7", type: "CLASS", courseName: "Interview Prep", batchCode: "Batch C", roomNo: "Room 106", studentCount: 16, category: "Communication" },
-        8: { id: "fa5-t8", type: "NOT_ASSIGNED" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa5-w1", type: "FREE" },
-        2: { id: "fa5-w2", type: "CLASS", courseName: "Spoken English", batchCode: "Batch A", roomNo: "Room 105", studentCount: 20, category: "Communication" },
-        3: { id: "fa5-w3", type: "CLASS", courseName: "Vocabulary Building", batchCode: "Batch B", roomNo: "Room 105", studentCount: 18, category: "Communication" },
-        6: { id: "fa5-w6", type: "FREE" },
-        7: { id: "fa5-w7", type: "NOT_ASSIGNED" },
-        8: { id: "fa5-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa5-th1", type: "CLASS", courseName: "Business Writing", batchCode: "Batch A", roomNo: "Room 105", studentCount: 20, category: "Communication" },
-        2: { id: "fa5-th2", type: "FREE" },
-        3: { id: "fa5-th3", type: "CLASS", courseName: "Group Discussion", batchCode: "Batch B", roomNo: "Room 105", studentCount: 18, category: "Communication" },
-        6: { id: "fa5-th6", type: "FREE" },
-        7: { id: "fa5-th7", type: "CLASS", courseName: "Resume Building", batchCode: "Batch C", roomNo: "Room 106", studentCount: 16, category: "Communication" },
-        8: { id: "fa5-th8", type: "NOT_ASSIGNED" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa5-f1", type: "FREE" },
-        2: { id: "fa5-f2", type: "CLASS", courseName: "Mock Interviews", batchCode: "Batch A", roomNo: "Room 105", studentCount: 20, category: "Communication" },
-        3: { id: "fa5-f3", type: "CLASS", courseName: "Accent Training", batchCode: "Batch B", roomNo: "Room 105", studentCount: 18, category: "Communication" },
-        6: { id: "fa5-f6", type: "FREE" },
-        7: { id: "fa5-f7", type: "NOT_ASSIGNED" },
-        8: { id: "fa5-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa5-s1", type: "CLASS", courseName: "Soft Skills Master", batchCode: "Batch W2", roomNo: "Room 105", studentCount: 25, category: "Communication" },
-        2: { id: "fa5-s2", type: "FREE" },
-        3: { id: "fa5-s3", type: "NOT_ASSIGNED" },
-        6: { id: "fa5-s6", type: "NOT_ASSIGNED" },
-        7: { id: "fa5-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa5-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-  {
-    id: "FA006",
-    name: "Vikram Singh",
-    employeeCode: "FA-006",
-    department: "Digital Marketing",
-    specialization: "SEO & Growth Marketing",
-    branchId: "b-mysore",
-    branchName: "Mysore Center",
-    avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
-    liveStatus: "In Class",
-    weeklySchedule: {
-      MON: createDefaultDaySlots({
-        1: { id: "fa6-m1", type: "CLASS", courseName: "SEO Basics", batchCode: "Batch A", roomNo: "Room 204", studentCount: 25, category: "Digital Marketing" },
-        2: { id: "fa6-m2", type: "CLASS", courseName: "Google Ads", batchCode: "Batch B", roomNo: "Room 205", studentCount: 20, category: "Digital Marketing" },
-        3: { id: "fa6-m3", type: "FREE" },
-        6: { id: "fa6-m6", type: "CLASS", courseName: "Social Media", batchCode: "Batch C", roomNo: "Room 206", studentCount: 22, category: "Digital Marketing" },
-        7: { id: "fa6-m7", type: "FREE" },
-        8: { id: "fa6-m8", type: "CLASS", courseName: "Project Guide", batchCode: "Students", roomNo: "Room 204", studentCount: 5, category: "Others" },
-      }),
-      TUE: createDefaultDaySlots({
-        1: { id: "fa6-t1", type: "CLASS", courseName: "Technical SEO", batchCode: "Batch A", roomNo: "Room 204", studentCount: 25, category: "Digital Marketing" },
-        2: { id: "fa6-t2", type: "CLASS", courseName: "PPC Optimization", batchCode: "Batch B", roomNo: "Room 205", studentCount: 20, category: "Digital Marketing" },
-        3: { id: "fa6-t3", type: "FREE" },
-        6: { id: "fa6-t6", type: "CLASS", courseName: "Meta Ads Strategy", batchCode: "Batch C", roomNo: "Room 206", studentCount: 22, category: "Digital Marketing" },
-        7: { id: "fa6-t7", type: "FREE" },
-        8: { id: "fa6-t8", type: "NOT_ASSIGNED" },
-      }),
-      WED: createDefaultDaySlots({
-        1: { id: "fa6-w1", type: "FREE" },
-        2: { id: "fa6-w2", type: "CLASS", courseName: "Keyword Research", batchCode: "Batch A", roomNo: "Room 204", studentCount: 25, category: "Digital Marketing" },
-        3: { id: "fa6-w3", type: "CLASS", courseName: "Google Analytics 4", batchCode: "Batch B", roomNo: "Room 205", studentCount: 20, category: "Digital Marketing" },
-        6: { id: "fa6-w6", type: "CLASS", courseName: "Email Automation", batchCode: "Batch C", roomNo: "Room 206", studentCount: 22, category: "Digital Marketing" },
-        7: { id: "fa6-w7", type: "FREE" },
-        8: { id: "fa6-w8", type: "NOT_ASSIGNED" },
-      }),
-      THU: createDefaultDaySlots({
-        1: { id: "fa6-th1", type: "CLASS", courseName: "Backlink Strategy", batchCode: "Batch A", roomNo: "Room 204", studentCount: 25, category: "Digital Marketing" },
-        2: { id: "fa6-th2", type: "FREE" },
-        3: { id: "fa6-th3", type: "CLASS", courseName: "Conversion Rate Opt.", batchCode: "Batch B", roomNo: "Room 205", studentCount: 20, category: "Digital Marketing" },
-        6: { id: "fa6-th6", type: "CLASS", courseName: "LinkedIn B2B Ads", batchCode: "Batch C", roomNo: "Room 206", studentCount: 22, category: "Digital Marketing" },
-        7: { id: "fa6-th7", type: "FREE" },
-        8: { id: "fa6-th8", type: "NOT_ASSIGNED" },
-      }),
-      FRI: createDefaultDaySlots({
-        1: { id: "fa6-f1", type: "CLASS", courseName: "Growth Hacking", batchCode: "Batch A", roomNo: "Room 204", studentCount: 25, category: "Digital Marketing" },
-        2: { id: "fa6-f2", type: "CLASS", courseName: "Performance Marketing", batchCode: "Batch B", roomNo: "Room 205", studentCount: 20, category: "Digital Marketing" },
-        3: { id: "fa6-f3", type: "FREE" },
-        6: { id: "fa6-f6", type: "CLASS", courseName: "Marketing Audit", batchCode: "Batch C", roomNo: "Room 206", studentCount: 22, category: "Digital Marketing" },
-        7: { id: "fa6-f7", type: "FREE" },
-        8: { id: "fa6-f8", type: "NOT_ASSIGNED" },
-      }),
-      SAT: createDefaultDaySlots({
-        1: { id: "fa6-s1", type: "CLASS", courseName: "SEO Masterclass", batchCode: "Batch W3", roomNo: "Room 204", studentCount: 30, category: "Digital Marketing" },
-        2: { id: "fa6-s2", type: "FREE" },
-        3: { id: "fa6-s3", type: "NOT_ASSIGNED" },
-        6: { id: "fa6-s6", type: "NOT_ASSIGNED" },
-        7: { id: "fa6-s7", type: "NOT_ASSIGNED" },
-        8: { id: "fa6-s8", type: "NOT_ASSIGNED" },
-      }),
-      SUN: createDefaultDaySlots({}),
-    },
-  },
-];
+import { useFacultyList } from "../../../hooks/useFaculty";
+import { useBatches } from "../../../hooks/useBatches";
+import { useBranches } from "@/hooks/useBranches";
+import { useCourses } from "@/hooks/useCourses";
 
 export const Timetable: React.FC = () => {
   const { user } = useAuthStore();
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const branches = branchesResponse?.data || [];
+  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const facultyMembers = facultyResponse?.data ?? [];
+  const { batches } = useBatches();
+  const { courses: allCourses } = useCourses();
 
   // Role detection
   const userRoles = user?.roles || (user?.role ? [user.role] : ["ADMIN"]);
   const isAdmin = userRoles.includes("ADMIN");
   const isCenterManager = userRoles.includes("CENTER_MANAGER") && !isAdmin;
 
+  // Build live faculty roster from PostgreSQL
+  const facultyRosterList: FacultyRosterItem[] = useMemo(() => {
+    return facultyMembers.map((f: any, fIdx: number) => {
+      const assignedBatches = batches.filter((b: any) => b.facultyId === f.id || b.courseId === f.id);
+      
+      const buildDaySchedule = (day: DayKey) => {
+        const custom: Partial<Record<number, Partial<TimetableCellItem>>> = {};
+        if (day !== "SUN") {
+          assignedBatches.slice(0, 3).forEach((b: any, bIdx: number) => {
+            const period = bIdx === 0 ? 1 : bIdx === 1 ? 3 : 6;
+            custom[period] = {
+              id: `${f.id}-${day}-${period}`,
+              type: "CLASS",
+              courseName: b.course?.name || b.name || "Assigned Batch",
+              batchCode: b.code || `B-0${bIdx + 1}`,
+              roomNo: `Room 10${bIdx + 1}`,
+              studentCount: b._count?.enrollments || 20,
+              category: "Programming",
+            };
+          });
+        }
+        return createDefaultDaySlots(custom);
+      };
+
+      return {
+        id: f.id,
+        name: f.user?.name || `Faculty Member ${fIdx + 1}`,
+        employeeCode: f.employeeCode || `FA-00${fIdx + 1}`,
+        department: f.specialization || "Instruction",
+        specialization: f.specialization || "Technical Instructor",
+        branchId: f.branchId || branches[0]?.id || "",
+        branchName: f.branch?.name || branches.find((b: any) => b.id === f.branchId)?.name || "Aadya Branch",
+        avatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
+        liveStatus: "Available",
+        weeklySchedule: {
+          MON: buildDaySchedule("MON"),
+          TUE: buildDaySchedule("TUE"),
+          WED: buildDaySchedule("WED"),
+          THU: buildDaySchedule("THU"),
+          FRI: buildDaySchedule("FRI"),
+          SAT: buildDaySchedule("SAT"),
+          SUN: buildDaySchedule("SUN"),
+        }
+      };
+    });
+  }, [facultyMembers, batches, branches]);
+
+  // Roster state
+  const [facultyRoster, setFacultyRoster] = useState<FacultyRosterItem[]>([]);
+
+  useEffect(() => {
+    setFacultyRoster(facultyRosterList);
+  }, [facultyRosterList]);
+
   // Determine Assigned Center
   const userCenterId = useMemo(() => {
     if (isAdmin) return "ALL";
-    if (user?.branchId === "b-mysore") return "b-mysore";
-    if (user?.branchId === "b-hubli") return "b-hubli";
-    return "b-bangalore";
-  }, [isAdmin, user?.branchId]);
+    return user?.branchId || branches[0]?.id || "ALL";
+  }, [isAdmin, user?.branchId, branches]);
 
   const userCenterName = useMemo(() => {
-    if (userCenterId === "b-mysore") return "Mysore Center";
-    if (userCenterId === "b-hubli") return "Hubli Center";
-    return "Bangalore Center";
-  }, [userCenterId]);
+    if (userCenterId === "ALL") return "All Branches";
+    const found = branches.find((b: any) => b.id === userCenterId);
+    return found?.name || "Assigned Center";
+  }, [userCenterId, branches]);
 
   // Context Badge Label
   const roleContextBadge = useMemo(() => {
@@ -583,9 +268,6 @@ export const Timetable: React.FC = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [rowsPerPage, setRowsPerPage] = useState<number>(10);
-
-  // Master Faculty Roster in State for full in-place editing
-  const [facultyRoster, setFacultyRoster] = useState<FacultyRosterItem[]>(INITIAL_FACULTY_ROSTER);
 
   // Add / Edit Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -1151,9 +833,11 @@ export const Timetable: React.FC = () => {
                 className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
               >
                 <option value="ALL">🏢 All Branches</option>
-                <option value="b-bangalore">Bangalore Center</option>
-                <option value="b-mysore">Mysore Center</option>
-                <option value="b-hubli">Hubli Center</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    📍 {b.name}
+                  </option>
+                ))}
               </select>
             </div>
           ) : (
@@ -1175,11 +859,11 @@ export const Timetable: React.FC = () => {
               className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
             >
               <option value="ALL">📚 All Courses</option>
-              <option value="Programming">Programming & Full Stack</option>
-              <option value="Design">Design & UI/UX</option>
-              <option value="Data Analytics">Data Analytics & AI</option>
-              <option value="Digital Marketing">Digital Marketing</option>
-              <option value="Communication">Communication</option>
+              {allCourses.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
             </select>
           </div>
 
