@@ -11,7 +11,8 @@ import {
   ChevronRight,
   LogOut,
   Sparkles,
-  Bot
+  Bot,
+  Layers,
 } from "lucide-react"
 
 import {
@@ -52,8 +53,10 @@ const counselorNavItems = [
     icon: Bot,
     isActive: false,
     items: [
-      { title: "My Leads", url: "/counselor/leads" },
-      { title: "Add New Lead", url: "/counselor/leads/add" },
+      { title: "All Leads", url: "/counselor/leads" },
+      { title: "Enquiries", url: "/counselor/leads/enquiries" },
+      { title: "AI Calling", url: "/counselor/leads/ai-calling" },
+      { title: "Follow-ups", url: "/counselor/leads/follow-ups" },
     ],
   },
   {
@@ -64,7 +67,6 @@ const counselorNavItems = [
     items: [
       { title: "All Admissions", url: "/counselor/admissions/all" },
       { title: "Applications", url: "/counselor/admissions/applications" },
-      { title: "Enquiries", url: "/counselor/admissions/enquiries" },
     ],
   },
   {
@@ -86,6 +88,17 @@ const counselorNavItems = [
       { title: "All Faculty", url: "/counselor/faculty/all" },
       { title: "Assigned Courses", url: "/counselor/faculty/courses" },
       { title: "Attendance", url: "/counselor/faculty/attendance" },
+      { title: "Timetable Schedule", url: "/counselor/faculty/timetable" },
+    ],
+  },
+  {
+    title: "Batches & Timetable",
+    url: "/counselor/batches",
+    icon: Layers,
+    isActive: false,
+    items: [
+      { title: "All Batches", url: "/counselor/batches" },
+      { title: "Class Timetable", url: "/counselor/timetable" },
     ],
   },
   {

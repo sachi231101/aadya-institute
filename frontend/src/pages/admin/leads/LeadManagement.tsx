@@ -41,10 +41,27 @@ export const LeadManagement: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { selectedBranchId } = useBranchStore();
+
+  const isAiCallingView = location.pathname.endsWith("/ai-calling");
+  const isFollowUpView = location.pathname.endsWith("/follow-ups");
+
   const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("");
+  const [stageFilter, setStageFilter] = useState(() => (isFollowUpView ? "FOLLOW_UP" : ""));
+  const [sourceFilter, setSourceFilter] = useState(() => (isAiCallingView ? "PHONE_CALL" : ""));
   const [page, setPage] = useState(1);
+
+  React.useEffect(() => {
+    if (isFollowUpView) {
+      setStageFilter("FOLLOW_UP");
+      setSourceFilter("");
+    } else if (isAiCallingView) {
+      setStageFilter("");
+      setSourceFilter("PHONE_CALL");
+    } else {
+      setStageFilter("");
+      setSourceFilter("");
+    }
+  }, [location.pathname]);
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -72,17 +89,31 @@ export const LeadManagement: React.FC = () => {
     converted: leads.filter((l: any) => l.stage === "CONVERTED").length,
   };
 
+  const headerTitle = isAiCallingView
+    ? "AI Calling & Voice Qualification"
+    : isFollowUpView
+    ? "Lead Follow-ups & Reminders"
+    : "Lead Management & AI Calling";
+
+  const headerSubtitle = isAiCallingView
+    ? "Automated AI voice calling campaigns, interest scoring & telephony logs"
+    : isFollowUpView
+    ? "Track and manage leads pending counselor follow-up and next touchpoints"
+    : "Capture leads, AI voice qualification, scoring & admission handoff";
+
+  const HeaderIcon = isAiCallingView ? Bot : isFollowUpView ? Clock : Target;
+
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-500">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Target className="h-6 w-6 text-[#1769AA]" />
-            Lead Management & AI Calling
+            <HeaderIcon className="h-6 w-6 text-[#1769AA]" />
+            {headerTitle}
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Capture leads, AI voice qualification, scoring & admission handoff
+            {headerSubtitle}
           </p>
         </div>
         <Button

@@ -1,5 +1,6 @@
 import React from "react";
-import { User, GraduationCap, Calendar, CheckCircle2, ExternalLink, BookOpen, FileText, Star } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { User, GraduationCap, Calendar, CheckCircle2, ExternalLink, BookOpen, FileText, Star, ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,10 +9,23 @@ import { useAuthStore } from "@/store/auth.store";
 const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
 
 export const StudentProfile: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
+      {/* Back Button */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(-1)}
+          className="rounded-xl border-slate-200 text-xs font-semibold gap-1.5 shadow-2xs cursor-pointer"
+        >
+          <ArrowLeft className="w-4 h-4 text-slate-500" />
+          <span>Back</span>
+        </Button>
+      </div>
       {/* Header */}
       <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-4">

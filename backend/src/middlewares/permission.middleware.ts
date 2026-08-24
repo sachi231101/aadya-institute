@@ -37,7 +37,7 @@ export const requirePermission = (permission: string) => {
     if (
       userRoles.includes("ADMIN") ||
       (userRoles.includes("CENTER_MANAGER") && (permission.startsWith("user.") || permission.startsWith("lead."))) ||
-      (userRoles.includes("COUNSELLOR") && ["lead.read", "lead.create", "lead.update", "lead.convert"].includes(permission))
+      (userRoles.includes("COUNSELLOR") && ["lead.read", "lead.create", "lead.update", "lead.convert", "branch.read"].includes(permission))
     ) {
       next();
       return;

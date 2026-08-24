@@ -59,22 +59,33 @@ export interface ListResponse<T> {
 }
 
 export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
+  const sessionStatus = (raw.sessionStatus as any) || "UPCOMING";
+  let attendanceStatus: "PENDING" | "IN_PROGRESS" | "MARKED" = "PENDING";
+  if (sessionStatus === "COMPLETED") {
+    attendanceStatus = "MARKED";
+  } else if (sessionStatus === "ONGOING") {
+    attendanceStatus = "IN_PROGRESS";
+  }
+
   return {
     id: raw.id,
     title: raw.title || "Class Session",
     batchId: raw.batchId,
     batchCode: raw.batch?.code || "GENERAL-BATCH",
+    branchId: raw.branchId,
     courseId: raw.batch?.courseId || raw.batch?.course?.id || "",
     courseName: raw.batch?.course?.name || "General Course",
     facultyId: raw.facultyId,
     facultyName: raw.faculty?.user?.name || "Unassigned",
+    facultyDesignation: "Senior Instructor",
     date: raw.scheduledDate ? new Date(raw.scheduledDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     startTime: raw.startTime,
     endTime: raw.endTime,
     roomNo: raw.roomNo || "Room 101",
     mode: (raw.mode as any) || "OFFLINE",
-    status: (raw.sessionStatus as any) || "UPCOMING",
-    attendanceMarked: false,
+    status: sessionStatus,
+    attendanceMarked: sessionStatus === "COMPLETED",
+    attendanceStatus,
     meetingUrl: raw.meetingUrl,
     notes: raw.notes,
   };

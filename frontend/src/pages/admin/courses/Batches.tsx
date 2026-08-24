@@ -9,7 +9,8 @@ import {
   MoreVertical, 
   Trash2,
   UserCheck,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from "lucide-react";
 import { useBatches } from "../../../hooks/useBatches";
 import { useCourses } from "../../../hooks/useCourses";
@@ -60,6 +61,13 @@ export const Batches: React.FC = () => {
   const [timeSlot, setTimeSlot] = useState("10:00 AM - 12:00 PM");
   const [capacity, setCapacity] = useState<number>(35);
   const [submitting, setSubmitting] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  // 2-Step Delete Modal State
+  const [batchToDelete, setBatchToDelete] = useState<{ id: string; name: string; code: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const filteredBatches = batches.filter((b) => {
     const facultyName = b.faculty?.user?.name || "";
@@ -90,6 +98,7 @@ export const Batches: React.FC = () => {
 
     try {
       setSubmitting(true);
+      setCreateError(null);
       await createBatch({
         name,
         code,
@@ -104,16 +113,28 @@ export const Batches: React.FC = () => {
       setName("");
       setCode("");
       setShowModal(false);
+      setSuccessMsg(`Batch "${code} - ${name}" created successfully.`);
+      setTimeout(() => setSuccessMsg(null), 3500);
     } catch (err: any) {
-      alert(err.response?.data?.message || err.message || "Failed to create batch");
+      setCreateError(err.response?.data?.message || err.message || "Failed to create batch");
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this batch?")) {
-      await deleteBatch(id);
+  const handleConfirmDelete = async () => {
+    if (!batchToDelete) return;
+    try {
+      setIsDeleting(true);
+      setDeleteError(null);
+      await deleteBatch(batchToDelete.id);
+      setSuccessMsg(`Batch "${batchToDelete.code} - ${batchToDelete.name}" deleted successfully.`);
+      setTimeout(() => setSuccessMsg(null), 3500);
+      setBatchToDelete(null);
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.message || err.message || "Failed to delete batch.");
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -158,6 +179,7 @@ export const Batches: React.FC = () => {
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
           onClick={() => {
             if (courses.length > 0 && !courseId) setCourseId(courses[0].id);
+            setCreateError(null);
             setShowModal(true);
           }}
         >
@@ -165,6 +187,14 @@ export const Batches: React.FC = () => {
           Create New Batch
         </Button>
       </div>
+
+      {/* Success Notification Banner */}
+      {successMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -348,8 +378,15 @@ export const Batches: React.FC = () => {
                                 <DropdownMenuLabel>Batch Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
-                                  className="text-destructive focus:text-destructive"
-                                  onClick={() => handleDelete(batch.id)}
+                                  className="text-destructive focus:text-destructive cursor-pointer"
+                                  onClick={() => {
+                                    setDeleteError(null);
+                                    setBatchToDelete({
+                                      id: batch.id,
+                                      name: batch.name,
+                                      code: batch.code,
+                                    });
+                                  }}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" /> Delete Batch
                                 </DropdownMenuItem>
@@ -381,6 +418,12 @@ export const Batches: React.FC = () => {
               <GraduationCap className="h-5 w-5 text-[#1769AA]" />
               Create New Batch
             </h3>
+
+            {createError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                {createError}
+              </div>
+            )}
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
@@ -513,6 +556,77 @@ export const Batches: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ─── 2-STEP DELETE CONFIRMATION MODAL ───────────────────────── */}
+      {batchToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900 animate-in zoom-in-95 duration-150">
+            <div className="flex items-start gap-3.5">
+              <div className="p-3 rounded-full bg-rose-50 text-rose-600 shrink-0 border border-rose-100">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold text-slate-900">
+                  Delete Batch
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Are you sure you want to permanently delete{" "}
+                  <span className="font-bold text-slate-900">
+                    {batchToDelete.code} – {batchToDelete.name}
+                  </span>
+                  ?
+                </p>
+              </div>
+            </div>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+                {deleteError}
+              </div>
+            )}
+
+            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
+              <p className="font-bold text-amber-950">⚠️ Consequences of this action:</p>
+              <ul className="list-disc list-inside space-y-0.5 text-amber-800 pl-1">
+                <li>Student enrollments linked to this batch will be detached.</li>
+                <li>Scheduled classes & timetable sessions will be removed.</li>
+              </ul>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  if (!isDeleting) setBatchToDelete(null);
+                }}
+                disabled={isDeleting}
+                className="text-xs font-bold h-9 px-4 rounded-xl border-slate-200"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl gap-2 shadow-xs transition-all"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Yes, Delete Batch
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

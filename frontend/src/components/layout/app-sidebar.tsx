@@ -90,7 +90,6 @@ const data = {
       items: [
         { title: "All Courses", url: "/admin/courses/all" },
         { title: "Batches", url: "/admin/courses/batches" },
-        { title: "Curriculum", url: "/admin/courses/curriculum" },
       ],
     },
     {
@@ -100,7 +99,9 @@ const data = {
       isActive: false,
       items: [
         { title: "All Leads", url: "/admin/leads" },
-        { title: "Add Lead", url: "/admin/leads/add" },
+        { title: "Enquiries", url: "/admin/leads/enquiries" },
+        { title: "AI Calling", url: "/admin/leads/ai-calling" },
+        { title: "Follow-ups", url: "/admin/leads/follow-ups" },
       ],
     },
     {
@@ -111,7 +112,6 @@ const data = {
       items: [
         { title: "All Admissions", url: "/admin/admissions/all" },
         { title: "Applications", url: "/admin/admissions/applications" },
-        { title: "Enquiries", url: "/admin/admissions/enquiries" },
       ],
     },
     {
@@ -123,8 +123,6 @@ const data = {
         { title: "Overview", url: "/admin/counselor/overview" },
         { title: "Manage Counsellors", url: "/admin/counselor/all" },
         { title: "Create & Manage Batches", url: "/admin/counselor/batches" },
-        { title: "Assign Students", url: "/admin/counselor/assign-students" },
-        { title: "Assign Faculty", url: "/admin/counselor/assign-faculty" },
       ],
     },
     {
@@ -135,7 +133,6 @@ const data = {
       items: [
         { title: "Classes", url: "/admin/schedule/classes" },
         { title: "Timetable", url: "/admin/schedule/timetable" },
-        { title: "Upcoming Classes", url: "/admin/schedule/upcoming" },
         { title: "Recordings", url: "/admin/schedule/recordings" },
         { title: "Assignments", url: "/admin/schedule/assignments" },
       ],
@@ -275,15 +272,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {item.items?.map((subItem) => (
-                          <SidebarMenuSubItem key={subItem.title}>
-                            <SidebarMenuSubButton asChild isActive={location.pathname === subItem.url}>
-                              <Link to={subItem.url}>
-                                <span>{subItem.title}</span>
-                              </Link>
-                            </SidebarMenuSubButton>
-                          </SidebarMenuSubItem>
-                        ))}
+                        {item.items?.map((subItem) => {
+                          const isSubActive =
+                            location.pathname === subItem.url ||
+                            (subItem.url === "/admin/leads" && (location.pathname === "/admin/leads" || location.pathname === "/admin/leads/all"))
+                          
+                          return (
+                            <SidebarMenuSubItem key={subItem.title}>
+                              <SidebarMenuSubButton
+                                asChild
+                                isActive={isSubActive}
+                                className="transition-all duration-150 rounded-lg hover:text-[#1769AA] hover:bg-blue-50/50 data-[active=true]:bg-blue-50/90 data-[active=true]:text-[#1769AA] data-[active=true]:font-semibold"
+                              >
+                                <Link to={subItem.url}>
+                                  <span>{subItem.title}</span>
+                                </Link>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
+                          )
+                        })}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>

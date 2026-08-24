@@ -1,23 +1,6 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { 
-  BookOpen, 
-  GraduationCap, 
-  Calendar, 
-  CheckCircle2, 
-  XCircle, 
-  ArrowRight,
-  TrendingUp,
-  Search,
-  Check,
-  UserCheck,
-  FileSpreadsheet
-} from "lucide-react";
-import { useStudentStore } from "@/store/student.store";
-import { useCourseStore } from "@/store/course.store";
-import { useScheduleStore } from "@/store/schedule.store";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { FacultyTimetable } from "@/pages/admin/faculty/FacultyTimetable";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
@@ -43,96 +26,12 @@ interface AssignedStudentAttendance {
   lastMarked: string;
   performanceGrade: "A+" | "A" | "B+" | "B";
 }
+import { Button } from "@/components/ui/button";
+import { Calendar, Clock, MapPin, Code2, ArrowRight } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export const FacultyDashboard: React.FC = () => {
   const navigate = useNavigate();
-  const { students: globalStudents, fetchStudents } = useStudentStore();
-  const { batches, fetchBatches } = useCourseStore();
-  const { classes, fetchClasses } = useScheduleStore();
-
-  useEffect(() => {
-    fetchStudents();
-    fetchBatches();
-    fetchClasses();
-  }, []);
-
-  // Map live students from database cleanly using useMemo
-  const liveAssignedStudents = useMemo<AssignedStudentAttendance[]>(() => {
-    if (!Array.isArray(globalStudents)) return [];
-    return globalStudents.map((s: any) => ({
-      id: s.id,
-      studentCode: s.studentCode || s.studentId || (s.id ? `STD-${s.id.slice(-4).toUpperCase()}` : "STD-0000"),
-      name: s.name || s.user?.name || "Student",
-      email: s.email || s.user?.email || "",
-      batchName: s.batch?.code || s.batch?.name || s.batchName || "Assigned Batch",
-      course: s.course?.name || s.courseName || "Enrolled Course",
-      attendanceStatus: "PRESENT" as const,
-      attendancePercentage: s.attendance?.overallPercentage ?? 100,
-      lastMarked: "Registered",
-      performanceGrade: "A" as const,
-    }));
-  }, [globalStudents]);
-
-  const [studentList, setStudentList] = useState<AssignedStudentAttendance[]>([]);
-
-  useEffect(() => {
-    setStudentList(liveAssignedStudents);
-  }, [liveAssignedStudents]);
-
-  const [searchTerm, setSearchTerm] = useState("");
-  const [selectedBatchFilter, setSelectedBatchFilter] = useState("ALL");
-
-  const handleToggleAttendance = (studentId: string, status: "PRESENT" | "ABSENT" | "LEAVE") => {
-    setStudentList((prev) =>
-      prev.map((stu) =>
-        stu.id === studentId
-          ? { ...stu, attendanceStatus: status, lastMarked: "Just now" }
-          : stu
-      )
-    );
-  };
-
-  const filteredStudents = (studentList || []).filter((stu) => {
-    const term = (searchTerm || "").toLowerCase().trim();
-    const name = (stu.name || "").toLowerCase();
-    const code = (stu.studentCode || "").toLowerCase();
-    const course = (stu.course || "").toLowerCase();
-
-    const matchesSearch =
-      !term ||
-      name.includes(term) ||
-      code.includes(term) ||
-      course.includes(term);
-    const matchesBatch =
-      selectedBatchFilter === "ALL" || stu.batchName === selectedBatchFilter;
-    return matchesSearch && matchesBatch;
-  });
-
-  const presentCount = (studentList || []).filter((s) => s.attendanceStatus === "PRESENT").length;
-  const totalAssignedCount = (studentList || []).length;
-  const attendanceRate = totalAssignedCount > 0 ? Math.round((presentCount / totalAssignedCount) * 100) : 0;
-
-  const todayStr = new Date().toISOString().split("T")[0];
-  const todayClasses = (classes || []).filter((c) => c.date === todayStr);
-  const upcomingClasses = (classes || []).filter(
-    (c) => c.date >= todayStr && c.status !== "CANCELLED"
-  );
-  const nextSession = upcomingClasses[0] || (classes || [])[0];
-
-  const getStatusBadge = (st: ClassStatus) => {
-    switch (st) {
-      case "ONGOING":
-        return <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 animate-pulse">● Ongoing</Badge>;
-      case "UPCOMING":
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-300">Upcoming</Badge>;
-      case "COMPLETED":
-        return <Badge className="bg-emerald-100 text-emerald-800">Completed</Badge>;
-      case "CANCELLED":
-        return <Badge variant="destructive">Cancelled</Badge>;
-      default:
-        return <Badge variant="outline">{st}</Badge>;
-    }
-  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
@@ -180,354 +79,50 @@ export const FacultyDashboard: React.FC = () => {
             </div>
             <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
               <BookOpen className="h-6 w-6" />
+    <div className="p-4 sm:p-6 max-w-[1680px] mx-auto space-y-6">
+      {/* Today's Scheduled Active Class Banner */}
+      <Card className="bg-gradient-to-r from-blue-900 to-[#1769AA] text-white border-0 shadow-md rounded-2xl overflow-hidden">
+        <CardContent className="p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="flex items-start sm:items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/15 border border-white/20 flex items-center justify-center text-white shrink-0 shadow-2xs">
+              <Code2 className="w-6 h-6 stroke-[2.2]" />
             </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Assigned Students</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{globalStudents.length}</h3>
-              <p className="text-xs text-muted-foreground mt-1">
-                Across Active Modules
-              </p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-white/20 text-white hover:bg-white/20 border-white/30 text-[10px] font-black uppercase tracking-wider px-2 py-0.5">
+                  Today's Next Class
+                </Badge>
+                <Badge className="bg-amber-400 text-slate-950 hover:bg-amber-400 border-0 font-extrabold text-[11px] px-2 py-0.5">
+                  DM-01
+                </Badge>
+              </div>
+              <h2 className="text-lg sm:text-xl font-black tracking-tight">
+                Full Stack Web Development
+              </h2>
+              <div className="flex flex-wrap items-center gap-x-3 text-xs text-blue-100 font-medium">
+                <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" /> 09:00 AM – 11:00 AM</span>
+                <span>•</span>
+                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5" /> Mon, 18 Aug 2026</span>
+                <span>•</span>
+                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> Room 301, Main Block</span>
+              </div>
             </div>
-            <div className="p-3 bg-purple-500/10 rounded-xl text-purple-600">
-              <GraduationCap className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card 
-          className="border border-border/60 shadow-sm cursor-pointer hover:border-amber-400 transition-colors"
-          onClick={() => navigate("/faculty/schedule/classes")}
-        >
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Scheduled Classes</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">
-                {todayClasses.length > 0 ? `${todayClasses.length} Today` : `${classes.length} Total`}
-              </h3>
-              <p className="text-xs text-emerald-600 font-medium mt-1 truncate max-w-[170px]">
-                {nextSession ? `Next: ${nextSession.startTime} (${nextSession.title})` : "No classes scheduled"}
-              </p>
-            </div>
-            <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
-              <Calendar className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border border-border/60 shadow-sm">
-          <CardContent className="p-6 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-muted-foreground">Today's Attendance Rate</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{attendanceRate}%</h3>
-              <p className="text-xs text-emerald-600 font-medium mt-1">
-                {presentCount} / {totalAssignedCount} Present
-              </p>
-            </div>
-            <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
-              <CheckCircle2 className="h-6 w-6" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Scheduled Lecture Sessions Section */}
-      <Card className="border border-border/60 shadow-sm overflow-hidden">
-        <CardHeader className="bg-bg-tertiary/30 border-b border-border/60 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-base font-bold text-text-primary flex items-center gap-2">
-              <Calendar className="h-5 w-5 text-amber-600" />
-              Scheduled Class Sessions & Lectures
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Live scheduled lectures, lab rooms, and active classroom sessions.
-            </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              size="sm"
-              onClick={() => navigate("/faculty/schedule/classes")}
-              className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs h-8 gap-1.5"
-            >
-              <Calendar className="h-3.5 w-3.5" /> Schedule / View All
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50/70">
-                <TableHead className="font-semibold text-text-primary">Topic & Course</TableHead>
-                <TableHead className="font-semibold text-text-primary">Batch</TableHead>
-                <TableHead className="font-semibold text-text-primary">Instructor</TableHead>
-                <TableHead className="font-semibold text-text-primary">Date & Time Slot</TableHead>
-                <TableHead className="font-semibold text-text-primary">Location / Mode</TableHead>
-                <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                <TableHead className="font-semibold text-text-primary text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {classes.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground text-sm">
-                    No scheduled classes found. Click "Schedule / View All" to schedule a lecture.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                classes.slice(0, 5).map((cls) => (
-                  <TableRow key={cls.id} className="hover:bg-slate-50/80 transition-colors">
-                    <TableCell>
-                      <span className="font-semibold text-slate-900 text-sm block">{cls.title}</span>
-                      <span className="text-xs text-muted-foreground">{cls.courseName || "Academic Course"}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="font-mono text-xs text-blue-700 bg-blue-50 border-blue-200">
-                        {cls.batchCode}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs font-medium text-slate-700">
-                      {cls.facultyName || "Faculty Instructor"}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs font-bold text-slate-800 block">{cls.date}</span>
-                      <span className="text-[11px] text-muted-foreground">{cls.startTime} - {cls.endTime}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Badge variant="secondary" className="text-[11px] font-normal">
-                          {cls.mode}
-                        </Badge>
-                        <span className="text-xs text-slate-600">{cls.roomNo || "Main Lab"}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(cls.status)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => navigate("/faculty/students/attendance")}
-                        className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
-                      >
-                        Attendance Desk
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+
+          {/* Action Button */}
+          <Button
+            onClick={() => navigate("/faculty/class-session")}
+            className="bg-white text-[#1769AA] hover:bg-blue-50 font-black text-xs px-6 py-3 h-auto rounded-xl shadow-md gap-2 shrink-0 cursor-pointer"
+          >
+            <span>Open Class Session & Attendance</span>
+            <ArrowRight className="w-4 h-4" />
+          </Button>
         </CardContent>
       </Card>
 
-      {/* Assigned Students & Attendance Management Table */}
-      <Card className="border border-border/60 shadow-sm">
-        <CardHeader className="p-6 border-b border-border/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <CardTitle className="text-lg font-bold text-text-primary flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-amber-600" />
-              Assigned Students & Live Attendance Desk
-            </CardTitle>
-            <CardDescription className="text-xs text-muted-foreground mt-0.5">
-              Review assigned students in your active batches and mark daily classroom attendance status.
-            </CardDescription>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search student or code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-white text-xs h-9"
-              />
-            </div>
-
-            <select
-              value={selectedBatchFilter}
-              onChange={(e) => setSelectedBatchFilter(e.target.value)}
-              className="h-9 px-3 text-xs bg-white border border-border/60 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-            >
-              <option value="ALL">All Batches</option>
-              {batches.map((b) => (
-                <option key={b.id} value={b.code || b.name}>
-                  {b.code || b.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </CardHeader>
-
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-slate-50/70">
-                <TableHead className="font-semibold text-text-primary">Student Code & Name</TableHead>
-                <TableHead className="font-semibold text-text-primary">Batch & Course</TableHead>
-                <TableHead className="font-semibold text-text-primary">Attendance %</TableHead>
-                <TableHead className="font-semibold text-text-primary">Today's Status</TableHead>
-                <TableHead className="font-semibold text-text-primary text-right">Attendance Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredStudents.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-8 text-muted-foreground text-sm">
-                    No assigned students match your search criteria.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredStudents.map((stu) => (
-                  <TableRow key={stu.id} className="hover:bg-slate-50/80 transition-colors">
-                    <TableCell>
-                      <div>
-                        <span className="font-mono text-xs font-bold text-amber-700 block">{stu.studentCode}</span>
-                        <span className="font-semibold text-slate-900 text-sm">{stu.name}</span>
-                        <span className="text-xs text-muted-foreground block">{stu.email}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs font-semibold text-slate-800 block">{stu.batchName}</span>
-                      <span className="text-xs text-muted-foreground">{stu.course}</span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold text-slate-900">{stu.attendancePercentage}%</span>
-                        <div className="w-16 bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full ${stu.attendancePercentage >= 90 ? "bg-emerald-500" : stu.attendancePercentage >= 80 ? "bg-amber-500" : "bg-red-500"}`} 
-                            style={{ width: `${stu.attendancePercentage}%` }}
-                          />
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={
-                        stu.attendanceStatus === "PRESENT"
-                          ? "bg-emerald-500/10 text-emerald-700 border-emerald-500/20"
-                          : stu.attendanceStatus === "ABSENT"
-                          ? "bg-red-500/10 text-red-700 border-red-500/20"
-                          : "bg-amber-500/10 text-amber-700 border-amber-500/20"
-                      }>
-                        {stu.attendanceStatus}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground block mt-0.5">{stu.lastMarked}</span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          size="sm"
-                          variant={stu.attendanceStatus === "PRESENT" ? "default" : "outline"}
-                          className={`h-8 px-2.5 text-xs gap-1 ${
-                            stu.attendanceStatus === "PRESENT" ? "bg-emerald-600 hover:bg-emerald-700 text-white" : "text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                          }`}
-                          onClick={() => handleToggleAttendance(stu.id, "PRESENT")}
-                        >
-                          <Check className="h-3.5 w-3.5" /> Present
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={stu.attendanceStatus === "ABSENT" ? "default" : "outline"}
-                          className={`h-8 px-2.5 text-xs gap-1 ${
-                            stu.attendanceStatus === "ABSENT" ? "bg-red-600 hover:bg-red-700 text-white" : "text-red-700 border-red-200 hover:bg-red-50"
-                          }`}
-                          onClick={() => handleToggleAttendance(stu.id, "ABSENT")}
-                        >
-                          <XCircle className="h-3.5 w-3.5" /> Absent
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={stu.attendanceStatus === "LEAVE" ? "default" : "outline"}
-                          className={`h-8 px-2.5 text-xs gap-1 ${
-                            stu.attendanceStatus === "LEAVE" ? "bg-amber-600 hover:bg-amber-700 text-white" : "text-amber-700 border-amber-200 hover:bg-amber-50"
-                          }`}
-                          onClick={() => handleToggleAttendance(stu.id, "LEAVE")}
-                        >
-                          Leave
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Student Performance & Reports Preview Table */}
-      <Card className="border border-border/60 shadow-sm overflow-hidden">
-        <CardHeader className="bg-bg-tertiary/30 border-b border-border/60">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-bold text-text-primary flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-amber-600" />
-              Student Performance & Academic Reports
-            </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => navigate("/faculty/reports/students")}
-              className="text-amber-700 hover:text-amber-800 gap-1"
-            >
-              View Complete Reports <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </CardHeader>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="font-semibold text-text-primary">Student Code & Name</TableHead>
-              <TableHead className="font-semibold text-text-primary">Assigned Batch</TableHead>
-              <TableHead className="font-semibold text-text-primary">Attendance Record</TableHead>
-              <TableHead className="font-semibold text-text-primary">Performance Grade</TableHead>
-              <TableHead className="font-semibold text-text-primary text-right">Academic Report</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {studentList.length > 0 ? (
-              studentList.map((stu) => (
-                <TableRow key={`rep-${stu.id}`} className="hover:bg-slate-50/80 transition-colors">
-                  <TableCell>
-                    <span className="font-mono text-xs font-bold text-amber-700 block">{stu.studentCode}</span>
-                    <span className="font-medium text-text-primary text-xs">{stu.name}</span>
-                  </TableCell>
-                  <TableCell className="text-xs text-text-secondary font-medium">{stu.batchName}</TableCell>
-                  <TableCell>
-                    <span className="text-xs font-bold text-slate-800">{stu.attendancePercentage}% Attendance</span>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className="bg-amber-500/10 text-amber-700 border-amber-500/20 font-bold">
-                      Grade {stu.performanceGrade}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      onClick={() => navigate("/faculty/reports/students")}
-                      className="h-7 text-xs border-amber-300 text-amber-800 hover:bg-amber-50"
-                    >
-                      View Report
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
-            ) : (
-              <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
-                  No assigned students found in database.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+      {/* Main Timetable View */}
+      <FacultyTimetable />
     </div>
   );
 };
+

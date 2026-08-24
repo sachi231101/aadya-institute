@@ -204,7 +204,6 @@ export const CounsellorOverview: React.FC = () => {
   const branchName = branchResponse?.data?.name || "Aadya Central Branch";
 
   const [selectedCounsellor, setSelectedCounsellor] = useState<any | null>(null);
-  const [selectedLead, setSelectedLead] = useState<any | null>(null);
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
@@ -285,7 +284,7 @@ export const CounsellorOverview: React.FC = () => {
             </CardTitle>
             <button
               type="button"
-              onClick={() => navigate(`${basePath}/admissions/enquiries`)}
+              onClick={() => navigate(`${basePath}/leads/enquiries`)}
               className="text-xs font-bold text-[#1769AA] hover:underline"
             >
               View All
@@ -342,7 +341,6 @@ export const CounsellorOverview: React.FC = () => {
                 <th className="py-3 px-2 font-bold text-center">Lost</th>
                 <th className="py-3 px-3 font-bold text-center">Stage</th>
                 <th className="py-3 px-3 font-bold text-center">Next Follow-up</th>
-                <th className="py-3 px-4 font-bold text-center">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
@@ -421,18 +419,6 @@ export const CounsellorOverview: React.FC = () => {
                   <td className="py-3.5 px-3 text-center text-[11px] font-medium text-slate-600">
                     {lead.nextFollowUp}
                   </td>
-
-                  {/* Action */}
-                  <td className="py-3.5 px-4 text-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedLead(lead)}
-                      className="h-6 px-2.5 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors rounded-md"
-                    >
-                      View
-                    </Button>
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -487,46 +473,6 @@ export const CounsellorOverview: React.FC = () => {
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
                   <p className="text-slate-400 font-semibold text-[10px] uppercase">Converted</p>
                   <p className="text-lg font-black text-blue-600 mt-0.5">{selectedCounsellor.converted}</p>
-                </div>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── MODAL: LEAD DETAILS ─── */}
-      <Dialog open={!!selectedLead} onOpenChange={() => setSelectedLead(null)}>
-        <DialogContent className="max-w-md bg-white rounded-2xl p-6">
-          <DialogHeader>
-            <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Activity className="h-5 w-5 text-[#1769AA]" />
-              Lead Details — {selectedLead?.name}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedLead && (
-            <div className="space-y-3 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl space-y-1.5 border border-slate-100">
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Course Interested:</span>
-                  <span className="font-bold text-slate-800">{selectedLead.course}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Phone Number:</span>
-                  <span className="font-mono font-bold text-slate-800">{selectedLead.contact}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Assigned Counsellor:</span>
-                  <span className="font-bold text-slate-800">{selectedLead.assignedTo}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Current Stage:</span>
-                  <span className={`font-bold px-2 py-0.5 rounded-full border ${selectedLead.stageColor}`}>
-                    {selectedLead.stage}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-500">Next Scheduled Follow-up:</span>
-                  <span className="font-semibold text-slate-800">{selectedLead.nextFollowUp}</span>
                 </div>
               </div>
             </div>
