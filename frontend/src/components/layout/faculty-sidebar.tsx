@@ -2,18 +2,22 @@ import * as React from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   LayoutDashboard,
+  Calendar,
   BookOpen,
   GraduationCap,
   BarChart3,
   Settings,
-  ChevronRight,
   LogOut,
   Sparkles,
-  FileText,
   BookMarked,
   Megaphone,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  UserCheck,
+  MapPin,
+  FileVideo,
+  FileText,
+  Clock,
 } from "lucide-react"
 
 import {
@@ -34,18 +38,52 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuthStore } from "@/store/auth.store"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
-const facultyNavItems = [
+interface NavItem {
+  title: string
+  url: string
+  icon?: any
+  isAi?: boolean
+  items?: { title: string; url: string; icon?: any }[]
+}
+
+const facultyNavItems: NavItem[] = [
   {
     title: "+ ASK ME",
     url: "/faculty/ask-me",
     icon: Sparkles,
-    isActive: false,
     isAi: true,
   },
   {
     title: "Dashboard",
     url: "/faculty/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "My Schedule",
+    url: "/faculty/timetable",
+    icon: Calendar,
+    items: [
+      {
+        title: "Timetable",
+        url: "/faculty/timetable",
+        icon: Clock,
+      },
+      {
+        title: "My Classes",
+        url: "/faculty/classes",
+        icon: Calendar,
+      },
+      {
+        title: "Recordings",
+        url: "/faculty/recordings",
+        icon: FileVideo,
+      },
+      {
+        title: "Assignments",
+        url: "/faculty/assignments",
+        icon: FileText,
+      },
+    ],
   },
   {
     title: "My Batches & Courses",
@@ -58,14 +96,24 @@ const facultyNavItems = [
     icon: GraduationCap,
   },
   {
-    title: "Assignments",
-    url: "/faculty/assignments",
-    icon: FileText,
+    title: "Attendance",
+    url: "/faculty/attendance",
+    icon: UserCheck,
   },
   {
     title: "Student Performance",
     url: "/faculty/reports/students",
     icon: BarChart3,
+  },
+  {
+    title: "Resources",
+    url: "/faculty/resources",
+    icon: BookMarked,
+  },
+  {
+    title: "Announcements",
+    url: "/faculty/announcements",
+    icon: Megaphone,
   },
   {
     title: "Settings",
@@ -78,8 +126,11 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+
   const facultyName = user?.name || "Ramesh Kumar"
-  const facultyEmail = user?.email || "ramesh@aadya.in"
+  const facultyDesignation = (user as any)?.specialization || (user as any)?.department || "Java Faculty"
+  const facultyCenter = (user as any)?.branchName || "Bangalore Center"
+  const facultyAvatar = user?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-slate-200/80 bg-white">
@@ -105,12 +156,14 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         <SidebarGroup>
           <SidebarMenu>
             {facultyNavItems.map((item) => {
-              const isSubItemActive = item.items?.some((subItem) => location.pathname === subItem.url)
-              const isDirectActive = location.pathname === item.url
+              const isSubItemActive = item.items?.some(
+                (subItem) => location.pathname === subItem.url || location.pathname.startsWith(subItem.url + "/")
+              )
+              const isDirectActive = location.pathname === item.url || (item.url === "/faculty/timetable" && location.pathname === "/faculty/schedule/timetable")
               const isExpanded = isSubItemActive || isDirectActive
 
               if (!item.items) {
-                if ((item as any).isAi) {
+                if (item.isAi) {
                   return (
                     <SidebarMenuItem key={item.title} className="mb-2">
                       <SidebarMenuButton
@@ -157,14 +210,9 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                     >
                       <Link to={item.url} className="flex items-center justify-between w-full">
                         <div className="flex items-center gap-3">
-                          <item.icon className={`h-4 w-4 ${isDirectActive ? "text-white stroke-[2.2]" : "text-slate-400 stroke-[1.8]"}`} />
+                          {item.icon && <item.icon className={`h-4 w-4 ${isDirectActive ? "text-white stroke-[2.2]" : "text-slate-400 stroke-[1.8]"}`} />}
                           <span>{item.title}</span>
                         </div>
-                        {(item as any).badge && (
-                          <span className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full">
-                            {(item as any).badge}
-                          </span>
-                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -182,14 +230,14 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton
                         tooltip={item.title}
-                        isActive={isSubItemActive}
+                        isActive={isSubItemActive || isDirectActive}
                         className={`text-xs font-semibold rounded-xl transition-colors ${
-                          isSubItemActive
+                          isSubItemActive || isDirectActive
                             ? "text-[#5B50EC] font-bold bg-indigo-50/60"
                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
                         }`}
                       >
-                        {item.icon && <item.icon className={`h-4 w-4 ${isSubItemActive ? "text-[#5B50EC]" : "text-slate-400"}`} />}
+                        {item.icon && <item.icon className={`h-4 w-4 ${isSubItemActive || isDirectActive ? "text-[#5B50EC]" : "text-slate-400"}`} />}
                         <span>{item.title}</span>
                         <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0 group-data-[state=closed]/collapsible:-rotate-90 text-slate-400" />
                       </SidebarMenuButton>
@@ -197,7 +245,11 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                     <CollapsibleContent>
                       <SidebarMenuSub className="ml-3.5 border-l-2 border-slate-100 pl-2 space-y-1">
                         {item.items.map((subItem) => {
-                          const isSubActive = location.pathname === subItem.url
+                          const isSubActive =
+                            location.pathname === subItem.url ||
+                            (subItem.url === "/faculty/timetable" && (location.pathname === "/faculty/schedule/timetable" || location.pathname === "/faculty/timetable")) ||
+                            (subItem.url === "/faculty/classes" && (location.pathname === "/faculty/schedule/classes" || location.pathname === "/faculty/classes"))
+
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton
@@ -229,20 +281,30 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="p-3 border-t border-slate-100">
+      {/* Footer Logged-in Faculty Profile */}
+      <SidebarFooter className="p-3 border-t border-slate-100 bg-white">
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center justify-between p-1.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors">
-              <div className="flex items-center gap-2.5 overflow-hidden">
-                <Avatar className="h-8 w-8 rounded-lg border border-slate-200 bg-blue-600 text-white font-bold text-xs">
-                  <AvatarImage src={user?.avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"} alt={facultyName} />
-                  <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                    RK
+            <div className="flex items-center justify-between p-2 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Avatar className="h-9 w-9 rounded-xl border border-slate-200 shadow-2xs shrink-0">
+                  <AvatarImage src={facultyAvatar} alt={facultyName} />
+                  <AvatarFallback className="bg-[#4F46E5] text-white font-bold text-xs rounded-xl">
+                    {facultyName.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex flex-col text-left overflow-hidden">
-                  <span className="text-xs font-bold text-slate-800 truncate">{facultyName}</span>
-                  <span className="text-[10px] text-slate-400 font-medium truncate">{facultyEmail}</span>
+                <div className="flex flex-col min-w-0 text-left">
+                  <span className="text-xs font-bold text-slate-900 truncate">{facultyName}</span>
+                  <span className="text-[10px] text-slate-500 font-medium truncate">{facultyDesignation}</span>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <span className="text-[9px] font-semibold text-slate-600 flex items-center gap-0.5 truncate">
+                      <MapPin className="h-2.5 w-2.5 text-blue-600 shrink-0" />
+                      {facultyCenter}
+                    </span>
+                    <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5 shrink-0">
+                      ● Online
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
@@ -251,7 +313,7 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                   logout()
                   navigate("/login")
                 }}
-                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0 ml-1"
                 title="Log out"
               >
                 <LogOut className="h-4 w-4" />

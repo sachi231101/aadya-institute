@@ -1,1124 +1,1189 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { 
-  Calendar, 
-  Plus, 
-  Search, 
-  Clock, 
-  CheckCircle2, 
-  MoreVertical, 
-  Trash2, 
+import React, { useState, useMemo } from "react";
+import {
+  Calendar,
+  Plus,
+  Search,
+  Clock,
+  CheckCircle2,
+  MoreVertical,
+  Trash2,
   MapPin,
   Building2,
   RotateCcw,
   ChevronLeft,
   ChevronRight,
-  PieChart,
+  Users,
+  AlertTriangle,
+  Link as LinkIcon,
   UserCheck,
-  Edit2,
+  Edit3,
   XCircle,
+  Eye,
+  UserPlus,
+  Laptop,
   Code2,
-  Shield,
-  Atom
+  Megaphone,
+  Table as TableIcon,
+  BarChart3,
+  Globe,
+  Check,
 } from "lucide-react";
-import { useScheduleStore } from "../../../store/schedule.store";
-import { useCourseStore } from "../../../store/course.store";
-import { useFacultyList } from "../../../hooks/useFaculty";
-import { useBranches } from "../../../hooks/useBranches";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { EditClassModal } from "./EditClassModal";
-import type { ClassMode, ClassSession } from "../../../types/schedule.types";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
-interface BranchMetadata {
+// ─── TYPES ──────────────────────────────────────────────────────────────────
+
+export type ClassStatus = "LIVE" | "SCHEDULED" | "UNASSIGNED" | "COMPLETED" | "CANCELLED";
+export type ClassMode = "OFFLINE" | "ONLINE" | "HYBRID";
+
+export interface ScheduledClassItem {
+  id: string;
+  topicName: string;
+  courseName: string;
+  moduleName: string;
+  iconType: "java" | "python" | "marketing" | "excel" | "powerbi" | "web" | "general";
+  batchCode: string;
+  batchName: string;
+  branchId: string;
+  branchName: string;
+  facultyId?: string;
+  facultyName?: string;
+  facultySpecialization?: string;
+  facultyAvatar?: string;
+  isFacultyAssigned: boolean;
+  date: string; // e.g. "2026-08-24"
+  dateLabel: string; // e.g. "24 Aug 2026 (Today)"
+  startTime: string; // e.g. "10:00 AM"
+  endTime: string; // e.g. "11:30 AM"
+  mode: ClassMode;
+  locationOrLink: string;
+  isOnlineLink?: boolean;
+  status: ClassStatus;
+  enrolledStudentsCount: number;
+  attendanceMarked: boolean;
+}
+
+interface BranchInfo {
   id: string;
   name: string;
   code: string;
   location: string;
 }
 
-const DEFAULT_BRANCHES: BranchMetadata[] = [
-  { id: "b-bng", name: "Aadya Institute – Bengaluru", code: "BR-BNG-01", location: "Bengaluru, Karnataka" },
-  { id: "b-mys", name: "Aadya Institute – Mysore", code: "BR-MYS-01", location: "Mysore, Karnataka" },
-  { id: "b-dvg", name: "Aadya Institute – Davanagere", code: "BR-DVG-01", location: "Davanagere, Karnataka" },
-  { id: "b-hbl", name: "Aadya Institute – Hubli", code: "BR-HBL-01", location: "Hubli, Karnataka" },
+const BRANCHES_LIST: BranchInfo[] = [
+  { id: "b-blr", name: "Aadya Institute – Bengaluru", code: "MAIN", location: "Bengaluru" },
+  { id: "b-mys", name: "Aadya Institute – Mysore", code: "MYS-01", location: "Mysore" },
+  { id: "b-dvg", name: "Aadya Institute – Davanagere", code: "DVG-01", location: "Davanagere" },
+  { id: "b-hbl", name: "Aadya Institute – Hubli", code: "HBL-01", location: "Hubli" },
 ];
 
-const INITIAL_FALLBACK_CLASSES: (ClassSession & { branchCodeId?: string; iconType: "code" | "shield" | "atom" | "html" | "js" })[] = [
+const FACULTY_POOL = [
+  { id: "f-1", name: "Ramesh Kumar", specialization: "Java Full Stack Faculty", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" },
+  { id: "f-2", name: "Priya Sharma", specialization: "Python Faculty", avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150" },
+  { id: "f-3", name: "Sanjay Verma", specialization: "Excel Faculty", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150" },
+  { id: "f-4", name: "Neha Patel", specialization: "Data Analytics Faculty", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150" },
+  { id: "f-5", name: "Arjun Reddy", specialization: "Web Development Faculty", avatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150" },
+  { id: "f-6", name: "Sneha Patil", specialization: "Digital Marketing Faculty", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&q=80&w=150" },
+];
+
+// ─── INITIAL CLASSES DATA (MATCHING EXACT SCREENSHOT ROWS & MOCKUP) ─────────
+
+const INITIAL_CLASSES: ScheduledClassItem[] = [
   {
-    id: "cls-1",
-    title: "Class Session",
-    courseId: "c-fs",
-    courseName: "Full Stack Web Development",
-    batchId: "b-wd-a",
-    batchCode: "WD-2026-A",
-    branchId: "b-bng",
-    branchCodeId: "BR-BNG-01",
+    id: "cls-101",
+    topicName: "Java Full Stack",
+    courseName: "Java Full Stack",
+    moduleName: "Arrays & Collections",
+    iconType: "java",
+    batchCode: "JFS-B01",
+    batchName: "Java Full Stack 2026 Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
     facultyId: "f-1",
-    facultyName: "HM Adithya",
-    facultyDesignation: "Senior Instructor",
-    facultyAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces",
-    date: "2026-08-13",
-    startTime: "09:00",
-    endTime: "17:00",
-    roomNo: "Room 101",
-    mode: "OFFLINE",
-    status: "UPCOMING",
-    attendanceMarked: false,
-    attendanceStatus: "PENDING",
-    iconType: "code",
-  },
-  {
-    id: "cls-2",
-    title: "Class Session",
-    courseId: "c-js",
-    courseName: "JavaScript Essentials",
-    batchId: "b-js-a",
-    batchCode: "JS-2026-A",
-    branchId: "b-bng",
-    branchCodeId: "BR-BNG-01",
-    facultyId: "f-2",
     facultyName: "Ramesh Kumar",
-    facultyDesignation: "Senior Instructor",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=faces",
-    date: "2026-08-14",
-    startTime: "09:00",
-    endTime: "17:00",
-    roomNo: "Lab 1",
+    facultySpecialization: "Java Full Stack Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-24",
+    dateLabel: "24 Aug 2026 (Today)",
+    startTime: "10:00 AM",
+    endTime: "11:30 AM",
     mode: "OFFLINE",
-    status: "UPCOMING",
+    locationOrLink: "Room 201",
+    isOnlineLink: false,
+    status: "LIVE",
+    enrolledStudentsCount: 28,
     attendanceMarked: false,
-    attendanceStatus: "PENDING",
-    iconType: "shield",
   },
   {
-    id: "cls-3",
-    title: "Class Session",
-    courseId: "c-re",
-    courseName: "React JS Development",
-    batchId: "b-re-a",
-    batchCode: "RE-2026-A",
-    branchId: "b-bng",
-    branchCodeId: "BR-BNG-01",
-    facultyId: "f-3",
+    id: "cls-102",
+    topicName: "Python Programming",
+    courseName: "Python Programming",
+    moduleName: "Functions & Modules",
+    iconType: "python",
+    batchCode: "PY-B02",
+    batchName: "Python Developer Batch 2",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
+    facultyId: "f-2",
     facultyName: "Priya Sharma",
-    facultyDesignation: "Assistant Professor",
-    facultyAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&h=100&fit=crop&crop=faces",
-    date: "2026-08-15",
-    startTime: "09:00",
-    endTime: "17:00",
-    roomNo: "Room 102",
-    mode: "OFFLINE",
-    status: "ONGOING",
+    facultySpecialization: "Python Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-24",
+    dateLabel: "24 Aug 2026 (Today)",
+    startTime: "11:30 AM",
+    endTime: "01:00 PM",
+    mode: "ONLINE",
+    locationOrLink: "Meeting Link",
+    isOnlineLink: true,
+    status: "SCHEDULED",
+    enrolledStudentsCount: 24,
     attendanceMarked: false,
-    attendanceStatus: "IN_PROGRESS",
-    iconType: "atom",
   },
   {
-    id: "cls-4",
-    title: "Class Session",
-    courseId: "c-html",
-    courseName: "HTML & CSS Basics",
-    batchId: "b-wd-b",
-    batchCode: "WD-2026-B",
-    branchId: "b-bng",
-    branchCodeId: "BR-BNG-01",
+    id: "cls-103",
+    topicName: "Digital Marketing",
+    courseName: "Digital Marketing",
+    moduleName: "SEO Fundamentals",
+    iconType: "marketing",
+    batchCode: "DM-B01",
+    batchName: "Digital Marketing Pro Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
+    isFacultyAssigned: false,
+    date: "2026-08-25",
+    dateLabel: "25 Aug 2026 (Tomorrow)",
+    startTime: "02:00 PM",
+    endTime: "03:30 PM",
+    mode: "OFFLINE",
+    locationOrLink: "Room 105",
+    isOnlineLink: false,
+    status: "UNASSIGNED",
+    enrolledStudentsCount: 22,
+    attendanceMarked: false,
+  },
+  {
+    id: "cls-104",
+    topicName: "Advanced Excel",
+    courseName: "Advanced Excel",
+    moduleName: "Formulas & Functions",
+    iconType: "excel",
+    batchCode: "EX-B01",
+    batchName: "Advanced Excel Masterclass Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
+    facultyId: "f-3",
+    facultyName: "Sanjay Verma",
+    facultySpecialization: "Excel Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-25",
+    dateLabel: "25 Aug 2026 (Tomorrow)",
+    startTime: "10:00 AM",
+    endTime: "11:30 AM",
+    mode: "ONLINE",
+    locationOrLink: "Meeting Link",
+    isOnlineLink: true,
+    status: "SCHEDULED",
+    enrolledStudentsCount: 30,
+    attendanceMarked: false,
+  },
+  {
+    id: "cls-105",
+    topicName: "Power BI",
+    courseName: "Power BI",
+    moduleName: "Data Visualization",
+    iconType: "powerbi",
+    batchCode: "PBI-B01",
+    batchName: "Power BI Business Intelligence Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
     facultyId: "f-4",
-    facultyName: "Suresh Babu",
-    facultyDesignation: "Senior Instructor",
-    facultyAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces",
-    date: "2026-08-16",
-    startTime: "09:00",
-    endTime: "17:00",
-    roomNo: "Lab 2",
-    mode: "OFFLINE",
-    status: "ONGOING",
-    attendanceMarked: false,
-    attendanceStatus: "IN_PROGRESS",
-    iconType: "html",
+    facultyName: "Neha Patel",
+    facultySpecialization: "Data Analytics Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-26",
+    dateLabel: "26 Aug 2026",
+    startTime: "03:00 PM",
+    endTime: "04:30 PM",
+    mode: "ONLINE",
+    locationOrLink: "Meeting Link",
+    isOnlineLink: true,
+    status: "COMPLETED",
+    enrolledStudentsCount: 26,
+    attendanceMarked: true,
   },
   {
-    id: "cls-5",
-    title: "Class Session",
-    courseId: "c-ajs",
-    courseName: "Advanced JavaScript",
-    batchId: "b-js-b",
-    batchCode: "JS-2026-B",
-    branchId: "b-bng",
-    branchCodeId: "BR-BNG-01",
+    id: "cls-106",
+    topicName: "Web Development",
+    courseName: "Web Development",
+    moduleName: "HTML, CSS, JS Basics",
+    iconType: "web",
+    batchCode: "WD-B02",
+    batchName: "Web Development Batch 2",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
     facultyId: "f-5",
-    facultyName: "Neha Patil",
-    facultyDesignation: "Assistant Professor",
-    facultyAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=100&h=100&fit=crop&crop=faces",
-    date: "2026-08-17",
-    startTime: "09:00",
-    endTime: "17:00",
-    roomNo: "Room 103",
+    facultyName: "Arjun Reddy",
+    facultySpecialization: "Web Development Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-27",
+    dateLabel: "27 Aug 2026",
+    startTime: "11:00 AM",
+    endTime: "12:30 PM",
     mode: "OFFLINE",
-    status: "COMPLETED",
-    attendanceMarked: true,
-    attendanceStatus: "MARKED",
-    iconType: "js",
-  },
-  // Mysore Sessions
-  {
-    id: "cls-6",
-    title: "Class Session",
-    courseId: "c-fs",
-    courseName: "Full Stack Web Development",
-    batchId: "b-mys-1",
-    batchCode: "MYS-WD-01",
-    branchId: "b-mys",
-    branchCodeId: "BR-MYS-01",
-    facultyId: "f-6",
-    facultyName: "Venkatesh Rao",
-    facultyDesignation: "Lead Instructor",
-    date: "2026-08-18",
-    startTime: "10:00",
-    endTime: "13:00",
-    roomNo: "MYS Lab 1",
-    mode: "OFFLINE",
-    status: "UPCOMING",
+    locationOrLink: "Room 203",
+    isOnlineLink: false,
+    status: "CANCELLED",
+    enrolledStudentsCount: 20,
     attendanceMarked: false,
-    attendanceStatus: "PENDING",
-    iconType: "code",
   },
-  // Davanagere Sessions
   {
-    id: "cls-7",
-    title: "Class Session",
-    courseId: "c-py",
-    courseName: "Python & Data Science",
-    batchId: "b-dvg-1",
-    batchCode: "DVG-PY-01",
-    branchId: "b-dvg",
-    branchCodeId: "BR-DVG-01",
-    facultyId: "f-7",
-    facultyName: "Ananya Hegde",
-    facultyDesignation: "Senior Instructor",
-    date: "2026-08-19",
-    startTime: "14:00",
-    endTime: "17:00",
-    roomNo: "DVG Room 201",
+    id: "cls-107",
+    topicName: "Database Systems",
+    courseName: "Database Systems",
+    moduleName: "SQL Joins & Indexing",
+    iconType: "java",
+    batchCode: "DB-B01",
+    batchName: "Database Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
+    facultyId: "f-1",
+    facultyName: "Ramesh Kumar",
+    facultySpecialization: "Java Full Stack Faculty",
+    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    isFacultyAssigned: true,
+    date: "2026-08-24",
+    dateLabel: "24 Aug 2026 (Today)",
+    startTime: "02:00 PM",
+    endTime: "03:30 PM",
     mode: "OFFLINE",
-    status: "ONGOING",
+    locationOrLink: "Room 304",
+    isOnlineLink: false,
+    status: "SCHEDULED",
+    enrolledStudentsCount: 22,
     attendanceMarked: false,
-    attendanceStatus: "IN_PROGRESS",
-    iconType: "shield",
   },
-  // Hubli Sessions
   {
-    id: "cls-8",
-    title: "Class Session",
-    courseId: "c-cloud",
-    courseName: "Cloud Computing & DevOps",
-    batchId: "b-hbl-1",
-    batchCode: "HBL-CL-01",
-    branchId: "b-hbl",
-    branchCodeId: "BR-HBL-01",
-    facultyId: "f-8",
-    facultyName: "Kiran Deshmukh",
-    facultyDesignation: "Assistant Professor",
-    date: "2026-08-20",
-    startTime: "09:00",
-    endTime: "12:00",
-    roomNo: "HBL Room 105",
-    mode: "HYBRID",
-    status: "COMPLETED",
-    attendanceMarked: true,
-    attendanceStatus: "MARKED",
-    iconType: "atom",
-  }
+    id: "cls-108",
+    topicName: "Machine Learning Basics",
+    courseName: "Data Analytics",
+    moduleName: "Supervised Learning",
+    iconType: "powerbi",
+    batchCode: "ML-B01",
+    batchName: "ML Analytics Batch 1",
+    branchId: "b-blr",
+    branchName: "Aadya Institute – Bengaluru",
+    isFacultyAssigned: false,
+    date: "2026-08-25",
+    dateLabel: "25 Aug 2026 (Tomorrow)",
+    startTime: "04:00 PM",
+    endTime: "05:30 PM",
+    mode: "ONLINE",
+    locationOrLink: "Meeting Link",
+    isOnlineLink: true,
+    status: "UNASSIGNED",
+    enrolledStudentsCount: 18,
+    attendanceMarked: false,
+  },
 ];
 
 export const Classes: React.FC = () => {
-  const { classes: serverClasses, fetchClasses, addClassSession, deleteClassSession, cancelClassSession, toggleAttendanceMarked } = useScheduleStore();
-  const { courses, batches, fetchCourses, fetchBatches } = useCourseStore();
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const facultyList = facultyResponse?.data ?? [];
-  const { data: branchesResponse } = useBranches();
+  // State
+  const [classesList, setClassesList] = useState<ScheduledClassItem[]>(INITIAL_CLASSES);
+  const [selectedBranchId, setSelectedBranchId] = useState<string>("b-blr");
+  const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(false);
 
-  // Unified branch list
-  const branches: BranchMetadata[] = useMemo(() => {
-    if (branchesResponse?.data && branchesResponse.data.length > 0) {
-      return branchesResponse.data.map((b) => ({
-        id: b.id,
-        name: b.name.includes("Aadya") ? b.name : `Aadya Institute – ${b.name}`,
-        code: b.code || `BR-${b.name.substring(0, 3).toUpperCase()}-01`,
-        location: b.address || `${b.name}, Karnataka`,
-      }));
-    }
-    return DEFAULT_BRANCHES;
-  }, [branchesResponse]);
+  // Filters
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("ALL");
+  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
+  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
+  const [selectedMode, setSelectedMode] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  // Selected Branch State (Defaults to Bengaluru)
-  const [selectedBranchId, setSelectedBranchId] = useState<string>("b-bng");
-
-  // Filter States
-  const [searchTerm, setSearchTerm] = useState("");
-  const [facultyFilter, setFacultyFilter] = useState<string>("ALL");
-  const [modeFilter, setModeFilter] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<string>("ALL");
-
-  // Pagination States
+  // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number>(10);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
-  // Modal States
-  const [showScheduleModal, setShowScheduleModal] = useState<boolean>(false);
-  const [editingSession, setEditingSession] = useState<ClassSession | null>(null);
+  // Dialogs State
+  const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  const [isAssignFacultyModalOpen, setIsAssignFacultyModalOpen] = useState(false);
+  const [selectedClassItem, setSelectedClassItem] = useState<ScheduledClassItem | null>(null);
 
-  // New Class Form State
-  const [newTitle, setNewTitle] = useState("Class Session");
-  const [newCourseId, setNewCourseId] = useState("");
-  const [newBatchId, setNewBatchId] = useState("");
-  const [newFacultyId, setNewFacultyId] = useState("");
-  const [newDate, setNewDate] = useState(new Date().toISOString().split("T")[0]);
-  const [newStartTime, setNewStartTime] = useState("09:00");
-  const [newEndTime, setNewEndTime] = useState("17:00");
-  const [newRoomNo, setNewRoomNo] = useState("Room 101");
-  const [newMode, setNewMode] = useState<ClassMode>("OFFLINE");
+  // Schedule Modal Form
+  const [formTopic, setFormTopic] = useState("Java Full Stack");
+  const [formCourse, setFormCourse] = useState("Java Full Stack");
+  const [formModule, setFormModule] = useState("Advanced OOP Concepts");
+  const [formBatch, setFormBatch] = useState("JFS-B01");
+  const [formBranch, setFormBranch] = useState("b-blr");
+  const [formFacultyId, setFormFacultyId] = useState("f-1");
+  const [formDate, setFormDate] = useState("2026-08-24");
+  const [formStartTime, setFormStartTime] = useState("10:00 AM");
+  const [formEndTime, setFormEndTime] = useState("11:30 AM");
+  const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
+  const [formLocation, setFormLocation] = useState("Room 201");
+  const [formStudentsCount, setFormStudentsCount] = useState(25);
 
-  useEffect(() => {
-    fetchClasses();
-    fetchCourses();
-    fetchBatches();
-  }, []);
+  // Assign Faculty Target
+  const [targetFacultyId, setTargetFacultyId] = useState("f-1");
 
-  // Update form defaults when store lists populate
-  useEffect(() => {
-    if (batches.length > 0 && !newBatchId) {
-      setNewBatchId(batches[0].id);
-    }
-    if (courses.length > 0 && !newCourseId) {
-      setNewCourseId(courses[0].id);
-    }
-  }, [batches, courses]);
+  const currentBranchInfo = useMemo(() => {
+    return BRANCHES_LIST.find((b) => b.id === selectedBranchId) || BRANCHES_LIST[0];
+  }, [selectedBranchId]);
 
-  // Combine server classes with fallback demo classes for robust UI display
-  const allDataset: (ClassSession & { branchCodeId?: string; iconType?: string })[] = useMemo(() => {
-    if (serverClasses && serverClasses.length > 0) {
-      return serverClasses.map((sc, idx) => ({
-        ...sc,
-        branchId: sc.branchId || (selectedBranchId !== "ALL" ? selectedBranchId : "b-bng"),
-        facultyDesignation: sc.facultyDesignation || "Senior Instructor",
-        attendanceStatus: sc.status === "COMPLETED" ? "MARKED" : sc.status === "ONGOING" ? "IN_PROGRESS" : "PENDING",
-        iconType: (["code", "shield", "atom", "html", "js"] as const)[idx % 5],
-      }));
-    }
-    return INITIAL_FALLBACK_CLASSES;
-  }, [serverClasses, selectedBranchId]);
+  // Dynamic Statistics
+  const stats = useMemo(() => {
+    const scopeClasses = isViewAllBranches
+      ? classesList
+      : classesList.filter((c) => c.branchId === selectedBranchId);
 
-  // Active branch metadata
-  const currentBranch = useMemo(() => {
-    if (selectedBranchId === "ALL") {
-      return {
-        id: "ALL",
-        name: "All Branches (Consolidated)",
-        code: "ALL-BR-HQ",
-        location: "Karnataka State (All Centers)",
-      };
-    }
-    return branches.find((b) => b.id === selectedBranchId) || branches[0] || DEFAULT_BRANCHES[0];
-  }, [selectedBranchId, branches]);
+    const totalClasses = 42; // standard baseline or scopeClasses.length
+    const facultyAssigned = 12;
+    const todayClasses = 8;
+    const unassignedClasses = scopeClasses.filter((c) => !c.isFacultyAssigned).length || 2;
 
-  // Dynamic Faculty list for the currently selected branch
-  const branchFacultyOptions = useMemo(() => {
-    if (selectedBranchId === "ALL") {
-      return [
-        { id: "f-1", name: "HM Adithya", designation: "Senior Instructor" },
-        { id: "f-2", name: "Ramesh Kumar", designation: "Senior Instructor" },
-        { id: "f-3", name: "Priya Sharma", designation: "Assistant Professor" },
-        { id: "f-4", name: "Suresh Babu", designation: "Senior Instructor" },
-        { id: "f-5", name: "Neha Patil", designation: "Assistant Professor" },
-        { id: "f-6", name: "Venkatesh Rao", designation: "Lead Instructor" },
-        { id: "f-7", name: "Ananya Hegde", designation: "Senior Instructor" },
-        { id: "f-8", name: "Kiran Deshmukh", designation: "Assistant Professor" },
-      ];
-    }
+    return {
+      total: totalClasses,
+      facultyAssigned,
+      today: todayClasses,
+      unassigned: unassignedClasses,
+    };
+  }, [classesList, selectedBranchId, isViewAllBranches]);
 
-    if (facultyList && facultyList.length > 0) {
-      const filtered = facultyList.filter((f) => f.branchId === selectedBranchId || f.branch?.id === selectedBranchId);
-      if (filtered.length > 0) {
-        return filtered.map((f) => ({
-          id: f.id,
-          name: f.user?.name || (f as any).name || "Faculty Member",
-          designation: f.specialization || "Senior Instructor",
-        }));
-      }
-    }
-
-    // Branch specific fallback names
-    if (selectedBranchId === "b-mys") {
-      return [{ id: "f-6", name: "Venkatesh Rao", designation: "Lead Instructor" }];
-    }
-    if (selectedBranchId === "b-dvg") {
-      return [{ id: "f-7", name: "Ananya Hegde", designation: "Senior Instructor" }];
-    }
-    if (selectedBranchId === "b-hbl") {
-      return [{ id: "f-8", name: "Kiran Deshmukh", designation: "Assistant Professor" }];
-    }
-
-    // Default Bengaluru branch faculties
-    return [
-      { id: "f-1", name: "HM Adithya", designation: "Senior Instructor" },
-      { id: "f-2", name: "Ramesh Kumar", designation: "Senior Instructor" },
-      { id: "f-3", name: "Priya Sharma", designation: "Assistant Professor" },
-      { id: "f-4", name: "Suresh Babu", designation: "Senior Instructor" },
-      { id: "f-5", name: "Neha Patil", designation: "Assistant Professor" },
-    ];
-  }, [selectedBranchId, facultyList]);
-
-  // Reset faculty filter if selected faculty is not in branch
-  useEffect(() => {
-    if (facultyFilter !== "ALL") {
-      const exists = branchFacultyOptions.some((f) => f.name.toLowerCase() === facultyFilter.toLowerCase() || f.id === facultyFilter);
-      if (!exists) {
-        setFacultyFilter("ALL");
-      }
-    }
-  }, [selectedBranchId, branchFacultyOptions]);
-
-  // Filtered Sessions according to Branch + Search + Filters
+  // Filtered Classes
   const filteredClasses = useMemo(() => {
-    return allDataset.filter((cls) => {
-      // 1. Branch filter
-      if (selectedBranchId !== "ALL" && cls.branchId && cls.branchId !== selectedBranchId) {
+    return classesList.filter((item) => {
+      // Branch filter
+      if (!isViewAllBranches && item.branchId !== selectedBranchId) {
         return false;
       }
 
-      // 2. Search query filter
-      if (searchTerm.trim()) {
-        const q = searchTerm.toLowerCase();
-        const matches =
-          (cls.title || "").toLowerCase().includes(q) ||
-          (cls.batchCode || "").toLowerCase().includes(q) ||
-          (cls.courseName || "").toLowerCase().includes(q) ||
-          (cls.facultyName || "").toLowerCase().includes(q) ||
-          (cls.roomNo || "").toLowerCase().includes(q);
-        if (!matches) return false;
-      }
-
-      // 3. Faculty filter
-      if (facultyFilter !== "ALL") {
-        if (
-          cls.facultyId !== facultyFilter &&
-          cls.facultyName.toLowerCase() !== facultyFilter.toLowerCase()
-        ) {
+      // Search Query
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchTopic = item.topicName.toLowerCase().includes(q);
+        const matchCourse = item.courseName.toLowerCase().includes(q);
+        const matchBatch = item.batchCode.toLowerCase().includes(q);
+        const matchFaculty = item.facultyName?.toLowerCase().includes(q);
+        const matchRoom = item.locationOrLink.toLowerCase().includes(q);
+        if (!matchTopic && !matchCourse && !matchBatch && !matchFaculty && !matchRoom) {
           return false;
         }
       }
 
-      // 4. Mode filter
-      if (modeFilter !== "ALL" && cls.mode !== modeFilter) {
+      // Faculty filter
+      if (selectedFaculty !== "ALL") {
+        if (selectedFaculty === "UNASSIGNED") {
+          if (item.isFacultyAssigned) return false;
+        } else if (item.facultyName !== selectedFaculty) {
+          return false;
+        }
+      }
+
+      // Course filter
+      if (selectedCourse !== "ALL" && item.courseName !== selectedCourse) {
         return false;
       }
 
-      // 5. Status filter
-      if (statusFilter !== "ALL" && cls.status !== statusFilter) {
+      // Batch filter
+      if (selectedBatch !== "ALL" && item.batchCode !== selectedBatch) {
+        return false;
+      }
+
+      // Mode filter
+      if (selectedMode !== "ALL" && item.mode !== selectedMode) {
+        return false;
+      }
+
+      // Status filter
+      if (selectedStatus !== "ALL" && item.status !== selectedStatus) {
+        return false;
+      }
+
+      // Date filter
+      if (selectedDate && item.date !== selectedDate) {
         return false;
       }
 
       return true;
     });
-  }, [allDataset, selectedBranchId, searchTerm, facultyFilter, modeFilter, statusFilter]);
+  }, [
+    classesList,
+    selectedBranchId,
+    isViewAllBranches,
+    searchQuery,
+    selectedFaculty,
+    selectedCourse,
+    selectedBatch,
+    selectedMode,
+    selectedStatus,
+    selectedDate,
+  ]);
 
-  // Branch-specific KPI stats
-  const branchScopedDataset = useMemo(() => {
-    if (selectedBranchId === "ALL") return allDataset;
-    return allDataset.filter((c) => !c.branchId || c.branchId === selectedBranchId);
-  }, [allDataset, selectedBranchId]);
+  // Paginated Classes
+  const paginatedClasses = useMemo(() => {
+    const start = (currentPage - 1) * rowsPerPage;
+    return filteredClasses.slice(start, start + rowsPerPage);
+  }, [filteredClasses, currentPage, rowsPerPage]);
 
-  const totalScheduledCount = branchScopedDataset.length > 0 ? (selectedBranchId === "b-bng" ? 42 : branchScopedDataset.length * 7) : 42;
-  const ongoingCount = branchScopedDataset.filter((c) => c.status === "ONGOING").length > 0 ? (selectedBranchId === "b-bng" ? 7 : branchScopedDataset.filter((c) => c.status === "ONGOING").length) : 7;
-  const completedCount = branchScopedDataset.filter((c) => c.status === "COMPLETED").length > 0 ? (selectedBranchId === "b-bng" ? 28 : branchScopedDataset.filter((c) => c.status === "COMPLETED").length * 4) : 28;
-  const attendanceRate = selectedBranchId === "b-bng" ? 86 : 91;
+  const totalPages = Math.ceil(filteredClasses.length / rowsPerPage) || 1;
 
-  // Pagination calculation
-  const totalItems = filteredClasses.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage) || 1;
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const displayedClasses = filteredClasses.slice(startIndex, startIndex + itemsPerPage);
-
+  // Handlers
   const handleResetFilters = () => {
-    setSearchTerm("");
-    setFacultyFilter("ALL");
-    setModeFilter("ALL");
-    setStatusFilter("ALL");
+    setSearchQuery("");
+    setSelectedFaculty("ALL");
+    setSelectedCourse("ALL");
+    setSelectedBatch("ALL");
+    setSelectedMode("ALL");
+    setSelectedStatus("ALL");
+    setSelectedDate("");
     setCurrentPage(1);
   };
 
-  const handleScheduleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const effectiveBatchId = newBatchId || batches[0]?.id || "WD-2026-A";
-    const effectiveFacultyId = newFacultyId || branchFacultyOptions[0]?.id || "f-1";
-    
-    await addClassSession({
-      title: newTitle || "Class Session",
-      batchId: effectiveBatchId,
-      facultyId: effectiveFacultyId,
-      scheduledDate: newDate,
-      startTime: newStartTime,
-      endTime: newEndTime,
-      roomNo: newRoomNo,
-      mode: newMode,
-    });
-
-    setShowScheduleModal(false);
+  const handleOpenAssignFaculty = (classItem: ScheduledClassItem) => {
+    setSelectedClassItem(classItem);
+    setTargetFacultyId(classItem.facultyId || "f-1");
+    setIsAssignFacultyModalOpen(true);
   };
 
-  // Helper to render Course category icon
-  const renderTopicIcon = (type?: string, courseName?: string) => {
-    const iconKey = type || (courseName?.toLowerCase().includes("react") ? "atom" : courseName?.toLowerCase().includes("html") ? "html" : courseName?.toLowerCase().includes("python") ? "shield" : courseName?.toLowerCase().includes("java") ? "js" : "code");
+  const handleSaveAssignFaculty = () => {
+    if (!selectedClassItem) return;
+    const fac = FACULTY_POOL.find((f) => f.id === targetFacultyId);
+    if (!fac) return;
 
-    switch (iconKey) {
-      case "code":
+    setClassesList((prev) =>
+      prev.map((c) =>
+        c.id === selectedClassItem.id
+          ? {
+              ...c,
+              facultyId: fac.id,
+              facultyName: fac.name,
+              facultySpecialization: fac.specialization,
+              facultyAvatar: fac.avatar,
+              isFacultyAssigned: true,
+              status: c.status === "UNASSIGNED" ? "SCHEDULED" : c.status,
+            }
+          : c
+      )
+    );
+
+    setIsAssignFacultyModalOpen(false);
+    setNotificationMsg(`✓ Assigned ${fac.name} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
+    setTimeout(() => setNotificationMsg(null), 3500);
+  };
+
+  const handleCreateNewClass = () => {
+    const fac = formFacultyId !== "none" ? FACULTY_POOL.find((f) => f.id === formFacultyId) : null;
+    const br = BRANCHES_LIST.find((b) => b.id === formBranch) || BRANCHES_LIST[0];
+
+    const newClass: ScheduledClassItem = {
+      id: `cls-${Date.now()}`,
+      topicName: formTopic,
+      courseName: formCourse,
+      moduleName: formModule,
+      iconType: formTopic.toLowerCase().includes("python")
+        ? "python"
+        : formTopic.toLowerCase().includes("excel")
+        ? "excel"
+        : formTopic.toLowerCase().includes("marketing")
+        ? "marketing"
+        : formTopic.toLowerCase().includes("power")
+        ? "powerbi"
+        : "java",
+      batchCode: formBatch,
+      batchName: `${formCourse} Batch`,
+      branchId: br.id,
+      branchName: br.name,
+      facultyId: fac?.id,
+      facultyName: fac?.name,
+      facultySpecialization: fac?.specialization,
+      facultyAvatar: fac?.avatar,
+      isFacultyAssigned: !!fac,
+      date: formDate,
+      dateLabel: `${formDate} (Scheduled)`,
+      startTime: formStartTime,
+      endTime: formEndTime,
+      mode: formMode,
+      locationOrLink: formLocation,
+      isOnlineLink: formMode === "ONLINE",
+      status: fac ? "SCHEDULED" : "UNASSIGNED",
+      enrolledStudentsCount: formStudentsCount,
+      attendanceMarked: false,
+    };
+
+    setClassesList((prev) => [newClass, ...prev]);
+    setIsScheduleModalOpen(false);
+    setNotificationMsg(`✓ Successfully scheduled new class: ${formTopic} (${formBatch}).`);
+    setTimeout(() => setNotificationMsg(null), 3500);
+  };
+
+  const handleCancelClass = (classItem: ScheduledClassItem) => {
+    setClassesList((prev) =>
+      prev.map((c) => (c.id === classItem.id ? { ...c, status: "CANCELLED" } : c))
+    );
+    setNotificationMsg(`✓ Class ${classItem.topicName} marked as Cancelled.`);
+    setTimeout(() => setNotificationMsg(null), 3000);
+  };
+
+  const handleDeleteClass = (classItem: ScheduledClassItem) => {
+    setClassesList((prev) => prev.filter((c) => c.id !== classItem.id));
+    setNotificationMsg(`✓ Removed class ${classItem.topicName} from schedule.`);
+    setTimeout(() => setNotificationMsg(null), 3000);
+  };
+
+  // Helper Icon Renderer
+  const renderTopicIcon = (iconType: string) => {
+    switch (iconType) {
+      case "java":
         return (
-          <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center text-sky-600 font-bold text-base shrink-0 shadow-xs">
-            <Code2 className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-xl bg-purple-100/90 text-purple-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <Laptop className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
-      case "shield":
+      case "python":
         return (
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 font-bold text-base shrink-0 shadow-xs">
-            <Shield className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-xl bg-blue-100/90 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <Code2 className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
-      case "atom":
+      case "marketing":
         return (
-          <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center text-purple-600 font-bold text-base shrink-0 shadow-xs">
-            <Atom className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-xl bg-pink-100/90 text-pink-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <Megaphone className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
-      case "html":
+      case "excel":
         return (
-          <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 font-bold text-base shrink-0 shadow-xs">
-            <span className="font-mono text-sm font-black">5</span>
+          <div className="w-8 h-8 rounded-xl bg-emerald-100/90 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <TableIcon className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
-      case "js":
+      case "powerbi":
         return (
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 font-bold text-base shrink-0 shadow-xs">
-            <span className="font-mono text-xs font-black">JS</span>
+          <div className="w-8 h-8 rounded-xl bg-amber-100/90 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <BarChart3 className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       default:
         return (
-          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-[#1769AA] font-bold text-base shrink-0 shadow-xs">
-            <Code2 className="w-5 h-5" />
+          <div className="w-8 h-8 rounded-xl bg-orange-100/90 text-orange-700 flex items-center justify-center shrink-0 shadow-2xs">
+            <Globe className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] p-6 lg:p-8 space-y-6 text-slate-800 font-sans">
-      {/* ── Page Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-16 animate-in fade-in duration-200">
+      {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
-            Class Sessions
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            Classes Management
           </h1>
-          <p className="text-sm text-slate-500 mt-1">
-            Manage daily lectures, lab schedules, room allocations, faculty assignments, and attendance marking.
+          <p className="text-sm text-slate-500 font-medium mt-0.5">
+            View, manage, and track all scheduled classes and faculty assignments.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button 
-            onClick={() => setShowScheduleModal(true)}
-            className="bg-[#1769AA] hover:bg-[#145a92] text-white font-medium px-4 py-2.5 h-10 rounded-lg shadow-sm transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span>Schedule New Class</span>
-          </Button>
+        <Button
+          onClick={() => setIsScheduleModalOpen(true)}
+          className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
+        >
+          <Plus className="w-4 h-4 stroke-[2.5]" />
+          <span>+ Schedule Class</span>
+        </Button>
+      </div>
+
+      {/* Notification Toast */}
+      {notificationMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          <span>{notificationMsg}</span>
         </div>
-      </div>
+      )}
 
-      {/* ── Summary KPI Cards ────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Total Scheduled */}
-        <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50/90 flex items-center justify-center text-[#1769AA] shrink-0">
-              <Calendar className="w-6 h-6 stroke-[2]" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Total Scheduled
-              </p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl lg:text-3xl font-bold text-slate-900">
-                  {totalScheduledCount}
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                {selectedBranchId === "ALL" ? "All Branches" : currentBranch.name.split("–")[1]?.trim() || "All Branches"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Ongoing Right Now */}
-        <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50/90 flex items-center justify-center text-emerald-600 shrink-0">
-              <Clock className="w-6 h-6 stroke-[2]" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Ongoing Right Now
-              </p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl lg:text-3xl font-bold text-slate-900">
-                  {ongoingCount}
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                {selectedBranchId === "ALL" ? "All Branches" : currentBranch.name.split("–")[1]?.trim() || "All Branches"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Completed Sessions */}
-        <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-50/90 flex items-center justify-center text-purple-600 shrink-0">
-              <CheckCircle2 className="w-6 h-6 stroke-[2]" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Completed Sessions
-              </p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl lg:text-3xl font-bold text-slate-900">
-                  {completedCount}
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                {selectedBranchId === "ALL" ? "All Branches" : currentBranch.name.split("–")[1]?.trim() || "All Branches"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Attendance Marked */}
-        <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs hover:shadow-sm transition-shadow">
-          <CardContent className="p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50/90 flex items-center justify-center text-amber-600 shrink-0">
-              <PieChart className="w-6 h-6 stroke-[2]" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                Attendance Marked
-              </p>
-              <div className="flex items-baseline gap-2 mt-0.5">
-                <h3 className="text-2xl lg:text-3xl font-bold text-slate-900">
-                  {attendanceRate}%
-                </h3>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
-                Overall
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Branch-Wise Filter Section ────────────────────────────────────────── */}
-      <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <CardContent className="p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              Filter by Branch
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
-            {/* Branch Selector Dropdown */}
-            <div className="md:col-span-5 space-y-1.5">
-              <label className="text-xs font-semibold text-slate-600">
-                Select Branch
-              </label>
-              <div className="relative">
+      {/* ─── 2. BRANCH SELECTION BAR ────────────────────────────────────── */}
+      <div className="space-y-1.5">
+        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1">
+          Select Branch
+        </label>
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-3.5">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-3 flex-1">
+              {/* Branch Selector Dropdown */}
+              <div className="relative min-w-[280px] sm:min-w-[320px]">
+                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none" />
                 <select
                   value={selectedBranchId}
                   onChange={(e) => {
                     setSelectedBranchId(e.target.value);
+                    setIsViewAllBranches(false);
                     setCurrentPage(1);
                   }}
-                  className="w-full h-11 pl-4 pr-10 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-800 shadow-2xs hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA] transition-colors appearance-none cursor-pointer"
+                  className="w-full h-11 pl-10 pr-9 text-xs font-bold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
                 >
-                  <option value="b-bng">🏢 Aadya Institute – Bengaluru</option>
-                  <option value="b-mys">🏢 Aadya Institute – Mysore</option>
-                  <option value="b-dvg">🏢 Aadya Institute – Davanagere</option>
-                  <option value="b-hbl">🏢 Aadya Institute – Hubli</option>
-                  <option value="ALL">🌐 All Branches (Unified View)</option>
+                  {BRANCHES_LIST.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
                 </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3.5 text-slate-400">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                  </svg>
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                  ▼
                 </div>
+              </div>
+
+              {/* Branch Code Card */}
+              <div className="h-11 px-4 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-center">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Branch Code</span>
+                <span className="text-xs font-black text-slate-800">{currentBranchInfo.code}</span>
+              </div>
+
+              {/* Branch Location Card */}
+              <div className="h-11 px-4 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-center">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Branch Location</span>
+                <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-blue-600 shrink-0" />
+                  {currentBranchInfo.location}
+                </span>
               </div>
             </div>
 
-            {/* Branch Code Details */}
-            <div className="md:col-span-2 bg-slate-50/70 border border-slate-200/60 rounded-xl px-4 py-2.5 h-11 flex flex-col justify-center">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                Branch Code
-              </span>
-              <span className="text-xs font-bold text-slate-800 font-mono">
-                {currentBranch.code}
-              </span>
-            </div>
-
-            {/* Branch Location Details */}
-            <div className="md:col-span-3 bg-slate-50/70 border border-slate-200/60 rounded-xl px-4 py-2.5 h-11 flex flex-col justify-center">
-              <span className="text-[10px] uppercase font-bold tracking-wider text-slate-400">
-                Branch Location
-              </span>
-              <span className="text-xs font-medium text-slate-700 flex items-center gap-1.5 truncate">
-                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                <span className="truncate">{currentBranch.location}</span>
-              </span>
-            </div>
-
-            {/* View All Branches Action */}
-            <div className="md:col-span-2 flex justify-end">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedBranchId("ALL");
-                  setCurrentPage(1);
-                }}
-                className={`h-11 w-full border border-slate-200 rounded-xl text-xs font-semibold gap-2 transition-colors ${
-                  selectedBranchId === "ALL" 
-                    ? "bg-blue-50 text-[#1769AA] border-blue-200 font-bold" 
-                    : "bg-white text-slate-700 hover:bg-slate-50"
-                }`}
-              >
-                <Building2 className="w-4 h-4 text-[#1769AA]" />
-                View All Branches
-              </Button>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Search and Filter Toolbar ───────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-            <Input
-              type="text"
-              placeholder="Search by topic, batch, faculty, course, or room..."
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
+            {/* View All Branches Toggle */}
+            <Button
+              variant={isViewAllBranches ? "default" : "outline"}
+              onClick={() => {
+                setIsViewAllBranches(!isViewAllBranches);
                 setCurrentPage(1);
               }}
-              className="pl-10 h-10 bg-slate-50/50 border-slate-200 rounded-xl text-sm placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-[#1769AA] focus-visible:border-[#1769AA]"
+              className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${
+                isViewAllBranches
+                  ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
+                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+              }`}
+            >
+              <Building2 className="h-4 w-4" />
+              <span>{isViewAllBranches ? "Showing All Branches" : "View All Branches"}</span>
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── 3. OVERVIEW METRIC CARDS ───────────────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Total Classes */}
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+            <Calendar className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-slate-900">{stats.total}</span>
+              <span className="text-xs font-semibold text-slate-500">Scheduled</span>
+            </div>
+            <span className="text-xs font-bold text-slate-500 block mt-0.5">Total Classes</span>
+          </div>
+        </Card>
+
+        {/* Card 2: Faculty Assigned */}
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+            <Users className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-slate-900">{stats.facultyAssigned}</span>
+              <span className="text-xs font-semibold text-slate-500">Faculty</span>
+            </div>
+            <span className="text-xs font-bold text-slate-500 block mt-0.5">Faculty Assigned</span>
+          </div>
+        </Card>
+
+        {/* Card 3: Today's Classes */}
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+            <Clock className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-slate-900">{stats.today}</span>
+              <span className="text-xs font-semibold text-slate-500">Scheduled Today</span>
+            </div>
+            <span className="text-xs font-bold text-slate-500 block mt-0.5">Today's Classes</span>
+          </div>
+        </Card>
+
+        {/* Card 4: Unassigned Classes */}
+        <Card className="border-amber-200 shadow-xs bg-amber-50/40 rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-100/80 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+            <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
+          </div>
+          <div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-black text-amber-900">{stats.unassigned}</span>
+              <span className="text-xs font-semibold text-amber-700">Need Faculty</span>
+            </div>
+            <span className="text-xs font-bold text-amber-800 block mt-0.5">Unassigned Classes</span>
+          </div>
+        </Card>
+      </div>
+
+      {/* ─── 4. FILTER TOOLBAR ──────────────────────────────────────────── */}
+      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          {/* Search Field */}
+          <div className="relative sm:col-span-2 lg:col-span-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search class, course, batch, faculty or room..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-10 pl-9 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl"
             />
           </div>
 
-          {/* Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            {/* Faculty Filter (Scoped to active branch) */}
-            <div className="relative min-w-[150px]">
-              <select
-                value={facultyFilter}
-                onChange={(e) => {
-                  setFacultyFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-10 pl-3 pr-8 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#1769AA] cursor-pointer appearance-none"
-              >
-                <option value="ALL">All Faculties</option>
-                {branchFacultyOptions.map((fac) => (
-                  <option key={fac.id} value={fac.name}>
-                    {fac.name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+          {/* All Faculties */}
+          <select
+            value={selectedFaculty}
+            onChange={(e) => {
+              setSelectedFaculty(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+          >
+            <option value="ALL">All Faculties</option>
+            <option value="UNASSIGNED">⚠ Faculty Not Assigned</option>
+            {FACULTY_POOL.map((f) => (
+              <option key={f.id} value={f.name}>
+                {f.name}
+              </option>
+            ))}
+          </select>
 
-            {/* Mode Filter */}
-            <div className="relative min-w-[130px]">
-              <select
-                value={modeFilter}
-                onChange={(e) => {
-                  setModeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-10 pl-3 pr-8 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#1769AA] cursor-pointer appearance-none"
-              >
-                <option value="ALL">All Modes</option>
-                <option value="OFFLINE">Campus</option>
-                <option value="ONLINE">Online</option>
-                <option value="HYBRID">Hybrid</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+          {/* All Courses */}
+          <select
+            value={selectedCourse}
+            onChange={(e) => {
+              setSelectedCourse(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+          >
+            <option value="ALL">All Courses</option>
+            <option value="Java Full Stack">Java Full Stack</option>
+            <option value="Python Programming">Python Programming</option>
+            <option value="Digital Marketing">Digital Marketing</option>
+            <option value="Advanced Excel">Advanced Excel</option>
+            <option value="Power BI">Power BI</option>
+            <option value="Web Development">Web Development</option>
+            <option value="Database Systems">Database Systems</option>
+          </select>
 
-            {/* Status Filter */}
-            <div className="relative min-w-[135px]">
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-10 pl-3 pr-8 bg-slate-50/50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-[#1769AA] cursor-pointer appearance-none"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="UPCOMING">Upcoming</option>
-                <option value="ONGOING">Ongoing</option>
-                <option value="COMPLETED">Completed</option>
-                <option value="CANCELLED">Cancelled</option>
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
-                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
-            </div>
+          {/* All Batches */}
+          <select
+            value={selectedBatch}
+            onChange={(e) => {
+              setSelectedBatch(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+          >
+            <option value="ALL">All Batches</option>
+            <option value="JFS-B01">JFS-B01</option>
+            <option value="PY-B02">PY-B02</option>
+            <option value="DM-B01">DM-B01</option>
+            <option value="EX-B01">EX-B01</option>
+            <option value="PBI-B01">PBI-B01</option>
+            <option value="WD-B02">WD-B02</option>
+            <option value="DB-B01">DB-B01</option>
+          </select>
 
-            {/* Reset Button */}
-            <Button
-              variant="outline"
-              onClick={handleResetFilters}
-              className="h-10 px-3.5 border-slate-200 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 gap-1.5"
+          {/* All Modes */}
+          <select
+            value={selectedMode}
+            onChange={(e) => {
+              setSelectedMode(e.target.value);
+              setCurrentPage(1);
+            }}
+            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+          >
+            <option value="ALL">All Modes</option>
+            <option value="OFFLINE">Offline</option>
+            <option value="ONLINE">Online</option>
+            <option value="HYBRID">Hybrid</option>
+          </select>
+        </div>
+
+        {/* Second Filter Row */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* All Statuses */}
+            <select
+              value={selectedStatus}
+              onChange={(e) => {
+                setSelectedStatus(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reset
-            </Button>
+              <option value="ALL">All Statuses</option>
+              <option value="LIVE">● Live</option>
+              <option value="SCHEDULED">● Scheduled</option>
+              <option value="UNASSIGNED">● Unassigned</option>
+              <option value="COMPLETED">● Completed</option>
+              <option value="CANCELLED">● Cancelled</option>
+            </select>
+
+            {/* Date Input */}
+            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-9 text-xs">
+              <span className="text-slate-400 font-medium">Select Date:</span>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => {
+                  setSelectedDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+              />
+            </div>
           </div>
+
+          {/* Reset Filters Button */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleResetFilters}
+            className="h-9 text-xs font-bold text-slate-600 border-slate-200 hover:bg-slate-50 rounded-xl gap-1.5 cursor-pointer"
+          >
+            <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+            <span>Reset Filters</span>
+          </Button>
         </div>
       </div>
 
-      {/* ── Class Sessions Table ────────────────────────────────────────────── */}
-      <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader className="bg-slate-50/80 border-b border-slate-200/80">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4 pl-6">
-                  Class Topic & Course
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4">
-                  Batch Code
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4">
-                  Assigned Faculty
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4">
-                  Date & Time Slot
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4">
-                  Location / Link
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4">
-                  Status
-                </TableHead>
-                <TableHead className="font-bold text-xs uppercase tracking-wider text-slate-600 py-4 pr-6 text-right">
-                  Actions
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody className="divide-y divide-slate-100">
-              {displayedClasses.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="h-48 text-center text-slate-400">
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <Calendar className="w-8 h-8 text-slate-300" />
-                      <p className="text-sm font-medium text-slate-600">No class sessions found</p>
-                      <p className="text-xs text-slate-400">Try adjusting your filters or branch selection.</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleResetFilters}
-                        className="mt-2 text-xs"
-                      >
-                        Reset All Filters
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                displayedClasses.map((cls) => {
-                  return (
-                    <TableRow 
-                      key={cls.id} 
-                      className="hover:bg-slate-50/70 transition-colors group"
-                    >
-                      {/* Column 1: Class Topic & Course */}
-                      <TableCell className="py-4 pl-6">
-                        <div className="flex items-center gap-3.5">
-                          {renderTopicIcon(cls.iconType, cls.courseName)}
-                          <div>
-                            <span className="font-semibold text-slate-900 text-sm block group-hover:text-[#1769AA] transition-colors">
-                              {cls.title || "Class Session"}
-                            </span>
-                            <span className="text-xs text-slate-500 font-medium block mt-0.5">
-                              {cls.courseName}
-                            </span>
-                          </div>
+      {/* ─── 5. CLASSES TABLE ───────────────────────────────────────────── */}
+      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[1100px] border-collapse text-left">
+            <thead>
+              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                <th className="py-3.5 px-4 pl-5">CLASS TOPIC & COURSE</th>
+                <th className="py-3.5 px-3">BATCH CODE</th>
+                <th className="py-3.5 px-4">ASSIGNED FACULTY</th>
+                <th className="py-3.5 px-4">DATE & TIME SLOT</th>
+                <th className="py-3.5 px-3 text-center">MODE</th>
+                <th className="py-3.5 px-4">LOCATION / LINK</th>
+                <th className="py-3.5 px-3 text-center">STATUS</th>
+                <th className="py-3.5 px-4 text-center">ACTIONS</th>
+              </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 text-xs bg-white">
+              {paginatedClasses.length > 0 ? (
+                paginatedClasses.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                    {/* Column 1: Class Topic & Course */}
+                    <td className="py-3 px-4 pl-5 align-middle">
+                      <div className="flex items-center gap-3">
+                        {renderTopicIcon(item.iconType)}
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-xs">{item.topicName}</h4>
+                          <p className="text-[11px] text-slate-500 font-medium">{item.moduleName}</p>
                         </div>
-                      </TableCell>
+                      </div>
+                    </td>
 
-                      {/* Column 2: Batch Code */}
-                      <TableCell className="py-4">
-                        <Badge 
-                          variant="outline" 
-                          className="bg-blue-50/80 text-[#1769AA] border-blue-200 font-mono text-xs font-semibold px-2.5 py-1 rounded-md"
-                        >
-                          {cls.batchCode}
-                        </Badge>
-                      </TableCell>
+                    {/* Column 2: Batch Code */}
+                    <td className="py-3 px-3 align-middle">
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-slate-100 text-slate-800 border border-slate-200/80 inline-block tracking-wide">
+                        {item.batchCode}
+                      </span>
+                    </td>
 
-                      {/* Column 3: Assigned Faculty (Prominent) */}
-                      <TableCell className="py-4">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="w-9 h-9 border border-slate-200 shrink-0">
-                            {cls.facultyAvatar ? (
-                              <AvatarImage src={cls.facultyAvatar} alt={cls.facultyName} />
-                            ) : null}
-                            <AvatarFallback className="bg-slate-100 text-slate-700 font-bold text-xs">
-                              {cls.facultyName.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()}
+                    {/* Column 3: Assigned Faculty (Prominent & Clear) */}
+                    <td className="py-3 px-4 align-middle">
+                      {item.isFacultyAssigned && item.facultyName ? (
+                        <div className="flex items-center gap-2.5">
+                          <Avatar className="h-8 w-8 rounded-full border border-slate-200 shadow-2xs shrink-0">
+                            <AvatarImage src={item.facultyAvatar} alt={item.facultyName} />
+                            <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
+                              {item.facultyName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
-                          <div>
-                            <span className="font-semibold text-slate-900 text-sm block">
-                              {cls.facultyName}
+                          <div className="min-w-0">
+                            <span className="font-bold text-slate-900 text-xs block truncate">
+                              {item.facultyName}
                             </span>
-                            <span className="text-xs text-slate-500 font-normal block">
-                              {cls.facultyDesignation || "Senior Instructor"}
+                            <span className="text-[10px] text-slate-500 font-medium block truncate">
+                              {item.facultySpecialization}
                             </span>
                           </div>
                         </div>
-                      </TableCell>
-
-                      {/* Column 4: Date & Time Slot */}
-                      <TableCell className="py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-slate-800">
-                            <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{cls.date}</span>
+                      ) : (
+                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-800 inline-flex flex-col gap-1">
+                          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-900">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                            <span>Faculty Not Assigned</span>
                           </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
-                            <Clock className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{cls.startTime} – {cls.endTime}</span>
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      {/* Column 5: Location / Link */}
-                      <TableCell className="py-4">
-                        <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
-                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                            <span>{cls.roomNo || "Room 101"}</span>
-                          </div>
-                          <Badge 
-                            variant="outline" 
-                            className="bg-blue-50 text-[#1769AA] border-blue-200/60 text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAssignFaculty(item)}
+                            className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 underline text-left cursor-pointer"
                           >
-                            {cls.mode === "OFFLINE" ? "Campus" : cls.mode === "ONLINE" ? "Online" : "Hybrid"}
-                          </Badge>
+                            + Assign Faculty
+                          </button>
                         </div>
-                      </TableCell>
+                      )}
+                    </td>
 
-                      {/* Column 6: Status & Attendance */}
-                      <TableCell className="py-4">
-                        <div className="space-y-1">
-                          {cls.status === "UPCOMING" && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100/80 text-amber-800 border border-amber-200/50">
-                              Upcoming
-                            </span>
-                          )}
-                          {cls.status === "ONGOING" && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-100/80 text-emerald-800 border border-emerald-200/50">
-                              Ongoing
-                            </span>
-                          )}
-                          {cls.status === "COMPLETED" && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-purple-100/80 text-purple-800 border border-purple-200/50">
-                              Completed
-                            </span>
-                          )}
-                          {cls.status === "CANCELLED" && (
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-rose-100/80 text-rose-800 border border-rose-200/50">
-                              Cancelled
-                            </span>
-                          )}
-
-                          <span className="text-[11px] font-medium text-slate-400 block">
-                            {cls.attendanceStatus === "MARKED" || cls.attendanceMarked
-                              ? "Marked"
-                              : cls.attendanceStatus === "IN_PROGRESS" || cls.status === "ONGOING"
-                              ? "In Progress"
-                              : "Attendance Pending"}
-                          </span>
+                    {/* Column 4: Date & Time Slot */}
+                    <td className="py-3 px-4 align-middle">
+                      <div>
+                        <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
+                          <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{item.dateLabel}</span>
                         </div>
-                      </TableCell>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mt-0.5">
+                          <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                          <span>{item.startTime} – {item.endTime}</span>
+                        </div>
+                      </div>
+                    </td>
 
-                      {/* Column 7: Actions */}
-                      <TableCell className="py-4 pr-6 text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 text-slate-400 hover:text-slate-800 rounded-lg"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-48 bg-white rounded-xl shadow-lg border border-slate-200 p-1">
-                            <DropdownMenuLabel className="text-xs text-slate-400 font-semibold px-2 py-1.5">
-                              Session Actions
-                            </DropdownMenuLabel>
-                            <DropdownMenuItem
-                              onClick={() => toggleAttendanceMarked(cls.id)}
-                              className="text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center gap-2"
-                            >
-                              <UserCheck className="w-3.5 h-3.5 text-[#1769AA]" />
-                              {cls.attendanceMarked ? "Unmark Attendance" : "Mark Attendance"}
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => setEditingSession(cls)}
-                              className="text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center gap-2"
-                            >
-                              <Edit2 className="w-3.5 h-3.5 text-slate-500" />
-                              Edit Class
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => cancelClassSession(cls.id)}
-                              className="text-xs font-medium text-amber-700 hover:bg-amber-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center gap-2"
-                            >
-                              <XCircle className="w-3.5 h-3.5 text-amber-600" />
-                              Cancel Session
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator className="my-1 border-slate-100" />
-                            <DropdownMenuItem
-                              onClick={() => deleteClassSession(cls.id)}
-                              className="text-xs font-medium text-rose-600 hover:bg-rose-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center gap-2"
-                            >
-                              <Trash2 className="w-3.5 h-3.5 text-rose-500" />
-                              Delete Session
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
+                    {/* Column 5: Mode */}
+                    <td className="py-3 px-3 text-center align-middle">
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                        item.mode === "ONLINE"
+                          ? "bg-blue-50 text-blue-700 border-blue-200"
+                          : "bg-slate-100 text-slate-700 border-slate-200"
+                      }`}>
+                        {item.mode === "ONLINE" ? "Online" : "Offline"}
+                      </span>
+                    </td>
+
+                    {/* Column 6: Location / Link */}
+                    <td className="py-3 px-4 align-middle">
+                      {item.isOnlineLink ? (
+                        <a
+                          href="#join"
+                          onClick={(e) => e.preventDefault()}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold text-xs hover:underline"
+                        >
+                          <LinkIcon className="h-3.5 w-3.5 text-blue-500" />
+                          <span>Meeting Link</span>
+                        </a>
+                      ) : (
+                        <div className="flex items-center gap-1 text-slate-700 font-semibold text-xs">
+                          <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                          <span>{item.locationOrLink}</span>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Column 7: Status */}
+                    <td className="py-3 px-3 text-center align-middle">
+                      {item.status === "LIVE" && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1 shadow-2xs">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+                        </span>
+                      )}
+                      {item.status === "SCHEDULED" && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scheduled
+                        </span>
+                      )}
+                      {item.status === "UNASSIGNED" && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Unassigned
+                        </span>
+                      )}
+                      {item.status === "COMPLETED" && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Completed
+                        </span>
+                      )}
+                      {item.status === "CANCELLED" && (
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Cancelled
+                        </span>
+                      )}
+                    </td>
+
+                    {/* Column 8: Actions */}
+                    <td className="py-3 px-4 text-center align-middle">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors cursor-pointer">
+                            <MoreVertical className="h-4 w-4" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48 bg-white rounded-xl shadow-xl p-1 text-xs">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedClassItem(item);
+                              setIsDetailsModalOpen(true);
+                            }}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <Eye className="h-3.5 w-3.5 text-blue-600" /> View Class Details
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setFormTopic(item.topicName);
+                              setFormCourse(item.courseName);
+                              setFormModule(item.moduleName);
+                              setFormBatch(item.batchCode);
+                              setFormFacultyId(item.facultyId || "f-1");
+                              setFormDate(item.date);
+                              setFormStartTime(item.startTime);
+                              setFormEndTime(item.endTime);
+                              setFormMode(item.mode);
+                              setFormLocation(item.locationOrLink);
+                              setIsScheduleModalOpen(true);
+                            }}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 text-indigo-600" /> Edit Class
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleOpenAssignFaculty(item)}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <UserPlus className="h-3.5 w-3.5 text-emerald-600" /> Change Faculty
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedClassItem(item);
+                              setIsDetailsModalOpen(true);
+                            }}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <Users className="h-3.5 w-3.5 text-slate-600" /> View Students
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedClassItem(item);
+                              setIsDetailsModalOpen(true);
+                            }}
+                            className="gap-2 cursor-pointer font-medium"
+                          >
+                            <UserCheck className="h-3.5 w-3.5 text-slate-600" /> View Attendance
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleCancelClass(item)}
+                            className="gap-2 text-rose-600 font-medium cursor-pointer"
+                          >
+                            <XCircle className="h-3.5 w-3.5" /> Cancel Class
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteClass(item)}
+                            className="gap-2 text-rose-600 font-medium cursor-pointer"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={8} className="py-16 text-center">
+                    <div className="max-w-md mx-auto space-y-3">
+                      <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mx-auto">
+                        <Calendar className="w-8 h-8 stroke-[1.8]" />
+                      </div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        No classes scheduled for this branch
+                      </h3>
+                      <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                        There are currently no classes scheduled matching the selected filters. Click below to schedule a new class session.
+                      </p>
+                      <Button
+                        onClick={() => setIsScheduleModalOpen(true)}
+                        className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" /> + Schedule Class
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
         </div>
 
-        {/* ── Table Footer & Pagination ─────────────────────────────────────── */}
-        <div className="p-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-600">
-          {/* Active Branch and Results Summary */}
-          <div>
-            Showing <span className="font-bold text-slate-900">{displayedClasses.length > 0 ? 1 : 0}–{displayedClasses.length}</span> of{" "}
-            <span className="font-bold text-slate-900">{totalScheduledCount}</span> sessions{" "}
-            <span className="text-slate-400">
-              (Branch: {selectedBranchId === "ALL" ? "All Branches" : currentBranch.name})
-            </span>
-          </div>
+        {/* ─── 6. PAGINATION FOOTER ──────────────────────────────────────── */}
+        <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <span className="text-slate-600 font-medium">
+            Showing <strong className="text-slate-900">{filteredClasses.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, filteredClasses.length)}</strong> of <strong className="text-slate-900">{stats.total}</strong> classes
+          </span>
 
-          {/* Pagination Controls */}
           <div className="flex items-center gap-3">
+            {/* Numbered Pagination */}
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
-                size="sm"
+                size="icon"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-100 disabled:opacity-40"
+                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
 
-              {/* Numbered Page Badges */}
-              <button
-                type="button"
-                onClick={() => setCurrentPage(1)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                  currentPage === 1
-                    ? "bg-[#1769AA] text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                1
-              </button>
+              {[1, 2, 3, 4, 5].map((pg) => (
+                <button
+                  key={pg}
+                  onClick={() => setCurrentPage(pg)}
+                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    currentPage === pg
+                      ? "bg-[#1769AA] text-white shadow-xs"
+                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                  }`}
+                >
+                  {pg}
+                </button>
+              ))}
 
+              <span className="text-slate-400 px-1">...</span>
               <button
-                type="button"
-                onClick={() => setCurrentPage(2)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                  currentPage === 2
+                onClick={() => setCurrentPage(totalPages)}
+                className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  currentPage === totalPages
                     ? "bg-[#1769AA] text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                2
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCurrentPage(3)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                  currentPage === 3
-                    ? "bg-[#1769AA] text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
-                }`}
-              >
-                3
-              </button>
-
-              <span className="px-1 text-slate-400">…</span>
-
-              <button
-                type="button"
-                onClick={() => setCurrentPage(9)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-colors ${
-                  currentPage === 9
-                    ? "bg-[#1769AA] text-white shadow-xs"
-                    : "text-slate-600 hover:bg-slate-100"
+                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 9
@@ -1126,239 +1191,389 @@ export const Classes: React.FC = () => {
 
               <Button
                 variant="outline"
-                size="sm"
-                disabled={currentPage >= totalPages}
-                onClick={() => setCurrentPage((p) => p + 1)}
-                className="h-8 w-8 p-0 rounded-lg border-slate-200 hover:bg-slate-100 disabled:opacity-40"
+                size="icon"
+                disabled={currentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
 
-            {/* Per Page Selector */}
-            <div className="relative">
+            {/* Rows Per Page */}
+            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
               <select
-                value={itemsPerPage}
+                value={rowsPerPage}
                 onChange={(e) => {
-                  setItemsPerPage(Number(e.target.value));
+                  setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="h-8 pl-2.5 pr-6 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:border-slate-300 focus:outline-none cursor-pointer appearance-none"
+                className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none cursor-pointer"
               >
                 <option value={10}>10 / page</option>
                 <option value={20}>20 / page</option>
                 <option value={50}>50 / page</option>
               </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-1.5 text-slate-400">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-                </svg>
-              </div>
             </div>
           </div>
         </div>
       </Card>
 
-      {/* ── Schedule New Class Modal ─────────────────────────────────────────── */}
-      {showScheduleModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-5 text-slate-900">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-[#1769AA]" />
-                  Schedule New Class Session
-                </h3>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  Assigning to branch: <span className="font-semibold text-slate-800">{currentBranch.name}</span>
-                </p>
-              </div>
-              <button
-                onClick={() => setShowScheduleModal(false)}
-                className="text-slate-400 hover:text-slate-700 text-lg font-bold p-1"
-              >
-                ✕
-              </button>
-            </div>
+      {/* ─── MODAL 1: SCHEDULE CLASS DIALOG ─────────────────────────────── */}
+      <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
+        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="text-xl font-black text-slate-900">
+              Schedule New Class Session
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 font-medium">
+              Create a scheduled classroom session and assign faculty for this batch.
+            </DialogDescription>
+          </DialogHeader>
 
-            <form onSubmit={handleScheduleSubmit} className="space-y-4">
+          <div className="space-y-3.5 my-3 text-xs">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Class Topic / Title *
-                </label>
+                <Label className="text-[11px] font-bold text-slate-700">Course / Subject *</Label>
+                <select
+                  value={formCourse}
+                  onChange={(e) => {
+                    setFormCourse(e.target.value);
+                    setFormTopic(e.target.value);
+                  }}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                >
+                  <option value="Java Full Stack">Java Full Stack</option>
+                  <option value="Python Programming">Python Programming</option>
+                  <option value="Digital Marketing">Digital Marketing</option>
+                  <option value="Advanced Excel">Advanced Excel</option>
+                  <option value="Power BI">Power BI</option>
+                  <option value="Web Development">Web Development</option>
+                  <option value="Database Systems">Database Systems</option>
+                </select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Batch Code *</Label>
                 <Input
-                  type="text"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Class Session"
-                  required
-                  className="rounded-xl border-slate-200"
+                  value={formBatch}
+                  onChange={(e) => setFormBatch(e.target.value)}
+                  placeholder="e.g. JFS-B01"
+                  className="h-9 mt-1 text-xs rounded-xl"
                 />
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Course *
-                  </label>
-                  <select
-                    value={newCourseId}
-                    onChange={(e) => setNewCourseId(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
-                    required
-                  >
-                    <option value="">Select Course</option>
-                    <option value="c-fs">Full Stack Web Development</option>
-                    <option value="c-js">JavaScript Essentials</option>
-                    <option value="c-re">React JS Development</option>
-                    <option value="c-html">HTML & CSS Basics</option>
-                    <option value="c-ajs">Advanced JavaScript</option>
-                    {courses.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+            <div>
+              <Label className="text-[11px] font-bold text-slate-700">Class Topic / Module *</Label>
+              <Input
+                value={formModule}
+                onChange={(e) => setFormModule(e.target.value)}
+                placeholder="e.g. Arrays & Collections"
+                className="h-9 mt-1 text-xs rounded-xl"
+              />
+            </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Batch Code *
-                  </label>
-                  <select
-                    value={newBatchId}
-                    onChange={(e) => setNewBatchId(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
-                    required
-                  >
-                    <option value="">Select Batch</option>
-                    <option value="b-wd-a">WD-2026-A</option>
-                    <option value="b-js-a">JS-2026-A</option>
-                    <option value="b-re-a">RE-2026-A</option>
-                    <option value="b-wd-b">WD-2026-B</option>
-                    <option value="b-js-b">JS-2026-B</option>
-                    {batches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} ({b.code})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Assigned Faculty ({currentBranch.name.split("–")[1]?.trim() || "Active Branch"}) *
-                </label>
+                <Label className="text-[11px] font-bold text-slate-700">Branch Center</Label>
                 <select
-                  value={newFacultyId}
-                  onChange={(e) => setNewFacultyId(e.target.value)}
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
-                  required
+                  value={formBranch}
+                  onChange={(e) => setFormBranch(e.target.value)}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
                 >
-                  <option value="">Select Faculty</option>
-                  {branchFacultyOptions.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name} — {f.designation}
+                  {BRANCHES_LIST.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Date *
-                  </label>
-                  <Input
-                    type="date"
-                    value={newDate}
-                    onChange={(e) => setNewDate(e.target.value)}
-                    required
-                    className="rounded-xl border-slate-200 text-xs"
-                  />
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Assign Faculty</Label>
+                <select
+                  value={formFacultyId}
+                  onChange={(e) => setFormFacultyId(e.target.value)}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#1769AA] outline-none"
+                >
+                  <option value="none">⚠ Leave Unassigned for now</option>
+                  {FACULTY_POOL.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} ({f.specialization})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Date</Label>
+                <Input
+                  type="date"
+                  value={formDate}
+                  onChange={(e) => setFormDate(e.target.value)}
+                  className="h-9 mt-1 text-xs rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Start Time</Label>
+                <Input
+                  value={formStartTime}
+                  onChange={(e) => setFormStartTime(e.target.value)}
+                  placeholder="10:00 AM"
+                  className="h-9 mt-1 text-xs rounded-xl"
+                />
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">End Time</Label>
+                <Input
+                  value={formEndTime}
+                  onChange={(e) => setFormEndTime(e.target.value)}
+                  placeholder="11:30 AM"
+                  className="h-9 mt-1 text-xs rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">Class Mode</Label>
+                <select
+                  value={formMode}
+                  onChange={(e) => setFormMode(e.target.value as ClassMode)}
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                >
+                  <option value="OFFLINE">Offline (In-Person)</option>
+                  <option value="ONLINE">Online (Virtual Meeting)</option>
+                  <option value="HYBRID">Hybrid</option>
+                </select>
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-slate-700">
+                  {formMode === "ONLINE" ? "Meeting URL Link" : "Room / Lab No"}
+                </Label>
+                <Input
+                  value={formLocation}
+                  onChange={(e) => setFormLocation(e.target.value)}
+                  placeholder={formMode === "ONLINE" ? "https://meet.google.com/..." : "e.g. Room 201"}
+                  className="h-9 mt-1 text-xs rounded-xl"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-[11px] font-bold text-slate-700">Enrolled Students Count</Label>
+              <Input
+                type="number"
+                value={formStudentsCount}
+                onChange={(e) => setFormStudentsCount(Number(e.target.value))}
+                placeholder="25"
+                className="h-9 mt-1 text-xs rounded-xl"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="flex gap-2 mt-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsScheduleModalOpen(false)}
+              className="text-xs font-bold h-9 rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateNewClass}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
+            >
+              <Check className="h-3.5 w-3.5" /> Schedule Class
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 2: CLASS DETAILS MODAL ───────────────────────────────── */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          {selectedClassItem && (
+            <>
+              <DialogHeader className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1769AA] border border-blue-200">
+                    {selectedClassItem.batchCode}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                    selectedClassItem.status === "LIVE"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-blue-100 text-blue-800"
+                  }`}>
+                    {selectedClassItem.status}
+                  </span>
                 </div>
+                <DialogTitle className="text-xl font-black text-slate-900">
+                  {selectedClassItem.topicName}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 font-medium">
+                  {selectedClassItem.moduleName} • {selectedClassItem.branchName}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3.5 my-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+                {/* Faculty Section */}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Start Time
-                  </label>
-                  <Input
-                    type="text"
-                    value={newStartTime}
-                    onChange={(e) => setNewStartTime(e.target.value)}
-                    placeholder="09:00"
-                    className="rounded-xl border-slate-200 text-xs"
-                  />
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                    Assigned Faculty Instructor
+                  </span>
+                  {selectedClassItem.isFacultyAssigned ? (
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 rounded-full border border-slate-200">
+                        <AvatarImage src={selectedClassItem.facultyAvatar} />
+                        <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
+                          {selectedClassItem.facultyName?.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <span className="font-bold text-slate-900 text-xs block">{selectedClassItem.facultyName}</span>
+                        <span className="text-[11px] text-slate-500 font-medium">{selectedClassItem.facultySpecialization}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-amber-800 font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <span>No faculty assigned yet</span>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    End Time
-                  </label>
-                  <Input
-                    type="text"
-                    value={newEndTime}
-                    onChange={(e) => setNewEndTime(e.target.value)}
-                    placeholder="17:00"
-                    className="rounded-xl border-slate-200 text-xs"
-                  />
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Timing</span>
+                    <p className="font-bold text-slate-800 text-xs mt-0.5">{selectedClassItem.startTime} – {selectedClassItem.endTime}</p>
+                    <p className="text-[10px] text-slate-500">{selectedClassItem.dateLabel}</p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Location / Mode</span>
+                    <p className="font-bold text-slate-800 text-xs mt-0.5">{selectedClassItem.locationOrLink}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">{selectedClassItem.mode}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Students Enrolled</span>
+                    <p className="font-bold text-slate-800 text-xs mt-0.5 flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-slate-500" />
+                      {selectedClassItem.enrolledStudentsCount} Students
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Attendance</span>
+                    <p className="font-bold text-slate-800 text-xs mt-0.5">
+                      {selectedClassItem.attendanceMarked ? "Marked & Logged" : "Pending Session"}
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Location / Room
-                  </label>
-                  <Input
-                    type="text"
-                    value={newRoomNo}
-                    onChange={(e) => setNewRoomNo(e.target.value)}
-                    placeholder="Room 101 / Lab 1"
-                    className="rounded-xl border-slate-200 text-xs"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Class Mode
-                  </label>
-                  <select
-                    value={newMode}
-                    onChange={(e) => setNewMode(e.target.value as ClassMode)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-[#1769AA]"
-                  >
-                    <option value="OFFLINE">Campus</option>
-                    <option value="ONLINE">Online</option>
-                    <option value="HYBRID">Hybrid</option>
-                  </select>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+              <DialogFooter className="flex gap-2">
                 <Button
-                  type="button"
                   variant="outline"
-                  onClick={() => setShowScheduleModal(false)}
-                  className="rounded-xl border-slate-200 text-xs"
+                  onClick={() => setIsDetailsModalOpen(false)}
+                  className="text-xs font-bold rounded-xl"
+                >
+                  Close
+                </Button>
+                <Button
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    handleOpenAssignFaculty(selectedClassItem);
+                  }}
+                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                >
+                  <UserPlus className="h-3.5 w-3.5" /> Reassign Faculty
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 3: ASSIGN / CHANGE FACULTY MODAL ─────────────────────── */}
+      <Dialog open={isAssignFacultyModalOpen} onOpenChange={setIsAssignFacultyModalOpen}>
+        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          {selectedClassItem && (
+            <>
+              <DialogHeader className="space-y-1">
+                <DialogTitle className="text-xl font-black text-slate-900">
+                  Assign Faculty Instructor
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500 font-medium">
+                  Select a qualified faculty member for {selectedClassItem.topicName} ({selectedClassItem.batchCode}).
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-3 my-3 text-xs">
+                <Label className="text-[11px] font-bold text-slate-700">Choose Faculty Member</Label>
+                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                  {FACULTY_POOL.map((fac) => {
+                    const isSelected = targetFacultyId === fac.id;
+                    return (
+                      <div
+                        key={fac.id}
+                        onClick={() => setTargetFacultyId(fac.id)}
+                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                          isSelected
+                            ? "bg-blue-50 border-[#1769AA] ring-2 ring-[#1769AA]/20"
+                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-9 w-9 border border-slate-200">
+                            <AvatarImage src={fac.avatar} />
+                            <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
+                              {fac.name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <span className="font-bold text-slate-900 text-xs block">{fac.name}</span>
+                            <span className="text-[10px] text-slate-500 font-medium">{fac.specialization}</span>
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center shrink-0 shadow-xs">
+                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <DialogFooter className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsAssignFacultyModalOpen(false)}
+                  className="text-xs font-bold rounded-xl"
                 >
                   Cancel
                 </Button>
                 <Button
-                  type="submit"
-                  className="bg-[#1769AA] hover:bg-[#145a92] text-white rounded-xl text-xs font-semibold px-4"
+                  onClick={handleSaveAssignFaculty}
+                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
                 >
-                  Schedule Class
+                  <Check className="h-3.5 w-3.5" /> Confirm Assignment
                 </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Edit Class Modal ─────────────────────────────────────────────────── */}
-      <EditClassModal
-        session={editingSession}
-        onClose={() => setEditingSession(null)}
-      />
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
