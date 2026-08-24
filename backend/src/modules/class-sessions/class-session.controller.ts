@@ -11,14 +11,21 @@ export const getSessions = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    const branchId = req.user!.branchId || undefined;
+    const branchId = req.user!.branchId || (req.query.branchId as string) || undefined;
     const roles = req.user?.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
       !roles.includes("ADMIN") &&
       !roles.includes("CENTER_MANAGER") &&
       !roles.includes("COUNSELLOR");
 
+    const isPureStudent = roles.includes("STUDENT") &&
+      !roles.includes("ADMIN") &&
+      !roles.includes("CENTER_MANAGER") &&
+      !roles.includes("COUNSELLOR") &&
+      !roles.includes("FACULTY");
+
     let facultyFilter = req.query.facultyId as string;
+    let batchFilter = req.query.batchId as string;
 
     if (isPureFaculty) {
       const facultyRecord = await prisma.faculty.findFirst({
@@ -31,8 +38,27 @@ export const getSessions = async (
       facultyFilter = facultyRecord.id;
     }
 
+    if (isPureStudent) {
+      const studentRecord = await prisma.student.findFirst({
+        where: { userId: req.user!.userId },
+        include: {
+          enrollments: { where: { status: "ACTIVE" } },
+          admissions: { where: { status: { in: ["ACTIVE", "CONFIRMED", "PROVISIONAL"] } } },
+        },
+      });
+      if (studentRecord) {
+        const studentBatchIds = [
+          ...studentRecord.enrollments.map((e) => e.batchId),
+          ...(studentRecord.admissions.map((a) => a.batchId).filter(Boolean) as string[]),
+        ];
+        if (studentBatchIds.length > 0) {
+          batchFilter = batchFilter && studentBatchIds.includes(batchFilter) ? batchFilter : studentBatchIds[0];
+        }
+      }
+    }
+
     const filters = {
-      batchId: req.query.batchId as string,
+      batchId: batchFilter,
       facultyId: facultyFilter,
       status: req.query.status as any,
       mode: req.query.mode as any,

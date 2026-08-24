@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 
 export const FacultyBatchClasses: React.FC = () => {
+  const navigate = useNavigate();
   const { data: sessionsResponse, isLoading } = useQuery({
     queryKey: ["faculty", "class-sessions"],
     queryFn: async () => {
@@ -50,8 +52,12 @@ export const FacultyBatchClasses: React.FC = () => {
                     </p>
                   </div>
                   <div className="flex gap-2">
-                    <Button size="sm" variant="outline" className="h-8 text-xs gap-1">
-                      <Users size={12} /> Mark Attendance
+                    <Button
+                      size="sm"
+                      onClick={() => navigate(`/faculty/class-session?course=${encodeURIComponent(session.title || "Java Programming")}&batch=${encodeURIComponent(session.batch?.name || "Batch C")}`)}
+                      className="h-8 text-xs gap-1 bg-[#1769AA] text-white hover:bg-[#125890] font-bold cursor-pointer"
+                    >
+                      <Users size={12} /> Mark Attendance & Open Classroom
                     </Button>
                     <Button size="sm" variant="outline" className="h-8 text-xs gap-1 text-amber-600 border-amber-300">
                       Create Assignment

@@ -80,6 +80,7 @@ import { MasterSetup } from "../pages/admin/masters/MasterSetup";
 import { LeadManagement } from "../pages/admin/leads/LeadManagement";
 import { LeadDetails } from "../pages/admin/leads/LeadDetails";
 import { AddLead } from "../pages/admin/leads/AddLead";
+import { AiCallingQualification } from "../pages/counselor/AiCallingQualification";
 
 // Phase 2 — Recordings, Assignments, Feedback, WhatsApp, Discontinuation
 import { Recordings } from "../pages/admin/schedule/Recordings";
@@ -96,6 +97,7 @@ import { FacultyAssignments } from "../pages/faculty/Assignments";
 import { FacultyBatchClasses } from "../pages/faculty/BatchClasses";
 import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 import { FacultyClassSession } from "../pages/faculty/ClassSession";
+import { FacultyRecordings } from "../pages/faculty/FacultyRecordings";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -171,7 +173,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/admin/leads/enquiries" replace />} />
+          <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
         </Route>
 
         {/* Counsellor */}
@@ -217,8 +219,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="leads">
           <Route index element={<LeadManagement />} />
           <Route path="all" element={<LeadManagement />} />
-          <Route path="enquiries" element={<Enquiries />} />
-          <Route path="ai-calling" element={<LeadManagement />} />
+          <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
+          <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<LeadManagement />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
@@ -280,7 +282,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/center/leads/enquiries" replace />} />
+          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
         </Route>
 
         {/* Courses */}
@@ -300,8 +302,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="leads">
           <Route index element={<LeadManagement />} />
           <Route path="all" element={<LeadManagement />} />
-          <Route path="enquiries" element={<Enquiries />} />
-          <Route path="ai-calling" element={<LeadManagement />} />
+          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
+          <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<LeadManagement />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
@@ -320,7 +322,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/counselor/leads/enquiries" replace />} />
+          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
         </Route>
 
         {/* Students */}
@@ -367,12 +369,12 @@ export const AppRoutes: React.FC = () => {
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
 
-        {/* Counselor: Leads (assigned-only) */}
+        {/* Phase 1 — Leads & AI Calling */}
         <Route path="leads">
           <Route index element={<LeadManagement />} />
           <Route path="all" element={<LeadManagement />} />
-          <Route path="enquiries" element={<Enquiries />} />
-          <Route path="ai-calling" element={<LeadManagement />} />
+          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
+          <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<LeadManagement />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
@@ -399,9 +401,11 @@ export const AppRoutes: React.FC = () => {
         </Route>
         <Route path="timetable" element={<FacultyTimetable />} />
         <Route path="classes" element={<FacultyTimetable />} />
+        <Route path="recordings" element={<FacultyRecordings />} />
         <Route path="schedule">
           <Route path="classes" element={<FacultyTimetable />} />
           <Route path="timetable" element={<FacultyTimetable />} />
+          <Route path="recordings" element={<FacultyRecordings />} />
         </Route>
         <Route path="reports">
           <Route path="students" element={<StudentReports />} />

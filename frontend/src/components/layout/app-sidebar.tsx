@@ -99,7 +99,6 @@ const data = {
       isActive: false,
       items: [
         { title: "All Leads", url: "/admin/leads" },
-        { title: "Enquiries", url: "/admin/leads/enquiries" },
         { title: "AI Calling", url: "/admin/leads/ai-calling" },
         { title: "Follow-ups", url: "/admin/leads/follow-ups" },
       ],

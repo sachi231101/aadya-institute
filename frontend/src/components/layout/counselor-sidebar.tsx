@@ -54,7 +54,6 @@ const counselorNavItems = [
     isActive: false,
     items: [
       { title: "All Leads", url: "/counselor/leads" },
-      { title: "Enquiries", url: "/counselor/leads/enquiries" },
       { title: "AI Calling", url: "/counselor/leads/ai-calling" },
       { title: "Follow-ups", url: "/counselor/leads/follow-ups" },
     ],
@@ -88,7 +87,6 @@ const counselorNavItems = [
       { title: "All Faculty", url: "/counselor/faculty/all" },
       { title: "Assigned Courses", url: "/counselor/faculty/courses" },
       { title: "Attendance", url: "/counselor/faculty/attendance" },
-      { title: "Timetable Schedule", url: "/counselor/faculty/timetable" },
     ],
   },
   {

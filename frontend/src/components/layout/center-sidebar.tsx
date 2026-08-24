@@ -51,7 +51,6 @@ const centerNavItems = [
     isActive: false,
     items: [
       { title: "All Leads", url: "/center/leads" },
-      { title: "Enquiries", url: "/center/leads/enquiries" },
       { title: "AI Calling", url: "/center/leads/ai-calling" },
       { title: "Follow-ups", url: "/center/leads/follow-ups" },
     ],

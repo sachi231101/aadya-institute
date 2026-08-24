@@ -24,14 +24,36 @@ import {
   Check,
   BookOpen,
   Search,
+  MoreVertical,
+  X,
+  ChevronRight,
+  AlertTriangle,
+  CalendarDays,
+  Mail,
+  Bot,
+  Bell,
+  Sparkles,
+  Flame,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
 import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useTimetableStore } from "@/store/timetable.store";
+import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
@@ -42,6 +64,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -88,6 +115,8 @@ export interface ManagedLead {
   attemptsHistory: LeadAttempt[];
   assignedTo?: string;
   assignedDate?: string;
+  aiCallingResult?: string;
+  lostReason?: string;
 }
 
 const INITIAL_MANAGED_LEADS: ManagedLead[] = [
@@ -107,6 +136,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
     latestResponse: "Interested in weekend batch, requested fee discount details.",
     assignedTo: "Priya",
     assignedDate: "14 Aug 2026",
+    aiCallingResult: "🟢 High Intent (Score 92/100) — Spoke for 3m 40s with Sarvam AI Voice Agent; requested weekend batch fees & syllabus",
     attemptsHistory: [
       {
         attemptNo: 1,
@@ -142,6 +172,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
     latestResponse: "Attended demo class, requested follow-up today.",
     assignedTo: "Priya",
     assignedDate: "14 Aug 2026",
+    aiCallingResult: "🟢 High Intent (Score 88/100) — Enquired about Graphic Design tools; scheduled demo session",
     attemptsHistory: [
       {
         attemptNo: 1,
@@ -169,6 +200,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
     latestResponse: "Comparing with another institute, counseling scheduled.",
     assignedTo: "Priya",
     assignedDate: "13 Aug 2026",
+    aiCallingResult: "🟡 Moderate Intent (Score 72/100) — Asked for Python full stack syllabus; requested counselor callback",
     attemptsHistory: [
       {
         attemptNo: 1,
@@ -212,6 +244,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
     latestResponse: "Wants Python + AI certification curriculum brochure.",
     assignedTo: "Priya",
     assignedDate: "14 Aug 2026",
+    aiCallingResult: "🟢 High Intent (Score 95/100) — Enquired about Data Science placement records & weekend classes",
     attemptsHistory: [
       {
         attemptNo: 1,
@@ -239,6 +272,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
     latestResponse: "Enquired about Figma tools & live portfolio projects.",
     assignedTo: "Priya",
     assignedDate: "14 Aug 2026",
+    aiCallingResult: "🟡 Moderate Intent (Score 75/100) — Requested UI/UX course details & installment plan",
     attemptsHistory: [
       {
         attemptNo: 1,
@@ -249,7 +283,7 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [
         nextFollowUp: "May 20, 11:00 AM"
       }
     ]
-  },
+  }
 ];
 
 export const CounselorDashboard: React.FC = () => {
@@ -260,23 +294,104 @@ export const CounselorDashboard: React.FC = () => {
   const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
   const { data: financialReport } = useFinancialReport(user?.branchId || undefined);
 
-  // Managed Leads State (allows full in-memory & store CRUD with persistent checkbox workflow)
-  const [leadsList, setLeadsList] = useState<ManagedLead[]>(INITIAL_MANAGED_LEADS);
+  // Managed Leads from Centralized Zustand Store (Omnichannel & AI Telephony Synchronized)
+  const {
+    leads: leadsList,
+    addLead,
+    updateLeadStage,
+    scheduleFollowUp: storeScheduleFollowUp,
+    markAsLost: storeMarkAsLost,
+    logAttempt: storeLogAttempt,
+    retryAiCall: storeRetryAiCall,
+  } = useLeadStore();
+
+  // AI Drawer state for Dashboard
+  const [activeAiLead, setActiveAiLead] = useState<UnifiedLead | null>(null);
+  const [showAiDrawer, setShowAiDrawer] = useState(false);
+  const [aiDrawerTab, setAiDrawerTab] = useState<"SUMMARY" | "RECORDING">("SUMMARY");
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [isAudioMuted, setIsAudioMuted] = useState(false);
+
+  // Lead Filter States
+  const [leadSearchText, setLeadSearchText] = useState("");
+  const [leadSourceFilter, setLeadSourceFilter] = useState("ALL");
+  const [leadCourseFilter, setLeadCourseFilter] = useState("ALL");
+  const [leadStageFilter, setLeadStageFilter] = useState("ALL");
+  const [leadPriorityFilter, setLeadPriorityFilter] = useState("ALL");
+  const [leadAttentionFilter, setLeadAttentionFilter] = useState("ALL");
+
+  // Filtered Leads
+  const filteredLeads = useMemo(() => {
+    return leadsList.filter((lead) => {
+      if (leadSearchText.trim()) {
+        const q = leadSearchText.toLowerCase();
+        const matchName = lead.name.toLowerCase().includes(q);
+        const matchPhone = lead.phone.toLowerCase().includes(q);
+        const matchCourse = lead.course.toLowerCase().includes(q);
+        const matchResponse = (lead.latestResponse || "").toLowerCase().includes(q);
+        const matchAi = (lead.aiSummaryShort || "").toLowerCase().includes(q);
+        if (!matchName && !matchPhone && !matchCourse && !matchResponse && !matchAi) return false;
+      }
+      if (leadSourceFilter !== "ALL" && lead.source !== leadSourceFilter) {
+        return false;
+      }
+      if (leadCourseFilter !== "ALL" && lead.course !== leadCourseFilter) {
+        return false;
+      }
+      if (leadStageFilter !== "ALL" && lead.stage !== leadStageFilter && lead.pipelineStage !== leadStageFilter) {
+        return false;
+      }
+      if (leadPriorityFilter !== "ALL" && lead.priority !== leadPriorityFilter) {
+        return false;
+      }
+      if (leadAttentionFilter === "ATTENTION_REQUIRED") {
+        if (lead.priority !== "Urgent" && lead.priority !== "Due Today") return false;
+      } else if (leadAttentionFilter === "OVERDUE") {
+        if (lead.priority !== "Urgent") return false;
+      } else if (leadAttentionFilter === "TODAY") {
+        if (lead.priority !== "Due Today") return false;
+      }
+      return true;
+    });
+  }, [leadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter]);
+
+  // Summary Metrics for Leads Section
+  const leadSummaryCounts = useMemo(() => {
+    return {
+      overdue: leadsList.filter(l => l.priority === "Urgent").length || 4,
+      today: leadsList.filter(l => l.priority === "Due Today").length || 8,
+      active: leadsList.filter(l => l.stage !== "LOST" && l.stage !== "CONVERTED").length || 12,
+      converted: leadsList.filter(l => l.stage === "CONVERTED").length || 5,
+    };
+  }, [leadsList]);
 
   // CRUD Modals State
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogAttemptModal, setShowLogAttemptModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [activeLead, setActiveLead] = useState<ManagedLead | null>(null);
+  const [activeLead, setActiveLead] = useState<UnifiedLead | null>(null);
+
+  // Schedule Follow-up Modal State
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [followUpType, setFollowUpType] = useState<"CALL" | "WHATSAPP" | "EMAIL">("CALL");
+  const [followUpDate, setFollowUpDate] = useState("2026-08-25");
+  const [followUpTime, setFollowUpTime] = useState("11:00 AM");
+  const [setReminder, setSetReminder] = useState(true);
+  const [followUpNotes, setFollowUpNotes] = useState("");
+  const [followUpSuccessMsg, setFollowUpSuccessMsg] = useState<string | null>(null);
+
+  // Mark as Lost Modal State
+  const [showLostModal, setShowLostModal] = useState(false);
+  const [lostReason, setLostReason] = useState("Joined Competitor Institute");
+  const [lostNotes, setLostNotes] = useState("");
 
   // Form states for Add / Edit Lead
   const [formName, setFormName] = useState("");
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formCourse, setFormCourse] = useState("Digital Marketing");
-  const [formSource, setFormSource] = useState("Website");
-  const [formStage] = useState<ManagedLead["stage"]>("NEW");
-  const [formPriority] = useState<ManagedLead["priority"]>("Upcoming");
+  const [formSource, setFormSource] = useState<LeadSource>("Website");
+  const [formTriggerAi, setFormTriggerAi] = useState(true);
   const [formNotes, setFormNotes] = useState("");
 
   // Form states for Log Attempt
@@ -382,25 +497,92 @@ export const CounselorDashboard: React.FC = () => {
 
   const prevMonthRevenueAmount = 590000;
 
+  const handleOpenFollowUp = (lead: UnifiedLead) => {
+    setActiveLead(lead);
+    setFollowUpType("CALL");
+    setFollowUpDate("2026-08-25");
+    setFollowUpTime("11:00 AM");
+    setSetReminder(true);
+    setFollowUpNotes(lead.latestResponse || lead.aiSummaryShort || "");
+    setShowFollowUpModal(true);
+  };
+
+  const handleApplyFollowUpPreset = (preset: "today_4pm" | "tomorrow_10am" | "tomorrow_2pm" | "in_2days") => {
+    if (preset === "today_4pm") {
+      setFollowUpDate("2026-08-24");
+      setFollowUpTime("04:00 PM");
+    } else if (preset === "tomorrow_10am") {
+      setFollowUpDate("2026-08-25");
+      setFollowUpTime("10:30 AM");
+    } else if (preset === "tomorrow_2pm") {
+      setFollowUpDate("2026-08-25");
+      setFollowUpTime("02:30 PM");
+    } else if (preset === "in_2days") {
+      setFollowUpDate("2026-08-26");
+      setFollowUpTime("11:00 AM");
+    }
+  };
+
+  const handleSaveFollowUpModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeLead) return;
+
+    const formattedNextDate =
+      followUpDate === "2026-08-24"
+        ? `Today, ${followUpTime}`
+        : followUpDate === "2026-08-25"
+        ? `Tomorrow, ${followUpTime}`
+        : `${followUpDate}, ${followUpTime}`;
+
+    storeScheduleFollowUp(activeLead.id, {
+      channel: followUpType === "CALL" ? "PHONE" : followUpType,
+      date: followUpDate,
+      time: followUpTime,
+      notes: followUpNotes,
+      setReminder,
+    });
+
+    setFollowUpSuccessMsg(`✓ Follow-up scheduled successfully for ${activeLead.name} on ${formattedNextDate}!`);
+    setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    setShowFollowUpModal(false);
+  };
+
+  const handleOpenLostModal = (lead: UnifiedLead) => {
+    setActiveLead(lead);
+    setLostReason("Joined Competitor Institute");
+    setLostNotes("");
+    setShowFollowUpModal(false);
+    setShowLostModal(true);
+  };
+
+  const handleConfirmMarkAsLost = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeLead) return;
+
+    storeMarkAsLost(activeLead.id, lostReason, lostNotes);
+
+    setFollowUpSuccessMsg(`✓ Lead ${activeLead.name} marked as Lost.`);
+    setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    setShowLostModal(false);
+    setShowFollowUpModal(false);
+  };
+
   // Checkbox stage toggle helper
-  const handleToggleStageCheckbox = (leadId: string, targetStage: ManagedLead["stage"]) => {
-    setLeadsList((prev) =>
-      prev.map((lead) => {
-        if (lead.id !== leadId) return lead;
+  const handleToggleStageCheckbox = (leadId: string, targetStage: any) => {
+    const lead = leadsList.find((l) => l.id === leadId);
+    if (!lead) return;
 
-        let stageColor = "bg-blue-50 text-blue-700 border-blue-200";
-        if (targetStage === "INTERESTED") stageColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (targetStage === "FOLLOW_UP") stageColor = "bg-amber-50 text-amber-700 border-amber-200";
-        if (targetStage === "CONVERTED") stageColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
-        if (targetStage === "LOST") stageColor = "bg-red-50 text-red-700 border-red-200";
+    if (targetStage === "FOLLOW_UP") {
+      handleOpenFollowUp(lead);
+      return;
+    }
 
-        return {
-          ...lead,
-          stage: targetStage,
-          stageColor,
-        };
-      })
-    );
+    if (targetStage === "LOST") {
+      handleOpenLostModal(lead);
+      return;
+    }
+
+    updateLeadStage(leadId, targetStage);
   };
 
   // Add New Lead handler
@@ -408,36 +590,20 @@ export const CounselorDashboard: React.FC = () => {
     e.preventDefault();
     if (!formName || !formPhone) return;
 
-    const newLead: ManagedLead = {
-      id: `L00${leadsList.length + 1}`,
-      name: formName,
-      phone: formPhone,
-      email: formEmail,
+    addLead({
+      name: formName.trim(),
+      phone: formPhone.trim(),
+      email: formEmail.trim() || `${formName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
       course: formCourse,
       source: formSource,
-      stage: formStage,
-      stageColor: formStage === "INTERESTED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200",
-      nextFollowUp: "Tomorrow, 10:00 AM",
-      priority: formPriority,
-      priorityColor: formPriority === "Urgent" ? "text-red-600 bg-red-500" : formPriority === "Due Today" ? "text-amber-600 bg-amber-500" : "text-emerald-600 bg-emerald-500",
-      attemptsCount: 0,
-      latestResponse: formNotes || "New enquiry created.",
-      assignedTo: user?.name || "Priya",
-      assignedDate: "Today",
-      attemptsHistory: formNotes ? [
-        {
-          attemptNo: 1,
-          mode: "PHONE",
-          timestamp: "Just now",
-          response: "New Enquiry Logged",
-          notes: formNotes,
-          nextFollowUp: "Tomorrow, 10:00 AM"
-        }
-      ] : []
-    };
+      notes: formNotes,
+      triggerImmediateCall: formTriggerAi,
+    });
 
-    setLeadsList([newLead, ...leadsList]);
+    setFollowUpSuccessMsg(`✓ New lead ${formName} added from ${formSource} & AI voice qualification queued!`);
+    setTimeout(() => setFollowUpSuccessMsg(null), 5000);
     setShowAddModal(false);
+
     // Reset form
     setFormName("");
     setFormPhone("");
@@ -450,28 +616,12 @@ export const CounselorDashboard: React.FC = () => {
     e.preventDefault();
     if (!activeLead) return;
 
-    const newAttempt: LeadAttempt = {
-      attemptNo: (activeLead.attemptsHistory?.length || 0) + 1,
+    storeLogAttempt(activeLead.id, {
       mode: attemptMode,
-      timestamp: "Just now",
       response: attemptResponse,
       notes: attemptNotes,
-      nextFollowUp: attemptNextDate
-    };
-
-    setLeadsList((prev) =>
-      prev.map((lead) => {
-        if (lead.id !== activeLead.id) return lead;
-        return {
-          ...lead,
-          stage: attemptNewStage,
-          attemptsCount: lead.attemptsCount + 1,
-          latestResponse: attemptResponse,
-          nextFollowUp: attemptNextDate,
-          attemptsHistory: [newAttempt, ...(lead.attemptsHistory || [])]
-        };
-      })
-    );
+      nextFollowUp: attemptNextDate,
+    });
 
     setShowLogAttemptModal(false);
     setActiveLead(null);
@@ -481,8 +631,18 @@ export const CounselorDashboard: React.FC = () => {
   // Delete Lead handler
   const handleDeleteLead = (leadId: string) => {
     if (window.confirm("Are you sure you want to delete this lead enquiry?")) {
-      setLeadsList(prev => prev.filter(l => l.id !== leadId));
+      useLeadStore.setState(state => ({
+        leads: state.leads.filter(l => l.id !== leadId)
+      }));
     }
+  };
+
+  // Open AI Drawer
+  const handleOpenAiDrawer = (lead: UnifiedLead) => {
+    setActiveAiLead(lead);
+    setAiDrawerTab("SUMMARY");
+    setIsPlayingAudio(false);
+    setShowAiDrawer(true);
   };
 
   // 5. ADMISSION FUNNEL DATA
@@ -506,18 +666,18 @@ export const CounselorDashboard: React.FC = () => {
     { name: "Others", count: 10, percentage: "8%", color: LEAD_SOURCE_COLORS[5] },
   ];
 
-  const handleCall = (lead: ManagedLead) => {
+  const handleCall = (lead: UnifiedLead) => {
     setActiveLead(lead);
     setAttemptMode("PHONE");
-    setAttemptNewStage(lead.stage);
+    setAttemptNewStage(lead.stage || "CONTACTED");
     setShowLogAttemptModal(true);
     window.location.href = `tel:${lead.phone}`;
   };
 
-  const handleWhatsApp = (lead: ManagedLead) => {
+  const handleWhatsApp = (lead: UnifiedLead) => {
     setActiveLead(lead);
     setAttemptMode("WHATSAPP");
-    setAttemptNewStage(lead.stage);
+    setAttemptNewStage(lead.stage || "CONTACTED");
     setShowLogAttemptModal(true);
     const text = encodeURIComponent(`Hello ${lead.name}, greetings from Aadya Institute!`);
     window.open(`https://wa.me/91${lead.phone}?text=${text}`, "_blank");
@@ -567,20 +727,21 @@ export const CounselorDashboard: React.FC = () => {
       </div>
 
       <InstallDashboardBanner />
-      {/* ─── BATCH CREATION SUCCESS NOTIFICATION ─── */}
-      {batchSuccessMsg && (
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
+
+      {/* ─── FOLLOW-UP / ACTION SUCCESS NOTIFICATION ─── */}
+      {followUpSuccessMsg && (
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
-            <span>{batchSuccessMsg}</span>
+            <span>{followUpSuccessMsg}</span>
           </div>
-          <Button
-            size="sm"
-            onClick={() => navigate("/counselor/timetable")}
-            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-7"
+          <button
+            type="button"
+            onClick={() => setFollowUpSuccessMsg(null)}
+            className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
           >
-            View in Timetable →
-          </Button>
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -722,193 +883,557 @@ export const CounselorDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 4. COUNSELLOR LEADS & PIPELINE CHECKBOXES (ALL LEADS & ATTEMPTS) ─── */}
-      <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
-        <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
+      {/* ─── 4. COUNSELLOR LEADS & PIPELINE PROGRESS SECTION ─── */}
+      <Card className="border border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden">
+        {/* SECTION HEADER */}
+        <CardHeader className="p-5 sm:p-6 border-b border-slate-100/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/30">
           <div>
-            <CardTitle className="text-base font-bold text-[#0A2540] flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-[#1769AA]" />
-              Leads Requiring Attention & Pipeline Checklist
-            </CardTitle>
-            <p className="text-xs text-slate-400 font-medium mt-0.5">
-              Counsellor maintains student attempts, follow-up responses, and stage checkboxes.
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100/80">
+                <UserCheck className="h-4.5 w-4.5" />
+              </div>
+              <h2 className="text-base sm:text-lg font-black text-[#0A2540] tracking-tight">
+                Leads Requiring Attention
+              </h2>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Track lead progress, latest interactions, and follow-up actions.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAddModal(true)}
-            className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-          >
-            + Add Lead
-          </button>
+
+          <div className="flex items-center gap-3 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => navigate("/counselor/leads")}
+              className="text-xs font-bold text-[#1769AA] hover:text-[#125890] hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <span>View All Leads</span>
+              <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+            <Button
+              type="button"
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Lead</span>
+            </Button>
+          </div>
         </CardHeader>
+
+        {/* SUMMARY CHIPS & FILTERS TOOLBAR */}
+        <div className="p-4 sm:p-5 border-b border-slate-100 space-y-4 bg-white">
+          {/* SUMMARY CHIPS */}
+          <div className="flex items-center gap-2.5 overflow-x-auto pb-1 text-xs">
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-50 border border-rose-200/80 text-rose-700 font-bold shrink-0">
+              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+              <span>{leadSummaryCounts.overdue} Overdue</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200/80 text-amber-800 font-bold shrink-0">
+              <span className="w-2 h-2 rounded-full bg-amber-500" />
+              <span>{leadSummaryCounts.today} Follow-ups Today</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-[#1769AA] font-bold shrink-0">
+              <span className="w-2 h-2 rounded-full bg-blue-500" />
+              <span>{leadSummaryCounts.active} Active Leads</span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 border border-emerald-200/80 text-emerald-700 font-bold shrink-0">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>{leadSummaryCounts.converted} Converted This Month</span>
+            </div>
+          </div>
+
+          {/* FILTERS CONTROLS */}
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 pt-1">
+            {/* Search Input */}
+            <div className="relative flex-1 max-w-md">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search leads by name, phone, or note..."
+                value={leadSearchText}
+                onChange={(e) => setLeadSearchText(e.target.value)}
+                className="w-full pl-9 pr-3.5 py-2 text-xs bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all font-medium text-slate-700 placeholder:text-slate-400"
+              />
+              {leadSearchText && (
+                <button
+                  type="button"
+                  onClick={() => setLeadSearchText("")}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            {/* Dropdown Filters */}
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Courses Filter */}
+              <select
+                value={leadCourseFilter}
+                onChange={(e) => setLeadCourseFilter(e.target.value)}
+                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Courses</option>
+                <option value="Digital Marketing">Digital Marketing</option>
+                <option value="Graphic Design">Graphic Design</option>
+                <option value="Web Development">Web Development</option>
+                <option value="Data Science">Data Science</option>
+                <option value="UI/UX Design">UI/UX Design</option>
+                <option value="Python / AI">Python / AI</option>
+                <option value="Java Full Stack">Java Full Stack</option>
+              </select>
+
+              {/* Lead Source Filter (Omnichannel Collection) */}
+              <select
+                value={leadSourceFilter}
+                onChange={(e) => setLeadSourceFilter(e.target.value)}
+                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Lead Sources</option>
+                <option value="Website">🌐 Website</option>
+                <option value="Google Ads">🔍 Google Ads</option>
+                <option value="Meta Ads">⚡ Meta Ads</option>
+                <option value="Instagram">📱 Instagram</option>
+                <option value="Referral">👥 Referral</option>
+                <option value="Walk-in">🏢 Walk-in</option>
+                <option value="Direct Call">📞 Direct Call</option>
+              </select>
+
+              {/* Pipeline Stages Filter */}
+              <select
+                value={leadStageFilter}
+                onChange={(e) => setLeadStageFilter(e.target.value)}
+                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Pipeline Stages</option>
+                <option value="NEW">New</option>
+                <option value="CONTACTED">Contacted</option>
+                <option value="INTERESTED">Interested</option>
+                <option value="FOLLOW_UP">Follow-up</option>
+                <option value="CONVERTED">Converted</option>
+                <option value="LOST">Lost</option>
+              </select>
+
+              {/* Priority Filter */}
+              <select
+                value={leadPriorityFilter}
+                onChange={(e) => setLeadPriorityFilter(e.target.value)}
+                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">Follow-up Priority</option>
+                <option value="Urgent">🔴 Urgent / Overdue</option>
+                <option value="Due Today">🟠 Follow-up Today</option>
+                <option value="Upcoming">🔵 Active / Upcoming</option>
+              </select>
+
+              {/* Attention Filter */}
+              <select
+                value={leadAttentionFilter}
+                onChange={(e) => setLeadAttentionFilter(e.target.value)}
+                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
+              >
+                <option value="ALL">All Leads</option>
+                <option value="ATTENTION_REQUIRED">Attention Required (Overdue + Today)</option>
+                <option value="OVERDUE">Overdue Only</option>
+                <option value="TODAY">Today's Follow-ups</option>
+              </select>
+
+              {(leadSearchText || leadSourceFilter !== "ALL" || leadCourseFilter !== "ALL" || leadStageFilter !== "ALL" || leadPriorityFilter !== "ALL" || leadAttentionFilter !== "ALL") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLeadSearchText("");
+                    setLeadSourceFilter("ALL");
+                    setLeadCourseFilter("ALL");
+                    setLeadStageFilter("ALL");
+                    setLeadPriorityFilter("ALL");
+                    setLeadAttentionFilter("ALL");
+                  }}
+                  className="text-xs font-bold text-rose-600 hover:text-rose-700 px-2 py-1.5 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
+                >
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* LEAD LIST TABLE (WITH OMNICHANNEL SOURCES & AI VOICE CALLING OUTCOME COLUMN) */}
         <CardContent className="p-0 overflow-x-auto">
-          <table className="w-full text-left text-xs min-w-[850px]">
-            <thead className="bg-slate-50/70 text-slate-400 font-bold border-b border-slate-100 text-[10px] uppercase tracking-wider whitespace-nowrap">
+          <table className="w-full text-left text-xs min-w-[1150px]">
+            <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 text-[10.5px] uppercase tracking-wider whitespace-nowrap">
               <tr>
-                <th className="py-3 px-4 font-bold">Student / Lead</th>
-                <th className="py-3 px-3 font-bold">Course Interested</th>
-                <th className="py-3 px-2 font-bold text-center">New</th>
-                <th className="py-3 px-2 font-bold text-center">Contacted</th>
-                <th className="py-3 px-2 font-bold text-center">Interested</th>
-                <th className="py-3 px-2 font-bold text-center">Follow-up</th>
-                <th className="py-3 px-2 font-bold text-center">Converted</th>
-                <th className="py-3 px-2 font-bold text-center">Lost</th>
-                <th className="py-3 px-3 font-bold">Attempts & Latest Response</th>
-                <th className="py-3 px-3 font-bold">Next Follow-up</th>
-                <th className="py-3 px-3 font-bold">Priority</th>
-                <th className="py-3 px-4 font-bold text-center">Action</th>
+                <th className="py-3.5 px-4 font-bold">LEAD & SOURCE</th>
+                <th className="py-3.5 px-3 font-bold">COURSE</th>
+                <th className="py-3.5 px-3 font-bold text-center">PIPELINE PROGRESS</th>
+                <th className="py-3.5 px-3 font-bold">AI VOICE QUALIFICATION</th>
+                <th className="py-3.5 px-3 font-bold">ATTEMPTS & NOTES</th>
+                <th className="py-3.5 px-3 font-bold">NEXT FOLLOW-UP</th>
+                <th className="py-3.5 px-3 font-bold text-center">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 bg-white">
-              {leadsList.map((lead) => {
-                const isNew = true;
-                const isContacted = lead.stage !== "NEW";
-                const isInterested = lead.stage === "INTERESTED" || lead.stage === "FOLLOW_UP" || lead.stage === "CONVERTED";
-                const isFollowUp = lead.stage === "FOLLOW_UP" || lead.stage === "CONVERTED";
-                const isConverted = lead.stage === "CONVERTED";
-                const isLost = lead.stage === "LOST";
+              {filteredLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
+                    <UserCheck className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                    <p className="font-semibold text-sm text-slate-600">No leads found</p>
+                    <p className="text-xs text-slate-400 mt-0.5">Try clearing filters or search terms</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredLeads.map((lead) => {
+                  const isLost = lead.stage === "LOST" || lead.pipelineStage === "LOST";
+                  const isConverted = lead.stage === "CONVERTED" || lead.pipelineStage === "CONVERTED";
 
-                return (
-                  <tr key={lead.id} className="hover:bg-slate-50/50 transition-colors whitespace-nowrap">
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-slate-800 text-sm">{lead.name}</p>
-                      <p className="text-[10px] text-slate-400 font-mono mt-0.5">{lead.phone}</p>
-                    </td>
-                    <td className="py-3.5 px-3 font-medium text-slate-700">{lead.course}</td>
+                  const STAGE_STEPS: { key: string; label: string }[] = [
+                    { key: "NEW", label: "AI Calling" },
+                    { key: "CONTACTED", label: "Counsellor Contacting" },
+                    { key: "INTERESTED", label: "Interested" },
+                    { key: "FOLLOW_UP", label: "Follow-up" },
+                    { key: "CONVERTED", label: "Converted" },
+                  ];
 
-                    {/* Interactive Checkbox 1: NEW */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isNew}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "NEW")}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                        title="Mark as New"
-                      />
-                    </td>
+                  const currentStageKey = lead.stage || lead.pipelineStage || "NEW";
+                  const activeStageIdx = STAGE_STEPS.findIndex((s) => s.key === currentStageKey);
 
-                    {/* Interactive Checkbox 2: CONTACTED */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isContacted}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "CONTACTED")}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                        title="Mark as Contacted"
-                      />
-                    </td>
+                  // Priority Dot Indicator
+                  let priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-slate-300 ring-2 ring-slate-100 shrink-0" title="Normal Priority" />;
+                  if (lead.priority === "Urgent") {
+                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-red-500 ring-4 ring-red-100 shrink-0 animate-pulse" title="🔴 Urgent / Overdue" />;
+                  } else if (lead.priority === "Due Today") {
+                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-amber-500 ring-4 ring-amber-100 shrink-0" title="🟠 Follow-up Today" />;
+                  } else if (lead.priority === "Upcoming") {
+                    priorityDot = <span className="w-2.5 h-2.5 rounded-full bg-[#1769AA] ring-4 ring-blue-100 shrink-0" title="🔵 Active Lead" />;
+                  }
 
-                    {/* Interactive Checkbox 3: INTERESTED */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isInterested}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "INTERESTED")}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                        title="Mark as Interested"
-                      />
-                    </td>
+                  // Next Follow-up formatting
+                  const isOverdue = lead.priority === "Urgent" || (lead.nextFollowUp || "").toLowerCase().includes("overdue");
+                  const isToday = (lead.nextFollowUp || "").toLowerCase().includes("today");
 
-                    {/* Interactive Checkbox 4: FOLLOW-UP */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isFollowUp}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "FOLLOW_UP")}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                        title="Mark as Follow-up Scheduled"
-                      />
-                    </td>
+                  return (
+                    <tr key={lead.id} className="hover:bg-slate-50/60 transition-colors whitespace-nowrap group">
+                      {/* 1. LEAD (PRIORITY DOT + NAME + PHONE + SOURCE BADGE) */}
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-3">
+                          {priorityDot}
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight group-hover:text-[#1769AA] transition-colors">
+                                {lead.name}
+                              </p>
+                              {lead.hotLead && (
+                                <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[8.5px] font-black shrink-0">
+                                  🔥 Hot
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <p className="text-[11px] text-slate-500 font-mono font-medium">
+                                {lead.phone}
+                              </p>
+                              <span className="text-slate-300 text-[9px]">•</span>
+                              <span className="text-[9.5px] font-bold text-slate-600 truncate">
+                                {lead.source === "Website"
+                                  ? "🌐 Web"
+                                  : lead.source === "Google Ads"
+                                  ? "🔍 Google"
+                                  : lead.source === "Meta Ads"
+                                  ? "⚡ Meta"
+                                  : lead.source === "Instagram"
+                                  ? "📱 Insta"
+                                  : lead.source === "Referral"
+                                  ? "👥 Referral"
+                                  : lead.source === "Walk-in"
+                                  ? "🏢 Walk-in"
+                                  : `📞 ${lead.source || "Inbound"}`}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
 
-                    {/* Interactive Checkbox 5: CONVERTED */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isConverted}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "CONVERTED")}
-                        className="h-4 w-4 rounded border-slate-300 text-emerald-600 accent-emerald-600 cursor-pointer"
-                        title="Mark as Converted"
-                      />
-                    </td>
-
-                    {/* Interactive Checkbox 6: LOST */}
-                    <td className="py-3.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={isLost}
-                        onChange={() => handleToggleStageCheckbox(lead.id, "LOST")}
-                        className="h-4 w-4 rounded border-slate-300 text-red-600 accent-red-600 cursor-pointer"
-                        title="Mark as Lost"
-                      />
-                    </td>
-
-                    {/* Attempts & Response */}
-                    <td className="py-3.5 px-3 max-w-[200px]">
-                      <div className="flex items-center gap-1.5">
-                        <span className="bg-blue-50 text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded border border-blue-100 shrink-0">
-                          {lead.attemptsCount} calls
+                      {/* 2. COURSE INTERESTED */}
+                      <td className="py-3.5 px-3 font-semibold text-slate-700 text-xs">
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 font-bold border border-slate-200/60 text-[10.5px]">
+                          {lead.course}
                         </span>
-                        <p className="text-[11px] text-slate-600 truncate font-medium" title={lead.latestResponse}>
-                          {lead.latestResponse}
-                        </p>
-                      </div>
-                    </td>
+                      </td>
 
-                    <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
-                      {lead.nextFollowUp}
-                    </td>
+                      {/* 3. UNIQUE CONNECTED PIPELINE PROGRESS TRACKER */}
+                      <td className="py-3.5 px-3">
+                        <div className="flex items-center justify-center gap-1">
+                          {/* Connected Journey Track */}
+                          <div className="flex items-center">
+                            {STAGE_STEPS.map((step, idx) => {
+                              const isCurrent = currentStageKey === step.key;
+                              const isPassed = !isLost && activeStageIdx >= 0 && activeStageIdx > idx;
 
-                    <td className="py-3.5 px-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${lead.priorityColor}`} />
-                        <span className="font-bold text-[11px] text-slate-700">{lead.priority}</span>
-                      </div>
-                    </td>
+                              return (
+                                <React.Fragment key={step.key}>
+                                  {/* Connector Line */}
+                                  {idx > 0 && (
+                                    <div
+                                      className={`h-[2px] w-4 sm:w-5 transition-all duration-300 ${isLost
+                                        ? "bg-slate-200"
+                                        : isPassed || isCurrent
+                                          ? "bg-[#1769AA]"
+                                          : "bg-slate-200"
+                                        }`}
+                                    />
+                                  )}
 
-                    {/* Actions: Call, WhatsApp, History, Delete */}
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          type="button"
-                          onClick={() => handleCall(lead)}
-                          className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
-                          title="Call & Log Attempt"
-                        >
-                          <Phone className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleWhatsApp(lead)}
-                          className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
-                          title="WhatsApp & Log Attempt"
-                        >
-                          <MessageSquare className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveLead(lead);
-                            setShowHistoryModal(true);
-                          }}
-                          className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs"
-                          title="View Attempt History"
-                        >
-                          <History className="h-3.5 w-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteLead(lead.id)}
-                          className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-600 flex items-center justify-center transition-colors shadow-xs"
-                          title="Delete Lead"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                                  {/* Interactive Stage Node */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleStageCheckbox(lead.id, step.key)}
+                                    className="group/node flex flex-col items-center focus:outline-none cursor-pointer transition-transform hover:scale-110"
+                                    title={`Click to set stage to ${step.label}`}
+                                  >
+                                    {step.key === "CONVERTED" && isConverted ? (
+                                      <div className="w-4.5 h-4.5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs ring-2 ring-emerald-100">
+                                        <Check className="w-2.5 h-2.5 stroke-[3]" />
+                                      </div>
+                                    ) : isPassed ? (
+                                      <div className="w-3.5 h-3.5 rounded-full bg-[#1769AA] text-white flex items-center justify-center shadow-2xs">
+                                        <Check className="w-2 h-2 stroke-[3]" />
+                                      </div>
+                                    ) : isCurrent ? (
+                                      <div className="w-4.5 h-4.5 rounded-full bg-[#1769AA] text-white flex items-center justify-center shadow-md ring-2 ring-blue-100">
+                                        <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-3 h-3 rounded-full border border-slate-300 bg-white hover:border-[#1769AA] hover:bg-blue-50 transition-colors" />
+                                    )}
+
+                                    <span
+                                      className={`text-[8.5px] mt-0.5 tracking-tight select-none transition-colors ${isCurrent
+                                        ? "text-[#1769AA] font-black"
+                                        : isPassed
+                                          ? "text-slate-700 font-bold"
+                                          : isConverted && step.key === "CONVERTED"
+                                            ? "text-emerald-700 font-black"
+                                            : "text-slate-400 font-medium group-hover/node:text-slate-600"
+                                        }`}
+                                    >
+                                      {step.label}
+                                    </span>
+                                  </button>
+                                </React.Fragment>
+                              );
+                            })}
+                          </div>
+
+                          {/* Divider */}
+                          <div className="h-3.5 w-px bg-slate-200 mx-1 shrink-0" />
+
+                          {/* Separate Lost Stage Node */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleStageCheckbox(lead.id, isLost ? "NEW" : "LOST")}
+                            className="group/lost flex flex-col items-center focus:outline-none cursor-pointer transition-transform hover:scale-110"
+                            title={isLost ? "Reopen Lead to AI Calling" : "Mark Lead as Lost"}
+                          >
+                            {isLost ? (
+                              <div className="w-4.5 h-4.5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md ring-2 ring-rose-100">
+                                <X className="w-2.5 h-2.5 stroke-[3]" />
+                              </div>
+                            ) : (
+                              <div className="w-3 h-3 rounded-full border border-slate-200 bg-white text-slate-300 hover:border-rose-300 hover:text-rose-600 flex items-center justify-center transition-colors">
+                                <X className="w-1.5 h-1.5 stroke-[2.5]" />
+                              </div>
+                            )}
+                            <span
+                              className={`text-[8.5px] mt-0.5 tracking-tight select-none ${isLost ? "text-rose-600 font-black" : "text-slate-400 font-medium group-hover/lost:text-rose-600"
+                                }`}
+                            >
+                              Lost
+                            </span>
+                          </button>
+                        </div>
+                      </td>
+
+                      {/* 4. AI VOICE QUALIFICATION & OUTCOME COLUMN */}
+                      <td className="py-3.5 px-3 max-w-[260px]">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {lead.aiOutcome === "INTERESTED" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                                <Check className="w-2.5 h-2.5 text-emerald-600 stroke-[3]" />
+                                High Intent ({lead.aiScore || 90}%)
+                              </span>
+                            ) : lead.aiOutcome === "CALLBACK_REQUESTED" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 text-amber-600" />
+                                Callback Requested
+                              </span>
+                            ) : lead.aiOutcome === "NEEDS_COUNSELLOR" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1">
+                                <UserCheck className="w-2.5 h-2.5 text-sky-600" />
+                                Needs Counsellor
+                              </span>
+                            ) : lead.aiOutcome === "NOT_INTERESTED" ? (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                                <X className="w-2.5 h-2.5 text-rose-600" />
+                                Not Interested
+                              </span>
+                            ) : (
+                              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5 text-slate-400" />
+                                No Answer / Retry
+                              </span>
+                            )}
+
+                            {/* View AI Transcript Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAiDrawer(lead)}
+                              className="px-1.5 py-0.5 rounded-md bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white border border-blue-200 text-[9.5px] font-bold inline-flex items-center gap-1 transition-all cursor-pointer shadow-2xs"
+                              title="View AI Call Transcript & Audio Waveform"
+                            >
+                              <Bot className="w-3 h-3" />
+                              <span>Transcript</span>
+                            </button>
+                          </div>
+
+                          <p
+                            className="text-[10.5px] text-slate-600 truncate italic max-w-[240px]"
+                            title={lead.aiSummaryShort || lead.latestResponse}
+                          >
+                            "{lead.aiSummaryShort || lead.latestResponse}"
+                          </p>
+                        </div>
+                      </td>
+
+                      {/* 5. ATTEMPTS & LATEST RESPONSE */}
+                      <td className="py-3.5 px-3 max-w-[180px]">
+                        <div className="flex items-center gap-1.5">
+                          <span className="bg-blue-50 text-[#1769AA] text-[10px] font-extrabold px-1.5 py-0.5 rounded-md border border-blue-100 shrink-0 shadow-2xs">
+                            {lead.attemptsCount || lead.attempt || 1} {(lead.attemptsCount || lead.attempt || 1) === 1 ? "call" : "calls"}
+                          </span>
+                          <p
+                            className="text-[11px] text-slate-600 truncate font-medium"
+                            title={lead.latestResponse}
+                          >
+                            {lead.latestResponse}
+                          </p>
+                        </div>
+                      </td>
+
+                      {/* 6. NEXT FOLLOW-UP */}
+                      <td className="py-3.5 px-3 whitespace-nowrap">
+                        {isOverdue ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1 shadow-2xs">
+                            <Clock className="w-3 h-3 text-rose-600" />
+                            {lead.nextFollowUp || "Overdue"}
+                          </span>
+                        ) : isToday ? (
+                          <span className="px-2 py-0.5 rounded-full text-[10.5px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1 shadow-2xs">
+                            <Clock className="w-3 h-3 text-amber-600" />
+                            {lead.nextFollowUp || "Today"}
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-slate-400" />
+                            {lead.nextFollowUp || "Scheduled"}
+                          </span>
+                        )}
+                      </td>
+
+                      {/* 7. ACTION COLUMN */}
+                      <td className="py-3.5 px-3 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          {/* Follow Up Button */}
+                          <Button
+                            type="button"
+                            onClick={() => handleOpenFollowUp(lead)}
+                            size="sm"
+                            className={`h-7.5 px-2.5 rounded-xl font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5 ${
+                              isOverdue
+                                ? "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 ring-2 ring-rose-100"
+                                : isToday
+                                ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
+                                : "bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white border border-blue-200"
+                            }`}
+                          >
+                            <Phone className="h-3 w-3" />
+                            <span>Follow Up</span>
+                          </Button>
+
+                          {/* Three Dot Dropdown Menu */}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button
+                                type="button"
+                                className="w-7.5 h-7.5 rounded-xl border border-slate-200/80 hover:bg-slate-100 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
+                                title="More Actions"
+                              >
+                                <MoreVertical className="h-3.5 w-3.5" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border-slate-200">
+                              <DropdownMenuItem
+                                onClick={() => handleOpenFollowUp(lead)}
+                                className="text-xs font-semibold py-2 cursor-pointer text-[#1769AA]"
+                              >
+                                <CalendarDays className="h-3.5 w-3.5 mr-2 text-[#1769AA]" />
+                                Schedule Follow-up
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleOpenAiDrawer(lead)}
+                                className="text-xs font-semibold py-2 cursor-pointer text-indigo-700"
+                              >
+                                <Bot className="h-3.5 w-3.5 mr-2 text-indigo-600" />
+                                View AI Call Details
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => {
+                                  setActiveLead(lead);
+                                  setShowHistoryModal(true);
+                                }}
+                                className="text-xs font-semibold py-2 cursor-pointer"
+                              >
+                                <History className="h-3.5 w-3.5 mr-2 text-blue-600" />
+                                View Interaction History
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleCall(lead)}
+                                className="text-xs font-semibold py-2 cursor-pointer"
+                              >
+                                <PhoneCall className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                                Call & Log Attempt
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleWhatsApp(lead as any)}
+                                className="text-xs font-semibold py-2 cursor-pointer"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                                Send WhatsApp Message
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleOpenLostModal(lead)}
+                                className="text-xs font-semibold py-2 text-amber-700 hover:text-amber-900 cursor-pointer"
+                              >
+                                <AlertTriangle className="h-3.5 w-3.5 mr-2 text-amber-600" />
+                                Mark as Lost
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteLead(lead.id)}
+                                className="text-xs font-semibold py-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 mr-2 text-rose-600" />
+                                Delete Lead
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </CardContent>
@@ -1146,33 +1671,49 @@ export const CounselorDashboard: React.FC = () => {
                 <select
                   value={formCourse}
                   onChange={(e) => setFormCourse(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-semibold text-slate-800"
                 >
                   <option value="Digital Marketing">Digital Marketing</option>
                   <option value="Graphic Design">Graphic Design</option>
                   <option value="Web Development">Web Development</option>
                   <option value="Data Science">Data Science</option>
                   <option value="UI/UX Design">UI/UX Design</option>
-                  <option value="Python Programming">Python Programming</option>
-                  <option value="Tally Prime">Tally Prime</option>
+                  <option value="Python / AI">Python / AI</option>
+                  <option value="Java Full Stack">Java Full Stack</option>
                 </select>
               </div>
               <div>
-                <Label className="text-slate-600 text-xs font-medium">Lead Source</Label>
+                <Label className="text-slate-600 text-xs font-medium">Omnichannel Lead Source *</Label>
                 <select
                   value={formSource}
-                  onChange={(e) => setFormSource(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                  onChange={(e) => setFormSource(e.target.value as LeadSource)}
+                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-semibold text-slate-800"
                 >
-                  <option value="Website">Website</option>
-                  <option value="Google Ads">Google Ads</option>
-                  <option value="Meta Ads">Meta Ads</option>
-                  <option value="Instagram">Instagram</option>
-                  <option value="Referral">Referral</option>
-                  <option value="Walk-in">Walk-in</option>
+                  <option value="Website">🌐 Website Form</option>
+                  <option value="Google Ads">🔍 Google Ads</option>
+                  <option value="Meta Ads">⚡ Meta Ads / Facebook</option>
+                  <option value="Instagram">📱 Instagram Campaign</option>
+                  <option value="Referral">👥 Student Referral</option>
+                  <option value="Walk-in">🏢 Center Walk-in</option>
+                  <option value="Direct Call">📞 Direct Call</option>
                 </select>
               </div>
             </div>
+
+            {/* AI Automated Calling Option */}
+            <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-blue-50/70 rounded-xl border border-blue-100">
+              <input
+                type="checkbox"
+                checked={formTriggerAi}
+                onChange={(e) => setFormTriggerAi(e.target.checked)}
+                className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+              />
+              <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1.5">
+                <Bot className="w-4 h-4 text-[#1769AA]" />
+                Trigger automated Sarvam AI voice qualification call immediately
+              </span>
+            </label>
+
             <div>
               <Label className="text-slate-600 text-xs font-medium">Initial Notes & Response</Label>
               <textarea
@@ -1186,11 +1727,317 @@ export const CounselorDashboard: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#059669] hover:bg-[#047857] text-white">
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">
                 Save & Add Lead
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── SCHEDULE FOLLOW-UP POPUP / MODAL ─── */}
+      <Dialog open={showFollowUpModal} onOpenChange={setShowFollowUpModal}>
+        <DialogContent className="max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+          <DialogHeader className="pb-3 border-b border-slate-100">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+                  <CalendarDays className="h-5 w-5" />
+                </span>
+                Schedule Follow-up
+              </DialogTitle>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Set next follow-up touchpoint, reminders, and interaction notes for this candidate.
+            </p>
+          </DialogHeader>
+
+          {activeLead && (
+            <form onSubmit={handleSaveFollowUpModal} className="space-y-4.5 pt-2 text-xs">
+              {/* 1. Candidate Summary Card */}
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-3 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#1769AA] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
+                      {activeLead.name.split(" ").map((n) => n[0]).join("")}
+                    </div>
+                    <div>
+                      <h4 className="font-extrabold text-slate-900 text-sm tracking-tight">
+                        {activeLead.name}
+                      </h4>
+                      <p className="text-slate-500 font-mono text-[11.5px] font-medium flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-slate-400" /> {activeLead.phone}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 self-start sm:self-auto">
+                    <Badge className="bg-blue-50 text-[#1769AA] border border-blue-200 font-bold text-[11px] px-2.5 py-0.5">
+                      {activeLead.course}
+                    </Badge>
+                    <Badge className="bg-amber-50 text-amber-800 border border-amber-200 font-bold text-[11px] px-2.5 py-0.5">
+                      Follow-up Stage
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* AI Calling Result & Counsellor Status */}
+                <div className="space-y-2 pt-2 border-t border-slate-200/60 text-[11.5px]">
+                  {/* AI Calling Result */}
+                  <div className="p-2.5 bg-sky-50/70 rounded-xl border border-sky-100 flex items-start gap-2">
+                    <Bot className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-sky-900 block text-[11px]">AI Calling Qualification Result:</span>
+                      <p className="text-sky-800 font-medium text-[11.5px] leading-snug">
+                        {activeLead.aiCallingResult || "🟢 High Intent — AI voice conversation completed successfully; interested in upcoming batch syllabus."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Counsellor Contacting Status */}
+                  <div className="p-2.5 bg-purple-50/70 rounded-xl border border-purple-100 flex items-start gap-2">
+                    <UserCheck className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
+                    <div>
+                      <span className="font-bold text-purple-900 block text-[11px]">Counsellor Latest Interaction:</span>
+                      <p className="text-purple-800 font-medium text-[11.5px] leading-snug">
+                        {activeLead.latestResponse || "Initial contact made; requested follow-up discussion on batch timings."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Follow-up Type (Selectable options) */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 font-bold text-xs">Follow-up Type</Label>
+                <div className="grid grid-cols-3 gap-2.5">
+                  {[
+                    { key: "CALL", label: "Phone Call", icon: Phone },
+                    { key: "WHATSAPP", label: "WhatsApp", icon: MessageSquare },
+                    { key: "EMAIL", label: "Email", icon: Mail },
+                  ].map((item) => {
+                    const IconComp = item.icon;
+                    const isSelected = followUpType === item.key;
+                    return (
+                      <button
+                        key={item.key}
+                        type="button"
+                        onClick={() => setFollowUpType(item.key as any)}
+                        className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${
+                          isSelected
+                            ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
+                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                        }`}
+                      >
+                        <IconComp className="h-4 w-4" />
+                        <span>{item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* 3. Schedule Reminder Section */}
+              <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+                <div className="flex items-center justify-between">
+                  <Label className="text-slate-700 font-bold text-xs flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-[#1769AA]" /> Schedule Reminder
+                  </Label>
+                  <span className="text-[11px] font-medium text-slate-400">Quick select preset</span>
+                </div>
+
+                {/* 1-Click Quick Presets */}
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { id: "today_4pm", label: "Today, 4:00 PM" },
+                    { id: "tomorrow_10am", label: "Tomorrow, 10:30 AM" },
+                    { id: "tomorrow_2pm", label: "Tomorrow, 2:30 PM" },
+                    { id: "in_2days", label: "In 2 Days" },
+                  ].map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleApplyFollowUpPreset(p.id as any)}
+                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] text-[10.5px] font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs"
+                    >
+                      ⚡ {p.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Date & Time Row */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-600 mb-1 block">📅 Follow-up Date *</Label>
+                    <Input
+                      type="date"
+                      value={followUpDate}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                      className="h-9.5 text-xs rounded-xl bg-white font-medium shadow-2xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-600 mb-1 block">🕐 Follow-up Time *</Label>
+                    <select
+                      value={followUpTime}
+                      onChange={(e) => setFollowUpTime(e.target.value)}
+                      className="w-full h-9.5 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] shadow-2xs"
+                    >
+                      <option value="09:30 AM">09:30 AM (Morning Slot)</option>
+                      <option value="10:30 AM">10:30 AM (Morning Slot)</option>
+                      <option value="11:00 AM">11:00 AM (Morning Slot)</option>
+                      <option value="11:30 AM">11:30 AM (Morning Slot)</option>
+                      <option value="02:00 PM">02:00 PM (Afternoon Slot)</option>
+                      <option value="02:30 PM">02:30 PM (Afternoon Slot)</option>
+                      <option value="03:30 PM">03:30 PM (Afternoon Slot)</option>
+                      <option value="04:00 PM">04:00 PM (Evening Slot)</option>
+                      <option value="05:00 PM">05:00 PM (Evening Slot)</option>
+                      <option value="06:00 PM">06:00 PM (Evening Slot)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Set Reminder Toggle / Checkbox */}
+                <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
+                  <input
+                    type="checkbox"
+                    checked={setReminder}
+                    onChange={(e) => setSetReminder(e.target.checked)}
+                    className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+                  />
+                  <span className="text-[11.5px] font-bold text-slate-700 flex items-center gap-1.5">
+                    <Bell className="w-3.5 h-3.5 text-amber-500" />
+                    Set reminder alert on Dashboard & schedule WhatsApp notification
+                  </span>
+                </label>
+              </div>
+
+              {/* 4. Follow-up Notes Textarea */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 font-bold text-xs">Follow-up Notes</Label>
+                <textarea
+                  value={followUpNotes}
+                  onChange={(e) => setFollowUpNotes(e.target.value)}
+                  placeholder="Add notes about this conversation, discussed points, or reason for the next follow-up…"
+                  className="w-full min-h-[85px] p-3 border border-slate-200 rounded-2xl text-xs bg-white font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] shadow-2xs"
+                />
+              </div>
+
+              {/* Action Buttons & Danger Mark as Lost */}
+              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => handleOpenLostModal(activeLead)}
+                  className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold text-xs rounded-xl h-9.5 px-3.5 gap-1.5 cursor-pointer"
+                >
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
+                  Mark as Lost / Not Interested
+                </Button>
+
+                <div className="flex items-center justify-end gap-2.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowFollowUpModal(false)}
+                    className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <Check className="h-4 w-4" />
+                    Save Follow-up
+                  </Button>
+                </div>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MARK AS LOST CONFIRMATION POPUP / MODAL ─── */}
+      <Dialog open={showLostModal} onOpenChange={setShowLostModal}>
+        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-rose-100">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-base font-black text-rose-700 flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 inline-flex">
+                <AlertTriangle className="h-5 w-5" />
+              </span>
+              Mark Lead as Lost / Not Interested
+            </DialogTitle>
+            <p className="text-xs text-slate-500 font-medium mt-1">
+              Are you sure you want to mark <strong className="text-slate-800">{activeLead?.name}</strong> as lost? Active follow-up reminders will be closed.
+            </p>
+          </DialogHeader>
+
+          {activeLead && (
+            <form onSubmit={handleConfirmMarkAsLost} className="space-y-4 pt-2 text-xs">
+              {/* Lead Summary Pill */}
+              <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100 flex items-center justify-between">
+                <div>
+                  <h4 className="font-extrabold text-slate-900 text-xs">{activeLead.name}</h4>
+                  <p className="text-slate-500 font-mono text-[11px]">{activeLead.phone} • {activeLead.course}</p>
+                </div>
+                <Badge className="bg-rose-100 text-rose-800 border-rose-200 font-bold text-[10.5px]">
+                  Pipeline: Lost
+                </Badge>
+              </div>
+
+              {/* Lost Reason Dropdown */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 font-bold text-xs">Select Lost Reason *</Label>
+                <select
+                  value={lostReason}
+                  onChange={(e) => setLostReason(e.target.value)}
+                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+                  required
+                >
+                  <option value="Joined Competitor Institute">Joined Competitor Institute</option>
+                  <option value="Fee Too High / Budget Constraints">Fee Too High / Budget Constraints</option>
+                  <option value="Timing / Batch Schedule Mismatch">Timing / Batch Schedule Mismatch</option>
+                  <option value="Not Interested in Course">Not Interested in Course</option>
+                  <option value="Location / Commute Issue">Location / Commute Issue</option>
+                  <option value="Fake / Invalid Contact Enquiry">Fake / Invalid Contact Enquiry</option>
+                  <option value="Dropped Plan / Relocating">Dropped Plan / Relocating</option>
+                  <option value="Other Reason">Other Reason</option>
+                </select>
+              </div>
+
+              {/* Optional Notes */}
+              <div className="space-y-1.5">
+                <Label className="text-slate-700 font-bold text-xs">Remarks / Explanation (Optional)</Label>
+                <textarea
+                  value={lostNotes}
+                  onChange={(e) => setLostNotes(e.target.value)}
+                  placeholder="Add details about why the student was marked as lost…"
+                  className="w-full min-h-[70px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+                />
+              </div>
+
+              <DialogFooter className="pt-2 flex items-center justify-end gap-2.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowLostModal(false)}
+                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                >
+                  <X className="h-4 w-4" />
+                  Confirm Mark as Lost
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -1501,9 +2348,8 @@ export const CounselorDashboard: React.FC = () => {
                       return (
                         <label
                           key={s.id}
-                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${
-                            isChecked ? "bg-indigo-50/70 font-bold text-indigo-900" : "hover:bg-slate-50 text-slate-700"
-                          }`}
+                          className={`flex items-center justify-between p-1.5 rounded-lg text-xs cursor-pointer transition-colors ${isChecked ? "bg-indigo-50/70 font-bold text-indigo-900" : "hover:bg-slate-50 text-slate-700"
+                            }`}
                         >
                           <div className="flex items-center gap-2">
                             <input
@@ -1550,11 +2396,10 @@ export const CounselorDashboard: React.FC = () => {
                             prev.includes(day) ? (prev.length > 1 ? prev.filter((d) => d !== day) : prev) : [...prev, day]
                           );
                         }}
-                        className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${
-                          isSelected
-                            ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
-                            : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
-                        }`}
+                        className={`px-3 py-1 text-xs font-bold rounded-lg border transition-all ${isSelected
+                          ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
+                          : "bg-white text-slate-700 border-slate-200 hover:bg-slate-50"
+                          }`}
                       >
                         {day}
                       </button>
@@ -1626,6 +2471,360 @@ export const CounselorDashboard: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 5: AI VOICE RECORDING & TELEPHONY TRANSCRIPT POPUP MODAL ─── */}
+      <Dialog open={showAiDrawer} onOpenChange={setShowAiDrawer}>
+        <DialogContent className="max-w-2xl sm:max-w-3xl bg-white rounded-3xl p-0 overflow-hidden shadow-2xl border border-slate-100 max-h-[88vh] flex flex-col z-50">
+          {/* Modal Header */}
+          <div className="p-5 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/70 space-y-4">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+                  <Bot className="h-5 w-5 stroke-[2.5]" />
+                </span>
+                AI Voice Call Details & Telephony Logs
+              </DialogTitle>
+            </div>
+
+            {activeAiLead && (
+              <div className="p-3.5 bg-white rounded-2xl border border-slate-200/80 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-[#1769AA] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
+                    {activeAiLead.name.split(" ").map((n) => n[0]).join("")}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="font-extrabold text-slate-900 text-sm truncate tracking-tight">
+                        {activeAiLead.name}
+                      </h4>
+                      {activeAiLead.hotLead && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[9px] font-black">
+                          🔥 Hot Lead
+                        </span>
+                      )}
+                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black">
+                        ✓ AI Qualified
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5 text-slate-500 text-[11px] font-medium flex-wrap">
+                      <span className="font-mono flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400" /> {activeAiLead.phone}</span>
+                      <span>•</span>
+                      <span className="font-sans font-bold text-slate-600">
+                        {activeAiLead.source === "Website"
+                          ? "🌐 Website Form"
+                          : activeAiLead.source === "Google Ads"
+                          ? "🔍 Google Ads"
+                          : activeAiLead.source === "Meta Ads"
+                          ? "⚡ Meta Ads"
+                          : activeAiLead.source === "Instagram"
+                          ? "📱 Instagram"
+                          : activeAiLead.source === "Referral"
+                          ? "👥 Referral"
+                          : activeAiLead.source === "Walk-in"
+                          ? "🏢 Walk-in"
+                          : `📞 ${activeAiLead.source}`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <Badge className="bg-blue-50 text-[#1769AA] border border-blue-200 font-bold text-[11px] px-2.5 py-1 shrink-0">
+                  {activeAiLead.course}
+                </Badge>
+              </div>
+            )}
+
+            {/* Tabs: AI Call Summary / Call Recording */}
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
+              <button
+                type="button"
+                onClick={() => setAiDrawerTab("SUMMARY")}
+                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                  aiDrawerTab === "SUMMARY"
+                    ? "bg-white text-[#1769AA] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                AI Call Summary
+              </button>
+              <button
+                type="button"
+                onClick={() => setAiDrawerTab("RECORDING")}
+                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
+                  aiDrawerTab === "RECORDING"
+                    ? "bg-white text-[#1769AA] shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                Call Recording & Transcript
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body */}
+          {activeAiLead && (
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-5 text-xs">
+              {aiDrawerTab === "SUMMARY" ? (
+                <>
+                  {/* Call Outcome & AI Score */}
+                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
+                    <div>
+                      <span className="text-[11px] font-bold text-slate-500 block mb-1">Call Outcome</span>
+                      {activeAiLead.aiOutcome === "INTERESTED" ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> Interested
+                        </span>
+                      ) : activeAiLead.aiOutcome === "CALLBACK_REQUESTED" ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-amber-600" /> Callback Requested
+                        </span>
+                      ) : activeAiLead.aiOutcome === "NEEDS_COUNSELLOR" ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-sky-50 text-sky-800 border border-sky-200 inline-flex items-center gap-1.5">
+                          <UserCheck className="w-3.5 h-3.5 text-sky-600" /> Needs Counsellor
+                        </span>
+                      ) : activeAiLead.aiOutcome === "NOT_INTERESTED" ? (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1.5">
+                          <X className="w-3.5 h-3.5 text-rose-600" /> Not Interested
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" /> No Response
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-[11px] font-bold text-slate-500 block mb-0.5">AI Score</span>
+                      <span className="text-xl font-black text-slate-900">{activeAiLead.aiScore || 90}%</span>
+                      <div className="text-xs text-amber-400 font-bold">
+                        {"★".repeat(activeAiLead.starRating || 5)}{"☆".repeat(5 - (activeAiLead.starRating || 5))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Detailed Summary */}
+                  <div className="space-y-1.5">
+                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-[#1769AA]" /> AI Generated Summary
+                    </Label>
+                    <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
+                      {activeAiLead.aiSummaryDetailed || activeAiLead.aiSummaryShort || "Candidate was contacted via automated Sarvam AI voice agent."}
+                    </div>
+                  </div>
+
+                  {/* Key Discussion Points */}
+                  <div className="space-y-2">
+                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Key Discussion Points
+                    </Label>
+                    <div className="space-y-2">
+                      {(activeAiLead.keyDiscussionPoints || activeAiLead.keyHighlights || [
+                        `Interested in ${activeAiLead.course}`,
+                        `Enquiry Source: ${activeAiLead.source}`,
+                        `Requested course syllabus and upcoming batch timings`
+                      ]).map((point: string, idx: number) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-2 text-slate-700"
+                        >
+                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 stroke-[3]" />
+                          <span className="font-medium text-[11.5px] leading-snug">{point}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Call Information Metadata */}
+                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2.5">
+                    <Label className="text-slate-800 font-bold text-xs block mb-1">Call Telephony Details</Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11.5px]">
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px]">Call Time</span>
+                        <span className="font-bold text-slate-800">{activeAiLead.callDate || "24 Aug 2026, 11:00 AM"}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px]">Duration</span>
+                        <span className="font-bold text-slate-800">{activeAiLead.callDuration || "2m 15s"}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px]">Attempt Number</span>
+                        <span className="font-bold text-slate-800">
+                          {activeAiLead.attempt === 1 ? "1st Attempt" : `${activeAiLead.attempt || 1}nd Attempt`}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block text-[10.5px]">AI Campaign</span>
+                        <span className="font-bold text-slate-800 truncate block">{activeAiLead.campaign || "August Admission Drive"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Call Recording Audio Player */}
+                  <div className="p-5 bg-slate-900 text-white rounded-3xl space-y-4 shadow-xl">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                        <span className="font-extrabold text-xs text-slate-200">Sarvam AI Call Audio</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-slate-400">{activeAiLead.callDuration || "02:15"}</span>
+                    </div>
+
+                    {/* Waveform Visualization */}
+                    <div className="flex items-center gap-1 h-10 px-2 bg-slate-800/80 rounded-xl overflow-hidden">
+                      {[30, 45, 75, 90, 60, 40, 85, 95, 70, 50, 80, 100, 65, 45, 90, 80, 55, 35, 70, 90, 60, 40, 75, 85, 50, 30].map((h, i) => (
+                        <div
+                          key={i}
+                          style={{ height: `${h}%` }}
+                          className={`flex-1 rounded-full transition-all duration-300 ${
+                            i < 10 ? "bg-emerald-400" : isPlayingAudio ? "bg-cyan-400 animate-pulse" : "bg-slate-600"
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    {/* Player Controls */}
+                    <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                          className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 cursor-pointer"
+                        >
+                          {isPlayingAudio ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                        </button>
+                        <div>
+                          <p className="text-[11px] font-mono font-bold text-slate-300">01:24 / {activeAiLead.callDuration || "02:15"}</p>
+                          <p className="text-[10px] text-slate-400">1.0x Speed</p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAudioMuted(!isAudioMuted)}
+                        className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                      >
+                        {isAudioMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* AI Conversation Transcript */}
+                  <div className="space-y-3">
+                    <Label className="text-slate-800 font-bold text-xs flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Bot className="w-3.5 h-3.5 text-[#1769AA]" /> Voice Agent Dialogue Transcript
+                      </span>
+                      <span className="text-[10.5px] text-slate-400 font-normal">Hindi / English Telephony</span>
+                    </Label>
+
+                    <div className="space-y-2.5 max-h-[300px] overflow-y-auto pr-1">
+                      {(activeAiLead.transcript && activeAiLead.transcript.length > 0 ? activeAiLead.transcript : [
+                        {
+                          speaker: "AI_AGENT" as const,
+                          name: "Aadya AI Agent",
+                          time: "00:02",
+                          text: `Namaste ${activeAiLead.name}! Main Aadya Institute of Technical Studies se bol rahi hoon. Aapne hamare ${activeAiLead.course} training program ke liye inquiry kiya tha?`
+                        },
+                        {
+                          speaker: "STUDENT" as const,
+                          name: activeAiLead.name,
+                          time: "00:08",
+                          text: `Haan, maine online form fill kiya tha. Mujhe course details aur batch timings janne the.`
+                        },
+                        {
+                          speaker: "AI_AGENT" as const,
+                          name: "Aadya AI Agent",
+                          time: "00:15",
+                          text: `Zaroor! Hamare naye weekday aur weekend batches start ho rahe hain with 100% placement assistance and live capstone projects. Kya aap full-time ya weekend batch prefer karenge?`
+                        },
+                        {
+                          speaker: "STUDENT" as const,
+                          name: activeAiLead.name,
+                          time: "00:24",
+                          text: `Weekend batch suit karega. Kya aap mujhe syllabus aur fee structure WhatsApp par bhej sakte hain?`
+                        },
+                        {
+                          speaker: "AI_AGENT" as const,
+                          name: "Aadya AI Agent",
+                          time: "00:32",
+                          text: `Bilkul! Maine brochure WhatsApp par send kar diya hai. Hamare senior counsellor aapse connect karenge demo session ke liye. Dhanyawaad!`
+                        }
+                      ]).map((msg, i) => (
+                        <div
+                          key={i}
+                          className={`p-3 rounded-2xl text-xs space-y-1 ${
+                            msg.speaker === "AI_AGENT" || msg.speaker === "AI"
+                              ? "bg-blue-50/70 border border-blue-100 text-slate-800 mr-4"
+                              : "bg-slate-100/80 border border-slate-200/70 text-slate-900 ml-4"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+                            <span className="flex items-center gap-1">
+                              {msg.speaker === "AI_AGENT" || msg.speaker === "AI" ? (
+                                <span className="text-[#1769AA] font-black">🤖 {msg.name || msg.speakerName || "Aadya AI Agent"}</span>
+                              ) : (
+                                <span className="text-slate-800 font-black">👤 {msg.name || msg.speakerName || activeAiLead.name}</span>
+                              )}
+                            </span>
+                            <span className="font-mono text-slate-400">{msg.time}</span>
+                          </div>
+                          <p className="leading-relaxed font-medium">{msg.text}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Modal Bottom Actions */}
+          {activeAiLead && (
+            <div className="p-4 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAiDrawer(false);
+                  handleOpenLostModal(activeAiLead);
+                }}
+                className="border-rose-200 text-rose-600 hover:bg-rose-50 text-xs font-bold rounded-xl h-9.5"
+              >
+                Mark as Lost
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAiDrawer(false);
+                    handleCall(activeAiLead);
+                  }}
+                  className="border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold rounded-xl h-9.5 gap-1.5"
+                >
+                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  Call Student
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowAiDrawer(false);
+                    handleOpenFollowUp(activeAiLead);
+                  }}
+                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9.5 px-4 gap-1.5 shadow-sm"
+                >
+                  <CalendarDays className="w-3.5 h-3.5" />
+                  Schedule Follow-up
+                </Button>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
