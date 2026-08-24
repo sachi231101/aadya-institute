@@ -26,7 +26,6 @@ export const FacultyLayout: React.FC = () => {
   return (
     <SidebarProvider>
       <InstallLoginPopup />
-      <div className="flex min-h-screen w-full bg-background">
       <div className="flex h-screen w-full bg-[#F8FAFC] font-sans antialiased text-slate-800 overflow-hidden">
         <FacultySidebar />
         
