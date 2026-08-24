@@ -17,6 +17,7 @@ import { useBranch, useBranchStats, useBranches } from "@/hooks/useBranches";
 import { useFinancialReport } from "@/hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import {
   PieChart,
   Pie,
@@ -210,6 +211,8 @@ export const CenterDashboard: React.FC = () => {
           </Button>
         </div>
       </div>
+
+      <InstallDashboardBanner />
 
       {/* 2. TOP 4 KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

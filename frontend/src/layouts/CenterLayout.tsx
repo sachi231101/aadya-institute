@@ -9,6 +9,8 @@ import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
 
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 export const CenterLayout: React.FC = () => {
 
@@ -39,6 +41,7 @@ export const CenterLayout: React.FC = () => {
   }
   return (
     <SidebarProvider>
+      <InstallLoginPopup />
       <div className="flex min-h-screen w-full bg-background">
         <CenterSidebar />
         
@@ -52,7 +55,8 @@ export const CenterLayout: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <InstallAppButton variant="header" />
               <NotificationPopover />
             </div>
 

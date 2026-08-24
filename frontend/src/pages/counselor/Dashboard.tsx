@@ -34,6 +34,7 @@ import { useFinancialReport } from "@/hooks/useReports";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import {
   Dialog,
   DialogContent,
@@ -565,6 +566,7 @@ export const CounselorDashboard: React.FC = () => {
         </div>
       </div>
 
+      <InstallDashboardBanner />
       {/* ─── BATCH CREATION SUCCESS NOTIFICATION ─── */}
       {batchSuccessMsg && (
         <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
