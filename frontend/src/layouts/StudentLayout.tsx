@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
+
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,6 +81,32 @@ export const StudentLayout: React.FC = () => {
 
   const isAiActive = location.pathname === "/student/ask-me";
 
+  return (
+    <div style={{ display: "flex", minHeight: "100vh", background: "var(--bg-primary)" }}>
+      <InstallLoginPopup />
+      <aside
+        style={{
+          width: "260px",
+          background: "var(--bg-secondary)",
+          borderRight: "1px solid var(--border-color)",
+          display: "flex",
+          flexDirection: "column",
+          padding: "1.5rem 1rem",
+        }}
+      >
+        <Link to="/student/home" style={{ display: "flex", alignItems: "center", gap: "0.75rem", padding: "0 0.5rem 1.5rem", textDecoration: "none" }}>
+          <div
+            style={{
+              width: "40px",
+              height: "40px",
+              borderRadius: "10px",
+              background: "linear-gradient(135deg, #ec4899, #8b5cf6)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#fff",
+              fontWeight: 800,
+            }}
   const renderSidebarContent = () => (
     <div className="flex flex-col justify-between h-full space-y-4">
       <div className="space-y-4">
@@ -159,6 +188,22 @@ export const StudentLayout: React.FC = () => {
             );
           })}
 
+        <div
+          style={{
+            padding: "1rem 1rem 0",
+            borderTop: "1px solid var(--border-color)",
+            display: "flex",
+            flexDirection: "column",
+            gap: "0.75rem",
+            marginTop: "1.5rem",
+          }}
+        >
+          <InstallAppButton variant="sidebar" />
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: "0.9rem", fontWeight: 600, color: "var(--text-primary)" }}>
+              {user?.name || "Student"}
+            </p>
+          </div>
           {/* Exit Button Directly Below My Profile */}
           <button
             onClick={handleLogout}
@@ -202,6 +247,22 @@ export const StudentLayout: React.FC = () => {
         {renderSidebarContent()}
       </aside>
 
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <header
+          style={{
+            height: "70px",
+            background: "var(--bg-secondary)",
+            borderBottom: "1px solid var(--border-color)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 2rem",
+          }}
+        >
+          <span style={{ fontSize: "0.9rem", color: "var(--text-secondary)" }}>Student Learning Portal</span>
+          <div className="flex items-center gap-3">
+            <InstallAppButton variant="header" />
+            <NotificationPopover />
       {/* ── Mobile Drawer Backdrop & Sidebar ─────────────────────────────────── */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden animate-in fade-in duration-150">

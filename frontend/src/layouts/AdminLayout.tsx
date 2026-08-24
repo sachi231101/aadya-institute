@@ -5,6 +5,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/app-sidebar";
 import { Button } from "@/components/ui/button";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -103,6 +105,7 @@ export const AdminLayout: React.FC = () => {
 
   return (
     <SidebarProvider>
+      <InstallLoginPopup />
       <div className="flex min-h-screen w-full bg-background">
         <AppSidebar />
         
@@ -112,7 +115,8 @@ export const AdminLayout: React.FC = () => {
               <SidebarTrigger className="-ml-2" />
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <InstallAppButton variant="header" />
               <Button 
                 onClick={() => {
                   form.reset();

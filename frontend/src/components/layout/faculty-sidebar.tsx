@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
+import { InstallAppButton } from "@/components/common/InstallAppButton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
 const facultyNavItems = [
@@ -228,8 +229,11 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-
+        
       <SidebarFooter className="p-3 border-t border-slate-100">
+          <div className="px-2 pt-2">
+          <InstallAppButton variant="sidebar" />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center justify-between p-1.5 rounded-xl border border-slate-200/80 bg-white hover:bg-slate-50 transition-colors">

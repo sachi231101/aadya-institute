@@ -5,6 +5,8 @@ import { useAuthStore } from "../store/auth.store";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { FacultySidebar } from "@/components/layout/faculty-sidebar";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 export const FacultyLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -23,6 +25,8 @@ export const FacultyLayout: React.FC = () => {
 
   return (
     <SidebarProvider>
+      <InstallLoginPopup />
+      <div className="flex min-h-screen w-full bg-background">
       <div className="flex h-screen w-full bg-[#F8FAFC] font-sans antialiased text-slate-800 overflow-hidden">
         <FacultySidebar />
         
@@ -36,7 +40,8 @@ export const FacultyLayout: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <InstallAppButton variant="header" />
               <NotificationPopover />
             </div>
           </header>

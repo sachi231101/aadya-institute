@@ -17,7 +17,7 @@ const router = Router();
 
 // Protect all AI routes: requires authenticated JWT and either ADMIN or CENTER_MANAGER role
 router.use(authMiddleware);
-router.use(requireRole(["ADMIN", "CENTER_MANAGER"]));
+router.use(requireRole("ADMIN", "CENTER_MANAGER"));
 
 // POST /api/v1/ai/chat — Ask a question to the AI Institute Data Agent
 router.post(

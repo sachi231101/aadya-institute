@@ -2,15 +2,11 @@ import * as React from "react"
 import { Link, useLocation, useNavigate } from "react-router-dom"
 import {
   BookOpen,
-  GraduationCap,
   LayoutDashboard,
   Settings,
-  Users,
   Target,
-  CreditCard,
   ChevronRight,
   LogOut,
-  UserCheck,
   Sparkles,
   Bot
 } from "lucide-react"
@@ -31,6 +27,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
+import { InstallAppButton } from "@/components/common/InstallAppButton"
 
 const centerNavItems = [
   {
@@ -218,6 +215,9 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
       </SidebarContent>
 
       <SidebarFooter className="border-t border-border/50">
+        <div className="px-2 pt-2">
+          <InstallAppButton variant="sidebar" />
+        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <div className="flex items-center justify-between p-2">

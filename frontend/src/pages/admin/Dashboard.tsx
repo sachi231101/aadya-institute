@@ -28,6 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
 const ACCENT_COLORS = ["bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-emerald-500", "bg-pink-500"];
 const ACCENT_TEXT = ["text-blue-600", "text-purple-600", "text-orange-600", "text-emerald-600", "text-pink-600"];
@@ -180,6 +181,8 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
       </div>
+
+      <InstallDashboardBanner />
 
       {notificationMsg && (
         <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2">

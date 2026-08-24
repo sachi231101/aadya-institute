@@ -28,16 +28,16 @@ export class AISecurityScopeService {
       throw new AppError("Forbidden - only ADMIN and CENTER_MANAGER can access the AI Data Agent", 403);
     }
 
-    // Strict branch locking for Center Manager: ALWAYS use their assigned branchId
+    // Center Manager: ALWAYS locked to their assigned branch only
+    // Admin: ALWAYS institute-wide (no branch filter) — sees all branches
     let verifiedBranchId: string | undefined = undefined;
     if (isCenterManager) {
       if (!currentUser.branchId) {
         throw new AppError("Center Manager has no assigned branch", 403);
       }
       verifiedBranchId = currentUser.branchId;
-    } else if (isAdmin && currentUser.branchId) {
-      verifiedBranchId = currentUser.branchId;
     }
+    // isAdmin → verifiedBranchId stays undefined → all tools query institute-wide
 
     return {
       userId: currentUser.userId,

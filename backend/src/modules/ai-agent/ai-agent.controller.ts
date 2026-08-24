@@ -12,7 +12,7 @@ export const chatWithAIAgent = async (
   try {
     const currentUser = req.user as unknown as AuthUser;
     const result = await AIAgentService.processChatMessage(currentUser, req.body);
-    sendSuccess(res, "AI query processed successfully", result);
+    sendSuccess(res, result, 200, "AI query processed successfully");
   } catch (err) {
     next(err);
   }
@@ -26,7 +26,7 @@ export const listConversations = async (
   try {
     const currentUser = req.user as unknown as AuthUser;
     const result = await AIAgentService.getUserConversations(currentUser);
-    sendSuccess(res, "Conversations retrieved successfully", result);
+    sendSuccess(res, result, 200, "Conversations retrieved successfully");
   } catch (err) {
     next(err);
   }
@@ -40,7 +40,7 @@ export const getConversation = async (
   try {
     const currentUser = req.user as unknown as AuthUser;
     const result = await AIAgentService.getConversationById(req.params.id, currentUser);
-    sendSuccess(res, "Conversation retrieved successfully", result);
+    sendSuccess(res, result, 200, "Conversation retrieved successfully");
   } catch (err) {
     next(err);
   }
@@ -54,7 +54,7 @@ export const deleteConversation = async (
   try {
     const currentUser = req.user as unknown as AuthUser;
     const result = await AIAgentService.deleteConversation(req.params.id, currentUser);
-    sendSuccess(res, "Conversation deleted successfully", result);
+    sendSuccess(res, result, 200, "Conversation deleted successfully");
   } catch (err) {
     next(err);
   }
