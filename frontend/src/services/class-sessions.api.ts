@@ -117,6 +117,36 @@ export const classSessionsApi = {
     return response.data;
   },
 
+  startLive: async (id: string, meetingUrl?: string): Promise<SingleResponse<{ session: BackendClassSession; notifiedStudentsCount: number }>> => {
+    const response = await api.post<SingleResponse<{ session: BackendClassSession; notifiedStudentsCount: number }>>(
+      `/class-sessions/${id}/start-live`,
+      { meetingUrl }
+    );
+    return response.data;
+  },
+
+  endLive: async (id: string): Promise<SingleResponse<{ session: BackendClassSession; recording: any }>> => {
+    const response = await api.post<SingleResponse<{ session: BackendClassSession; recording: any }>>(
+      `/class-sessions/${id}/end-live`
+    );
+    return response.data;
+  },
+
+  getActiveLive: async (): Promise<ListResponse<BackendClassSession>> => {
+    const response = await api.get<ListResponse<BackendClassSession>>("/class-sessions/active/live");
+    return response.data;
+  },
+
+  getAttendance: async (id: string): Promise<SingleResponse<any>> => {
+    const response = await api.get<SingleResponse<any>>(`/class-sessions/${id}/attendance`);
+    return response.data;
+  },
+
+  saveAttendance: async (id: string, attendance: Array<{ studentId: string; status: string; remarks?: string }>): Promise<SingleResponse<any>> => {
+    const response = await api.post<SingleResponse<any>>(`/class-sessions/${id}/attendance`, { attendance });
+    return response.data;
+  },
+
   delete: async (id: string): Promise<SingleResponse<{ id: string; deleted: boolean }>> => {
     const response = await api.delete<SingleResponse<{ id: string; deleted: boolean }>>(`/class-sessions/${id}`);
     return response.data;

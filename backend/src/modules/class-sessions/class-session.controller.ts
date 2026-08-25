@@ -42,15 +42,11 @@ export const getSessions = async (
       const studentRecord = await prisma.student.findFirst({
         where: { userId: req.user!.userId },
         include: {
-          enrollments: { where: { status: "ACTIVE" } },
-          admissions: { where: { status: { in: ["ACTIVE", "CONFIRMED", "PROVISIONAL"] } } },
+          batchEnrollments: { where: { status: "ACTIVE" as any } },
         },
       });
       if (studentRecord) {
-        const studentBatchIds = [
-          ...studentRecord.enrollments.map((e) => e.batchId),
-          ...(studentRecord.admissions.map((a) => a.batchId).filter(Boolean) as string[]),
-        ];
+        const studentBatchIds = (studentRecord.batchEnrollments || []).map((e: any) => e.batchId).filter(Boolean);
         if (studentBatchIds.length > 0) {
           batchFilter = batchFilter && studentBatchIds.includes(batchFilter) ? batchFilter : studentBatchIds[0];
         }
@@ -124,6 +120,88 @@ export const cancelSession = async (
     const instituteId = req.user!.instituteId;
     const session = await classSessionService.cancelSession(req.params.id as string, instituteId);
     sendSuccess(res, session, 200, "Class session cancelled successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const startLiveSession = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const meetingUrl = req.body?.meetingUrl as string | undefined;
+    const result = await classSessionService.startLiveClass(req.params.id as string, instituteId, meetingUrl);
+    sendSuccess(
+      res,
+      result,
+      200,
+      `Live class started successfully. ${result.notifiedStudentsCount} students notified.`
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const endLiveSession = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const result = await classSessionService.endLiveClass(req.params.id as string, instituteId);
+    sendSuccess(res, result, 200, "Live class ended and recorded successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getActiveLiveSessions = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const branchId = req.user!.branchId || (req.query.branchId as string) || undefined;
+    const roles = req.user?.roles || [];
+    const isPureStudent = roles.includes("STUDENT") && !roles.includes("ADMIN") && !roles.includes("FACULTY");
+    const isPureFaculty = roles.includes("FACULTY") && !roles.includes("ADMIN");
+
+    let studentBatchIds: string[] | undefined = undefined;
+    let facultyId: string | undefined = undefined;
+
+    if (isPureStudent) {
+      const studentRecord = await prisma.student.findFirst({
+        where: { userId: req.user!.userId },
+        include: {
+          batchEnrollments: { where: { status: "ACTIVE" as any } },
+        },
+      });
+      if (studentRecord) {
+        studentBatchIds = (studentRecord.batchEnrollments || []).map((e: any) => e.batchId).filter(Boolean);
+      }
+    }
+
+    if (isPureFaculty) {
+      const facultyRecord = await prisma.faculty.findFirst({
+        where: { userId: req.user!.userId },
+      });
+      if (facultyRecord) {
+        facultyId = facultyRecord.id;
+      }
+    }
+
+    const liveSessions = await classSessionService.getActiveLiveSessions(
+      instituteId,
+      branchId,
+      studentBatchIds,
+      facultyId
+    );
+    sendSuccess(res, liveSessions, 200, "Active live sessions retrieved successfully");
   } catch (error) {
     next(error);
   }

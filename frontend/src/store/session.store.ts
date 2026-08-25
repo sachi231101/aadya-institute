@@ -44,11 +44,30 @@ export interface SessionHistoryItem {
   recordingId?: string;
 }
 
+export interface ActiveLiveClass {
+  id: string;
+  courseName: string;
+  batchCode: string;
+  batchName: string;
+  moduleName?: string;
+  facultyName: string;
+  date: string;
+  time: string;
+  meetUrl: string;
+  meetId: string;
+  startedAt: string;
+  studentCount: number;
+  status: "LIVE" | "COMPLETED";
+}
+
 interface SessionStoreState {
   recordings: ClassRecordingItem[];
   sessionHistories: SessionHistoryItem[];
+  activeLiveClass: ActiveLiveClass | null;
   addRecording: (recording: ClassRecordingItem) => void;
   addSessionHistory: (history: SessionHistoryItem) => void;
+  setActiveLiveClass: (liveClass: ActiveLiveClass | null) => void;
+  endActiveLiveClass: () => void;
   getRecordingsForFaculty: (facultyName: string) => ClassRecordingItem[];
   getRecordingsForStudentBatch: (batch: string, course: string) => ClassRecordingItem[];
 }
@@ -80,7 +99,7 @@ const DEFAULT_RECORDINGS: ClassRecordingItem[] = [
     id: "rec-002",
     course: "Digital Marketing",
     batch: "DM-2026-A",
-    batchName: "DM Executive Morning",
+    batchName: "Digital Marketing – Batch A",
     module: "SEO Fundamentals",
     facultyName: "Ramesh Kumar",
     date: "24 Aug 2026",
@@ -146,6 +165,7 @@ const DEFAULT_SESSION_HISTORIES: SessionHistoryItem[] = [
 export const useSessionStore = create<SessionStoreState>((set, get) => ({
   recordings: DEFAULT_RECORDINGS,
   sessionHistories: DEFAULT_SESSION_HISTORIES,
+  activeLiveClass: null,
 
   addRecording: (newRecording) => {
     set((state) => ({
@@ -157,6 +177,22 @@ export const useSessionStore = create<SessionStoreState>((set, get) => ({
     set((state) => ({
       sessionHistories: [history, ...state.sessionHistories],
     }));
+  },
+
+  setActiveLiveClass: (liveClass) => {
+    set({ activeLiveClass: liveClass });
+  },
+
+  endActiveLiveClass: () => {
+    const current = get().activeLiveClass;
+    if (current) {
+      set({
+        activeLiveClass: {
+          ...current,
+          status: "COMPLETED",
+        },
+      });
+    }
   },
 
   getRecordingsForFaculty: (facultyName) => {
