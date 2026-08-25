@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
+import { useNotificationStore } from "@/store/notification.store";
+
 const ACCENT_COLORS = ["bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-emerald-500", "bg-pink-500"];
 const ACCENT_TEXT = ["text-blue-600", "text-purple-600", "text-orange-600", "text-emerald-600", "text-pink-600"];
 const ACCENT_BG_LIGHT = ["bg-blue-50", "bg-purple-50", "bg-orange-50", "bg-emerald-50", "bg-pink-50"];
@@ -55,6 +57,7 @@ export const AdminDashboard: React.FC = () => {
 
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
+  const addNotification = useNotificationStore((state) => state.addNotification);
   const createBranchMutation = useCreateBranch();
   const updateBranchMutation = useUpdateBranch();
   const deleteBranchMutation = useDeleteBranch();
@@ -181,10 +184,10 @@ export const AdminDashboard: React.FC = () => {
 
     try {
       await createBranchMutation.mutateAsync({
-        name: branchName,
-        code: branchCode,
-        address: address,
-        phone: phone,
+        name: branchName.trim(),
+        code: branchCode.trim(),
+        address: address.trim() || undefined,
+        phone: phone.trim() || undefined,
       });
 
       setNotificationMsg(`New Branch "${branchName}" created successfully!`);
@@ -195,7 +198,12 @@ export const AdminDashboard: React.FC = () => {
       setAddress("");
       setPhone("");
     } catch (err: any) {
-      setErrorMsg(err.response?.data?.message || "Failed to create branch.");
+      const serverErrors = err?.response?.data?.errors;
+      const firstError =
+        Array.isArray(serverErrors) && serverErrors.length > 0
+          ? `${serverErrors[0].field ? serverErrors[0].field + ": " : ""}${serverErrors[0].message}`
+          : err?.response?.data?.message || "Failed to create branch.";
+      setErrorMsg(firstError);
     }
   };
 
@@ -642,81 +650,119 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Modal Dialog: Assign Center Manager */}
-      {assignModalBranch && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
-            <div className="flex items-center gap-3 text-slate-900">
-              <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
-                <UserPlus className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold">Assign Center Manager</h3>
-                <p className="text-xs text-slate-500">Assign a manager to <strong>{assignModalBranch.name}</strong></p>
-              </div>
-            </div>
+      {assignModalBranch && (() => {
+        const selectedManager = centerManagers.find((mgr) => mgr.id === selectedManagerIdForBranch);
+        const previousBranch = selectedManager?.branchId
+          ? apiBranches.find((b) => b.id === selectedManager.branchId)
+          : null;
+        const isAlreadyAssigned =
+          Boolean(selectedManager && previousBranch && previousBranch.id !== assignModalBranch.id);
 
-            <div className="space-y-2 py-2">
-              <label className="text-xs font-bold text-slate-700 block">
-                Select Center Manager
-              </label>
-              <select
-                value={selectedManagerIdForBranch}
-                onChange={(e) => setSelectedManagerIdForBranch(e.target.value)}
-                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-medium"
-              >
-                <option value="">-- Choose a Center Manager --</option>
-                {centerManagers.map((mgr) => {
-                  const currentBranch = apiBranches.find((b) => b.id === mgr.branchId);
-                  return (
-                    <option key={mgr.id} value={mgr.id}>
-                      {mgr.name} ({mgr.email}) {currentBranch ? `— [Currently in: ${currentBranch.name}]` : "— (Unassigned)"}
-                    </option>
-                  );
-                })}
-              </select>
-              {centerManagers.length === 0 && (
-                <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" /> No Center Managers found. Please create one in Administration.
-                </p>
-              )}
-            </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4">
+              <div className="flex items-center gap-3 text-slate-900">
+                <div className="p-2.5 rounded-lg bg-emerald-50 text-emerald-700">
+                  <UserPlus className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold">Assign Center Manager</h3>
+                  <p className="text-xs text-slate-500">Assign a manager to <strong>{assignModalBranch.name}</strong></p>
+                </div>
+              </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setAssignModalBranch(null);
-                  setSelectedManagerIdForBranch("");
-                }}
-                className="text-xs font-bold h-9"
-              >
-                Cancel
-              </Button>
-              <Button
-                disabled={!selectedManagerIdForBranch || updateUserMutation.isPending}
-                onClick={async () => {
-                  if (!selectedManagerIdForBranch || !assignModalBranch) return;
-                  try {
-                    await updateUserMutation.mutateAsync({
-                      id: selectedManagerIdForBranch,
-                      data: { branchId: assignModalBranch.id },
-                    });
-                    setNotificationMsg(`Manager assigned to ${assignModalBranch.name} successfully.`);
-                    setTimeout(() => setNotificationMsg(null), 3000);
+              <div className="space-y-2 py-2">
+                <label className="text-xs font-bold text-slate-700 block">
+                  Select Center Manager
+                </label>
+                <select
+                  value={selectedManagerIdForBranch}
+                  onChange={(e) => setSelectedManagerIdForBranch(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent font-medium"
+                >
+                  <option value="">-- Choose a Center Manager --</option>
+                  {centerManagers.map((mgr) => {
+                    const currentBranch = apiBranches.find((b) => b.id === mgr.branchId);
+                    return (
+                      <option key={mgr.id} value={mgr.id}>
+                        {mgr.name} ({mgr.email}) {currentBranch ? `— [Currently in: ${currentBranch.name}]` : "— (Unassigned)"}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                {isAlreadyAssigned && previousBranch && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2.5 text-amber-900 mt-2 animate-in fade-in">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-xs space-y-1">
+                      <p className="font-bold text-amber-900">⚠️ Manager Already Assigned</p>
+                      <p className="text-amber-800 leading-relaxed">
+                        <strong>{selectedManager?.name}</strong> is currently assigned to <strong>{previousBranch.name}</strong>. Reassigning will transfer their management responsibility to <strong>{assignModalBranch.name}</strong>.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {centerManagers.length === 0 && (
+                  <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
+                    <AlertTriangle className="h-3.5 w-3.5" /> No Center Managers found. Please create one in Administration.
+                  </p>
+                )}
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
                     setAssignModalBranch(null);
                     setSelectedManagerIdForBranch("");
-                  } catch (err: any) {
-                    setErrorMsg(err.response?.data?.message || "Failed to assign manager.");
-                  }
-                }}
-                className="bg-[#1769AA] hover:bg-emerald-600 text-white font-bold text-xs h-9 transition-colors"
-              >
-                {updateUserMutation.isPending ? "Assigning..." : "Confirm Assignment"}
-              </Button>
+                  }}
+                  className="text-xs font-bold h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  disabled={!selectedManagerIdForBranch || updateUserMutation.isPending}
+                  onClick={async () => {
+                    if (!selectedManagerIdForBranch || !assignModalBranch) return;
+                    try {
+                      await updateUserMutation.mutateAsync({
+                        id: selectedManagerIdForBranch,
+                        data: { branchId: assignModalBranch.id },
+                      });
+
+                      if (isAlreadyAssigned && previousBranch) {
+                        const notice = `⚠️ Manager "${selectedManager?.name}" was already assigned to "${previousBranch.name}". Reassigned to "${assignModalBranch.name}" successfully!`;
+                        setNotificationMsg(notice);
+                        addNotification(notice, "warning");
+                      } else {
+                        const successMsg = `Manager "${selectedManager?.name || 'Selected manager'}" assigned to "${assignModalBranch.name}" successfully.`;
+                        setNotificationMsg(successMsg);
+                        addNotification(successMsg, "success");
+                      }
+
+                      setTimeout(() => setNotificationMsg(null), 5000);
+                      setAssignModalBranch(null);
+                      setSelectedManagerIdForBranch("");
+                    } catch (err: any) {
+                      const errMsg = err.response?.data?.message || "Failed to assign manager.";
+                      setErrorMsg(errMsg);
+                      addNotification(errMsg, "error");
+                    }
+                  }}
+                  className="bg-[#1769AA] hover:bg-emerald-600 text-white font-bold text-xs h-9 transition-colors"
+                >
+                  {updateUserMutation.isPending
+                    ? "Assigning..."
+                    : isAlreadyAssigned
+                    ? "Confirm Reassignment"
+                    : "Confirm Assignment"}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

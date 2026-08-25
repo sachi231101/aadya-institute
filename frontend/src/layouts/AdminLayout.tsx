@@ -36,7 +36,20 @@ const branchSchema = z.object({
   name: z.string().min(2, "Branch name is required"),
   code: z.string().min(2, "Branch code is required").max(10, "Branch code must be at most 10 characters"),
   address: z.string().optional().or(z.literal("")),
-  phone: z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (val) => {
+        if (!val || val.trim() === "") return true;
+        const digits = val.replace(/\D/g, "");
+        return digits.length >= 7 && digits.length <= 15;
+      },
+      {
+        message: "Phone must be a valid phone number (7-15 digits)",
+      }
+    ),
 });
 
 type BranchFormValues = z.infer<typeof branchSchema>;
@@ -95,7 +108,11 @@ export const AdminLayout: React.FC = () => {
           form.reset();
         },
         onError: (err: any) => {
-          const message = err?.response?.data?.message || err?.message || "Failed to create branch.";
+          const serverErrors = err?.response?.data?.errors;
+          const message =
+            Array.isArray(serverErrors) && serverErrors.length > 0
+              ? `${serverErrors[0].field ? serverErrors[0].field + ": " : ""}${serverErrors[0].message}`
+              : err?.response?.data?.message || err?.message || "Failed to create branch.";
           form.setError("root", { message });
           addNotification(message, "error");
         },

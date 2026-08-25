@@ -22,7 +22,20 @@ import {
 const addAdminSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
-  phone: z.string().regex(/^\d{10}$/, "Phone must be a 10-digit number").optional().or(z.literal("")),
+  phone: z
+    .string()
+    .optional()
+    .or(z.literal(""))
+    .refine(
+      (val) => {
+        if (!val || val.trim() === "") return true;
+        const digits = val.replace(/\D/g, "");
+        return digits.length >= 7 && digits.length <= 15;
+      },
+      {
+        message: "Phone must be a valid phone number (7-15 digits)",
+      }
+    ),
   branchId: z.string().optional().or(z.literal("")),
   role: z.string().default("CENTER_MANAGER"),
   password: z
