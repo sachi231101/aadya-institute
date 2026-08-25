@@ -5,6 +5,30 @@ const statusEnum = z.preprocess(
   z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"])
 );
 
+const phoneValidation = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((val) => (val === "" || val === null ? undefined : val))
+  .refine(
+    (val) => {
+      if (!val) return true;
+      const digits = val.replace(/\D/g, "");
+      return digits.length >= 7 && digits.length <= 15;
+    },
+    {
+      message: "Phone must be a valid phone number (7-15 digits)",
+    }
+  );
+
+const addressValidation = z
+  .string()
+  .trim()
+  .optional()
+  .nullable()
+  .transform((val) => (val === "" || val === null ? undefined : val));
+
 export const createBranchSchema = z.object({
   name: z.string().min(2, "Branch name must be at least 2 characters").trim(),
   code: z
@@ -13,27 +37,15 @@ export const createBranchSchema = z.object({
     .max(10, "Branch code must be at most 10 characters")
     .trim()
     .toUpperCase(),
-  address: z.string().trim().optional(),
-  phone: z
-    .string()
-    .trim()
-    .optional()
-    .refine((val) => !val || /^\d{10}$/.test(val), {
-      message: "Phone must be a 10-digit number",
-    }),
+  address: addressValidation,
+  phone: phoneValidation,
 });
 
 export const updateBranchSchema = z.object({
   name: z.string().min(2).trim().optional(),
   code: z.string().min(2).max(10).trim().toUpperCase().optional(),
-  address: z.string().trim().optional(),
-  phone: z
-    .string()
-    .trim()
-    .optional()
-    .refine((val) => !val || /^\d{10}$/.test(val), {
-      message: "Phone must be a 10-digit number",
-    }),
+  address: addressValidation,
+  phone: phoneValidation,
   status: statusEnum.optional(),
 });
 

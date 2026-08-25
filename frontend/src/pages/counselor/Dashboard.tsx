@@ -37,6 +37,7 @@ import {
   Pause,
   Volume2,
   VolumeX,
+  Clock,
 } from "lucide-react";
 import {
   DropdownMenu,

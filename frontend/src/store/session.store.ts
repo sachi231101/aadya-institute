@@ -18,6 +18,7 @@ export interface ClassRecordingItem {
   viewsCount: number;
   status: "Available" | "Processing" | "Archived";
   expiresAt: string;
+  title?: string;
   meetUrl?: string;
   meetId?: string;
   startTime?: string;

@@ -101,7 +101,7 @@ export const FacultyClassSession: React.FC = () => {
 
   // Timer Effect
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
+    let interval: ReturnType<typeof setInterval> | null = null;
     if (sessionState === "CLASS_IN_PROGRESS") {
       interval = setInterval(() => {
         setSecondsElapsed((prev) => prev + 1);
