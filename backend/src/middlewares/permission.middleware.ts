@@ -114,7 +114,7 @@ export const requirePermission = (permission: string) => {
         const anyUserPerm = await prisma.userPermission.count({ where: { userId } });
         if (
           anyUserPerm === 0 &&
-          ["lead.read", "lead.create", "lead.update", "lead.convert", "branch.read", "dashboard.read"].includes(permission)
+          ["lead.read", "lead.create", "lead.update", "lead.convert", "branch.read", "dashboard.read", "master.read", "course.read"].includes(permission)
         ) {
           next();
           return;

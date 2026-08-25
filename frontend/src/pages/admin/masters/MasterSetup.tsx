@@ -52,6 +52,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  useMasterRecords,
+  useCreateMasterRecord,
+  useUpdateMasterRecord,
+  useDeleteMasterRecord,
+} from "@/hooks/useMasters";
 
 // ─── MASTER ENTITY CATEGORY DEFINITIONS ──────────────────────────────────────
 
@@ -569,195 +575,8 @@ export const ALL_25_MASTERS: MasterEntity[] = [
   },
 ];
 
-// Sample records per master entity
-const INITIAL_RECORDS: Record<string, Record<string, string>[]> = {
-  area: [
-    { id: "1", code: "AR-01", name: "Koramangala", city: "Bengaluru", pincode: "560034", status: "Active" },
-    { id: "2", code: "AR-02", name: "Indiranagar", city: "Bengaluru", pincode: "560038", status: "Active" },
-    { id: "3", code: "AR-03", name: "Whitefield", city: "Bengaluru", pincode: "560066", status: "Active" },
-    { id: "4", code: "AR-04", name: "Jayanagar", city: "Bengaluru", pincode: "560041", status: "Active" },
-    { id: "5", code: "AR-05", name: "HSR Layout", city: "Bengaluru", pincode: "560102", status: "Active" },
-    { id: "6", code: "AR-06", name: "Jayalakshmipuram", city: "Mysore", pincode: "570012", status: "Active" },
-    { id: "7", code: "AR-07", name: "Kuvempunagar", city: "Mysore", pincode: "570023", status: "Active" },
-    { id: "8", code: "AR-08", name: "Vidyanagar", city: "Hubli", pincode: "580021", status: "Active" },
-  ],
-  classroom: [
-    { id: "1", code: "CR-101", name: "Lab 1 (Java Full Stack)", capacity: "30 Seats", type: "Computer Lab", status: "Available" },
-    { id: "2", code: "CR-102", name: "Lecture Hall A", capacity: "60 Seats", type: "Theory Hall", status: "In Use" },
-    { id: "3", code: "CR-103", name: "Lab 2 (Python & AI)", capacity: "28 Seats", type: "Computer Lab", status: "Available" },
-    { id: "4", code: "CR-201", name: "Seminar Room 1", capacity: "45 Seats", type: "Conference", status: "Available" },
-    { id: "5", code: "CR-202", name: "Classroom 202", capacity: "35 Seats", type: "Classroom", status: "In Use" },
-    { id: "6", code: "CR-203", name: "Classroom 203", capacity: "30 Seats", type: "Classroom", status: "Available" },
-  ],
-  designation: [
-    { id: "1", code: "DES-01", title: "Senior Faculty Instructor", level: "L3", department: "Academics", status: "Active" },
-    { id: "2", code: "DES-02", title: "Assistant Faculty", level: "L1", department: "Academics", status: "Active" },
-    { id: "3", code: "DES-03", title: "Senior Academic Counsellor", level: "L2", department: "Admissions", status: "Active" },
-    { id: "4", code: "DES-04", title: "Center Operations Manager", level: "L4", department: "Operations", status: "Active" },
-    { id: "5", code: "DES-05", title: "Lab Assistant / Administrator", level: "L1", department: "Infrastructure", status: "Active" },
-    { id: "6", code: "DES-06", title: "Student Relationship Executive", level: "L1", department: "Support", status: "Active" },
-    { id: "7", code: "DES-07", title: "Accounts & Billing Lead", level: "L2", department: "Finance", status: "Active" },
-  ],
-  education: [
-    { id: "1", code: "EDU-01", qualification: "B.E. / B.Tech", stream: "Computer Science / IT", status: "Active" },
-    { id: "2", code: "EDU-02", qualification: "B.E. / B.Tech", stream: "Electronics / ECE", status: "Active" },
-    { id: "3", code: "EDU-03", qualification: "B.E. / B.Tech", stream: "Mechanical / Civil / Other", status: "Active" },
-    { id: "4", code: "EDU-04", qualification: "B.C.A.", stream: "Computer Applications", status: "Active" },
-    { id: "5", code: "EDU-05", qualification: "B.Sc.", stream: "Computer Science / Electronics", status: "Active" },
-    { id: "6", code: "EDU-06", qualification: "M.C.A. / M.Sc.", stream: "Computer Applications", status: "Active" },
-    { id: "7", code: "EDU-07", qualification: "M.E. / M.Tech", stream: "Information Technology", status: "Active" },
-    { id: "8", code: "EDU-08", qualification: "Diploma", stream: "Computer Science / IT", status: "Active" },
-    { id: "9", code: "EDU-09", qualification: "Non-Technical Graduate", stream: "B.Com / B.B.A / B.A", status: "Active" },
-  ],
-  parentinfo: [
-    { id: "1", relation: "Father", occupationGroup: "Salaried (Private / IT)", incomeBracket: "₹5L - ₹10L", status: "Active" },
-    { id: "2", relation: "Mother", occupationGroup: "Government Service", incomeBracket: "₹5L - ₹10L", status: "Active" },
-    { id: "3", relation: "Guardian", occupationGroup: "Business / Self-Employed", incomeBracket: "₹10L - ₹20L", status: "Active" },
-    { id: "4", relation: "Father", occupationGroup: "Agriculture / Farming", incomeBracket: "Below ₹5L", status: "Active" },
-    { id: "5", relation: "Mother", occupationGroup: "Professional (Doctor/Lawyer)", incomeBracket: "Above ₹20L", status: "Active" },
-  ],
-  employee: [
-    { id: "1", empCode: "EMP-001", name: "Ramesh Kumar", role: "Faculty Instructor", branch: "Bengaluru", status: "Active" },
-    { id: "2", empCode: "EMP-002", name: "Priya Sharma", role: "Faculty Instructor", branch: "Bengaluru", status: "Active" },
-    { id: "3", empCode: "EMP-003", name: "Sneha Patil", role: "Academic Counsellor", branch: "Bengaluru", status: "Active" },
-    { id: "4", empCode: "EMP-004", name: "HM Adithya", role: "Center Manager", branch: "Bengaluru", status: "Active" },
-    { id: "5", empCode: "EMP-005", name: "Sanjay Verma", role: "Faculty Instructor", branch: "Mysore", status: "Active" },
-  ],
-  holiday: [
-    { id: "1", title: "Independence Day", date: "15 Aug 2026", type: "National Holiday", description: "Institute closed for holiday" },
-    { id: "2", title: "Ganesh Chaturthi", date: "14 Sep 2026", type: "Festival", description: "Holiday for students and staff" },
-    { id: "3", title: "Gandhi Jayanti", date: "02 Oct 2026", type: "National Holiday", description: "Institute holiday" },
-    { id: "4", title: "Vijayadashami / Dussehra", date: "20 Oct 2026", type: "Festival", description: "Special festive break" },
-    { id: "5", title: "Diwali / Deepavali", date: "08 Nov 2026", type: "Festival", description: "Diwali celebration holiday" },
-  ],
-  timeslot: [
-    { id: "1", code: "SLOT-01", startTime: "09:00 AM", endTime: "10:00 AM", period: "Period 1", status: "Active" },
-    { id: "2", code: "SLOT-02", startTime: "10:00 AM", endTime: "11:30 AM", period: "Period 2", status: "Active" },
-    { id: "3", code: "SLOT-03", startTime: "11:30 AM", endTime: "01:00 PM", period: "Period 3", status: "Active" },
-    { id: "4", code: "SLOT-04", startTime: "02:00 PM", endTime: "03:30 PM", period: "Period 4", status: "Active" },
-    { id: "5", code: "SLOT-05", startTime: "03:30 PM", endTime: "05:00 PM", period: "Period 5", status: "Active" },
-  ],
-  events: [
-    { id: "1", name: "Campus Recruitment Drive", date: "28 Aug 2026", venue: "Bengaluru Campus", category: "Placement" },
-    { id: "2", name: "AI & Cloud Tech Hackathon", date: "10 Sep 2026", venue: "Online & Labs", category: "Competition" },
-    { id: "3", name: "Guest Lecture: Industry DevOps", date: "22 Sep 2026", venue: "Seminar Hall 1", category: "Workshop" },
-    { id: "4", name: "Alumni Interaction Meet", date: "05 Oct 2026", venue: "Bengaluru Central", category: "Alumni" },
-  ],
-  examterm: [
-    { id: "1", code: "TERM-M1", name: "Module 1 Assessment", academicYear: "2026-27", status: "Active" },
-    { id: "2", code: "TERM-M2", name: "Module 2 Intermediate", academicYear: "2026-27", status: "Active" },
-    { id: "3", code: "TERM-FINAL", name: "Final Certification Exam", academicYear: "2026-27", status: "Active" },
-    { id: "4", code: "TERM-MOCK", name: "Placement Mock Technical", academicYear: "2026-27", status: "Active" },
-  ],
-  leadsource: [
-    { id: "1", code: "SRC-WEB", name: "Website Direct Enquiry", channelType: "Inbound Web", status: "Active" },
-    { id: "2", code: "SRC-IG", name: "Instagram Ads Campaign", channelType: "Social Media", status: "Active" },
-    { id: "3", code: "SRC-WA", name: "WhatsApp Chatbot", channelType: "Messaging", status: "Active" },
-    { id: "4", code: "SRC-WALK", name: "Walk-in Center Visit", channelType: "Offline Direct", status: "Active" },
-    { id: "5", code: "SRC-REF", name: "Student Referral", channelType: "Word of Mouth", status: "Active" },
-    { id: "6", code: "SRC-SARV", name: "Sarvam AI Voice Outreach", channelType: "AI Telephony", status: "Active" },
-    { id: "7", code: "SRC-CAMP", name: "College Workshop", channelType: "Outreach", status: "Active" },
-    { id: "8", code: "SRC-GOOG", name: "Google Search Ads", channelType: "Paid Search", status: "Active" },
-  ],
-  leadstage: [
-    { id: "1", stageNumber: "1", name: "New Lead", description: "Initial contact received", color: "Blue" },
-    { id: "2", stageNumber: "2", name: "AI Call Qualified", description: "Sarvam AI verified interest", color: "Teal" },
-    { id: "3", stageNumber: "3", name: "Counselling Scheduled", description: "Counselor consultation booked", color: "Purple" },
-    { id: "4", stageNumber: "4", name: "Demo Attended", description: "Free masterclass attended", color: "Amber" },
-    { id: "5", stageNumber: "5", name: "Enrolled", description: "Fee token paid", color: "Green" },
-    { id: "6", stageNumber: "6", name: "Lost / Not Interested", description: "Unqualified or dropped", color: "Rose" },
-  ],
-  leadtype: [
-    { id: "1", code: "HOT", name: "Hot Lead (Ready to Join)", slaHours: "2 Hours", status: "Active" },
-    { id: "2", code: "WARM", name: "Warm Lead (Exploring Courses)", slaHours: "24 Hours", status: "Active" },
-    { id: "3", code: "COLD", name: "Cold Lead (Long-term Nurture)", slaHours: "72 Hours", status: "Active" },
-  ],
-  admissionstatus: [
-    { id: "1", code: "ADM-INIT", name: "Application Submitted", step: "Step 1", status: "Active" },
-    { id: "2", code: "ADM-DOCS", name: "Documents Verified", step: "Step 2", status: "Active" },
-    { id: "3", code: "ADM-FEE", name: "Seat Deposit Paid", step: "Step 3", status: "Active" },
-    { id: "4", code: "ADM-CONF", name: "Admission Confirmed", step: "Step 4", status: "Active" },
-    { id: "5", code: "ADM-CANC", name: "Admission Cancelled", step: "Step 0", status: "Active" },
-  ],
-  admissionbatch: [
-    { id: "1", batchCode: "JFS-2026-A", batchName: "Java Full Stack 2026 A", capacity: "30", targetIntake: "30 Students" },
-    { id: "2", batchCode: "PY-2026-A", batchName: "Python & AI Morning", capacity: "30", targetIntake: "28 Students" },
-    { id: "3", batchCode: "DM-2026-B", batchName: "Digital Marketing Weekend", capacity: "25", targetIntake: "25 Students" },
-    { id: "4", batchCode: "EX-2026-A", batchName: "Advanced Excel Fastrack", capacity: "35", targetIntake: "35 Students" },
-    { id: "5", batchCode: "WD-2026-C", batchName: "Web Development Evening", capacity: "25", targetIntake: "25 Students" },
-  ],
-  coursereview: [
-    { id: "1", reviewType: "Weekly Module Feedback", frequency: "Weekly", ratingScale: "1 to 5 Stars", status: "Active" },
-    { id: "2", reviewType: "Faculty Delivery Rating", frequency: "Post Session", ratingScale: "1 to 5 Stars", status: "Active" },
-    { id: "3", reviewType: "Lab & Infrastructure Rating", frequency: "Monthly", ratingScale: "1 to 5 Stars", status: "Active" },
-    { id: "4", reviewType: "Placement Support Review", frequency: "Course Completion", ratingScale: "1 to 5 Stars", status: "Active" },
-    { id: "5", reviewType: "Overall Academy Experience", frequency: "Graduation", ratingScale: "1 to 10 NPS", status: "Active" },
-  ],
-  notificationtemplate: [
-    { id: "1", code: "TPL-CLASS-2HR", channel: "WhatsApp", trigger: "2 Hours Pre-Class", status: "Active" },
-    { id: "2", code: "TPL-ABSENT", channel: "WhatsApp + SMS", trigger: "Class Absence Recorded", status: "Active" },
-    { id: "3", code: "TPL-FEE-DUE", channel: "WhatsApp + Email", trigger: "Fee Installment Due in 3 Days", status: "Active" },
-    { id: "4", code: "TPL-FEE-RCPT", channel: "WhatsApp + Email", trigger: "Payment Received Confirmation", status: "Active" },
-    { id: "5", code: "TPL-ADMIT-CON", channel: "WhatsApp + Email", trigger: "Admission Approved", status: "Active" },
-    { id: "6", code: "TPL-ASSIGN-NEW", channel: "Portal + WhatsApp", trigger: "New Assignment Published", status: "Active" },
-  ],
-  assignmenttype: [
-    { id: "1", code: "ASG-CODE", name: "Practical Coding Challenge", maxMarks: "50 Marks", status: "Active" },
-    { id: "2", code: "ASG-MINI", name: "Mini Project Capstone", maxMarks: "100 Marks", status: "Active" },
-    { id: "3", code: "ASG-QUIZ", name: "Online Multiple Choice Quiz", maxMarks: "25 Marks", status: "Active" },
-    { id: "4", code: "ASG-THEORY", name: "Architecture & Design Paper", maxMarks: "50 Marks", status: "Active" },
-  ],
-  inventorycategory: [
-    { id: "1", code: "INV-IT", name: "IT Hardware & Laptops", department: "IT Infrastructure", status: "Active" },
-    { id: "2", code: "INV-AV", name: "Audio-Visual & Projectors", department: "Classroom Ops", status: "Active" },
-    { id: "3", code: "INV-FURN", name: "Classroom Furniture", department: "Admin Facilities", status: "Active" },
-    { id: "4", code: "INV-STAT", name: "Stationery & Course Kits", department: "Student Supplies", status: "Active" },
-    { id: "5", code: "INV-NET", name: "Networking & Routers", department: "IT Network", status: "Active" },
-  ],
-  inventorysubcategory: [
-    { id: "1", parentCategory: "IT Hardware", code: "SUB-MON", name: "Monitors (24 inch)", status: "Active" },
-    { id: "2", parentCategory: "IT Hardware", code: "SUB-KEY", name: "Keyboards & Mice", status: "Active" },
-    { id: "3", parentCategory: "Audio-Visual", code: "SUB-PROJ", name: "Laser Projectors", status: "Active" },
-    { id: "4", parentCategory: "Audio-Visual", code: "SUB-MIC", name: "Wireless Lapel Mics", status: "Active" },
-    { id: "5", parentCategory: "Stationery", code: "SUB-KIT", name: "Aadya Student Kit", status: "Active" },
-    { id: "6", parentCategory: "Networking", code: "SUB-SW", name: "Gigabit PoE Switches", status: "Active" },
-  ],
-  bankaccounts: [
-    { id: "1", accountName: "HDFC Bank - Central Fee Account", accountNumber: "50200084920192", ifsc: "HDFC0001024", branch: "Koramangala, Bengaluru" },
-    { id: "2", accountName: "ICICI Bank - Academy Operations", accountNumber: "002405018392", ifsc: "ICIC0000024", branch: "Indiranagar, Bengaluru" },
-    { id: "3", accountName: "State Bank of India - Mysore Branch", accountNumber: "38920194820", ifsc: "SBIN0040182", branch: "Jayalakshmipuram, Mysore" },
-  ],
-  feeheads: [
-    { id: "1", code: "HEAD-TUI", name: "Tuition & Training Fee", type: "Core Fee", gstApplicable: "18% GST" },
-    { id: "2", code: "HEAD-REG", name: "Registration & Kit Fee", type: "Admission Fee", gstApplicable: "18% GST" },
-    { id: "3", code: "HEAD-LAB", name: "Lab & Cloud Access Fee", type: "Infrastructure", gstApplicable: "18% GST" },
-    { id: "4", code: "HEAD-EXAM", name: "Certification Exam Fee", type: "Assessment", gstApplicable: "Exempt" },
-    { id: "5", code: "HEAD-PLACE", name: "Placement Assistance Fee", type: "Career Services", gstApplicable: "18% GST" },
-  ],
-  ledgers: [
-    { id: "1", code: "LEDG-FEE", name: "Student Fee Income Ledger", group: "Direct Incomes", openingBalance: "₹0.00" },
-    { id: "2", code: "LEDG-FAC", name: "Faculty Remuneration Ledger", group: "Direct Expenses", openingBalance: "₹0.00" },
-    { id: "3", code: "LEDG-RENT", name: "Center Branch Rent Ledger", group: "Indirect Expenses", openingBalance: "₹0.00" },
-    { id: "4", code: "LEDG-MKT", name: "Marketing & Lead Gen Ads", group: "Indirect Expenses", openingBalance: "₹0.00" },
-    { id: "5", code: "LEDG-UTIL", name: "Electricity & Internet Bills", group: "Administrative Expenses", openingBalance: "₹0.00" },
-    { id: "6", code: "LEDG-BANK", name: "HDFC Bank Operating Ledger", group: "Bank Accounts", openingBalance: "₹18,50,000" },
-    { id: "7", code: "LEDG-PETTY", name: "Center Petty Cash Ledger", group: "Cash-in-Hand", openingBalance: "₹25,000" },
-    { id: "8", code: "LEDG-GST", name: "GST Output Payable Ledger", group: "Duties & Taxes", openingBalance: "₹1,42,000" },
-  ],
-  paymentmodes: [
-    { id: "1", code: "PAY-UPI", name: "UPI / QR Code Transfer", processingFee: "0.0%", status: "Active" },
-    { id: "2", code: "PAY-CARD", name: "Credit / Debit Card", processingFee: "1.2%", status: "Active" },
-    { id: "3", code: "PAY-NET", name: "NetBanking Transfer", processingFee: "₹15 Flat", status: "Active" },
-    { id: "4", code: "PAY-EMI", name: "Student NBFC 0% EMI", processingFee: "2.5%", status: "Active" },
-    { id: "5", code: "PAY-CASH", name: "Cash at Center Counter", processingFee: "0.0%", status: "Active" },
-  ],
-  concessionheads: [
-    { id: "1", code: "DISC-MERIT", name: "Merit Academic Scholarship", percentage: "20% Max", approvalLevel: "Center Manager" },
-    { id: "2", code: "DISC-REF", name: "Sibling / Alumni Referral", percentage: "10% Flat", approvalLevel: "Counsellor Lead" },
-    { id: "3", code: "DISC-EARLY", name: "Early Bird Admission Discount", percentage: "15% Max", approvalLevel: "Admissions Head" },
-    { id: "4", code: "DISC-DIR", name: "Director Discretionary Waiver", percentage: "50% Max", approvalLevel: "Admin Director" },
-  ],
-};
+// Initial records store (populated dynamically from PostgreSQL API)
+const INITIAL_RECORDS: Record<string, Record<string, string>[]> = {};
 
 export const MasterSetup: React.FC = () => {
   // View switcher: "GRID" or "CRUD"
@@ -805,6 +624,34 @@ export const MasterSetup: React.FC = () => {
     });
   }, [searchQuery, selectedModuleFilter]);
 
+  // Real PostgreSQL Backend API Hooks
+  const createMasterMutation = useCreateMasterRecord();
+  const updateMasterMutation = useUpdateMasterRecord();
+  const deleteMasterMutation = useDeleteMasterRecord();
+
+  // Active Entity Selection query from PostgreSQL
+  const { data: entityApiData, isLoading: isEntityLoading } = useMasterRecords(
+    selectedMasterEntity?.id
+  );
+
+  // Sync real database records into local state for rendering & instant filtering
+  React.useEffect(() => {
+    if (selectedMasterEntity && entityApiData?.data) {
+      const mapped = entityApiData.data.map((r: any) => ({
+        id: r.id,
+        name: r.name,
+        code: r.code || "",
+        description: r.description || "",
+        status: r.status === "ACTIVE" ? "Active" : "Inactive",
+        ...(r.data || {}),
+      }));
+      setRecordsData((prev) => ({
+        ...prev,
+        [selectedMasterEntity.id]: mapped,
+      }));
+    }
+  }, [selectedMasterEntity, entityApiData]);
+
   // Grouped filtered entities by Category
   const academicMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACADEMIC_ORG"), [filteredMasters]);
   const admissionsMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ADMISSIONS_LEADS"), [filteredMasters]);
@@ -839,41 +686,100 @@ export const MasterSetup: React.FC = () => {
     setIsAddEditRecordOpen(true);
   };
 
-  // Save Add/Edit Record
-  const handleSaveRecord = () => {
+  // Save Add/Edit Record to PostgreSQL Backend
+  const handleSaveRecord = async () => {
     if (!selectedMasterEntity) return;
     const entityId = selectedMasterEntity.id;
 
-    if (editingRecordId) {
-      // Update
-      setRecordsData((prev) => ({
-        ...prev,
-        [entityId]: (prev[entityId] || []).map((r) =>
-          r.id === editingRecordId ? { ...recordFormValues, id: editingRecordId } : r
-        ),
-      }));
-      setToastMessage(`✓ Record updated in ${selectedMasterEntity.name}.`);
-    } else {
-      // Add New
-      const newRec = { ...recordFormValues, id: `rec-${Date.now()}` };
-      setRecordsData((prev) => ({
-        ...prev,
-        [entityId]: [newRec, ...(prev[entityId] || [])],
-      }));
-      setToastMessage(`✓ New record added to ${selectedMasterEntity.name}.`);
+    const recordName =
+      recordFormValues.name ||
+      recordFormValues.title ||
+      recordFormValues.qualification ||
+      recordFormValues.batchName ||
+      recordFormValues.reviewType ||
+      recordFormValues.role ||
+      selectedMasterEntity.name;
+
+    const recordCode =
+      recordFormValues.code ||
+      recordFormValues.stageNumber ||
+      recordFormValues.empCode ||
+      recordFormValues.batchCode ||
+      recordFormValues.slotCode ||
+      undefined;
+
+    const recordDesc = recordFormValues.description || recordFormValues.details || undefined;
+
+    try {
+      if (editingRecordId) {
+        // Update via PostgreSQL Backend API
+        await updateMasterMutation.mutateAsync({
+          entityType: entityId,
+          id: editingRecordId,
+          payload: {
+            name: recordName,
+            code: recordCode,
+            description: recordDesc,
+            data: { ...recordFormValues },
+          },
+        });
+
+        setRecordsData((prev) => ({
+          ...prev,
+          [entityId]: (prev[entityId] || []).map((r) =>
+            r.id === editingRecordId ? { ...recordFormValues, id: editingRecordId } : r
+          ),
+        }));
+        setToastMessage(`✓ Record updated in ${selectedMasterEntity.name} (PostgreSQL).`);
+      } else {
+        // Create via PostgreSQL Backend API
+        const created = await createMasterMutation.mutateAsync({
+          entityType: entityId,
+          payload: {
+            name: recordName,
+            code: recordCode,
+            description: recordDesc,
+            data: { ...recordFormValues },
+          },
+        });
+
+        const newRec = {
+          ...recordFormValues,
+          id: created.data.id,
+          name: recordName,
+          code: recordCode || "",
+        };
+
+        setRecordsData((prev) => ({
+          ...prev,
+          [entityId]: [newRec, ...(prev[entityId] || [])],
+        }));
+        setToastMessage(`✓ New record saved to ${selectedMasterEntity.name} (PostgreSQL).`);
+      }
+    } catch (err: any) {
+      setToastMessage(`⚠ Failed to save record: ${err?.message || "Server error"}`);
     }
 
     setIsAddEditRecordOpen(false);
-    setTimeout(() => setToastMessage(null), 3000);
+    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Delete Record
-  const handleDeleteRecord = (entityId: string, recId: string) => {
-    setRecordsData((prev) => ({
-      ...prev,
-      [entityId]: (prev[entityId] || []).filter((r) => r.id !== recId),
-    }));
-    setToastMessage(`✓ Record removed from ${selectedMasterEntity?.name || "master"}.`);
+  // Delete Record from PostgreSQL Backend
+  const handleDeleteRecord = async (entityId: string, recId: string) => {
+    try {
+      await deleteMasterMutation.mutateAsync({
+        entityType: entityId,
+        id: recId,
+      });
+
+      setRecordsData((prev) => ({
+        ...prev,
+        [entityId]: (prev[entityId] || []).filter((r) => r.id !== recId),
+      }));
+      setToastMessage(`✓ Record deleted from ${selectedMasterEntity?.name || "master"}.`);
+    } catch (err: any) {
+      setToastMessage(`⚠ Failed to delete record: ${err?.message || "Server error"}`);
+    }
     setTimeout(() => setToastMessage(null), 3000);
   };
 
@@ -905,7 +811,7 @@ export const MasterSetup: React.FC = () => {
 
   // Helper renderer for entity card in Grid View
   const renderEntityCard = (entity: MasterEntity) => {
-    const currentCount = recordsData[entity.id]?.length ?? entity.count;
+    const currentCount = recordsData[entity.id]?.length ?? 0;
     const IconComp = entity.icon;
 
     return (
@@ -1200,7 +1106,7 @@ export const MasterSetup: React.FC = () => {
 
               <tbody className="divide-y divide-border/70 bg-card">
                 {filteredMasters.map((item) => {
-                  const currentCount = recordsData[item.id]?.length ?? item.count;
+                  const currentCount = recordsData[item.id]?.length ?? 0;
                   const IconComp = item.icon;
 
                   return (

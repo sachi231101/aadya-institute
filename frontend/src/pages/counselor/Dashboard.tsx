@@ -55,6 +55,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { useTimetableStore } from "@/store/timetable.store";
 import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
+import { useMasterRecords } from "@/hooks/useMasters";
+import { useLeads, useCreateLead } from "@/hooks/useLeads";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -142,6 +144,26 @@ export const CounselorDashboard: React.FC = () => {
     retryAiCall: storeRetryAiCall,
   } = useLeadStore();
 
+  // Dynamic Master Setup Data (Stages & Sources) from PostgreSQL Database
+  const { data: masterLeadStages } = useMasterRecords("leadstage");
+  const { data: masterLeadSources } = useMasterRecords("leadsource");
+
+  // Dynamic pipeline stages from PostgreSQL Master Setup + Standard Stages
+  const dynamicStages = useMemo(() => {
+    const defaultList = ["NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED", "LOST"];
+    if (!masterLeadStages?.data) return defaultList;
+    const fromMaster = masterLeadStages.data.map((m) => m.name);
+    return Array.from(new Set([...defaultList, ...fromMaster]));
+  }, [masterLeadStages]);
+
+  // Dynamic sources from PostgreSQL Master Setup + Standard Sources
+  const dynamicSources = useMemo(() => {
+    const defaultList = ["Website", "Google Ads", "Meta Ads", "Instagram", "Referral", "Walk-in", "Direct Call", "Sarvam AI Voice Outreach"];
+    if (!masterLeadSources?.data) return defaultList;
+    const fromMaster = masterLeadSources.data.map((m) => m.name);
+    return Array.from(new Set([...defaultList, ...fromMaster]));
+  }, [masterLeadSources]);
+
   // AI Drawer state for Dashboard
   const [activeAiLead, setActiveAiLead] = useState<UnifiedLead | null>(null);
   const [showAiDrawer, setShowAiDrawer] = useState(false);
@@ -157,9 +179,59 @@ export const CounselorDashboard: React.FC = () => {
   const [leadPriorityFilter, setLeadPriorityFilter] = useState("ALL");
   const [leadAttentionFilter, setLeadAttentionFilter] = useState("ALL");
 
+  // Real Database Leads Query from PostgreSQL
+  const { data: dbLeadsResponse } = useLeads();
+  const createLeadMutation = useCreateLead();
+
+  // Combine Real Database Leads with Local Store Leads
+  const combinedLeadsList = useMemo(() => {
+    const rawDbLeads: any[] = dbLeadsResponse?.data || [];
+    const mappedDbLeads: UnifiedLead[] = rawDbLeads.map((l: any) => ({
+      id: l.id,
+      name: l.name,
+      phone: l.phoneNumber || l.phone || "",
+      email: l.email || "",
+      course: l.course?.name || l.interestedIn || "Full Stack Web Development",
+      source: (l.source === "WALK_IN" ? "Walk-in" : l.source === "GOOGLE" ? "Google Ads" : l.source === "INSTAGRAM" ? "Instagram" : l.source === "REFERRAL" ? "Referral" : l.source === "WHATSAPP" ? "WhatsApp" : l.source || "Website") as any,
+      sourceType: l.source || "Website",
+      stage: l.stage || "NEW",
+      stageColor: l.stage === "CONVERTED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200",
+      priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
+      priorityColor: l.priority === "HIGH" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
+      nextFollowUp: l.nextFollowUpAt ? new Date(l.nextFollowUpAt).toLocaleDateString() : "Today, 12:00 PM",
+      attemptsCount: (l.callLogs || []).length,
+      latestResponse: l.notes || "Inbound enquiry logged in database.",
+      assignedCounsellor: l.assignedCounsellor?.name || "Priya Singh",
+      assignedDate: "Today",
+      hotLead: l.priority === "HIGH",
+      campaign: "August Admission Drive",
+      callDate: "Recent",
+      callStatus: (l.callLogs?.[0]?.status as any) || "PENDING",
+      attempt: (l.callLogs || []).length,
+      aiOutcome: "INTERESTED",
+      aiSummaryShort: l.callLogs?.[0]?.aiSummary || l.notes || "High intent prospect.",
+      aiDetailedSummary: l.notes || "Lead registered in academy pipeline.",
+      keyHighlights: ["PostgreSQL Live Record", `Source: ${l.source}`],
+      callDuration: l.callLogs?.[0]?.duration ? `${l.callLogs[0].duration}s` : "0m",
+      callTimestamp: "Today",
+      aiScore: 88,
+      starRating: 4,
+      nextActionType: "CONTACT_NOW",
+      nextActionLabel: "Contact Now",
+      nextActionSubtext: "Active Enquiry",
+      transcript: [],
+      attemptsHistory: [],
+    }));
+
+    // Merge without duplicating IDs
+    const dbIds = new Set(mappedDbLeads.map((l) => l.id));
+    const uniqueLocalLeads = leadsList.filter((l) => !dbIds.has(l.id));
+    return [...uniqueLocalLeads, ...mappedDbLeads];
+  }, [dbLeadsResponse, leadsList]);
+
   // Filtered Leads
   const filteredLeads = useMemo(() => {
-    return leadsList.filter((lead) => {
+    return combinedLeadsList.filter((lead) => {
       if (leadSearchText.trim()) {
         const q = leadSearchText.toLowerCase();
         const matchName = lead.name.toLowerCase().includes(q);
@@ -190,17 +262,17 @@ export const CounselorDashboard: React.FC = () => {
       }
       return true;
     });
-  }, [leadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter]);
+  }, [combinedLeadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter]);
 
   // Summary Metrics for Leads Section
   const leadSummaryCounts = useMemo(() => {
     return {
-      overdue: leadsList.filter(l => l.priority === "Urgent").length || 4,
-      today: leadsList.filter(l => l.priority === "Due Today").length || 8,
-      active: leadsList.filter(l => l.stage !== "LOST" && l.stage !== "CONVERTED").length || 12,
-      converted: leadsList.filter(l => l.stage === "CONVERTED").length || 5,
+      overdue: combinedLeadsList.filter(l => l.priority === "Urgent").length || 4,
+      today: combinedLeadsList.filter(l => l.priority === "Due Today").length || 8,
+      active: combinedLeadsList.filter(l => l.stage !== "LOST" && l.stage !== "CONVERTED").length || 12,
+      converted: combinedLeadsList.filter(l => l.stage === "CONVERTED").length || 5,
     };
-  }, [leadsList]);
+  }, [combinedLeadsList]);
 
   // CRUD Modals State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -436,6 +508,19 @@ export const CounselorDashboard: React.FC = () => {
       notes: formNotes,
       triggerImmediateCall: formTriggerAi,
     });
+
+    if (user?.branchId) {
+      createLeadMutation.mutate({
+        name: formName.trim(),
+        phoneNumber: formPhone.trim(),
+        email: formEmail.trim() || undefined,
+        interestedIn: formCourse,
+        source: formSource,
+        priority: "HIGH",
+        branchId: user.branchId,
+        notes: formNotes,
+      });
+    }
 
     setFollowUpSuccessMsg(`✓ New lead ${formName} added from ${formSource} & AI voice qualification queued!`);
     setTimeout(() => setFollowUpSuccessMsg(null), 5000);
@@ -828,13 +913,11 @@ export const CounselorDashboard: React.FC = () => {
                 className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Lead Sources</option>
-                <option value="Website">🌐 Website</option>
-                <option value="Google Ads">🔍 Google Ads</option>
-                <option value="Meta Ads">⚡ Meta Ads</option>
-                <option value="Instagram">📱 Instagram</option>
-                <option value="Referral">👥 Referral</option>
-                <option value="Walk-in">🏢 Walk-in</option>
-                <option value="Direct Call">📞 Direct Call</option>
+                {dynamicSources.map((src) => (
+                  <option key={src} value={src}>
+                    {src}
+                  </option>
+                ))}
               </select>
 
               {/* Pipeline Stages Filter */}
@@ -844,12 +927,11 @@ export const CounselorDashboard: React.FC = () => {
                 className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Pipeline Stages</option>
-                <option value="NEW">New</option>
-                <option value="CONTACTED">Contacted</option>
-                <option value="INTERESTED">Interested</option>
-                <option value="FOLLOW_UP">Follow-up</option>
-                <option value="CONVERTED">Converted</option>
-                <option value="LOST">Lost</option>
+                {dynamicStages.map((stg) => (
+                  <option key={stg} value={stg}>
+                    {stg}
+                  </option>
+                ))}
               </select>
 
               {/* Priority Filter */}
@@ -1255,6 +1337,22 @@ export const CounselorDashboard: React.FC = () => {
                                 Mark as Lost
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
+                              <div className="px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+                                Set Master Pipeline Stage
+                              </div>
+                              {dynamicStages.map((stg) => (
+                                <DropdownMenuItem
+                                  key={stg}
+                                  onClick={() => handleToggleStageCheckbox(lead.id, stg)}
+                                  className="text-xs font-semibold py-1.5 cursor-pointer flex items-center justify-between"
+                                >
+                                  <span>{stg}</span>
+                                  {(lead.pipelineStage === stg || lead.stage === stg) && (
+                                    <Check className="h-3 w-3 text-emerald-600" />
+                                  )}
+                                </DropdownMenuItem>
+                              ))}
+                              <DropdownMenuSeparator />
                               <DropdownMenuItem
                                 onClick={() => handleDeleteLead(lead.id)}
                                 className="text-xs font-semibold py-2 text-rose-600 focus:text-rose-600 focus:bg-rose-50 cursor-pointer"
@@ -1522,16 +1620,14 @@ export const CounselorDashboard: React.FC = () => {
                 <Label className="text-slate-600 text-xs font-medium">Omnichannel Lead Source *</Label>
                 <select
                   value={formSource}
-                  onChange={(e) => setFormSource(e.target.value as LeadSource)}
+                  onChange={(e) => setFormSource(e.target.value as any)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-semibold text-slate-800"
                 >
-                  <option value="Website">🌐 Website Form</option>
-                  <option value="Google Ads">🔍 Google Ads</option>
-                  <option value="Meta Ads">⚡ Meta Ads / Facebook</option>
-                  <option value="Instagram">📱 Instagram Campaign</option>
-                  <option value="Referral">👥 Student Referral</option>
-                  <option value="Walk-in">🏢 Center Walk-in</option>
-                  <option value="Direct Call">📞 Direct Call</option>
+                  {dynamicSources.map((src) => (
+                    <option key={src} value={src}>
+                      {src}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>

@@ -23,6 +23,7 @@ import feeRoutes from "../modules/fees/fee.routes";
 import reportRoutes from "../modules/reports/report.routes";
 import settingsRoutes from "../modules/settings/settings.routes";
 import aiAgentRoutes from "../modules/ai-agent/ai-agent.routes";
+import masterRoutes from "../modules/masters/master.routes";
 
 const router = Router();
 
@@ -86,6 +87,9 @@ router.use("/settings", settingsRoutes);
 
 // AI Institute Data Agent (Admin & Center Manager)
 router.use("/ai", aiAgentRoutes);
+
+// Master Data Management (All 25 Masters)
+router.use("/masters", masterRoutes);
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);
