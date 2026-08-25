@@ -18,4 +18,5 @@ export interface AuthUser {
   branchId?: string | null;
   roles: string[];
   permissions: string[];
+  modulePermissions?: string[];
 }

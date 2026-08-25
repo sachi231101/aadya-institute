@@ -185,6 +185,7 @@ model Permission {
   createdAt   DateTime @default(now())
 
   rolePermissions RolePermission[]
+  userPermissions UserPermission[]
 }
 
 model User {
@@ -204,6 +205,7 @@ model User {
   branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   userRoles      UserRole[]
+  userPermissions UserPermission[]
   refreshTokens  RefreshToken[]
   student        Student?
   faculty        Faculty?
@@ -222,6 +224,7 @@ model User {
   followUpsAssigned    LeadFollowUp[]     @relation("FollowUpCounsellor")
   followUpsCreated     LeadFollowUp[]     @relation("FollowUpCreatedBy")
   aiConversations      AIConversation[]
+  permissionsGranted   UserPermission[]   @relation("PermissionGrantedBy")
 
   @@index([instituteId])
   @@index([branchId])
@@ -1168,6 +1171,22 @@ model AIMessage {
   @@index([conversationId])
 }
 
+// ─── Per-User Module Permissions (for CENTER_MANAGER granular access) ────────
+
+model UserPermission {
+  id           String   @id @default(cuid())
+  userId       String
+  permissionId String
+  grantedAt    DateTime @default(now())
+  grantedById  String?
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  grantedBy  User?      @relation("PermissionGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull)
+
+  @@unique([userId, permissionId])
+  @@index([userId])
+}
 
 
 

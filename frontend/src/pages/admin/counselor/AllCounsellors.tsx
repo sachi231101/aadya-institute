@@ -12,13 +12,22 @@ import {
   Trash2,
   TrendingUp,
   CheckCircle2,
-  Loader2
+  Loader2,
+  ShieldCheck,
+  CheckSquare,
+  Square,
+  Sparkles,
 } from "lucide-react";
 import { useCounselorStore } from "@/store/counselor.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
+import { useUpdateUserPermissions } from "@/hooks/useUsers";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
+import {
+  COUNSELLOR_MODULE_OPTIONS,
+  ALL_COUNSELLOR_MODULE_KEYS,
+} from "@/constants/module-permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -81,6 +90,11 @@ export const AllCounsellors: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Module permissions state (create)
+  const [selectedModules, setSelectedModules] = useState<string[]>([...ALL_COUNSELLOR_MODULE_KEYS]);
+  const toggleCreateModule = (key: string) =>
+    setSelectedModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+
   // Edit Modal State
   const [editCounselor, setEditCounselor] = useState<Counselor | null>(null);
   const [editName, setEditName] = useState("");
@@ -89,6 +103,10 @@ export const AllCounsellors: React.FC = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editBranchId, setEditBranchId] = useState("");
   const [editStatus, setEditStatus] = useState<CounselorStatus>("ACTIVE");
+  const [editModules, setEditModules] = useState<string[]>([...ALL_COUNSELLOR_MODULE_KEYS]);
+  const toggleEditModule = (key: string) =>
+    setEditModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  const updatePermissionsMutation = useUpdateUserPermissions();
 
   // Delete Modal State
   const [deleteCounselorId, setDeleteCounselorId] = useState<string | null>(null);
@@ -139,6 +157,7 @@ export const AllCounsellors: React.FC = () => {
       branchId: branchId || (branches[0]?.id || ""),
       branchName: selectedBranch?.name || "Bengaluru Central Branch",
       status,
+      modulePermissions: selectedModules,
     });
 
     setIsSubmitting(false);
@@ -161,9 +180,10 @@ export const AllCounsellors: React.FC = () => {
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
     setStatus("ACTIVE");
     setCreateError(null);
+    setSelectedModules([...ALL_COUNSELLOR_MODULE_KEYS]);
   };
 
-  const handleOpenEditModal = (c: Counselor) => {
+  const handleOpenEditModal = async (c: Counselor) => {
     setEditCounselor(c);
     setEditName(c.name);
     setEditCode(c.employeeCode);
@@ -171,6 +191,19 @@ export const AllCounsellors: React.FC = () => {
     setEditPhone(c.phone);
     setEditBranchId(c.branchId);
     setEditStatus(c.status);
+
+    // Fetch the user's current module permissions from the API
+    try {
+      const { usersApi } = await import("@/services/users.api");
+      const res = await usersApi.getUserById(c.id);
+      if (res.success && res.data?.modulePermissions?.length > 0) {
+        setEditModules(res.data.modulePermissions);
+      } else {
+        setEditModules([...ALL_COUNSELLOR_MODULE_KEYS]);
+      }
+    } catch {
+      setEditModules([...ALL_COUNSELLOR_MODULE_KEYS]);
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -185,6 +218,16 @@ export const AllCounsellors: React.FC = () => {
       branchId: editBranchId,
       status: editStatus,
     });
+
+    // Also update module permissions
+    try {
+      await updatePermissionsMutation.mutateAsync({
+        id: editCounselor.id,
+        data: { modulePermissions: editModules },
+      });
+    } catch {
+      // Permission update failed — still close modal
+    }
 
     setEditCounselor(null);
   };
@@ -440,126 +483,205 @@ export const AllCounsellors: React.FC = () => {
 
       {/* CREATE COUNSELLOR MODAL */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-text-primary">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200 bg-white">
+          <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
               <UserCheck className="h-5 w-5 text-[#1769AA]" />
               Add New Counsellor
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs text-slate-500">
               Register a new counsellor to manage student enquiries, admissions, and batch allocations.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
-            {createError && (
-              <div className="p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs font-semibold animate-in fade-in">
-                {createError}
-              </div>
-            )}
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Full Name *</label>
-              <Input
-                placeholder="e.g. Kavita Nair"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Employee Code</label>
-                <Input
-                  placeholder="e.g. CNS-104"
-                  value={employeeCode}
-                  onChange={(e) => setEmployeeCode(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Status</label>
-                <select
-                  value={status}
-                  onChange={(e) => setStatus(e.target.value as CounselorStatus)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="ON_LEAVE">On Leave</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Email Address *</label>
-              <Input
-                type="email"
-                placeholder="e.g. kavita.nair@aadya.in"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Account Password (Optional)</label>
-              <Input
-                type="password"
-                placeholder="Defaults to Password@123 if empty"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Phone Number *</label>
-              <Input
-                type="text"
-                placeholder="e.g. 9876511223 (10 digits)"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                required
-              />
-              <span className="text-[11px] text-muted-foreground block mt-0.5">Must be a valid 10-digit mobile number</span>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
-              {isCenterManager ? (
-                <Input
-                  value={branches.find(b => b.id === branchId)?.name || branchId}
-                  disabled
-                  className="bg-slate-100 text-slate-700 font-medium h-10"
-                />
-              ) : (
-                <select
-                  value={branchId}
-                  onChange={(e) => setBranchId(e.target.value)}
-                  required
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  <option value="" disabled>Select a branch</option>
-                  {branches.length === 0 ? (
-                    <option value="" disabled>Loading branches...</option>
-                  ) : (
-                    branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))
-                  )}
-                </select>
+          <form onSubmit={handleCreateSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              {createError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold animate-in fade-in">
+                  {createError}
+                </div>
               )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Full Name *</label>
+                  <Input
+                    placeholder="e.g. Kavita Nair"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Employee Code</label>
+                  <Input
+                    placeholder="e.g. CNS-104"
+                    value={employeeCode}
+                    onChange={(e) => setEmployeeCode(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Email Address *</label>
+                  <Input
+                    type="email"
+                    placeholder="e.g. kavita.nair@aadya.in"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Phone Number *</label>
+                  <Input
+                    type="text"
+                    placeholder="e.g. 9876511223 (10 digits)"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Account Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Password@123"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Operating Status</label>
+                  <select
+                    value={status}
+                    onChange={(e) => setStatus(e.target.value as CounselorStatus)}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="ON_LEAVE">On Leave</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch</label>
+                  {isCenterManager ? (
+                    <Input
+                      value={branches.find((b) => b.id === branchId)?.name || branchId}
+                      disabled
+                      className="bg-slate-100 text-slate-700 font-medium h-10"
+                    />
+                  ) : (
+                    <select
+                      value={branchId}
+                      onChange={(e) => setBranchId(e.target.value)}
+                      required
+                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    >
+                      <option value="" disabled>Select a branch</option>
+                      {branches.length === 0 ? (
+                        <option value="" disabled>Loading branches...</option>
+                      ) : (
+                        branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  )}
+                </div>
+              </div>
+
+              {/* ─── Module Permissions Section ─── */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">Module Permissions</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModules([...ALL_COUNSELLOR_MODULE_KEYS])}
+                      className="text-[11px] font-bold text-[#1769AA] hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedModules([])}
+                      className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="px-2.5 py-1.5 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-800 flex items-center gap-1.5 mb-3">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                  <span>Only checked modules will be visible in the Counsellor portal sidebar.</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                  {COUNSELLOR_MODULE_OPTIONS.map((mod) => {
+                    const isChecked = selectedModules.includes(mod.key);
+                    const Icon = mod.icon;
+                    return (
+                      <div
+                        key={mod.key}
+                        onClick={() => toggleCreateModule(mod.key)}
+                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${
+                          isChecked
+                            ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
+                            : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        <div
+                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                            isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isChecked && (
+                            <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                        <div
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
+                            isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-xs font-bold block truncate ${isChecked ? "text-slate-900" : "text-slate-600"}`}>
+                            {mod.label}
+                          </span>
+                          <p className="text-[10px] text-slate-400 truncate">{mod.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <DialogFooter className="pt-4">
+            <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2" disabled={isSubmitting}>
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
                 {isSubmitting ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Creating...</>
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" /> Creating...
+                  </>
                 ) : (
                   "Create Counsellor"
                 )}
@@ -571,104 +693,178 @@ export const AllCounsellors: React.FC = () => {
 
       {/* EDIT COUNSELLOR MODAL */}
       <Dialog open={!!editCounselor} onOpenChange={(open) => !open && setEditCounselor(null)}>
-        <DialogContent className="sm:max-w-[480px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-text-primary">
+        <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200 bg-white">
+          <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
+            <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
               <Edit3 className="h-5 w-5 text-[#1769AA]" />
               Edit Counsellor Details
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs text-slate-500">
               Update counsellor profile settings, contact information, and operating status.
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Full Name *</label>
-              <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Employee Code</label>
-                <Input
-                  value={editCode}
-                  onChange={(e) => setEditCode(e.target.value)}
-                />
+          <form onSubmit={handleEditSubmit} className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Full Name *</label>
+                  <Input
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Employee Code</label>
+                  <Input
+                    value={editCode}
+                    onChange={(e) => setEditCode(e.target.value)}
+                  />
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as CounselorStatus)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  <option value="ACTIVE">Active</option>
-                  <option value="ON_LEAVE">On Leave</option>
-                  <option value="INACTIVE">Inactive</option>
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Email Address *</label>
+                  <Input
+                    type="email"
+                    value={editEmail}
+                    onChange={(e) => setEditEmail(e.target.value)}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Phone Number *</label>
+                  <Input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    required
+                  />
+                </div>
               </div>
-            </div>
 
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Email Address *</label>
-              <Input
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Phone Number *</label>
-              <Input
-                type="text"
-                value={editPhone}
-                onChange={(e) => setEditPhone(e.target.value)}
-                required
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Branch</label>
-              {isCenterManager ? (
-                <Input
-                  value={branches.find(b => b.id === editBranchId)?.name || editBranchId}
-                  disabled
-                  className="bg-slate-100 text-slate-700 font-medium h-10"
-                />
-              ) : (
-                <select
-                  value={editBranchId}
-                  onChange={(e) => setEditBranchId(e.target.value)}
-                  required
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  <option value="" disabled>Select a branch</option>
-                  {branches.length === 0 ? (
-                    <option value="" disabled>Loading branches...</option>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as CounselorStatus)}
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  >
+                    <option value="ACTIVE">Active</option>
+                    <option value="ON_LEAVE">On Leave</option>
+                    <option value="INACTIVE">Inactive</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch</label>
+                  {isCenterManager ? (
+                    <Input
+                      value={branches.find((b) => b.id === editBranchId)?.name || editBranchId}
+                      disabled
+                      className="bg-slate-100 text-slate-700 font-medium h-10"
+                    />
                   ) : (
-                    branches.map((branch) => (
-                      <option key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </option>
-                    ))
+                    <select
+                      value={editBranchId}
+                      onChange={(e) => setEditBranchId(e.target.value)}
+                      required
+                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    >
+                      <option value="" disabled>Select a branch</option>
+                      {branches.length === 0 ? (
+                        <option value="" disabled>Loading branches...</option>
+                      ) : (
+                        branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {branch.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
                   )}
-                </select>
-              )}
+                </div>
+              </div>
+
+              {/* ─── Module Permissions Section ─── */}
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2">
+                    <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                      <ShieldCheck className="h-3.5 w-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-slate-800">Module Permissions</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditModules([...ALL_COUNSELLOR_MODULE_KEYS])}
+                      className="text-[11px] font-bold text-[#1769AA] hover:underline cursor-pointer"
+                    >
+                      Select All
+                    </button>
+                    <span className="text-slate-300">|</span>
+                    <button
+                      type="button"
+                      onClick={() => setEditModules([])}
+                      className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
+                  {COUNSELLOR_MODULE_OPTIONS.map((mod) => {
+                    const isChecked = editModules.includes(mod.key);
+                    const Icon = mod.icon;
+                    return (
+                      <div
+                        key={mod.key}
+                        onClick={() => toggleEditModule(mod.key)}
+                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${
+                          isChecked
+                            ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
+                            : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
+                        }`}
+                      >
+                        <div
+                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
+                            isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
+                          }`}
+                        >
+                          {isChecked && (
+                            <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="20 6 9 17 4 12" />
+                            </svg>
+                          )}
+                        </div>
+                        <div
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
+                            isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
+                          }`}
+                        >
+                          <Icon className="h-3.5 w-3.5" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className={`text-xs font-bold block truncate ${isChecked ? "text-slate-900" : "text-slate-600"}`}>
+                            {mod.label}
+                          </span>
+                          <p className="text-[10px] text-slate-400 truncate">{mod.description}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
-            <DialogFooter className="pt-4">
+            <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setEditCounselor(null)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white">
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold">
                 Save Changes
               </Button>
             </DialogFooter>

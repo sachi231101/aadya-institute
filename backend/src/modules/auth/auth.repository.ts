@@ -14,6 +14,11 @@ const userInclude = {
       },
     },
   },
+  userPermissions: {
+    include: {
+      permission: true,
+    },
+  },
 };
 
 export const findUserByEmailOrPhone = async (emailOrPhone: string) => {

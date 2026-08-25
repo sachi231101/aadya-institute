@@ -23,6 +23,7 @@ export interface CreateCounselorPayload {
   branchId?: string;
   branchName?: string;
   status?: CounselorStatus;
+  modulePermissions?: string[];
 }
 
 export interface UpdateCounselorPayload {

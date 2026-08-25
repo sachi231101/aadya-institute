@@ -8,6 +8,7 @@ export interface User {
   instituteId: string;
   branchId?: string | null;
   permissions?: string[];
+  modulePermissions?: string[];
 }
 
 export interface AuthState {

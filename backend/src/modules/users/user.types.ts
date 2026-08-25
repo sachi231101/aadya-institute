@@ -17,6 +17,7 @@ export interface CreateUserInput {
   roles: string[]; // role names e.g. ["FACULTY"]
   instituteId: string;
   branchId?: string;
+  modulePermissions?: string[]; // module keys e.g. ["students", "faculty", "leads_ai_calling"]
 }
 
 export interface UpdateUserInput {
@@ -25,6 +26,10 @@ export interface UpdateUserInput {
   phone?: string;
   branchId?: string;
   whatsappEnabled?: boolean;
+}
+
+export interface UpdateUserPermissionsInput {
+  modulePermissions: string[]; // module keys e.g. ["students", "faculty"]
 }
 
 export interface UpdateWhatsappPreferenceInput {
@@ -45,6 +50,7 @@ export interface UserResponse {
   branchId: string | null;
   whatsappEnabled: boolean;
   roles: string[];
+  modulePermissions: string[];
   createdAt: Date;
   updatedAt: Date;
 }

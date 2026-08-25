@@ -1,10 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { notifyPermissionChange } from "./useAuth";
 import {
   usersApi,
   type UserListParams,
   type CreateUserPayload,
   type UpdateUserPayload,
   type UpdateUserStatusPayload,
+  type UpdateUserPermissionsPayload,
 } from "@/services/users.api";
 
 const USERS_KEY = "users";
@@ -64,6 +66,7 @@ export const useUpdateUser = () => {
       usersApi.updateUser(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+      notifyPermissionChange();
     },
   });
 };
@@ -78,6 +81,22 @@ export const useUpdateUserStatus = () => {
       usersApi.updateUserStatus(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+      notifyPermissionChange();
+    },
+  });
+};
+
+/**
+ * Update module permissions for a user (Center Manager / Counsellor).
+ */
+export const useUpdateUserPermissions = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateUserPermissionsPayload }) =>
+      usersApi.updateUserPermissions(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+      notifyPermissionChange();
     },
   });
 };

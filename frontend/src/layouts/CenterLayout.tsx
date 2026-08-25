@@ -12,6 +12,7 @@ import {
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrentUserSync } from "@/hooks/useAuth";
 import { useBranch } from "@/hooks/useBranches";
 import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
@@ -31,6 +32,9 @@ import {
 export const CenterLayout: React.FC = () => {
   const { token, user, logout } = useAuthStore();
   const navigate = useNavigate();
+
+  // Keep Center Manager permissions & profile live-synced in real-time
+  useCurrentUserSync();
 
   // Strict branch lock for Center Manager
   const branchName = "Aadya Institute Malleshwaram";

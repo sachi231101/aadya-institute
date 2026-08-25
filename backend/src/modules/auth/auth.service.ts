@@ -14,6 +14,8 @@ import type { LoginInput, TokenPair, AuthUser } from "./auth.types";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
+import { resolvePermissionsToModules } from "../../utils/module-permissions";
+
 /**
  * Map a Prisma user record (with roles + permissions joins) to the safe AuthUser shape.
  * Never exposes passwordHash or refresh tokens.
@@ -21,6 +23,8 @@ import type { LoginInput, TokenPair, AuthUser } from "./auth.types";
 const buildAuthUser = (user: any): AuthUser => {
   const roles = (user.userRoles ?? []).map((ur: any) => ur.role.name);
   const permissionsSet = new Set<string>();
+
+  // Collect role-level permissions
   (user.userRoles ?? []).forEach((ur: any) => {
     (ur.role?.rolePermissions ?? []).forEach((rp: any) => {
       if (rp.permission?.name) {
@@ -29,6 +33,43 @@ const buildAuthUser = (user: any): AuthUser => {
     });
   });
 
+  // For CENTER_MANAGER or COUNSELLOR: user-level permissions override role-level ones.
+  // If user has UserPermission records, use ONLY those (plus always-on).
+  // This ensures the admin's checkbox selections take effect.
+  const hasUserPermissions = (user.userPermissions ?? []).length > 0;
+  const isCenterManager = roles.includes("CENTER_MANAGER");
+  const isCounsellor = roles.includes("COUNSELLOR");
+
+  if ((isCenterManager || isCounsellor) && hasUserPermissions) {
+    // Use only user-level permissions for CENTER_MANAGER / COUNSELLOR
+    const userPerms = new Set<string>();
+    (user.userPermissions ?? []).forEach((up: any) => {
+      if (up.permission?.name) {
+        userPerms.add(up.permission.name);
+      }
+    });
+    const permsList = Array.from(userPerms);
+    return {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      instituteId: user.instituteId,
+      branchId: user.branchId,
+      roles,
+      permissions: permsList,
+      modulePermissions: resolvePermissionsToModules(permsList),
+    };
+  }
+
+  // Also merge any user-level permissions (for non-CM users or CM without explicit records)
+  (user.userPermissions ?? []).forEach((up: any) => {
+    if (up.permission?.name) {
+      permissionsSet.add(up.permission.name);
+    }
+  });
+
+  const allPermsList = Array.from(permissionsSet);
   return {
     id: user.id,
     name: user.name,
@@ -37,9 +78,11 @@ const buildAuthUser = (user: any): AuthUser => {
     instituteId: user.instituteId,
     branchId: user.branchId,
     roles,
-    permissions: Array.from(permissionsSet),
+    permissions: allPermsList,
+    modulePermissions: resolvePermissionsToModules(allPermsList),
   };
 };
+
 
 /**
  * Generate a cryptographically secure random raw refresh token string.
