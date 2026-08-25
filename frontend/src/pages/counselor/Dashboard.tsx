@@ -38,6 +38,8 @@ import {
   Volume2,
   VolumeX,
   Clock,
+  ListChecks,
+  Activity
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -119,172 +121,7 @@ export interface ManagedLead {
   lostReason?: string;
 }
 
-const INITIAL_MANAGED_LEADS: ManagedLead[] = [
-  {
-    id: "L001",
-    name: "Rahul Sharma",
-    phone: "9876543210",
-    email: "rahul.s@example.com",
-    course: "Digital Marketing",
-    source: "Website",
-    stage: "INTERESTED",
-    stageColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    nextFollowUp: "Today, 11:00 AM",
-    priority: "Urgent",
-    priorityColor: "text-red-600 bg-red-500",
-    attemptsCount: 2,
-    latestResponse: "Interested in weekend batch, requested fee discount details.",
-    assignedTo: "Priya",
-    assignedDate: "14 Aug 2026",
-    aiCallingResult: "🟢 High Intent (Score 92/100) — Spoke for 3m 40s with Sarvam AI Voice Agent; requested weekend batch fees & syllabus",
-    attemptsHistory: [
-      {
-        attemptNo: 1,
-        mode: "PHONE",
-        timestamp: "14 Aug 2026, 11:30 AM",
-        response: "Connected - Initial Enquiry",
-        notes: "Shared course syllabus and duration over WhatsApp.",
-        nextFollowUp: "15 Aug 2026, 10:00 AM"
-      },
-      {
-        attemptNo: 2,
-        mode: "PHONE",
-        timestamp: "15 Aug 2026, 10:30 AM",
-        response: "Interested",
-        notes: "Requested weekend batch options and payment installment plan.",
-        nextFollowUp: "Today, 11:00 AM"
-      }
-    ]
-  },
-  {
-    id: "L002",
-    name: "Sneha Patil",
-    phone: "9876543211",
-    email: "sneha.p@example.com",
-    course: "Graphic Design",
-    source: "Instagram",
-    stage: "FOLLOW_UP",
-    stageColor: "bg-amber-50 text-amber-700 border-amber-200",
-    nextFollowUp: "Today, 02:30 PM",
-    priority: "Due Today",
-    priorityColor: "text-amber-600 bg-amber-500",
-    attemptsCount: 1,
-    latestResponse: "Attended demo class, requested follow-up today.",
-    assignedTo: "Priya",
-    assignedDate: "14 Aug 2026",
-    aiCallingResult: "🟢 High Intent (Score 88/100) — Enquired about Graphic Design tools; scheduled demo session",
-    attemptsHistory: [
-      {
-        attemptNo: 1,
-        mode: "WHATSAPP",
-        timestamp: "14 Aug 2026, 03:15 PM",
-        response: "Demo Attended",
-        notes: "Liked the demo instructor, reviewing course curriculum.",
-        nextFollowUp: "Today, 02:30 PM"
-      }
-    ]
-  },
-  {
-    id: "L003",
-    name: "Amit Kumar",
-    phone: "9876543212",
-    email: "amit.k@example.com",
-    course: "Web Development",
-    source: "Google Ads",
-    stage: "CONTACTED",
-    stageColor: "bg-purple-50 text-purple-700 border-purple-200",
-    nextFollowUp: "Tomorrow, 10:30 AM",
-    priority: "Due Today",
-    priorityColor: "text-amber-600 bg-amber-500",
-    attemptsCount: 3,
-    latestResponse: "Comparing with another institute, counseling scheduled.",
-    assignedTo: "Priya",
-    assignedDate: "13 Aug 2026",
-    aiCallingResult: "🟡 Moderate Intent (Score 72/100) — Asked for Python full stack syllabus; requested counselor callback",
-    attemptsHistory: [
-      {
-        attemptNo: 1,
-        mode: "PHONE",
-        timestamp: "13 Aug 2026, 12:00 PM",
-        response: "Busy / Callback",
-        notes: "Asked to call back in the evening.",
-        nextFollowUp: "13 Aug 2026, 06:00 PM"
-      },
-      {
-        attemptNo: 2,
-        mode: "PHONE",
-        timestamp: "13 Aug 2026, 06:15 PM",
-        response: "Interested",
-        notes: "Explained MERN full stack roadmap.",
-        nextFollowUp: "14 Aug 2026, 04:00 PM"
-      },
-      {
-        attemptNo: 3,
-        mode: "PHONE",
-        timestamp: "14 Aug 2026, 04:30 PM",
-        response: "Counseling Scheduled",
-        notes: "Scheduled 1-on-1 career counselling session with senior faculty.",
-        nextFollowUp: "Tomorrow, 10:30 AM"
-      }
-    ]
-  },
-  {
-    id: "L004",
-    name: "Pooja Nair",
-    phone: "9876543213",
-    email: "pooja.nair@example.com",
-    course: "Data Science",
-    source: "Referral",
-    stage: "INTERESTED",
-    stageColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    nextFollowUp: "Tomorrow, 04:00 PM",
-    priority: "Upcoming",
-    priorityColor: "text-emerald-600 bg-emerald-500",
-    attemptsCount: 1,
-    latestResponse: "Wants Python + AI certification curriculum brochure.",
-    assignedTo: "Priya",
-    assignedDate: "14 Aug 2026",
-    aiCallingResult: "🟢 High Intent (Score 95/100) — Enquired about Data Science placement records & weekend classes",
-    attemptsHistory: [
-      {
-        attemptNo: 1,
-        mode: "WHATSAPP",
-        timestamp: "14 Aug 2026, 05:00 PM",
-        response: "Connected - Brochure Sent",
-        notes: "Shared Data Science brochure and placement statistics.",
-        nextFollowUp: "Tomorrow, 04:00 PM"
-      }
-    ]
-  },
-  {
-    id: "L005",
-    name: "Vikram Singh",
-    phone: "9876543214",
-    email: "vikram.s@example.com",
-    course: "UI/UX Design",
-    source: "Website",
-    stage: "CONTACTED",
-    stageColor: "bg-blue-50 text-blue-700 border-blue-200",
-    nextFollowUp: "May 20, 11:00 AM",
-    priority: "Upcoming",
-    priorityColor: "text-emerald-600 bg-emerald-500",
-    attemptsCount: 1,
-    latestResponse: "Enquired about Figma tools & live portfolio projects.",
-    assignedTo: "Priya",
-    assignedDate: "14 Aug 2026",
-    aiCallingResult: "🟡 Moderate Intent (Score 75/100) — Requested UI/UX course details & installment plan",
-    attemptsHistory: [
-      {
-        attemptNo: 1,
-        mode: "PHONE",
-        timestamp: "14 Aug 2026, 02:00 PM",
-        response: "Contacted",
-        notes: "Interested in UI/UX project portfolio mentorship.",
-        nextFollowUp: "May 20, 11:00 AM"
-      }
-    ]
-  }
-];
+const INITIAL_MANAGED_LEADS: ManagedLead[] = [];
 
 export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -531,8 +368,8 @@ export const CounselorDashboard: React.FC = () => {
       followUpDate === "2026-08-24"
         ? `Today, ${followUpTime}`
         : followUpDate === "2026-08-25"
-        ? `Tomorrow, ${followUpTime}`
-        : `${followUpDate}, ${followUpTime}`;
+          ? `Tomorrow, ${followUpTime}`
+          : `${followUpDate}, ${followUpTime}`;
 
     storeScheduleFollowUp(activeLead.id, {
       channel: followUpType === "CALL" ? "PHONE" : followUpType,
@@ -1138,16 +975,16 @@ export const CounselorDashboard: React.FC = () => {
                                 {lead.source === "Website"
                                   ? "🌐 Web"
                                   : lead.source === "Google Ads"
-                                  ? "🔍 Google"
-                                  : lead.source === "Meta Ads"
-                                  ? "⚡ Meta"
-                                  : lead.source === "Instagram"
-                                  ? "📱 Insta"
-                                  : lead.source === "Referral"
-                                  ? "👥 Referral"
-                                  : lead.source === "Walk-in"
-                                  ? "🏢 Walk-in"
-                                  : `📞 ${lead.source || "Inbound"}`}
+                                    ? "🔍 Google"
+                                    : lead.source === "Meta Ads"
+                                      ? "⚡ Meta"
+                                      : lead.source === "Instagram"
+                                        ? "📱 Insta"
+                                        : lead.source === "Referral"
+                                          ? "👥 Referral"
+                                          : lead.source === "Walk-in"
+                                            ? "🏢 Walk-in"
+                                            : `📞 ${lead.source || "Inbound"}`}
                               </span>
                             </div>
                           </div>
@@ -1349,13 +1186,12 @@ export const CounselorDashboard: React.FC = () => {
                             type="button"
                             onClick={() => handleOpenFollowUp(lead)}
                             size="sm"
-                            className={`h-7.5 px-2.5 rounded-xl font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5 ${
-                              isOverdue
+                            className={`h-7.5 px-2.5 rounded-xl font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer flex items-center gap-1.5 ${isOverdue
                                 ? "bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white border border-rose-200 ring-2 ring-rose-100"
                                 : isToday
-                                ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
-                                : "bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white border border-blue-200"
-                            }`}
+                                  ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
+                                  : "bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white border border-blue-200"
+                              }`}
                           >
                             <Phone className="h-3 w-3" />
                             <span>Follow Up</span>
@@ -1823,11 +1659,10 @@ export const CounselorDashboard: React.FC = () => {
                         key={item.key}
                         type="button"
                         onClick={() => setFollowUpType(item.key as any)}
-                        className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${
-                          isSelected
+                        className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${isSelected
                             ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
                             : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
-                        }`}
+                          }`}
                       >
                         <IconComp className="h-4 w-4" />
                         <span>{item.label}</span>
@@ -2515,16 +2350,16 @@ export const CounselorDashboard: React.FC = () => {
                         {activeAiLead.source === "Website"
                           ? "🌐 Website Form"
                           : activeAiLead.source === "Google Ads"
-                          ? "🔍 Google Ads"
-                          : activeAiLead.source === "Meta Ads"
-                          ? "⚡ Meta Ads"
-                          : activeAiLead.source === "Instagram"
-                          ? "📱 Instagram"
-                          : activeAiLead.source === "Referral"
-                          ? "👥 Referral"
-                          : activeAiLead.source === "Walk-in"
-                          ? "🏢 Walk-in"
-                          : `📞 ${activeAiLead.source}`}
+                            ? "🔍 Google Ads"
+                            : activeAiLead.source === "Meta Ads"
+                              ? "⚡ Meta Ads"
+                              : activeAiLead.source === "Instagram"
+                                ? "📱 Instagram"
+                                : activeAiLead.source === "Referral"
+                                  ? "👥 Referral"
+                                  : activeAiLead.source === "Walk-in"
+                                    ? "🏢 Walk-in"
+                                    : `📞 ${activeAiLead.source}`}
                       </span>
                     </div>
                   </div>
@@ -2541,22 +2376,20 @@ export const CounselorDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setAiDrawerTab("SUMMARY")}
-                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
-                  aiDrawerTab === "SUMMARY"
+                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${aiDrawerTab === "SUMMARY"
                     ? "bg-white text-[#1769AA] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 AI Call Summary
               </button>
               <button
                 type="button"
                 onClick={() => setAiDrawerTab("RECORDING")}
-                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
-                  aiDrawerTab === "RECORDING"
+                className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${aiDrawerTab === "RECORDING"
                     ? "bg-white text-[#1769AA] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
-                }`}
+                  }`}
               >
                 Call Recording & Transcript
               </button>
@@ -2679,9 +2512,8 @@ export const CounselorDashboard: React.FC = () => {
                         <div
                           key={i}
                           style={{ height: `${h}%` }}
-                          className={`flex-1 rounded-full transition-all duration-300 ${
-                            i < 10 ? "bg-emerald-400" : isPlayingAudio ? "bg-cyan-400 animate-pulse" : "bg-slate-600"
-                          }`}
+                          className={`flex-1 rounded-full transition-all duration-300 ${i < 10 ? "bg-emerald-400" : isPlayingAudio ? "bg-cyan-400 animate-pulse" : "bg-slate-600"
+                            }`}
                         />
                       ))}
                     </div>
@@ -2756,11 +2588,10 @@ export const CounselorDashboard: React.FC = () => {
                       ]).map((msg, i) => (
                         <div
                           key={i}
-                          className={`p-3 rounded-2xl text-xs space-y-1 ${
-                            msg.speaker === "AI_AGENT" || msg.speaker === "AI"
+                          className={`p-3 rounded-2xl text-xs space-y-1 ${msg.speaker === "AI_AGENT" || msg.speaker === "AI"
                               ? "bg-blue-50/70 border border-blue-100 text-slate-800 mr-4"
                               : "bg-slate-100/80 border border-slate-200/70 text-slate-900 ml-4"
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
                             <span className="flex items-center gap-1">

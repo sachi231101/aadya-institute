@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { 
   Calendar, 
   UserCircle, 
@@ -6,20 +6,121 @@ import {
   CheckCircle2, 
   AlertCircle,
   CreditCard,
+  Video,
+  Radio,
+  ExternalLink,
+  Clock,
+  Sparkles,
+  Play
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/auth.store";
+import { useSessionStore } from "../../store/session.store";
+import { classSessionsApi } from "../../services/class-sessions.api";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
+  const { activeLiveClass } = useSessionStore();
+  const [liveSessions, setLiveSessions] = useState<any[]>([]);
+
+  // Fetch backend active live classes on mount
+  useEffect(() => {
+    let mounted = true;
+    const fetchLive = async () => {
+      try {
+        const res = await classSessionsApi.getActiveLive();
+        if (mounted && res.data && res.data.length > 0) {
+          setLiveSessions(res.data);
+        }
+      } catch (err) {
+        // Local state fallback handled by activeLiveClass
+      }
+    };
+    fetchLive();
+    const interval = setInterval(fetchLive, 15000);
+    return () => {
+      mounted = false;
+      clearInterval(interval);
+    };
+  }, []);
 
   const studentName = user?.name || "Student";
   const studentBatchCode = user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE";
 
+  // Check if live class is active (either from session store or backend query)
+  const isClassLive = activeLiveClass?.status === "LIVE" || liveSessions.length > 0;
+  const currentLive = activeLiveClass?.status === "LIVE" 
+    ? activeLiveClass 
+    : liveSessions.length > 0 
+    ? {
+        id: liveSessions[0].id,
+        courseName: liveSessions[0].batch?.course?.name || liveSessions[0].title || "Live Academy Class",
+        facultyName: liveSessions[0].faculty?.user?.name || "Ramesh Kumar",
+        batchName: liveSessions[0].batch?.name || liveSessions[0].batch?.code || "Digital Marketing – Batch A",
+        time: `${liveSessions[0].startTime} – ${liveSessions[0].endTime}`,
+        meetUrl: liveSessions[0].meetingUrl || "https://meet.google.com/aady-live-cls",
+      }
+    : null;
+
+  const handleJoinGoogleMeet = () => {
+    if (currentLive?.meetUrl) {
+      window.open(currentLive.meetUrl, "_blank", "noopener,noreferrer");
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 animate-in fade-in duration-500">
+      {/* ─── PROMINENT TOP LIVE CLASS BANNER (WHEN CLASS IS LIVE) ─── */}
+      {isClassLive && currentLive && (
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-600 via-rose-700 to-red-900 p-6 md:p-7 text-white shadow-xl shadow-rose-950/20 border-2 border-rose-400/40 animate-in slide-in-from-top-3 duration-300">
+          {/* Animated Background Pulse */}
+          <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-amber-400/20 rounded-full blur-xl pointer-events-none" />
+
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Badge className="bg-white text-rose-700 hover:bg-white font-black text-xs px-3 py-1 rounded-full shadow-md flex items-center gap-2 animate-pulse">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
+                  🔴 LIVE NOW
+                </Badge>
+                <span className="text-xs font-bold bg-rose-950/40 text-rose-100 px-2.5 py-1 rounded-lg backdrop-blur-xs border border-rose-400/20">
+                  Google Meet Session Active
+                </span>
+              </div>
+
+              <div>
+                <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white drop-shadow-xs">
+                  {currentLive.courseName}
+                </h2>
+                <p className="text-rose-100 text-xs sm:text-sm font-medium mt-1">
+                  Faculty: <strong className="text-white font-bold">{currentLive.facultyName}</strong> • Batch: <strong className="text-white font-bold">{currentLive.batchName}</strong>
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-semibold text-rose-100/90 pt-1">
+                <Clock className="w-4 h-4 text-amber-300" />
+                <span>Class Slot: {currentLive.time}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+              <Button
+                type="button"
+                onClick={handleJoinGoogleMeet}
+                className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 font-black text-sm h-12 px-7 rounded-2xl shadow-xl shadow-black/20 gap-2.5 transform hover:scale-105 transition-all cursor-pointer whitespace-nowrap"
+              >
+                <Video className="w-5 h-5 text-rose-600" />
+                <span>🎥 Join Google Meet</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">

@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
-  Plus,
+  Lock,
+  RefreshCw,
   TrendingUp,
   CreditCard,
   Users,
@@ -11,619 +12,803 @@ import {
   UserCheck,
   ArrowRight,
   FileText,
+  UserPlus,
+  GraduationCap,
+  BookOpen,
+  Layers,
+  BarChart2,
+  CheckCircle2,
+  Clock,
+  ChevronDown,
+  Info,
+  Sparkles,
+  Zap,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { useBranch, useBranchStats, useBranches } from "@/hooks/useBranches";
-import { useFinancialReport } from "@/hooks/useReports";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
   PieChart,
   Pie,
   Cell,
   Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
-  AreaChart,
-  Area,
 } from "recharts";
 
-// Donut Slices Colors
-const STUDENT_STATUS_COLORS = [
-  "#2563EB", // Active (Blue)
-  "#818CF8", // Inactive (Indigo/Purple)
-  "#FBBF24", // Completed (Amber/Yellow)
-  "#EF4444", // Dropout (Red)
-  "#10B981", // On Hold (Emerald/Teal)
+// ─────────────────────────────────────────────────────────────────────────────
+// ADMISSIONS TREND CHART DATA (Malleshwaram Branch Only)
+// ─────────────────────────────────────────────────────────────────────────────
+const ADMISSIONS_CHART_DATA = [
+  { day: "01 May", thisMonth: 8, lastMonth: 5 },
+  { day: "05 May", thisMonth: 14, lastMonth: 7 },
+  { day: "10 May", thisMonth: 19, lastMonth: 12 },
+  { day: "15 May", thisMonth: 15, lastMonth: 10 },
+  { day: "20 May", thisMonth: 23, lastMonth: 14 },
+  { day: "25 May", thisMonth: 27, lastMonth: 18 },
+  { day: "31 May", thisMonth: 32, lastMonth: 22 },
 ];
 
-// Sparkline Mini Component for KPI Cards
-const SparklineMini = ({ color, data }: { color: string; data: number[] }) => {
-  const chartData = data.map((val, idx) => ({ idx, val }));
-  return (
-    <div className="h-10 w-full mt-2">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
-          <defs>
-            <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.25} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="val"
-            stroke={color}
-            strokeWidth={2}
-            fillOpacity={1}
-            fill={`url(#grad-${color})`}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// FEE DONUT SLICES (Malleshwaram Branch Only)
+// ─────────────────────────────────────────────────────────────────────────────
+const FEE_DONUT_DATA = [
+  { name: "Collected", value: 1725000, percentage: 68, color: "#10B981" },
+  { name: "Pending", value: 642000, percentage: 17, color: "#2563EB" },
+  { name: "Overdue", value: 531000, percentage: 15, color: "#F59E0B" },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COUNSELLORS AT MALLESHWARAM BRANCH
+// ─────────────────────────────────────────────────────────────────────────────
+const BRANCH_COUNSELLORS = [
+  {
+    id: "c-1",
+    name: "Priya Sharma",
+    initials: "PS",
+    avatarBg: "bg-blue-100 text-blue-700",
+    leads: 58,
+    admissions: 12,
+    conversion: "20.7%",
+  },
+  {
+    id: "c-2",
+    name: "Rahul Kumar",
+    initials: "RK",
+    avatarBg: "bg-emerald-100 text-emerald-700",
+    leads: 46,
+    admissions: 9,
+    conversion: "19.6%",
+  },
+  {
+    id: "c-3",
+    name: "Anjali Singh",
+    initials: "AS",
+    avatarBg: "bg-amber-100 text-amber-700",
+    leads: 38,
+    admissions: 6,
+    conversion: "15.8%",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RECENT ADMISSIONS (Malleshwaram Branch Only)
+// ─────────────────────────────────────────────────────────────────────────────
+const RECENT_ADMISSIONS = [
+  {
+    id: "adm-1",
+    studentName: "Rohit Sharma",
+    initials: "RS",
+    avatarBg: "bg-blue-100 text-blue-700",
+    course: "Java Full Stack Development",
+    time: "Today, 10:30 AM",
+    status: "Completed",
+  },
+  {
+    id: "adm-2",
+    studentName: "Megha R",
+    initials: "MR",
+    avatarBg: "bg-rose-100 text-rose-700",
+    course: "Digital Marketing",
+    time: "Today, 09:45 AM",
+    status: "Completed",
+  },
+  {
+    id: "adm-3",
+    studentName: "Karthik M",
+    initials: "KM",
+    avatarBg: "bg-emerald-100 text-emerald-700",
+    course: "Python Programming",
+    time: "Yesterday, 04:20 PM",
+    status: "Completed",
+  },
+  {
+    id: "adm-4",
+    studentName: "Sneha P",
+    initials: "SP",
+    avatarBg: "bg-purple-100 text-purple-700",
+    course: "UI/UX Design",
+    time: "Yesterday, 02:15 PM",
+    status: "Completed",
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PENDING TASKS (Malleshwaram Branch Only)
+// ─────────────────────────────────────────────────────────────────────────────
+const PENDING_TASKS = [
+  {
+    id: "task-1",
+    label: "Follow up for leads",
+    count: 23,
+    icon: Users,
+    iconColor: "text-rose-600",
+    iconBg: "bg-rose-50",
+    url: "/center/leads/follow-ups",
+  },
+  {
+    id: "task-2",
+    label: "Pending fee reminders",
+    count: 17,
+    icon: CreditCard,
+    iconColor: "text-amber-600",
+    iconBg: "bg-amber-50",
+    url: "/center/fees/pending",
+  },
+  {
+    id: "task-3",
+    label: "Documents to verify",
+    count: 12,
+    icon: FileText,
+    iconColor: "text-purple-600",
+    iconBg: "bg-purple-50",
+    url: "/center/admissions/applications",
+  },
+  {
+    id: "task-4",
+    label: "Admissions in progress",
+    count: 6,
+    icon: UserCheck,
+    iconColor: "text-emerald-600",
+    iconBg: "bg-emerald-50",
+    url: "/center/admissions",
+  },
+];
 
 export const CenterDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [timeFilter, setTimeFilter] = useState("This Month");
+  const [periodFilter, setPeriodFilter] = useState("Daily");
 
-  // Find all branches to ensure we have a fallback if branchId is not yet linked
-  const { data: branchesResponse } = useBranches({ limit: 100 });
-  const allBranches = branchesResponse?.data || [];
+  const branchName = "Aadya Institute Malleshwaram";
 
-  // Resolve current center manager's branch ID strictly
-  const effectiveBranchId = user?.branchId || allBranches[0]?.id || "cmspriqwy0001nw66ideumbe3";
-  const { data: branchResponse } = useBranch(effectiveBranchId);
-  const currentBranch = branchResponse?.data || allBranches.find((b) => b.id === effectiveBranchId) || allBranches[0];
-  const branchName = currentBranch?.name || "Aadya Central Branch";
-
-  // Branch-specific live reports strictly filtered by branchId
-  const { data: financialReport } = useFinancialReport(effectiveBranchId);
-  const { data: branchStats } = useBranchStats(effectiveBranchId);
-
-  const formatINR = (val: number) => `₹${val.toLocaleString("en-IN")}`;
-
-  // 1. KPI Calculations (Scoped strictly to branch)
-  const monthlyRevenue = financialReport?.summary?.totalCollected && financialReport.summary.totalCollected > 0
-    ? financialReport.summary.totalCollected
-    : 450000;
-
-  const pendingFee = financialReport?.summary?.totalPending && financialReport.summary.totalPending > 0
-    ? financialReport.summary.totalPending
-    : 120000;
-
-  const activeStudentsCount = (branchStats?.data?.totalStudents && branchStats.data.totalStudents > 10)
-    ? branchStats.data.totalStudents
-    : 145;
-  const previousMonthRevenue = Math.round(monthlyRevenue * 0.844) || 380000;
-  const totalFees = monthlyRevenue + pendingFee || 570000;
-  const collectionRate = totalFees > 0 ? ((monthlyRevenue / totalFees) * 100).toFixed(2) : "78.95";
-
-  // 2. Student Status Distribution Data (Branch Scoped)
-  const studentDistribution = [
-    { name: "Active", count: 85, percentage: "58.6%", color: STUDENT_STATUS_COLORS[0] },
-    { name: "Inactive", count: 25, percentage: "17.2%", color: STUDENT_STATUS_COLORS[1] },
-    { name: "Completed", count: 20, percentage: "13.8%", color: STUDENT_STATUS_COLORS[2] },
-    { name: "Dropout", count: 10, percentage: "6.9%", color: STUDENT_STATUS_COLORS[3] },
-    { name: "On Hold", count: 5, percentage: "3.4%", color: STUDENT_STATUS_COLORS[4] },
-  ];
-  const totalStudentsPie = studentDistribution.reduce((acc, s) => acc + s.count, 0);
-
-  // 3. Batches Overview Data
-  const batchOverviewData = [
-    { name: "Running", count: 8, fill: "#2563EB" },
-    { name: "Upcoming", count: 3, fill: "#059669" },
-    { name: "Completed", count: 2, fill: "#8B5CF6" },
-    { name: "Cancelled", count: 1, fill: "#EF4444" },
-  ];
-  const totalBatches = batchOverviewData.reduce((acc, b) => acc + b.count, 0);
-
-  // 4. Counsellor Performance Data (Branch Scoped)
-  const counsellorsList = [
-    { name: "Anita Sharma", leads: 68, converted: 16, rate: "23.53%", isGreen: true },
-    { name: "Ravi Kumar", leads: 54, converted: 10, rate: "18.52%", isGreen: true },
-    { name: "Priya Nair", leads: 45, converted: 6, rate: "13.33%", isGreen: false },
-    { name: "Karthik M", leads: 45, converted: 6, rate: "13.33%", isGreen: false },
-  ];
-
-  // 5. Recent Activity Data (Branch Scoped)
-  const recentActivities = [
-    {
-      icon: Users,
-      iconColor: "text-purple-600 bg-purple-50",
-      title: "New student admission",
-      desc: "John Doe admitted to Digital Marketing",
-      time: "10:30 AM",
-    },
-    {
-      icon: IndianRupee,
-      iconColor: "text-emerald-600 bg-emerald-50",
-      title: "Fee collected",
-      desc: "₹15,000 collected from Rohit Kumar",
-      time: "09:45 AM",
-    },
-    {
-      icon: UserCheck,
-      iconColor: "text-amber-600 bg-amber-50",
-      title: "New lead assigned",
-      desc: "Lead assigned to Anita Sharma",
-      time: "09:20 AM",
-    },
-    {
-      icon: Calendar,
-      iconColor: "text-blue-600 bg-blue-50",
-      title: "Class scheduled",
-      desc: "Digital Marketing class scheduled",
-      time: "Yesterday",
-    },
-    {
-      icon: FileText,
-      iconColor: "text-indigo-600 bg-indigo-50",
-      title: "Batch created",
-      desc: "New batch 'DM Weekend Batch' created",
-      time: "Yesterday",
-    },
-  ];
-
-  // Custom Recharts Tooltip for Batches Bar Chart
-  const CustomBarTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-slate-900 text-white px-2.5 py-1.5 rounded-lg shadow-lg text-xs">
-          <span className="font-semibold">{payload[0].payload.name}: </span>
-          <span className="font-bold text-blue-400">{payload[0].value} Batches</span>
-        </div>
-      );
-    }
-    return null;
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setIsRefreshing(false);
+    }, 600);
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">
-      {/* 1. DASHBOARD TITLE & ACTIONS */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-start gap-3.5">
-          <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl text-[#1769AA] shrink-0 mt-0.5">
-            <Building2 className="h-6 w-6" />
+    <div className="p-4 sm:p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-300">
+      {/* ─── 1. BRANCH LOCK CONTEXT BANNER & CONTROLS ─────────────────────── */}
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
+        {/* Branch Lock Card */}
+        <div className="flex-1 bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center shrink-0 shadow-2xs">
+              <Building2 className="h-6 w-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                Your Branch
+              </span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                  {branchName}
+                </h2>
+                <Badge className="bg-blue-50 text-[#1D4ED8] border border-blue-200 text-[10px] font-bold rounded-md">
+                  Active Branch
+                </Badge>
+              </div>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
-              Center Manager Dashboard
-            </h1>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
-              Branch Operations Overview & Administration — <span className="text-slate-800 font-semibold">{branchName}</span>
-            </p>
+
+          <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-slate-50 border border-slate-200/70 text-xs md:max-w-md">
+            <div className="h-8 w-8 rounded-xl bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
+              <Lock className="h-4 w-4" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-800 block text-[11px]">
+                You are viewing data for your assigned branch only.
+              </span>
+              <span className="text-[10px] text-slate-500 block">
+                All records, reports, students, faculty, admissions, fees, and operations are restricted to this branch.
+              </span>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Global Controls */}
+        <div className="flex items-center gap-2.5 shrink-0 self-end xl:self-center">
+          <div className="flex items-center gap-2 bg-white border border-slate-200/80 rounded-2xl px-3.5 py-2 text-xs font-bold text-slate-700 shadow-2xs">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value)}
+              className="bg-transparent outline-none cursor-pointer text-xs font-bold text-slate-800"
+            >
+              <option value="Today">Today</option>
+              <option value="This Week">This Week</option>
+              <option value="This Month">This Month</option>
+              <option value="Last Month">Last Month</option>
+              <option value="This Quarter">This Quarter</option>
+            </select>
+          </div>
+
           <Button
-            onClick={() => navigate("/center/students/all")}
-            className="bg-[#1769AA] hover:bg-[#12538a] text-white font-semibold px-4 py-2 rounded-xl shadow-sm gap-2 h-10 transition-all"
+            variant="outline"
+            size="icon"
+            onClick={handleRefresh}
+            className="h-10 w-10 bg-white border-slate-200/80 rounded-2xl hover:bg-slate-50 shadow-2xs cursor-pointer"
+            title="Refresh Dashboard"
           >
-            <Plus className="h-4 w-4" /> Add Student
+            <RefreshCw className={`h-4 w-4 text-slate-600 ${isRefreshing ? "animate-spin text-[#1D4ED8]" : ""}`} />
           </Button>
         </div>
       </div>
 
-      <InstallDashboardBanner />
+      {/* ─── 2. DASHBOARD OVERVIEW HEADER ─────────────────────────────────── */}
+      <div className="flex flex-col gap-1">
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+          Dashboard Overview
+        </h1>
+        <p className="text-xs text-slate-500 font-medium">
+          Key insights and performance metrics for your branch.
+        </p>
+      </div>
 
-      {/* 2. TOP 4 KPI CARDS */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* Card 1: Revenue */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-          <CardContent className="p-5 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Revenue</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1 tracking-tight">
-                  {formatINR(monthlyRevenue)}
-                </h3>
-                <p className="text-xs font-bold text-emerald-600 mt-1 flex items-center gap-1">
-                  <TrendingUp className="h-3.5 w-3.5" /> This Month
-                </p>
-              </div>
-              <div className="p-2.5 bg-blue-50 text-[#1769AA] rounded-xl">
-                <IndianRupee className="h-5 w-5" />
+      {/* ─── 3. SIX BRANCH-SPECIFIC SUMMARY KPI CARDS ─────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+        {/* 1. Total Leads */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Total Leads</span>
+              <div className="h-8 w-8 rounded-xl bg-blue-50 text-[#1D4ED8] flex items-center justify-center">
+                <Users className="h-4 w-4" />
               </div>
             </div>
-            <SparklineMini color="#2563EB" data={[28, 35, 30, 42, 39, 45, 48]} />
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">368</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+18% vs last month</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Card 2: Pending Fee */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-          <CardContent className="p-5 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Pending Fee</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1 tracking-tight">
-                  {formatINR(pendingFee)}
-                </h3>
-                <p className="text-xs font-semibold text-amber-600 mt-1">
-                  Outstanding Balance
-                </p>
-              </div>
-              <div className="p-2.5 bg-amber-50 text-amber-600 rounded-xl">
-                <CreditCard className="h-5 w-5" />
+        {/* 2. Today's Admissions */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Today's Admissions</span>
+              <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <GraduationCap className="h-4 w-4" />
               </div>
             </div>
-            <SparklineMini color="#EA580C" data={[40, 36, 32, 28, 30, 25, 22]} />
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">14</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+27% vs last month</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Card 3: Active Students */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-          <CardContent className="p-5 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Active Students</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1 tracking-tight">
-                  {activeStudentsCount}
-                </h3>
-                <p className="text-xs font-bold text-emerald-600 mt-1 flex items-center gap-1">
-                  <TrendingUp className="h-3.5 w-3.5" /> Currently Enrolled
-                </p>
-              </div>
-              <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl">
-                <Users className="h-5 w-5" />
+        {/* 3. Active Students */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Active Students</span>
+              <div className="h-8 w-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                <Users className="h-4 w-4" />
               </div>
             </div>
-            <SparklineMini color="#8B5CF6" data={[80, 95, 110, 125, 130, 140, 145]} />
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">842</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+12% vs last month</span>
+            </div>
           </CardContent>
         </Card>
 
-        {/* Card 4: Previous Month Revenue */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl overflow-hidden hover:shadow-md transition-shadow">
-          <CardContent className="p-5 pb-2">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Previous Month Revenue</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1 tracking-tight">
-                  {formatINR(previousMonthRevenue)}
-                </h3>
-                <p className="text-xs font-medium text-slate-400 mt-1">
-                  Last Month Total
-                </p>
-              </div>
-              <div className="p-2.5 bg-slate-100 text-slate-600 rounded-xl">
-                <IndianRupee className="h-5 w-5" />
+        {/* 4. Active Batches */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Active Batches</span>
+              <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <BookOpen className="h-4 w-4" />
               </div>
             </div>
-            <SparklineMini color="#3B82F6" data={[22, 26, 31, 35, 34, 38, 38]} />
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">28</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+8% vs last month</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 5. This Month Revenue */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">This Month Revenue</span>
+              <div className="h-8 w-8 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                <IndianRupee className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">₹18,75,000</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+15% vs last month</span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 6. Pending Fees */}
+        <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
+          <CardContent className="p-4 flex flex-col justify-between h-full">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-slate-500">Pending Fees</span>
+              <div className="h-8 w-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <CreditCard className="h-4 w-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <span className="text-2xl font-black text-slate-900 tracking-tight">₹6,42,000</span>
+            </div>
+            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-rose-600">
+              <TrendingUp className="h-3 w-3 mr-1" />
+              <span>+11% vs last month</span>
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* 3. MIDDLE ROW: 3 CARDS */}
+      {/* ─── 4. DASHBOARD ANALYTICS (3 Columns) ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Card 1: Student Status Distribution */}
-        <Card className="lg:col-span-4 border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Student Status Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between">
-            <div className="grid grid-cols-12 items-center gap-4 py-2">
-              {/* Donut Chart */}
-              <div className="col-span-6 h-[170px] relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Tooltip
-                      formatter={(val: any) => [`${val} Students`, "Count"]}
-                      contentStyle={{ borderRadius: "8px", fontSize: "11px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
-                    />
-                    <Pie
-                      data={studentDistribution}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={48}
-                      outerRadius={72}
-                      paddingAngle={3}
-                      dataKey="count"
-                      stroke="#ffffff"
-                      strokeWidth={2}
-                    >
-                      {studentDistribution.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
-                  <span className="text-lg font-black text-[#0A2540]">{totalStudentsPie}</span>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">Total Students</span>
+        {/* ─── COLUMN 1: ADMISSIONS TREND (5.5 cols) ─── */}
+        <div className="lg:col-span-6 xl:col-span-5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                  Admissions Trend
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  Comparison against previous month
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 text-[10px] font-bold">
+                  <span className="flex items-center gap-1 text-[#1D4ED8]">
+                    <span className="h-2 w-2 rounded-full bg-[#1D4ED8]" /> This Month
+                  </span>
+                  <span className="flex items-center gap-1 text-slate-400">
+                    <span className="h-2 w-2 rounded-full bg-slate-300" /> Last Month
+                  </span>
                 </div>
-              </div>
 
-              {/* Legend List */}
-              <div className="col-span-6 space-y-1.5 text-xs">
-                {studentDistribution.map((s, idx) => (
-                  <div key={idx} className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full" style={{ backgroundColor: s.color }} />
-                      <span className="text-slate-600 font-medium">{s.name}</span>
-                    </div>
-                    <span className="font-semibold text-slate-800 text-[11px]">
-                      {s.count} <span className="text-slate-400 text-[10px]">({s.percentage})</span>
-                    </span>
-                  </div>
-                ))}
+                <select
+                  value={periodFilter}
+                  onChange={(e) => setPeriodFilter(e.target.value)}
+                  className="h-7 px-2 bg-slate-50 border border-slate-200 rounded-lg text-[11px] font-bold text-slate-700 outline-none cursor-pointer"
+                >
+                  <option value="Daily">Daily</option>
+                  <option value="Weekly">Weekly</option>
+                </select>
               </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 text-right">
-              <button
-                type="button"
-                onClick={() => navigate("/center/students/all")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View All Students <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Batches Overview */}
-        <Card className="lg:col-span-4 border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Batches Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between">
-            <div className="h-[170px] w-full pt-2">
+            {/* Chart Area */}
+            <div className="h-64 w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={batchOverviewData} margin={{ top: 15, right: 10, left: -25, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: "#64748b" }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<CustomBarTooltip />} />
-                  <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
-                    {batchOverviewData.map((entry, index) => (
-                      <Cell key={`bar-${index}`} fill={entry.fill} />
-                    ))}
-                  </Bar>
-                </BarChart>
+                <LineChart
+                  data={ADMISSIONS_CHART_DATA}
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" vertical={false} />
+                  <XAxis
+                    dataKey="day"
+                    tickLine={false}
+                    axisLine={{ stroke: "#E2E8F0" }}
+                    tick={{ fontSize: 10, fill: "#94A3B8", fontWeight: 600 }}
+                  />
+                  <YAxis
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 10, fill: "#94A3B8", fontWeight: 600 }}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      border: "none",
+                      borderRadius: "12px",
+                      color: "#FFFFFF",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                    }}
+                    itemStyle={{ color: "#FFFFFF" }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="thisMonth"
+                    name="This Month"
+                    stroke="#1D4ED8"
+                    strokeWidth={2.5}
+                    dot={{ fill: "#1D4ED8", r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="lastMonth"
+                    name="Last Month"
+                    stroke="#94A3B8"
+                    strokeWidth={2}
+                    strokeDasharray="4 4"
+                    dot={{ fill: "#94A3B8", r: 3 }}
+                  />
+                </LineChart>
               </ResponsiveContainer>
             </div>
+          </div>
+        </div>
 
-            <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500 bg-slate-50 border border-slate-200/60 px-2.5 py-1 rounded-md">
-                Total Batches: <strong className="text-slate-800">{totalBatches}</strong>
+        {/* ─── COLUMN 2: FEE COLLECTION SUMMARY (3.5 cols) ─── */}
+        <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                Fee Collection Summary
+              </h3>
+              <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                Total collection for Malleshwaram
+              </p>
+            </div>
+
+            {/* Donut Chart with Center Total */}
+            <div className="relative h-44 w-full mt-2 flex items-center justify-center">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={FEE_DONUT_DATA}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={52}
+                    outerRadius={72}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {FEE_DONUT_DATA.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: any) => `₹${Number(val).toLocaleString("en-IN")}`}
+                    contentStyle={{
+                      backgroundColor: "#0F172A",
+                      border: "none",
+                      borderRadius: "12px",
+                      color: "#FFFFFF",
+                      fontSize: "11px",
+                      fontWeight: "bold",
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+
+              {/* Absolute Center Text */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-xs font-black text-slate-900">₹25,17,000</span>
+                <span className="text-[9px] font-bold text-slate-400 uppercase">
+                  Total Collection
+                </span>
+              </div>
+            </div>
+
+            {/* Legend Breakdown */}
+            <div className="space-y-2 mt-2">
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                  <span className="font-bold text-slate-700">Collected</span>
+                </div>
+                <span className="font-black text-slate-900">₹17,25,000 (68%)</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
+                  <span className="font-bold text-slate-700">Pending</span>
+                </div>
+                <span className="font-black text-slate-900">₹6,42,000 (17%)</span>
+              </div>
+
+              <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  <span className="font-bold text-slate-700">Overdue</span>
+                </div>
+                <span className="font-black text-slate-900">₹5,31,000 (15%)</span>
+              </div>
+            </div>
+          </div>
+
+          <Button
+            variant="outline"
+            onClick={() => navigate("/center/fees")}
+            className="w-full mt-4 h-9 text-xs font-bold text-[#1D4ED8] bg-blue-50/60 border-blue-200 hover:bg-blue-100/70 rounded-xl cursor-pointer"
+          >
+            View Fee Details
+          </Button>
+        </div>
+
+        {/* ─── COLUMN 3: COUNSELLOR PERFORMANCE (3.5 cols) ─── */}
+        <div className="lg:col-span-12 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                  Counsellor Performance
+                </h3>
+                <p className="text-[11px] text-slate-400 font-medium mt-0.5">
+                  Malleshwaram team only
+                </p>
+              </div>
+              <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                This Month
               </span>
-              <button
-                type="button"
-                onClick={() => navigate("/center/courses/batches")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View All Batches <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Admissions Overview */}
-        <Card className="lg:col-span-4 border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Admissions Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between space-y-3">
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Total Leads</span>
-                <span className="font-bold text-slate-900 text-sm">212</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">New Leads (This Month)</span>
-                <span className="font-bold text-slate-900 text-sm">48</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Converted Admissions</span>
-                <span className="font-bold text-slate-900 text-sm">32</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Pending Admissions</span>
-                <span className="font-bold text-slate-900 text-sm">16</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Conversion Rate</span>
-                <span className="font-extrabold text-emerald-600 text-sm">22.86%</span>
-              </div>
             </div>
 
-            <div className="pt-3 border-t border-slate-100 text-right">
-              <button
-                type="button"
-                onClick={() => navigate("/center/admissions/all")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View All Admissions <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* 4. BOTTOM ROW: 4 EQUAL CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
-        {/* Card 1: Fee Collection Overview */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Fee Collection Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between space-y-4">
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600 font-medium">Total Fees</span>
-                <span className="font-bold text-slate-900 text-sm">{formatINR(totalFees)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600 font-medium">Collected Fees</span>
-                <span className="font-bold text-emerald-600 text-sm">{formatINR(monthlyRevenue)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600 font-medium">Pending Fees</span>
-                <span className="font-bold text-amber-600 text-sm">{formatINR(pendingFee)}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1">
-                <span className="text-slate-600 font-medium">Collection Rate</span>
-                <span className="font-extrabold text-[#0A2540] text-sm">{collectionRate}%</span>
-              </div>
-
-              {/* Progress Bar */}
-              <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mt-1.5">
-                <div className="bg-[#1769AA] h-full rounded-full" style={{ width: `${collectionRate}%` }} />
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 text-center">
-              <button
-                type="button"
-                onClick={() => navigate("/center/fees/payments")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View Details <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Counsellor Performance */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Counsellor Performance
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between space-y-3">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead>
-                  <tr className="text-slate-400 font-semibold border-b border-slate-100 text-[10px] uppercase">
-                    <th className="pb-1.5 font-bold">Counsellor</th>
-                    <th className="pb-1.5 font-bold text-center">Leads</th>
-                    <th className="pb-1.5 font-bold text-center">Converted</th>
-                    <th className="pb-1.5 font-bold text-right">Rate</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {counsellorsList.map((c, idx) => (
-                    <tr key={idx} className="hover:bg-slate-50/50">
-                      <td className="py-2 font-semibold text-slate-800 truncate max-w-[90px]">{c.name}</td>
-                      <td className="py-2 text-center text-slate-600 font-mono">{c.leads}</td>
-                      <td className="py-2 text-center text-slate-600 font-mono">{c.converted}</td>
-                      <td className={`py-2 text-right font-bold ${c.isGreen ? "text-emerald-600" : "text-amber-600"}`}>
-                        {c.rate}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 text-center">
-              <button
-                type="button"
-                onClick={() => navigate("/center/counselor/overview")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View All Counsellors <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Faculty Overview */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Faculty Overview
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between space-y-3">
-            <div className="space-y-2.5 text-xs">
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Total Faculty</span>
-                <span className="font-bold text-slate-900 text-sm">12</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Active Faculty</span>
-                <span className="font-bold text-slate-900 text-sm">10</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Total Classes Today</span>
-                <span className="font-bold text-slate-900 text-sm">18</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Active Batches</span>
-                <span className="font-bold text-slate-900 text-sm">8</span>
-              </div>
-              <div className="flex justify-between items-center py-0.5">
-                <span className="text-slate-600 font-medium">Students Assigned</span>
-                <span className="font-bold text-slate-900 text-sm">{activeStudentsCount}</span>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 text-center">
-              <button
-                type="button"
-                onClick={() => navigate("/center/faculty/all")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
-              >
-                View All Faculty <ArrowRight className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Recent Activity */}
-        <Card className="border border-slate-200/70 shadow-sm bg-white rounded-2xl flex flex-col justify-between">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-bold text-[#0A2540]">
-              Recent Activity
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-2 flex-1 flex flex-col justify-between space-y-3">
-            <div className="space-y-3">
-              {recentActivities.map((act, idx) => (
-                <div key={idx} className="flex items-start gap-2.5">
-                  <div className={`p-1.5 rounded-lg shrink-0 ${act.iconColor}`}>
-                    <act.icon className="h-3.5 w-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-slate-800 leading-none truncate">{act.title}</p>
-                      <span className="text-[10px] text-slate-400 shrink-0 ml-1">{act.time}</span>
+            {/* Counsellor List */}
+            <div className="divide-y divide-slate-100 mt-2">
+              {BRANCH_COUNSELLORS.map((c, idx) => (
+                <div key={c.id} className="py-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="text-xs font-bold text-slate-400 w-3">{idx + 1}</span>
+                    <div
+                      className={`h-8 w-8 rounded-xl ${c.avatarBg} font-black text-xs flex items-center justify-center shrink-0`}
+                    >
+                      {c.initials}
                     </div>
-                    <p className="text-[11px] text-slate-500 truncate mt-0.5">{act.desc}</p>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black text-slate-900 truncate">{c.name}</h4>
+                      <p className="text-[10px] text-slate-500 truncate font-medium">
+                        {c.leads} Leads → {c.admissions} Admissions
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-xs font-black text-emerald-600 block">
+                      {c.conversion}
+                    </span>
+                    <span className="text-[9px] text-slate-400 uppercase font-semibold">
+                      Conversion
+                    </span>
                   </div>
                 </div>
               ))}
             </div>
+          </div>
 
-            <div className="pt-3 border-t border-slate-100 text-center">
+          <Button
+            variant="outline"
+            onClick={() => navigate("/center/counsellors")}
+            className="w-full mt-4 h-9 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border-slate-200 rounded-xl cursor-pointer"
+          >
+            View All Counsellors
+          </Button>
+        </div>
+      </div>
+
+      {/* ─── 5. QUICK ACTIONS, RECENT ADMISSIONS & PENDING TASKS ──────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* ─── QUICK ACTIONS (3.5 cols) ─── */}
+        <div className="lg:col-span-12 xl:col-span-4 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs">
+          <h3 className="text-sm font-black text-slate-900 tracking-tight pb-3 border-b border-slate-100">
+            Quick Actions
+          </h3>
+
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            {/* Add Lead */}
+            <button
+              onClick={() => navigate("/center/leads")}
+              className="p-3.5 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 border border-blue-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 text-[#1D4ED8] flex items-center justify-center transition-colors">
+                <UserPlus className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Add Lead</span>
+            </button>
+
+            {/* New Admission */}
+            <button
+              onClick={() => navigate("/center/admissions/new")}
+              className="p-3.5 rounded-2xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 text-emerald-700 flex items-center justify-center transition-colors">
+                <GraduationCap className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">New Admission</span>
+            </button>
+
+            {/* Add Student */}
+            <button
+              onClick={() => navigate("/center/students/add")}
+              className="p-3.5 rounded-2xl bg-purple-50/70 hover:bg-purple-100/70 border border-purple-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-purple-100 group-hover:bg-purple-200 text-purple-700 flex items-center justify-center transition-colors">
+                <Users className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Add Student</span>
+            </button>
+
+            {/* Create Batch */}
+            <button
+              onClick={() => navigate("/center/batches")}
+              className="p-3.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 border border-amber-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-amber-100 group-hover:bg-amber-200 text-amber-700 flex items-center justify-center transition-colors">
+                <Layers className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Create Batch</span>
+            </button>
+
+            {/* Collect Fees */}
+            <button
+              onClick={() => navigate("/center/fees")}
+              className="p-3.5 rounded-2xl bg-teal-50/70 hover:bg-teal-100/70 border border-teal-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-teal-100 group-hover:bg-teal-200 text-teal-700 flex items-center justify-center transition-colors">
+                <IndianRupee className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">Collect Fees</span>
+            </button>
+
+            {/* View Reports */}
+            <button
+              onClick={() => navigate("/center/reports")}
+              className="p-3.5 rounded-2xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
+            >
+              <div className="h-9 w-9 rounded-xl bg-rose-100 group-hover:bg-rose-200 text-rose-700 flex items-center justify-center transition-colors">
+                <BarChart2 className="h-4 w-4" />
+              </div>
+              <span className="text-xs font-bold text-slate-800">View Reports</span>
+            </button>
+          </div>
+        </div>
+
+        {/* ─── RECENT ADMISSIONS (4.5 cols) ─── */}
+        <div className="lg:col-span-6 xl:col-span-4.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                Recent Admissions
+              </h3>
               <button
-                type="button"
-                onClick={() => navigate("/center/dashboard")}
-                className="text-xs font-bold text-[#1769AA] hover:underline inline-flex items-center gap-1"
+                onClick={() => navigate("/center/admissions")}
+                className="text-[11px] font-bold text-[#1D4ED8] hover:underline cursor-pointer"
               >
-                View All Activity <ArrowRight className="h-3.5 w-3.5" />
+                View All
               </button>
             </div>
-          </CardContent>
-        </Card>
+
+            <div className="divide-y divide-slate-100 mt-2">
+              {RECENT_ADMISSIONS.map((adm) => (
+                <div key={adm.id} className="py-3 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`h-9 w-9 rounded-xl ${adm.avatarBg} font-black text-xs flex items-center justify-center shrink-0`}
+                    >
+                      {adm.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-black text-slate-900 truncate">
+                        {adm.studentName}
+                      </h4>
+                      <p className="text-[11px] text-slate-500 truncate font-medium">
+                        {adm.course}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-slate-400 font-semibold block">
+                      {adm.time}
+                    </span>
+                    <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black uppercase">
+                      ✓ {adm.status}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ─── PENDING TASKS (3.5 cols) ─── */}
+        <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h3 className="text-sm font-black text-slate-900 tracking-tight">
+                Pending Tasks
+              </h3>
+              <button
+                onClick={() => navigate("/center/leads/follow-ups")}
+                className="text-[11px] font-bold text-[#1D4ED8] hover:underline cursor-pointer"
+              >
+                View All
+              </button>
+            </div>
+
+            <div className="space-y-3 mt-4">
+              {PENDING_TASKS.map((task) => {
+                const Icon = task.icon;
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => navigate(task.url)}
+                    className="p-3 rounded-2xl bg-slate-50/80 hover:bg-slate-100/80 border border-slate-100 flex items-center justify-between transition-all cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <div
+                        className={`h-8 w-8 rounded-xl ${task.iconBg} ${task.iconColor} flex items-center justify-center shrink-0`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-xs font-bold text-slate-800">
+                        {task.label}
+                      </span>
+                    </div>
+
+                    <span className="h-6 px-2 rounded-full bg-rose-100 text-rose-700 text-xs font-black flex items-center justify-center">
+                      {task.count}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── 6. FOOTER RESTRICTION NOTICE ─────────────────────────────────── */}
+      <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/60 flex items-center gap-2.5 text-xs text-slate-600">
+        <div className="h-5 w-5 rounded-full bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
+          <Info className="h-3.5 w-3.5" />
+        </div>
+        <span>
+          You are logged in as <strong className="text-slate-900 font-bold">Center Manager</strong>. All data shown is for <strong className="text-[#1D4ED8] font-bold">{branchName}</strong> only.
+        </span>
       </div>
     </div>
   );

@@ -21,8 +21,10 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Video, Radio } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
+import { useSessionStore } from "@/store/session.store";
 
 interface StudentClassSession {
   id: string;
@@ -235,6 +237,8 @@ export const StudentSchedule: React.FC = () => {
       }
     },
   });
+
+  const { activeLiveClass } = useSessionStore();
 
   const allSessions = useMemo(() => {
     if (serverResponse?.data && serverResponse.data.length > 0) {
@@ -492,94 +496,137 @@ export const StudentSchedule: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3.5 pt-1">
-              {selectedDaySessions.map((session) => (
-                <div
-                  key={session.id}
-                  className="bg-slate-50/40 hover:bg-slate-50/80 border border-slate-200/80 rounded-2xl p-4 sm:p-5 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 group shadow-2xs hover:shadow-xs"
-                >
-                  {/* Top / Left Column: Time & Duration + Mobile Status */}
-                  <div className="flex items-center justify-between lg:justify-start gap-3.5 lg:w-44 shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                        session.timeColor === "blue" ? "bg-blue-100 text-[#1769AA]" : "bg-amber-100 text-amber-700"
-                      }`}>
-                        <Clock className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1">
-                          <span>{session.startTime}</span>
-                          <span className="text-slate-400 font-normal">|</span>
-                          <span>{session.endTime}</span>
+              {selectedDaySessions.map((session) => {
+                const isLive = activeLiveClass?.status === "LIVE" && (
+                  activeLiveClass.courseName.toLowerCase().includes(session.courseName.toLowerCase()) ||
+                  session.courseName.toLowerCase().includes(activeLiveClass.courseName.toLowerCase())
+                );
+
+                return (
+                  <div
+                    key={session.id}
+                    className={`rounded-2xl p-4 sm:p-5 transition-all flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5 group shadow-2xs hover:shadow-xs ${
+                      isLive
+                        ? "bg-rose-50/60 border-2 border-rose-400/80 shadow-rose-900/10"
+                        : "bg-slate-50/40 hover:bg-slate-50/80 border border-slate-200/80"
+                    }`}
+                  >
+                    {/* Top / Left Column: Time & Duration + Mobile Status */}
+                    <div className="flex items-center justify-between lg:justify-start gap-3.5 lg:w-44 shrink-0">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
+                          isLive
+                            ? "bg-rose-600 text-white animate-pulse"
+                            : session.timeColor === "blue"
+                            ? "bg-blue-100 text-[#1769AA]"
+                            : "bg-amber-100 text-amber-700"
+                        }`}>
+                          <Clock className="w-4 h-4" />
                         </div>
-                        <span className="inline-block text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full mt-0.5">
-                          {session.duration}
+                        <div>
+                          <div className="text-xs font-black text-slate-900 tracking-tight flex items-center gap-1">
+                            <span>{session.startTime}</span>
+                            <span className="text-slate-400 font-normal">|</span>
+                            <span>{session.endTime}</span>
+                          </div>
+                          <span className="inline-block text-[10px] font-bold text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded-full mt-0.5">
+                            {session.duration}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Mobile Only Status Badge */}
+                      {isLive ? (
+                        <span className="lg:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-600 text-white animate-pulse">
+                          🔴 LIVE NOW
                         </span>
+                      ) : (
+                        <span className="lg:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100/80 text-amber-800 border border-amber-200/50">
+                          {session.status}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Middle Column: Course Icon + Info */}
+                    <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
+                      {renderIcon(session.iconType)}
+                      <div className="space-y-1 sm:space-y-1.5 min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#1769AA] transition-colors truncate">
+                            {session.courseName}
+                          </h3>
+                          <Badge 
+                            variant="outline" 
+                            className="bg-blue-50/90 text-[#1769AA] border-blue-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md"
+                          >
+                            {session.batchCode}
+                          </Badge>
+                          {isLive && (
+                            <Badge className="bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md animate-pulse">
+                              🔴 LIVE
+                            </Badge>
+                          )}
+                        </div>
+
+                        <div className="text-xs text-slate-600 font-medium flex items-center gap-1.5 truncate">
+                          <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">Faculty: <strong className="text-slate-800 font-semibold">{session.facultyName}</strong></span>
+                        </div>
+
+                        <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-500 flex-wrap">
+                          <span className="flex items-center gap-1">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{session.roomNo}</span>
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center gap-1">
+                            <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            <span>{session.block}</span>
+                          </span>
+                          <span className="text-slate-300">•</span>
+                          <span className="flex items-center gap-1 font-medium text-slate-700">
+                            <span>{isLive ? "🎥 Google Meet Live" : `🏫 ${session.mode}`}</span>
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Mobile Only Status Badge */}
-                    <span className="lg:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100/80 text-amber-800 border border-amber-200/50">
-                      {session.status}
-                    </span>
-                  </div>
-
-                  {/* Middle Column: Course Icon + Info */}
-                  <div className="flex items-start sm:items-center gap-3.5 sm:gap-4 flex-1 min-w-0">
-                    {renderIcon(session.iconType)}
-                    <div className="space-y-1 sm:space-y-1.5 min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="text-sm sm:text-base font-bold text-slate-900 group-hover:text-[#1769AA] transition-colors truncate">
-                          {session.courseName}
-                        </h3>
-                        <Badge 
-                          variant="outline" 
-                          className="bg-blue-50/90 text-[#1769AA] border-blue-200 text-[10px] font-mono font-bold px-2 py-0.5 rounded-md"
+                    {/* Right Column: Desktop Status & Action Button */}
+                    <div className="flex items-center justify-end gap-2.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
+                      {isLive ? (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (activeLiveClass?.meetUrl) {
+                              window.open(activeLiveClass.meetUrl, "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                          className="w-full lg:w-auto h-9 px-4 rounded-xl text-xs font-black bg-rose-600 hover:bg-rose-700 text-white gap-1.5 shadow-md shadow-rose-600/20 cursor-pointer"
                         >
-                          {session.batchCode}
-                        </Badge>
-                      </div>
+                          <Video className="w-3.5 h-3.5" />
+                          🎥 Join Google Meet
+                        </Button>
+                      ) : (
+                        <>
+                          <span className="hidden lg:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100/80 text-amber-800 border border-amber-200/50">
+                            {session.status}
+                          </span>
 
-                      <div className="text-xs text-slate-600 font-medium flex items-center gap-1.5 truncate">
-                        <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                        <span className="truncate">Faculty: <strong className="text-slate-800 font-semibold">{session.facultyName}</strong></span>
-                      </div>
-
-                      <div className="flex items-center gap-2 sm:gap-3 text-xs text-slate-500 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{session.roomNo}</span>
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="flex items-center gap-1">
-                          <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                          <span>{session.block}</span>
-                        </span>
-                        <span className="text-slate-300">•</span>
-                        <span className="flex items-center gap-1 font-medium text-slate-700">
-                          <span>🏫 {session.mode}</span>
-                        </span>
-                      </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setSelectedSessionModal(session)}
+                            className="w-full lg:w-auto h-9 px-4 rounded-xl text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-[#1769AA] gap-1.5 shadow-2xs justify-center"
+                          >
+                            <Eye className="w-3.5 h-3.5 text-slate-400" />
+                            View Class
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </div>
-
-                  {/* Right Column: Desktop Status & Action Button */}
-                  <div className="flex items-center justify-end gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100">
-                    <span className="hidden lg:inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-100/80 text-amber-800 border border-amber-200/50">
-                      {session.status}
-                    </span>
-
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelectedSessionModal(session)}
-                      className="w-full lg:w-auto h-9 px-4 rounded-xl text-xs font-semibold text-slate-700 border-slate-200 bg-white hover:bg-slate-50 hover:text-[#1769AA] gap-1.5 shadow-2xs justify-center"
-                    >
-                      <Eye className="w-3.5 h-3.5 text-slate-400" />
-                      View Class
-                    </Button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

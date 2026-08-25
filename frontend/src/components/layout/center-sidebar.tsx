@@ -1,16 +1,25 @@
-import * as React from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import * as React from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   BookOpen,
+  Calendar,
+  GraduationCap,
   LayoutDashboard,
   Settings,
+  Bell,
+  Users,
   Target,
+  CreditCard,
+  BarChart3,
   ChevronRight,
   LogOut,
+  UserCheck,
   Sparkles,
+  Layers,
   Bot,
-  Calendar
-} from "lucide-react"
+  Building2,
+  Lock,
+} from "lucide-react";
 
 import {
   Sidebar,
@@ -25,88 +34,172 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
   SidebarRail,
-} from "@/components/ui/sidebar"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { useAuthStore } from "@/store/auth.store"
-import { InstallAppButton } from "@/components/common/InstallAppButton"
+} from "@/components/ui/sidebar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { useAuthStore } from "@/store/auth.store";
+import { InstallAppButton } from "@/components/common/InstallAppButton";
 
-const centerNavItems = [
-  {
-    title: "ASK ME",
-    url: "/center/ask-me",
-    icon: Sparkles,
-    isActive: false,
-    isAi: true,
-  },
-  {
-    title: "Dashboard",
-    url: "/center/dashboard",
-    icon: LayoutDashboard,
-    isActive: true,
-  },
-  {
-    title: "Leads & AI Calling",
-    url: "/center/leads",
-    icon: Bot,
-    isActive: false,
-    items: [
-      { title: "All Leads", url: "/center/leads" },
-      { title: "AI Calling", url: "/center/leads/ai-calling" },
-      { title: "Follow-ups", url: "/center/leads/follow-ups" },
-    ],
-  },
-  {
-    title: "Admissions",
-    url: "/center/admissions/all",
-    icon: Target,
-    isActive: false,
-    items: [
-      { title: "All Admissions", url: "/center/admissions/all" },
-      { title: "Applications", url: "/center/admissions/applications" },
-    ],
-  },
-  {
-    title: "Courses",
-    url: "/center/courses/all",
-    icon: BookOpen,
-    isActive: false,
-    items: [
-      { title: "All Courses", url: "/center/courses/all" },
-      { title: "Batches", url: "/center/courses/batches" },
-    ],
-  },
-  {
-    title: "Timetable",
-    url: "/center/timetable",
-    icon: Calendar,
-    isActive: false,
-  },
-  {
-    title: "Settings",
-    url: "/center/settings",
-    icon: Settings,
-    isActive: false,
-  },
-]
+const centerNavData = {
+  navMain: [
+    {
+      title: "ASK ME",
+      url: "/center/ask-me",
+      icon: Sparkles,
+      isActive: false,
+      isAi: true,
+    },
+    {
+      title: "Dashboard",
+      url: "/center/dashboard",
+      icon: LayoutDashboard,
+      isActive: false,
+    },
+    {
+      title: "Students",
+      url: "/center/students",
+      icon: GraduationCap,
+      isActive: false,
+      items: [
+        { title: "All Students", url: "/center/students/all" },
+        { title: "Attendance", url: "/center/students/attendance" },
+        { title: "Discontinuation Risk", url: "/center/students/discontinuation-risk" },
+      ],
+    },
+    {
+      title: "Faculty",
+      url: "/center/faculty",
+      icon: Users,
+      isActive: false,
+      items: [
+        { title: "All Faculty", url: "/center/faculty/all" },
+        { title: "Assigned Courses", url: "/center/faculty/courses" },
+        { title: "Attendance", url: "/center/faculty/attendance" },
+        { title: "Faculty Ratings", url: "/center/faculty/ratings" },
+      ],
+    },
+    {
+      title: "Courses",
+      url: "/center/courses",
+      icon: BookOpen,
+      isActive: false,
+      items: [
+        { title: "All Courses", url: "/center/courses/all" },
+        { title: "Batches", url: "/center/courses/batches" },
+      ],
+    },
+    {
+      title: "Leads & AI Calling",
+      url: "/center/leads",
+      icon: Bot,
+      isActive: false,
+      items: [
+        { title: "All Leads", url: "/center/leads" },
+        { title: "AI Calling", url: "/center/leads/ai-calling" },
+        { title: "Follow-ups", url: "/center/leads/follow-ups" },
+      ],
+    },
+    {
+      title: "Admissions",
+      url: "/center/admissions",
+      icon: Target,
+      isActive: false,
+      items: [
+        { title: "All Admissions", url: "/center/admissions/all" },
+        { title: "Applications", url: "/center/admissions/applications" },
+      ],
+    },
+    {
+      title: "Counsellor",
+      url: "/center/counselor/overview",
+      icon: UserCheck,
+      isActive: false,
+      items: [
+        { title: "Overview", url: "/center/counselor/overview" },
+        { title: "Manage Counsellors", url: "/center/counselor/all" },
+        { title: "Create & Manage Batches", url: "/center/counselor/batches" },
+      ],
+    },
+    {
+      title: "Schedule",
+      url: "/center/schedule",
+      icon: Calendar,
+      isActive: false,
+      items: [
+        { title: "Classes", url: "/center/schedule/classes" },
+        { title: "Timetable", url: "/center/schedule/timetable" },
+        { title: "Recordings", url: "/center/schedule/recordings" },
+        { title: "Assignments", url: "/center/schedule/assignments" },
+      ],
+    },
+    {
+      title: "Fees",
+      url: "/center/fees",
+      icon: CreditCard,
+      isActive: false,
+      items: [
+        { title: "Payments", url: "/center/fees/payments" },
+        { title: "Pending Fees", url: "/center/fees/pending" },
+        { title: "Fee Reports", url: "/center/fees/reports" },
+      ],
+    },
+    {
+      title: "Reports",
+      url: "/center/reports",
+      icon: BarChart3,
+      isActive: false,
+      items: [
+        { title: "Student Reports", url: "/center/reports/students" },
+        { title: "Faculty Reports", url: "/center/reports/faculty" },
+        { title: "Course Reports", url: "/center/reports/courses" },
+        { title: "Financial Reports", url: "/center/reports/financial" },
+        { title: "Placement Export", url: "/center/reports/placement" },
+      ],
+    },
+    {
+      title: "Notifications",
+      url: "/center/notifications",
+      icon: Bell,
+      isActive: false,
+      items: [
+        { title: "All Notifications", url: "/center/notifications" },
+        { title: "WhatsApp Monitor", url: "/center/notifications/whatsapp" },
+      ],
+    },
+    {
+      title: "Masters",
+      url: "/center/masters",
+      icon: Layers,
+      isActive: false,
+    },
+    {
+      title: "Settings",
+      url: "/center/settings",
+      icon: Settings,
+      isActive: false,
+    },
+  ],
+};
 
 export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
+
+  const managerName = user?.name || "Suresh Sharma";
+  const branchName = "Aadya Institute Malleshwaram";
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
+      {/* ─── Header: Brand Logo ────────────────────────────────────────── */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
-              <Link to="/center/home">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[#1769AA] text-sidebar-primary-foreground font-bold">
-                  A
-                </div>
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-bold text-[#1769AA]">Aadya Portal</span>
-                  <span className="truncate text-xs font-semibold text-amber-600">CENTER MANAGER</span>
+              <Link to="/center/dashboard">
+                <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
+                <div className="flex flex-col gap-0.5 leading-none">
+                  <span className="font-semibold text-text-primary">Aadya Portal</span>
+                  <span className="text-xs text-amber-600 font-bold">CENTER MANAGER</span>
                 </div>
               </Link>
             </SidebarMenuButton>
@@ -114,24 +207,26 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
         </SidebarMenu>
       </SidebarHeader>
 
+      {/* ─── Navigation Items (Exact Mirror of Admin Sidebar) ─────────── */}
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {centerNavItems.map((item) => {
-              const isSubItemActive = item.items?.some((subItem) => location.pathname === subItem.url)
-              const isDirectActive = location.pathname === item.url
-              const isExpanded = isSubItemActive || isDirectActive
+            {centerNavData.navMain.map((item) => {
+              const isItemActive = location.pathname === item.url;
+              const isGroupActive = item.items?.some(
+                (sub) => location.pathname === sub.url || location.pathname.startsWith(sub.url)
+              );
 
               if (!item.items) {
-                if ((item as any).isAi) {
+                if (item.isAi) {
                   return (
                     <SidebarMenuItem key={item.title} className="mb-2">
                       <SidebarMenuButton
                         asChild
-                        isActive={isDirectActive}
+                        isActive={isItemActive}
                         tooltip={item.title}
                         className={
-                          isDirectActive
+                          isItemActive
                             ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
                             : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
                         }
@@ -139,105 +234,108 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                         <Link to={item.url} className="flex items-center justify-between w-full">
                           <div className="flex items-center gap-2">
                             <Sparkles
-                              className={`h-4 w-4 shrink-0 ${isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
-                                }`}
+                              className={`h-4 w-4 shrink-0 ${
+                                isItemActive ? "text-white fill-white" : "text-[#1769AA]"
+                              }`}
                             />
                             <span className="tracking-wide">✦ ASK ME</span>
                           </div>
                           <span
-                            className={`${isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
-                              } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
+                            className={`${
+                              isItemActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
+                            } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
                           >
                             AI
                           </span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
-                  )
+                  );
                 }
 
                 return (
                   <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isDirectActive}
-                      tooltip={item.title}
-                      className={isDirectActive ? "bg-accent-primary/10 text-accent-primary font-medium" : ""}
-                    >
+                    <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.title}>
                       <Link to={item.url}>
-                        <item.icon className="h-4 w-4" />
+                        {item.icon && <item.icon />}
                         <span>{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                )
+                );
               }
 
               return (
                 <Collapsible
                   key={item.title}
                   asChild
-                  defaultOpen={isExpanded}
+                  defaultOpen={isGroupActive}
                   className="group/collapsible"
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton
-                        tooltip={item.title}
-                        isActive={isSubItemActive}
-                        className={isSubItemActive ? "text-accent-primary font-medium" : ""}
-                      >
-                        {item.icon && <item.icon className="h-4 w-4" />}
+                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive}>
+                        {item.icon && <item.icon />}
                         <span>{item.title}</span>
-                        <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <SidebarMenuSub>
-                        {item.items.map((subItem) => {
-                          const isSubActive = location.pathname === subItem.url
-                          return (
-                            <SidebarMenuSubItem key={subItem.title}>
-                              <SidebarMenuSubButton
-                                asChild
-                                isActive={isSubActive}
-                                className={isSubActive ? "bg-accent-primary/10 text-accent-primary font-semibold" : ""}
-                              >
-                                <Link to={subItem.url}>
-                                  <span>{subItem.title}</span>
-                                </Link>
-                              </SidebarMenuSubButton>
-                            </SidebarMenuSubItem>
-                          )
-                        })}
+                        {item.items.map((subItem) => (
+                          <SidebarMenuSubItem key={subItem.title}>
+                            <SidebarMenuSubButton
+                              asChild
+                              isActive={location.pathname === subItem.url}
+                            >
+                              <Link to={subItem.url}>
+                                <span>{subItem.title}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        ))}
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>
                 </Collapsible>
-              )
+              );
             })}
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/50">
-        <div className="px-2 pt-2">
+      {/* ─── Footer: Center Manager Profile & Locked Branch Indicator ── */}
+      <SidebarFooter className="border-t border-border/50 p-2 space-y-2">
+        <div className="px-1">
           <InstallAppButton variant="sidebar" />
         </div>
+
+        {/* Center Manager Profile Card */}
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center justify-between p-2">
-              <div className="flex flex-col gap-1 overflow-hidden">
-                <span className="text-sm font-semibold truncate">{user?.name || "Center Manager"}</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email || "center.manager@aadya.in"}</span>
+            <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/40">
+              <div className="flex flex-col gap-0.5 overflow-hidden">
+                <span className="text-xs font-bold truncate text-text-primary">
+                  {managerName}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] font-semibold text-amber-600">
+                    Center Manager
+                  </span>
+                  <span className="text-muted-foreground">•</span>
+                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    Online
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  logout()
-                  navigate("/login")
+                  logout();
+                  navigate("/login");
                 }}
-                className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
                 title="Log out"
               >
                 <LogOut className="h-4 w-4" />
@@ -245,8 +343,28 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
             </div>
           </SidebarMenuItem>
         </SidebarMenu>
+
+        {/* Locked Branch Indicator */}
+        <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/60 flex items-center justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-6 w-6 rounded-lg bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
+              <Building2 className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  Assigned Center
+                </span>
+                <Lock className="h-2.5 w-2.5 text-slate-400" />
+              </div>
+              <span className="text-[11px] font-bold text-slate-800 block truncate">
+                {branchName}
+              </span>
+            </div>
+          </div>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
-  )
+  );
 }
