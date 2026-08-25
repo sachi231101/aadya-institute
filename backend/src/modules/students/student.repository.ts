@@ -47,7 +47,7 @@ const studentInclude = {
         },
       },
     },
-    where: { status: "ACTIVE" },
+    where: { status: "ACTIVE" as any },
     take: 1,
   },
   studentAttendances: {

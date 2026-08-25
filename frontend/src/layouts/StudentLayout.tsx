@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   LogOut,
   Menu,
-  X
+  X,
+  Megaphone,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -73,6 +74,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
+    { label: "Announcements", icon: Megaphone, path: "/student/announcements" },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },

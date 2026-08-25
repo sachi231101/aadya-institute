@@ -213,10 +213,15 @@ const INITIAL_FACULTY_WEEK: FacultyDaySchedule[] = [
   },
 ];
 
-export const FacultyTimetable: React.FC = () => {
+export interface FacultyTimetableProps {
+  readOnly?: boolean;
+}
+
+export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = true }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
 
+  const isFacultyUser = readOnly || !user?.roles?.includes("ADMIN");
   const facultyCenterName = (user as any)?.branchName || "Bangalore Center";
 
   // State
@@ -656,13 +661,19 @@ export const FacultyTimetable: React.FC = () => {
                         return (
                           <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
                             <div
-                              onClick={() => handleSlotClick(day, slot)}
-                              className="h-[74px] rounded-xl border border-emerald-200/70 bg-emerald-50/30 hover:bg-emerald-100/50 hover:border-emerald-300 transition-all flex flex-col items-center justify-center cursor-pointer group text-center"
+                              onClick={() => !isFacultyUser && handleSlotClick(day, slot)}
+                              className={`h-[74px] rounded-xl border border-emerald-200/70 bg-emerald-50/30 flex flex-col items-center justify-center text-center ${
+                                isFacultyUser
+                                  ? "cursor-default"
+                                  : "hover:bg-emerald-100/50 hover:border-emerald-300 transition-all cursor-pointer group"
+                              }`}
                             >
                               <span className="text-[11px] font-bold text-emerald-700 tracking-wide uppercase">FREE</span>
-                              <span className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
-                                <Plus className="h-2.5 w-2.5" /> Add Class
-                              </span>
+                              {!isFacultyUser && (
+                                <span className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
+                                  <Plus className="h-2.5 w-2.5" /> Add Class
+                                </span>
+                              )}
                             </div>
                           </td>
                         );
@@ -673,8 +684,7 @@ export const FacultyTimetable: React.FC = () => {
                         return (
                           <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
                             <div
-                              onClick={() => handleSlotClick(day, slot)}
-                              className="h-[74px] rounded-xl border border-amber-200/60 bg-amber-50/40 hover:bg-amber-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-[#C2410C]"
+                              className="h-[74px] rounded-xl border border-amber-200/60 bg-amber-50/40 flex flex-col items-center justify-center text-[#C2410C] cursor-default"
                             >
                               <span className="text-[11px] font-bold tracking-wide uppercase">BREAK</span>
                               <Coffee className="h-3.5 w-3.5 mt-1 text-[#EA580C]" />
@@ -688,8 +698,7 @@ export const FacultyTimetable: React.FC = () => {
                         return (
                           <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
                             <div
-                              onClick={() => handleSlotClick(day, slot)}
-                              className="h-[74px] rounded-xl border border-yellow-200/60 bg-yellow-50/40 hover:bg-yellow-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-[#B45309]"
+                              className="h-[74px] rounded-xl border border-yellow-200/60 bg-yellow-50/40 flex flex-col items-center justify-center text-[#B45309] cursor-default"
                             >
                               <span className="text-[11px] font-bold tracking-wide uppercase">LUNCH</span>
                               <UtensilsCrossed className="h-3.5 w-3.5 mt-1 text-[#D97706]" />
@@ -703,8 +712,7 @@ export const FacultyTimetable: React.FC = () => {
                         return (
                           <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
                             <div
-                              onClick={() => handleSlotClick(day, slot)}
-                              className="h-[74px] rounded-xl border border-rose-200/60 bg-rose-50/40 hover:bg-rose-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-700"
+                              className="h-[74px] rounded-xl border border-rose-200/60 bg-rose-50/40 flex flex-col items-center justify-center text-rose-700 cursor-default"
                             >
                               <span className="text-[11px] font-bold tracking-wide uppercase">ON LEAVE</span>
                               <span className="text-[9px] text-rose-500 font-semibold mt-0.5">Off</span>
@@ -717,13 +725,19 @@ export const FacultyTimetable: React.FC = () => {
                       return (
                         <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
                           <div
-                            onClick={() => handleSlotClick(day, slot)}
-                            className="h-[74px] rounded-xl border border-slate-200/60 bg-slate-50/50 hover:bg-slate-100/60 transition-colors flex flex-col items-center justify-center cursor-pointer group text-center"
+                            onClick={() => !isFacultyUser && handleSlotClick(day, slot)}
+                            className={`h-[74px] rounded-xl border border-slate-200/60 bg-slate-50/50 flex flex-col items-center justify-center text-center ${
+                              isFacultyUser
+                                ? "cursor-default"
+                                : "hover:bg-slate-100/60 transition-colors cursor-pointer group"
+                            }`}
                           >
-                            <span className="text-[10px] font-medium text-slate-500">Not Assigned</span>
-                            <span className="text-[9px] font-bold text-slate-400 mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
-                              <Plus className="h-2.5 w-2.5" /> Add Class
-                            </span>
+                            <span className="text-[10px] font-medium text-slate-400">Not Assigned</span>
+                            {!isFacultyUser && (
+                              <span className="text-[9px] font-bold text-slate-400 mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                                <Plus className="h-2.5 w-2.5" /> Add Class
+                              </span>
+                            )}
                           </div>
                         </td>
                       );
@@ -753,28 +767,30 @@ export const FacultyTimetable: React.FC = () => {
       </Card>
 
       {/* ─── 6. BOTTOM INFORMATION & ADD NEW CLASS BAR ──────────────────── */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          <Info className="h-4 w-4 text-[#5B50EC] shrink-0" />
-          <span>Click on any cell to view or edit the schedule.</span>
-        </div>
+      {!isFacultyUser && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
+          <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+            <Info className="h-4 w-4 text-[#5B50EC] shrink-0" />
+            <span>Click on any cell to view or edit the schedule.</span>
+          </div>
 
-        <Button
-          onClick={() => {
-            setFormDayKey("MON");
-            setFormPeriod(1);
-            setFormType("CLASS");
-            setFormCourseName("Java Programming");
-            setFormBatchCode("Batch C");
-            setFormRoomNo("Room 301");
-            setFormStudentCount(28);
-            setIsEditModalOpen(true);
-          }}
-          className="text-xs font-bold h-10 px-5 bg-[#5B50EC] hover:bg-[#4F46E5] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
-        >
-          <Plus className="h-4 w-4" /> Add New Class
-        </Button>
-      </div>
+          <Button
+            onClick={() => {
+              setFormDayKey("MON");
+              setFormPeriod(1);
+              setFormType("CLASS");
+              setFormCourseName("Java Programming");
+              setFormBatchCode("Batch C");
+              setFormRoomNo("Room 301");
+              setFormStudentCount(28);
+              setIsEditModalOpen(true);
+            }}
+            className="text-xs font-bold h-10 px-5 bg-[#5B50EC] hover:bg-[#4F46E5] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
+          >
+            <Plus className="h-4 w-4" /> Add New Class
+          </Button>
+        </div>
+      )}
 
       {/* ─── MODAL 1: CLASS DETAILS PANEL ───────────────────────────────── */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
@@ -818,36 +834,38 @@ export const FacultyTimetable: React.FC = () => {
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="space-y-2 pt-1">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Quick Actions</span>
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickStatusChange("FREE")}
-                    className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 h-8 rounded-lg"
-                  >
-                    Mark Free
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickStatusChange("BREAK")}
-                    className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200 h-8 rounded-lg"
-                  >
-                    Mark Break
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleQuickStatusChange("LEAVE")}
-                    className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200 h-8 rounded-lg"
-                  >
-                    Mark Leave
-                  </Button>
+              {/* Quick Actions (Admin Only) */}
+              {!isFacultyUser && (
+                <div className="space-y-2 pt-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Quick Actions</span>
+                  <div className="grid grid-cols-3 gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleQuickStatusChange("FREE")}
+                      className="text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 h-8 rounded-lg"
+                    >
+                      Mark Free
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleQuickStatusChange("BREAK")}
+                      className="text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border-amber-200 h-8 rounded-lg"
+                    >
+                      Mark Break
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleQuickStatusChange("LEAVE")}
+                      className="text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border-rose-200 h-8 rounded-lg"
+                    >
+                      Mark Leave
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <DialogFooter className="flex gap-2 mt-4">
                 <Button
@@ -857,12 +875,14 @@ export const FacultyTimetable: React.FC = () => {
                 >
                   Close
                 </Button>
-                <Button
-                  onClick={handleOpenEditFromDetails}
-                  className="bg-[#5B50EC] hover:bg-[#4F46E5] text-white text-xs font-bold rounded-xl gap-1.5"
-                >
-                  <Edit3 className="h-3.5 w-3.5" /> Edit Class Details
-                </Button>
+                {!isFacultyUser && (
+                  <Button
+                    onClick={handleOpenEditFromDetails}
+                    className="bg-[#5B50EC] hover:bg-[#4F46E5] text-white text-xs font-bold rounded-xl gap-1.5"
+                  >
+                    <Edit3 className="h-3.5 w-3.5" /> Edit Class Details
+                  </Button>
+                )}
               </DialogFooter>
             </>
           )}

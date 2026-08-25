@@ -9,7 +9,6 @@ import {
   Settings,
   LogOut,
   Sparkles,
-  BookMarked,
   Megaphone,
   ShieldCheck,
   ChevronDown,
@@ -61,14 +60,9 @@ const facultyNavItems: NavItem[] = [
   },
   {
     title: "My Schedule",
-    url: "/faculty/timetable",
+    url: "/faculty/classes",
     icon: Calendar,
     items: [
-      {
-        title: "Timetable",
-        url: "/faculty/timetable",
-        icon: Clock,
-      },
       {
         title: "My Classes",
         url: "/faculty/classes",
@@ -105,11 +99,6 @@ const facultyNavItems: NavItem[] = [
     title: "Student Performance",
     url: "/faculty/reports/students",
     icon: BarChart3,
-  },
-  {
-    title: "Resources",
-    url: "/faculty/resources",
-    icon: BookMarked,
   },
   {
     title: "Announcements",
@@ -160,7 +149,7 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
               const isSubItemActive = item.items?.some(
                 (subItem) => location.pathname === subItem.url || location.pathname.startsWith(subItem.url + "/")
               )
-              const isDirectActive = location.pathname === item.url || (item.url === "/faculty/timetable" && location.pathname === "/faculty/schedule/timetable")
+              const isDirectActive = location.pathname === item.url || (item.url === "/faculty/classes" && location.pathname === "/faculty/schedule/classes")
               const isExpanded = isSubItemActive || isDirectActive
 
               if (!item.items) {
@@ -248,7 +237,6 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                         {item.items.map((subItem) => {
                           const isSubActive =
                             location.pathname === subItem.url ||
-                            (subItem.url === "/faculty/timetable" && (location.pathname === "/faculty/schedule/timetable" || location.pathname === "/faculty/timetable")) ||
                             (subItem.url === "/faculty/classes" && (location.pathname === "/faculty/schedule/classes" || location.pathname === "/faculty/classes"))
 
                           return (

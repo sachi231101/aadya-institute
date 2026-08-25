@@ -129,6 +129,9 @@ export const NotificationPopover: React.FC = () => {
 
   const renderIcon = (type: NotificationType, module?: string) => {
     const mod = module?.toLowerCase();
+    if (type === "CLASS" || mod === "class" || mod === "live") {
+      return <Video className="h-4 w-4 text-rose-600 animate-pulse" />;
+    }
     if (mod === "fees" || type === "PAYMENT") {
       return <DollarSign className="h-4 w-4 text-emerald-600" />;
     }
@@ -167,7 +170,7 @@ export const NotificationPopover: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors focus:outline-none"
+        className="relative p-2 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
         aria-label="Notifications"
       >
         <Bell size={20} />
@@ -183,7 +186,7 @@ export const NotificationPopover: React.FC = () => {
 
       {/* Popover Dropdown */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="p-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -199,7 +202,7 @@ export const NotificationPopover: React.FC = () => {
                 type="button"
                 onClick={handleMarkAllRead}
                 disabled={markAllAsReadMutation.isPending}
-                className="text-xs font-semibold text-[#1769AA] hover:text-[#F39A16] flex items-center gap-1 transition-colors"
+                className="text-xs font-semibold text-[#1769AA] hover:text-[#F39A16] flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <CheckCheck className="h-3.5 w-3.5" /> Mark all read
               </button>
@@ -207,47 +210,97 @@ export const NotificationPopover: React.FC = () => {
           </div>
 
           {/* Body List */}
-          <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
             {isLoading ? (
               <div className="py-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
                 <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
                 Loading alerts...
               </div>
             ) : notifications.length > 0 ? (
-              notifications.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleNotificationClick(item)}
-                  className={`p-3.5 flex items-start gap-3 cursor-pointer hover:bg-slate-50 transition-colors ${
-                    !item.isRead ? "bg-blue-50/40" : ""
-                  }`}
-                >
-                  <div className="p-2 rounded-lg bg-white border border-slate-200 shadow-xs shrink-0">
-                    {renderIcon(item.type, item.module)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
-                          {getModuleLabel(item)}
-                        </span>
-                        <p className={`text-xs font-bold truncate ${!item.isRead ? "text-slate-900" : "text-slate-700"}`}>
-                          {item.title}
+              notifications.map((item) => {
+                const isLiveNotification =
+                  item.title?.includes("LIVE") || item.type === "CLASS" || item.event === "LIVE_CLASS_STARTED";
+
+                return (
+                  <div
+                    key={item.id}
+                    onClick={() => handleNotificationClick(item)}
+                    className={`p-3.5 flex flex-col gap-2 cursor-pointer transition-colors ${
+                      isLiveNotification
+                        ? "bg-rose-50/60 hover:bg-rose-50 border-l-4 border-l-rose-500"
+                        : !item.isRead
+                        ? "bg-blue-50/40 hover:bg-blue-50/60"
+                        : "hover:bg-slate-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div
+                        className={`p-2 rounded-xl border shadow-2xs shrink-0 ${
+                          isLiveNotification
+                            ? "bg-white border-rose-200 text-rose-600"
+                            : "bg-white border-slate-200"
+                        }`}
+                      >
+                        {renderIcon(item.type, item.module)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isLiveNotification ? (
+                              <Badge className="bg-rose-600 text-white font-black text-[9.5px] px-2 py-0.2 shrink-0 animate-pulse">
+                                🔴 LIVE
+                              </Badge>
+                            ) : (
+                              <span className="text-[10px] font-semibold uppercase px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+                                {getModuleLabel(item)}
+                              </span>
+                            )}
+                            <p
+                              className={`text-xs font-extrabold truncate ${
+                                isLiveNotification
+                                  ? "text-rose-950"
+                                  : !item.isRead
+                                  ? "text-slate-900"
+                                  : "text-slate-700"
+                              }`}
+                            >
+                              {item.title}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                            {formatRelativeTime(item.createdAt)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 whitespace-pre-line leading-relaxed mt-1">
+                          {item.message}
                         </p>
                       </div>
-                      <span className="text-[10px] text-slate-400 shrink-0">
-                        {formatRelativeTime(item.createdAt)}
-                      </span>
+                      {!item.isRead && (
+                        <span className="w-2 h-2 rounded-full bg-rose-600 shrink-0 mt-1.5" />
+                      )}
                     </div>
-                    <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
-                      {item.message}
-                    </p>
+
+                    {/* Interactive Join Class Button on Live Notification Card */}
+                    {isLiveNotification && (
+                      <div className="pl-11 pt-1 flex items-center justify-end">
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (item.link) {
+                              window.open(item.link, "_blank", "noopener,noreferrer");
+                            }
+                          }}
+                          className="h-7 text-[11px] font-black bg-rose-600 hover:bg-rose-700 text-white rounded-lg shadow-sm gap-1.5 px-3 cursor-pointer"
+                        >
+                          <Video className="w-3.5 h-3.5" /> 🎥 Join Class
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  {!item.isRead && (
-                    <span className="w-2 h-2 rounded-full bg-[#1769AA] shrink-0 mt-1.5" />
-                  )}
-                </div>
-              ))
+                );
+              })
             ) : (
               <div className="py-8 text-center text-xs text-slate-400">
                 {isCenter

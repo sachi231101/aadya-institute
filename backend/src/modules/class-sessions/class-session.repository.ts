@@ -208,6 +208,122 @@ export const classSessionRepository = {
     });
   },
 
+  startLive: async (id: string, instituteId: string, meetingUrl?: string) => {
+    return prisma.classSession.update({
+      where: { id },
+      data: {
+        sessionStatus: "LIVE",
+        mode: "ONLINE",
+        ...(meetingUrl ? { meetingUrl } : {}),
+        actualStartTime: new Date(),
+      },
+      include: {
+        batch: {
+          include: {
+            course: true,
+            enrollments: {
+              where: { status: "ACTIVE" },
+              include: {
+                student: {
+                  include: {
+                    user: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        faculty: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  },
+
+  endLive: async (id: string, instituteId: string) => {
+    return prisma.classSession.update({
+      where: { id },
+      data: {
+        sessionStatus: "COMPLETED",
+        actualEndTime: new Date(),
+      },
+      include: {
+        batch: {
+          include: {
+            course: true,
+          },
+        },
+        faculty: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+        recording: true,
+      },
+    });
+  },
+
+  findActiveLiveSessions: async (instituteId: string, branchId?: string, batchIds?: string[], facultyId?: string) => {
+    const where: Prisma.ClassSessionWhereInput = {
+      batch: {
+        instituteId,
+      },
+      sessionStatus: { in: ["LIVE", "ONGOING"] },
+    };
+
+    if (branchId) {
+      where.branchId = branchId;
+    }
+
+    if (batchIds && batchIds.length > 0) {
+      where.batchId = { in: batchIds };
+    }
+
+    if (facultyId) {
+      where.facultyId = facultyId;
+    }
+
+    return prisma.classSession.findMany({
+      where,
+      include: {
+        batch: {
+          include: {
+            course: true,
+          },
+        },
+        faculty: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                phone: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { scheduledDate: "desc" },
+    });
+  },
+
   delete: async (id: string) => {
     return prisma.classSession.delete({
       where: { id },

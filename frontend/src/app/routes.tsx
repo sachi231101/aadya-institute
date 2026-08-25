@@ -98,6 +98,7 @@ import { FacultyBatchClasses } from "../pages/faculty/BatchClasses";
 import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 import { FacultyClassSession } from "../pages/faculty/ClassSession";
 import { FacultyRecordings } from "../pages/faculty/FacultyRecordings";
+import { FacultyAnnouncements } from "../pages/faculty/Announcements";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -106,6 +107,7 @@ import { StudentFeedback } from "../pages/student/Feedback";
 import { StudentSchedule } from "../pages/student/Schedule";
 import { StudentProfile } from "../pages/student/Profile";
 import { StudentStudyMaterials } from "../pages/student/StudyMaterials";
+import { StudentAnnouncements } from "../pages/student/Announcements";
 
 
 // Other roles dashboards
@@ -244,6 +246,7 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id/edit" element={<EditStudent />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="performance" element={<StudentPerformance />} />
+          <Route path="discontinuation-risk" element={<DiscontinuationRisk />} />
         </Route>
 
         {/* Counsellor */}
@@ -263,11 +266,15 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
+          <Route path="ratings" element={<FacultyRatings />} />
         </Route>
 
         {/* Schedule */}
         <Route path="schedule">
+          <Route path="classes" element={<Classes />} />
           <Route path="timetable" element={<Timetable />} />
+          <Route path="recordings" element={<Recordings />} />
+          <Route path="assignments" element={<AdminAssignments />} />
         </Route>
 
         {/* Fees */}
@@ -293,10 +300,20 @@ export const AppRoutes: React.FC = () => {
           <Route path="curriculum" element={<Curriculum />} />
         </Route>
 
+        {/* Reports */}
+        <Route path="reports">
+          <Route path="students" element={<StudentReports />} />
+          <Route path="faculty" element={<FacultyReports />} />
+          <Route path="courses" element={<CourseReports />} />
+          <Route path="financial" element={<FinancialReports />} />
+          <Route path="placement" element={<PlacementExport />} />
+        </Route>
+
         {/* Settings, Notifications & Masters */}
         <Route path="masters" element={<MasterSetup />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
+        <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />
 
         {/* Center Manager: Leads (branch-filtered) */}
         <Route path="leads">
@@ -411,6 +428,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="students" element={<StudentReports />} />
         </Route>
         <Route path="assignments" element={<FacultyAssignments />} />
+        <Route path="announcements" element={<FacultyAnnouncements />} />
         <Route path="batches" element={<FacultyBatchClasses />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
@@ -423,6 +441,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="dashboard" element={<StudentDashboard />} />
         <Route path="ask-me" element={<AskMe />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
+        <Route path="announcements" element={<StudentAnnouncements />} />
         <Route path="schedule" element={<StudentSchedule />} />
         <Route path="study-materials" element={<StudentStudyMaterials />} />
         <Route path="recordings" element={<StudentRecordings />} />
