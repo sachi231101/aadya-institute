@@ -450,6 +450,21 @@ export class ReportRepository {
       { name: "Cash / Desk", value: cashAmount, color: "#f59e0b" },
     ];
 
+    const recentPayments = payments
+      .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
+      .slice(0, 15)
+      .map((p) => ({
+        id: p.id,
+        receiptNo: p.receiptNo,
+        studentName: p.studentName,
+        admissionNo: p.admissionNo,
+        courseName: p.courseName,
+        amount: p.amount,
+        date: (p.date || p.createdAt).toISOString(),
+        method: p.method,
+        status: p.status,
+      }));
+
     return {
       summary: {
         totalCollected,
@@ -460,6 +475,7 @@ export class ReportRepository {
       monthlyTrend,
       paymentMethodShare,
       monthlyBreakdown: monthlyTrend,
+      recentPayments,
     };
   }
 }

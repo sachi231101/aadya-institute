@@ -67,6 +67,18 @@ export interface CourseReportData {
   }[];
 }
 
+export interface RecentPaymentData {
+  id: string;
+  receiptNo: string;
+  studentName: string;
+  admissionNo: string;
+  courseName: string;
+  amount: number;
+  date: string;
+  method: string;
+  status: string;
+}
+
 export interface FinancialReportData {
   summary: {
     totalCollected: number;
@@ -77,6 +89,7 @@ export interface FinancialReportData {
   monthlyTrend: { month: string; collected: number; pending: number }[];
   paymentMethodShare: { name: string; value: number; color: string }[];
   monthlyBreakdown: { month: string; collected: number; pending: number }[];
+  recentPayments?: RecentPaymentData[];
 }
 
 export const reportsApi = {

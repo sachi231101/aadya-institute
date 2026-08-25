@@ -14,6 +14,8 @@ import {
   TrendingUp,
   Briefcase,
   Loader2,
+  Receipt,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -80,13 +82,11 @@ export const BranchPerformance: React.FC = () => {
 
   const dbCollected = financialReport?.summary?.totalCollected ?? 0;
   const dbPending = financialReport?.summary?.totalPending ?? 0;
-  const dbProjected = (financialReport?.summary?.projectedRevenue && financialReport.summary.projectedRevenue > 0)
-    ? financialReport.summary.projectedRevenue
-    : (dbCollected + dbPending > 0 ? dbCollected + dbPending : 750000);
+  const dbProjected = financialReport?.summary?.projectedRevenue ?? (dbCollected + dbPending);
 
   const dbCollectionRate = dbProjected > 0
     ? Math.round((dbCollected / dbProjected) * 100)
-    : (financialReport?.summary?.collectionRate || 84);
+    : (financialReport?.summary?.collectionRate ?? 0);
 
   const formatINR = (val: number) => `₹${val.toLocaleString("en-IN")}`;
 
@@ -97,53 +97,28 @@ export const BranchPerformance: React.FC = () => {
         revenue: item.collected,
         pending: item.pending,
       }))
-    : [
-        { month: "Jan", revenue: 250000, pending: 40000 },
-        { month: "Feb", revenue: 320000, pending: 45000 },
-        { month: "Mar", revenue: 410000, pending: 35000 },
-        { month: "Apr", revenue: 380000, pending: 50000 },
-        { month: "May", revenue: 490000, pending: 30000 },
-        { month: "Jun", revenue: 560000, pending: 25000 },
-      ];
+    : [];
 
-  const studentJoinData = studentReport?.enrollmentTrend && studentReport.enrollmentTrend.length > 0
-    ? studentReport.enrollmentTrend.map((item) => ({
-        month: item.month,
-        students: item.students,
-      }))
-    : [
-        { month: "Jan", students: 12 },
-        { month: "Feb", students: 18 },
-        { month: "Mar", students: 24 },
-        { month: "Apr", students: 21 },
-        { month: "May", students: 30 },
-        { month: "Jun", students: 35 },
-      ];
+  const studentJoinData = studentReport?.enrollmentTrend || [];
 
   // 2. Pie Chart Data 1: Course Share
   const rawCourseShare = studentReport?.courseShare || [];
-  const courseSharePieData = rawCourseShare.length > 0 && rawCourseShare.some((c) => c.value > 0)
-    ? rawCourseShare.map((c, idx) => ({
-        ...c,
-        color: c.color || PIE_COLORS[idx % PIE_COLORS.length],
-      }))
-    : [
-        { name: "Full Stack Web Dev", value: Math.max(15, Math.round(studentCount * 0.45)), color: PIE_COLORS[0] },
-        { name: "Data Science & AI", value: Math.max(10, Math.round(studentCount * 0.35)), color: PIE_COLORS[1] },
-        { name: "UI/UX Product Design", value: Math.max(6, Math.round(studentCount * 0.20)), color: PIE_COLORS[2] },
-      ];
+  const courseSharePieData = rawCourseShare.filter((c) => c.value > 0).map((c, idx) => ({
+    ...c,
+    color: c.color || PIE_COLORS[idx % PIE_COLORS.length],
+  }));
 
   // Pie Chart Data 2: Collection Status
   const collectionPieData = [
-    { name: "Paid Fees", value: dbCollected > 0 ? dbCollected : 620000, color: COLLECTION_COLORS[0] },
-    { name: "Pending Fees", value: dbPending > 0 ? dbPending : 140000, color: COLLECTION_COLORS[1] },
+    { name: "Paid Fees", value: dbCollected, color: COLLECTION_COLORS[0] },
+    { name: "Pending Fees", value: dbPending, color: COLLECTION_COLORS[1] },
   ];
 
   // Pie Chart Data 3: Risk Health Status
   const branchStudents = studentReport?.students ?? [];
-  const normalCount = branchStudents.filter((s) => s.riskFlag === "Normal").length || Math.max(1, Math.round(studentCount * 0.85));
-  const atRiskCount = branchStudents.filter((s) => s.riskFlag === "At Risk").length || Math.max(0, Math.round(studentCount * 0.12));
-  const triggeredCount = branchStudents.filter((s) => s.riskFlag === "Triggered").length || Math.max(0, Math.round(studentCount * 0.03));
+  const normalCount = branchStudents.filter((s) => s.riskFlag === "Normal").length;
+  const atRiskCount = branchStudents.filter((s) => s.riskFlag === "At Risk").length;
+  const triggeredCount = branchStudents.filter((s) => s.riskFlag === "Triggered").length;
 
   const riskPieData = [
     { name: "Good Standing", value: normalCount, color: RISK_COLORS[0] },
@@ -165,18 +140,18 @@ export const BranchPerformance: React.FC = () => {
       const percent = total > 0 ? ((data.value / total) * 100).toFixed(1) : "0.0";
 
       return (
-        <div className="bg-slate-900 text-white px-3.5 py-2.5 rounded-xl shadow-2xl text-xs border border-slate-800 space-y-1 z-50">
+        <div className="bg-popover text-popover-foreground px-3.5 py-2.5 rounded-xl shadow-xl text-xs border border-border space-y-1 z-50">
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full" style={{ backgroundColor: data.payload.color || data.color }} />
-            <span className="font-bold">{data.name}</span>
+            <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: data.payload.color || data.color }} />
+            <span className="font-bold text-foreground">{data.name}</span>
           </div>
-          <div className="flex justify-between gap-4 text-slate-300 font-mono">
+          <div className="flex justify-between gap-4 text-muted-foreground font-mono">
             <span>{isFee ? "Amount:" : "Count:"}</span>
-            <span className="font-bold text-white">{isFee ? formatINR(data.value) : `${data.value} Students`}</span>
+            <span className="font-bold text-foreground">{isFee ? formatINR(data.value) : `${data.value} Students`}</span>
           </div>
-          <div className="flex justify-between gap-4 text-slate-400">
+          <div className="flex justify-between gap-4 text-muted-foreground">
             <span>Proportion:</span>
-            <span className="font-bold text-emerald-400">{percent}%</span>
+            <span className="font-bold text-emerald-500">{percent}%</span>
           </div>
         </div>
       );
@@ -187,129 +162,129 @@ export const BranchPerformance: React.FC = () => {
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12 animate-in fade-in">
       {/* 1. HEADER WITH BACK NAVIGATION & BRANCH PROFILE */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-2xl border border-border shadow-xs">
         <div className="flex items-start gap-4">
           <Button
             variant="outline"
             size="icon"
             onClick={() => navigate(-1)}
-            className="h-10 w-10 shrink-0 text-slate-500 hover:text-slate-900 border-slate-200 mt-1"
+            className="h-10 w-10 shrink-0 text-muted-foreground hover:text-foreground border-border mt-1 cursor-pointer"
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="space-y-1.5">
             <div className="flex flex-wrap items-center gap-2.5">
-              <Badge variant="outline" className="font-mono text-xs text-[#1769AA] bg-blue-50 border-blue-200">
+              <Badge variant="outline" className="font-mono text-xs text-primary bg-primary/10 border-primary/20 font-bold">
                 {branchCode}
               </Badge>
-              <Badge variant={status === "ACTIVE" ? "success" : "secondary"}>
+              <Badge className={status === "ACTIVE" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20" : "bg-muted text-muted-foreground"}>
                 {status}
               </Badge>
-              <span className="text-xs text-slate-400 font-medium">Branch Comprehensive Analytics</span>
+              <span className="text-xs text-muted-foreground font-medium">Branch Comprehensive Analytics</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0A2540]">{branchName}</h1>
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-500 pt-0.5">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{branchName}</h1>
+            <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground pt-0.5">
               <span className="flex items-center gap-1.5">
-                <MapPin className="h-3.5 w-3.5 text-slate-400" /> {address}
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" /> {address}
               </span>
               <span className="flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5 text-slate-400" /> {phone}
+                <Phone className="h-3.5 w-3.5 text-muted-foreground" /> {phone}
               </span>
             </div>
           </div>
         </div>
 
         {/* MANAGER PROFILE CHIP */}
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200/80 px-4 py-2.5 rounded-xl self-start md:self-auto">
-          <div className="h-9 w-9 rounded-full bg-[#1769AA] text-white flex items-center justify-center font-bold text-sm">
+        <div className="flex items-center gap-3 bg-muted/40 border border-border px-4 py-2.5 rounded-xl self-start md:self-auto">
+          <div className="h-9 w-9 rounded-full bg-primary text-white flex items-center justify-center font-black text-sm shadow-xs">
             {managerName.charAt(0)}
           </div>
           <div>
-            <p className="text-[10px] uppercase font-bold text-slate-400 leading-none">Center Manager</p>
-            <p className="text-sm font-bold text-[#0A2540] mt-0.5">{managerName}</p>
-            <p className="text-[11px] text-slate-500">{managerEmail}</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground leading-none">Center Manager</p>
+            <p className="text-sm font-bold text-foreground mt-0.5">{managerName}</p>
+            <p className="text-[11px] text-muted-foreground">{managerEmail}</p>
           </div>
         </div>
       </div>
 
       {isLoading && (
-        <div className="flex items-center justify-center py-6 text-slate-500 gap-2 bg-blue-50/50 rounded-xl border border-blue-100">
-          <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+        <div className="flex items-center justify-center py-6 text-muted-foreground gap-2 bg-muted/30 rounded-xl border border-border">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
           <span className="text-xs font-medium">Fetching real-time branch analytics from PostgreSQL...</span>
         </div>
       )}
 
       {/* 2. EXECUTIVE METRIC KPI CARDS */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-slate-200/80 shadow-sm bg-white overflow-hidden relative">
+        <Card className="border border-border shadow-xs bg-card overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-indigo-500" />
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Enrolled Students</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1.5">{studentCount}</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Enrolled Students</p>
+                <h3 className="text-2xl font-black text-foreground mt-1.5">{studentCount}</h3>
               </div>
-              <div className="p-2.5 rounded-xl bg-indigo-50 text-indigo-600">
+              <div className="p-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40">
                 <GraduationCap className="h-5 w-5" />
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-1">
-              <span className="text-emerald-600 font-bold flex items-center"><TrendingUp className="h-3.5 w-3.5 mr-0.5" /> Active</span> across all courses
+            <p className="text-xs text-muted-foreground mt-2 font-medium flex items-center gap-1">
+              <span className="text-emerald-500 font-bold flex items-center"><TrendingUp className="h-3.5 w-3.5 mr-0.5" /> Active</span> across all courses
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 shadow-sm bg-white overflow-hidden relative">
+        <Card className="border border-border shadow-xs bg-card overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-pink-500" />
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Assigned Faculty</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1.5">{facultyCount}</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Assigned Faculty</p>
+                <h3 className="text-2xl font-black text-foreground mt-1.5">{facultyCount}</h3>
               </div>
-              <div className="p-2.5 rounded-xl bg-pink-50 text-pink-600">
+              <div className="p-2.5 rounded-xl bg-pink-50 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 border border-pink-100 dark:border-pink-900/40">
                 <Users className="h-5 w-5" />
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2 font-medium">
+            <p className="text-xs text-muted-foreground mt-2 font-medium">
               Teaching regular & weekend sessions
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200/80 shadow-sm bg-white overflow-hidden relative">
+        <Card className="border border-border shadow-xs bg-card overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-amber-500" />
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Running Batches</p>
-                <h3 className="text-2xl font-extrabold text-[#0A2540] mt-1.5">{batchCount}</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Running Batches</p>
+                <h3 className="text-2xl font-black text-foreground mt-1.5">{batchCount}</h3>
               </div>
-              <div className="p-2.5 rounded-xl bg-amber-50 text-amber-600">
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
                 <Calendar className="h-5 w-5" />
               </div>
             </div>
-            <p className="text-xs text-slate-500 mt-2 font-medium flex items-center gap-1.5">
+            <p className="text-xs text-muted-foreground mt-2 font-medium flex items-center gap-1.5">
               <Briefcase className="h-3.5 w-3.5 text-amber-500" /> Active cohort timetables
             </p>
           </CardContent>
         </Card>
 
-        <Card className="border-emerald-100 shadow-sm bg-emerald-50/30 overflow-hidden relative">
+        <Card className="border border-border shadow-xs bg-card overflow-hidden relative">
           <div className="absolute top-0 left-0 right-0 h-1 bg-emerald-500" />
           <CardContent className="p-5">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Total Revenue</p>
-                <h3 className="text-2xl font-extrabold text-emerald-700 mt-1.5">{formatINR(dbCollected > 0 ? dbCollected : 620000)}</h3>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Revenue</p>
+                <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">{formatINR(dbCollected)}</h3>
               </div>
-              <div className="p-2.5 rounded-xl bg-emerald-100/80 text-emerald-700">
+              <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
                 <DollarSign className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-2 flex items-center justify-between text-xs font-semibold">
-              <span className="text-emerald-700">Collection Rate:</span>
-              <span className="text-emerald-800 font-bold">{dbCollectionRate}%</span>
+              <span className="text-muted-foreground">Collection Rate:</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">{dbCollectionRate}%</span>
             </div>
           </CardContent>
         </Card>
@@ -318,28 +293,28 @@ export const BranchPerformance: React.FC = () => {
       {/* 3. GRAPHICAL SECTION: LINE GRAPH & PIE GRAPH */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* LEFT: LINE GRAPH (MONTHLY REVENUE / ENROLLMENT TRAJECTORY) */}
-        <Card className="lg:col-span-7 border-slate-200 shadow-sm bg-white flex flex-col">
-          <CardHeader className="pb-3 border-b border-slate-100">
+        <Card className="lg:col-span-7 border border-border shadow-xs bg-card flex flex-col">
+          <CardHeader className="pb-3 border-b border-border">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-lg font-bold text-[#0A2540] flex items-center gap-2">
-                  <LineIcon className="h-5 w-5 text-[#1769AA]" />
+                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <LineIcon className="h-5 w-5 text-primary" />
                   Monthly Performance Trajectory (Line Graph)
                 </CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">
+                <p className="text-xs text-muted-foreground mt-0.5">
                   Visualizing month-over-month trends for {branchName}.
                 </p>
               </div>
 
               {/* METRIC TOGGLE */}
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold self-start sm:self-auto">
+              <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs font-bold self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setLineMetric("revenue")}
-                  className={`px-3.5 py-1.5 rounded-lg transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                     lineMetric === "revenue"
-                      ? "bg-white text-[#1769AA] shadow-sm font-bold"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Revenue Inflow (₹)
@@ -347,10 +322,10 @@ export const BranchPerformance: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLineMetric("enrollment")}
-                  className={`px-3.5 py-1.5 rounded-lg transition-all ${
+                  className={`px-3.5 py-1.5 rounded-lg transition-all cursor-pointer ${
                     lineMetric === "enrollment"
-                      ? "bg-white text-[#1769AA] shadow-sm font-bold"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Student Growth
@@ -370,17 +345,25 @@ export const BranchPerformance: React.FC = () => {
                         <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/60" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} className="text-muted-foreground" axisLine={false} tickLine={false} />
                     <YAxis
-                      tick={{ fontSize: 11, fill: "#64748b" }}
+                      tick={{ fontSize: 11, fill: "currentColor" }}
+                      className="text-muted-foreground"
                       axisLine={false}
                       tickLine={false}
                       tickFormatter={(v) => `₹${Math.round(v / 1000)}k`}
                     />
                     <Tooltip
                       formatter={(val: any) => [formatINR(Number(val)), "Revenue"]}
-                      contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                      }}
                     />
                     <Area
                       type="monotone"
@@ -396,12 +379,19 @@ export const BranchPerformance: React.FC = () => {
                   </AreaChart>
                 ) : (
                   <LineChart data={studentJoinData} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/60" />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "currentColor" }} className="text-muted-foreground" axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "currentColor" }} className="text-muted-foreground" axisLine={false} tickLine={false} />
                     <Tooltip
                       formatter={(val: any) => [`${val} Students`, "Enrolled"]}
-                      contentStyle={{ borderRadius: "8px", fontSize: "12px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                      }}
                     />
                     <Line
                       type="monotone"
@@ -417,36 +407,36 @@ export const BranchPerformance: React.FC = () => {
               </ResponsiveContainer>
             </div>
 
-            <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
               <span>Data source: PostgreSQL Live Aggregate Logs</span>
-              <span className="font-semibold text-emerald-600 flex items-center gap-1">
-                <TrendingUp className="h-3.5 w-3.5" /> +16.8% positive quarterly trajectory
+              <span className="font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                <TrendingUp className="h-3.5 w-3.5" /> Real-time Database Aggregate
               </span>
             </div>
           </CardContent>
         </Card>
 
         {/* RIGHT: PIE GRAPH (FORMAL SLICES WITH INTERACTIVE TABS) */}
-        <Card className="lg:col-span-5 border-slate-200 shadow-sm bg-white">
-          <CardHeader className="pb-3 border-b border-slate-100">
+        <Card className="lg:col-span-5 border border-border shadow-xs bg-card">
+          <CardHeader className="pb-3 border-b border-border">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <CardTitle className="text-lg font-bold text-[#0A2540] flex items-center gap-2">
-                  <PieIcon className="h-5 w-5 text-[#1769AA]" />
+                <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+                  <PieIcon className="h-5 w-5 text-primary" />
                   Branch Distribution (Pie Graph)
                 </CardTitle>
-                <p className="text-xs text-slate-500 mt-0.5">Formal proportional slices.</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Formal proportional slices.</p>
               </div>
 
               {/* PIE TABS */}
-              <div className="flex items-center bg-slate-100 p-1 rounded-xl text-xs font-bold self-start sm:self-auto">
+              <div className="flex items-center bg-muted/40 p-1 rounded-xl border border-border text-xs font-bold self-start sm:self-auto">
                 <button
                   type="button"
                   onClick={() => setPieTab("courses")}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                     pieTab === "courses"
-                      ? "bg-white text-[#1769AA] shadow-sm font-bold"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Courses
@@ -454,10 +444,10 @@ export const BranchPerformance: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPieTab("collection")}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                     pieTab === "collection"
-                      ? "bg-white text-[#1769AA] shadow-sm font-bold"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Fee Status
@@ -465,10 +455,10 @@ export const BranchPerformance: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setPieTab("risk")}
-                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                  className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
                     pieTab === "risk"
-                      ? "bg-white text-[#1769AA] shadow-sm font-bold"
-                      : "text-slate-600 hover:text-slate-900"
+                      ? "bg-card text-primary shadow-xs font-bold"
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   Attendance
@@ -484,15 +474,14 @@ export const BranchPerformance: React.FC = () => {
                   <Tooltip content={<CustomPieTooltip />} />
                   {pieTab === "courses" && (
                     <Pie
-                      data={courseSharePieData}
+                      data={courseSharePieData.length > 0 ? courseSharePieData : [{ name: "No Courses", value: 1, color: "#94a3b8" }]}
                       cx="50%"
                       cy="50%"
                       innerRadius={65}
                       outerRadius={100}
                       paddingAngle={4}
                       dataKey="value"
-                      stroke="#ffffff"
-                      strokeWidth={3}
+                      stroke="transparent"
                     >
                       {courseSharePieData.map((entry, index) => (
                         <Cell key={`cell-c-${index}`} fill={entry.color} />
@@ -502,15 +491,14 @@ export const BranchPerformance: React.FC = () => {
 
                   {pieTab === "collection" && (
                     <Pie
-                      data={collectionPieData}
+                      data={collectionPieData.some(d => d.value > 0) ? collectionPieData.filter(d => d.value > 0) : [{ name: "No Dues", value: 1, color: "#94a3b8" }]}
                       cx="50%"
                       cy="50%"
                       innerRadius={65}
                       outerRadius={100}
-                      paddingAngle={4}
+                      paddingAngle={collectionPieData.every(d => d.value > 0) ? 4 : 0}
                       dataKey="value"
-                      stroke="#ffffff"
-                      strokeWidth={3}
+                      stroke="transparent"
                     >
                       {collectionPieData.map((entry, index) => (
                         <Cell key={`cell-fee-${index}`} fill={entry.color} />
@@ -520,15 +508,14 @@ export const BranchPerformance: React.FC = () => {
 
                   {pieTab === "risk" && (
                     <Pie
-                      data={riskPieData}
+                      data={riskPieData.length > 0 ? riskPieData : [{ name: "No Records", value: 1, color: "#94a3b8" }]}
                       cx="50%"
                       cy="50%"
                       innerRadius={65}
                       outerRadius={100}
                       paddingAngle={4}
                       dataKey="value"
-                      stroke="#ffffff"
-                      strokeWidth={3}
+                      stroke="transparent"
                     >
                       {riskPieData.map((entry, index) => (
                         <Cell key={`cell-risk-${index}`} fill={entry.color} />
@@ -542,35 +529,35 @@ export const BranchPerformance: React.FC = () => {
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center">
                 {pieTab === "courses" && (
                   <>
-                    <span className="text-xl font-bold text-[#0A2540]">{courseSharePieData.length}</span>
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Programs</span>
+                    <span className="text-xl font-black text-foreground">{courseSharePieData.length}</span>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Programs</span>
                   </>
                 )}
                 {pieTab === "collection" && (
                   <>
-                    <span className="text-xl font-bold text-emerald-600">{dbCollectionRate}%</span>
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Collected</span>
+                    <span className="text-xl font-black text-emerald-600 dark:text-emerald-400">{dbCollectionRate}%</span>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Collected</span>
                   </>
                 )}
                 {pieTab === "risk" && (
                   <>
-                    <span className="text-xl font-bold text-[#0A2540]">{studentCount}</span>
-                    <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Students</span>
+                    <span className="text-xl font-black text-foreground">{studentCount}</span>
+                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Students</span>
                   </>
                 )}
               </div>
             </div>
 
             {/* SLICE LEGEND LIST */}
-            <div className="mt-4 space-y-2 border-t border-slate-100 pt-4">
+            <div className="mt-4 space-y-2 border-t border-border pt-4">
               {pieTab === "courses" && (
                 courseSharePieData.map((c, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
-                      <span className="font-medium text-slate-700 truncate max-w-[170px]">{c.name}</span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                      <span className="font-medium text-foreground truncate max-w-[170px]">{c.name}</span>
                     </div>
-                    <span className="font-bold text-[#0A2540]">{c.value} Students</span>
+                    <span className="font-bold text-foreground">{c.value} Students</span>
                   </div>
                 ))
               )}
@@ -579,10 +566,10 @@ export const BranchPerformance: React.FC = () => {
                 collectionPieData.map((f, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: f.color }} />
-                      <span className="font-medium text-slate-700">{f.name}</span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: f.color }} />
+                      <span className="font-medium text-foreground">{f.name}</span>
                     </div>
-                    <span className="font-bold text-[#0A2540]">{formatINR(f.value)}</span>
+                    <span className="font-bold text-foreground">{formatINR(f.value)}</span>
                   </div>
                 ))
               )}
@@ -591,10 +578,10 @@ export const BranchPerformance: React.FC = () => {
                 riskPieData.map((r, idx) => (
                   <div key={idx} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: r.color }} />
-                      <span className="font-medium text-slate-700">{r.name}</span>
+                      <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: r.color }} />
+                      <span className="font-medium text-foreground">{r.name}</span>
                     </div>
-                    <span className="font-bold text-[#0A2540]">{r.value} Students</span>
+                    <span className="font-bold text-foreground">{r.value} Students</span>
                   </div>
                 ))
               )}
@@ -604,14 +591,14 @@ export const BranchPerformance: React.FC = () => {
       </div>
 
       {/* 4. ENROLLED STUDENTS & OPERATIONAL LOGS */}
-      <Card className="border-slate-200 shadow-sm bg-white">
-        <CardHeader className="pb-3 border-b border-slate-100">
+      <Card className="border border-border shadow-xs bg-card">
+        <CardHeader className="pb-3 border-b border-border">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-bold text-[#0A2540] flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-[#1769AA]" />
+            <CardTitle className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" />
               Active Enrolled Students ({branchName})
             </CardTitle>
-            <Badge variant="outline" className="text-xs bg-slate-50">{branchStudents.length} Active Records</Badge>
+            <Badge variant="outline" className="text-xs bg-muted/40 text-muted-foreground border-border font-bold">{branchStudents.length} Active Records</Badge>
           </div>
         </CardHeader>
         <CardContent className="pt-4">
@@ -620,32 +607,32 @@ export const BranchPerformance: React.FC = () => {
               branchStudents.map((student) => (
                 <div
                   key={student.id}
-                  className="p-4 rounded-xl bg-slate-50/70 border border-slate-200/80 text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                  className="p-4 rounded-xl bg-muted/30 border border-border text-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs shrink-0">
                       {student.name.charAt(0)}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-slate-900">{student.name}</span>
-                        <Badge variant="outline" className="font-mono text-[10px] bg-white text-slate-600">
+                        <span className="font-bold text-foreground">{student.name}</span>
+                        <Badge variant="outline" className="font-mono text-[10px] bg-card text-muted-foreground border-border">
                           {student.studentCode}
                         </Badge>
                       </div>
-                      <span className="text-xs text-slate-500 mt-0.5 block">{student.courseName}</span>
+                      <span className="text-xs text-muted-foreground mt-0.5 block">{student.courseName}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <Badge variant={student.riskFlag === "Normal" ? "outline" : "destructive"} className="text-xs bg-white">
+                    <Badge className={student.riskFlag === "Normal" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 text-xs" : "bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/20 text-xs"}>
                       {student.riskFlag === "Normal" ? "Good Standing" : student.riskFlag}
                     </Badge>
-                    <span className="text-xs font-bold text-slate-700">{student.attendancePercentage}% Attendance</span>
+                    <span className="text-xs font-bold text-foreground">{student.attendancePercentage}% Attendance</span>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="p-8 text-center text-slate-500 text-sm">
+              <div className="p-8 text-center text-muted-foreground text-sm">
                 No recent operational student activity recorded for this branch.
               </div>
             )}

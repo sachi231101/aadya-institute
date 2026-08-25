@@ -137,9 +137,22 @@ export interface FinancialReportSummary {
   projectedRevenue: number;
 }
 
+export interface RecentPaymentItem {
+  id: string;
+  receiptNo: string;
+  studentName: string;
+  admissionNo: string;
+  courseName: string;
+  amount: number;
+  date: string;
+  method: string;
+  status: string;
+}
+
 export interface FinancialReportResponse {
   summary: FinancialReportSummary;
   monthlyTrend: MonthlyFinancialItem[];
   paymentMethodShare: PaymentMethodItem[];
   monthlyBreakdown: MonthlyFinancialItem[];
+  recentPayments: RecentPaymentItem[];
 }
