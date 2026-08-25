@@ -10,6 +10,8 @@ export interface UserResponse {
   branchId: string | null;
   branch?: { id: string; name: string; code: string } | null;
   roles: string[];
+  modulePermissions: string[];
+  permissions?: string[];
   createdAt: string;
   updatedAt: string;
 }
@@ -47,6 +49,7 @@ export interface CreateUserPayload {
   password: string;
   roles: string[];
   branchId?: string;
+  modulePermissions?: string[];
 }
 
 export interface UpdateUserPayload {
@@ -58,6 +61,10 @@ export interface UpdateUserPayload {
 
 export interface UpdateUserStatusPayload {
   status: "ACTIVE" | "INACTIVE" | "BLOCKED";
+}
+
+export interface UpdateUserPermissionsPayload {
+  modulePermissions: string[];
 }
 
 export const usersApi = {
@@ -83,6 +90,14 @@ export const usersApi = {
 
   updateUserStatus: async (id: string, data: UpdateUserStatusPayload): Promise<SingleResponse<UserResponse>> => {
     const response = await api.patch<SingleResponse<UserResponse>>(`/users/${id}/status`, data);
+    return response.data;
+  },
+
+  updateUserPermissions: async (
+    id: string,
+    data: UpdateUserPermissionsPayload
+  ): Promise<SingleResponse<UserResponse>> => {
+    const response = await api.patch<SingleResponse<UserResponse>>(`/users/${id}/permissions`, data);
     return response.data;
   },
 

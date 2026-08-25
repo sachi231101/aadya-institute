@@ -504,32 +504,76 @@ export const ViewAdmin: React.FC = () => {
               {/* TAB 2: PERMISSIONS */}
               {activeTab === "permissions" && (
                 <div className="space-y-4">
-                  <h4 className="text-sm font-bold text-slate-800 mb-2 flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-[#1769AA]" /> Center Manager Capabilities
-                  </h4>
-                  <p className="text-xs text-slate-500 mb-4">
-                    Authorized module operations for this role under branch isolation rules:
-                  </p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-[#1769AA]" /> Authorized Module Access
+                      </h4>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        Specific modules enabled for this Center Manager account:
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/administration/admins/${id}/edit`)}
+                      className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50"
+                    >
+                      <Edit className="h-3.5 w-3.5 mr-1" /> Edit Permissions
+                    </Button>
+                  </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                     {[
-                      { name: "Admissions & Inquiries", desc: "Manage new student admissions and enquiries" },
-                      { name: "Student Management", desc: "View students, profiles, and enrollments" },
-                      { name: "Batch Scheduling", desc: "Manage branch batches, classes, and timetables" },
-                      { name: "Attendance Operations", desc: "Review daily student and faculty attendance" },
-                      { name: "Fee & Payment Tracking", desc: "View fee status and installment collections" },
-                      { name: "Branch Reports & Analytics", desc: "Access center revenue and performance metrics" },
-                      { name: "Lead & Follow-up Oversight", desc: "Monitor counsellor leads and conversions" },
-                      { name: "Notifications & Alerts", desc: "Receive automated alerts for branch operations" },
-                    ].map((perm, idx) => (
-                      <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-xs font-bold text-slate-800">{perm.name}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{perm.desc}</p>
+                      { key: "students", name: "Students", desc: "View, create, and manage students & attendance" },
+                      { key: "faculty", name: "Faculty", desc: "View faculty profiles, courses, and attendance" },
+                      { key: "courses", name: "Courses & Batches", desc: "View courses, curriculum, and manage batches" },
+                      { key: "admissions", name: "Admissions", desc: "Manage admissions and application processing" },
+                      { key: "leads_ai_calling", name: "Leads & AI Calling", desc: "Lead follow-ups, qualification & AI calling" },
+                      { key: "schedule", name: "Schedule & Attendance", desc: "Class scheduling, daily attendance, recordings" },
+                      { key: "fees", name: "Fees & Payments", desc: "Fee installments, receipts & payment tracking" },
+                      { key: "reports", name: "Reports & Analytics", desc: "Access center revenue & performance metrics" },
+                      { key: "counsellor", name: "Counsellor Management", desc: "Oversee counsellors and batch assignments" },
+                    ].map((mod) => {
+                      const isGranted =
+                        admin.modulePermissions && admin.modulePermissions.length > 0
+                          ? admin.modulePermissions.includes(mod.key)
+                          : true; // Default true if no explicit restrictions
+
+                      return (
+                        <div
+                          key={mod.key}
+                          className={`flex items-start justify-between p-3.5 rounded-xl border transition-all ${
+                            isGranted
+                              ? "bg-emerald-50/40 border-emerald-200/70"
+                              : "bg-slate-50 border-slate-200/60 opacity-60"
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5">
+                            {isGranted ? (
+                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                            ) : (
+                              <Lock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                            )}
+                            <div>
+                              <p className={`text-xs font-bold ${isGranted ? "text-slate-900" : "text-slate-600"}`}>
+                                {mod.name}
+                              </p>
+                              <p className="text-[11px] text-slate-500 mt-0.5">{mod.desc}</p>
+                            </div>
+                          </div>
+                          <span
+                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                              isGranted
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-slate-200 text-slate-600"
+                            }`}
+                          >
+                            {isGranted ? "Granted" : "Restricted"}
+                          </span>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}

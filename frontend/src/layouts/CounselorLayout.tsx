@@ -4,12 +4,16 @@ import { UserCheck } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CounselorSidebar } from "@/components/layout/counselor-sidebar";
 import { useAuthStore } from "@/store/auth.store";
+import { useCurrentUserSync } from "@/hooks/useAuth";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 
 export const CounselorLayout: React.FC = () => {
   const { token, user } = useAuthStore();
+
+  // Keep Counsellor permissions live-synced in real-time
+  useCurrentUserSync();
 
   if (!token) {
     return <Navigate to="/login" replace />;

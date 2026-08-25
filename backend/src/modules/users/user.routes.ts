@@ -9,6 +9,7 @@ import {
   updateUser,
   updateUserStatus,
   updateWhatsappPreference,
+  updateUserPermissions,
   deleteUser,
 } from "./user.controller";
 import {
@@ -16,6 +17,7 @@ import {
   updateUserSchema,
   updateUserStatusSchema,
   updateWhatsappPreferenceSchema,
+  updateUserPermissionsSchema,
   userListQuerySchema,
 } from "./user.validation";
 
@@ -61,6 +63,14 @@ router.patch(
   requirePermission("user.update"),
   validate(updateUserSchema),
   updateUser
+);
+
+// PATCH /api/v1/users/:id/permissions — Update module permissions for a user
+router.patch(
+  "/:id/permissions",
+  requirePermission("user.update"),
+  validate(updateUserPermissionsSchema),
+  updateUserPermissions
 );
 
 // PATCH /api/v1/users/:id/status — Activate / deactivate user

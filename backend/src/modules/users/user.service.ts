@@ -1,14 +1,27 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
+import {
+  resolveModulePermissions,
+  ALL_MODULE_KEYS,
+} from "../../utils/module-permissions";
 import type { AuthUser } from "../auth/auth.types";
-import type { CreateUserInput, UpdateUserInput, UpdateUserStatusInput, UpdateWhatsappPreferenceInput, UserListQuery } from "./user.types";
+import type {
+  CreateUserInput,
+  UpdateUserInput,
+  UpdateUserStatusInput,
+  UpdateWhatsappPreferenceInput,
+  UpdateUserPermissionsInput,
+  UserListQuery,
+} from "./user.types";
 import {
   findUsers,
   findUserById,
   findUserByEmail,
   findUserByPhone,
   findRolesByNames,
+  findPermissionsByNames,
+  setUserPermissions,
   createUser,
   updateUser,
   updateUserStatus,
@@ -144,6 +157,16 @@ export const createUserService = async (
     roleIds: foundRoles.map((r) => r.id),
   });
 
+  // If creating a CENTER_MANAGER or COUNSELLOR, set module permissions
+  if (input.roles.includes("CENTER_MANAGER") || input.roles.includes("COUNSELLOR")) {
+    const moduleKeys = input.modulePermissions ?? ALL_MODULE_KEYS; // Default: all modules
+    await assignModulePermissions(user.id, moduleKeys, currentUser.id);
+
+    // Re-fetch to include the newly created permissions
+    const refreshed = await findUserById(user.id, instituteId);
+    return refreshed ?? user;
+  }
+
   return user;
 };
 
@@ -169,6 +192,30 @@ export const updateUserService = async (
   }
 
   return updateUser(userId, instituteId, input);
+};
+
+// ─── Update User Permissions ─────────────────────────────────────────────────
+
+export const updateUserPermissionsService = async (
+  currentUser: AuthUser,
+  userId: string,
+  input: UpdateUserPermissionsInput
+) => {
+  const instituteId = getInstituteId(currentUser);
+  const existing = await findUserById(userId, instituteId);
+  if (!existing) throw new AppError("User not found", 404);
+
+  // Only allow updating permissions for CENTER_MANAGER or COUNSELLOR users
+  if (!existing.roles.includes("CENTER_MANAGER") && !existing.roles.includes("COUNSELLOR")) {
+    throw new AppError("Module permissions can only be set for Center Managers and Counsellors", 400);
+  }
+
+  await assignModulePermissions(userId, input.modulePermissions, currentUser.id);
+
+  // Re-fetch to include updated permissions
+  const refreshed = await findUserById(userId, instituteId);
+  if (!refreshed) throw new AppError("User not found after update", 500);
+  return refreshed;
 };
 
 // ─── Update WhatsApp Preference (self-service opt-out) ────────────────────────
@@ -228,3 +275,22 @@ export const deleteUserService = async (
   await deleteUser(userId, instituteId);
   return { id: userId, deleted: true };
 };
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve module keys → permission names → permission IDs, then set on user.
+ */
+async function assignModulePermissions(
+  userId: string,
+  moduleKeys: string[],
+  grantedById?: string
+): Promise<void> {
+  const permissionNames = resolveModulePermissions(moduleKeys);
+  const permissionRecords = await findPermissionsByNames(permissionNames);
+  const permissionIds = permissionRecords.map((p) => p.id);
+
+  if (permissionIds.length > 0) {
+    await setUserPermissions(userId, permissionIds, grantedById);
+  }
+}

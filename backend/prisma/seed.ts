@@ -125,6 +125,11 @@ const permissions = [
   "fee.create",
   "fee.update",
   "fee.delete",
+
+  // Master Setup
+  "master.read",
+  "master.create",
+  "master.update",
 ];
 
 /** Permissions granted to each role */

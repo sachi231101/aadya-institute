@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { usersApi } from "../services/users.api";
+import { notifyPermissionChange } from "../hooks/useAuth";
 import type { Counselor, CreateCounselorPayload, UpdateCounselorPayload } from "../types/counselor.types";
 
 interface CounselorState {
@@ -58,6 +59,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
         password: payload.password || "Password@123",
         roles: ["COUNSELLOR"],
         branchId: payload.branchId || undefined,
+        modulePermissions: payload.modulePermissions,
       });
 
       if (res.success && res.data) {
@@ -78,6 +80,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
           createdAt: createdUser.createdAt,
         };
         set((state) => ({ counselors: [...state.counselors, newCounselor] }));
+        notifyPermissionChange();
         return newCounselor;
       }
       set({ isLoading: false });

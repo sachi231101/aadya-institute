@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import type { UserStatus, Prisma } from "@prisma/client";
+import { resolvePermissionsToModules } from "../../utils/module-permissions";
 
 // ─── Shared include shape ─────────────────────────────────────────────────────
 
@@ -10,26 +11,39 @@ const userInclude = {
     },
   },
   branch: true,
+  userPermissions: {
+    include: {
+      permission: true,
+    },
+  },
 } satisfies Prisma.UserInclude;
 
 // ─── Shape helpers ─────────────────────────────────────────────────────────────
 
 type UserWithRoles = Prisma.UserGetPayload<{ include: typeof userInclude }>;
 
-export const mapUserToResponse = (user: UserWithRoles) => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  phone: user.phone,
-  status: user.status,
-  instituteId: user.instituteId,
-  branchId: user.branchId,
-  branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
-  whatsappEnabled: user.whatsappEnabled,
-  roles: user.userRoles.map((ur) => ur.role.name),
-  createdAt: user.createdAt,
-  updatedAt: user.updatedAt,
-});
+export const mapUserToResponse = (user: UserWithRoles) => {
+  const permissionNames = (user.userPermissions ?? []).map(
+    (up) => up.permission.name
+  );
+
+  return {
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    status: user.status,
+    instituteId: user.instituteId,
+    branchId: user.branchId,
+    branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
+    whatsappEnabled: user.whatsappEnabled,
+    roles: user.userRoles.map((ur) => ur.role.name),
+    modulePermissions: resolvePermissionsToModules(permissionNames),
+    permissions: permissionNames,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+};
 
 // ─── Queries ──────────────────────────────────────────────────────────────────
 
@@ -107,6 +121,46 @@ export const findRolesByNames = async (roleNames: string[]) => {
   return prisma.role.findMany({
     where: { name: { in: roleNames } },
   });
+};
+
+// ─── Permission queries ──────────────────────────────────────────────────────
+
+/**
+ * Find permission records by their names.
+ */
+export const findPermissionsByNames = async (names: string[]) => {
+  return prisma.permission.findMany({
+    where: { name: { in: names } },
+  });
+};
+
+/**
+ * Get all UserPermission records for a user (with permission names).
+ */
+export const findUserPermissions = async (userId: string) => {
+  const records = await prisma.userPermission.findMany({
+    where: { userId },
+    include: { permission: true },
+  });
+  return records.map((r) => r.permission.name);
+};
+
+/**
+ * Set user permissions: delete all existing, then create new ones.
+ */
+export const setUserPermissions = async (
+  userId: string,
+  permissionIds: string[],
+  grantedById?: string
+) => {
+  await prisma.$transaction([
+    prisma.userPermission.deleteMany({ where: { userId } }),
+    ...permissionIds.map((permissionId) =>
+      prisma.userPermission.create({
+        data: { userId, permissionId, grantedById },
+      })
+    ),
+  ]);
 };
 
 // ─── Mutations ────────────────────────────────────────────────────────────────
@@ -187,6 +241,7 @@ export const deleteUser = async (id: string, instituteId: string) => {
   // Soft-delete: set status to BLOCKED and remove role assignments
   await prisma.$transaction([
     prisma.userRole.deleteMany({ where: { userId: id } }),
+    prisma.userPermission.deleteMany({ where: { userId: id } }),
     prisma.refreshToken.deleteMany({ where: { userId: id } }),
     prisma.user.update({
       where: { id },

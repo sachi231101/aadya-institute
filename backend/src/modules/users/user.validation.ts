@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { ALL_MODULE_KEYS } from "../../utils/module-permissions";
 
 const phoneSchema = z.preprocess(
   (val) => {
@@ -27,6 +28,11 @@ export const createUserSchema = z.object({
     .array(z.string().min(1))
     .min(1, "At least one role is required"),
   branchId: z.string().optional(),
+  modulePermissions: z
+    .array(z.string().refine((key) => ALL_MODULE_KEYS.includes(key), {
+      message: "Invalid module key",
+    }))
+    .optional(),
 }).refine((data) => data.email || data.phone, {
   message: "At least one of email or phone is required",
   path: ["email"],
@@ -38,6 +44,14 @@ export const updateUserSchema = z.object({
   phone: phoneSchema,
   branchId: z.string().optional().nullable(),
   whatsappEnabled: z.boolean().optional(),
+});
+
+export const updateUserPermissionsSchema = z.object({
+  modulePermissions: z
+    .array(z.string().refine((key) => ALL_MODULE_KEYS.includes(key), {
+      message: "Invalid module key",
+    }))
+    .min(0),
 });
 
 export const updateWhatsappPreferenceSchema = z.object({
@@ -66,4 +80,5 @@ export const userListQuerySchema = z.object({
 export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
+export type UpdateUserPermissionsDto = z.infer<typeof updateUserPermissionsSchema>;
 export type UserListQueryDto = z.infer<typeof userListQuerySchema>;

@@ -33,25 +33,33 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuthStore } from "@/store/auth.store"
 import { InstallAppButton } from "@/components/common/InstallAppButton"
 
-const counselorNavItems = [
+interface CounselorNavItem {
+  title: string;
+  url: string;
+  icon: any;
+  isActive?: boolean;
+  isAi?: boolean;
+  moduleKey?: string; // Links to module permission key
+  items?: { title: string; url: string }[];
+}
+
+const rawCounselorNavItems: CounselorNavItem[] = [
   {
     title: "ASK ME",
     url: "/counselor/ask-me",
     icon: Sparkles,
-    isActive: false,
     isAi: true,
   },
   {
     title: "Dashboard",
     url: "/counselor/dashboard",
     icon: LayoutDashboard,
-    isActive: true,
   },
   {
     title: "Leads & AI Calling",
     url: "/counselor/leads",
     icon: Bot,
-    isActive: false,
+    moduleKey: "leads_ai_calling",
     items: [
       { title: "All Leads", url: "/counselor/leads" },
       { title: "AI Calling", url: "/counselor/leads/ai-calling" },
@@ -62,7 +70,7 @@ const counselorNavItems = [
     title: "Admissions",
     url: "/counselor/admissions/all",
     icon: Target,
-    isActive: false,
+    moduleKey: "admissions",
     items: [
       { title: "All Admissions", url: "/counselor/admissions/all" },
       { title: "Applications", url: "/counselor/admissions/applications" },
@@ -72,7 +80,7 @@ const counselorNavItems = [
     title: "Students",
     url: "/counselor/students/all",
     icon: GraduationCap,
-    isActive: false,
+    moduleKey: "students",
     items: [
       { title: "All Students", url: "/counselor/students/all" },
       { title: "Attendance", url: "/counselor/students/attendance" },
@@ -82,7 +90,7 @@ const counselorNavItems = [
     title: "Faculty",
     url: "/counselor/faculty/all",
     icon: Users,
-    isActive: false,
+    moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/counselor/faculty/all" },
       { title: "Assigned Courses", url: "/counselor/faculty/courses" },
@@ -93,7 +101,7 @@ const counselorNavItems = [
     title: "Batches & Timetable",
     url: "/counselor/batches",
     icon: Layers,
-    isActive: false,
+    moduleKey: "courses",
     items: [
       { title: "All Batches", url: "/counselor/batches" },
       { title: "Class Timetable", url: "/counselor/timetable" },
@@ -103,7 +111,7 @@ const counselorNavItems = [
     title: "Fees",
     url: "/counselor/fees/payments",
     icon: CreditCard,
-    isActive: false,
+    moduleKey: "fees",
     items: [
       { title: "Payments", url: "/counselor/fees/payments" },
       { title: "Pending Fees", url: "/counselor/fees/pending" },
@@ -114,7 +122,7 @@ const counselorNavItems = [
     title: "Reports",
     url: "/counselor/reports/students",
     icon: BarChart3,
-    isActive: false,
+    moduleKey: "reports",
     items: [
       { title: "Student Reports", url: "/counselor/reports/students" },
       { title: "Faculty Reports", url: "/counselor/reports/faculty" },
@@ -126,7 +134,6 @@ const counselorNavItems = [
     title: "Settings",
     url: "/counselor/settings",
     icon: Settings,
-    isActive: false,
   },
 ]
 
@@ -134,6 +141,30 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+
+  // Filter navigation items based on the user's assigned module permissions
+  const filteredNavItems = React.useMemo(() => {
+    // If ADMIN, give access to everything
+    if (user?.roles?.includes("ADMIN")) {
+      return rawCounselorNavItems;
+    }
+
+    const grantedModules = user?.modulePermissions;
+    const grantedPermissions = user?.permissions;
+
+    return rawCounselorNavItems.filter((item) => {
+      // Items with no moduleKey are core items (ASK ME, Dashboard, Settings)
+      if (!item.moduleKey) return true;
+
+      // If user has modulePermissions list, check direct inclusion
+      if (grantedModules && Array.isArray(grantedModules)) {
+        return grantedModules.includes(item.moduleKey);
+      }
+
+      // If no explicit permissions array set yet on user object, show all (backward compatible)
+      return true;
+    });
+  }, [user]);
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
@@ -158,7 +189,7 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
       <SidebarContent>
         <SidebarGroup>
           <SidebarMenu>
-            {counselorNavItems.map((item) => {
+            {filteredNavItems.map((item) => {
               const isSubItemActive = item.items?.some((subItem) => location.pathname === subItem.url)
               const isDirectActive = location.pathname === item.url
               const isExpanded = isSubItemActive || isDirectActive
