@@ -180,6 +180,7 @@ const rolePermissions: Record<string, string[]> = {
     "report.read",
     "notification.read",
     "notification.resend",
+    "master.read",
   ],
 
   COUNSELLOR: [
@@ -215,6 +216,7 @@ const rolePermissions: Record<string, string[]> = {
     "whatsapp.read",
     "dashboard.read",
     "notification.read",
+    "master.read",
   ],
 
   FACULTY: [
@@ -725,10 +727,100 @@ async function main() {
     update: {},
     create: { batchId: batch1.id, courseModuleId: mod3.id, sequence: 3, startDate: new Date("2026-10-01") },
   });
-  console.log("✅ Batch modules seeded");
+  // ── Master Records (All 25 Master Categories) ───────────────────────────
+  const defaultMasters: { entityType: string; name: string; code?: string; description?: string; data?: any }[] = [
+    // Academic & Organization
+    { entityType: "area", name: "Malleshwaram Central", code: "AREA-MLW", data: { city: "Bengaluru", pincode: "560003", status: "Active" } },
+    { entityType: "area", name: "Indiranagar Zone", code: "AREA-IND", data: { city: "Bengaluru", pincode: "560038", status: "Active" } },
+    { entityType: "area", name: "Koramangala Tech Hub", code: "AREA-KRM", data: { city: "Bengaluru", pincode: "560034", status: "Active" } },
+    { entityType: "area", name: "Jayanagar South", code: "AREA-JYN", data: { city: "Bengaluru", pincode: "560041", status: "Active" } },
+    { entityType: "classroom", name: "Theory Classroom 101", code: "CR-101", data: { capacity: "40", type: "Smart Classroom", status: "Active" } },
+    { entityType: "classroom", name: "Advanced AI & Software Lab", code: "LAB-AI-01", data: { capacity: "30", type: "Computer Lab", status: "Active" } },
+    { entityType: "classroom", name: "Seminar & Placement Hall", code: "SEM-01", data: { capacity: "80", type: "Auditorium", status: "Active" } },
+    { entityType: "designation", name: "Senior Faculty Lead", code: "DES-FAC-SR", data: { level: "Level 4", department: "Academic Delivery", status: "Active" } },
+    { entityType: "designation", name: "Admissions Counsellor", code: "DES-CNS-01", data: { level: "Level 2", department: "Admissions", status: "Active" } },
+    { entityType: "designation", name: "Center Operations Manager", code: "DES-CM-01", data: { level: "Level 5", department: "Operations", status: "Active" } },
+    { entityType: "education", name: "Bachelor of Technology", code: "DEG-BTECH", data: { qualification: "B.Tech / B.E.", stream: "CS / IT / EC", status: "Active" } },
+    { entityType: "education", name: "Bachelor of Computer Applications", code: "DEG-BCA", data: { qualification: "BCA", stream: "Computer Applications", status: "Active" } },
+    { entityType: "education", name: "Diploma in Engineering", code: "DIP-ENG", data: { qualification: "Polytechnic Diploma", stream: "Technical", status: "Active" } },
+    { entityType: "parentinfo", name: "Father / Primary Guardian", code: "PAR-FATHER", data: { relation: "Father", occupationGroup: "Salaried / Business", incomeBracket: "3L - 8L", status: "Active" } },
+    { entityType: "parentinfo", name: "Mother", code: "PAR-MOTHER", data: { relation: "Mother", occupationGroup: "Professional / Homemaker", incomeBracket: "Any", status: "Active" } },
+    { entityType: "employee", name: "Suresh Sharma", code: "EMP-CM-101", data: { role: "Center Manager", branch: "Malleshwaram", status: "Active" } },
+    { entityType: "employee", name: "Priya Singh", code: "EMP-FAC-201", data: { role: "Lead Full Stack Faculty", branch: "Malleshwaram", status: "Active" } },
+    { entityType: "holiday", name: "Independence Day", code: "HOL-AUG15", description: "National Holiday", data: { date: "2026-08-15", type: "National Holiday" } },
+    { entityType: "holiday", name: "Diwali / Deepavali Break", code: "HOL-DIWALI", description: "Festival Vacation", data: { date: "2026-11-01", type: "Festival" } },
+    { entityType: "timeslot", name: "Morning Theory Slot", code: "SLOT-M-01", data: { startTime: "09:00 AM", endTime: "11:00 AM", period: "Morning", status: "Active" } },
+    { entityType: "timeslot", name: "Midday Lab Session", code: "SLOT-LAB-02", data: { startTime: "11:30 AM", endTime: "01:30 PM", period: "Afternoon", status: "Active" } },
+    { entityType: "timeslot", name: "Evening Fastrack Slot", code: "SLOT-EVE-03", data: { startTime: "05:00 PM", endTime: "07:00 PM", period: "Evening", status: "Active" } },
+    { entityType: "events", name: "Mega Placement Drive 2026", code: "EVT-PLACE-01", data: { date: "2026-09-15", venue: "Bengaluru Central", category: "Placement" } },
+    { entityType: "examterm", name: "Semester Midterm Assessment", code: "TERM-MID-26", data: { academicYear: "2026-27", status: "Active" } },
 
+    // Admissions & Leads
+    { entityType: "leadsource", name: "Website Direct Enquiry", code: "SRC-WEB", data: { channelType: "Inbound Web", status: "Active" } },
+    { entityType: "leadsource", name: "Instagram Ads Campaign", code: "SRC-IG", data: { channelType: "Social Media", status: "Active" } },
+    { entityType: "leadsource", name: "WhatsApp Chatbot", code: "SRC-WA", data: { channelType: "Messaging", status: "Active" } },
+    { entityType: "leadsource", name: "Walk-in Center Visit", code: "SRC-WALK", data: { channelType: "Offline Direct", status: "Active" } },
+    { entityType: "leadsource", name: "Student Referral", code: "SRC-REF", data: { channelType: "Word of Mouth", status: "Active" } },
+    { entityType: "leadsource", name: "Sarvam AI Voice Outreach", code: "SRC-SARV", data: { channelType: "AI Telephony", status: "Active" } },
+    { entityType: "leadsource", name: "Google Search Ads", code: "SRC-GOOG", data: { channelType: "Paid Search", status: "Active" } },
+    { entityType: "leadstage", name: "New Lead", code: "STG-1", description: "Initial contact received", data: { stageNumber: "1", color: "Blue" } },
+    { entityType: "leadstage", name: "AI Call Qualified", code: "STG-2", description: "Sarvam AI verified interest", data: { stageNumber: "2", color: "Teal" } },
+    { entityType: "leadstage", name: "Counselling Scheduled", code: "STG-3", description: "Counselor consultation booked", data: { stageNumber: "3", color: "Purple" } },
+    { entityType: "leadstage", name: "Free Demo Attended", code: "STG-4", description: "Free masterclass / demo attended", data: { stageNumber: "4", color: "Amber" } },
+    { entityType: "leadstage", name: "Enrolled", code: "STG-5", description: "Admission fee token paid", data: { stageNumber: "5", color: "Green" } },
+    { entityType: "leadstage", name: "Lost / Not Interested", code: "STG-6", description: "Unqualified or dropped", data: { stageNumber: "6", color: "Rose" } },
+    { entityType: "leadtype", name: "Hot Lead (Ready to Join)", code: "HOT", data: { slaHours: "2 Hours", status: "Active" } },
+    { entityType: "leadtype", name: "Warm Lead (Exploring Courses)", code: "WARM", data: { slaHours: "24 Hours", status: "Active" } },
+    { entityType: "admissionstatus", name: "Application Submitted", code: "ADM-INIT", data: { step: "Step 1", status: "Active" } },
+    { entityType: "admissionstatus", name: "Admission Confirmed", code: "ADM-CONF", data: { step: "Step 4", status: "Active" } },
+    { entityType: "admissionbatch", name: "Java Full Stack 2026 A", code: "JFS-2026-A", data: { capacity: "30", targetIntake: "30 Students" } },
+    { entityType: "coursereview", name: "Weekly Module Feedback", code: "REV-WEEK", data: { frequency: "Weekly", ratingScale: "1 to 5 Stars", status: "Active" } },
 
+    // Communication & Templates
+    { entityType: "notificationtemplate", name: "Class Reminder 2 Hours Pre-Class", code: "TPL-CLASS-2HR", data: { channel: "WhatsApp", trigger: "2 Hours Pre-Class", status: "Active" } },
+    { entityType: "notificationtemplate", name: "Absence Notice & Makeup Session", code: "TPL-ABSENT", data: { channel: "WhatsApp + SMS", trigger: "Absence Logged", status: "Active" } },
+    { entityType: "notificationtemplate", name: "Fee Installment Due Alert", code: "TPL-FEE-DUE", data: { channel: "WhatsApp + Email", trigger: "3 Days Prior Due", status: "Active" } },
+    { entityType: "certificate", name: "Full Stack Mastery Certificate", code: "CERT-FS-01", data: { validity: "Lifetime", issueCriteria: "80% Attendance + Capstone Project", status: "Active" } },
 
+    // Inventory & Assets
+    { entityType: "materialkit", name: "Full Stack Java Developer Kit", code: "KIT-JFS-01", data: { contents: "Handbook, Cheatsheets, Cloud Sandbox Key", stockQty: "45", status: "Active" } },
+    { entityType: "equipment", name: "High-Performance Workstation i7", code: "EQ-PC-104", data: { serialNo: "WS-BLR-048", location: "Lab 01 Desk 12", condition: "Excellent", status: "Active" } },
+    { entityType: "assetcategory", name: "IT & Computing Hardware", code: "AST-CAT-IT", data: { depreciationRate: "20% p.a.", auditFrequency: "Quarterly", status: "Active" } },
+
+    // Accounting & Fees
+    { entityType: "feehead", name: "Core Tuition & Mentorship Fee", code: "FEE-TUIT", data: { category: "Tuition", gstApplicable: "18% GST Included", isMandatory: "Yes", status: "Active" } },
+    { entityType: "feehead", name: "Cloud Lab & Server Resource Fee", code: "FEE-LAB", data: { category: "Infrastructure", gstApplicable: "18% GST Included", isMandatory: "Yes", status: "Active" } },
+    { entityType: "feehead", name: "Placement Preparation & Mock Interviews", code: "FEE-PLACE", data: { category: "Placement", gstApplicable: "18% GST Included", isMandatory: "No", status: "Active" } },
+    { entityType: "paymentmode", name: "UPI (Google Pay, PhonePe, Paytm)", code: "PAY-UPI", data: { provider: "Razorpay UPI", settlementDays: "Instant / T+1", feePercent: "0.0%", status: "Active" } },
+    { entityType: "paymentmode", name: "Bank Transfer (NEFT / RTGS / IMPS)", code: "PAY-BANK", data: { provider: "HDFC Bank Direct", settlementDays: "T+0", feePercent: "0.0%", status: "Active" } },
+    { entityType: "paymentmode", name: "Credit / Debit Card Online", code: "PAY-CARD", data: { provider: "Razorpay / Stripe", settlementDays: "T+2", feePercent: "1.8%", status: "Active" } },
+    { entityType: "installmentscheme", name: "One-Time Upfront (5% Instant Discount)", code: "SCH-100", data: { splits: "1 Payment (100%)", discountPercent: "5%", dueInterval: "Immediate" } },
+    { entityType: "installmentscheme", name: "2-Part Split (50% + 50%)", code: "SCH-50-50", data: { splits: "2 Payments (50% - 50%)", discountPercent: "0%", dueInterval: "30 Days Apart" } },
+    { entityType: "installmentscheme", name: "3-Part Flexible Installments", code: "SCH-3-SPLIT", data: { splits: "3 Payments (40% - 30% - 30%)", discountPercent: "0%", dueInterval: "Every 30 Days" } },
+    { entityType: "expensehead", name: "Branch Rental & Maintenance", code: "EXP-RENT", data: { category: "Fixed Operational", frequency: "Monthly", taxDeductible: "Yes", status: "Active" } },
+    { entityType: "taxrate", name: "Standard GST (18%)", code: "TAX-GST-18", data: { cgst: "9.0%", sgst: "9.0%", igst: "18.0%", applicableOn: "All Educational Services", status: "Active" } },
+  ];
+
+  for (const master of defaultMasters) {
+    const existing = await prisma.masterRecord.findFirst({
+      where: { instituteId: institute.id, entityType: master.entityType, name: master.name },
+    });
+    if (!existing) {
+      await prisma.masterRecord.create({
+        data: {
+          instituteId: institute.id,
+          branchId: branch.id,
+          entityType: master.entityType,
+          name: master.name,
+          code: master.code,
+          description: master.description,
+          status: "ACTIVE",
+          data: master.data,
+        },
+      });
+    }
+  }
+  console.log("✅ Master records seeded:", defaultMasters.length, "master entities");
 
   console.log("\n🎉 Database seed completed!");
 }
