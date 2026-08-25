@@ -605,8 +605,14 @@ export const LeadManagement: React.FC = () => {
                 <tr>
                   <td colSpan={10} className="py-14 text-center text-slate-400">
                     <Target className="h-9 w-9 mx-auto text-slate-300 mb-2" />
-                    <p className="font-bold text-sm text-slate-700">No leads match your filter criteria</p>
-                    <p className="text-xs text-slate-400 mt-1">Try resetting filters or click "+ Add New Lead".</p>
+                    <p className="font-bold text-sm text-slate-700">
+                      {leads.length === 0 ? "No leads found" : "No leads match your filter criteria"}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {leads.length === 0
+                        ? 'Click "+ Add New Lead" to record a new candidate enquiry.'
+                        : "Try resetting filters or adjusting your search query."}
+                    </p>
                   </td>
                 </tr>
               ) : (
