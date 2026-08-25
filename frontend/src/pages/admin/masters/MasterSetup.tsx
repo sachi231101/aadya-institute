@@ -1183,11 +1183,11 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── 4. CRUD VIEW (STRUCTURED CATALOG TABLE) ──────────────────────── */}
       {viewMode === "CRUD" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl overflow-hidden">
+        <Card className="border border-border shadow-xs bg-card rounded-3xl overflow-hidden">
           <div className="overflow-x-auto w-full">
             <table className="w-full min-w-[950px] border-collapse text-left text-xs">
               <thead>
-                <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+                <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
                   <th className="py-3.5 px-4 pl-5">ENTITY NAME</th>
                   <th className="py-3.5 px-4">CATEGORY</th>
                   <th className="py-3.5 px-4">DESCRIPTION</th>
@@ -1198,7 +1198,7 @@ export const MasterSetup: React.FC = () => {
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-slate-100 bg-white">
+              <tbody className="divide-y divide-border/70 bg-card">
                 {filteredMasters.map((item) => {
                   const currentCount = recordsData[item.id]?.length ?? item.count;
                   const IconComp = item.icon;

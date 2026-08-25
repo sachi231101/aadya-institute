@@ -19,6 +19,7 @@ import { useCourseStore } from "@/store/course.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -82,26 +83,27 @@ export const CenterLayout: React.FC = () => {
   return (
     <SidebarProvider>
       <InstallLoginPopup />
-      <div className="flex min-h-screen w-full bg-[#F8FAFC]">
+      <div className="flex min-h-screen w-full bg-background text-foreground">
         <CenterSidebar />
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* ─── Top Header Navigation Bar ───────────────────────────────── */}
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-200/80 bg-white px-4 sm:px-6 z-20 shadow-2xs">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 bg-bg-secondary px-4 sm:px-6 z-20 shadow-2xs">
             <div className="flex items-center gap-3">
-              <SidebarTrigger className="-ml-1 text-slate-600 hover:bg-slate-100 rounded-lg" />
-              <div className="flex items-center gap-2 text-slate-800">
-                <div className="h-7 w-7 rounded-lg bg-blue-50 text-[#1D4ED8] flex items-center justify-center">
+              <SidebarTrigger className="-ml-1 text-muted-foreground hover:bg-accent rounded-lg" />
+              <div className="flex items-center gap-2 text-foreground">
+                <div className="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1D4ED8] dark:text-sky-400 flex items-center justify-center">
                   <Building2 size={16} />
                 </div>
-                <span className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
-                  Center Manager Portal — <span className="text-[#1D4ED8]">{branchName}</span>
+                <span className="text-xs sm:text-sm font-black text-foreground tracking-tight">
+                  Center Manager Portal — <span className="text-[#1D4ED8] dark:text-sky-400">{branchName}</span>
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5 sm:gap-3">
               <InstallAppButton variant="header" />
+              <ThemeToggle />
               <NotificationPopover />
 
               {/* Center Manager Profile Pill & Dropdown */}
@@ -159,7 +161,7 @@ export const CenterLayout: React.FC = () => {
             </div>
           </header>
 
-          <main className="flex-1 overflow-auto bg-[#F8FAFC]">
+          <main className="flex-1 overflow-auto bg-bg-primary">
             <Outlet />
           </main>
         </div>

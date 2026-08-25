@@ -373,23 +373,23 @@ export const AiCallingQualification: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 1. PAGE HEADER ─── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-1">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl text-[#1769AA] shrink-0 shadow-2xs">
+      {/* ─── 1. PAGE HEADER (WITH QUICK ACTION BUTTONS) ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <div className="p-2.5 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-2xl text-primary dark:text-sky-400 shrink-0 mt-0.5 shadow-2xs">
             <Bot className="h-5 w-5 stroke-[2.5]" />
           </div>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#0A2540]">
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-foreground">
                 AI Calling & Voice Qualification
               </h1>
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[#1769AA] border border-blue-200 text-[10.5px] font-black">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#1769AA] animate-pulse" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-200 dark:border-sky-900/40 text-[10.5px] font-black">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                 Live Telephony
               </span>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Automated AI voice calling campaigns, interest scoring & omnichannel telephony logs.
             </p>
           </div>
@@ -399,7 +399,7 @@ export const AiCallingQualification: React.FC = () => {
           <Button
             type="button"
             onClick={() => setShowAddLeadModal(true)}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-1.5 h-9.5 text-xs transition-all cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-1.5 h-9.5 text-xs transition-all cursor-pointer"
           >
             <Plus className="h-3.5 w-3.5 stroke-[3]" />
             <span>Add New Lead</span>
@@ -410,32 +410,32 @@ export const AiCallingQualification: React.FC = () => {
       {/* ─── 2. SUMMARY KPI CARDS (6 CARDS GRID) ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-3">
         {/* Total Leads */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Total Leads</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Leads</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 flex items-center justify-center">
                 <Users className="w-3.5 h-3.5" />
               </div>
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.totalLeads}</h3>
+              <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">{kpiStats.totalLeads}</h3>
             </div>
           </CardContent>
         </Card>
 
         {/* AI Calls Completed */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">AI Calls Completed</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">AI Calls Done</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400 border border-cyan-100 dark:border-cyan-900/40 flex items-center justify-center">
                 <PhoneCall className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="flex items-baseline justify-between">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.callsCompleted}</h3>
-              <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+              <h3 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">{kpiStats.callsCompleted}</h3>
+              <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-900/40">
                 {kpiStats.completionGrowth}
               </span>
             </div>
@@ -443,17 +443,17 @@ export const AiCallingQualification: React.FC = () => {
         </Card>
 
         {/* Interested */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Interested</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Interested</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center">
                 <Flame className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="flex items-baseline justify-between">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.interested}</h3>
-              <span className="text-[10px] font-extrabold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md border border-emerald-100">
+              <h3 className="text-xl sm:text-2xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{kpiStats.interested}</h3>
+              <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.5 rounded-md border border-emerald-100 dark:border-emerald-900/40">
                 {kpiStats.interestedGrowth}
               </span>
             </div>
@@ -461,32 +461,32 @@ export const AiCallingQualification: React.FC = () => {
         </Card>
 
         {/* Callback Requested */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Callback Requested</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Flame className="w-3.5 h-3.5 text-amber-600" />
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Callback Req.</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center">
+                <Flame className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
               </div>
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.callbackRequested}</h3>
+              <h3 className="text-xl sm:text-2xl font-black text-amber-600 dark:text-amber-400 tracking-tight">{kpiStats.callbackRequested}</h3>
             </div>
           </CardContent>
         </Card>
 
         {/* Not Interested */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Not Interested</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Not Interested</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 flex items-center justify-center">
                 <AlertOctagon className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="flex items-baseline justify-between">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.notInterested}</h3>
-              <span className="text-[9.5px] font-bold text-rose-700 bg-rose-50 px-1.5 py-0.5 rounded-md border border-rose-100">
+              <h3 className="text-xl sm:text-2xl font-black text-rose-600 dark:text-rose-400 tracking-tight">{kpiStats.notInterested}</h3>
+              <span className="text-[9.5px] font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 px-1.5 py-0.5 rounded-md border border-rose-100 dark:border-rose-900/40">
                 Closed
               </span>
             </div>
@@ -494,17 +494,17 @@ export const AiCallingQualification: React.FC = () => {
         </Card>
 
         {/* No Response */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs hover:shadow-xs transition-shadow">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">No Response</span>
-              <div className="w-7.5 h-7.5 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">No Response</span>
+              <div className="w-7.5 h-7.5 rounded-xl bg-muted text-muted-foreground flex items-center justify-center border border-border">
                 <Clock className="w-3.5 h-3.5" />
               </div>
             </div>
             <div className="flex items-baseline justify-between">
-              <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{kpiStats.noResponse}</h3>
-              <span className="text-[9.5px] font-extrabold text-[#1769AA] bg-blue-50 px-1.5 py-0.5 rounded-md border border-blue-100 cursor-pointer hover:bg-blue-100">
+              <h3 className="text-xl sm:text-2xl font-black text-muted-foreground tracking-tight">{kpiStats.noResponse}</h3>
+              <span className="text-[9.5px] font-extrabold text-primary bg-primary/10 px-1.5 py-0.5 rounded-md border border-primary/20 cursor-pointer hover:bg-primary/20">
                 Retry
               </span>
             </div>
@@ -513,24 +513,24 @@ export const AiCallingQualification: React.FC = () => {
       </div>
 
       {/* ─── 3. SEARCH AND FILTERS BAR (WITH MULTI-SOURCE FILTER) ─── */}
-      <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs">
+      <Card className="bg-card rounded-2xl border border-border shadow-xs">
         <CardContent className="p-2.5 sm:p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
             {/* Search Box */}
             <div className="relative flex-1 min-w-[180px] sm:min-w-[220px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
               <input
                 type="text"
                 placeholder="Search name, phone, course, source..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-7 py-1 text-xs bg-slate-50 hover:bg-slate-100/60 focus:bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500/30 focus:border-[#1769AA] transition-all font-medium text-slate-800 placeholder:text-slate-400 h-8"
+                className="w-full pl-8 pr-7 py-1 text-xs bg-muted/30 hover:bg-muted/50 focus:bg-background border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary transition-all font-medium text-foreground placeholder:text-muted-foreground h-8"
               />
               {searchTerm && (
                 <button
                   type="button"
                   onClick={() => setSearchTerm("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-0.5"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -543,39 +543,38 @@ export const AiCallingQualification: React.FC = () => {
               <select
                 value={sourceFilter}
                 onChange={(e) => setSourceFilter(e.target.value)}
-                className="h-8 text-[11px] bg-white border border-slate-200 rounded-lg px-2 font-semibold text-slate-700 focus:outline-none focus:border-[#1769AA] cursor-pointer shadow-2xs"
+                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Lead Sources</option>
                 <option value="Website">🌐 Website</option>
                 <option value="Google Ads">🔍 Google Ads</option>
                 <option value="Meta Ads">⚡ Meta Ads</option>
                 <option value="Instagram">📱 Instagram</option>
-                <option value="Referral">👥 Referral</option>
-                <option value="Walk-in">🏢 Walk-in</option>
+                <option value="WhatsApp">💬 WhatsApp</option>
                 <option value="Direct Call">📞 Direct Call</option>
+                <option value="Referral">👥 Referral</option>
               </select>
 
               {/* Course Dropdown */}
               <select
                 value={courseFilter}
                 onChange={(e) => setCourseFilter(e.target.value)}
-                className="h-8 text-[11px] bg-white border border-slate-200 rounded-lg px-2 font-semibold text-slate-700 focus:outline-none focus:border-[#1769AA] cursor-pointer shadow-2xs"
+                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Courses</option>
-                <option value="Digital Marketing">Digital Marketing</option>
-                <option value="Graphic Design">Graphic Design</option>
-                <option value="Web Development">Web Development</option>
-                <option value="Data Science">Data Science</option>
-                <option value="UI/UX Design">UI/UX Design</option>
-                <option value="Python / AI">Python / AI</option>
-                <option value="Java Full Stack">Java Full Stack</option>
+                <option value="Digital Marketing Masterclass">Digital Marketing</option>
+                <option value="Full Stack Web Development">Full Stack Web Dev</option>
+                <option value="Data Science & Machine Learning">Data Science & ML</option>
+                <option value="UI/UX Design Specialist">UI/UX Design</option>
+                <option value="Cyber Security Essentials">Cyber Security</option>
+                <option value="Graphic Design Pro">Graphic Design</option>
               </select>
 
               {/* AI Response Dropdown */}
               <select
                 value={responseFilter}
                 onChange={(e) => setResponseFilter(e.target.value)}
-                className="h-8 text-[11px] bg-white border border-slate-200 rounded-lg px-2 font-semibold text-slate-700 focus:outline-none focus:border-[#1769AA] cursor-pointer shadow-2xs"
+                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All AI Responses</option>
                 <option value="INTERESTED">🟢 Interested</option>
@@ -589,7 +588,7 @@ export const AiCallingQualification: React.FC = () => {
               <select
                 value={campaignFilter}
                 onChange={(e) => setCampaignFilter(e.target.value)}
-                className="h-8 text-[11px] bg-white border border-slate-200 rounded-lg px-2 font-semibold text-slate-700 focus:outline-none focus:border-[#1769AA] cursor-pointer shadow-2xs"
+                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Campaigns</option>
                 <option value="August Admission Drive">August Admission Drive</option>
@@ -601,7 +600,7 @@ export const AiCallingQualification: React.FC = () => {
               <select
                 value={dateFilter}
                 onChange={(e) => setDateFilter(e.target.value)}
-                className="h-8 text-[11px] bg-white border border-slate-200 rounded-lg px-2 font-semibold text-slate-700 focus:outline-none focus:border-[#1769AA] cursor-pointer shadow-2xs"
+                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="TODAY">📅 Today (24 Aug)</option>
                 <option value="YESTERDAY">Yesterday</option>
@@ -615,7 +614,7 @@ export const AiCallingQualification: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="h-8 text-[11px] font-black text-rose-600 hover:text-rose-700 px-2 rounded-lg hover:bg-rose-50 transition-all cursor-pointer"
+                  className="h-8 text-[11px] font-black text-rose-500 hover:text-rose-600 px-2 rounded-xl hover:bg-rose-500/10 transition-all cursor-pointer"
                 >
                   Reset
                 </button>
@@ -626,7 +625,7 @@ export const AiCallingQualification: React.FC = () => {
       </Card>
 
       {/* ─── 4. AI CALLING LEADS TABLE (FULL SCREEN FIT, NO SCROLLING, NO CHECKBOX) ─── */}
-      <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs overflow-hidden">
+      <Card className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
         <div className="w-full">
           <table className="w-full text-left text-xs table-fixed">
             <colgroup>
@@ -639,25 +638,25 @@ export const AiCallingQualification: React.FC = () => {
               <col className="w-[8%]" />
               <col className="w-[6%]" />
             </colgroup>
-            <thead className="bg-slate-50/90 text-slate-500 font-bold border-b border-slate-100 text-[10.5px] uppercase tracking-wider">
+            <thead className="bg-muted/50 text-foreground font-bold border-b border-border text-[11px] uppercase tracking-wider">
               <tr>
-                <th className="py-2.5 px-3 font-bold">Lead Details</th>
-                <th className="py-2.5 px-2.5 font-bold">Interested In</th>
-                <th className="py-2.5 px-2.5 font-bold">AI Call Status</th>
-                <th className="py-2.5 px-3 font-bold">AI Response & Summary</th>
-                <th className="py-2.5 px-2 font-bold">Call Info</th>
-                <th className="py-2.5 px-2 font-bold text-center">AI Score</th>
-                <th className="py-2.5 px-2 font-bold text-center">Next Action</th>
-                <th className="py-2.5 px-2 font-bold text-center">Action</th>
+                <th className="py-3 px-3 font-bold">Lead Details</th>
+                <th className="py-3 px-2.5 font-bold">Interested In</th>
+                <th className="py-3 px-2.5 font-bold">AI Call Status</th>
+                <th className="py-3 px-3 font-bold">AI Response & Summary</th>
+                <th className="py-3 px-2 font-bold">Call Info</th>
+                <th className="py-3 px-2 font-bold text-center">AI Score</th>
+                <th className="py-3 px-2 font-bold text-center">Next Action</th>
+                <th className="py-3 px-2 font-bold text-center">Action</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border/70 bg-card">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    <Bot className="h-8 w-8 mx-auto text-slate-300 mb-1.5" />
-                    <p className="font-bold text-xs text-slate-700">No AI Calling records found</p>
-                    <p className="text-[10.5px] text-slate-400 mt-0.5">Try adjusting filters or adding a new enquiry.</p>
+                  <td colSpan={8} className="py-12 text-center text-muted-foreground">
+                    <Bot className="h-8 w-8 mx-auto text-muted-foreground/40 mb-1.5" />
+                    <p className="font-black text-xs text-foreground">No AI Calling records found</p>
+                    <p className="text-[10.5px] text-muted-foreground mt-0.5 font-medium">Try adjusting filters or adding a new enquiry.</p>
                   </td>
                 </tr>
               ) : (
@@ -665,7 +664,7 @@ export const AiCallingQualification: React.FC = () => {
                   return (
                     <tr
                       key={lead.id}
-                      className="hover:bg-blue-50/30 transition-colors group"
+                      className="hover:bg-muted/40 transition-colors group border-b border-border/70"
                     >
                       {/* 1. Lead Details */}
                       <td className="py-2.5 px-3 align-middle">
@@ -951,59 +950,59 @@ export const AiCallingQualification: React.FC = () => {
         </div>
 
         {/* ─── 5. TABLE PAGINATION FOOTER ─── */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-          <div className="text-slate-500 font-medium">
-            Showing <strong className="text-slate-800">1 – {filteredLeads.length}</strong> of <strong className="text-slate-800">96</strong> leads
+        <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="text-muted-foreground font-medium">
+            Showing <strong className="text-foreground font-bold">1 – {filteredLeads.length}</strong> of <strong className="text-foreground font-bold">96</strong> leads
           </div>
 
           <div className="flex items-center gap-1.5 self-center sm:self-auto">
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer"
               title="Previous Page"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg bg-[#1769AA] text-white font-extrabold flex items-center justify-center shadow-xs"
+              className="w-7.5 h-7.5 rounded-lg bg-primary text-white font-black flex items-center justify-center shadow-xs"
             >
               1
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold flex items-center justify-center cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
             >
               2
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold flex items-center justify-center cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
             >
               3
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold flex items-center justify-center cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
             >
               4
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold flex items-center justify-center cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
             >
               5
             </button>
-            <span className="text-slate-400 px-1 font-bold">...</span>
+            <span className="text-muted-foreground px-1 font-bold">...</span>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 font-bold flex items-center justify-center cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
             >
               14
             </button>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-slate-200 bg-white text-slate-500 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer"
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer"
               title="Next Page"
             >
               <ChevronRight className="h-4 w-4" />
@@ -1011,8 +1010,8 @@ export const AiCallingQualification: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-slate-500 font-medium">Show:</span>
-            <select className="h-8 px-2 text-xs bg-white border border-slate-200 rounded-lg font-bold text-slate-700 focus:outline-none">
+            <span className="text-muted-foreground font-medium">Show:</span>
+            <select className="h-8 px-2 text-xs bg-muted/30 border border-border rounded-lg font-bold text-foreground focus:outline-none focus:bg-background cursor-pointer">
               <option value="10">10 per page</option>
               <option value="20">20 per page</option>
               <option value="50">50 per page</option>
@@ -1304,9 +1303,9 @@ export const AiCallingQualification: React.FC = () => {
 
           {/* Modal Bottom Actions */}
           {activeLead && (
-            <div className="p-4 px-6 border-t border-slate-100 bg-slate-50/90 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div className="flex items-center gap-2 text-emerald-900 text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <div className="p-4 px-6 border-t border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                 <span>Lead is qualified and ready for Counsellor follow-up.</span>
               </div>
 
@@ -1318,9 +1317,8 @@ export const AiCallingQualification: React.FC = () => {
                     handleOpenFollowUpModal(activeLead);
                   }}
                   variant="outline"
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-foreground hover:bg-muted/50 cursor-pointer h-9.5 px-4"
                 >
-                  <Phone className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
                   Schedule Follow-up
                 </Button>
 
@@ -1330,10 +1328,10 @@ export const AiCallingQualification: React.FC = () => {
                     setShowDetailsDrawer(false);
                     handleOpenAssignModal(activeLead);
                   }}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <UserCheck className="w-4 h-4" />
-                  Assign to Counsellor
+                  Assign Counsellor
                 </Button>
               </div>
             </div>
@@ -1343,15 +1341,15 @@ export const AiCallingQualification: React.FC = () => {
 
       {/* ─── 7. SCHEDULE FOLLOW-UP MODAL ─── */}
       <Dialog open={showFollowUpModal} onOpenChange={setShowFollowUpModal}>
-        <DialogContent className="max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-          <DialogHeader className="pb-3 border-b border-slate-100">
-            <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
-              <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+        <DialogContent className="max-w-xl bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border max-h-[90vh] overflow-y-auto text-foreground">
+          <DialogHeader className="pb-3 border-b border-border">
+            <DialogTitle className="text-lg font-black text-foreground tracking-tight flex items-center gap-2.5">
+              <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                 <CalendarDays className="h-5 w-5" />
               </span>
               Schedule Follow-up
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Set next follow-up touchpoint, reminders, and interaction notes for this candidate.
             </p>
           </DialogHeader>
@@ -1359,19 +1357,19 @@ export const AiCallingQualification: React.FC = () => {
           {followUpLead && (
             <form onSubmit={handleSaveFollowUp} className="space-y-4.5 pt-2 text-xs">
               {/* Candidate Info Pill */}
-              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
+              <div className="p-3.5 bg-muted/30 rounded-2xl border border-border flex items-center justify-between">
                 <div>
-                  <h4 className="font-extrabold text-slate-900 text-sm">{followUpLead.name}</h4>
-                  <p className="text-slate-500 font-mono text-[11px]">{followUpLead.phone} • {followUpLead.course}</p>
+                  <h4 className="font-extrabold text-foreground text-sm">{followUpLead.name}</h4>
+                  <p className="text-muted-foreground font-mono text-[11px]">{followUpLead.phone} • {followUpLead.course}</p>
                 </div>
-                <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 font-bold text-[11px]">
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-bold text-[11px]">
                   AI: {followUpLead.aiOutcome}
                 </Badge>
               </div>
 
               {/* Follow-up Type */}
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Follow-up Channel</Label>
+                <Label className="text-foreground font-bold text-xs">Follow-up Channel</Label>
                 <div className="grid grid-cols-3 gap-2.5">
                   {[
                     { key: "PHONE", label: "Phone Call", icon: Phone },
@@ -1387,8 +1385,8 @@ export const AiCallingQualification: React.FC = () => {
                         onClick={() => setFollowUpChannel(m.key as any)}
                         className={`p-2.5 rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border ${
                           isSelected
-                            ? "bg-[#1769AA] text-white border-[#1769AA] shadow-xs"
-                            : "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100"
+                            ? "bg-primary text-white border-primary shadow-xs"
+                            : "bg-muted/30 text-foreground border-border hover:bg-muted/50"
                         }`}
                       >
                         <IconComp className="h-4 w-4" />
@@ -1400,12 +1398,12 @@ export const AiCallingQualification: React.FC = () => {
               </div>
 
               {/* Schedule Reminder Presets */}
-              <div className="space-y-2.5 p-3.5 bg-slate-50 rounded-2xl border border-slate-200/70">
+              <div className="space-y-2.5 p-3.5 bg-muted/30 rounded-2xl border border-border">
                 <div className="flex items-center justify-between">
-                  <Label className="text-slate-700 font-bold text-xs flex items-center gap-1.5">
-                    <Clock className="w-3.5 h-3.5 text-[#1769AA]" /> Schedule Reminder
+                  <Label className="text-foreground font-bold text-xs flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-primary" /> Schedule Reminder
                   </Label>
-                  <span className="text-[10.5px] font-medium text-slate-400">Quick presets</span>
+                  <span className="text-[10.5px] font-medium text-muted-foreground">Quick presets</span>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5">
@@ -1419,7 +1417,7 @@ export const AiCallingQualification: React.FC = () => {
                       key={p.id}
                       type="button"
                       onClick={() => handleApplyPreset(p.id as any)}
-                      className="px-2.5 py-1 rounded-lg bg-white hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] text-[10.5px] font-bold transition-all cursor-pointer border border-slate-200 shadow-2xs"
+                      className="px-2.5 py-1 rounded-lg bg-card hover:bg-muted/50 text-foreground text-[10.5px] font-bold transition-all cursor-pointer border border-border shadow-2xs"
                     >
                       ⚡ {p.label}
                     </button>
@@ -1428,21 +1426,21 @@ export const AiCallingQualification: React.FC = () => {
 
                 <div className="grid grid-cols-2 gap-3 pt-1">
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-600 mb-1 block">📅 Select Date</Label>
+                    <Label className="text-[11px] font-bold text-muted-foreground mb-1 block">📅 Select Date</Label>
                     <Input
                       type="date"
                       value={followUpDate}
                       onChange={(e) => setFollowUpDate(e.target.value)}
-                      className="h-9.5 text-xs rounded-xl bg-white font-medium shadow-2xs"
+                      className="h-9.5 text-xs rounded-xl bg-muted/30 border-border text-foreground font-medium shadow-2xs focus:bg-background"
                       required
                     />
                   </div>
                   <div>
-                    <Label className="text-[11px] font-bold text-slate-600 mb-1 block">🕐 Select Time</Label>
+                    <Label className="text-[11px] font-bold text-muted-foreground mb-1 block">🕐 Select Time</Label>
                     <select
                       value={followUpTime}
                       onChange={(e) => setFollowUpTime(e.target.value)}
-                      className="w-full h-9.5 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] shadow-2xs"
+                      className="w-full h-9.5 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                     >
                       <option value="09:30 AM">09:30 AM</option>
                       <option value="10:30 AM">10:30 AM</option>
@@ -1460,9 +1458,9 @@ export const AiCallingQualification: React.FC = () => {
                     type="checkbox"
                     checked={setReminderAlert}
                     onChange={(e) => setSetReminderAlert(e.target.checked)}
-                    className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+                    className="rounded border-border text-primary accent-primary h-4 w-4"
                   />
-                  <span className="text-[11.5px] font-bold text-slate-700">
+                  <span className="text-[11.5px] font-bold text-foreground">
                     Set reminder alert on Dashboard & schedule WhatsApp notification
                   </span>
                 </label>
@@ -1470,22 +1468,22 @@ export const AiCallingQualification: React.FC = () => {
 
               {/* Notes */}
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Follow-up Notes</Label>
+                <Label className="text-foreground font-bold text-xs">Follow-up Notes</Label>
                 <textarea
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
                   placeholder="Add notes about discussion points or agenda for next call…"
-                  className="w-full min-h-[80px] p-3 border border-slate-200 rounded-2xl text-xs bg-white font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] shadow-2xs"
+                  className="w-full min-h-[80px] p-3 border border-border rounded-2xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                 />
               </div>
 
               {/* Footer */}
-              <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="pt-3 border-t border-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => handleOpenLostModal(followUpLead)}
-                  className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-bold text-xs rounded-xl h-9.5 px-3.5 gap-1.5 cursor-pointer"
+                  className="border-rose-500/30 text-rose-500 hover:bg-rose-500/10 font-bold text-xs rounded-xl h-9.5 px-3.5 gap-1.5 cursor-pointer"
                 >
                   <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
                   Mark as Lost / Not Interested
@@ -1496,13 +1494,13 @@ export const AiCallingQualification: React.FC = () => {
                     type="button"
                     variant="outline"
                     onClick={() => setShowFollowUpModal(false)}
-                    className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                    className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                   >
                     Cancel
                   </Button>
                   <Button
                     type="submit"
-                    className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                    className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                   >
                     <Check className="h-4 w-4" />
                     Save Follow-up
@@ -1516,27 +1514,27 @@ export const AiCallingQualification: React.FC = () => {
 
       {/* ─── 8. MARK AS LOST CONFIRMATION MODAL ─── */}
       <Dialog open={showLostModal} onOpenChange={setShowLostModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-rose-100">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-base font-black text-rose-700 flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 inline-flex">
+            <DialogTitle className="text-base font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 inline-flex">
                 <AlertTriangle className="h-5 w-5" />
               </span>
               Mark Lead as Lost
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Are you sure you want to mark <strong className="text-slate-800">{lostLead?.name}</strong> as lost? Active follow-up reminders will be closed.
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Are you sure you want to mark <strong className="text-foreground font-bold">{lostLead?.name}</strong> as lost? Active follow-up reminders will be closed.
             </p>
           </DialogHeader>
 
           {lostLead && (
             <form onSubmit={handleConfirmLost} className="space-y-4 pt-2 text-xs">
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Select Lost Reason *</Label>
+                <Label className="text-foreground font-bold text-xs">Select Lost Reason *</Label>
                 <select
                   value={lostReason}
                   onChange={(e) => setLostReason(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                   required
                 >
                   <option value="Joined Competitor Institute">Joined Competitor Institute</option>
@@ -1551,12 +1549,12 @@ export const AiCallingQualification: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Optional Remarks</Label>
+                <Label className="text-foreground font-bold text-xs">Optional Remarks</Label>
                 <textarea
                   value={lostNotes}
                   onChange={(e) => setLostNotes(e.target.value)}
                   placeholder="Add details about why candidate is marked as lost…"
-                  className="w-full min-h-[70px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500 shadow-2xs"
+                  className="w-full min-h-[70px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                 />
               </div>
 
@@ -1565,13 +1563,13 @@ export const AiCallingQualification: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowLostModal(false)}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <X className="h-4 w-4" />
                   Confirm Mark as Lost
@@ -1584,37 +1582,37 @@ export const AiCallingQualification: React.FC = () => {
 
       {/* ─── 9. ASSIGN TO COUNSELLOR MODAL ─── */}
       <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-base font-black text-[#0A2540] flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-purple-50 text-purple-600 border border-purple-100 inline-flex">
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 inline-flex">
                 <UserCheck className="h-5 w-5" />
               </span>
               Assign Lead to Counsellor
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-1">
-              Select the academic counsellor who will own 1-on-1 counseling and admission follow-up for <strong className="text-slate-800">{assignLead?.name}</strong>.
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Select the academic counsellor who will own 1-on-1 counseling and admission follow-up for <strong className="text-foreground font-bold">{assignLead?.name}</strong>.
             </p>
           </DialogHeader>
 
           {assignLead && (
             <form onSubmit={handleSaveAssignment} className="space-y-4 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+              <div className="p-3 bg-muted/30 rounded-2xl border border-border flex items-center justify-between">
                 <div>
-                  <h4 className="font-extrabold text-slate-900 text-xs">{assignLead.name}</h4>
-                  <p className="text-slate-500 font-mono text-[11px]">{assignLead.phone} • {assignLead.course}</p>
+                  <h4 className="font-extrabold text-foreground text-xs">{assignLead.name}</h4>
+                  <p className="text-muted-foreground font-mono text-[11px]">{assignLead.phone} • {assignLead.course}</p>
                 </div>
-                <Badge className="bg-emerald-50 text-emerald-800 border-emerald-200 font-bold text-[10.5px]">
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 font-bold text-[10.5px]">
                   Score: {assignLead.aiScore}%
                 </Badge>
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Select Counsellor *</Label>
+                <Label className="text-foreground font-bold text-xs">Select Counsellor *</Label>
                 <select
                   value={selectedCounsellor}
                   onChange={(e) => setSelectedCounsellor(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] shadow-2xs"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                   required
                 >
                   <option value="Priya Singh">Priya Singh (Digital Marketing & Design)</option>
@@ -1625,12 +1623,12 @@ export const AiCallingQualification: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-slate-700 font-bold text-xs">Assignment Note (Optional)</Label>
+                <Label className="text-foreground font-bold text-xs">Assignment Note (Optional)</Label>
                 <textarea
                   value={assignNotes}
                   onChange={(e) => setAssignNotes(e.target.value)}
                   placeholder="Special remarks for the counsellor..."
-                  className="w-full min-h-[65px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-700 shadow-2xs"
+                  className="w-full min-h-[65px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground shadow-2xs focus:bg-background"
                 />
               </div>
 
@@ -1639,13 +1637,13 @@ export const AiCallingQualification: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowAssignModal(false)}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <Check className="h-4 w-4" />
                   Confirm Assignment
@@ -1658,49 +1656,49 @@ export const AiCallingQualification: React.FC = () => {
 
       {/* ─── 10. ADD NEW LEAD MODAL ─── */}
       <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg font-black text-[#0A2540] flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+            <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                 <UserPlus className="h-5 w-5" />
               </span>
               Add New Lead for AI Calling
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-1">
+            <p className="text-xs text-muted-foreground font-medium mt-1">
               Add a new student enquiry and immediately trigger or queue an AI voice qualification call.
             </p>
           </DialogHeader>
 
           <form onSubmit={handleCreateLeadSubmit} className="space-y-3.5 pt-2 text-xs">
             <div className="space-y-1">
-              <Label className="text-slate-700 font-bold text-xs">Full Name *</Label>
+              <Label className="text-foreground font-bold text-xs">Full Name *</Label>
               <Input
                 required
                 placeholder="e.g. Aniket Verma"
                 value={newLeadName}
                 onChange={(e) => setNewLeadName(e.target.value)}
-                className="h-10 text-xs rounded-xl"
+                className="h-10 text-xs rounded-xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
             <div className="space-y-1">
-              <Label className="text-slate-700 font-bold text-xs">Phone Number *</Label>
+              <Label className="text-foreground font-bold text-xs">Phone Number *</Label>
               <Input
                 required
                 placeholder="e.g. 9876543219"
                 value={newLeadPhone}
                 onChange={(e) => setNewLeadPhone(e.target.value)}
-                className="h-10 text-xs rounded-xl"
+                className="h-10 text-xs rounded-xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-slate-700 font-bold text-xs">Course Interested *</Label>
+                <Label className="text-foreground font-bold text-xs">Course Interested *</Label>
                 <select
                   value={newLeadCourse}
                   onChange={(e) => setNewLeadCourse(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
                   <option value="Digital Marketing">Digital Marketing</option>
                   <option value="Graphic Design">Graphic Design</option>
@@ -1713,11 +1711,11 @@ export const AiCallingQualification: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-700 font-bold text-xs">Enquiry Source *</Label>
+                <Label className="text-foreground font-bold text-xs">Enquiry Source *</Label>
                 <select
                   value={newLeadSource}
                   onChange={(e) => setNewLeadSource(e.target.value as LeadSource)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
                   <option value="Website">🌐 Website Form</option>
                   <option value="Google Ads">🔍 Google Ads</option>
@@ -1730,15 +1728,15 @@ export const AiCallingQualification: React.FC = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-2 p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none pt-2 p-3 bg-muted/30 rounded-xl border border-border">
               <input
                 type="checkbox"
                 checked={triggerImmediateCall}
                 onChange={(e) => setTriggerImmediateCall(e.target.checked)}
-                className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+                className="rounded border-border text-primary accent-primary h-4 w-4"
               />
-              <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1">
-                <Bot className="w-3.5 h-3.5 text-[#1769AA]" />
+              <span className="text-[11.5px] font-bold text-foreground flex items-center gap-1">
+                <Bot className="w-3.5 h-3.5 text-primary" />
                 Trigger automated Sarvam AI voice call immediately
               </span>
             </label>
@@ -1748,13 +1746,13 @@ export const AiCallingQualification: React.FC = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setShowAddLeadModal(false)}
-                className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
               >
                 <Check className="h-4 w-4" />
                 Add & Launch AI Call

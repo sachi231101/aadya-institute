@@ -349,18 +349,18 @@ export const LeadManagement: React.FC = () => {
   };
 
   return (
-    <div className="p-6 md:p-8 space-y-6 max-w-[1600px] mx-auto bg-[#f8fafc] min-h-screen animate-in fade-in duration-300">
+    <div className="space-y-6 max-w-[1600px] mx-auto min-h-screen animate-in fade-in duration-300">
       {/* ─── 1. PAGE HEADER ─── */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-start gap-3.5">
-          <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl text-[#1769AA] shrink-0 mt-0.5 shadow-2xs">
+          <div className="p-2.5 bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 rounded-2xl text-primary dark:text-sky-400 shrink-0 mt-0.5 shadow-2xs">
             <Target className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-foreground">
               Lead Management & AI Calling
             </h1>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Manage leads from all sources, AI qualification, counsellor interactions, and follow-ups.
             </p>
           </div>
@@ -369,7 +369,7 @@ export const LeadManagement: React.FC = () => {
         <div className="flex items-center gap-3 flex-wrap">
           <Button
             onClick={() => setShowAddLeadModal(true)}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold px-4.5 py-2 rounded-xl shadow-md gap-2 h-10 transition-all cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-white font-bold px-4.5 py-2 rounded-xl shadow-xs gap-2 h-10 transition-all cursor-pointer text-xs"
           >
             <Plus className="h-4 w-4" /> Add New Lead
           </Button>
@@ -378,15 +378,15 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── TOAST / BANNER NOTIFICATION ─── */}
       {toastMessage && (
-        <div className="p-3.5 px-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
+        <div className="p-3.5 px-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+            <CheckCircle2 className="h-4.5 w-4.5 text-emerald-500 shrink-0" />
             <span>{toastMessage}</span>
           </div>
           <button
             type="button"
             onClick={() => setToastMessage(null)}
-            className="text-emerald-700 hover:text-emerald-950 p-1 cursor-pointer"
+            className="text-emerald-700 dark:text-emerald-300 hover:opacity-75 p-1 cursor-pointer"
           >
             <X className="h-4 w-4" />
           </button>
@@ -396,70 +396,70 @@ export const LeadManagement: React.FC = () => {
       {/* ─── 2. COMPACT SUMMARY KPI CARDS (5 CARDS) ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {/* Card 1: Total Leads */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 hover:shadow-md transition-all">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs p-4 hover:shadow-md transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11.5px] font-semibold text-slate-500">Total Leads</p>
-              <h3 className="text-2xl font-black text-[#0A2540] mt-1 tracking-tight">{kpis.total}</h3>
-              <p className="text-[10.5px] text-slate-400 font-medium mt-0.5">All Sources</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Leads</p>
+              <h3 className="text-2xl font-black text-foreground mt-1 tracking-tight">{kpis.total}</h3>
+              <p className="text-[10.5px] text-muted-foreground font-medium mt-0.5">All Sources</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center font-bold border border-blue-100/70 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center font-bold border border-blue-100 dark:border-sky-900/40 shrink-0">
               <Target className="w-4.5 h-4.5" />
             </div>
           </div>
         </Card>
 
         {/* Card 2: Pending AI Calls */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 hover:shadow-md transition-all">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs p-4 hover:shadow-md transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11.5px] font-semibold text-slate-500">Pending AI Calls</p>
-              <h3 className="text-2xl font-black text-amber-600 mt-1 tracking-tight">{kpis.pendingCalls}</h3>
-              <p className="text-[10.5px] text-amber-600 font-medium mt-0.5">Queued for Telephony</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Pending AI Calls</p>
+              <h3 className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1 tracking-tight">{kpis.pendingCalls}</h3>
+              <p className="text-[10.5px] text-amber-600 dark:text-amber-400 font-medium mt-0.5">Queued for Telephony</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold border border-amber-100/70 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center font-bold border border-amber-100 dark:border-amber-900/40 shrink-0">
               <Clock className="w-4.5 h-4.5" />
             </div>
           </div>
         </Card>
 
         {/* Card 3: AI Qualified / Interested */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 hover:shadow-md transition-all">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs p-4 hover:shadow-md transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11.5px] font-semibold text-slate-500">AI Qualified</p>
-              <h3 className="text-2xl font-black text-emerald-700 mt-1 tracking-tight">{kpis.aiQualified}</h3>
-              <p className="text-[10.5px] text-emerald-600 font-medium mt-0.5">High Intent Leads</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">AI Qualified</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tracking-tight">{kpis.aiQualified}</h3>
+              <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">High Intent Leads</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold border border-emerald-100/70 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold border border-emerald-100 dark:border-emerald-900/40 shrink-0">
               <Sparkles className="w-4.5 h-4.5" />
             </div>
           </div>
         </Card>
 
         {/* Card 4: Follow-ups Due */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 hover:shadow-md transition-all">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs p-4 hover:shadow-md transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11.5px] font-semibold text-slate-500">Follow-ups Due</p>
-              <h3 className="text-2xl font-black text-indigo-700 mt-1 tracking-tight">{kpis.followUpsDue}</h3>
-              <p className="text-[10.5px] text-indigo-600 font-medium mt-0.5">Today & Upcoming</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Follow-ups Due</p>
+              <h3 className="text-2xl font-black text-purple-600 dark:text-purple-400 mt-1 tracking-tight">{kpis.followUpsDue}</h3>
+              <p className="text-[10.5px] text-purple-600 dark:text-purple-400 font-medium mt-0.5">Today & Upcoming</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold border border-indigo-100/70 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold border border-purple-100 dark:border-purple-900/40 shrink-0">
               <CalendarDays className="w-4.5 h-4.5" />
             </div>
           </div>
         </Card>
 
         {/* Card 5: Converted Leads */}
-        <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 hover:shadow-md transition-all">
+        <Card className="bg-card rounded-2xl border border-border shadow-xs p-4 hover:shadow-md transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-[11.5px] font-semibold text-slate-500">Converted Leads</p>
-              <h3 className="text-2xl font-black text-green-700 mt-1 tracking-tight">{kpis.converted}</h3>
-              <p className="text-[10.5px] text-green-600 font-medium mt-0.5">Enrolled to Course</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Converted Leads</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1 tracking-tight">{kpis.converted}</h3>
+              <p className="text-[10.5px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">Enrolled to Course</p>
             </div>
-            <div className="w-9 h-9 rounded-xl bg-green-50 text-green-600 flex items-center justify-center font-bold border border-green-100/70 shrink-0">
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold border border-emerald-100 dark:border-emerald-900/40 shrink-0">
               <CheckCircle2 className="w-4.5 h-4.5" />
             </div>
           </div>
@@ -467,22 +467,22 @@ export const LeadManagement: React.FC = () => {
       </div>
 
       {/* ─── 3. MULTI-FILTER BAR (ALL SOURCES, STAGES, COURSES, COUNSELLORS) ─── */}
-      <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4">
+      <Card className="bg-card rounded-2xl border border-border shadow-xs p-4">
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1 min-w-[240px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search by lead name, phone, email, or course..."
-              className="pl-9 h-9.5 text-xs bg-slate-50/70 border-slate-200 rounded-xl focus:bg-white transition-colors"
+              className="pl-9 h-9.5 text-xs bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background transition-colors"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -495,7 +495,7 @@ export const LeadManagement: React.FC = () => {
             <select
               value={sourceFilter}
               onChange={(e) => setSourceFilter(e.target.value)}
-              className="h-9.5 text-xs bg-white border border-slate-200 rounded-xl px-2.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1769AA]/20 cursor-pointer shadow-2xs"
+              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">🌐 All Sources</option>
               <option value="Website">🌐 Website Form</option>
@@ -513,7 +513,7 @@ export const LeadManagement: React.FC = () => {
             <select
               value={stageFilter}
               onChange={(e) => setStageFilter(e.target.value)}
-              className="h-9.5 text-xs bg-white border border-slate-200 rounded-xl px-2.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1769AA]/20 cursor-pointer shadow-2xs"
+              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">📊 All Pipeline Stages</option>
               <option value="NEW">New Lead</option>
@@ -529,7 +529,7 @@ export const LeadManagement: React.FC = () => {
             <select
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="h-9.5 text-xs bg-white border border-slate-200 rounded-xl px-2.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1769AA]/20 cursor-pointer shadow-2xs"
+              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">🎓 All Courses</option>
               <option value="Digital Marketing">Digital Marketing</option>
@@ -545,7 +545,7 @@ export const LeadManagement: React.FC = () => {
             <select
               value={counsellorFilter}
               onChange={(e) => setCounsellorFilter(e.target.value)}
-              className="h-9.5 text-xs bg-white border border-slate-200 rounded-xl px-2.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1769AA]/20 cursor-pointer shadow-2xs"
+              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">👤 All Counsellors</option>
               <option value="Priya Singh">Priya Singh</option>
@@ -558,7 +558,7 @@ export const LeadManagement: React.FC = () => {
             <select
               value={followUpStatusFilter}
               onChange={(e) => setFollowUpStatusFilter(e.target.value)}
-              className="h-9.5 text-xs bg-white border border-slate-200 rounded-xl px-2.5 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-[#1769AA]/20 cursor-pointer shadow-2xs"
+              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">📅 All Follow-ups</option>
               <option value="DUE_TODAY">Due Today</option>
@@ -573,7 +573,7 @@ export const LeadManagement: React.FC = () => {
                 type="button"
                 variant="ghost"
                 onClick={handleResetFilters}
-                className="h-9.5 text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl px-3 cursor-pointer"
+                className="h-9.5 text-xs font-bold text-rose-500 hover:text-rose-600 hover:bg-rose-500/10 rounded-xl px-3 cursor-pointer"
               >
                 Reset
               </Button>
@@ -583,32 +583,32 @@ export const LeadManagement: React.FC = () => {
       </Card>
 
       {/* ─── 4. CENTRALIZED ALL LEADS TABLE (10 COLUMNS) ─── */}
-      <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs overflow-hidden">
+      <Card className="bg-card rounded-2xl border border-border shadow-xs overflow-hidden">
         <div className="w-full overflow-x-auto">
           <table className="w-full text-left text-xs min-w-[1280px]">
-            <thead className="bg-slate-50/90 text-slate-500 font-bold border-b border-slate-100 text-[10.5px] uppercase tracking-wider">
+            <thead className="bg-muted/50 text-foreground font-bold border-b border-border text-[11px] uppercase tracking-wider">
               <tr>
-                <th className="py-3 px-4 font-bold min-w-[170px]">Lead</th>
-                <th className="py-3 px-3 font-bold min-w-[125px]">Contact</th>
-                <th className="py-3 px-3 font-bold min-w-[130px]">Course Interested</th>
-                <th className="py-3 px-3 font-bold min-w-[110px]">Source</th>
-                <th className="py-3 px-4 font-bold min-w-[210px] max-w-[280px]">AI Response</th>
-                <th className="py-3 px-3 font-bold min-w-[100px]">Status</th>
-                <th className="py-3 px-2 font-bold text-center min-w-[65px]">AI Score</th>
-                <th className="py-3 px-3 font-bold min-w-[110px]">Counsellor</th>
-                <th className="py-3 px-3 font-bold min-w-[130px]">Next Follow-up</th>
-                <th className="py-3 px-4 font-bold text-right min-w-[130px]">Actions</th>
+                <th className="py-3.5 px-4 font-bold min-w-[170px]">Lead</th>
+                <th className="py-3.5 px-3 font-bold min-w-[125px]">Contact</th>
+                <th className="py-3.5 px-3 font-bold min-w-[130px]">Course Interested</th>
+                <th className="py-3.5 px-3 font-bold min-w-[110px]">Source</th>
+                <th className="py-3.5 px-4 font-bold min-w-[210px] max-w-[280px]">AI Response</th>
+                <th className="py-3.5 px-3 font-bold min-w-[100px]">Status</th>
+                <th className="py-3.5 px-2 font-bold text-center min-w-[65px]">AI Score</th>
+                <th className="py-3.5 px-3 font-bold min-w-[110px]">Counsellor</th>
+                <th className="py-3.5 px-3 font-bold min-w-[130px]">Next Follow-up</th>
+                <th className="py-3.5 px-4 font-bold text-right min-w-[130px]">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border/70 bg-card">
               {filteredLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-14 text-center text-slate-400">
-                    <Target className="h-9 w-9 mx-auto text-slate-300 mb-2" />
-                    <p className="font-bold text-sm text-slate-700">
+                  <td colSpan={10} className="py-14 text-center text-muted-foreground">
+                    <Target className="h-9 w-9 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="font-black text-sm text-foreground">
                       {leads.length === 0 ? "No leads found" : "No leads match your filter criteria"}
                     </p>
-                    <p className="text-xs text-slate-400 mt-1">
+                    <p className="text-xs text-muted-foreground mt-1 font-medium">
                       {leads.length === 0
                         ? 'Click "+ Add New Lead" to record a new candidate enquiry.'
                         : "Try resetting filters or adjusting your search query."}
@@ -623,7 +623,7 @@ export const LeadManagement: React.FC = () => {
                   return (
                     <tr
                       key={lead.id}
-                      className="hover:bg-blue-50/30 transition-colors group cursor-pointer"
+                      className="hover:bg-muted/40 transition-colors group cursor-pointer border-b border-border/70"
                       onClick={() => handleOpenDetails(lead, "OVERVIEW")}
                     >
                       {/* 1. LEAD (Avatar, Name, Hot, Dot, Email) */}
@@ -833,66 +833,43 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── 5. SCHEDULE FOLLOW-UP POPUP / MODAL ─── */}
       <Dialog open={showFollowUpModal} onOpenChange={setShowFollowUpModal}>
-        <DialogContent className="max-w-xl bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto z-50">
-          <DialogHeader className="pb-3 border-b border-slate-100">
+        <DialogContent className="max-w-xl bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border max-h-[90vh] overflow-y-auto z-50 text-foreground">
+          <DialogHeader className="pb-3 border-b border-border">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+              <DialogTitle className="text-lg font-black text-foreground tracking-tight flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                   <CalendarDays className="h-5 w-5" />
                 </span>
                 Schedule Follow-up
               </DialogTitle>
             </div>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Set next follow-up touchpoint, reminders, and interaction notes for this candidate.
             </p>
           </DialogHeader>
 
           {followUpLead && (
-            <form onSubmit={handleSaveFollowUp} className="space-y-4.5 pt-2 text-xs">
-              {/* 1. Candidate Summary Card */}
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-3 shadow-2xs">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-[#1769AA] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
-                      {followUpLead.name.split(" ").map((n) => n[0]).join("")}
-                    </div>
-                    <div>
-                      <h4 className="font-extrabold text-slate-900 text-sm tracking-tight">
-                        {followUpLead.name}
-                      </h4>
-                      <p className="text-slate-500 font-mono text-[11px] font-medium flex items-center gap-1.5 mt-0.5">
-                        <Phone className="w-3 h-3 text-slate-400" /> {followUpLead.phone}
-                      </p>
-                    </div>
-                  </div>
-
-                  <Badge className="bg-blue-50 text-[#1769AA] border border-blue-200 font-bold text-[11px] px-2.5 py-1 shrink-0 self-start sm:self-auto">
-                    {followUpLead.course}
-                  </Badge>
+            <form onSubmit={handleSaveFollowUp} className="space-y-4 pt-2 text-xs">
+              {/* 1. Lead Summary Header */}
+              <div className="p-3 bg-muted/30 rounded-xl border border-border flex items-center justify-between">
+                <div>
+                  <h4 className="font-extrabold text-foreground text-xs">{followUpLead.name}</h4>
+                  <p className="text-[11px] text-muted-foreground font-mono mt-0.5">{followUpLead.phone} • {followUpLead.course}</p>
                 </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/60 text-[11px]">
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">Lead Source</span>
-                    <span className="font-bold text-slate-700">{followUpLead.source}</span>
-                  </div>
-                  <div>
-                    <span className="text-slate-400 block text-[10px]">AI Score / Status</span>
-                    <span className="font-bold text-emerald-700">{followUpLead.aiScore || 85}% • {followUpLead.aiOutcome || "Qualified"}</span>
-                  </div>
-                </div>
+                <Badge variant="outline" className="text-[10px] font-bold border-border bg-card">
+                  {followUpLead.stage}
+                </Badge>
               </div>
 
-              {/* 2. Follow-up Type Selector */}
+              {/* 2. Interaction Channel Type */}
               <div className="space-y-1.5">
-                <Label className="text-slate-800 font-bold text-xs">Follow-up Type *</Label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <Label className="text-foreground font-bold text-xs">Follow-up Channel / Type *</Label>
+                <div className="grid grid-cols-4 gap-2">
                   {[
                     { id: "Phone Call", label: "Phone Call", icon: Phone },
                     { id: "WhatsApp", label: "WhatsApp", icon: MessageSquare },
-                    { id: "Meeting", label: "Meeting / Demo", icon: Laptop },
-                    { id: "Other", label: "Other", icon: CalendarDays },
+                    { id: "Meeting", label: "Center Visit", icon: Building },
+                    { id: "Other", label: "Demo Class", icon: Laptop },
                   ].map((t) => {
                     const Icon = t.icon;
                     const isSel = followUpType === t.id;
@@ -907,8 +884,8 @@ export const LeadManagement: React.FC = () => {
                         }}
                         className={`p-2.5 rounded-xl border flex flex-col items-center gap-1 transition-all cursor-pointer text-center ${
                           isSel
-                            ? "bg-blue-50/80 border-[#1769AA] text-[#1769AA] shadow-xs font-bold ring-1 ring-[#1769AA]"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50 font-medium"
+                            ? "bg-primary/10 border-primary text-primary shadow-xs font-bold ring-1 ring-primary"
+                            : "bg-card border-border text-foreground hover:bg-muted/40 font-medium"
                         }`}
                       >
                         <Icon className="w-4 h-4" />
@@ -922,21 +899,21 @@ export const LeadManagement: React.FC = () => {
               {/* 3. Schedule Date & Time */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-slate-800 font-bold text-xs">Follow-up Date *</Label>
+                  <Label className="text-foreground font-bold text-xs">Follow-up Date *</Label>
                   <Input
                     type="date"
                     required
                     value={followUpDate}
                     onChange={(e) => setFollowUpDate(e.target.value)}
-                    className="h-9.5 text-xs rounded-xl font-medium"
+                    className="h-9.5 text-xs rounded-xl font-medium bg-muted/30 border-border text-foreground focus:bg-background"
                   />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-slate-800 font-bold text-xs">Follow-up Time *</Label>
+                  <Label className="text-foreground font-bold text-xs">Follow-up Time *</Label>
                   <select
                     value={followUpTime}
                     onChange={(e) => setFollowUpTime(e.target.value)}
-                    className="w-full h-9.5 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                    className="w-full h-9.5 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground outline-none focus:bg-background"
                   >
                     <option value="10:00 AM">10:00 AM (Morning)</option>
                     <option value="11:00 AM">11:00 AM (Morning)</option>
@@ -949,36 +926,36 @@ export const LeadManagement: React.FC = () => {
               </div>
 
               {/* 4. Reminder Toggle */}
-              <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-blue-50/60 rounded-xl border border-blue-100">
+              <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-muted/30 rounded-xl border border-border">
                 <input
                   type="checkbox"
                   checked={setReminderAlert}
                   onChange={(e) => setSetReminderAlert(e.target.checked)}
-                  className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+                  className="rounded border-border text-primary accent-primary h-4 w-4"
                 />
-                <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1">
-                  <Bell className="w-3.5 h-3.5 text-[#1769AA]" />
+                <span className="text-[11.5px] font-bold text-foreground flex items-center gap-1">
+                  <Bell className="w-3.5 h-3.5 text-primary" />
                   Create reminder alert on Counsellor Dashboard & WhatsApp
                 </span>
               </label>
 
               {/* 5. Follow-up Notes */}
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Follow-up Notes / Discussion Agenda</Label>
+                <Label className="text-foreground font-bold text-xs">Follow-up Notes / Discussion Agenda</Label>
                 <textarea
                   value={followUpNotes}
                   onChange={(e) => setFollowUpNotes(e.target.value)}
                   placeholder="e.g. Call to discuss installment options and confirm Saturday demo session seat..."
-                  className="w-full min-h-[70px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-800 shadow-2xs outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                  className="w-full min-h-[70px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground shadow-2xs outline-none focus:bg-background"
                 />
               </div>
 
               {/* Shortcut: Not Interested? Mark as Lost */}
-              <div className="pt-1 flex items-center justify-between border-t border-slate-100">
+              <div className="pt-1 flex items-center justify-between border-t border-border">
                 <button
                   type="button"
                   onClick={() => handleOpenLostModal(followUpLead)}
-                  className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline cursor-pointer flex items-center gap-1"
+                  className="text-xs font-bold text-rose-500 hover:text-rose-600 hover:underline cursor-pointer flex items-center gap-1"
                 >
                   <Trash2 className="w-3 h-3" /> Not Interested? Mark as Lost
                 </button>
@@ -990,13 +967,13 @@ export const LeadManagement: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowFollowUpModal(false)}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <Check className="h-4 w-4" />
                   Schedule Follow-up
@@ -1009,31 +986,31 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── 6. MARK AS LOST CONFIRMATION POPUP ─── */}
       <Dialog open={showLostModal} onOpenChange={setShowLostModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 z-50">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border z-50 text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg font-black text-rose-700 flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-rose-50 text-rose-600 border border-rose-100 inline-flex">
+            <DialogTitle className="text-lg font-black text-rose-600 dark:text-rose-400 flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/40 inline-flex">
                 <AlertTriangle className="h-5 w-5" />
               </span>
               Mark Lead as Lost
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-1">
+            <p className="text-xs text-muted-foreground font-medium mt-1">
               Marking this lead as lost will close the active pipeline while preserving full interaction logs.
             </p>
           </DialogHeader>
 
           {lostLead && (
             <form onSubmit={handleConfirmLost} className="space-y-4 pt-2 text-xs">
-              <div className="p-3 bg-rose-50/60 rounded-xl border border-rose-100 text-rose-900 font-bold">
+              <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-rose-600 dark:text-rose-400 font-bold">
                 Candidate: {lostLead.name} ({lostLead.phone}) • {lostLead.course}
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Primary Lost Reason *</Label>
+                <Label className="text-foreground font-bold text-xs">Primary Lost Reason *</Label>
                 <select
                   value={lostReason}
                   onChange={(e) => setLostReason(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-rose-500/20"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground outline-none focus:bg-background"
                 >
                   <option value="Not Interested">Not Interested in Course</option>
                   <option value="Course Fee">Course Fee / Budget Constraints</option>
@@ -1045,12 +1022,12 @@ export const LeadManagement: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Remarks / Feedback (Optional)</Label>
+                <Label className="text-foreground font-bold text-xs">Remarks / Feedback (Optional)</Label>
                 <textarea
                   value={lostNotes}
                   onChange={(e) => setLostNotes(e.target.value)}
                   placeholder="Enter details or candidate feedback..."
-                  className="w-full min-h-[65px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-800 outline-none focus:ring-2 focus:ring-rose-500/20"
+                  className="w-full min-h-[65px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground outline-none focus:bg-background"
                 />
               </div>
 
@@ -1059,13 +1036,13 @@ export const LeadManagement: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowLostModal(false)}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <X className="h-4 w-4" />
                   Confirm Mark as Lost
@@ -1078,10 +1055,10 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── 7. ASSIGN COUNSELLOR POPUP ─── */}
       <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 z-50">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border z-50 text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg font-black text-[#0A2540] flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+            <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                 <UserCheck className="h-5 w-5" />
               </span>
               Assign Lead to Counsellor
@@ -1090,16 +1067,16 @@ export const LeadManagement: React.FC = () => {
 
           {assignLead && (
             <form onSubmit={handleSaveAssignment} className="space-y-4 pt-2 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-slate-800 font-bold">
+              <div className="p-3 bg-muted/30 rounded-xl border border-border text-foreground font-bold">
                 {assignLead.name} ({assignLead.phone}) • {assignLead.course}
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Select Counsellor *</Label>
+                <Label className="text-foreground font-bold text-xs">Select Counsellor *</Label>
                 <select
                   value={selectedCounsellor}
                   onChange={(e) => setSelectedCounsellor(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800 outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground outline-none focus:bg-background"
                 >
                   <option value="Priya Singh">Priya Singh (Digital Marketing & Design)</option>
                   <option value="Ramesh Kumar">Ramesh Kumar (Full Stack & Python)</option>
@@ -1109,12 +1086,12 @@ export const LeadManagement: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Assignment Remarks</Label>
+                <Label className="text-foreground font-bold text-xs">Assignment Remarks</Label>
                 <textarea
                   value={assignNotes}
                   onChange={(e) => setAssignNotes(e.target.value)}
                   placeholder="Notes for the assigned counsellor..."
-                  className="w-full min-h-[65px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-800 outline-none"
+                  className="w-full min-h-[65px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground outline-none focus:bg-background"
                 />
               </div>
 
@@ -1123,13 +1100,13 @@ export const LeadManagement: React.FC = () => {
                   type="button"
                   variant="outline"
                   onClick={() => setShowAssignModal(false)}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                  className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <Check className="h-4 w-4" />
                   Save Assignment
@@ -1142,61 +1119,61 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── 8. ADD NEW LEAD MODAL ─── */}
       <Dialog open={showAddLeadModal} onOpenChange={setShowAddLeadModal}>
-        <DialogContent className="max-w-md bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-slate-100 z-50">
+        <DialogContent className="max-w-md bg-card rounded-3xl p-6 sm:p-7 shadow-2xl border border-border z-50 text-foreground">
           <DialogHeader className="pb-2">
-            <DialogTitle className="text-lg font-black text-[#0A2540] flex items-center gap-2">
-              <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+            <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                 <UserPlus className="h-5 w-5" />
               </span>
               Add New Lead
             </DialogTitle>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Record a new student enquiry and optionally initiate an instant AI qualification voice call.
             </p>
           </DialogHeader>
 
           <form onSubmit={handleCreateLead} className="space-y-3.5 pt-2 text-xs">
             <div className="space-y-1">
-              <Label className="text-slate-800 font-bold text-xs">Candidate Full Name *</Label>
+              <Label className="text-foreground font-bold text-xs">Candidate Full Name *</Label>
               <Input
                 required
                 placeholder="e.g. Aman Sharma"
                 value={formName}
                 onChange={(e) => setFormName(e.target.value)}
-                className="h-10 text-xs rounded-xl"
+                className="h-10 text-xs rounded-xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Phone Number *</Label>
+                <Label className="text-foreground font-bold text-xs">Phone Number *</Label>
                 <Input
                   required
                   placeholder="9876543210"
                   value={formPhone}
                   onChange={(e) => setFormPhone(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
+                  className="h-10 text-xs rounded-xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background"
                 />
               </div>
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Email Address</Label>
+                <Label className="text-foreground font-bold text-xs">Email Address</Label>
                 <Input
                   type="email"
                   placeholder="aman@example.com"
                   value={formEmail}
                   onChange={(e) => setFormEmail(e.target.value)}
-                  className="h-10 text-xs rounded-xl"
+                  className="h-10 text-xs rounded-xl bg-muted/30 border-border text-foreground placeholder:text-muted-foreground focus:bg-background"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Course Interested *</Label>
+                <Label className="text-foreground font-bold text-xs">Course Interested *</Label>
                 <select
                   value={formCourse}
                   onChange={(e) => setFormCourse(e.target.value)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
                   <option value="Digital Marketing">Digital Marketing</option>
                   <option value="Graphic Design">Graphic Design</option>
@@ -1209,11 +1186,11 @@ export const LeadManagement: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-slate-800 font-bold text-xs">Lead Source *</Label>
+                <Label className="text-foreground font-bold text-xs">Lead Source *</Label>
                 <select
                   value={formSource}
                   onChange={(e) => setFormSource(e.target.value as LeadSource)}
-                  className="w-full h-10 px-3 border border-slate-200 rounded-xl text-xs bg-white font-semibold text-slate-800"
+                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
                   <option value="Website">🌐 Website Form</option>
                   <option value="Meta Ads">📱 Meta / Facebook Ads</option>
@@ -1227,26 +1204,26 @@ export const LeadManagement: React.FC = () => {
               </div>
             </div>
 
-            <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-blue-50/70 rounded-xl border border-blue-100">
+            <label className="flex items-center gap-2.5 cursor-pointer select-none p-3 bg-muted/30 rounded-xl border border-border">
               <input
                 type="checkbox"
                 checked={formTriggerAi}
                 onChange={(e) => setFormTriggerAi(e.target.checked)}
-                className="rounded border-slate-300 text-[#1769AA] accent-[#1769AA] h-4 w-4"
+                className="rounded border-border text-primary accent-primary h-4 w-4"
               />
-              <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1.5">
-                <Bot className="w-4 h-4 text-[#1769AA]" />
+              <span className="text-[11.5px] font-bold text-foreground flex items-center gap-1.5">
+                <Bot className="w-4 h-4 text-primary" />
                 Trigger automated Sarvam AI voice qualification call immediately
               </span>
             </label>
 
             <div className="space-y-1">
-              <Label className="text-slate-800 font-bold text-xs">Initial Enquiry Notes</Label>
+              <Label className="text-foreground font-bold text-xs">Initial Enquiry Notes</Label>
               <textarea
                 value={formNotes}
                 onChange={(e) => setFormNotes(e.target.value)}
                 placeholder="Candidate enquired about fees and batch timings..."
-                className="w-full min-h-[60px] p-3 border border-slate-200 rounded-xl text-xs bg-white font-medium text-slate-800"
+                className="w-full min-h-[60px] p-3 border border-border rounded-xl text-xs bg-muted/30 font-medium text-foreground placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
@@ -1255,13 +1232,13 @@ export const LeadManagement: React.FC = () => {
                 type="button"
                 variant="outline"
                 onClick={() => setShowAddLeadModal(false)}
-                className="rounded-xl border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-100 cursor-pointer h-9.5 px-4"
+                className="rounded-xl border-border text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4"
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
               >
                 <Check className="h-4 w-4" /> Save & Launch Lead
               </Button>
@@ -1272,12 +1249,12 @@ export const LeadManagement: React.FC = () => {
 
       {/* ─── 9. LEAD DETAILS INSPECTION POPUP MODAL ─── */}
       <Dialog open={showDetailsDrawer} onOpenChange={setShowDetailsDrawer}>
-        <DialogContent className="max-w-2xl sm:max-w-3xl bg-white rounded-3xl p-0 overflow-hidden shadow-2xl border border-slate-100 max-h-[88vh] flex flex-col z-50">
+        <DialogContent className="max-w-2xl sm:max-w-3xl bg-card rounded-3xl p-0 overflow-hidden shadow-2xl border border-border max-h-[88vh] flex flex-col z-50 text-foreground">
           {/* Modal Header */}
-          <div className="p-5 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/70 space-y-4">
+          <div className="p-5 sm:p-6 pb-4 border-b border-border bg-muted/30 space-y-4">
             <div className="flex items-center justify-between">
-              <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+              <DialogTitle className="text-lg font-black text-foreground tracking-tight flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 inline-flex">
                   <FileText className="h-5 w-5 stroke-[2.5]" />
                 </span>
                 Lead Profile & AI Qualification
@@ -1285,50 +1262,47 @@ export const LeadManagement: React.FC = () => {
             </div>
 
             {activeLead && (
-              <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between gap-3">
+              <div className="p-4 bg-card rounded-2xl border border-border shadow-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-[#1769AA] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
+                  <div className="w-11 h-11 rounded-2xl bg-primary text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
                     {activeLead.name.split(" ").map((n) => n[0]).join("")}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <h4 className="font-extrabold text-slate-900 text-sm truncate tracking-tight">
+                      <h4 className="font-extrabold text-foreground text-sm truncate tracking-tight">
                         {activeLead.name}
                       </h4>
                       {activeLead.hotLead && (
-                        <span className="px-1.5 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[9px] font-black">
+                        <span className="px-1.5 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-900/40 text-[9px] font-black">
                           🔥 Hot Lead
                         </span>
                       )}
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9px] font-black">
-                        Stage: {activeLead.stage}
-                      </span>
                     </div>
-                    <div className="flex items-center gap-2 mt-0.5 text-slate-500 font-mono text-[11px] font-medium flex-wrap">
-                      <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-slate-400" /> {activeLead.phone}</span>
+                    <div className="flex items-center gap-2 mt-0.5 text-muted-foreground font-mono text-[11px] font-medium flex-wrap">
+                      <span className="flex items-center gap-1"><Phone className="w-3 h-3 text-muted-foreground" /> {activeLead.phone}</span>
                       <span>•</span>
-                      <span className="font-sans font-bold text-slate-600">
+                      <span className="font-sans font-bold text-foreground">
                         {getSourceBadge(activeLead.source).icon} {getSourceBadge(activeLead.source).label}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                <Badge className="bg-blue-50 text-[#1769AA] border border-blue-200 font-bold text-[11px] px-3 py-1 shrink-0">
+                <Badge className="bg-primary/10 text-primary border border-primary/20 font-bold text-[11px] px-3 py-1 shrink-0">
                   {activeLead.course}
                 </Badge>
               </div>
             )}
 
             {/* Segmented Tabs */}
-            <div className="grid grid-cols-3 gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/60">
+            <div className="grid grid-cols-3 gap-1.5 p-1 bg-muted/40 rounded-xl border border-border">
               <button
                 type="button"
                 onClick={() => setDetailsTab("OVERVIEW")}
                 className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   detailsTab === "OVERVIEW"
-                    ? "bg-white text-[#1769AA] shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Overview & Profile
@@ -1338,8 +1312,8 @@ export const LeadManagement: React.FC = () => {
                 onClick={() => setDetailsTab("AI_CALL")}
                 className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   detailsTab === "AI_CALL"
-                    ? "bg-white text-[#1769AA] shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 AI Audio & Transcript
@@ -1349,8 +1323,8 @@ export const LeadManagement: React.FC = () => {
                 onClick={() => setDetailsTab("TIMELINE")}
                 className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   detailsTab === "TIMELINE"
-                    ? "bg-white text-[#1769AA] shadow-xs"
-                    : "text-slate-600 hover:text-slate-900"
+                    ? "bg-card text-primary shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Activity Timeline
@@ -1364,16 +1338,16 @@ export const LeadManagement: React.FC = () => {
               {detailsTab === "OVERVIEW" && (
                 <>
                   {/* AI Qualification Score & Outcome */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 flex items-center justify-between">
+                  <div className="p-4 bg-muted/30 rounded-2xl border border-border flex items-center justify-between">
                     <div>
-                      <span className="text-[11px] font-bold text-slate-500 block mb-1">AI Voice Outcome</span>
-                      <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5 text-emerald-600 stroke-[3]" /> {activeLead.aiOutcome || "Qualified"}
+                      <span className="text-[11px] font-bold text-muted-foreground block mb-1 uppercase tracking-wider">AI Voice Outcome</span>
+                      <span className="px-2.5 py-1 rounded-full text-xs font-black bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 inline-flex items-center gap-1.5">
+                        <Check className="w-3.5 h-3.5 text-emerald-500 stroke-[3]" /> {activeLead.aiOutcome || "Qualified"}
                       </span>
                     </div>
                     <div className="text-right">
-                      <span className="text-[11px] font-bold text-slate-500 block mb-0.5">AI Score</span>
-                      <span className="text-xl font-black text-slate-900">{activeLead.aiScore || 85}%</span>
+                      <span className="text-[11px] font-bold text-muted-foreground block mb-0.5 uppercase tracking-wider">AI Score</span>
+                      <span className="text-xl font-black text-foreground">{activeLead.aiScore || 85}%</span>
                       <div className="text-xs text-amber-400 font-bold">
                         {"★".repeat(activeLead.starRating || 4)}{"☆".repeat(5 - (activeLead.starRating || 4))}
                       </div>
@@ -1382,18 +1356,18 @@ export const LeadManagement: React.FC = () => {
 
                   {/* Summary Narrative */}
                   <div className="space-y-1.5">
-                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#1769AA]" /> AI Generated Summary
+                    <Label className="text-foreground font-bold text-xs flex items-center gap-1.5">
+                      <Sparkles className="w-3.5 h-3.5 text-primary" /> AI Generated Summary
                     </Label>
-                    <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
+                    <div className="p-4 bg-muted/30 rounded-2xl border border-border text-foreground font-medium leading-relaxed shadow-2xs">
                       {activeLead.aiDetailedSummary || activeLead.aiSummaryShort || "Candidate was contacted via automated Sarvam AI voice agent."}
                     </div>
                   </div>
 
                   {/* Key Discussion Points */}
                   <div className="space-y-2">
-                    <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Key Discussion Points
+                    <Label className="text-foreground font-bold text-xs flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> Key Discussion Points
                     </Label>
                     <div className="space-y-2">
                       {(activeLead.keyHighlights || activeLead.keyDiscussionPoints || [
@@ -1403,9 +1377,9 @@ export const LeadManagement: React.FC = () => {
                       ]).map((point: string, idx: number) => (
                         <div
                           key={idx}
-                          className="p-2.5 bg-slate-50 rounded-xl border border-slate-100 flex items-start gap-2 text-slate-700"
+                          className="p-2.5 bg-muted/30 rounded-xl border border-border flex items-start gap-2 text-foreground"
                         >
-                          <Check className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 stroke-[3]" />
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5 stroke-[3]" />
                           <span className="font-medium text-[11.5px] leading-snug">{point}</span>
                         </div>
                       ))}
@@ -1413,24 +1387,24 @@ export const LeadManagement: React.FC = () => {
                   </div>
 
                   {/* Metadata */}
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/70 space-y-2.5">
-                    <Label className="text-slate-800 font-bold text-xs block mb-1">Lead Telephony Details</Label>
+                  <div className="p-4 bg-muted/30 rounded-2xl border border-border space-y-2.5">
+                    <Label className="text-foreground font-bold text-xs block mb-1">Lead Telephony Details</Label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-[11.5px]">
                       <div>
-                        <span className="text-slate-400 block text-[10.5px]">Call Time</span>
-                        <span className="font-bold text-slate-800">{activeLead.callDate || "Today"}</span>
+                        <span className="text-muted-foreground block text-[10.5px]">Call Time</span>
+                        <span className="font-bold text-foreground">{activeLead.callDate || "Today"}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[10.5px]">Duration</span>
-                        <span className="font-bold text-slate-800">{activeLead.callDuration || "2m 15s"}</span>
+                        <span className="text-muted-foreground block text-[10.5px]">Duration</span>
+                        <span className="font-bold text-foreground">{activeLead.callDuration || "2m 15s"}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[10.5px]">Counsellor</span>
-                        <span className="font-bold text-slate-800">{activeLead.assignedCounsellor || "Priya Singh"}</span>
+                        <span className="text-muted-foreground block text-[10.5px]">Counsellor</span>
+                        <span className="font-bold text-foreground">{activeLead.assignedCounsellor || "Priya Singh"}</span>
                       </div>
                       <div>
-                        <span className="text-slate-400 block text-[10.5px]">Next Touchpoint</span>
-                        <span className="font-bold text-slate-800">{activeLead.nextFollowUp}</span>
+                        <span className="text-muted-foreground block text-[10.5px]">Next Touchpoint</span>
+                        <span className="font-bold text-foreground">{activeLead.nextFollowUp}</span>
                       </div>
                     </div>
                   </div>
@@ -1616,9 +1590,9 @@ export const LeadManagement: React.FC = () => {
                     setShowDetailsDrawer(false);
                     handleCallStudent(activeLead);
                   }}
-                  className="rounded-xl border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-100 cursor-pointer h-9.5 px-4 gap-1.5"
+                  className="rounded-xl border-border text-xs font-bold text-foreground hover:bg-muted/40 cursor-pointer h-9.5 px-4 gap-1.5"
                 >
-                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                  <Phone className="w-3.5 h-3.5 text-emerald-500" />
                   Call Student
                 </Button>
 
@@ -1628,7 +1602,7 @@ export const LeadManagement: React.FC = () => {
                     setShowDetailsDrawer(false);
                     handleOpenFollowUp(activeLead);
                   }}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <CalendarDays className="w-4 h-4" />
                   Schedule Follow-up

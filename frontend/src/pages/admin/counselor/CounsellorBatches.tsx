@@ -753,7 +753,7 @@ export const CounsellorBatches: React.FC = () => {
 
               <div className="flex-1 border border-border/70 rounded-lg overflow-y-auto max-h-[300px]">
                 <Table>
-                  <TableHeader className="bg-slate-50/90 sticky top-0 z-10">
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow className="text-xs">
                       <TableHead className="w-10">
                         <input
@@ -766,12 +766,12 @@ export const CounsellorBatches: React.FC = () => {
                               setSelectedStudentIds(new Set());
                             }
                           }}
-                          className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                          className="rounded border-border text-primary focus:ring-primary"
                         />
                       </TableHead>
-                      <TableHead className="text-xs">Student Code & Name</TableHead>
-                      <TableHead className="text-xs">Contact Info</TableHead>
-                      <TableHead className="text-xs">Qualification / Details</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Student Code & Name</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Contact Info</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Qualification / Details</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -793,7 +793,7 @@ export const CounsellorBatches: React.FC = () => {
                               else next.add(st.id);
                               setSelectedStudentIds(next);
                             }}
-                            className={`cursor-pointer text-xs ${isSelected ? "bg-blue-50/50" : "hover:bg-slate-50"}`}
+                            className={`cursor-pointer text-xs ${isSelected ? "bg-primary/10" : "hover:bg-muted/40"}`}
                           >
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <input
@@ -805,15 +805,15 @@ export const CounsellorBatches: React.FC = () => {
                                   else next.delete(st.id);
                                   setSelectedStudentIds(next);
                                 }}
-                                className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                                className="rounded border-border text-primary focus:ring-primary"
                               />
                             </TableCell>
                             <TableCell>
-                              <div className="font-semibold text-slate-900">{st.user?.name || "Student"}</div>
+                              <div className="font-bold text-foreground">{st.user?.name || "Student"}</div>
                               <div className="text-[11px] font-mono text-muted-foreground">{st.studentCode}</div>
                             </TableCell>
                             <TableCell className="text-xs">
-                              <div>{st.user?.phone || "—"}</div>
+                              <div className="text-foreground">{st.user?.phone || "—"}</div>
                               <div className="text-[11px] text-muted-foreground">{st.user?.email || "—"}</div>
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
@@ -829,12 +829,12 @@ export const CounsellorBatches: React.FC = () => {
 
               <div className="pt-2 flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">
-                  Target Batch Capacity: <span className="font-semibold text-slate-800">{currentBatchStudents.length} / {studentsModalBatch?.capacity || 35}</span>
+                  Target Batch Capacity: <span className="font-bold text-foreground">{currentBatchStudents.length} / {studentsModalBatch?.capacity || 35}</span>
                 </span>
                 <Button
                   disabled={selectedStudentIds.size === 0 || isEnrollingStudents}
                   onClick={handleEnrollSelectedStudents}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs gap-1.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs gap-1.5"
                 >
                   {isEnrollingStudents ? (
                     <>
@@ -853,12 +853,12 @@ export const CounsellorBatches: React.FC = () => {
             <TabsContent value="CURRENT" className="flex-1 flex flex-col space-y-3 overflow-hidden mt-0">
               <div className="flex-1 border border-border/70 rounded-lg overflow-y-auto max-h-[300px]">
                 <Table>
-                  <TableHeader className="bg-slate-50/90 sticky top-0 z-10">
+                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
                     <TableRow className="text-xs">
-                      <TableHead className="text-xs">Student Code & Name</TableHead>
-                      <TableHead className="text-xs">Contact</TableHead>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-right text-xs pr-4">Action</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Student Code & Name</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Contact</TableHead>
+                      <TableHead className="text-xs font-bold text-foreground">Status</TableHead>
+                      <TableHead className="text-right text-xs pr-4 font-bold text-foreground">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

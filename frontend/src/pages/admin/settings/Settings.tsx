@@ -36,6 +36,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useUIStore } from "@/store/ui.store";
 import {
   Dialog,
   DialogContent,
@@ -859,18 +861,29 @@ export const Settings: React.FC = () => {
 
       {/* ─── TAB 4: SYSTEM PREFERENCES ─────────────────────────────────── */}
       {activeTab === "system" && (
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-6 max-w-3xl">
+        <Card className="border-slate-200/80 dark:border-border shadow-xs bg-white dark:bg-card rounded-3xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0">
+            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#1769AA] dark:text-sky-400 shrink-0">
               <Sliders className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-foreground tracking-tight">
                 System & Regional Preferences
               </h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Set portal language, default timezone, and system idle security.
+              <p className="text-xs text-slate-500 dark:text-muted-foreground font-medium mt-0.5">
+                Set appearance theme, portal language, default timezone, and system idle security.
               </p>
+            </div>
+          </div>
+
+          {/* Theme Mode Selector */}
+          <div className="space-y-2 p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-900/50 border border-slate-200/60 dark:border-border/60">
+            <div>
+              <Label className="text-xs font-bold text-slate-800 dark:text-foreground">Portal Appearance (Dark / Light Mode)</Label>
+              <p className="text-[11px] text-slate-500 dark:text-muted-foreground mt-0.5">Choose your preferred visual theme across all Aadya portals.</p>
+            </div>
+            <div className="pt-1 max-w-sm">
+              <ThemeToggle variant="segmented" />
             </div>
           </div>
 
@@ -899,8 +912,9 @@ export const Settings: React.FC = () => {
           <div className="pt-2">
             <Button
               onClick={() => {
+                const currentTheme = useUIStore.getState().theme;
                 updateSystemMutation.mutate(
-                  { primaryBranch: branch, currencyFormat: currency, themeMode: "LIGHT", autoLogoutMinutes: 30 },
+                  { primaryBranch: branch, currencyFormat: currency, themeMode: currentTheme.toUpperCase(), autoLogoutMinutes: 30 },
                   {
                     onSuccess: () => {
                       setToastMessage("✓ System preferences updated.");

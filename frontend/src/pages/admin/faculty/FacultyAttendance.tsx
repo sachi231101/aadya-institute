@@ -686,20 +686,20 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-12">
+    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
       {/* ─── BREADCRUMB & HEADER (VIEW-ONLY AUDIT & MONITORING) ─────────────── */}
       <div className="space-y-1">
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-          <Building2 className="h-3.5 w-3.5 text-slate-400" />
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
           <span>Faculty</span>
           <span>›</span>
-          <span className="text-slate-900 font-semibold">Attendance</span>
+          <span className="text-foreground font-semibold">Attendance</span>
         </div>
 
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-1">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Faculty Attendance</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
+            <h1 className="text-2xl font-black tracking-tight text-foreground">Faculty Attendance</h1>
+            <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Monitor daily check-ins, check-outs, and attendance history for faculty across institute branches and class sessions.
             </p>
           </div>
@@ -709,13 +709,13 @@ export const FacultyAttendance: React.FC = () => {
       {/* ─── TOP PRIMARY FILTER CARDS: DATE | BRANCH / CENTER | FACULTY ───── */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Card 1: Date Picker */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:border-slate-300 transition-colors">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0 border border-blue-100/80">
+            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
               <Calendar className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">
                 Date
               </label>
               <Input
@@ -725,26 +725,26 @@ export const FacultyAttendance: React.FC = () => {
                   setSelectedDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="h-9 text-xs sm:text-sm font-semibold text-slate-900 bg-white border-slate-200 rounded-lg p-2 focus:ring-1 focus:ring-[#1769AA]"
+                className="h-9 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border-border rounded-xl p-2 focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
               />
             </div>
           </div>
         </Card>
 
         {/* Card 2: Branch / Center Selector */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:border-slate-300 transition-colors">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0 border border-blue-100/80">
+            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
               <Building2 className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-0.5">
+              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">
                 Branch / Center
               </label>
               <select
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1769AA] cursor-pointer"
+                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
               >
                 <option value="ALL">All Branches</option>
                 {branches.map((b) => (
@@ -758,18 +758,18 @@ export const FacultyAttendance: React.FC = () => {
         </Card>
 
         {/* Card 3: Faculty Selector (Dynamic by Branch) */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:border-slate-300 transition-colors">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0 border border-blue-100/80">
+            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
               <Users className="h-5 w-5" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
                   Faculty
                 </label>
                 {selectedBranchId !== "ALL" && (
-                  <span className="text-[10px] text-[#1769AA] font-bold">
+                  <span className="text-[10px] text-primary dark:text-sky-400 font-bold">
                     {availableFacultyForBranch.length} in Branch
                   </span>
                 )}
@@ -780,7 +780,7 @@ export const FacultyAttendance: React.FC = () => {
                   setSelectedFacultyId(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-slate-900 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-[#1769AA] cursor-pointer"
+                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
               >
                 <option value="ALL">All Faculty</option>
                 {availableFacultyForBranch.map((f: any) => (
@@ -797,43 +797,43 @@ export const FacultyAttendance: React.FC = () => {
       {/* ─── SUMMARY KPI CARDS (BRANCH-AWARE) ───────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Records */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:shadow-xs transition-all">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
           <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100/80">
+            <div className="p-3 rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100/80 dark:border-sky-900/40">
               <UserCheck className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Total Records</p>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{kpis.totalRecords}</h3>
-              <p className="text-[11px] text-slate-400 font-medium mt-0.5">Today's Attendance</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Records</p>
+              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.totalRecords}</h3>
+              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Today's Attendance</p>
             </div>
           </CardContent>
         </Card>
 
         {/* Logged In */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:shadow-xs transition-all">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
           <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-100/80">
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100/80 dark:border-emerald-900/40">
               <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Logged In</p>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{kpis.loggedIn}</h3>
-              <p className="text-[11px] text-emerald-600 font-semibold mt-0.5">{kpis.loggedInPct}% Attendance</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Logged In</p>
+              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.loggedIn}</h3>
+              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">{kpis.loggedInPct}% Attendance</p>
             </div>
           </CardContent>
         </Card>
 
         {/* Logged Out */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:shadow-xs transition-all">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
           <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-amber-50 text-amber-600 border border-amber-100/80">
+            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100/80 dark:border-amber-900/40">
               <AlertCircle className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Logged Out</p>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{kpis.loggedOut}</h3>
-              <p className="text-[11px] text-amber-600 font-semibold mt-0.5">
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Logged Out</p>
+              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.loggedOut}</h3>
+              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
                 {kpis.totalRecords - kpis.loggedOut} Still In Session
               </p>
             </div>
@@ -841,26 +841,26 @@ export const FacultyAttendance: React.FC = () => {
         </Card>
 
         {/* Faculty Count */}
-        <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl p-4 hover:shadow-xs transition-all">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
           <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-purple-50 text-purple-600 border border-purple-100/80">
+            <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100/80 dark:border-purple-900/40">
               <Clock className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Faculty Count</p>
-              <h3 className="text-2xl font-bold text-slate-900 tracking-tight">{kpis.facultyCount}</h3>
-              <p className="text-[11px] text-purple-600 font-semibold mt-0.5">Active Faculty</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Faculty Count</p>
+              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.facultyCount}</h3>
+              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-0.5">Active Faculty</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* ─── MAIN ATTENDANCE LOG TABLE CARD ─────────────────────────────────── */}
-      <Card className="border border-slate-200/90 shadow-2xs bg-white rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         {/* Search & In-Table Filters Header */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="p-4 border-b border-border bg-card flex flex-col md:flex-row items-center justify-between gap-3">
           <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search by faculty name, batch, or session..."
               value={searchQuery}
@@ -868,18 +868,18 @@ export const FacultyAttendance: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-9 h-9 text-xs sm:text-sm bg-white border-slate-200 rounded-xl"
+              className="pl-9 h-9 text-xs sm:text-sm bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
             />
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
             {/* Quick In-Table Branch Filter */}
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs">
-              <Building2 className="h-3.5 w-3.5 text-[#1769AA]" />
+            <div className="flex items-center gap-1.5 bg-muted/30 border border-border rounded-xl px-2.5 py-1 text-xs font-semibold text-foreground shadow-2xs">
+              <Building2 className="h-3.5 w-3.5 text-primary" />
               <select
                 value={selectedBranchId}
                 onChange={(e) => handleBranchChange(e.target.value)}
-                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-1"
               >
                 <option value="ALL">All Branches</option>
                 {BRANCH_LIST.map((b) => (
@@ -891,15 +891,15 @@ export const FacultyAttendance: React.FC = () => {
             </div>
 
             {/* Quick In-Table Course Filter */}
-            <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-xl px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-2xs">
-              <BookOpen className="h-3.5 w-3.5 text-slate-500" />
+            <div className="flex items-center gap-1.5 bg-muted/30 border border-border rounded-xl px-2.5 py-1 text-xs font-semibold text-foreground shadow-2xs">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
               <select
                 value={selectedCourseFilter}
                 onChange={(e) => {
                   setSelectedCourseFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-transparent text-xs font-semibold text-slate-800 focus:outline-none cursor-pointer pr-1"
+                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-1"
               >
                 <option value="ALL">All Courses</option>
                 {distinctCourses.map((c) => (
@@ -921,7 +921,7 @@ export const FacultyAttendance: React.FC = () => {
                   setSearchQuery("");
                   setCurrentPage(1);
                 }}
-                className="h-8 text-xs text-slate-500 hover:text-slate-800 px-2"
+                className="h-8 text-xs text-muted-foreground hover:text-foreground px-2 cursor-pointer"
               >
                 Reset
               </Button>
@@ -932,20 +932,20 @@ export const FacultyAttendance: React.FC = () => {
         {/* Attendance Table */}
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-slate-50/80 border-b border-slate-200/80">
+            <TableHeader className="bg-muted/50 border-b border-border">
               <TableRow className="text-xs">
-                <TableHead className="font-bold text-slate-700 pl-6">Faculty Name</TableHead>
+                <TableHead className="font-bold text-foreground pl-6">Faculty Name</TableHead>
                 {/* CONDITIONAL BRANCH COLUMN: ONLY SHOWN WHEN "ALL BRANCHES" IS SELECTED */}
                 {selectedBranchId === "ALL" && (
-                  <TableHead className="font-bold text-slate-700">Branch</TableHead>
+                  <TableHead className="font-bold text-foreground">Branch</TableHead>
                 )}
-                <TableHead className="font-bold text-slate-700">Date</TableHead>
-                <TableHead className="font-bold text-slate-700">Batch / Session</TableHead>
-                <TableHead className="font-bold text-slate-700 text-center">Login</TableHead>
-                <TableHead className="font-bold text-slate-700 text-center">Logout</TableHead>
-                <TableHead className="font-bold text-slate-700">Session Time</TableHead>
-                <TableHead className="font-bold text-slate-700">Status</TableHead>
-                <TableHead className="font-bold text-slate-700 text-right pr-6">Actions</TableHead>
+                <TableHead className="font-bold text-foreground">Date</TableHead>
+                <TableHead className="font-bold text-foreground">Batch / Session</TableHead>
+                <TableHead className="font-bold text-foreground text-center">Login</TableHead>
+                <TableHead className="font-bold text-foreground text-center">Logout</TableHead>
+                <TableHead className="font-bold text-foreground">Session Time</TableHead>
+                <TableHead className="font-bold text-foreground">Status</TableHead>
+                <TableHead className="font-bold text-foreground text-right pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -956,9 +956,9 @@ export const FacultyAttendance: React.FC = () => {
                     className="h-48 text-center py-10"
                   >
                     <div className="flex flex-col items-center justify-center space-y-2">
-                      <Clock className="h-8 w-8 text-slate-300" />
-                      <p className="text-sm font-semibold text-slate-700">No attendance logs found</p>
-                      <p className="text-xs text-slate-400 max-w-sm">
+                      <Clock className="h-8 w-8 text-muted-foreground/40" />
+                      <p className="text-sm font-bold text-foreground">No attendance logs found</p>
+                      <p className="text-xs text-muted-foreground max-w-sm">
                         No faculty attendance logs match your active date, branch, or faculty filters.
                       </p>
                     </div>
@@ -968,24 +968,24 @@ export const FacultyAttendance: React.FC = () => {
                 paginatedRecords.map((record) => (
                   <TableRow
                     key={record.id}
-                    className="hover:bg-slate-50/80 transition-colors text-xs border-b border-slate-100"
+                    className="hover:bg-muted/30 transition-colors text-xs border-b border-border/70"
                   >
                     {/* Faculty Name + Avatar + ID */}
-                    <TableCell className="py-3 pl-6">
+                    <TableCell className="py-3.5 pl-6">
                       <div className="flex items-center gap-3">
                         <img
                           src={record.facultyAvatar}
                           alt={record.facultyName}
-                          className="h-9 w-9 rounded-full object-cover border border-slate-200 shrink-0"
+                          className="h-9 w-9 rounded-full object-cover border border-border shrink-0 shadow-2xs"
                           onError={(e) => {
                             (e.target as any).src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
                           }}
                         />
                         <div>
-                          <span className="font-bold text-slate-900 text-sm block">
+                          <span className="font-bold text-foreground text-sm block">
                             {record.facultyName}
                           </span>
-                          <span className="text-[11px] font-mono text-slate-400 block">
+                          <span className="text-[11px] font-mono text-muted-foreground block">
                             Faculty ID: {record.facultyCode}
                           </span>
                         </div>
@@ -994,65 +994,76 @@ export const FacultyAttendance: React.FC = () => {
 
                     {/* Branch Column (Conditional) */}
                     {selectedBranchId === "ALL" && (
-                      <TableCell className="py-3">
-                        {getBranchBadge(record.branchId, record.branchCode)}
+                      <TableCell className="py-3.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-muted/50 border border-border text-foreground">
+                          <Building2 className="h-3 w-3 text-primary" />
+                          <span>{record.branchCode}</span>
+                        </span>
                       </TableCell>
                     )}
 
                     {/* Date */}
-                    <TableCell className="py-3 font-medium text-slate-600">
+                    <TableCell className="py-3.5 font-medium text-foreground">
                       {formatDateDisplay(record.date)}
                     </TableCell>
 
                     {/* Batch / Session */}
-                    <TableCell className="py-3">
+                    <TableCell className="py-3.5">
                       <div>
-                        <span className="font-bold text-slate-900 block">{record.batchName}</span>
-                        <span className="text-[10px] font-mono text-[#1769AA] block">
+                        <span className="font-bold text-foreground block">{record.batchName}</span>
+                        <span className="text-[10px] font-mono text-primary block">
                           {record.batchCode}
                         </span>
                       </div>
                     </TableCell>
 
                     {/* Login Time */}
-                    <TableCell className="py-3 text-center">
+                    <TableCell className="py-3.5 text-center">
                       {record.loginTime ? (
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 font-mono font-bold text-[11px] border border-emerald-200">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/20">
                           {record.loginTime}
                         </span>
                       ) : (
-                        <span className="text-slate-400 font-mono text-xs">—</span>
+                        <span className="text-muted-foreground font-mono text-xs">—</span>
                       )}
                     </TableCell>
 
                     {/* Logout Time */}
-                    <TableCell className="py-3 text-center">
+                    <TableCell className="py-3.5 text-center">
                       {record.logoutTime ? (
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-50 text-[#1769AA] font-mono font-bold text-[11px] border border-blue-200">
+                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-500/10 text-primary dark:text-sky-400 font-mono font-bold text-[11px] border border-blue-500/20">
                           {record.logoutTime}
                         </span>
                       ) : (
-                        <span className="text-slate-400 font-mono text-xs">—</span>
+                        <span className="text-muted-foreground font-mono text-xs">—</span>
                       )}
                     </TableCell>
 
                     {/* Session Time */}
-                    <TableCell className="py-3 text-slate-600 font-medium">
+                    <TableCell className="py-3.5 text-muted-foreground font-medium">
                       {record.sessionTime}
                     </TableCell>
 
                     {/* Status */}
-                    <TableCell className="py-3">
-                      {getStatusBadge(record.status)}
+                    <TableCell className="py-3.5">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                        record.status === "Present"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : record.status === "On Leave"
+                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                          : "bg-muted text-muted-foreground border border-border"
+                      }`}>
+                        {record.status}
+                      </span>
                     </TableCell>
 
                     {/* Actions */}
-                    <TableCell className="py-3 text-right pr-6">
+                    <TableCell className="py-3.5 text-right pr-6">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedRecordForView(record)}
-                        className="h-8 text-xs font-semibold text-[#1769AA] hover:bg-blue-50 hover:text-[#125890] gap-1.5 px-2.5 rounded-lg"
+                        className="h-8 text-xs font-bold text-primary hover:bg-primary/10 gap-1.5 px-2.5 rounded-xl cursor-pointer"
                       >
                         <Eye className="h-3.5 w-3.5" />
                         <span>View Details</span>
@@ -1066,17 +1077,17 @@ export const FacultyAttendance: React.FC = () => {
         </div>
 
         {/* Pagination & Footer */}
-        <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
           <div>
             Showing{" "}
-            <strong>
+            <strong className="text-foreground">
               {filteredRecords.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
             </strong>{" "}
             to{" "}
-            <strong>
+            <strong className="text-foreground">
               {Math.min(currentPage * itemsPerPage, filteredRecords.length)}
             </strong>{" "}
-            of <strong>{filteredRecords.length}</strong> records
+            of <strong className="text-foreground">{filteredRecords.length}</strong> records
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -1085,7 +1096,7 @@ export const FacultyAttendance: React.FC = () => {
               size="sm"
               disabled={currentPage === 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 p-0 bg-white border-slate-200 text-slate-700 disabled:opacity-40"
+              className="h-8 w-8 p-0 bg-card border-border text-foreground hover:bg-muted/40 disabled:opacity-40 rounded-xl cursor-pointer"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -1096,10 +1107,10 @@ export const FacultyAttendance: React.FC = () => {
                 variant={currentPage === page ? "default" : "outline"}
                 size="sm"
                 onClick={() => setCurrentPage(page)}
-                className={`h-8 w-8 p-0 text-xs font-bold ${
+                className={`h-8 w-8 p-0 text-xs font-bold rounded-xl cursor-pointer ${
                   currentPage === page
-                    ? "bg-[#1769AA] text-white hover:bg-[#125890]"
-                    : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                    ? "bg-primary text-white"
+                    : "bg-card border-border text-foreground hover:bg-muted/40"
                 }`}
               >
                 {page}
@@ -1111,7 +1122,7 @@ export const FacultyAttendance: React.FC = () => {
               size="sm"
               disabled={currentPage === totalPages || totalPages === 0}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 w-8 p-0 bg-white border-slate-200 text-slate-700 disabled:opacity-40"
+              className="h-8 w-8 p-0 bg-card border-border text-foreground hover:bg-muted/40 disabled:opacity-40 rounded-xl cursor-pointer"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

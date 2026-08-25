@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -144,6 +145,7 @@ export const AdminLayout: React.FC = () => {
                 <Plus size={16} />
                 Create a Branch
               </Button>
+              <ThemeToggle />
               <NotificationPopover />
             </div>
 

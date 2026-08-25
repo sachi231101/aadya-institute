@@ -112,7 +112,7 @@ export const FacultyClassSession: React.FC = () => {
   // Timer Effect when LIVE
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
-    if (sessionState === "CLASS_IN_PROGRESS") {
+    if (workflowStep === "LIVE_IN_PROGRESS") {
       interval = setInterval(() => {
         setSecondsElapsed((prev) => prev + 1);
       }, 1000);

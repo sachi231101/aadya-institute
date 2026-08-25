@@ -123,8 +123,8 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
   const facultyAvatar = (user as any)?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
 
   return (
-    <Sidebar collapsible="icon" {...props} className="border-r border-slate-200/80 bg-white">
-      <SidebarHeader className="p-3 border-b border-slate-100">
+    <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
+      <SidebarHeader className="p-3 border-b border-border/40">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
@@ -270,13 +270,13 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         </SidebarGroup>
       </SidebarContent>
         
-      <SidebarFooter className="p-3 border-t border-slate-100">
+      <SidebarFooter className="p-3 border-t border-border/40">
           <div className="px-2 pt-2">
           <InstallAppButton variant="sidebar" />
         </div>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center justify-between p-2 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-slate-50 transition-colors shadow-2xs">
+            <div className="flex items-center justify-between p-2 rounded-2xl border border-border/60 bg-card hover:bg-muted/40 transition-colors shadow-2xs">
               <div className="flex items-center gap-2.5 min-w-0">
                 <Avatar className="h-9 w-9 rounded-xl border border-slate-200 shadow-2xs shrink-0">
                   <AvatarImage src={facultyAvatar} alt={facultyName} />

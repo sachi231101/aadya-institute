@@ -724,11 +724,11 @@ export const Classes: React.FC = () => {
       </div>
 
       {/* ─── 5. CLASSES TABLE ───────────────────────────────────────────── */}
-      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[1100px] border-collapse text-left">
             <thead>
-              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
+              <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
                 <th className="py-3.5 px-4 pl-5">CLASS TOPIC & COURSE</th>
                 <th className="py-3.5 px-3">BATCH CODE</th>
                 <th className="py-3.5 px-4">ASSIGNED FACULTY</th>
@@ -740,7 +740,7 @@ export const Classes: React.FC = () => {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100 text-xs bg-white">
+            <tbody className="divide-y divide-border/70 text-xs bg-card">
               {paginatedClasses.length > 0 ? (
                 paginatedClasses.map((item) => (
                   <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
