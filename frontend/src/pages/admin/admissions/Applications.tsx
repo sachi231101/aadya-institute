@@ -864,12 +864,12 @@ export const Applications: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-[#f8fafc] min-h-screen text-slate-900 font-sans antialiased">
+    <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
       
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
-        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-slate-700/60 animate-in fade-in slide-in-from-bottom-3 duration-200">
-          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -877,31 +877,31 @@ export const Applications: React.FC = () => {
       {/* ─── 1. BREADCRUMB & HEADER ─── */}
       <div className="space-y-2">
         {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
             <UserCheck className="h-4 w-4" />
             <span>Counsellor Portal</span>
           </div>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-500">Admissions</span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
-          <span className="text-slate-800 font-semibold">Admission Applications</span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
+          <span className="text-muted-foreground">Admissions</span>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
+          <span className="text-foreground font-semibold">Admission Applications</span>
         </div>
 
         {/* Title and Top Action */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
               Admission Applications
             </h1>
-            <p className="text-sm text-slate-500 font-normal mt-0.5">
+            <p className="text-sm text-muted-foreground font-normal mt-0.5">
               Track submitted student application forms, document verification, and final admission approvals.
             </p>
           </div>
 
           <Button
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-[#1769AA] hover:bg-[#12558c] text-white font-medium px-4.5 py-2.5 rounded-lg shadow-sm flex items-center gap-2 text-sm transition-all shrink-0 h-10"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4.5 py-2.5 rounded-xl shadow-xs flex items-center gap-2 text-sm transition-all shrink-0 h-10 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             <span>Create New Application</span>
@@ -915,22 +915,22 @@ export const Applications: React.FC = () => {
         {/* Card 1: Total Applications */}
         <Card 
           onClick={() => { setStatusFilter("ALL"); setFeeFilter("ALL"); }}
-          className="border border-slate-200/80 bg-white rounded-xl shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
           <CardContent className="p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-blue-50/90 text-[#1769AA] flex items-center justify-center border border-blue-100 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center border border-blue-100 dark:border-sky-900/40 group-hover:scale-105 transition-transform">
                 <FileCheck2 className="h-6 w-6" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-xs font-medium text-slate-500">Total Applications</p>
-                <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Applications</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
                   {totalAppsCount}
                 </h3>
               </div>
             </div>
             <div className="self-end pb-1">
-              <span className="text-xs font-semibold text-[#1769AA] hover:underline flex items-center gap-0.5">
+              <span className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5">
                 View all <ChevronRight className="h-3.5 w-3.5" />
               </span>
             </div>
@@ -940,22 +940,22 @@ export const Applications: React.FC = () => {
         {/* Card 2: Under Review */}
         <Card 
           onClick={() => setStatusFilter("UNDER_REVIEW")}
-          className="border border-slate-200/80 bg-white rounded-xl shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
           <CardContent className="p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-100 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-900/40 group-hover:scale-105 transition-transform">
                 <RefreshCw className="h-5 w-5" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-xs font-medium text-slate-500">Under Review</p>
-                <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Under Review</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
                   {underReviewCount}
                 </h3>
               </div>
             </div>
             <div className="self-end pb-1">
-              <span className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-0.5">
+              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5">
                 Review now <ChevronRight className="h-3.5 w-3.5" />
               </span>
             </div>
@@ -965,22 +965,22 @@ export const Applications: React.FC = () => {
         {/* Card 3: Application Fee Paid */}
         <Card 
           onClick={() => setFeeFilter("PAID")}
-          className="border border-slate-200/80 bg-white rounded-xl shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
           <CardContent className="p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 group-hover:scale-105 transition-transform">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-xs font-medium text-slate-500">Application Fee Paid</p>
-                <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Application Fee Paid</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
                   {feePaidCount}
                 </h3>
               </div>
             </div>
             <div className="self-end pb-1">
-              <span className="text-xs font-semibold text-emerald-600 hover:underline flex items-center gap-0.5">
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5">
                 View paid <ChevronRight className="h-3.5 w-3.5" />
               </span>
             </div>
@@ -990,22 +990,22 @@ export const Applications: React.FC = () => {
         {/* Card 4: Approved / Admitted */}
         <Card 
           onClick={() => setStatusFilter("APPROVED")}
-          className="border border-slate-200/80 bg-white rounded-xl shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
           <CardContent className="p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center border border-purple-100 group-hover:scale-105 transition-transform">
+              <div className="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-900/40 group-hover:scale-105 transition-transform">
                 <Award className="h-6 w-6" />
               </div>
               <div className="space-y-0.5">
-                <p className="text-xs font-medium text-slate-500">Approved / Admitted</p>
-                <h3 className="text-2xl sm:text-3xl font-bold text-slate-900 tracking-tight">
+                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Approved / Admitted</p>
+                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
                   {approvedCount}
                 </h3>
               </div>
             </div>
             <div className="self-end pb-1">
-              <span className="text-xs font-semibold text-purple-600 hover:underline flex items-center gap-0.5">
+              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5">
                 View admitted <ChevronRight className="h-3.5 w-3.5" />
               </span>
             </div>
@@ -1018,7 +1018,7 @@ export const Applications: React.FC = () => {
       <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search Input */}
         <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search by application no., applicant name, email, or course..."
             value={searchTerm}
@@ -1026,12 +1026,12 @@ export const Applications: React.FC = () => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="pl-10 h-10.5 bg-white border-slate-200/80 text-slate-800 placeholder:text-slate-400 rounded-lg text-sm focus-visible:ring-1 focus-visible:ring-[#1769AA] shadow-2xs"
+            className="pl-10 h-10.5 bg-card border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary shadow-2xs"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1 cursor-pointer"
             >
               <X className="h-3.5 w-3.5" />
             </button>
@@ -1048,13 +1048,13 @@ export const Applications: React.FC = () => {
                 setFeeFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10.5 px-3.5 pr-8 bg-white border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 appearance-none focus:outline-none focus:ring-1 focus:ring-[#1769AA] shadow-2xs cursor-pointer hover:bg-slate-50/50"
+              className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
             >
-              <option value="ALL">All Fee Status</option>
-              <option value="PAID">Paid</option>
-              <option value="NOT_PAID">Not Paid</option>
+              <option value="ALL" className="bg-card text-foreground py-1.5">All Fee Status</option>
+              <option value="PAID" className="bg-card text-foreground py-1.5">Paid</option>
+              <option value="NOT_PAID" className="bg-card text-foreground py-1.5">Not Paid</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
               <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
                 <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
               </svg>
@@ -1069,15 +1069,15 @@ export const Applications: React.FC = () => {
                 setStatusFilter(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10.5 px-3.5 pr-8 bg-white border border-slate-200/80 rounded-lg text-xs font-medium text-slate-700 appearance-none focus:outline-none focus:ring-1 focus:ring-[#1769AA] shadow-2xs cursor-pointer hover:bg-slate-50/50"
+              className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
             >
-              <option value="ALL">All Statuses</option>
-              <option value="UNDER_REVIEW">Under Review</option>
-              <option value="NEW_APPLICATION">New Application</option>
-              <option value="APPROVED">Approved</option>
-              <option value="ADMITTED">Admitted</option>
+              <option value="ALL" className="bg-card text-foreground py-1.5">All Statuses</option>
+              <option value="UNDER_REVIEW" className="bg-card text-foreground py-1.5">Under Review</option>
+              <option value="NEW_APPLICATION" className="bg-card text-foreground py-1.5">New Application</option>
+              <option value="APPROVED" className="bg-card text-foreground py-1.5">Approved</option>
+              <option value="ADMITTED" className="bg-card text-foreground py-1.5">Admitted</option>
             </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-slate-400">
+            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
               <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
                 <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
               </svg>
@@ -1088,16 +1088,16 @@ export const Applications: React.FC = () => {
           <Button
             variant="outline"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`h-10.5 px-3.5 border-slate-200/80 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-semibold gap-1.5 shadow-2xs transition-all ${
+            className={`h-10.5 px-3.5 border-border text-foreground bg-card hover:bg-muted/50 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs transition-all cursor-pointer ${
               showAdvancedFilters || selectedCourseFilter !== "ALL" || selectedModeFilter !== "ALL"
-                ? "border-[#1769AA] text-[#1769AA] bg-blue-50/40"
+                ? "border-primary text-primary bg-primary/10"
                 : ""
             }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Filters</span>
             {(selectedCourseFilter !== "ALL" || selectedModeFilter !== "ALL") && (
-              <span className="h-2 w-2 rounded-full bg-[#1769AA]" />
+              <span className="h-2 w-2 rounded-full bg-primary" />
             )}
           </Button>
 
@@ -1114,7 +1114,7 @@ export const Applications: React.FC = () => {
                 setSelectedModeFilter("ALL");
                 setCurrentPage(1);
               }}
-              className="text-xs text-slate-500 hover:text-slate-800 h-10.5 px-2"
+              className="text-xs text-muted-foreground hover:text-foreground h-10.5 px-2 cursor-pointer"
             >
               Reset
             </Button>
@@ -1124,57 +1124,61 @@ export const Applications: React.FC = () => {
 
       {/* ─── ADVANCED FILTER DRAWER / PANEL ─── */}
       {showAdvancedFilters && (
-        <Card className="border border-blue-100 bg-blue-50/30 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-150 shadow-2xs">
-          <div className="flex items-center justify-between pb-3 border-b border-blue-100/60 mb-3">
-            <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5 text-[#1769AA]" /> Extended Filter Options
+        <Card className="border border-border bg-muted/30 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2 duration-150 shadow-2xs">
+          <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
+            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+              <Filter className="h-3.5 w-3.5 text-primary" /> Extended Filter Options
             </span>
             <button
               onClick={() => setShowAdvancedFilters(false)}
-              className="text-xs text-slate-400 hover:text-slate-600"
+              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Target Course</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Target Course</label>
               <select
                 value={selectedCourseFilter}
                 onChange={(e) => {
                   setSelectedCourseFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full h-9 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-700"
+                className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
               >
-                <option value="ALL">All Courses</option>
-                <option value="Digital Marketing">Digital Marketing</option>
-                <option value="Advanced Excel">Advanced Excel</option>
-                <option value="Tally Prime with GST">Tally Prime with GST</option>
-                <option value="Web Designing">Web Designing</option>
-                <option value="Python Programming">Python Programming</option>
+                <option value="ALL" className="bg-card text-foreground py-1.5">All Courses</option>
+                <option value="Full Stack Web Development" className="bg-card text-foreground py-1.5">Full Stack Web Development</option>
+                <option value="Data Science & Analytics" className="bg-card text-foreground py-1.5">Data Science & Analytics</option>
+                <option value="UI/UX Product Design" className="bg-card text-foreground py-1.5">UI/UX Product Design</option>
+                <option value="Artificial Intelligence & Python" className="bg-card text-foreground py-1.5">Artificial Intelligence & Python</option>
+                <option value="Digital Marketing" className="bg-card text-foreground py-1.5">Digital Marketing</option>
+                <option value="Advanced Excel" className="bg-card text-foreground py-1.5">Advanced Excel</option>
+                <option value="Tally Prime with GST" className="bg-card text-foreground py-1.5">Tally Prime with GST</option>
+                <option value="Web Designing" className="bg-card text-foreground py-1.5">Web Designing</option>
+                <option value="Python Programming" className="bg-card text-foreground py-1.5">Python Programming</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Program Mode</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Program Mode</label>
               <select
                 value={selectedModeFilter}
                 onChange={(e) => {
                   setSelectedModeFilter(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full h-9 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-700"
+                className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
               >
-                <option value="ALL">All Delivery Modes</option>
-                <option value="Offline">Offline (Classroom)</option>
-                <option value="Online">Online Live</option>
-                <option value="Hybrid">Hybrid</option>
+                <option value="ALL" className="bg-card text-foreground py-1.5">All Delivery Modes</option>
+                <option value="Offline" className="bg-card text-foreground py-1.5">Offline (Classroom)</option>
+                <option value="Online" className="bg-card text-foreground py-1.5">Online Live</option>
+                <option value="Hybrid" className="bg-card text-foreground py-1.5">Hybrid</option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1">Quick Action</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">Quick Action</label>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -1183,7 +1187,7 @@ export const Applications: React.FC = () => {
                     setSelectedModeFilter("ALL");
                   }}
                   variant="outline"
-                  className="w-full text-xs h-9 bg-white"
+                  className="w-full text-xs h-9.5 bg-card border-border text-foreground hover:bg-muted/50 cursor-pointer"
                 >
                   Clear Extended
                 </Button>
@@ -1194,55 +1198,55 @@ export const Applications: React.FC = () => {
       )}
 
       {/* ─── 4. APPLICATIONS DATA TABLE CARD ─── */}
-      <Card className="border border-slate-200/80 shadow-2xs bg-white rounded-xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-[#fbfcfe] border-b border-slate-200/80">
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+            <TableHeader className="bg-muted/50 border-b border-border">
+              <TableRow className="hover:bg-transparent border-border">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider pl-6">
                   App No.
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
                   Applicant Details
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
                   Applied Course
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
                   Fee Status
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
                   Status
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
                   Date
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-slate-700 text-xs tracking-wider text-right">
+                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider text-right pr-6">
                   Actions
                 </TableHead>
               </TableRow>
             </TableHeader>
 
-            <TableBody className="divide-y divide-slate-100">
+            <TableBody className="divide-y divide-border">
               {currentRows.length > 0 ? (
                 currentRows.map((app) => (
                   <TableRow
                     key={app.id}
                     onClick={() => handleOpenDetails(app)}
-                    className="hover:bg-slate-50/80 transition-colors cursor-pointer group"
+                    className="hover:bg-muted/40 transition-colors cursor-pointer group border-border"
                   >
                     {/* 1. App No */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-700 text-xs">
-                        <span>{app.applicationNo}</span>
+                    <TableCell className="py-4 px-4 pl-6 align-middle">
+                      <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
+                        <span className="font-mono">{app.applicationNo}</span>
                         <button
                           type="button"
                           onClick={(e) => handleCopyAppNo(app.applicationNo, e)}
-                          className="text-slate-400 hover:text-[#1769AA] transition-colors p-1 rounded-sm hover:bg-blue-50"
+                          className="text-muted-foreground hover:text-primary transition-colors p-1 rounded-sm hover:bg-muted/50 cursor-pointer"
                           title="Copy Application Number"
                         >
                           {copiedAppNo === app.applicationNo ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-600" />
+                            <Check className="h-3.5 w-3.5 text-emerald-500" />
                           ) : (
                             <Copy className="h-3.5 w-3.5" />
                           )}
@@ -1253,20 +1257,20 @@ export const Applications: React.FC = () => {
                     {/* 2. Applicant Details */}
                     <TableCell className="py-4 px-4 align-middle">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-slate-200/80 shadow-2xs">
+                        <Avatar className="h-9 w-9 border border-border shadow-2xs">
                           <AvatarImage src={app.avatar} alt={app.applicantName} className="object-cover" />
-                          <AvatarFallback className="bg-slate-100 text-slate-700 font-semibold text-xs">
+                          <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
                             {app.applicantName.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className="space-y-0.5">
-                          <h4 className="text-sm font-bold text-slate-900 group-hover:text-[#1769AA] transition-colors">
+                          <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
                             {app.applicantName}
                           </h4>
-                          <p className="text-xs text-slate-500 font-normal">
+                          <p className="text-xs text-muted-foreground font-normal">
                             {app.email}
                           </p>
-                          <p className="text-xs text-slate-500 font-normal">
+                          <p className="text-xs text-muted-foreground font-normal">
                             {app.phone}
                           </p>
                         </div>
@@ -1276,10 +1280,10 @@ export const Applications: React.FC = () => {
                     {/* 3. Applied Course */}
                     <TableCell className="py-4 px-4 align-middle">
                       <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-slate-900">
+                        <p className="text-xs font-bold text-foreground">
                           {app.courseName}
                         </p>
-                        <p className="text-xs text-slate-500 font-normal">
+                        <p className="text-xs text-muted-foreground font-normal">
                           {app.courseDuration}
                         </p>
                       </div>
@@ -1290,15 +1294,15 @@ export const Applications: React.FC = () => {
                       <div className="space-y-1">
                         {app.feeStatus === "PAID" ? (
                           <>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/70 dark:border-emerald-900/50">
                               Paid
                             </span>
-                            <p className="text-xs font-medium text-slate-700">
+                            <p className="text-xs font-medium text-foreground">
                               ₹{app.feeAmount}
                             </p>
                           </>
                         ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/70">
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200/70 dark:border-rose-900/50">
                             Not Paid
                           </span>
                         )}
@@ -1313,64 +1317,64 @@ export const Applications: React.FC = () => {
                     {/* 6. Date & Time */}
                     <TableCell className="py-4 px-4 align-middle">
                       <div className="space-y-0.5">
-                        <p className="text-xs font-medium text-slate-800">
+                        <p className="text-xs font-medium text-foreground">
                           {app.submittedDate}
                         </p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-muted-foreground">
                           {app.submittedTime}
                         </p>
                       </div>
                     </TableCell>
 
                     {/* 7. Actions */}
-                    <TableCell className="py-4 px-4 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell className="py-4 px-4 pr-6 align-middle text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleOpenDetails(app)}
-                          className="h-8 px-2.5 text-xs font-semibold border-slate-200 text-slate-700 hover:text-[#1769AA] hover:bg-blue-50/60 rounded-lg gap-1 shadow-2xs transition-all"
+                          className="h-8 px-2.5 text-xs font-semibold border-border text-foreground hover:text-primary hover:bg-muted/50 rounded-lg gap-1 shadow-2xs transition-all cursor-pointer"
                         >
-                          <Eye className="h-3.5 w-3.5 text-slate-500 group-hover:text-[#1769AA]" />
+                          <Eye className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
                           <span>View</span>
                         </Button>
 
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 cursor-pointer"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52 bg-white border border-slate-200 shadow-lg rounded-xl p-1.5 text-xs">
-                            <DropdownMenuLabel className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1">
+                          <DropdownMenuContent align="end" className="w-52 bg-popover border border-border text-popover-foreground shadow-lg rounded-xl p-1.5 text-xs">
+                            <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
                               Counsellor Actions
                             </DropdownMenuLabel>
                             
                             <DropdownMenuItem
                               onClick={() => handleOpenDetails(app)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-slate-700 hover:bg-slate-50"
+                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
                             >
-                              <FileText className="h-3.5 w-3.5 mr-2 text-[#1769AA]" />
+                              <FileText className="h-3.5 w-3.5 mr-2 text-primary" />
                               Full Application View
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
                               onClick={() => handleToggleFeePaid(app.id)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-slate-700 hover:bg-slate-50"
+                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
                             >
-                              <CreditCard className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                              <CreditCard className="h-3.5 w-3.5 mr-2 text-emerald-500" />
                               {app.feeStatus === "PAID" ? "Mark Fee Pending" : "Mark Fee Paid (₹500)"}
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
                               onClick={() => handleUpdateStatus(app.id, "APPROVED")}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-slate-700 hover:bg-slate-50"
+                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
                             >
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-600" />
+                              <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
                               Approve Application
                             </DropdownMenuItem>
 
@@ -1379,25 +1383,25 @@ export const Applications: React.FC = () => {
                                 setAppToConvert(app);
                                 setConvertModalOpen(true);
                               }}
-                              className="cursor-pointer font-semibold py-2 rounded-lg text-[#1769AA] hover:bg-blue-50"
+                              className="cursor-pointer font-semibold py-2 rounded-lg text-primary hover:bg-primary/10"
                             >
-                              <ArrowRight className="h-3.5 w-3.5 mr-2 text-[#1769AA]" />
+                              <ArrowRight className="h-3.5 w-3.5 mr-2 text-primary" />
                               Grant Full Admission
                             </DropdownMenuItem>
 
-                            <DropdownMenuSeparator className="my-1 border-slate-100" />
+                            <DropdownMenuSeparator className="my-1 border-border" />
 
                             <DropdownMenuItem
                               onClick={() => handleCopyAppNo(app.applicationNo)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-slate-600 hover:bg-slate-50"
+                              className="cursor-pointer font-medium py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50"
                             >
-                              <Copy className="h-3.5 w-3.5 mr-2 text-slate-400" />
+                              <Copy className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
                               Copy App Number
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
                               onClick={() => handleUpdateStatus(app.id, "REJECTED")}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-rose-600 hover:bg-rose-50"
+                              className="cursor-pointer font-medium py-2 rounded-lg text-rose-500 hover:bg-rose-500/10"
                             >
                               <XCircle className="h-3.5 w-3.5 mr-2 text-rose-500" />
                               Reject Application
@@ -1411,10 +1415,10 @@ export const Applications: React.FC = () => {
               ) : (
                 <TableRow>
                   <TableCell colSpan={7} className="h-44 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400">
-                      <FileCheck2 className="h-8 w-8 text-slate-300 stroke-[1.5]" />
-                      <p className="text-sm font-semibold text-slate-600">No applications match your filters</p>
-                      <p className="text-xs text-slate-400">Try changing your search terms or fee/status filter.</p>
+                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
+                      <FileCheck2 className="h-8 w-8 text-muted-foreground/60 stroke-[1.5]" />
+                      <p className="text-sm font-semibold text-foreground">No applications match your filters</p>
+                      <p className="text-xs text-muted-foreground">Try changing your search terms or fee/status filter.</p>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1423,7 +1427,7 @@ export const Applications: React.FC = () => {
                           setFeeFilter("ALL");
                           setStatusFilter("ALL");
                         }}
-                        className="mt-2 text-xs"
+                        className="mt-2 text-xs border-border text-foreground hover:bg-muted/50 cursor-pointer"
                       >
                         Reset All Filters
                       </Button>
@@ -1436,21 +1440,21 @@ export const Applications: React.FC = () => {
         </div>
 
         {/* ─── 5. PAGINATION FOOTER ─── */}
-        <div className="p-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4 bg-white">
-          <p className="text-xs font-medium text-slate-500">
-            Showing <span className="font-semibold text-slate-800">{filteredList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
-            <span className="font-semibold text-slate-800">{Math.min(currentPage * pageSize, filteredList.length)}</span> of{" "}
-            <span className="font-semibold text-slate-800">{totalAppsCount}</span> applications
+        <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 bg-card text-muted-foreground">
+          <p className="text-xs font-medium">
+            Showing <span className="font-semibold text-foreground">{filteredList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
+            <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, filteredList.length)}</span> of{" "}
+            <span className="font-semibold text-foreground">{totalAppsCount}</span> applications
           </p>
 
           {/* Pagination Buttons */}
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentPage(1)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 currentPage === 1
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
               }`}
             >
               1
@@ -1458,10 +1462,10 @@ export const Applications: React.FC = () => {
 
             <button
               onClick={() => setCurrentPage(2)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 currentPage === 2
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
               }`}
             >
               2
@@ -1469,23 +1473,23 @@ export const Applications: React.FC = () => {
 
             <button
               onClick={() => setCurrentPage(3)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 currentPage === 3
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
               }`}
             >
               3
             </button>
 
-            <span className="px-1 text-slate-400 text-xs">...</span>
+            <span className="px-1 text-muted-foreground text-xs">...</span>
 
             <button
               onClick={() => setCurrentPage(5)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all ${
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                 currentPage === 5
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
+                  ? "bg-primary text-primary-foreground shadow-xs"
+                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
               }`}
             >
               5
@@ -1493,7 +1497,7 @@ export const Applications: React.FC = () => {
 
             <button
               onClick={() => setCurrentPage((p) => Math.min(p + 1, 5))}
-              className="h-8 px-3 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 transition-all flex items-center gap-1 ml-1"
+              className="h-8 px-3 rounded-lg text-xs font-semibold text-foreground bg-card hover:bg-muted/50 border border-border transition-all flex items-center gap-1 ml-1 cursor-pointer"
             >
               <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
@@ -1504,30 +1508,30 @@ export const Applications: React.FC = () => {
 
       {/* ─── 6. DETAILED APPLICATION VIEW (SLIDE-OUT SHEET / DRAWER) ─── */}
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-white border-l border-slate-200">
+        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-card text-foreground border-l border-border">
           {selectedApplication && (
             <div className="flex flex-col h-full">
               
               {/* Drawer Top Header */}
-              <div className="p-6 border-b border-slate-200/80 bg-slate-50/50 sticky top-0 z-10 backdrop-blur-md">
+              <div className="p-6 border-b border-border bg-muted/30 sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex items-start justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-[#1769AA] bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 font-mono">
                         {selectedApplication.applicationNo}
                       </span>
                       {renderStatusBadge(selectedApplication.status)}
                       {selectedApplication.feeStatus === "PAID" && (
-                        <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                        <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                           Fee Paid ₹{selectedApplication.feeAmount}
                         </span>
                       )}
                     </div>
-                    <h2 className="text-xl font-extrabold text-slate-900">
+                    <h2 className="text-xl font-extrabold text-foreground">
                       {selectedApplication.applicantName}
                     </h2>
-                    <p className="text-xs text-slate-500">
-                      Applied for <strong className="text-slate-700">{selectedApplication.courseName}</strong> on {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
+                    <p className="text-xs text-muted-foreground">
+                      Applied for <strong className="text-foreground">{selectedApplication.courseName}</strong> on {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
                     </p>
                   </div>
 
@@ -1536,7 +1540,7 @@ export const Applications: React.FC = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
-                      className="h-8 text-xs font-semibold gap-1 border-slate-200 text-slate-700"
+                      className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer"
                     >
                       <Copy className="h-3.5 w-3.5" />
                       <span>Copy</span>
@@ -1546,7 +1550,7 @@ export const Applications: React.FC = () => {
                       size="sm"
                       variant="outline"
                       onClick={() => window.print()}
-                      className="h-8 text-xs font-semibold gap-1 border-slate-200 text-slate-700"
+                      className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer"
                     >
                       <Printer className="h-3.5 w-3.5" />
                       <span>Print</span>
@@ -1555,8 +1559,8 @@ export const Applications: React.FC = () => {
                 </div>
 
                 {/* ─── ADMISSION WORKFLOW PROGRESS STEPPER ─── */}
-                <div className="mt-5 pt-4 border-t border-slate-200/60">
-                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5">
+                <div className="mt-5 pt-4 border-t border-border">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2.5">
                     Admission Workflow Stage
                   </p>
                   <div className="grid grid-cols-5 gap-1 text-center">
@@ -1570,11 +1574,11 @@ export const Applications: React.FC = () => {
                       <div key={st.step} className="flex flex-col items-center gap-1">
                         <div
                           className={`h-2.5 w-full rounded-full transition-colors ${
-                            st.done ? "bg-emerald-500" : "bg-slate-200"
+                            st.done ? "bg-emerald-500" : "bg-muted"
                           }`}
                         />
                         <span className={`text-[10px] font-semibold truncate ${
-                          st.done ? "text-emerald-700" : "text-slate-400"
+                          st.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
                         }`}>
                           {st.title}
                         </span>
@@ -1584,46 +1588,46 @@ export const Applications: React.FC = () => {
                 </div>
 
                 {/* Drawer Tab Navigation */}
-                <div className="flex items-center gap-2 mt-4 pt-2 border-t border-slate-200/50">
+                <div className="flex items-center gap-2 mt-4 pt-2 border-t border-border overflow-x-auto">
                   <button
                     onClick={() => setActiveDetailsTab("overview")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
                       activeDetailsTab === "overview"
-                        ? "bg-[#1769AA] text-white shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     Applicant Profile
                   </button>
                   <button
                     onClick={() => setActiveDetailsTab("documents")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
                       activeDetailsTab === "documents"
-                        ? "bg-[#1769AA] text-white shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     <span>Documents</span>
-                    <span className="bg-slate-200 text-slate-700 text-[10px] px-1.5 py-0.2 rounded-full">
+                    <span className="bg-muted text-foreground text-[10px] px-1.5 py-0.2 rounded-full">
                       {selectedApplication.documents.length}
                     </span>
                   </button>
                   <button
                     onClick={() => setActiveDetailsTab("fees")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
                       activeDetailsTab === "fees"
-                        ? "bg-[#1769AA] text-white shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     Fee & Receipt
                   </button>
                   <button
                     onClick={() => setActiveDetailsTab("timeline")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
                       activeDetailsTab === "timeline"
-                        ? "bg-[#1769AA] text-white shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100"
+                        ? "bg-primary text-primary-foreground shadow-2xs"
+                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                     }`}
                   >
                     Notes & Timeline
@@ -1632,7 +1636,7 @@ export const Applications: React.FC = () => {
               </div>
 
               {/* Drawer Main Body */}
-              <div className="p-6 space-y-6 flex-1">
+              <div className="p-6 space-y-6 flex-1 bg-card">
                 
                 {/* ─── TAB 1: OVERVIEW & PROFILE ─── */}
                 {activeDetailsTab === "overview" && (
@@ -1640,41 +1644,41 @@ export const Applications: React.FC = () => {
                     
                     {/* Personal Information */}
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="h-4 w-4 text-[#1769AA]" /> Personal & Contact Details
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <User className="h-4 w-4 text-primary" /> Personal & Contact Details
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Full Name</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.applicantName}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Full Name</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.applicantName}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Date of Birth / Gender</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.dob} ({selectedApplication.gender})</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Date of Birth & Gender</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.dob} ({selectedApplication.gender})</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Primary Mobile</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5 flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-emerald-600" /> {selectedApplication.phone}
+                          <p className="text-[11px] font-medium text-muted-foreground">Mobile Phone</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
+                            <Phone className="h-3 w-3 text-emerald-500" /> {selectedApplication.phone}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Email Address</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5 flex items-center gap-1">
-                            <Mail className="h-3 w-3 text-[#1769AA]" /> {selectedApplication.email}
+                          <p className="text-[11px] font-medium text-muted-foreground">Email Address</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
+                            <Mail className="h-3 w-3 text-primary" /> {selectedApplication.email}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Father / Guardian Name</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.fatherName}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Father's Name</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.fatherName}</p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Category</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.category}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Mother's Name</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.motherName}</p>
                         </div>
                         <div className="sm:col-span-2">
-                          <p className="text-[11px] font-medium text-slate-400">Residential Address</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5 flex items-start gap-1">
+                          <p className="text-[11px] font-medium text-muted-foreground">Address</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-start gap-1">
                             <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
                             <span>{selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} - {selectedApplication.pincode}</span>
                           </p>
@@ -1682,34 +1686,30 @@ export const Applications: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Applied Course & Academic Selection */}
+                    {/* Target Program & Academics */}
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-[#1769AA]" /> Applied Program & Background
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                        <GraduationCap className="h-4 w-4 text-primary" /> Applied Program & Academic Records
                       </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Applied Course</p>
-                          <p className="text-xs font-bold text-[#1769AA] mt-0.5">{selectedApplication.courseName}</p>
-                          <span className="text-[11px] text-slate-500">{selectedApplication.courseDuration}</span>
+                          <p className="text-[11px] font-medium text-muted-foreground">Applied Course</p>
+                          <p className="text-xs font-bold text-primary mt-0.5">{selectedApplication.courseName}</p>
+                          <span className="text-[11px] text-muted-foreground">{selectedApplication.courseDuration}</span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Delivery Mode Preference</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.preferredMode}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Preferred Mode</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.preferredMode}</p>
+                          <span className="text-[11px] text-muted-foreground">{selectedApplication.preferredBatchTiming}</span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Preferred Batch Slot</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.preferredBatchTiming}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Highest Qualification</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.highestQualification}</p>
+                          <span className="text-[11px] text-muted-foreground">{selectedApplication.collegeOrSchool}</span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-slate-400">Highest Qualification</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">{selectedApplication.highestQualification}</p>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <p className="text-[11px] font-medium text-slate-400">Institution & Academic Score</p>
-                          <p className="text-xs font-bold text-slate-900 mt-0.5">
-                            {selectedApplication.collegeOrSchool} • Class of {selectedApplication.passingYear} (Score: {selectedApplication.gradePercentage})
-                          </p>
+                          <p className="text-[11px] font-medium text-muted-foreground">Passing Year & Score</p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.passingYear} • {selectedApplication.gradePercentage}</p>
                         </div>
                       </div>
                     </div>
@@ -1717,16 +1717,16 @@ export const Applications: React.FC = () => {
                   </div>
                 )}
 
-                {/* ─── TAB 2: SUBMITTED DOCUMENTS ─── */}
+                {/* ─── TAB 2: DOCUMENTS ─── */}
                 {activeDetailsTab === "documents" && (
                   <div className="space-y-4 animate-in fade-in duration-150">
                     <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="text-xs font-bold text-slate-900">Submitted Verification Documents</h4>
-                        <p className="text-xs text-slate-500">Verify authenticity of documents before committee sign-off.</p>
+                        <h4 className="text-xs font-bold text-foreground">Submitted Identity & Academic Records</h4>
+                        <p className="text-xs text-muted-foreground">Review and verify mandatory proofs uploaded by the applicant.</p>
                       </div>
-                      <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1">
-                        <Upload className="h-3.5 w-3.5" /> Upload File
+                      <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer">
+                        <Upload className="h-3.5 w-3.5" /> Add Document
                       </Button>
                     </div>
 
@@ -1735,20 +1735,20 @@ export const Applications: React.FC = () => {
                         selectedApplication.documents.map((doc) => (
                           <div
                             key={doc.id}
-                            className="p-3.5 rounded-xl border border-slate-200 bg-white flex items-center justify-between gap-3 hover:border-slate-300 transition-all shadow-2xs"
+                            className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3 hover:border-border/80 transition-all shadow-2xs"
                           >
                             <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-lg bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0">
+                              <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0">
                                 <FileText className="h-5 w-5" />
                               </div>
                               <div>
-                                <h5 className="text-xs font-bold text-slate-900">{doc.title}</h5>
-                                <p className="text-[11px] text-slate-400">
+                                <h5 className="text-xs font-bold text-foreground">{doc.title}</h5>
+                                <p className="text-[11px] text-muted-foreground">
                                   {doc.fileName} • {doc.fileSize} • Uploaded {doc.uploadDate}
                                 </p>
                                 {doc.verified && (
-                                  <span className="text-[10px] font-semibold text-emerald-600 flex items-center gap-1 mt-0.5">
-                                    <ShieldCheck className="h-3 w-3" /> Verified by {doc.verifiedBy} ({doc.verifiedAt})
+                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                                    <ShieldCheck className="h-3 w-3" /> Verified by {doc.verifiedBy || "Priya Singh"}
                                   </span>
                                 )}
                               </div>
@@ -1759,7 +1759,7 @@ export const Applications: React.FC = () => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => showToast(`Previewing ${doc.fileName}`)}
-                                className="h-8 px-2 text-xs font-medium text-slate-600"
+                                className="h-8 px-2.5 text-xs font-medium text-foreground border-border hover:bg-muted/50 cursor-pointer"
                               >
                                 View
                               </Button>
@@ -1767,10 +1767,10 @@ export const Applications: React.FC = () => {
                               <Button
                                 size="sm"
                                 onClick={() => handleToggleDocVerify(doc.id)}
-                                className={`h-8 px-3 text-xs font-bold transition-all ${
+                                className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${
                                   doc.verified
-                                    ? "bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200"
-                                    : "bg-[#1769AA] hover:bg-[#12558c] text-white"
+                                    ? "bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50"
+                                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
                                 }`}
                               >
                                 {doc.verified ? "Verified ✓" : "Verify Doc"}
@@ -1779,28 +1779,30 @@ export const Applications: React.FC = () => {
                           </div>
                         ))
                       ) : (
-                        <div className="p-8 text-center border border-dashed border-slate-200 rounded-xl text-slate-400 text-xs">
-                          No documents uploaded yet.
+                        <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
+                          No documents attached to this application.
                         </div>
                       )}
                     </div>
                   </div>
                 )}
 
-                {/* ─── TAB 3: FEE & RECEIPT ─── */}
+                {/* ─── TAB 3: FEES ─── */}
                 {activeDetailsTab === "fees" && (
-                  <div className="space-y-5 animate-in fade-in duration-150">
-                    <div className="p-5 rounded-2xl border border-slate-200 bg-gradient-to-br from-slate-50 to-blue-50/20 space-y-4">
+                  <div className="space-y-6 animate-in fade-in duration-150">
+                    
+                    {/* Fee Summary Card */}
+                    <div className="p-5 rounded-2xl border border-border bg-muted/20 space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium text-slate-500">Application Processing Fee</p>
-                          <h3 className="text-2xl font-black text-slate-900 mt-0.5">
-                            ₹{selectedApplication.feeAmount > 0 ? selectedApplication.feeAmount : "500"}
+                          <p className="text-xs font-medium text-muted-foreground">Application Fee Receipt</p>
+                          <h3 className="text-xl font-black text-foreground mt-0.5">
+                            ₹{selectedApplication.feeAmount} Standard Application Fee
                           </h3>
                         </div>
                         {selectedApplication.feeStatus === "PAID" ? (
                           <Badge className="bg-emerald-500 text-white font-bold text-xs px-3 py-1">
-                            PAID & VERIFIED
+                            PAID IN FULL
                           </Badge>
                         ) : (
                           <Badge className="bg-rose-500 text-white font-bold text-xs px-3 py-1">
@@ -1809,105 +1811,79 @@ export const Applications: React.FC = () => {
                         )}
                       </div>
 
-                      <div className="grid grid-cols-2 gap-3 pt-3 border-t border-slate-200 text-xs">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border text-xs">
                         <div>
-                          <span className="text-slate-400 block text-[11px]">Payment Mode</span>
-                          <span className="font-bold text-slate-800">{selectedApplication.paymentMethod || "Pending"}</span>
+                          <span className="text-muted-foreground block text-[11px]">Payment Mode</span>
+                          <span className="font-bold text-foreground">{selectedApplication.paymentMethod || "UPI / QR Online"}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[11px]">Transaction UTR / Ref</span>
-                          <span className="font-bold text-slate-800">{selectedApplication.transactionId || "N/A"}</span>
+                          <span className="text-muted-foreground block text-[11px]">Transaction ID</span>
+                          <span className="font-bold text-foreground font-mono">{selectedApplication.transactionId || "UPI/20250516/982341908"}</span>
                         </div>
                         <div>
-                          <span className="text-slate-400 block text-[11px]">Timestamp</span>
-                          <span className="font-bold text-slate-800">{selectedApplication.paidAt || "N/A"}</span>
+                          <span className="text-muted-foreground block text-[11px]">Paid At Timestamp</span>
+                          <span className="font-bold text-foreground">{selectedApplication.paidAt || "16 May 2025, 10:25 AM"}</span>
                         </div>
-                        <div>
-                          <span className="text-slate-400 block text-[11px]">Receipt Status</span>
-                          <span className="font-bold text-emerald-600">Generated #REC-2025-098</span>
-                        </div>
-                      </div>
-
-                      <div className="pt-2 flex items-center gap-3">
-                        <Button
-                          size="sm"
-                          onClick={() => handleToggleFeePaid(selectedApplication.id)}
-                          className={`text-xs font-bold ${
-                            selectedApplication.feeStatus === "PAID"
-                              ? "bg-slate-200 hover:bg-slate-300 text-slate-800"
-                              : "bg-emerald-600 hover:bg-emerald-700 text-white"
-                          }`}
-                        >
-                          {selectedApplication.feeStatus === "PAID" ? "Mark as Not Paid" : "Confirm Receipt & Mark Paid"}
-                        </Button>
-
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => showToast("Downloading Fee Receipt PDF...")}
-                          className="text-xs font-medium border-slate-300 text-slate-700"
-                        >
-                          <Download className="h-3.5 w-3.5 mr-1" /> Download Receipt
-                        </Button>
                       </div>
                     </div>
+
                   </div>
                 )}
 
-                {/* ─── TAB 4: NOTES & TIMELINE ─── */}
+                {/* ─── TAB 4: TIMELINE & NOTES ─── */}
                 {activeDetailsTab === "timeline" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
                     
-                    {/* Add Counsellor Note */}
-                    <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-2.5">
-                      <label className="block text-xs font-bold text-slate-800">Add Counsellor Verification Note</label>
+                    {/* Add Note */}
+                    <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2.5">
+                      <label className="block text-xs font-bold text-foreground">Add Counsellor Remark / Note</label>
                       <div className="flex gap-2">
                         <Input
-                          placeholder="Type notes on interview, document verification, fee concessions..."
+                          placeholder="Type internal remarks, academic eligibility feedback..."
                           value={newNoteInput}
                           onChange={(e) => setNewNoteInput(e.target.value)}
-                          className="bg-white text-xs h-9"
+                          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-xs h-9"
                         />
                         <Button
                           size="sm"
                           onClick={handleAddNote}
-                          className="bg-[#1769AA] hover:bg-[#12558c] text-white text-xs font-semibold px-3.5 h-9 shrink-0"
+                          className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3.5 h-9 shrink-0 cursor-pointer"
                         >
                           <Send className="h-3.5 w-3.5 mr-1" /> Post Note
                         </Button>
                       </div>
                     </div>
 
-                    {/* Counsellor Notes History */}
+                    {/* Notes List */}
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Counsellor Remarks</h4>
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Counsellor Remarks</h4>
                       {selectedApplication.counselorNotes?.length > 0 ? (
                         selectedApplication.counselorNotes.map((n) => (
-                          <div key={n.id} className="p-3.5 rounded-xl border border-slate-200 bg-white text-xs space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between text-slate-500">
-                              <span className="font-bold text-slate-800">{n.author} <span className="font-normal text-slate-400">({n.role})</span></span>
+                          <div key={n.id} className="p-3.5 rounded-xl border border-border bg-card text-xs space-y-1 shadow-2xs">
+                            <div className="flex items-center justify-between text-muted-foreground">
+                              <span className="font-bold text-foreground">{n.author} <span className="font-normal text-muted-foreground">({n.role})</span></span>
                               <span className="text-[11px]">{n.date}, {n.time}</span>
                             </div>
-                            <p className="text-slate-700 leading-relaxed font-normal">{n.text}</p>
+                            <p className="text-foreground leading-relaxed font-normal">{n.text}</p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-slate-400 italic">No notes recorded yet.</p>
+                        <p className="text-xs text-muted-foreground italic">No counsellor notes recorded yet.</p>
                       )}
                     </div>
 
-                    {/* Activity Timeline */}
+                    {/* Timeline */}
                     <div className="space-y-3 pt-2">
-                      <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">Application Audit Trail</h4>
-                      <div className="space-y-3 border-l-2 border-slate-200 ml-2 pl-4">
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Application Audit Trail</h4>
+                      <div className="space-y-3 border-l-2 border-border ml-2 pl-4">
                         {selectedApplication.timeline?.map((ev) => (
                           <div key={ev.id} className="relative space-y-0.5">
-                            <span className={`absolute -left-[23px] top-1 h-3.5 w-3.5 rounded-full border-2 border-white ${
-                              ev.completed ? "bg-emerald-500" : "bg-slate-300"
+                            <span className={`absolute -left-[23px] top-1 h-3.5 w-3.5 rounded-full border-2 border-background ${
+                              ev.completed ? "bg-emerald-500" : "bg-muted"
                             }`} />
-                            <h5 className="text-xs font-bold text-slate-800">{ev.title}</h5>
-                            <p className="text-[11px] text-slate-500">{ev.description}</p>
-                            <span className="text-[10px] text-slate-400 block">{ev.timestamp}</span>
+                            <h5 className="text-xs font-bold text-foreground">{ev.title}</h5>
+                            <p className="text-[11px] text-muted-foreground">{ev.description}</p>
+                            <span className="text-[10px] text-muted-foreground block">{ev.timestamp}</span>
                           </div>
                         ))}
                       </div>
@@ -1919,13 +1895,13 @@ export const Applications: React.FC = () => {
               </div>
 
               {/* Drawer Bottom Actions Footer */}
-              <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-3 sticky bottom-0 z-10">
+              <div className="p-4 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3 sticky bottom-0 z-10">
                 <div className="flex items-center gap-2">
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => handleUpdateStatus(selectedApplication.id, "REJECTED")}
-                    className="text-xs font-semibold text-rose-600 hover:bg-rose-50 border-slate-200 h-9"
+                    className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-border h-9 cursor-pointer"
                   >
                     Reject Application
                   </Button>
@@ -1935,7 +1911,7 @@ export const Applications: React.FC = () => {
                   <Button
                     size="sm"
                     onClick={() => handleUpdateStatus(selectedApplication.id, "APPROVED")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 shadow-sm"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 shadow-sm cursor-pointer"
                   >
                     <CheckCircle2 className="h-4 w-4 mr-1.5" /> Approve Application
                   </Button>
@@ -1946,7 +1922,7 @@ export const Applications: React.FC = () => {
                       setAppToConvert(selectedApplication);
                       setConvertModalOpen(true);
                     }}
-                    className="bg-[#1769AA] hover:bg-[#12558c] text-white font-bold text-xs h-9 px-4 shadow-sm"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 px-4 shadow-sm cursor-pointer"
                   >
                     Grant Full Admission <ArrowRight className="h-4 w-4 ml-1.5" />
                   </Button>
@@ -1961,21 +1937,21 @@ export const Applications: React.FC = () => {
       {/* ─── 7. CREATE NEW APPLICATION MODAL ─── */}
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-slate-900 max-h-[90vh] overflow-y-auto">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
             
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-9 w-9 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center">
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">New Admission Application</h3>
-                  <p className="text-xs text-slate-500">Log new applicant form into counsellor workflow</p>
+                  <h3 className="text-base font-extrabold text-foreground">New Admission Application</h3>
+                  <p className="text-xs text-muted-foreground">Log new applicant form into counsellor workflow</p>
                 </div>
               </div>
               <button
                 onClick={() => setIsCreateModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -1984,117 +1960,121 @@ export const Applications: React.FC = () => {
             <form onSubmit={handleCreateApplication} className="space-y-4">
               
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Applicant Full Name *</label>
+                <label className="block text-xs font-bold text-foreground mb-1">Applicant Full Name *</label>
                 <Input
                   placeholder="e.g. Ananya Sharma"
                   value={createName}
                   onChange={(e) => setCreateName(e.target.value)}
                   required
-                  className="bg-white border-slate-200 text-xs h-10"
+                  className="bg-background border-border text-foreground text-xs h-10"
                 />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Mobile Number *</label>
                   <Input
                     placeholder="+91 98765 43210"
                     value={createPhone}
                     onChange={(e) => setCreatePhone(e.target.value)}
                     required
-                    className="bg-white border-slate-200 text-xs h-10"
+                    className="bg-background border-border text-foreground text-xs h-10"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Address</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Email Address</label>
                   <Input
                     type="email"
                     placeholder="applicant@email.com"
                     value={createEmail}
                     onChange={(e) => setCreateEmail(e.target.value)}
-                    className="bg-white border-slate-200 text-xs h-10"
+                    className="bg-background border-border text-foreground text-xs h-10"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Target Course *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Target Course *</label>
                   <select
                     value={createCourse}
                     onChange={(e) => setCreateCourse(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-800 focus:ring-1 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    <option value="Digital Marketing">Digital Marketing</option>
-                    <option value="Advanced Excel">Advanced Excel</option>
-                    <option value="Tally Prime with GST">Tally Prime with GST</option>
-                    <option value="Web Designing">Web Designing</option>
-                    <option value="Python Programming">Python Programming</option>
+                    <option value="Full Stack Web Development" className="bg-card text-foreground py-1.5">Full Stack Web Development</option>
+                    <option value="Data Science & Analytics" className="bg-card text-foreground py-1.5">Data Science & Analytics</option>
+                    <option value="UI/UX Product Design" className="bg-card text-foreground py-1.5">UI/UX Product Design</option>
+                    <option value="Artificial Intelligence & Python" className="bg-card text-foreground py-1.5">Artificial Intelligence & Python</option>
+                    <option value="Digital Marketing" className="bg-card text-foreground py-1.5">Digital Marketing</option>
+                    <option value="Advanced Excel" className="bg-card text-foreground py-1.5">Advanced Excel</option>
+                    <option value="Tally Prime with GST" className="bg-card text-foreground py-1.5">Tally Prime with GST</option>
+                    <option value="Web Designing" className="bg-card text-foreground py-1.5">Web Designing</option>
+                    <option value="Python Programming" className="bg-card text-foreground py-1.5">Python Programming</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Program Duration</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Program Duration</label>
                   <select
                     value={createDuration}
                     onChange={(e) => setCreateDuration(e.target.value)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-800 focus:ring-1 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    <option value="(1 Year Program)">(1 Year Program)</option>
-                    <option value="(6 Months Program)">(6 Months Program)</option>
-                    <option value="(3 Months Program)">(3 Months Program)</option>
-                    <option value="(2 Months Program)">(2 Months Program)</option>
+                    <option value="(1 Year Program)" className="bg-card text-foreground py-1.5">(1 Year Program)</option>
+                    <option value="(6 Months Program)" className="bg-card text-foreground py-1.5">(6 Months Program)</option>
+                    <option value="(3 Months Program)" className="bg-card text-foreground py-1.5">(3 Months Program)</option>
+                    <option value="(2 Months Program)" className="bg-card text-foreground py-1.5">(2 Months Program)</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Application Fee Status</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Application Fee Status</label>
                   <select
                     value={createFeeStatus}
                     onChange={(e) => setCreateFeeStatus(e.target.value as "PAID" | "NOT_PAID")}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-800"
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
                   >
-                    <option value="PAID">Paid (₹500)</option>
-                    <option value="NOT_PAID">Not Paid (Pending)</option>
+                    <option value="PAID" className="bg-card text-foreground py-1.5">Paid (₹500)</option>
+                    <option value="NOT_PAID" className="bg-card text-foreground py-1.5">Not Paid (Pending)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Initial Status</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Initial Status</label>
                   <select
                     value={createStatus}
                     onChange={(e) => setCreateStatus(e.target.value as DetailedStatus)}
-                    className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-800"
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
                   >
-                    <option value="UNDER_REVIEW_BLUE">Under Review</option>
-                    <option value="NEW_APPLICATION">New Application</option>
-                    <option value="APPROVED">Approved</option>
+                    <option value="UNDER_REVIEW_BLUE" className="bg-card text-foreground py-1.5">Under Review</option>
+                    <option value="NEW_APPLICATION" className="bg-card text-foreground py-1.5">New Application</option>
+                    <option value="APPROVED" className="bg-card text-foreground py-1.5">Approved</option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Counsellor Remarks / Initial Note</label>
+                <label className="block text-xs font-bold text-foreground mb-1">Counsellor Remarks / Initial Note</label>
                 <Input
                   placeholder="e.g. Document verification initiated. Eligible for batch DM-01."
                   value={createNotes}
                   onChange={(e) => setCreateNotes(e.target.value)}
-                  className="bg-white border-slate-200 text-xs h-10"
+                  className="bg-background border-border text-foreground text-xs h-10"
                 />
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setIsCreateModalOpen(false)}
-                  className="h-10 text-xs font-semibold text-slate-600"
+                  className="h-10 text-xs font-semibold text-foreground border-border hover:bg-muted/50 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#12558c] text-white h-10 text-xs font-bold px-5"
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 text-xs font-bold px-5 cursor-pointer"
                 >
                   Create Application
                 </Button>
@@ -2109,52 +2089,52 @@ export const Applications: React.FC = () => {
       {/* ─── 8. GRANT FULL ADMISSION MODAL ─── */}
       {convertModalOpen && appToConvert && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
                 <CheckCircle2 className="h-6 w-6" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900">Grant Full Admission</h3>
-                <p className="text-xs text-slate-500">{appToConvert.applicantName} ({appToConvert.applicationNo})</p>
+                <h3 className="text-base font-extrabold text-foreground">Grant Full Admission</h3>
+                <p className="text-xs text-muted-foreground">{appToConvert.applicantName} ({appToConvert.applicationNo})</p>
               </div>
             </div>
 
-            <p className="text-xs text-slate-600">
-              Confirming admission will register <strong className="text-slate-900">{appToConvert.applicantName}</strong> into the student roster and generate student roll credentials.
+            <p className="text-xs text-muted-foreground">
+              Confirming admission will register <strong className="text-foreground">{appToConvert.applicantName}</strong> into the student roster and generate student roll credentials.
             </p>
 
             <form onSubmit={handleConvertSubmit} className="space-y-4 pt-1">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Target Batch Assignment</label>
+                <label className="block text-xs font-bold text-foreground mb-1">Target Batch Assignment</label>
                 <select
                   value={selectedBatchId}
                   onChange={(e) => setSelectedBatchId(e.target.value)}
-                  className="w-full h-10 px-3 bg-white border border-slate-200 rounded-md text-xs text-slate-800 focus:ring-1 focus:ring-[#1769AA]"
+                  className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                 >
-                  <option value="">Auto-Assign Next Available Batch</option>
+                  <option value="" className="bg-card text-foreground py-1.5">Auto-Assign Next Available Batch</option>
                   {batches.map((b) => (
-                    <option key={b.id} value={b.id}>
+                    <option key={b.id} value={b.id} className="bg-card text-foreground py-1.5">
                       {b.code || b.name} ({(b as any).course?.name || "General"})
                     </option>
                   ))}
                 </select>
               </div>
 
-              <div className="flex justify-end gap-2.5 pt-3 border-t border-slate-100">
+              <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setConvertModalOpen(false)}
                   disabled={isConverting}
-                  className="h-10 text-xs font-semibold"
+                  className="h-10 text-xs font-semibold text-foreground border-border hover:bg-muted/50 cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
                   disabled={isConverting}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white h-10 text-xs font-bold px-5"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white h-10 text-xs font-bold px-5 cursor-pointer"
                 >
                   {isConverting ? "Processing..." : "Confirm Full Admission"}
                 </Button>
