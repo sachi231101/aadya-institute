@@ -93,88 +93,88 @@ export const AllCourses: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header & Main Action */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Course Directory</h2>
-          <p className="text-sm text-text-secondary">
+          <h2 className="text-2xl font-black tracking-tight text-foreground">Course Directory</h2>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">
             Manage academy courses, learning tracks, and active curriculums.
           </p>
         </div>
 
         <Button
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
+          className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
           onClick={() => navigate("/admin/courses/add")}
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-1.5 h-4 w-4" />
           Add New Course
         </Button>
       </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
-              <BookOpen className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40">
+              <BookOpen className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Courses</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalCourses}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Courses</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{totalCourses}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
-              <CheckCircle2 className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Active Courses</p>
-              <h3 className="text-2xl font-bold text-text-primary">{activeCourses}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Courses</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{activeCourses}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
-              <Users className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
+              <Users className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Enrolled</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalEnrolled}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Enrolled</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{totalEnrolled}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
-              <Layers className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+              <Layers className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Total Modules</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalModules}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Modules</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{totalModules}</h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Controls & Search Filter */}
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="flex flex-col md:flex-row justify-between gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by course name, code, or category..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-bg-secondary border-border/50"
+                className="pl-9 h-10 bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
@@ -184,7 +184,7 @@ export const AllCourses: React.FC = () => {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="ALL">All Categories</option>
                 {categories.map((cat) => (
@@ -198,7 +198,7 @@ export const AllCourses: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active</option>
@@ -206,11 +206,11 @@ export const AllCourses: React.FC = () => {
               </select>
 
               {/* View Mode Toggle Buttons */}
-              <div className="flex items-center border border-border/50 rounded-md overflow-hidden bg-bg-secondary">
+              <div className="flex items-center border border-border rounded-xl overflow-hidden bg-muted/30 p-0.5">
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`h-10 px-3 rounded-none ${viewMode === "grid" ? "bg-accent-primary/10 text-[#1769AA]" : "text-text-secondary"}`}
+                  className={`h-9 px-3 rounded-lg cursor-pointer ${viewMode === "grid" ? "bg-primary text-white shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={() => setViewMode("grid")}
                 >
                   <LayoutGrid className="h-4 w-4" />
@@ -218,7 +218,7 @@ export const AllCourses: React.FC = () => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className={`h-10 px-3 rounded-none ${viewMode === "table" ? "bg-accent-primary/10 text-[#1769AA]" : "text-text-secondary"}`}
+                  className={`h-9 px-3 rounded-lg cursor-pointer ${viewMode === "table" ? "bg-primary text-white shadow-xs" : "text-muted-foreground hover:text-foreground"}`}
                   onClick={() => setViewMode("table")}
                 >
                   <List className="h-4 w-4" />
@@ -228,12 +228,12 @@ export const AllCourses: React.FC = () => {
           </div>
 
           {loading ? (
-            <div className="py-12 flex justify-center items-center text-text-muted">
-              <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
-              <span className="ml-2 text-sm font-medium">Loading courses...</span>
+            <div className="py-12 flex justify-center items-center text-muted-foreground">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              <span className="ml-2 text-xs font-bold">Loading courses...</span>
             </div>
           ) : error ? (
-            <div className="py-8 text-center text-rose-500 font-medium text-sm">
+            <div className="py-8 text-center text-rose-500 font-bold text-xs">
               {error}
             </div>
           ) : viewMode === "grid" ? (
@@ -241,10 +241,10 @@ export const AllCourses: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
               {filteredCourses.length > 0 ? (
                 filteredCourses.map((course) => (
-                  <Card key={course.id} className="border-border/50 bg-white hover:border-[#1769AA]/40 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+                  <Card key={course.id} className="border border-border bg-card hover:border-primary/50 shadow-xs hover:shadow-md transition-all flex flex-col justify-between rounded-2xl overflow-hidden">
                     <CardHeader className="p-5 pb-3">
                       <div className="flex justify-between items-start gap-2 mb-2">
-                        <Badge variant="outline" className="font-mono text-xs text-[#1769AA] border-blue-200 bg-blue-50">
+                        <Badge variant="outline" className="font-mono text-xs text-primary border-primary/20 bg-primary/10">
                           {course.code}
                         </Badge>
                         <div className="flex items-center gap-2">
@@ -253,22 +253,22 @@ export const AllCourses: React.FC = () => {
                           </Badge>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-text-secondary">
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                              <DropdownMenuLabel>Course Options</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")}>
+                            <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
+                              <DropdownMenuLabel className="text-xs font-bold">Course Options</DropdownMenuLabel>
+                              <DropdownMenuSeparator className="bg-border" />
+                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> View Curriculum
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")}>
+                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> View Batches
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              <DropdownMenuSeparator className="bg-border" />
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
+                                className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
                                 onClick={() => handleDelete(course.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete Course
@@ -277,26 +277,26 @@ export const AllCourses: React.FC = () => {
                           </DropdownMenu>
                         </div>
                       </div>
-                      <CardTitle className="text-base font-bold text-text-primary line-clamp-1">
+                      <CardTitle className="text-base font-black text-foreground line-clamp-1">
                         {course.name}
                       </CardTitle>
-                      <p className="text-xs text-text-secondary line-clamp-2 mt-1">
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-1 font-medium">
                         {course.description || "No description provided."}
                       </p>
                     </CardHeader>
 
                     <CardContent className="p-5 pt-0 space-y-4">
-                      <div className="grid grid-cols-2 gap-2 text-xs text-text-secondary pt-2 border-t border-slate-100">
+                      <div className="grid grid-cols-2 gap-2 text-xs text-foreground pt-3 border-t border-border/70">
                         <div className="flex items-center gap-1.5">
-                          <Clock className="h-3.5 w-3.5 text-text-muted" />
-                          <span>{course.duration || course.durationMonths || 6} Months ({course.totalHours || 100} hrs)</span>
+                          <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                          <span>{course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Layers className="h-3.5 w-3.5 text-text-muted" />
+                          <Layers className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{course.modules?.length || 0} Modules</span>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Users className="h-3.5 w-3.5 text-text-muted" />
+                          <Users className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{course._count?.admissions || 0} Students</span>
                         </div>
                         <div className="flex items-center gap-1.5">
@@ -308,16 +308,16 @@ export const AllCourses: React.FC = () => {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="w-full text-xs"
+                          className="w-full text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
                           onClick={() => navigate("/admin/courses/curriculum")}
                         >
-                          <BookOpen className="mr-1.5 h-3.5 w-3.5 text-[#1769AA]" />
+                          <BookOpen className="mr-1.5 h-3.5 w-3.5 text-primary" />
                           Curriculum
                         </Button>
                         <Button
                           variant="default"
                           size="sm"
-                          className="w-full text-xs bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                          className="w-full text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white cursor-pointer"
                           onClick={() => navigate("/admin/courses/batches")}
                         >
                           <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
@@ -328,72 +328,72 @@ export const AllCourses: React.FC = () => {
                   </Card>
                 ))
               ) : (
-                <div className="col-span-full py-12 text-center text-text-muted">
+                <div className="col-span-full py-12 text-center text-muted-foreground">
                   <BookOpen className="mx-auto h-12 w-12 opacity-20 mb-3" />
-                  <p className="text-base font-medium">No courses found</p>
-                  <p className="text-xs text-text-secondary mt-1">Try adjusting your search query or category filter.</p>
+                  <p className="text-base font-bold text-foreground">No courses found</p>
+                  <p className="text-xs text-muted-foreground mt-1">Try adjusting your search query or category filter.</p>
                 </div>
               )}
             </div>
           ) : (
             /* Table View */
-            <div className="rounded-md border border-border/50 overflow-hidden bg-white">
+            <div className="rounded-2xl border border-border overflow-hidden bg-card shadow-2xs">
               <Table>
-                <TableHeader className="bg-bg-secondary/50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-text-primary">Course Code & Title</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Category</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Mode</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Duration</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Modules</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Enrolled</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                    <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
+                <TableHeader className="bg-muted/50 border-b border-border">
+                  <TableRow className="text-xs">
+                    <TableHead className="font-bold text-foreground pl-6">Course Code & Title</TableHead>
+                    <TableHead className="font-bold text-foreground">Category</TableHead>
+                    <TableHead className="font-bold text-foreground">Mode</TableHead>
+                    <TableHead className="font-bold text-foreground">Duration</TableHead>
+                    <TableHead className="font-bold text-foreground">Modules</TableHead>
+                    <TableHead className="font-bold text-foreground">Enrolled</TableHead>
+                    <TableHead className="font-bold text-foreground">Status</TableHead>
+                    <TableHead className="text-right font-bold text-foreground pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredCourses.length > 0 ? (
                     filteredCourses.map((course) => (
-                      <TableRow key={course.id} className="hover:bg-slate-50 transition-colors">
-                        <TableCell>
+                      <TableRow key={course.id} className="hover:bg-muted/40 transition-colors border-b border-border/70 text-xs">
+                        <TableCell className="pl-6 py-3.5">
                           <div>
-                            <span className="font-mono text-xs font-bold text-[#1769AA] block">
+                            <span className="font-mono text-xs font-bold text-primary block">
                               {course.code}
                             </span>
-                            <span className="font-medium text-text-primary text-sm">
+                            <span className="font-bold text-foreground text-sm">
                               {course.name}
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell className="text-xs text-text-secondary">{course.category || "General"}</TableCell>
-                        <TableCell>{getModeBadge(course.mode)}</TableCell>
-                        <TableCell className="text-xs text-text-secondary">
+                        <TableCell className="text-xs text-foreground font-medium py-3.5">{course.category || "General"}</TableCell>
+                        <TableCell className="py-3.5">{getModeBadge(course.mode)}</TableCell>
+                        <TableCell className="text-xs text-foreground py-3.5">
                           {course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)
                         </TableCell>
-                        <TableCell className="text-xs text-text-secondary">{course.modules?.length || 0}</TableCell>
-                        <TableCell className="text-xs font-semibold text-text-primary">{course._count?.admissions || 0}</TableCell>
-                        <TableCell>
+                        <TableCell className="text-xs text-foreground py-3.5">{course.modules?.length || 0}</TableCell>
+                        <TableCell className="text-xs font-bold text-foreground py-3.5">{course._count?.admissions || 0}</TableCell>
+                        <TableCell className="py-3.5">
                           <Badge variant={course.status === "ACTIVE" ? "success" : "secondary"}>
                             {course.status}
                           </Badge>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right pr-6 py-3.5">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
+                              <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
                                 <MoreVertical className="h-4 w-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")}>
+                            <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
+                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> Curriculum
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")}>
+                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> Batches
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              <DropdownMenuSeparator className="bg-border" />
                               <DropdownMenuItem
-                                className="text-destructive focus:text-destructive"
+                                className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
                                 onClick={() => handleDelete(course.id)}
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
@@ -405,7 +405,7 @@ export const AllCourses: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-text-muted">
+                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-xs font-medium">
                         No courses found matching criteria.
                       </TableCell>
                     </TableRow>

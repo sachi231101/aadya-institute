@@ -903,25 +903,25 @@ export const Timetable: React.FC = () => {
       </div>
 
       {/* ─── 5. MAIN TIMETABLE MATRIX TABLE (FACULTY ROWS × TIME SLOTS) ──── */}
-      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         {/* Table Top Control Header with Quick-Scroll Controls */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/90 border-b border-slate-200">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b border-border">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-800">
+            <span className="text-xs font-bold text-foreground">
               Schedule Timeline ({currentDayConfig.fullDay})
             </span>
-            <span className="text-[11px] font-medium text-slate-500 hidden sm:inline">
+            <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline">
               • 8 Time Slots (09:00 AM – 05:00 PM)
             </span>
           </div>
 
           {/* Quick-Scroll Buttons at the Top */}
           <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-slate-400 hidden md:inline">Scroll Timeline:</span>
+            <span className="text-[11px] font-medium text-muted-foreground hidden md:inline">Scroll Timeline:</span>
             <button
               type="button"
               onClick={handleScrollLeft}
-              className="px-2.5 py-1 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="px-2.5 py-1 text-xs font-bold text-foreground bg-card hover:bg-muted/50 border border-border rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
               title="Scroll Left"
             >
               <ChevronLeft className="h-3.5 w-3.5" /> Left
@@ -929,7 +929,7 @@ export const Timetable: React.FC = () => {
             <button
               type="button"
               onClick={handleScrollRight}
-              className="px-2.5 py-1 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+              className="px-2.5 py-1 text-xs font-bold text-foreground bg-card hover:bg-muted/50 border border-border rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
               title="Scroll Right"
             >
               Right <ChevronRight className="h-3.5 w-3.5" />
@@ -941,12 +941,12 @@ export const Timetable: React.FC = () => {
         <div
           ref={topScrollRef}
           onScroll={handleTopScroll}
-          className="overflow-x-auto w-full border-b border-slate-200 bg-slate-100/70 scrollbar-thin"
+          className="overflow-x-auto w-full border-b border-border bg-muted/20 scrollbar-thin"
           style={{ scrollbarWidth: "thin" }}
         >
-          <div className="min-w-[1300px] h-3.5 flex items-center justify-between px-4 text-[9px] font-bold text-slate-400 select-none">
+          <div className="min-w-[1300px] h-3.5 flex items-center justify-between px-4 text-[9px] font-bold text-muted-foreground select-none">
             <span>◀ 09:00 AM</span>
-            <span className="text-[9px] text-slate-400 tracking-wider uppercase font-semibold">◀ Drag top scrollbar to view all time slots ▶</span>
+            <span className="text-[9px] text-muted-foreground tracking-wider uppercase font-semibold">◀ Drag top scrollbar to view all time slots ▶</span>
             <span>05:00 PM ▶</span>
           </div>
         </div>
@@ -955,19 +955,19 @@ export const Timetable: React.FC = () => {
         <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto w-full scrollbar-thin">
           <table className="w-full min-w-[1300px] border-collapse text-left table-fixed">
             <thead>
-              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-600 uppercase tracking-wider">
-                <th className="py-3 px-4 pl-5 w-[200px] border-r border-slate-200/60 sticky left-0 bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                  FACULTY <span className="text-[10px] font-normal text-slate-400">({totalFacultyCount} TOTAL)</span>
+              <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
+                <th className="py-3 px-4 pl-5 w-[200px] border-r border-border sticky left-0 bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] text-foreground">
+                  FACULTY <span className="text-[10px] font-normal text-muted-foreground">({totalFacultyCount} TOTAL)</span>
                 </th>
-                <th className="py-3 px-2 text-center w-[110px] border-r border-slate-200/60 font-bold text-slate-700 sticky left-[200px] bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                <th className="py-3 px-2 text-center w-[110px] border-r border-border font-bold text-foreground sticky left-[200px] bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                   BRANCH
                 </th>
                 {TIME_SLOT_COLUMNS.map((col) => (
                   <th
                     key={col.period}
-                    className="py-3 px-2 text-center w-[125px] border-r border-slate-200/60 last:border-r-0 font-bold text-slate-800 whitespace-nowrap"
+                    className="py-3 px-2 text-center w-[125px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
                   >
-                    <div className="text-[11px] font-bold text-slate-800 tracking-tight whitespace-nowrap">
+                    <div className="text-[11px] font-bold text-foreground tracking-tight whitespace-nowrap">
                       {col.timeTitle}
                     </div>
                     <div className="text-[9px] text-slate-400 font-semibold tracking-wider uppercase">

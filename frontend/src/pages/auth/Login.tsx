@@ -15,6 +15,7 @@ import {
 import { useAuthStore } from "../../store/auth.store";
 import { authApi } from "../../services/auth.api";
 import { UserRole } from "../../constants/roles";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 interface RoleCardConfig {
   id: string;
@@ -263,8 +264,14 @@ export const Login: React.FC = () => {
         alignItems: "center",
         justifyContent: "center",
         padding: "2rem 1.5rem",
+        position: "relative",
       }}
     >
+      {/* Top Floating Controls */}
+      <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+        <ThemeToggle />
+      </div>
+
       {/* Brand Header */}
       <div style={{ textAlign: "center", marginBottom: "2rem", maxWidth: "650px" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>

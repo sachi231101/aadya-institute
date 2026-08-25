@@ -21,6 +21,7 @@ import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -97,10 +98,10 @@ export const StudentLayout: React.FC = () => {
               <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900 leading-none tracking-tight group-hover:text-[#5B50EC] transition-colors">
+              <h2 className="text-base font-bold text-foreground leading-none tracking-tight group-hover:text-[#5B50EC] dark:group-hover:text-indigo-400 transition-colors">
                 Aadya Student
               </h2>
-              <span className="text-[10px] font-bold text-indigo-600 tracking-wider uppercase mt-1 block">
+              <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 tracking-wider uppercase mt-1 block">
                 LEARNER PORTAL
               </span>
             </div>
@@ -109,7 +110,7 @@ export const StudentLayout: React.FC = () => {
           {/* Close button on mobile */}
           <button
             onClick={() => setMobileMenuOpen(false)}
-            className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 rounded-lg"
+            className="lg:hidden p-1.5 text-muted-foreground hover:text-foreground rounded-lg"
           >
             <X className="w-5 h-5" />
           </button>
@@ -123,11 +124,11 @@ export const StudentLayout: React.FC = () => {
             className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${
               isAiActive
                 ? "bg-[#5B50EC] text-white border-[#5B50EC] shadow-xs"
-                : "bg-blue-50/70 hover:bg-blue-100/80 text-[#5B50EC] border-blue-200/60"
+                : "bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 dark:hover:bg-blue-900/50 text-[#5B50EC] dark:text-indigo-300 border-blue-200/60 dark:border-indigo-900/50"
             }`}
           >
             <div className="flex items-center gap-2">
-              <Sparkles className={`w-4 h-4 ${isAiActive ? "text-white" : "text-[#5B50EC]"}`} />
+              <Sparkles className={`w-4 h-4 ${isAiActive ? "text-white" : "text-[#5B50EC] dark:text-indigo-400"}`} />
               <span>ASK ME Anything</span>
             </div>
             <span
@@ -153,11 +154,11 @@ export const StudentLayout: React.FC = () => {
                 className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
                   isActive
                     ? "bg-[#5B50EC] text-white shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <Icon className={`w-4 h-4 ${isActive ? "text-white stroke-[2.2]" : "text-slate-400 stroke-[1.8]"}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? "text-white stroke-[2.2]" : "text-muted-foreground stroke-[1.8]"}`} />
                   <span>{item.label}</span>
                 </div>
               </Link>
@@ -171,7 +172,7 @@ export const StudentLayout: React.FC = () => {
           {/* Exit Button Directly Below My Profile */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
           >
             <LogOut className="w-4 h-4 text-rose-500 stroke-[1.8]" />
             <span>Exit</span>
@@ -180,22 +181,22 @@ export const StudentLayout: React.FC = () => {
       </div>
 
       {/* Bottom "Need Help?" Card */}
-      <div className="pt-3 border-t border-slate-100 space-y-2.5">
-        <div className="bg-slate-50/90 border border-slate-200/70 rounded-2xl p-3.5 space-y-2.5">
+      <div className="pt-3 border-t border-border/40 space-y-2.5">
+        <div className="bg-card border border-border/60 rounded-2xl p-3.5 space-y-2.5">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-blue-100/80 flex items-center justify-center text-[#5B50EC]">
+            <div className="w-7 h-7 rounded-lg bg-blue-100/80 dark:bg-indigo-950/60 flex items-center justify-center text-[#5B50EC] dark:text-indigo-400">
               <Headphones className="w-4 h-4" />
             </div>
-            <h4 className="text-xs font-bold text-slate-800">Need Help?</h4>
+            <h4 className="text-xs font-bold text-foreground">Need Help?</h4>
           </div>
-          <p className="text-[11px] text-slate-500 leading-relaxed">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
             Our support team is here to help you.
           </p>
           <Button
             variant="outline"
             size="sm"
             onClick={() => alert("Connecting to Aadya Student Support...")}
-            className="w-full h-8 text-[11px] font-semibold text-[#5B50EC] border-indigo-200 bg-white hover:bg-indigo-50 rounded-xl"
+            className="w-full h-8 text-[11px] font-semibold text-[#5B50EC] dark:text-indigo-400 border-indigo-200 dark:border-indigo-800 bg-background hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl"
           >
             Contact Support
           </Button>
@@ -205,10 +206,10 @@ export const StudentLayout: React.FC = () => {
   );
 
   return (
-    <div className="flex h-screen w-full bg-[#F8FAFC] font-sans antialiased text-slate-800 overflow-hidden">
+    <div className="flex h-screen w-full bg-background font-sans antialiased text-foreground overflow-hidden">
       <InstallLoginPopup />
       {/* ── Desktop Fixed Left Sidebar (Locked & Non-scrollable) ─────────────── */}
-      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-slate-200/80 flex-col justify-between p-4 h-screen sticky top-0 z-30 shadow-2xs overflow-hidden select-none">
+      <aside className="hidden lg:flex w-64 shrink-0 bg-bg-secondary border-r border-border/50 flex-col justify-between p-4 h-screen sticky top-0 z-30 shadow-2xs overflow-hidden select-none">
         {renderSidebarContent()}
       </aside>
 
@@ -216,10 +217,10 @@ export const StudentLayout: React.FC = () => {
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden animate-in fade-in duration-150">
           <div 
-            className="fixed inset-0 bg-black/40 backdrop-blur-xs" 
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs" 
             onClick={() => setMobileMenuOpen(false)}
           />
-          <aside className="relative w-72 max-w-[85vw] bg-white h-full p-4 z-50 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-left duration-200">
+          <aside className="relative w-72 max-w-[85vw] bg-bg-secondary border-r border-border/50 h-full p-4 z-50 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-left duration-200">
             {renderSidebarContent()}
           </aside>
         </div>
@@ -228,22 +229,22 @@ export const StudentLayout: React.FC = () => {
       {/* ── Main Layout Body & Header ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 lg:h-18 bg-white border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-20 shadow-2xs">
+        <header className="h-16 lg:h-18 bg-bg-secondary border-b border-border/50 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-20 shadow-2xs">
           {/* Hamburger + Greeting */}
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition-colors"
+              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
               aria-label="Open mobile menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
             <div>
-              <h1 className="text-sm lg:text-base font-bold text-slate-900 flex items-center gap-1.5">
+              <h1 className="text-sm lg:text-base font-bold text-foreground flex items-center gap-1.5">
                 Hello, {studentName}! 👋
               </h1>
-              <p className="text-xs text-slate-500 font-medium hidden md:block">
+              <p className="text-xs text-muted-foreground font-medium hidden md:block">
                 Here's your class schedule (Only assigned by your Counsellor)
               </p>
             </div>
@@ -252,50 +253,51 @@ export const StudentLayout: React.FC = () => {
           {/* Right Header Widgets */}
           <div className="flex items-center gap-2 sm:gap-3.5">
             {/* Date Pill */}
-            <div className="hidden xl:flex items-center gap-2 bg-slate-50 border border-slate-200/80 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-slate-700">
-              <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <div className="hidden xl:flex items-center gap-2 bg-muted/40 border border-border/60 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
+              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
               <span>Tuesday, 13 Aug 2026</span>
             </div>
 
             <InstallAppButton variant="header" />
+            <ThemeToggle />
             {/* Notification Bell */}
             <NotificationPopover />
 
             {/* Profile Avatar Pill */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 py-1 rounded-xl hover:bg-slate-50 border border-slate-200/70 transition-colors cursor-pointer">
-                  <Avatar className="w-8 h-8 rounded-lg border border-slate-200 bg-[#8B5CF6] text-white font-bold text-xs">
+                <button className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 py-1 rounded-xl hover:bg-muted/50 border border-border/70 transition-colors cursor-pointer">
+                  <Avatar className="w-8 h-8 rounded-lg border border-border bg-[#8B5CF6] text-white font-bold text-xs">
                     <AvatarImage src={(user as any)?.avatar} alt={studentName} />
                     <AvatarFallback className="bg-[#8B5CF6] text-white font-bold text-xs">
                       {studentInitials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <span className="text-xs font-bold text-slate-800 block leading-tight">
+                    <span className="text-xs font-bold text-foreground block leading-tight">
                       {studentName}
                     </span>
-                    <span className="text-[10px] font-medium text-slate-400 block leading-tight">
+                    <span className="text-[10px] font-medium text-muted-foreground block leading-tight">
                       Student
                     </span>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-white rounded-xl shadow-lg border border-slate-200 p-1">
-                <DropdownMenuLabel className="text-xs text-slate-400 font-semibold px-2 py-1.5">
+              <DropdownMenuContent align="end" className="w-48 bg-popover rounded-xl shadow-lg border border-border p-1">
+                <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold px-2 py-1.5">
                   Student Account
                 </DropdownMenuLabel>
                 <DropdownMenuItem 
                   onClick={() => navigate("/student/profile")}
-                  className="text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg px-2 py-1.5 cursor-pointer"
+                  className="text-xs font-medium text-foreground hover:bg-muted rounded-lg px-2 py-1.5 cursor-pointer"
                 >
                   My Profile
                 </DropdownMenuItem>
-                <DropdownMenuSeparator className="my-1 border-slate-100" />
+                <DropdownMenuSeparator className="my-1 border-border/60" />
                 <DropdownMenuItem 
                   onClick={handleLogout}
-                  className="text-xs font-medium text-rose-600 hover:bg-rose-50 rounded-lg px-2 py-1.5 cursor-pointer flex items-center gap-1.5"
+                  className="text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg px-2 py-1.5 cursor-pointer flex items-center gap-1.5"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   Logout
@@ -306,7 +308,7 @@ export const StudentLayout: React.FC = () => {
         </header>
 
         {/* Main Outlet */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-[#F8FAFC]">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-bg-primary">
           <Outlet />
         </main>
       </div>

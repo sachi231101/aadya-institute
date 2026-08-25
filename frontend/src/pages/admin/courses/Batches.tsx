@@ -165,100 +165,100 @@ export const Batches: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Batch Management</h2>
-          <p className="text-sm text-text-secondary">
+          <h2 className="text-2xl font-black tracking-tight text-foreground">Batch Management</h2>
+          <p className="text-xs text-muted-foreground font-medium mt-0.5">
             Monitor active student cohorts, schedules, faculty allocation, and capacity limits.
           </p>
         </div>
 
         <Button 
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
+          className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
           onClick={() => {
             if (courses.length > 0 && !courseId) setCourseId(courses[0].id);
             setCreateError(null);
             setShowModal(true);
           }}
         >
-          <Plus className="mr-2 h-4 w-4" />
+          <Plus className="mr-1.5 h-4 w-4" />
           Create New Batch
         </Button>
       </div>
 
       {/* Success Notification Banner */}
       {successMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center gap-2 text-xs font-bold shadow-2xs animate-in slide-in-from-top-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
       {/* Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
-              <GraduationCap className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40">
+              <GraduationCap className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Active Batches</p>
-              <h3 className="text-2xl font-bold text-text-primary">{activeCount}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Active Batches</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{activeCount}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
-              <Calendar className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40">
+              <Calendar className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Upcoming Batches</p>
-              <h3 className="text-2xl font-bold text-text-primary">{upcomingCount}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Upcoming Batches</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{upcomingCount}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
-              <Users className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40">
+              <Users className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Batch Enrolled</p>
-              <h3 className="text-2xl font-bold text-text-primary">{totalEnrolled} / {totalCapacity}</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Batch Enrolled</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{totalEnrolled} / {totalCapacity}</h3>
             </div>
           </CardContent>
         </Card>
 
-        <Card className="border-border/50 bg-bg-secondary shadow-sm">
-          <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
-              <CheckCircle2 className="h-6 w-6" />
+        <Card className="border border-border bg-card shadow-xs rounded-2xl">
+          <CardContent className="p-4 flex items-center gap-3.5">
+            <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
             <div>
-              <p className="text-xs font-medium text-text-secondary">Avg Occupancy</p>
-              <h3 className="text-2xl font-bold text-text-primary">{avgOccupancy}%</h3>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Avg Occupancy</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{avgOccupancy}%</h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Main Table & Filters */}
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row justify-between gap-4">
+          <div className="flex flex-col md:flex-row justify-between gap-3">
             {/* Search Input */}
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by batch name, code, course, or instructor..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 bg-bg-secondary border-border/50"
+                className="pl-9 h-10 bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
               />
             </div>
 
@@ -267,7 +267,7 @@ export const Batches: React.FC = () => {
               <select
                 value={courseFilter}
                 onChange={(e) => setCourseFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="ALL">All Courses</option>
                 {courses.map((c) => (
@@ -280,7 +280,7 @@ export const Batches: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="ACTIVE">Active</option>
@@ -291,24 +291,24 @@ export const Batches: React.FC = () => {
           </div>
 
           {/* Table Container */}
-          <div className="rounded-md border border-border/50 overflow-hidden bg-white">
+          <div className="rounded-2xl border border-border overflow-hidden bg-card shadow-2xs">
             {loading ? (
-              <div className="py-12 flex justify-center items-center text-text-muted">
-                <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
-                <span className="ml-2 text-sm font-medium">Loading batches...</span>
+              <div className="py-12 flex justify-center items-center text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2 text-xs font-bold">Loading batches...</span>
               </div>
             ) : (
               <Table>
-                <TableHeader className="bg-bg-secondary/50">
-                  <TableRow>
-                    <TableHead className="font-semibold text-text-primary">Batch Code & Title</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Associated Course</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Instructor</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Schedule Pattern</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Start Date</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Occupancy</TableHead>
-                    <TableHead className="font-semibold text-text-primary">Status</TableHead>
-                    <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
+                <TableHeader className="bg-muted/50 border-b border-border">
+                  <TableRow className="text-xs">
+                    <TableHead className="font-bold text-foreground pl-6">Batch Code & Title</TableHead>
+                    <TableHead className="font-bold text-foreground">Associated Course</TableHead>
+                    <TableHead className="font-bold text-foreground">Instructor</TableHead>
+                    <TableHead className="font-bold text-foreground">Schedule Pattern</TableHead>
+                    <TableHead className="font-bold text-foreground">Start Date</TableHead>
+                    <TableHead className="font-bold text-foreground">Occupancy</TableHead>
+                    <TableHead className="font-bold text-foreground">Status</TableHead>
+                    <TableHead className="text-right font-bold text-foreground pr-6">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -321,64 +321,64 @@ export const Batches: React.FC = () => {
                       const instructorName = batch.faculty?.user?.name || "Unassigned";
 
                       return (
-                        <TableRow key={batch.id} className="hover:bg-slate-50 transition-colors">
-                          <TableCell>
+                        <TableRow key={batch.id} className="hover:bg-muted/40 transition-colors border-b border-border/70 text-xs">
+                          <TableCell className="pl-6 py-3.5">
                             <div>
-                              <span className="font-mono text-xs font-bold text-[#1769AA] block">
+                              <span className="font-mono text-xs font-bold text-primary block">
                                 {batch.code}
                               </span>
-                              <span className="font-medium text-text-primary text-sm">
+                              <span className="font-bold text-foreground text-sm">
                                 {batch.name}
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-text-secondary font-medium">
+                          <TableCell className="text-xs text-foreground font-medium py-3.5">
                             {batch.course?.name || "N/A"}
                           </TableCell>
-                          <TableCell className="text-xs text-text-secondary">
+                          <TableCell className="text-xs text-foreground py-3.5">
                             <div className="flex items-center gap-1.5">
-                              <UserCheck className="h-3.5 w-3.5 text-text-muted" />
-                              <span>{instructorName}</span>
+                              <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                              <span className="font-semibold">{instructorName}</span>
                             </div>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3.5">
                             <div className="space-y-1">
                               {getPatternBadge(batch.schedulePattern)}
-                              <span className="block text-[11px] text-text-muted">
+                              <span className="block text-[11px] font-mono text-muted-foreground">
                                 {batch.timeSlot || "10:00 AM - 12:00 PM"}
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-text-secondary">
+                          <TableCell className="text-xs text-foreground py-3.5">
                             {formattedDate}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="py-3.5">
                             <div className="w-32 space-y-1">
-                              <div className="flex justify-between text-[11px] font-medium text-text-secondary">
+                              <div className="flex justify-between text-[11px] font-bold text-foreground">
                                 <span>{enrolledCount} / {maxCapacity}</span>
                                 <span>{occupancyPercent}%</span>
                               </div>
-                              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
                                 <div 
-                                  className={`h-full rounded-full ${occupancyPercent >= 90 ? "bg-amber-500" : "bg-[#1769AA]"}`}
+                                  className={`h-full rounded-full ${occupancyPercent >= 90 ? "bg-amber-500" : "bg-primary"}`}
                                   style={{ width: `${Math.min(occupancyPercent, 100)}%` }}
                                 />
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>{getStatusBadge(batch.status)}</TableCell>
-                          <TableCell className="text-right">
+                          <TableCell className="py-3.5">{getStatusBadge(batch.status)}</TableCell>
+                          <TableCell className="text-right pr-6 py-3.5">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0 text-text-secondary">
+                                <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end" className="bg-white border-border shadow-md">
-                                <DropdownMenuLabel>Batch Actions</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
+                              <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
+                                <DropdownMenuLabel className="text-xs font-bold">Batch Actions</DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-border" />
                                 <DropdownMenuItem 
-                                  className="text-destructive focus:text-destructive cursor-pointer"
+                                  className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
                                   onClick={() => {
                                     setDeleteError(null);
                                     setBatchToDelete({
@@ -398,7 +398,7 @@ export const Batches: React.FC = () => {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-text-muted">
+                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-xs font-medium">
                         No batches found matching criteria.
                       </TableCell>
                     </TableRow>
@@ -412,26 +412,26 @@ export const Batches: React.FC = () => {
 
       {/* Modal Dialog for Creating New Batch */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white border border-slate-200 rounded-xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900">
-            <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-[#1769AA]" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-primary" />
               Create New Batch
             </h3>
 
             {createError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 {createError}
               </div>
             )}
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Select Course *</label>
+                <label className="block text-xs font-bold text-foreground mb-1">Select Course *</label>
                 <select
                   value={courseId}
                   onChange={(e) => setCourseId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                   required
                 >
                   <option value="">Select a course</option>
@@ -445,35 +445,35 @@ export const Batches: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Batch Name *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Batch Name *</label>
                   <Input
                     type="text"
                     placeholder="e.g. MERN Cohort 3"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
                     required
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Batch Code *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Batch Code *</label>
                   <Input
                     type="text"
                     placeholder="e.g. FS-2026-C1"
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     required
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Assigned Instructor</label>
+                <label className="block text-xs font-bold text-foreground mb-1">Assigned Instructor</label>
                 <select
                   value={facultyId}
                   onChange={(e) => setFacultyId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                  className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                 >
                   <option value="">Unassigned</option>
                   {facultyList.map((f) => (
@@ -486,11 +486,11 @@ export const Batches: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Schedule Pattern</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Schedule Pattern</label>
                   <select
                     value={schedulePattern}
                     onChange={(e) => setSchedulePattern(e.target.value as any)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                   >
                     <option value="MWF">Mon, Wed, Fri (MWF)</option>
                     <option value="TTS">Tue, Thu, Sat (TTS)</option>
@@ -499,50 +499,51 @@ export const Batches: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Max Capacity</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Max Capacity</label>
                   <Input
                     type="number"
                     value={capacity}
                     onChange={(e) => setCapacity(Number(e.target.value))}
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Time Slot</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Time Slot</label>
                   <Input
                     type="text"
                     value={timeSlot}
                     onChange={(e) => setTimeSlot(e.target.value)}
                     placeholder="10:00 AM - 12:00 PM"
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Start Date</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Start Date</label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
-                    className="bg-white border-slate-300 text-slate-900"
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+              <div className="flex justify-end gap-3 pt-4 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => setShowModal(false)}
                   disabled={submitting}
+                  className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
                 >
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
                   disabled={submitting}
                 >
                   {submitting ? (
@@ -563,18 +564,18 @@ export const Batches: React.FC = () => {
       {/* ─── 2-STEP DELETE CONFIRMATION MODAL ───────────────────────── */}
       {batchToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-slate-900 animate-in zoom-in-95 duration-150">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground animate-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">
-              <div className="p-3 rounded-full bg-rose-50 text-rose-600 shrink-0 border border-rose-100">
+              <div className="p-3 rounded-full bg-rose-500/10 text-rose-500 shrink-0 border border-rose-500/20">
                 <AlertTriangle className="h-6 w-6" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-lg font-bold text-slate-900">
+                <h3 className="text-lg font-bold text-foreground">
                   Delete Batch
                 </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Are you sure you want to permanently delete{" "}
-                  <span className="font-bold text-slate-900">
+                  <span className="font-bold text-foreground">
                     {batchToDelete.code} – {batchToDelete.name}
                   </span>
                   ?
@@ -583,20 +584,20 @@ export const Batches: React.FC = () => {
             </div>
 
             {deleteError && (
-              <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold">
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
                 {deleteError}
               </div>
             )}
 
-            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-[11px] text-amber-900 space-y-1">
-              <p className="font-bold text-amber-950">⚠️ Consequences of this action:</p>
-              <ul className="list-disc list-inside space-y-0.5 text-amber-800 pl-1">
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-600 dark:text-amber-400 space-y-1">
+              <p className="font-bold text-amber-600 dark:text-amber-300">⚠️ Consequences of this action:</p>
+              <ul className="list-disc list-inside space-y-0.5 pl-1">
                 <li>Student enrollments linked to this batch will be detached.</li>
                 <li>Scheduled classes & timetable sessions will be removed.</li>
               </ul>
             </div>
 
-            <div className="flex justify-end gap-3 pt-3 border-t border-slate-100">
+            <div className="flex justify-end gap-3 pt-3 border-t border-border">
               <Button
                 type="button"
                 variant="outline"
@@ -604,7 +605,7 @@ export const Batches: React.FC = () => {
                   if (!isDeleting) setBatchToDelete(null);
                 }}
                 disabled={isDeleting}
-                className="text-xs font-bold h-9 px-4 rounded-xl border-slate-200"
+                className="text-xs font-bold h-9 px-4 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
               >
                 Cancel
               </Button>
@@ -612,7 +613,7 @@ export const Batches: React.FC = () => {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl gap-2 shadow-xs transition-all"
+                className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold h-9 px-4 rounded-xl gap-2 shadow-xs transition-all cursor-pointer"
               >
                 {isDeleting ? (
                   <>

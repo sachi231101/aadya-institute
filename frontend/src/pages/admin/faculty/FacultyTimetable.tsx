@@ -553,13 +553,13 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
       )}
 
       {/* ─── 4. TIMETABLE MATRIX TABLE (DAYS AS ROWS × TIME SLOTS) ───────── */}
-      <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto w-full scrollbar-thin">
           <table className="w-full min-w-[1240px] border-collapse text-left table-fixed">
             <thead>
-              <tr className="bg-slate-50/90 border-b border-slate-200 text-[11px] font-black text-slate-700 uppercase tracking-wider">
+              <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
                 {/* 1st Column: DAY / DATE (Sticky Left) */}
-                <th className="py-3.5 px-4 w-[130px] border-r border-slate-200/60 sticky left-0 bg-slate-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                <th className="py-3.5 px-4 w-[130px] border-r border-border sticky left-0 bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] text-foreground">
                   DAY / DATE
                 </th>
 
@@ -567,9 +567,9 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                 {TIME_SLOT_COLUMNS.map((col) => (
                   <th
                     key={col.period}
-                    className="py-3 px-2 text-center w-[135px] border-r border-slate-200/60 last:border-r-0 font-bold text-slate-800 whitespace-nowrap"
+                    className="py-3 px-2 text-center w-[135px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
                   >
-                    <div className="text-[11px] font-bold text-slate-800 tracking-tight whitespace-nowrap">
+                    <div className="text-[11px] font-bold text-foreground tracking-tight whitespace-nowrap">
                       {col.timeTitle}
                     </div>
                     <div className="text-[9px] text-slate-400 font-semibold tracking-wider uppercase">

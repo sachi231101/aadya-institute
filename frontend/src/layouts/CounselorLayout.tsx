@@ -7,6 +7,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export const CounselorLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -37,6 +38,7 @@ export const CounselorLayout: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <InstallAppButton variant="header" />
+              <ThemeToggle />
               <NotificationPopover />
             </div>
 

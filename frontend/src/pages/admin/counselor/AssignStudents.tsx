@@ -515,12 +515,12 @@ export const AssignStudents: React.FC = () => {
             {/* Search & Filter Bar */}
             <div className="flex items-center gap-3">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by name, email, phone or student ID..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="h-9.5 pl-9 bg-slate-50/90 border-slate-200 text-xs font-medium rounded-xl"
+                  className="h-9.5 pl-9 bg-muted/30 border-border text-foreground text-xs font-medium rounded-xl focus:bg-background"
                 />
               </div>
 
@@ -528,7 +528,7 @@ export const AssignStudents: React.FC = () => {
                 <select
                   value={selectedCourseFilter}
                   onChange={(e) => setSelectedCourseFilter(e.target.value)}
-                  className="w-full h-9.5 pl-3 pr-7 text-xs font-bold text-slate-700 bg-slate-50/90 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 outline-none cursor-pointer"
+                  className="w-full h-9.5 pl-3 pr-7 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-1 focus:ring-primary focus:bg-background outline-none cursor-pointer"
                 >
                   <option value="ALL">All Courses</option>
                   {uniqueCourses.map((c) => (
@@ -769,39 +769,39 @@ export const AssignStudents: React.FC = () => {
 
             {/* ─── TARGET BATCH SUMMARY CARD ─── */}
             {targetBatch && (
-              <div className="p-4 rounded-xl bg-slate-50/90 border border-slate-200/90 space-y-3">
+              <div className="p-4 rounded-xl bg-muted/30 border border-border space-y-3">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <h4 className="text-xs font-black text-slate-900">{targetBatch.name}</h4>
-                    <span className="text-[11px] font-bold font-mono text-[#1769AA]">{targetBatch.code}</span>
+                    <h4 className="text-xs font-black text-foreground">{targetBatch.name}</h4>
+                    <span className="text-[11px] font-bold font-mono text-primary">{targetBatch.code}</span>
                   </div>
-                  <Badge className="bg-[#1769AA]/10 text-[#1769AA] border-[#1769AA]/20 font-bold text-[10px]">
+                  <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-[10px]">
                     {targetBatch.course?.name || "Active Course"}
                   </Badge>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-slate-600 pt-1 border-t border-slate-200/60">
+                <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-muted-foreground pt-1 border-t border-border/60">
                   <div className="flex items-center gap-1.5 truncate">
-                    <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{targetBatch.branch?.name || "Aadya Central Branch"}</span>
                   </div>
                   <div className="flex items-center gap-1.5 truncate">
-                    <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                    <Clock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                     <span className="truncate">{targetBatch.timeSlot || "10:00 AM - 12:00 PM"}</span>
                   </div>
                 </div>
 
                 {/* Capacity Visual Progress */}
-                <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
+                <div className="pt-2 border-t border-border/60 space-y-1.5">
                   <div className="flex justify-between text-[11px] font-bold">
-                    <span className="text-slate-500">
-                      Students: <strong className="text-slate-900">{targetBatchAlreadyAssigned} / {targetBatchCapacity}</strong>
+                    <span className="text-muted-foreground">
+                      Students: <strong className="text-foreground">{targetBatchAlreadyAssigned} / {targetBatchCapacity}</strong>
                     </span>
-                    <span className={targetBatchAvailableSeats <= 0 ? "text-rose-600 font-black" : "text-emerald-700 font-bold"}>
+                    <span className={targetBatchAvailableSeats <= 0 ? "text-rose-500 font-black" : "text-emerald-600 dark:text-emerald-400 font-bold"}>
                       {targetBatchAvailableSeats} Seats Available
                     </span>
                   </div>
-                  <div className="w-full bg-slate-200/80 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-muted/50 h-2 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all duration-300 ${
                         targetBatchAlreadyAssigned >= targetBatchCapacity ? "bg-rose-500" : "bg-emerald-500"
@@ -815,19 +815,19 @@ export const AssignStudents: React.FC = () => {
 
             {/* Selected Students Preview List */}
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              <div className="flex items-center justify-between text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
                 <span>Selected Students ({selectedStudentsList.length})</span>
                 {selectedStudentsList.length > 0 && (
-                  <span className="text-[#1769AA] font-bold">Ready to assign</span>
+                  <span className="text-primary font-bold">Ready to assign</span>
                 )}
               </div>
 
               <div className="space-y-2 max-h-[190px] overflow-y-auto pr-1">
                 {selectedStudentsList.length === 0 ? (
-                  <div className="py-8 text-center text-slate-400 text-xs font-medium space-y-1 bg-slate-50/50 rounded-xl border border-dashed border-slate-200">
-                    <Users className="h-6 w-6 mx-auto text-slate-300" />
+                  <div className="py-8 text-center text-muted-foreground text-xs font-medium space-y-1 bg-muted/20 rounded-xl border border-dashed border-border">
+                    <Users className="h-6 w-6 mx-auto text-muted-foreground/60" />
                     <p>No students selected yet.</p>
-                    <p className="text-[10px] text-slate-400">Select checkboxes from the directory on the left.</p>
+                    <p className="text-[10px] text-muted-foreground">Select checkboxes from the directory on the left.</p>
                   </div>
                 ) : (
                   selectedStudentsList.map((stu) => {
@@ -839,26 +839,26 @@ export const AssignStudents: React.FC = () => {
                     return (
                       <div
                         key={stu.id}
-                        className="p-2 px-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between gap-2.5 text-xs"
+                        className="p-2 px-3 rounded-xl bg-muted/30 border border-border flex items-center justify-between gap-2.5 text-xs"
                       >
                         <div className="flex items-center gap-2 min-w-0">
                           <div className={`w-6.5 h-6.5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${getAvatarColor(name)}`}>
                             {getInitials(name)}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-bold text-slate-900 truncate text-[11px]">{name}</div>
-                            <div className="text-[9px] font-mono text-slate-400">{stu.studentCode}</div>
+                            <div className="font-bold text-foreground truncate text-[11px]">{name}</div>
+                            <div className="text-[9px] font-mono text-muted-foreground">{stu.studentCode}</div>
                           </div>
                         </div>
 
                         <div className="text-right shrink-0">
-                          <div className="font-mono text-[10px] font-bold text-slate-700">{phone}</div>
-                          <div className="text-[9px] text-slate-400 truncate max-w-[100px]">{email}</div>
+                          <div className="font-mono text-[10px] font-bold text-foreground">{phone}</div>
+                          <div className="text-[9px] text-muted-foreground truncate max-w-[100px]">{email}</div>
                         </div>
 
                         <button
                           onClick={() => handleToggleStudent(stu.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-white transition-colors shrink-0"
+                          className="p-1 text-muted-foreground hover:text-rose-500 rounded-lg hover:bg-muted/40 transition-colors shrink-0"
                           title="Remove from selection"
                         >
                           <X className="h-3.5 w-3.5" />
@@ -872,17 +872,17 @@ export const AssignStudents: React.FC = () => {
           </div>
 
           {/* Assignment Summary Box */}
-          <div className="p-4 bg-slate-50/90 border-t border-slate-100 space-y-3">
-            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Assignment Summary</h4>
+          <div className="p-4 bg-muted/30 border-t border-border space-y-3">
+            <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Assignment Summary</h4>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
-                <span className="text-[10px] text-slate-400 font-bold block flex items-center gap-1">
+              <div className="p-2.5 rounded-xl bg-card border border-border">
+                <span className="text-[10px] text-muted-foreground font-bold block flex items-center gap-1">
                   <Users className="h-3 w-3" /> Selected
                 </span>
-                <span className="text-base font-black text-slate-900">{selectedStudentIds.size}</span>
+                <span className="text-base font-black text-foreground">{selectedStudentIds.size}</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-white border border-slate-200/80">
+              <div className="p-2.5 rounded-xl bg-card border border-border">
                 <span className="text-[10px] text-slate-400 font-bold block flex items-center gap-1">
                   <Layers className="h-3 w-3" /> Capacity
                 </span>

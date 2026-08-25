@@ -10,7 +10,8 @@ import {
   CheckCheck, 
   ChevronRight, 
   Loader2, 
-  Info 
+  Info,
+  Video
 } from "lucide-react";
 import { 
   useGetNotifications, 
@@ -20,6 +21,7 @@ import {
 } from "../../hooks/useNotifications";
 import type { NotificationType, NotificationItem } from "../../services/notifications.api";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 import { useAuthStore } from "@/store/auth.store";
 
@@ -129,7 +131,7 @@ export const NotificationPopover: React.FC = () => {
 
   const renderIcon = (type: NotificationType, module?: string) => {
     const mod = module?.toLowerCase();
-    if (type === "CLASS" || mod === "class" || mod === "live") {
+    if (type === "CLASS_SESSION" || (type as any) === "CLASS" || mod === "class" || mod === "live") {
       return <Video className="h-4 w-4 text-rose-600 animate-pulse" />;
     }
     if (mod === "fees" || type === "PAYMENT") {
@@ -147,7 +149,7 @@ export const NotificationPopover: React.FC = () => {
     if (mod === "students" || type === "DISCONTINUATION_RISK") {
       return <AlertTriangle className="h-4 w-4 text-rose-600" />;
     }
-    if (mod === "courses" || mod === "schedule" || type === "CLASS_SESSION") {
+    if (mod === "courses" || mod === "schedule" || (type as any) === "SCHEDULE" || (type as any) === "CLASS_SESSION") {
       return <Calendar className="h-4 w-4 text-indigo-600" />;
     }
     return <Info className="h-4 w-4 text-slate-600" />;
@@ -219,7 +221,11 @@ export const NotificationPopover: React.FC = () => {
             ) : notifications.length > 0 ? (
               notifications.map((item) => {
                 const isLiveNotification =
-                  item.title?.includes("LIVE") || item.type === "CLASS" || item.event === "LIVE_CLASS_STARTED";
+                  item.title?.includes("LIVE") ||
+                  item.type === "CLASS_SESSION" ||
+                  (item.type as any) === "CLASS" ||
+                  (item as any).event === "LIVE_CLASS_STARTED" ||
+                  item.metadata?.event === "LIVE_CLASS_STARTED";
 
                 return (
                   <div
@@ -286,7 +292,7 @@ export const NotificationPopover: React.FC = () => {
                         <Button
                           type="button"
                           size="sm"
-                          onClick={(e) => {
+                          onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             if (item.link) {
                               window.open(item.link, "_blank", "noopener,noreferrer");
