@@ -899,27 +899,27 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50/50 pb-16">
+    <div className="min-h-screen bg-background text-foreground pb-16">
       {/* ─── TOP BREADCRUMB & HEADER ────────────────────────────────────────── */}
-      <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-8 py-3.5">
+      <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border px-4 sm:px-8 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs text-slate-500 font-medium">
-              <Link to={`${basePath}/admissions/all`} className="hover:text-[#1769AA] transition-colors">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
+              <Link to={`${basePath}/admissions/all`} className="hover:text-primary transition-colors">
                 Counsellor Portal
               </Link>
-              <ChevronRight className="h-3 w-3 text-slate-400" />
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
               <span>Admissions & Counselling Desk</span>
-              <ChevronRight className="h-3 w-3 text-slate-400" />
-              <Link to={`${basePath}/admissions/all`} className="hover:text-[#1769AA] transition-colors">
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <Link to={`${basePath}/admissions/all`} className="hover:text-primary transition-colors">
                 All Admissions
               </Link>
-              <ChevronRight className="h-3 w-3 text-slate-400" />
-              <span className="text-[#1769AA] font-bold">Direct Admission Entry</span>
+              <ChevronRight className="h-3 w-3 text-muted-foreground" />
+              <span className="text-primary font-bold">Direct Admission Entry</span>
             </div>
             <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Direct Admission Entry</h1>
-              <Badge className="bg-blue-50 text-[#1769AA] border-blue-200 font-bold text-[11px] px-2.5 py-0.5">
+              <h1 className="text-xl sm:text-2xl font-black text-foreground tracking-tight">Direct Admission Entry</h1>
+              <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 font-bold text-[11px] px-2.5 py-0.5">
                 Multi-Course Admission
               </Badge>
             </div>
@@ -930,7 +930,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               variant="outline"
               size="sm"
               onClick={() => navigate(`${basePath}/admissions/all`)}
-              className="text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100"
+              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
             >
               Cancel
             </Button>
@@ -939,7 +939,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               size="sm"
               onClick={() => handleConfirmAdmission("Draft")}
               disabled={isSubmitting}
-              className="text-xs font-semibold border-slate-300 text-slate-700 hover:bg-slate-100"
+              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
             >
               Save as Draft
             </Button>
@@ -948,7 +948,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               size="sm"
               onClick={() => handleConfirmAdmission("Draft")}
               disabled={isSubmitting}
-              className="text-xs font-semibold border-blue-200 text-[#1769AA] hover:bg-blue-50"
+              className="text-xs font-semibold border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
             >
               Save & Continue
             </Button>
@@ -965,7 +965,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
-        <p className="text-xs sm:text-sm text-slate-500 mb-6">
+        <p className="text-xs sm:text-sm text-muted-foreground mb-6">
           Create a new student admission, select multiple courses, assign batches, configure fees and confirm the admission.
         </p>
 
@@ -974,33 +974,33 @@ export const DirectAdmissionEntry: React.FC = () => {
           {/* LEFT 8 COLS: FORM WORKSPACE */}
           <div className="lg:col-span-8 space-y-6">
             {/* ──── 1. STUDENT DETAILS ────────────────────────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                       1
                     </div>
-                    <CardTitle className="text-base font-bold text-slate-900">Student Details</CardTitle>
+                    <CardTitle className="text-base font-bold text-foreground">Student Details</CardTitle>
                   </div>
                   <div className="flex items-center gap-4 text-xs font-semibold">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="studentMode"
                         checked={!isNewStudentMode}
                         onChange={handleSwitchToSearchExisting}
-                        className="text-[#1769AA] focus:ring-[#1769AA]"
+                        className="text-primary focus:ring-primary"
                       />
                       Search Existing Student
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="studentMode"
                         checked={isNewStudentMode}
                         onChange={handleSwitchToNewStudent}
-                        className="text-[#1769AA] focus:ring-[#1769AA]"
+                        className="text-primary focus:ring-primary"
                       />
                       Add New Student
                     </label>
@@ -1013,7 +1013,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 {!isNewStudentMode && (
                   <div className="space-y-3">
                     <div className="relative">
-                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
                         placeholder="Search by student name, ID (STU-...), mobile number, or email..."
                         value={studentSearch}
@@ -1021,31 +1021,31 @@ export const DirectAdmissionEntry: React.FC = () => {
                           setStudentSearch(e.target.value);
                           if (selectedExistingStudentId) setSelectedExistingStudentId(null);
                         }}
-                        className="pl-9 bg-slate-50/70 border-slate-200 text-xs sm:text-sm"
+                        className="pl-9 bg-background border-border text-foreground text-xs sm:text-sm"
                       />
                     </div>
 
                     {/* Autocomplete Dropdown */}
                     {!selectedExistingStudentId && searchedExistingStudents.length > 0 && (
-                      <div className="border border-slate-200 rounded-xl bg-white shadow-lg overflow-hidden divide-y divide-slate-100 max-h-56 overflow-y-auto">
+                      <div className="border border-border rounded-xl bg-card shadow-lg overflow-hidden divide-y divide-border max-h-56 overflow-y-auto">
                         {searchedExistingStudents.map((st) => (
                           <div
                             key={st.id}
                             onClick={() => handleSelectExistingStudent(st)}
-                            className="p-3 hover:bg-blue-50/70 cursor-pointer transition-colors flex items-center justify-between text-xs"
+                            className="p-3 hover:bg-muted/60 cursor-pointer transition-colors flex items-center justify-between text-xs"
                           >
                             <div className="flex items-center gap-2.5">
-                              <div className="h-8 w-8 rounded-full bg-blue-100 text-[#1769AA] flex items-center justify-center font-bold">
+                              <div className="h-8 w-8 rounded-full bg-blue-500/20 text-primary dark:text-blue-400 flex items-center justify-center font-bold">
                                 {st.firstName?.charAt(0) || "S"}
                               </div>
                               <div>
-                                <span className="font-bold text-slate-900 block">{st.name}</span>
-                                <span className="text-[11px] text-slate-500 font-mono">
+                                <span className="font-bold text-foreground block">{st.name}</span>
+                                <span className="text-[11px] text-muted-foreground font-mono">
                                   {st.studentCode} • {st.phone} • {st.email}
                                 </span>
                               </div>
                             </div>
-                            <Badge className="bg-blue-50 text-[#1769AA] border-blue-200 text-[10px] font-bold">
+                            <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold">
                               Select Student
                             </Badge>
                           </div>
@@ -1055,29 +1055,29 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                     {/* Found Student Mini Profile Banner */}
                     {selectedExistingStudentId && (
-                      <div className="p-3.5 bg-slate-50/80 border border-slate-200/90 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+                      <div className="p-3.5 bg-muted/40 border border-border rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-blue-100 text-[#1769AA] flex items-center justify-center font-bold text-sm">
+                          <div className="h-10 w-10 rounded-full bg-blue-500/20 text-primary dark:text-blue-400 flex items-center justify-center font-bold text-sm">
                             {firstName ? firstName.charAt(0) : "S"}
                           </div>
                           <div>
                             <div className="flex items-center gap-2">
-                              <span className="font-bold text-slate-900 text-sm">{firstName} {lastName}</span>
-                              <Badge variant="outline" className="text-[10px] font-mono text-slate-600 bg-white">
+                              <span className="font-bold text-foreground text-sm">{firstName} {lastName}</span>
+                              <Badge variant="outline" className="text-[10px] font-mono text-muted-foreground bg-background border-border">
                                 {existingStudents.find((s) => s.id === selectedExistingStudentId)?.studentCode || "STU-000126"}
                               </Badge>
                             </div>
-                            <div className="flex items-center gap-4 text-slate-500 text-[11px] mt-0.5">
-                              <span>Mobile: <strong className="text-slate-700">{phone}</strong></span>
-                              <span>Email: <strong className="text-slate-700">{email}</strong></span>
-                              <span>DOB: <strong className="text-slate-700">{dob}</strong></span>
+                            <div className="flex items-center gap-4 text-muted-foreground text-[11px] mt-0.5">
+                              <span>Mobile: <strong className="text-foreground">{phone}</strong></span>
+                              <span>Email: <strong className="text-foreground">{email}</strong></span>
+                              <span>DOB: <strong className="text-foreground">{dob}</strong></span>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-3">
-                          <div className="flex items-center gap-1.5 text-emerald-700 font-semibold text-xs">
-                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold text-xs">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                             <span>Existing student loaded</span>
                           </div>
                           <Button
@@ -1088,7 +1088,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                               setSelectedExistingStudentId(null);
                               setStudentSearch("");
                             }}
-                            className="text-[11px] text-[#1769AA] hover:bg-blue-50 h-7 px-2"
+                            className="text-[11px] text-primary dark:text-blue-400 hover:bg-muted h-7 px-2"
                           >
                             Change
                           </Button>
@@ -1100,12 +1100,12 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                 {/* Mode 2: Add New Student Banner */}
                 {isNewStudentMode && (
-                  <div className="p-3 bg-blue-50/60 border border-blue-100 rounded-xl flex items-center justify-between text-xs text-[#1769AA]">
+                  <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl flex items-center justify-between text-xs text-blue-600 dark:text-blue-400">
                     <div className="flex items-center gap-2">
                       <User className="h-4 w-4 shrink-0" />
                       <span><strong>New Student Mode:</strong> Fill in the personal details below to register and enroll a new student.</span>
                     </div>
-                    <Badge className="bg-[#1769AA] text-white text-[10px] font-bold">
+                    <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
                       New Profile
                     </Badge>
                   </div>
@@ -1114,49 +1114,49 @@ export const DirectAdmissionEntry: React.FC = () => {
                 {/* Student Form Inputs */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       First Name <span className="text-red-500">*</span>
                     </label>
-                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First Name" required />
+                    <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First Name" required className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Last Name <span className="text-red-500">*</span>
                     </label>
-                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" required />
+                    <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" required className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Mobile Number <span className="text-red-500">*</span>
                     </label>
-                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" required />
+                    <Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="10-digit mobile" required className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Alternate Mobile</label>
-                    <Input value={altPhone} onChange={(e) => setAltPhone(e.target.value)} placeholder="Alternate number" />
+                    <label className="text-xs font-semibold text-foreground block mb-1">Alternate Mobile</label>
+                    <Input value={altPhone} onChange={(e) => setAltPhone(e.target.value)} placeholder="Alternate number" className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Email Address <span className="text-red-500">*</span>
                     </label>
-                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
+                    <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Date of Birth</label>
-                    <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} />
+                    <label className="text-xs font-semibold text-foreground block mb-1">Date of Birth</label>
+                    <Input type="date" value={dob} onChange={(e) => setDob(e.target.value)} className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Gender</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Gender</label>
                     <select
                       value={gender}
                       onChange={(e) => setGender(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Female">Female</option>
                       <option value="Male">Male</option>
@@ -1165,34 +1165,34 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Residential Address</label>
-                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" />
+                    <label className="text-xs font-semibold text-foreground block mb-1">Residential Address</label>
+                    <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" className="bg-background border-border text-foreground" />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
             {/* ──── 2. ADMISSION DETAILS ──────────────────────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                  <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                     2
                   </div>
-                  <CardTitle className="text-base font-bold text-slate-900">Admission Details</CardTitle>
+                  <CardTitle className="text-base font-bold text-foreground">Admission Details</CardTitle>
                 </div>
               </CardHeader>
 
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Admission Type <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={admissionType}
                       onChange={(e) => setAdmissionType(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Regular Admission">Regular Admission</option>
                       <option value="Direct / Fast Track">Direct / Fast Track</option>
@@ -1202,13 +1202,13 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Branch / Center <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={branchName}
                       onChange={(e) => setBranchName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Aadya Institute - HSR Layout">Aadya Institute - HSR Layout</option>
                       <option value="Aadya Institute - Koramangala">Aadya Institute - Koramangala</option>
@@ -1218,29 +1218,29 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Admission No.</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Admission No.</label>
                     <Input
                       value={admissionNo}
                       onChange={(e) => setAdmissionNo(e.target.value)}
-                      className="font-mono text-slate-900 font-bold bg-white"
+                      className="font-mono text-foreground font-bold bg-background border-border"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Admission Date <span className="text-red-500">*</span>
                     </label>
-                    <Input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} required />
+                    <Input type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} required className="bg-background border-border text-foreground" />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Academic Year <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={academicYear}
                       onChange={(e) => setAcademicYear(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="2026 - 2027">2026 - 2027</option>
                       <option value="2025 - 2026">2025 - 2026</option>
@@ -1249,13 +1249,13 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    <label className="text-xs font-semibold text-foreground block mb-1">
                       Counsellor <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={counsellorName}
                       onChange={(e) => setCounsellorName(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Vidhya K A">Vidhya K A</option>
                       <option value="Rohit Sharma">Rohit Sharma</option>
@@ -1265,11 +1265,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Lead Source</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Lead Source</label>
                     <select
                       value={leadSource}
                       onChange={(e) => setLeadSource(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Website">Website</option>
                       <option value="Direct Walk-in">Direct Walk-in</option>
@@ -1279,11 +1279,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Referral Source</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Referral Source</label>
                     <select
                       value={referralSource}
                       onChange={(e) => setReferralSource(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Google Ads">Google Ads</option>
                       <option value="Student Referral">Student Referral</option>
@@ -1293,11 +1293,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Admission Status</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Admission Status</label>
                     <select
                       value={admissionStatus}
                       onChange={(e) => setAdmissionStatus(e.target.value as any)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Draft">Draft</option>
                       <option value="Provisional">Provisional</option>
@@ -1309,21 +1309,21 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 3. COURSE SELECTION (SINGLE SELECT AT A TIME) ─────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                       3
                     </div>
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">Course Selection</CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
+                      <CardTitle className="text-base font-bold text-foreground">Course Selection</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
                         Select one or more courses for this student's admission.
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge className="bg-blue-50 text-[#1769AA] border-blue-200 text-xs font-bold">
+                  <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-xs font-bold">
                     {selectedCoursesList.length} Selected
                   </Badge>
                 </div>
@@ -1332,7 +1332,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               <CardContent className="p-6 space-y-5">
                 {/* Course Package Dropdown Selector */}
                 <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-700 block">Course Package (Optional)</label>
+                  <label className="text-xs font-bold text-foreground block">Course Package (Optional)</label>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <select
@@ -1341,7 +1341,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                           setSelectedPackageId(e.target.value);
                           if (e.target.value) handleApplyPackage(e.target.value);
                         }}
-                        className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white text-slate-800"
+                        className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                       >
                         <option value="">Select Course Package...</option>
                         {PRESET_PACKAGES.map((pkg) => (
@@ -1356,7 +1356,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => handleApplyPackage()}
-                      className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50 font-bold h-9 px-3.5 gap-1.5 shrink-0"
+                      className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-9 px-3.5 gap-1.5 shrink-0"
                     >
                       <Plus className="h-3.5 w-3.5" /> Add Package
                     </Button>
@@ -1366,31 +1366,31 @@ export const DirectAdmissionEntry: React.FC = () => {
                 {/* ─── DUAL PANEL SELECTOR (1-CLICK INSTANT TRANSFER) ───────────────────── */}
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-center">
                   {/* LEFT PANEL: Available Courses */}
-                  <div className="md:col-span-5 border border-slate-200/90 rounded-xl overflow-hidden flex flex-col h-[350px] bg-white shadow-2xs">
-                    <div className="p-3 bg-slate-50/80 border-b border-slate-200/80">
+                  <div className="md:col-span-5 border border-border rounded-xl overflow-hidden flex flex-col h-[350px] bg-card shadow-2xs">
+                    <div className="p-3 bg-muted/40 border-b border-border">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                           Available Courses
-                          <span className="text-[10px] font-normal text-slate-500">(1-click to add)</span>
+                          <span className="text-[10px] font-normal text-muted-foreground">(1-click to add)</span>
                         </span>
-                        <Badge variant="outline" className="text-[10px] text-slate-600 bg-white">
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground bg-background border-border">
                           {filteredAvailableCourses.length} items
                         </Badge>
                       </div>
                       <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                           placeholder="Search courses..."
                           value={availableSearchQuery}
                           onChange={(e) => setAvailableSearchQuery(e.target.value)}
-                          className="pl-8 h-8 text-xs bg-white"
+                          className="pl-8 h-8 text-xs bg-background border-border text-foreground"
                         />
                       </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                       {filteredAvailableCourses.length === 0 ? (
-                        <div className="p-6 text-center text-xs text-slate-400">
+                        <div className="p-6 text-center text-xs text-muted-foreground">
                           {availableSearchQuery ? "No matching courses found." : "All available courses have been added."}
                         </div>
                       ) : (
@@ -1398,22 +1398,22 @@ export const DirectAdmissionEntry: React.FC = () => {
                           <div
                             key={course.id}
                             onClick={() => handleQuickAddCourse(course.id)}
-                            className="group p-2.5 rounded-lg text-xs cursor-pointer transition-all flex items-center justify-between border border-slate-100 hover:border-[#1769AA]/50 hover:bg-blue-50/70 hover:shadow-xs text-slate-800"
+                            className="group p-2.5 rounded-lg text-xs cursor-pointer transition-all flex items-center justify-between border border-border hover:border-primary/50 hover:bg-muted/60 text-foreground"
                             title="Click to add this course"
                           >
                             <div className="min-w-0 pr-2">
-                              <span className="block truncate font-medium group-hover:text-[#1769AA] group-hover:font-bold transition-colors">
+                              <span className="block truncate font-medium group-hover:text-primary transition-colors">
                                 {course.name}
                               </span>
-                              <span className="text-[10px] text-slate-400 block font-normal">
+                              <span className="text-[10px] text-muted-foreground block font-normal">
                                 {course.category} • {course.duration}
                               </span>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
-                              <span className="text-[11px] font-bold text-slate-700">
+                              <span className="text-[11px] font-bold text-foreground">
                                 ₹{course.fee.toLocaleString()}
                               </span>
-                              <div className="h-6 w-6 rounded-md bg-blue-50 group-hover:bg-[#1769AA] text-[#1769AA] group-hover:text-white flex items-center justify-center transition-colors">
+                              <div className="h-6 w-6 rounded-md bg-blue-500/15 group-hover:bg-primary text-primary group-hover:text-primary-foreground flex items-center justify-center transition-colors">
                                 <Plus className="h-3.5 w-3.5" />
                               </div>
                             </div>
@@ -1425,56 +1425,56 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   {/* CENTER INDICATOR */}
                   <div className="md:col-span-2 flex flex-col items-center justify-center gap-2 py-2 text-center">
-                    <div className="h-10 w-10 rounded-full bg-blue-50 border border-blue-200 flex items-center justify-center text-[#1769AA] shadow-2xs">
+                    <div className="h-10 w-10 rounded-full bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-primary dark:text-blue-400 shadow-2xs">
                       <ArrowRight className="h-5 w-5" />
                     </div>
-                    <span className="text-[11px] font-bold text-[#1769AA] block">
+                    <span className="text-[11px] font-bold text-primary dark:text-blue-400 block">
                       1-Click Select
                     </span>
-                    <span className="text-[10px] text-slate-400 max-w-[120px] leading-tight">
+                    <span className="text-[10px] text-muted-foreground max-w-[120px] leading-tight">
                       Click any course to add or return
                     </span>
                   </div>
 
                   {/* RIGHT PANEL: Selected Courses Table */}
-                  <div className="md:col-span-5 border border-slate-200/90 rounded-xl overflow-hidden flex flex-col h-[350px] bg-white shadow-2xs">
-                    <div className="p-3 bg-slate-50/80 border-b border-slate-200/80">
+                  <div className="md:col-span-5 border border-border rounded-xl overflow-hidden flex flex-col h-[350px] bg-card shadow-2xs">
+                    <div className="p-3 bg-muted/40 border-b border-border">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
                           Selected Courses ({selectedCoursesList.length})
-                          <span className="text-[10px] font-normal text-slate-500">(1-click to remove)</span>
+                          <span className="text-[10px] font-normal text-muted-foreground">(1-click to remove)</span>
                         </span>
-                        <Badge className="bg-blue-100 text-[#1769AA] border-blue-200 text-[10px] font-bold">
+                        <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold">
                           ₹{totalBaseCourseFee.toLocaleString()}
                         </Badge>
                       </div>
                       <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+                        <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                           placeholder="Search selected courses..."
                           value={selectedSearchQuery}
                           onChange={(e) => setSelectedSearchQuery(e.target.value)}
-                          className="pl-8 h-8 text-xs bg-white"
+                          className="pl-8 h-8 text-xs bg-background border-border text-foreground"
                         />
                       </div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto">
                       {filteredSelectedCourses.length === 0 ? (
-                        <div className="p-6 text-center text-xs text-slate-400 space-y-1 mt-8">
-                          <Layers className="h-6 w-6 text-slate-300 mx-auto" />
-                          <p className="font-semibold text-slate-600">No courses selected yet.</p>
-                          <p className="text-[11px] text-slate-400">
-                            Click any course in the <span className="font-semibold text-[#1769AA]">Available Courses</span> list to add it instantly.
+                        <div className="p-6 text-center text-xs text-muted-foreground space-y-1 mt-8">
+                          <Layers className="h-6 w-6 text-muted-foreground/60 mx-auto" />
+                          <p className="font-semibold text-foreground">No courses selected yet.</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Click any course in the <span className="font-semibold text-primary dark:text-blue-400">Available Courses</span> list to add it instantly.
                           </p>
                         </div>
                       ) : (
                         <Table>
-                          <TableHeader className="bg-slate-50/70">
-                            <TableRow className="text-xs">
-                              <TableHead className="w-10 font-bold text-slate-600 text-center">#</TableHead>
-                              <TableHead className="font-bold text-slate-700">Course Name</TableHead>
-                              <TableHead className="text-right font-bold text-slate-700 pr-3 w-24">Action</TableHead>
+                          <TableHeader className="bg-muted/40">
+                            <TableRow className="text-xs border-border">
+                              <TableHead className="w-10 font-bold text-muted-foreground text-center">#</TableHead>
+                              <TableHead className="font-bold text-foreground">Course Name</TableHead>
+                              <TableHead className="text-right font-bold text-foreground pr-3 w-24">Action</TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -1482,17 +1482,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                               <TableRow
                                 key={item.id}
                                 onClick={() => handleQuickRemoveCourse(item.id)}
-                                className="text-xs hover:bg-red-50/50 cursor-pointer transition-colors group"
+                                className="text-xs hover:bg-red-500/10 cursor-pointer transition-colors group border-border"
                                 title="Click to remove and return to available courses"
                               >
-                                <TableCell className="font-mono text-slate-400 font-bold text-center py-2.5">
+                                <TableCell className="font-mono text-muted-foreground font-bold text-center py-2.5">
                                   {idx + 1}
                                 </TableCell>
                                 <TableCell className="py-2.5">
-                                  <span className="font-bold text-slate-900 block group-hover:text-red-700 transition-colors">
+                                  <span className="font-bold text-foreground block group-hover:text-red-500 transition-colors">
                                     {item.courseName}
                                   </span>
-                                  <span className="text-[10px] font-mono text-[#1769AA]">
+                                  <span className="text-[10px] font-mono text-primary dark:text-blue-400">
                                     ₹{item.fee.toLocaleString()}
                                   </span>
                                 </TableCell>
@@ -1503,7 +1503,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                       e.stopPropagation();
                                       handleQuickRemoveCourse(item.id);
                                     }}
-                                    className="px-2 py-1 text-red-600 hover:bg-red-100 rounded-md transition-colors text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
+                                    className="px-2 py-1 text-red-500 hover:bg-red-500/20 rounded-md transition-colors text-xs font-semibold inline-flex items-center gap-1 cursor-pointer"
                                     title="Remove course"
                                   >
                                     <Trash2 className="h-3.5 w-3.5 text-red-500" />
@@ -1520,7 +1520,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 </div>
 
                 {/* Bottom Flow Tip */}
-                <div className="p-3 bg-blue-50/70 border border-blue-100 rounded-xl text-xs text-[#1769AA] flex items-center gap-2">
+                <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl text-xs text-blue-600 dark:text-blue-400 flex items-center gap-2">
                   <Info className="h-4 w-4 shrink-0" />
                   <span>
                     <strong>1-Click Instant Transfer:</strong> Click any course from <strong>Available Courses</strong> to add it immediately. Click any selected course to return it to the main table.
@@ -1530,21 +1530,21 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 4. BATCH & COURSE CONFIGURATION TABLE ─────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                       4
                     </div>
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">Batch & Course Configuration</CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
+                      <CardTitle className="text-base font-bold text-foreground">Batch & Course Configuration</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
                         Assign batch for each selected course. Faculty and schedule will be auto-filled.
                       </CardDescription>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-xs font-mono font-bold text-[#1769AA] bg-blue-50 border-blue-200">
+                  <Badge variant="outline" className="text-xs font-mono font-bold text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30">
                     {selectedCoursesList.length} Courses Staged
                   </Badge>
                 </div>
@@ -1552,24 +1552,24 @@ export const DirectAdmissionEntry: React.FC = () => {
 
               <CardContent className="p-6 space-y-4">
                 {selectedCoursesList.length === 0 ? (
-                  <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-2xl text-xs text-slate-400 space-y-2">
-                    <Layers className="h-8 w-8 text-slate-300 mx-auto" />
-                    <p className="font-bold text-slate-700">No courses selected for batch assignment.</p>
+                  <div className="p-8 text-center border-2 border-dashed border-border rounded-2xl text-xs text-muted-foreground space-y-2">
+                    <Layers className="h-8 w-8 text-muted-foreground/60 mx-auto" />
+                    <p className="font-bold text-foreground">No courses selected for batch assignment.</p>
                     <p>Select one or more courses in the dual-panel selector above to configure batches.</p>
                   </div>
                 ) : (
-                  <div className="border border-slate-200/80 rounded-xl overflow-x-auto shadow-2xs">
+                  <div className="border border-border rounded-xl overflow-x-auto shadow-2xs">
                     <Table>
-                      <TableHeader className="bg-slate-50">
-                        <TableRow className="text-xs">
-                          <TableHead className="font-bold text-slate-800 min-w-[160px]">Course</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[200px]">Select Batch *</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[140px]">Faculty</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[180px]">Schedule</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[120px]">Start Date</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[120px]">End Date</TableHead>
-                          <TableHead className="font-bold text-slate-800 min-w-[110px]">Course Fee</TableHead>
-                          <TableHead className="text-right font-bold text-slate-800 pr-4 min-w-[60px]">Action</TableHead>
+                      <TableHeader className="bg-muted/40">
+                        <TableRow className="text-xs border-border">
+                          <TableHead className="font-bold text-foreground min-w-[160px]">Course</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[200px]">Select Batch *</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[140px]">Faculty</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[180px]">Schedule</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[120px]">Start Date</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[120px]">End Date</TableHead>
+                          <TableHead className="font-bold text-foreground min-w-[110px]">Course Fee</TableHead>
+                          <TableHead className="text-right font-bold text-foreground pr-4 min-w-[60px]">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1578,11 +1578,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                           const courseBatches = getBatchesForCourse(item.courseId, item.courseName, cObj?.code || "CRS");
 
                           return (
-                            <TableRow key={item.id} className="text-xs hover:bg-slate-50/70 transition-colors">
+                            <TableRow key={item.id} className="text-xs hover:bg-muted/40 transition-colors border-border">
                               {/* Course Name */}
                               <TableCell className="align-middle">
-                                <span className="font-bold text-slate-900 block">{item.courseName}</span>
-                                <span className="text-[11px] text-slate-400 block">{item.packageProgram}</span>
+                                <span className="font-bold text-foreground block">{item.courseName}</span>
+                                <span className="text-[11px] text-muted-foreground block">{item.packageProgram}</span>
                               </TableCell>
 
                               {/* Select Batch Dropdown */}
@@ -1590,7 +1590,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                 <select
                                   value={item.batchId}
                                   onChange={(e) => handleBatchChangeForCourse(item.id, e.target.value)}
-                                  className="w-full px-2.5 py-1.5 text-xs rounded-md border border-slate-200 bg-white font-medium text-slate-800"
+                                  className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-background font-medium text-foreground"
                                 >
                                   {courseBatches.map((b) => (
                                     <option key={b.id} value={b.id}>
@@ -1603,16 +1603,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                               {/* Faculty Auto-filled */}
                               <TableCell className="align-middle">
                                 <div className="flex items-center gap-2">
-                                  <div className="h-6 w-6 rounded-full bg-blue-100 text-[#1769AA] flex items-center justify-center font-bold text-[10px] shrink-0">
+                                  <div className="h-6 w-6 rounded-full bg-blue-500/20 text-primary dark:text-blue-400 flex items-center justify-center font-bold text-[10px] shrink-0">
                                     {item.facultyAvatar || item.facultyName.charAt(0)}
                                   </div>
-                                  <span className="font-semibold text-slate-800 truncate">{item.facultyName}</span>
+                                  <span className="font-semibold text-foreground truncate">{item.facultyName}</span>
                                 </div>
                               </TableCell>
 
                               {/* Schedule Auto-filled */}
                               <TableCell className="align-middle">
-                                <span className="text-slate-600 text-[11px] block">{item.schedule}</span>
+                                <span className="text-muted-foreground text-[11px] block">{item.schedule}</span>
                               </TableCell>
 
                               {/* Start Date */}
@@ -1621,7 +1621,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                   type="date"
                                   value={item.startDate}
                                   onChange={(e) => handleUpdateStartDate(item.id, e.target.value)}
-                                  className="h-8 text-xs bg-white"
+                                  className="h-8 text-xs bg-background border-border text-foreground"
                                 />
                               </TableCell>
 
@@ -1631,7 +1631,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                   type="date"
                                   value={item.endDate}
                                   onChange={(e) => handleUpdateEndDate(item.id, e.target.value)}
-                                  className="h-8 text-xs bg-white"
+                                  className="h-8 text-xs bg-background border-border text-foreground"
                                 />
                               </TableCell>
 
@@ -1641,7 +1641,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                   type="number"
                                   value={item.fee}
                                   onChange={(e) => handleUpdateCourseFee(item.id, Number(e.target.value))}
-                                  className="h-8 w-24 text-xs font-bold text-slate-900 bg-white"
+                                  className="h-8 w-24 text-xs font-bold text-foreground bg-background border-border"
                                 />
                               </TableCell>
 
@@ -1650,7 +1650,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleRemoveSingleCourse(item.id)}
-                                  className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                  className="p-1.5 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-md transition-colors"
                                   title="Remove course"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -1667,22 +1667,23 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 5. FEE DETAILS (AUTO-CALCULATED) ──────────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            {/* ──── 5. FEE DETAILS ────────────────────────────────────────────── */}
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                       5
                     </div>
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900">Fee Details (Auto Calculated)</CardTitle>
-                      <CardDescription className="text-xs text-slate-500">
+                      <CardTitle className="text-base font-bold text-foreground">Fee Details (Auto Calculated)</CardTitle>
+                      <CardDescription className="text-xs text-muted-foreground">
                         Fees are auto calculated based on selected courses.
                       </CardDescription>
                     </div>
                   </div>
-                  <span className="text-xs text-slate-500 font-semibold">
-                    Total Base Course Fee: <strong className="text-slate-900">₹{totalBaseCourseFee.toLocaleString()}</strong>
+                  <span className="text-xs text-muted-foreground font-semibold">
+                    Total Base Course Fee: <strong className="text-foreground">₹{totalBaseCourseFee.toLocaleString()}</strong>
                   </span>
                 </div>
               </CardHeader>
@@ -1690,41 +1691,41 @@ export const DirectAdmissionEntry: React.FC = () => {
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Registration Fee (₹)</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Registration Fee (₹)</label>
                     <Input
                       type="number"
                       value={registrationFee}
                       onChange={(e) => setRegistrationFee(Number(e.target.value))}
-                      className="bg-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Additional Charges (₹)</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Additional Charges (₹)</label>
                     <Input
                       type="number"
                       value={additionalCharges}
                       onChange={(e) => setAdditionalCharges(Number(e.target.value))}
-                      className="bg-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Discount (₹)</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Discount (₹)</label>
                     <Input
                       type="number"
                       value={discountValue}
                       onChange={(e) => setDiscountValue(Number(e.target.value))}
-                      className="bg-white font-semibold text-red-600"
+                      className="bg-background border-border font-semibold text-red-600 dark:text-red-400"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Discount Type</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Discount Type</label>
                     <select
                       value={discountType}
                       onChange={(e) => setDiscountType(e.target.value as any)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white"
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
                       <option value="Fixed">Amount (₹)</option>
                       <option value="Percentage">Percentage (%)</option>
@@ -1732,67 +1733,67 @@ export const DirectAdmissionEntry: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Scholarship (₹)</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Scholarship (₹)</label>
                     <Input
                       type="number"
                       value={scholarshipAmount}
                       onChange={(e) => setScholarshipAmount(Number(e.target.value))}
-                      className="bg-white"
+                      className="bg-background border-border text-foreground"
                     />
                   </div>
 
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Tax / GST (18%)</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Tax / GST (18%)</label>
                     <Input
                       type="number"
                       value={gstAmount}
                       onChange={(e) => setCustomGstAmount(Number(e.target.value))}
-                      className="bg-white font-semibold text-slate-800"
+                      className="bg-background border-border font-semibold text-foreground"
                     />
                   </div>
 
                   <div className="sm:col-span-2">
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Total Payable Amount</label>
-                    <div className="h-10 px-4 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between">
-                      <span className="text-xs text-emerald-800 font-semibold">Net Total Payable:</span>
-                      <span className="text-base font-extrabold text-emerald-700">₹{finalPayableAmount.toLocaleString()}</span>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Total Payable Amount</label>
+                    <div className="h-10 px-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between">
+                      <span className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold">Net Total Payable:</span>
+                      <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">₹{finalPayableAmount.toLocaleString()}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* ─── PAYMENT AT TIME OF ADMISSION SUB-CARD ─── */}
-                <div className="mt-4 p-4.5 bg-gradient-to-r from-blue-50/70 via-slate-50/60 to-emerald-50/60 border border-blue-100 rounded-xl space-y-4">
+                <div className="mt-4 p-4.5 bg-muted/40 dark:bg-slate-900/60 border border-blue-500/20 dark:border-blue-500/30 rounded-2xl space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Wallet className="h-4 w-4 text-[#1769AA]" />
-                      <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                      <Wallet className="h-4 w-4 text-primary" />
+                      <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
                         Payment Collection at the Time of Admission
                       </h4>
                     </div>
-                    <Badge className="bg-blue-100 text-[#1769AA] border-blue-200 text-[10px] font-bold">
+                    <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold">
                       Admission Desk Settlement
                     </Badge>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
                     <div>
-                      <label className="text-xs font-bold text-slate-800 block mb-1">
+                      <label className="text-xs font-bold text-foreground block mb-1">
                         Amount Paid at Admission (₹) <span className="text-red-500">*</span>
                       </label>
                       <Input
                         type="number"
                         value={amountPaidAtAdmission}
                         onChange={(e) => setAmountPaidAtAdmission(Number(e.target.value))}
-                        className="font-extrabold text-emerald-700 border-emerald-200 bg-white focus:ring-emerald-500"
+                        className="font-extrabold text-emerald-600 dark:text-emerald-400 border-emerald-500/30 bg-background focus:ring-emerald-500"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method</label>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Payment Method</label>
                       <select
                         value={initialPaymentMethod}
                         onChange={(e) => setInitialPaymentMethod(e.target.value)}
-                        className="w-full px-3 py-2 text-sm rounded-md border border-slate-200 bg-white font-medium"
+                        className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground font-medium"
                       >
                         <option value="UPI / QR Code">UPI / QR Code</option>
                         <option value="Net Banking / IMPS">Net Banking / IMPS</option>
@@ -1803,36 +1804,36 @@ export const DirectAdmissionEntry: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="text-xs font-semibold text-slate-700 block mb-1">Transaction Ref / Receipt No.</label>
+                      <label className="text-xs font-semibold text-foreground block mb-1">Transaction Ref / Receipt No.</label>
                       <Input
                         value={transactionRef}
                         onChange={(e) => setTransactionRef(e.target.value)}
                         placeholder="e.g. UPI/61928392182"
-                        className="bg-white text-xs"
+                        className="bg-background border-border text-foreground text-xs"
                       />
                     </div>
 
-                    <div className="p-2.5 bg-amber-50/80 border border-amber-200 rounded-lg flex items-center justify-between">
+                    <div className="p-2.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/30 rounded-xl flex items-center justify-between">
                       <div>
-                        <span className="text-[10px] text-amber-800 font-bold uppercase block">Balance to be Paid (₹)</span>
-                        <span className="text-xs text-amber-700 font-medium">
+                        <span className="text-[10px] text-amber-600 dark:text-amber-400 font-bold uppercase block">Balance to be Paid (₹)</span>
+                        <span className="text-xs text-amber-600/80 dark:text-amber-400/80 font-medium">
                           {balanceToBePaid > 0 ? "Remaining:" : "Settled"}
                         </span>
                       </div>
-                      <span className="font-extrabold text-amber-900 text-sm">
+                      <span className="font-extrabold text-amber-600 dark:text-amber-300 text-sm">
                         ₹{balanceToBePaid.toLocaleString()}
                       </span>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-xs text-slate-500 pt-1">
+                  <div className="flex items-center justify-between text-xs text-muted-foreground pt-1">
                     <span>
-                      ℹ️ Remaining balance of <strong className="text-slate-800">₹{balanceToBePaid.toLocaleString()}</strong> can be distributed across future installments.
+                      ℹ️ Remaining balance of <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> can be distributed across future installments.
                     </span>
                     <button
                       type="button"
                       onClick={() => setAmountPaidAtAdmission(finalPayableAmount)}
-                      className="text-xs font-bold text-[#1769AA] hover:underline"
+                      className="text-xs font-bold text-primary dark:text-blue-400 hover:underline"
                     >
                       Set Full Payment (₹{finalPayableAmount.toLocaleString()})
                     </button>
@@ -1842,33 +1843,33 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 6. INSTALLMENT PLAN ────────────────────────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                    <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                       6
                     </div>
-                    <CardTitle className="text-base font-bold text-slate-900">Installment Plan</CardTitle>
+                    <CardTitle className="text-base font-bold text-foreground">Installment Plan</CardTitle>
                   </div>
                   <div className="flex items-center gap-4 text-xs font-semibold">
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="payMode"
                         checked={paymentMode === "FULL"}
                         onChange={() => setPaymentMode("FULL")}
-                        className="text-[#1769AA] focus:ring-[#1769AA]"
+                        className="text-primary focus:ring-primary"
                       />
                       Full Payment
                     </label>
-                    <label className="flex items-center gap-1.5 cursor-pointer text-slate-700">
+                    <label className="flex items-center gap-1.5 cursor-pointer text-foreground">
                       <input
                         type="radio"
                         name="payMode"
                         checked={paymentMode === "INSTALLMENT"}
                         onChange={() => setPaymentMode("INSTALLMENT")}
-                        className="text-[#1769AA] focus:ring-[#1769AA]"
+                        className="text-primary focus:ring-primary"
                       />
                       Installment Payment
                     </label>
@@ -1878,45 +1879,45 @@ export const DirectAdmissionEntry: React.FC = () => {
 
               <CardContent className="p-6 space-y-4">
                 {paymentMode === "FULL" || balanceToBePaid === 0 ? (
-                  <div className="p-6 text-center bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5">
-                    <CheckCircle2 className="h-6 w-6 text-emerald-600 mx-auto" />
-                    <h4 className="text-xs font-bold text-emerald-900">100% Full Payment Configured</h4>
-                    <p className="text-xs text-emerald-700">
+                  <div className="p-6 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-1.5">
+                    <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
+                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">100% Full Payment Configured</h4>
+                    <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
                       No remaining balance required for installment scheduling.
                     </p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-slate-600">
-                        Remaining balance of <strong className="text-slate-900">₹{balanceToBePaid.toLocaleString()}</strong> distributed across installments:
+                      <span className="text-xs text-muted-foreground">
+                        Remaining balance of <strong className="text-foreground">₹{balanceToBePaid.toLocaleString()}</strong> distributed across installments:
                       </span>
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
                         onClick={handleAutoDistributeInstallments}
-                        className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50 font-bold h-8"
+                        className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-8"
                       >
                         Auto-Balance Installments
                       </Button>
                     </div>
 
-                    <div className="border border-slate-200/80 rounded-xl overflow-hidden shadow-2xs">
+                    <div className="border border-border rounded-xl overflow-hidden shadow-2xs">
                       <Table>
-                        <TableHeader className="bg-slate-50">
-                          <TableRow className="text-xs">
-                            <TableHead className="font-semibold text-slate-700">Installment No.</TableHead>
-                            <TableHead className="font-semibold text-slate-700">Due Date</TableHead>
-                            <TableHead className="font-semibold text-slate-700">Amount (₹)</TableHead>
-                            <TableHead className="font-semibold text-slate-700">Payment Status</TableHead>
-                            <TableHead className="text-right font-semibold text-slate-700 pr-4">Actions</TableHead>
+                        <TableHeader className="bg-muted/40">
+                          <TableRow className="text-xs border-border">
+                            <TableHead className="font-semibold text-foreground">Installment No.</TableHead>
+                            <TableHead className="font-semibold text-foreground">Due Date</TableHead>
+                            <TableHead className="font-semibold text-foreground">Amount (₹)</TableHead>
+                            <TableHead className="font-semibold text-foreground">Payment Status</TableHead>
+                            <TableHead className="text-right font-semibold text-foreground pr-4">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {installments.map((inst, index) => (
-                            <TableRow key={index} className="text-xs">
-                              <TableCell className="font-bold text-slate-900">Installment {inst.installmentNo}</TableCell>
+                            <TableRow key={index} className="text-xs border-border">
+                              <TableCell className="font-bold text-foreground">Installment {inst.installmentNo}</TableCell>
                               <TableCell>
                                 <Input
                                   type="date"
@@ -1926,7 +1927,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                     updated[index].dueDate = e.target.value;
                                     setInstallments(updated);
                                   }}
-                                  className="h-8 text-xs bg-white"
+                                  className="h-8 text-xs bg-background border-border text-foreground"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1938,7 +1939,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                     updated[index].amount = Number(e.target.value);
                                     setInstallments(updated);
                                   }}
-                                  className="h-8 w-28 text-xs font-bold text-slate-900 bg-white"
+                                  className="h-8 w-28 text-xs font-bold text-foreground bg-background border-border"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1949,7 +1950,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                     updated[index].status = e.target.value as any;
                                     setInstallments(updated);
                                   }}
-                                  className="px-2.5 py-1 text-xs rounded-md border border-slate-200 bg-white"
+                                  className="px-2.5 py-1 text-xs rounded-md border border-border bg-background text-foreground"
                                 >
                                   <option value="Pending">Pending</option>
                                   <option value="Partially Paid">Partially Paid</option>
@@ -1994,46 +1995,46 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 7. REMARKS & TERMS ────────────────────────────────────────── */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 pb-3 pt-4 px-6">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-bold">
+                  <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
                     7
                   </div>
-                  <CardTitle className="text-base font-bold text-slate-900">Remarks & Terms</CardTitle>
+                  <CardTitle className="text-base font-bold text-foreground">Remarks & Terms</CardTitle>
                 </div>
               </CardHeader>
 
               <CardContent className="p-6 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                   <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Admission Remarks</label>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Admission Remarks</label>
                     <textarea
                       value={remarks}
                       onChange={(e) => setRemarks(e.target.value)}
                       rows={3}
                       placeholder="Enter any remarks about this admission..."
-                      className="w-full p-2.5 text-xs rounded-xl border border-slate-200 bg-white focus:ring-[#1769AA]"
+                      className="w-full p-2.5 text-xs rounded-xl border border-border bg-background text-foreground focus:ring-primary"
                     />
                   </div>
 
                   <div className="space-y-3 pt-1">
-                    <label className="text-xs font-bold text-slate-700 block">Terms & Conditions</label>
-                    <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <label className="text-xs font-bold text-foreground block">Terms & Conditions</label>
+                    <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
                       <input
                         type="checkbox"
                         checked={termsAccepted1}
                         onChange={(e) => setTermsAccepted1(e.target.checked)}
-                        className="mt-0.5 rounded text-[#1769AA] focus:ring-[#1769AA]"
+                        className="mt-0.5 rounded text-primary focus:ring-primary"
                       />
                       <span>I have read and understood all the academy terms & conditions.</span>
                     </label>
-                    <label className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer">
+                    <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
                       <input
                         type="checkbox"
                         checked={termsAccepted2}
                         onChange={(e) => setTermsAccepted2(e.target.checked)}
-                        className="mt-0.5 rounded text-[#1769AA] focus:ring-[#1769AA]"
+                        className="mt-0.5 rounded text-primary focus:ring-primary"
                       />
                       <span>I confirm that all the information provided is correct and verified.</span>
                     </label>
@@ -2046,37 +2047,37 @@ export const DirectAdmissionEntry: React.FC = () => {
           {/* ─── RIGHT 4 COLS: STICKY SIDEBAR ───────────────────────────────── */}
           <div className="lg:col-span-4 space-y-4 sticky top-20">
             {/* Card 1: Admission Summary */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 py-3 px-5">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border py-3 px-5">
                 <div className="flex items-center gap-2">
-                  <User className="h-4 w-4 text-[#1769AA]" />
-                  <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wider">Admission Summary</CardTitle>
+                  <User className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Admission Summary</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="p-4 text-xs space-y-2.5">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Student Name</span>
-                  <span className="font-bold text-slate-900">{firstName} {lastName}</span>
+                  <span className="text-muted-foreground">Student Name</span>
+                  <span className="font-bold text-foreground">{firstName} {lastName}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Admission No.</span>
-                  <span className="font-mono font-bold text-slate-900">{admissionNo}</span>
+                  <span className="text-muted-foreground">Admission No.</span>
+                  <span className="font-mono font-bold text-foreground">{admissionNo}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Admission Date</span>
-                  <span className="font-semibold text-slate-800">{admissionDate}</span>
+                  <span className="text-muted-foreground">Admission Date</span>
+                  <span className="font-semibold text-foreground">{admissionDate}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Branch / Center</span>
-                  <span className="font-semibold text-slate-800 text-right truncate max-w-[170px]">{branchName}</span>
+                  <span className="text-muted-foreground">Branch / Center</span>
+                  <span className="font-semibold text-foreground text-right truncate max-w-[170px]">{branchName}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Counsellor</span>
-                  <span className="font-semibold text-slate-800">{counsellorName}</span>
+                  <span className="text-muted-foreground">Counsellor</span>
+                  <span className="font-semibold text-foreground">{counsellorName}</span>
                 </div>
-                <div className="flex justify-between items-center pt-1 border-t border-slate-100">
-                  <span className="text-slate-500">Status</span>
-                  <span className="inline-flex items-center gap-1.5 text-amber-700 font-bold">
+                <div className="flex justify-between items-center pt-1 border-t border-border">
+                  <span className="text-muted-foreground">Status</span>
+                  <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
                     <span className="h-2 w-2 rounded-full bg-amber-500" /> Draft
                   </span>
                 </div>
@@ -2084,78 +2085,78 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* Card 2: Selected Courses Summary */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 py-3 px-5">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border py-3 px-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <BookOpen className="h-4 w-4 text-[#1769AA]" />
-                    <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    <BookOpen className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
                       Selected Courses Summary
                     </CardTitle>
                   </div>
-                  <Badge variant="outline" className="text-[10px] font-bold text-[#1769AA] bg-blue-50 border-blue-200">
+                  <Badge variant="outline" className="text-[10px] font-bold text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30">
                     {selectedCoursesList.length} Courses
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-4 text-xs space-y-2">
                 {selectedCoursesList.length === 0 ? (
-                  <p className="text-slate-400 text-center py-2">No courses selected.</p>
+                  <p className="text-muted-foreground text-center py-2">No courses selected.</p>
                 ) : (
                   selectedCoursesList.map((item, idx) => (
-                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-slate-50 last:border-0">
-                      <span className="text-slate-700 font-medium truncate max-w-[200px]">
+                    <div key={item.id} className="flex justify-between items-center py-1 border-b border-border/50 last:border-0">
+                      <span className="text-foreground font-medium truncate max-w-[200px]">
                         {idx + 1}. {item.courseName}
                       </span>
-                      <span className="font-bold text-slate-900 shrink-0">₹{item.fee.toLocaleString()}</span>
+                      <span className="font-bold text-foreground shrink-0">₹{item.fee.toLocaleString()}</span>
                     </div>
                   ))
                 )}
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200 font-extrabold text-slate-900">
+                <div className="flex justify-between items-center pt-2 border-t border-border font-extrabold text-foreground">
                   <span>Total Course Fee</span>
-                  <span className="text-[#1769AA]">₹{totalBaseCourseFee.toLocaleString()}</span>
+                  <span className="text-primary dark:text-blue-400">₹{totalBaseCourseFee.toLocaleString()}</span>
                 </div>
               </CardContent>
             </Card>
 
             {/* Card 3: Billing Summary */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 py-3 px-5">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border py-3 px-5">
                 <div className="flex items-center gap-2">
-                  <Receipt className="h-4 w-4 text-[#1769AA]" />
-                  <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wider">Billing Summary</CardTitle>
+                  <Receipt className="h-4 w-4 text-primary" />
+                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Billing Summary</CardTitle>
                 </div>
               </CardHeader>
               <CardContent className="p-4 text-xs space-y-2">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Total Course Fee</span>
-                  <span className="font-semibold text-slate-800">₹{totalBaseCourseFee.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Total Course Fee</span>
+                  <span className="font-semibold text-foreground">₹{totalBaseCourseFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Registration Fee</span>
-                  <span className="font-semibold text-slate-800">₹{registrationFee.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Registration Fee</span>
+                  <span className="font-semibold text-foreground">₹{registrationFee.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Additional Charges</span>
-                  <span className="font-semibold text-slate-800">₹{additionalCharges.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Additional Charges</span>
+                  <span className="font-semibold text-foreground">₹{additionalCharges.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between pt-1 border-t border-slate-100 font-bold text-slate-900">
+                <div className="flex justify-between pt-1 border-t border-border font-bold text-foreground">
                   <span>Sub Total</span>
                   <span>₹{subTotal.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-red-600">
+                <div className="flex justify-between text-red-600 dark:text-red-400">
                   <span>Discount</span>
                   <span>- ₹{calculatedDiscount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Scholarship</span>
                   <span>- ₹{scholarshipAmount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-slate-500">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Tax / GST (18%)</span>
                   <span>₹{gstAmount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between items-center pt-2 border-t border-slate-200 text-sm font-black text-emerald-700">
+                <div className="flex justify-between items-center pt-2 border-t border-border text-sm font-black text-emerald-600 dark:text-emerald-400">
                   <span>Total Payable Amount</span>
                   <span className="text-base">₹{finalPayableAmount.toLocaleString()}</span>
                 </div>
@@ -2163,33 +2164,33 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* Card 4: Payment Summary */}
-            <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardHeader className="bg-slate-50/60 border-b border-slate-100 py-3 px-5">
+            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border py-3 px-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="h-4 w-4 text-[#1769AA]" />
-                    <CardTitle className="text-xs font-bold text-slate-900 uppercase tracking-wider">Payment Summary</CardTitle>
+                    <CreditCard className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Payment Summary</CardTitle>
                   </div>
-                  <Badge variant="outline" className={`text-[10px] font-bold ${balanceToBePaid === 0 ? "text-emerald-700 bg-emerald-50 border-emerald-200" : "text-amber-700 bg-amber-50 border-amber-200"}`}>
+                  <Badge variant="outline" className={`text-[10px] font-bold ${balanceToBePaid === 0 ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" : "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30"}`}>
                     {balanceToBePaid === 0 ? "Fully Paid" : "Partially Paid"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent className="p-4 text-xs space-y-2.5">
                 <div className="flex justify-between">
-                  <span className="text-slate-500">Total Payable</span>
-                  <span className="font-bold text-slate-900">₹{finalPayableAmount.toLocaleString()}</span>
+                  <span className="text-muted-foreground">Total Payable</span>
+                  <span className="font-bold text-foreground">₹{finalPayableAmount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-emerald-700 font-bold">
+                <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-bold">
                   <span>Amount Paid</span>
                   <span>₹{amountPaidAtAdmission.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between text-amber-800 font-extrabold pt-1 border-t border-slate-100">
+                <div className="flex justify-between text-amber-600 dark:text-amber-400 font-extrabold pt-1 border-t border-border">
                   <span>Remaining Balance</span>
                   <span>₹{balanceToBePaid.toLocaleString()}</span>
                 </div>
-                <div className="text-[11px] text-slate-500 pt-1">
-                  Installments: <strong className="text-slate-800">{installments.length}</strong>
+                <div className="text-[11px] text-muted-foreground pt-1">
+                  Installments: <strong className="text-foreground">{installments.length}</strong>
                 </div>
               </CardContent>
             </Card>
@@ -2209,61 +2210,61 @@ export const DirectAdmissionEntry: React.FC = () => {
 
       {/* ─── STEP 1 MODAL: REVIEW & VERIFY ADMISSION ────────────────────── */}
       <Dialog open={showReviewStepModal} onOpenChange={setShowReviewStepModal}>
-        <DialogContent className="w-[94vw] max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl">
+        <DialogContent className="w-[94vw] max-w-2xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-card border-border text-foreground">
           <DialogHeader>
             <div className="flex items-center justify-between">
-              <Badge className="bg-blue-100 text-[#1769AA] border-blue-200 text-[10px] font-bold">
+              <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30 text-[10px] font-bold">
                 Step 1 of 2 • Review & Verify Admission
               </Badge>
-              <span className="font-mono text-xs text-slate-500 font-semibold">{admissionNo}</span>
+              <span className="font-mono text-xs text-muted-foreground font-semibold">{admissionNo}</span>
             </div>
-            <DialogTitle className="text-lg font-extrabold text-slate-900 flex items-center gap-2 pt-1">
-              <ShieldCheck className="h-5 w-5 text-[#1769AA]" />
+            <DialogTitle className="text-lg font-extrabold text-foreground flex items-center gap-2 pt-1">
+              <ShieldCheck className="h-5 w-5 text-primary" />
               Confirm Admission Details
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500">
+            <DialogDescription className="text-xs text-muted-foreground">
               Please review the student profile, enrolled courses, batch allocations, fee calculations, and admission desk payment before final registration.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3.5 my-2 text-xs">
             {/* Student Profile Card */}
-            <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
-              <div className="flex justify-between items-center font-bold text-slate-900 border-b border-slate-200/60 pb-1.5">
+            <div className="p-3.5 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5">
+              <div className="flex justify-between items-center font-bold text-foreground border-b border-border pb-1.5">
                 <span className="flex items-center gap-1.5">
-                  <User className="h-3.5 w-3.5 text-[#1769AA]" /> Student Profile
+                  <User className="h-3.5 w-3.5 text-primary" /> Student Profile
                 </span>
-                <span className="text-[11px] text-slate-500 font-normal truncate max-w-[200px]">{branchName}</span>
+                <span className="text-[11px] text-muted-foreground font-normal truncate max-w-[200px]">{branchName}</span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-slate-700">
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Full Name</span><span className="font-bold text-slate-900">{firstName} {lastName}</span></div>
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Mobile</span><span className="font-semibold">{phone}</span></div>
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Email</span><span className="font-semibold truncate block">{email}</span></div>
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Counsellor</span><span className="font-semibold">{counsellorName}</span></div>
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold">{academicYear}</span></div>
-                <div><span className="text-slate-400 block text-[10px] font-medium uppercase tracking-wider">Admission Date</span><span className="font-semibold">{admissionDate}</span></div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-muted-foreground">
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Full Name</span><span className="font-bold text-foreground">{firstName} {lastName}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Mobile</span><span className="font-semibold text-foreground">{phone}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Email</span><span className="font-semibold text-foreground truncate block">{email}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Counsellor</span><span className="font-semibold text-foreground">{counsellorName}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold text-foreground">{academicYear}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Admission Date</span><span className="font-semibold text-foreground">{admissionDate}</span></div>
               </div>
             </div>
 
             {/* Courses & Batches Card */}
-            <div className="p-3.5 sm:p-4 bg-blue-50/40 border border-blue-100 rounded-xl space-y-2">
-              <div className="flex justify-between items-center font-bold text-slate-900 border-b border-blue-100 pb-1.5">
-                <span className="flex items-center gap-1.5 text-[#1769AA]">
+            <div className="p-3.5 sm:p-4 bg-blue-500/10 border border-blue-500/30 rounded-xl space-y-2">
+              <div className="flex justify-between items-center font-bold text-foreground border-b border-blue-500/20 pb-1.5">
+                <span className="flex items-center gap-1.5 text-primary dark:text-blue-400">
                   <GraduationCap className="h-3.5 w-3.5" /> Enrolled Course(s) & Batch ({selectedCoursesList.length})
                 </span>
               </div>
               <div className="space-y-1.5">
                 {selectedCoursesList.map((c) => (
-                  <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 bg-white rounded-lg border border-blue-100 text-xs">
+                  <div key={c.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 p-2.5 bg-card rounded-lg border border-border text-xs">
                     <div className="min-w-0">
-                      <span className="font-bold text-slate-900 block truncate">{c.courseName}</span>
-                      <span className="text-slate-500 block text-[10px] truncate">{c.packageProgram} • {c.schedule}</span>
+                      <span className="font-bold text-foreground block truncate">{c.courseName}</span>
+                      <span className="text-muted-foreground block text-[10px] truncate">{c.packageProgram} • {c.schedule}</span>
                     </div>
                     <div className="sm:text-right shrink-0 flex sm:flex-col items-center sm:items-end justify-between gap-2 sm:gap-0">
-                      <Badge variant="outline" className="font-mono text-[10px] text-[#1769AA] bg-blue-50 border-blue-200">
+                      <Badge variant="outline" className="font-mono text-[10px] text-primary dark:text-blue-400 bg-blue-500/10 border-blue-500/30">
                         {c.batchCode}
                       </Badge>
-                      <span className="font-bold text-slate-900 block text-xs sm:mt-0.5">₹{c.fee.toLocaleString()}</span>
+                      <span className="font-bold text-foreground block text-xs sm:mt-0.5">₹{c.fee.toLocaleString()}</span>
                     </div>
                   </div>
                 ))}
@@ -2271,44 +2272,44 @@ export const DirectAdmissionEntry: React.FC = () => {
             </div>
 
             {/* Financial & Settlement Card */}
-            <div className="p-3.5 sm:p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2.5">
-              <div className="flex justify-between items-center font-bold text-slate-900 border-b border-slate-200/60 pb-1.5">
+            <div className="p-3.5 sm:p-4 bg-muted/40 border border-border rounded-xl space-y-2.5">
+              <div className="flex justify-between items-center font-bold text-foreground border-b border-border pb-1.5">
                 <span className="flex items-center gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5 text-[#1769AA]" /> Fee & Payment Settlement
+                  <CreditCard className="h-3.5 w-3.5 text-primary" /> Fee & Payment Settlement
                 </span>
-                <span className="text-xs font-extrabold text-slate-900">Total Payable: ₹{finalPayableAmount.toLocaleString()}</span>
+                <span className="text-xs font-extrabold text-foreground">Total Payable: ₹{finalPayableAmount.toLocaleString()}</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between">
+                <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-emerald-900 block text-xs">Paid at Admission</span>
-                    <span className="text-[10px] text-emerald-700">{initialPaymentMethod}</span>
+                    <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Paid at Admission</span>
+                    <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{initialPaymentMethod}</span>
                   </div>
-                  <span className="font-black text-emerald-700 text-sm">₹{amountPaidAtAdmission.toLocaleString()}</span>
+                  <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">₹{amountPaidAtAdmission.toLocaleString()}</span>
                 </div>
 
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
+                <div className="p-3 bg-amber-500/10 rounded-xl border border-amber-500/30 flex items-center justify-between">
                   <div>
-                    <span className="font-bold text-amber-900 block text-xs">Remaining Balance</span>
-                    <span className="text-[10px] text-amber-700">
+                    <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">Remaining Balance</span>
+                    <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80">
                       {balanceToBePaid > 0 ? `${installments.length} installment(s)` : "Fully Settled"}
                     </span>
                   </div>
-                  <span className="font-black text-amber-800 text-sm">₹{balanceToBePaid.toLocaleString()}</span>
+                  <span className="font-black text-amber-600 dark:text-amber-300 text-sm">₹{balanceToBePaid.toLocaleString()}</span>
                 </div>
               </div>
             </div>
 
             {/* Verification Checkbox */}
-            <label className="flex items-start gap-2.5 p-3 bg-blue-50/70 border border-blue-200 rounded-xl cursor-pointer">
+            <label className="flex items-start gap-2.5 p-3 bg-blue-500/10 border border-blue-500/30 rounded-xl cursor-pointer">
               <input
                 type="checkbox"
                 checked={reviewVerifiedCheck}
                 onChange={(e) => setReviewVerifiedCheck(e.target.checked)}
-                className="mt-0.5 rounded text-[#1769AA] focus:ring-[#1769AA]"
+                className="mt-0.5 rounded text-primary focus:ring-primary"
               />
-              <span className="text-xs font-semibold text-slate-800">
+              <span className="text-xs font-semibold text-foreground">
                 I have reviewed all the student admission details and verify that the initial payment collection of ₹{(Number(amountPaidAtAdmission) || 0).toLocaleString()} and batch schedules are accurate.
               </span>
             </label>
@@ -2318,7 +2319,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => setShowReviewStepModal(false)}
-              className="text-xs font-semibold border-slate-300"
+              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
             >
               Back to Edit
             </Button>
@@ -2342,94 +2343,94 @@ export const DirectAdmissionEntry: React.FC = () => {
 
       {/* ─── STEP 2 MODAL: ADMISSION CONFIRMED / SUCCESS ──────────────────── */}
       <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="w-[94vw] max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl text-center">
-          <div className="mx-auto my-1 h-12 w-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shadow-xs">
+        <DialogContent className="w-[94vw] max-w-xl max-h-[85vh] overflow-y-auto p-4 sm:p-6 rounded-2xl bg-card border-border text-foreground text-center">
+          <div className="mx-auto my-1 h-12 w-12 rounded-full bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shadow-xs">
             <CheckCircle2 className="h-7 w-7" />
           </div>
 
           <DialogHeader className="text-center sm:text-center space-y-1">
             <div className="inline-block mx-auto">
-              <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200 text-[10px] font-bold">
+              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
                 Step 2 of 2 • Admission Confirmed
               </Badge>
             </div>
-            <DialogTitle className="text-xl font-extrabold text-slate-900">
+            <DialogTitle className="text-xl font-extrabold text-foreground">
               Admission Created Successfully!
             </DialogTitle>
-            <DialogDescription className="text-slate-500 text-xs">
+            <DialogDescription className="text-muted-foreground text-xs">
               The student admission record, batch schedule allocation, and fee installment structure have been registered.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="my-3 p-4 sm:p-4.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs space-y-3 text-left">
-            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-slate-200/70">
+          <div className="my-3 p-4 sm:p-4.5 bg-muted/40 border border-border rounded-2xl text-xs space-y-3 text-left">
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-border">
               <div>
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Admission No</span>
-                <span className="font-mono font-extrabold text-slate-900 text-xs sm:text-sm">
+                <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Admission No</span>
+                <span className="font-mono font-extrabold text-foreground text-xs sm:text-sm">
                   {createdAdmissionSummary?.admissionNo || admissionNo}
                 </span>
               </div>
               <div className="sm:text-right">
-                <span className="text-slate-400 block text-[10px] uppercase font-bold tracking-wider">Admission Date</span>
-                <span className="font-semibold text-slate-800 text-xs">
+                <span className="text-muted-foreground block text-[10px] uppercase font-bold tracking-wider">Admission Date</span>
+                <span className="font-semibold text-foreground text-xs">
                   {createdAdmissionSummary?.date || admissionDate}
                 </span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-slate-500 font-medium shrink-0">Student Name:</span>
+              <span className="text-muted-foreground font-medium shrink-0">Student Name:</span>
               <div className="sm:text-right min-w-0">
-                <span className="font-bold text-slate-900 block truncate">
+                <span className="font-bold text-foreground block truncate">
                   {createdAdmissionSummary?.studentName || `${firstName} ${lastName}`.trim()}
                 </span>
-                <span className="text-[11px] text-slate-500 block truncate">{phone} • {email}</span>
+                <span className="text-[11px] text-muted-foreground block truncate">{phone} • {email}</span>
               </div>
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-              <span className="text-slate-500 font-medium shrink-0">Course(s):</span>
-              <span className="font-semibold text-slate-900 sm:text-right min-w-0 break-words">
+              <span className="text-muted-foreground font-medium shrink-0">Course(s):</span>
+              <span className="font-semibold text-foreground sm:text-right min-w-0 break-words">
                 {createdAdmissionSummary?.course || selectedCoursesList.map((c) => c.courseName).join(", ") || "Digital Marketing"}
               </span>
             </div>
 
             <div className="flex items-center justify-between gap-2">
-              <span className="text-slate-500 font-medium shrink-0">Batch Code(s):</span>
-              <span className="font-mono font-bold text-[#1769AA] text-right truncate">
+              <span className="text-muted-foreground font-medium shrink-0">Batch Code(s):</span>
+              <span className="font-mono font-bold text-primary dark:text-blue-400 text-right truncate">
                 {createdAdmissionSummary?.batch || selectedCoursesList.map((c) => c.batchCode).join(", ") || "DM-JUN-2026-MORN"}
               </span>
             </div>
 
-            <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-200/60">
-              <span className="text-slate-700 font-bold">Final Payable Amount:</span>
-              <span className="font-extrabold text-slate-900 text-sm">
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-border">
+              <span className="text-foreground font-bold">Final Payable Amount:</span>
+              <span className="font-extrabold text-foreground text-sm">
                 ₹{(createdAdmissionSummary?.finalPayable ?? finalPayableAmount).toLocaleString()}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-xl border border-emerald-200">
+            <div className="flex items-center justify-between p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30">
               <div>
-                <span className="font-bold text-emerald-900 block text-xs">Amount Paid at Admission:</span>
-                <span className="text-[10px] text-emerald-700 font-medium">
+                <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Amount Paid at Admission:</span>
+                <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
                   via {createdAdmissionSummary?.paymentMethod || initialPaymentMethod}
                 </span>
               </div>
-              <span className="font-black text-emerald-700 text-base">
+              <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">
                 ₹{(createdAdmissionSummary?.amountPaid ?? amountPaidAtAdmission).toLocaleString()}
               </span>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-amber-50 rounded-xl border border-amber-200">
+            <div className="flex items-center justify-between p-3 bg-amber-500/10 rounded-xl border border-amber-500/30">
               <div>
-                <span className="font-bold text-amber-900 block text-xs">Balance to be Paid:</span>
-                <span className="text-[10px] text-amber-700 font-medium">
+                <span className="font-bold text-amber-600 dark:text-amber-400 block text-xs">Balance to be Paid:</span>
+                <span className="text-[10px] text-amber-600/80 dark:text-amber-400/80 font-medium">
                   {(createdAdmissionSummary?.balanceToPay ?? balanceToBePaid) > 0
                     ? `${installments.length} installment(s) remaining`
                     : "Full Settlement Completed"}
                 </span>
               </div>
-              <span className="font-black text-amber-800 text-base">
+              <span className="font-black text-amber-600 dark:text-amber-300 text-base">
                 ₹{(createdAdmissionSummary?.balanceToPay ?? balanceToBePaid).toLocaleString()}
               </span>
             </div>
@@ -2442,7 +2443,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 setShowSuccessModal(false);
                 navigate(`${basePath}/admissions/all`);
               }}
-              className="text-xs font-semibold border-slate-300"
+              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
             >
               Back to All Admissions
             </Button>

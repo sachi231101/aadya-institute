@@ -365,14 +365,13 @@ export const CounsellorBatches: React.FC = () => {
             Create training batches, allocate faculty, and assign students directly in one centralized workflow.
           </p>
         </div>
-
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
             onClick={() => navigate("/counselor/timetable")}
-            className="border-slate-200 text-slate-700 hover:bg-slate-50 gap-2 shadow-xs"
+            className="border-border text-foreground hover:bg-muted/60 gap-2 shadow-xs"
           >
-            <Calendar size={16} className="text-[#1769AA]" /> View Faculty Timetable
+            <Calendar size={16} className="text-[#1769AA] dark:text-blue-400" /> View Faculty Timetable
           </Button>
 
           <Button 
@@ -385,7 +384,7 @@ export const CounsellorBatches: React.FC = () => {
       </div>
 
       {/* Filters & Search */}
-      <Card className="border border-border/60 shadow-xs">
+      <Card className="border border-border/60 shadow-xs bg-card">
         <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="relative w-full md:w-80">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -393,7 +392,7 @@ export const CounsellorBatches: React.FC = () => {
               placeholder="Search batch name, code, or faculty..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 bg-background border-border text-foreground"
             />
           </div>
 
@@ -401,7 +400,7 @@ export const CounsellorBatches: React.FC = () => {
             <select
               value={courseFilter}
               onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+              className="px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="ALL">All Courses</option>
               {courses.map((c) => (
@@ -414,7 +413,7 @@ export const CounsellorBatches: React.FC = () => {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+              className="px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="ALL">All Statuses</option>
               <option value="ACTIVE">Active</option>
@@ -427,18 +426,18 @@ export const CounsellorBatches: React.FC = () => {
       </Card>
 
       {/* Batches Table */}
-      <Card className="border border-border/60 shadow-xs overflow-hidden">
+      <Card className="border border-border/60 shadow-xs overflow-hidden bg-card">
         <CardContent className="p-0">
           <Table>
-            <TableHeader className="bg-slate-50/70 border-b border-border/60">
-              <TableRow>
-                <TableHead className="font-semibold text-slate-800">Batch Name & Code</TableHead>
-                <TableHead className="font-semibold text-slate-800">Course</TableHead>
-                <TableHead className="font-semibold text-slate-800">Assigned Faculty</TableHead>
-                <TableHead className="font-semibold text-slate-800">Schedule & Start</TableHead>
-                <TableHead className="font-semibold text-slate-800">Enrolled Students</TableHead>
-                <TableHead className="font-semibold text-slate-800">Status</TableHead>
-                <TableHead className="text-right font-semibold text-slate-800 pr-6">Actions</TableHead>
+            <TableHeader className="bg-muted/60 dark:bg-slate-900/90 border-b border-border">
+              <TableRow className="border-border">
+                <TableHead className="font-semibold text-foreground">Batch Name & Code</TableHead>
+                <TableHead className="font-semibold text-foreground">Course</TableHead>
+                <TableHead className="font-semibold text-foreground">Assigned Faculty</TableHead>
+                <TableHead className="font-semibold text-foreground">Schedule & Start</TableHead>
+                <TableHead className="font-semibold text-foreground">Enrolled Students</TableHead>
+                <TableHead className="font-semibold text-foreground">Status</TableHead>
+                <TableHead className="text-right font-semibold text-foreground pr-6">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -470,16 +469,16 @@ export const CounsellorBatches: React.FC = () => {
                   const courseName = batch.course?.name || "General Course";
 
                   return (
-                    <TableRow key={batch.id} className="hover:bg-slate-50/50 transition-colors">
+                    <TableRow key={batch.id} className="hover:bg-muted/40 border-border transition-colors">
                       <TableCell>
-                        <div className="font-semibold text-text-primary">{batch.name}</div>
+                        <div className="font-semibold text-foreground">{batch.name}</div>
                         <div className="text-xs font-mono text-muted-foreground">{batch.code}</div>
                       </TableCell>
                       
                       <TableCell className="text-sm font-medium">
                         <div className="flex items-center gap-1.5">
-                          <BookOpen className="h-3.5 w-3.5 text-[#1769AA]" />
-                          <span>{courseName}</span>
+                          <BookOpen className="h-3.5 w-3.5 text-[#1769AA] dark:text-blue-400" />
+                          <span className="text-foreground">{courseName}</span>
                         </div>
                       </TableCell>
 
@@ -487,21 +486,21 @@ export const CounsellorBatches: React.FC = () => {
                       <TableCell className="text-sm">
                         {facultyName ? (
                           <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-full bg-blue-100 text-[#1769AA] flex items-center justify-center font-bold text-xs">
+                            <div className="h-7 w-7 rounded-full bg-blue-100 text-[#1769AA] dark:bg-blue-950 dark:text-blue-300 dark:border dark:border-blue-800 flex items-center justify-center font-bold text-xs">
                               {facultyName.charAt(0)}
                             </div>
-                            <span className="font-medium text-text-primary">{facultyName}</span>
+                            <span className="font-medium text-foreground">{facultyName}</span>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 font-medium">
+                            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 font-medium">
                               Not Assigned
                             </Badge>
                             <Button 
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleOpenFacultyModal(batch)}
-                              className="h-6 px-2 text-xs text-[#1769AA] hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
+                              className="h-6 px-2 text-xs text-[#1769AA] dark:text-blue-300 hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
                             >
                               + Assign
                             </Button>
@@ -511,7 +510,7 @@ export const CounsellorBatches: React.FC = () => {
 
                       {/* Schedule & Start Date */}
                       <TableCell className="text-xs">
-                        <div className="font-medium text-text-primary">
+                        <div className="font-medium text-foreground">
                           {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "—"}
                         </div>
                         <div className="text-muted-foreground flex items-center gap-1 mt-0.5">
@@ -524,27 +523,27 @@ export const CounsellorBatches: React.FC = () => {
                       <TableCell>
                         {enrolledCount > 0 ? (
                           <div>
-                            <div className="text-xs font-semibold text-text-primary flex items-center gap-1.5">
-                              <Users className="h-3.5 w-3.5 text-emerald-600" />
+                            <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                              <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                               <span>{enrolledCount} / {capacityLimit} Enrolled</span>
                             </div>
-                            <div className="w-24 bg-slate-100 h-1.5 rounded-full mt-1 overflow-hidden">
+                            <div className="w-24 bg-muted h-1.5 rounded-full mt-1 overflow-hidden">
                               <div 
-                                className="bg-[#1769AA] h-full rounded-full transition-all" 
+                                className="bg-[#1769AA] dark:bg-blue-500 h-full rounded-full transition-all" 
                                 style={{ width: `${Math.min(100, (enrolledCount / capacityLimit) * 100)}%` }} 
                               />
                             </div>
                           </div>
                         ) : (
                           <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-slate-500 bg-slate-50 border-slate-200">
+                            <Badge variant="outline" className="text-muted-foreground bg-muted/40 border-border">
                               0 Enrolled
                             </Badge>
                             <Button 
                               variant="ghost" 
                               size="sm" 
                               onClick={() => handleOpenStudentsModal(batch)}
-                              className="h-6 px-2 text-xs text-[#1769AA] hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
+                              className="h-6 px-2 text-xs text-[#1769AA] dark:text-blue-300 hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
                             >
                               + Assign
                             </Button>
@@ -558,10 +557,10 @@ export const CounsellorBatches: React.FC = () => {
                           variant="outline"
                           className={
                             batch.status === "ACTIVE" 
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200 font-semibold"
+                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold"
                               : batch.status === "UPCOMING"
-                              ? "bg-blue-50 text-blue-700 border-blue-200 font-semibold"
-                              : "bg-slate-50 text-slate-700 border-slate-200"
+                              ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 font-semibold"
+                              : "bg-muted text-muted-foreground border-border"
                           }
                         >
                           {batch.status}
@@ -575,52 +574,52 @@ export const CounsellorBatches: React.FC = () => {
                             size="sm" 
                             variant="outline" 
                             onClick={() => handleOpenStudentsModal(batch)}
-                            className="h-8 px-2.5 text-xs gap-1.5 text-[#1769AA] border-blue-200 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
+                            className="h-8 px-2.5 text-xs gap-1.5 text-[#1769AA] dark:text-blue-300 border-blue-200 dark:border-blue-800 dark:bg-blue-950/30 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
                           >
                             <GraduationCap className="h-3.5 w-3.5" /> Assign Students
                           </Button>
                           
                           <Button 
                             size="sm" 
-                            variant="outline"
+                            variant="outline" 
                             onClick={() => handleOpenFacultyModal(batch)}
-                            className="h-8 px-2.5 text-xs gap-1.5 text-slate-700 border-slate-200 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
+                            className="h-8 px-2.5 text-xs gap-1.5 text-foreground border-border dark:bg-muted/20 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
                           >
                             <Users className="h-3.5 w-3.5" /> Assign Faculty
                           </Button>
 
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4 text-slate-600" />
+                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
+                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 shadow-lg">
+                            <DropdownMenuContent align="end" className="w-48 shadow-lg bg-popover border-border">
                               <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">Batch Actions</DropdownMenuLabel>
                               <DropdownMenuItem 
                                 onClick={() => setDetailsModalBatch(batch)}
                                 className="cursor-pointer text-xs flex items-center gap-2"
                               >
-                                <Eye className="h-3.5 w-3.5 text-blue-600" /> View Batch Details
+                                <Eye className="h-3.5 w-3.5 text-blue-500" /> View Batch Details
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleOpenEditModal(batch)}
                                 className="cursor-pointer text-xs flex items-center gap-2"
                               >
-                                <Edit3 className="h-3.5 w-3.5 text-amber-600" /> Edit Batch Info
+                                <Edit3 className="h-3.5 w-3.5 text-amber-500" /> Edit Batch Info
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
+                              <DropdownMenuSeparator className="bg-border" />
                               <DropdownMenuItem 
                                 onClick={() => handleOpenStudentsModal(batch)}
                                 className="cursor-pointer text-xs flex items-center gap-2"
                               >
-                                <GraduationCap className="h-3.5 w-3.5 text-[#1769AA]" /> Manage Students
+                                <GraduationCap className="h-3.5 w-3.5 text-[#1769AA] dark:text-blue-400" /> Manage Students
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 onClick={() => handleOpenFacultyModal(batch)}
                                 className="cursor-pointer text-xs flex items-center gap-2"
                               >
-                                <Users className="h-3.5 w-3.5 text-indigo-600" /> Change Faculty
+                                <Users className="h-3.5 w-3.5 text-indigo-400" /> Change Faculty
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -637,41 +636,41 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 1. CONTEXTUAL ASSIGN FACULTY MODAL ───────────────────────── */}
       <Dialog open={!!facultyModalBatch} onOpenChange={(open) => !open && setFacultyModalBatch(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Users className="h-5 w-5 text-[#1769AA]" />
+            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
+              <Users className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
               Assign Faculty to Batch
             </DialogTitle>
-            <DialogDescription>
-              Select the primary instructor for <span className="font-semibold text-slate-900">{facultyModalBatch?.name}</span> ({facultyModalBatch?.code}).
+            <DialogDescription className="text-muted-foreground">
+              Select the primary instructor for <span className="font-semibold text-foreground">{facultyModalBatch?.name}</span> ({facultyModalBatch?.code}).
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
+            <div className="bg-muted/40 border border-border rounded-lg p-3 text-xs space-y-1">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Course:</span>
-                <span className="font-semibold text-slate-800">{facultyModalBatch?.course?.name || "General Course"}</span>
+                <span className="font-semibold text-foreground">{facultyModalBatch?.course?.name || "General Course"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Schedule:</span>
-                <span className="font-semibold text-slate-800">{facultyModalBatch?.schedulePattern || "MWF"} ({facultyModalBatch?.timeSlot || "10 AM - 12 PM"})</span>
+                <span className="font-semibold text-foreground">{facultyModalBatch?.schedulePattern || "MWF"} ({facultyModalBatch?.timeSlot || "10 AM - 12 PM"})</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Current Faculty:</span>
-                <span className="font-semibold text-blue-700">{facultyModalBatch?.faculty?.user?.name || "None Assigned"}</span>
+                <span className="font-semibold text-blue-600 dark:text-blue-400">{facultyModalBatch?.faculty?.user?.name || "None Assigned"}</span>
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1.5">
+              <label className="text-xs font-semibold text-foreground block mb-1.5">
                 Select Instructor / Faculty
               </label>
               <select
                 value={selectedFacultyForBatch}
                 onChange={(e) => setSelectedFacultyForBatch(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary focus:ring-2 focus:ring-[#1769AA]"
+                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:ring-2 focus:ring-[#1769AA]"
               >
                 <option value="">-- Remove / Unassigned --</option>
                 {facultyList.map((f) => (
@@ -713,23 +712,23 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 2. CONTEXTUAL ASSIGN STUDENTS MODAL ───────────────────────── */}
       <Dialog open={!!studentsModalBatch} onOpenChange={(open) => !open && setStudentsModalBatch(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <GraduationCap className="h-5 w-5 text-[#1769AA]" />
+            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
+              <GraduationCap className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
               Manage Students — {studentsModalBatch?.name}
             </DialogTitle>
-            <DialogDescription>
-              Assign new students or view currently enrolled students in <span className="font-semibold text-slate-900">{studentsModalBatch?.code}</span> ({studentsModalBatch?.course?.name}).
+            <DialogDescription className="text-muted-foreground">
+              Assign new students or view currently enrolled students in <span className="font-semibold text-foreground">{studentsModalBatch?.code}</span> ({studentsModalBatch?.course?.name}).
             </DialogDescription>
           </DialogHeader>
 
           <Tabs value={studentModalTab} onValueChange={(v) => setStudentModalTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-2 w-full mb-3">
-              <TabsTrigger value="ENROLL" className="text-xs font-semibold">
+            <TabsList className="grid grid-cols-2 w-full mb-3 bg-muted">
+              <TabsTrigger value="ENROLL" className="text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground">
                 + Enroll Eligible Students ({eligibleStudents.length})
               </TabsTrigger>
-              <TabsTrigger value="CURRENT" className="text-xs font-semibold">
+              <TabsTrigger value="CURRENT" className="text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground">
                 Enrolled in Batch ({currentBatchStudents.length})
               </TabsTrigger>
             </TabsList>
@@ -743,18 +742,18 @@ export const CounsellorBatches: React.FC = () => {
                     placeholder="Search student by name, code, phone, or email..."
                     value={studentSearchTerm}
                     onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    className="pl-9 h-9 text-xs"
+                    className="pl-9 h-9 text-xs bg-background border-border text-foreground"
                   />
                 </div>
                 <div className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                  Selected: <span className="text-[#1769AA] font-bold">{selectedStudentIds.size}</span> students
+                  Selected: <span className="text-[#1769AA] dark:text-blue-400 font-bold">{selectedStudentIds.size}</span> students
                 </div>
               </div>
 
-              <div className="flex-1 border border-border/70 rounded-lg overflow-y-auto max-h-[300px]">
+              <div className="flex-1 border border-border rounded-lg overflow-y-auto max-h-[300px]">
                 <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                    <TableRow className="text-xs">
+                  <TableHeader className="bg-muted/60 sticky top-0 z-10 border-b border-border">
+                    <TableRow className="text-xs border-border">
                       <TableHead className="w-10">
                         <input
                           type="checkbox"
@@ -793,7 +792,7 @@ export const CounsellorBatches: React.FC = () => {
                               else next.add(st.id);
                               setSelectedStudentIds(next);
                             }}
-                            className={`cursor-pointer text-xs ${isSelected ? "bg-primary/10" : "hover:bg-muted/40"}`}
+                            className={`cursor-pointer text-xs border-border ${isSelected ? "bg-primary/10" : "hover:bg-muted/40"}`}
                           >
                             <TableCell onClick={(e) => e.stopPropagation()}>
                               <input
@@ -851,10 +850,10 @@ export const CounsellorBatches: React.FC = () => {
 
             {/* Tab 2: Currently Enrolled Students */}
             <TabsContent value="CURRENT" className="flex-1 flex flex-col space-y-3 overflow-hidden mt-0">
-              <div className="flex-1 border border-border/70 rounded-lg overflow-y-auto max-h-[300px]">
+              <div className="flex-1 border border-border rounded-lg overflow-y-auto max-h-[300px]">
                 <Table>
-                  <TableHeader className="bg-muted/50 sticky top-0 z-10">
-                    <TableRow className="text-xs">
+                  <TableHeader className="bg-muted/60 sticky top-0 z-10 border-b border-border">
+                    <TableRow className="text-xs border-border">
                       <TableHead className="text-xs font-bold text-foreground">Student Code & Name</TableHead>
                       <TableHead className="text-xs font-bold text-foreground">Contact</TableHead>
                       <TableHead className="text-xs font-bold text-foreground">Status</TableHead>
@@ -879,17 +878,17 @@ export const CounsellorBatches: React.FC = () => {
                       currentBatchStudents.map((enr: any) => {
                         const student = enr.student;
                         return (
-                          <TableRow key={enr.id} className="text-xs hover:bg-slate-50">
+                          <TableRow key={enr.id} className="text-xs hover:bg-muted/40 border-border">
                             <TableCell>
-                              <div className="font-semibold text-slate-900">{student?.user?.name || "Student"}</div>
+                              <div className="font-semibold text-foreground">{student?.user?.name || "Student"}</div>
                               <div className="text-[11px] font-mono text-muted-foreground">{student?.studentCode}</div>
                             </TableCell>
                             <TableCell>
-                              <div>{student?.user?.phone || "—"}</div>
+                              <div className="text-foreground">{student?.user?.phone || "—"}</div>
                               <div className="text-[11px] text-muted-foreground">{student?.user?.email || "—"}</div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px]">
+                              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
                                 Enrolled
                               </Badge>
                             </TableCell>
@@ -898,7 +897,7 @@ export const CounsellorBatches: React.FC = () => {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => handleRemoveStudent(enr.studentId || student?.id)}
-                                className="h-7 px-2 text-xs text-red-600 hover:bg-red-50 hover:text-red-700"
+                                className="h-7 px-2 text-xs text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
                               >
                                 <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
                               </Button>
@@ -923,43 +922,46 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 3. CONTEXTUAL EDIT BATCH MODAL ───────────────────────── */}
       <Dialog open={!!editModalBatch} onOpenChange={(open) => !open && setEditModalBatch(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Edit3 className="h-5 w-5 text-amber-600" />
+            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
+              <Edit3 className="h-5 w-5 text-amber-500" />
               Edit Batch Details
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Update name, code, schedule pattern, and capacity for this batch.
             </DialogDescription>
           </DialogHeader>
 
           <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Batch Name</label>
+              <label className="text-xs font-semibold text-foreground block mb-1">Batch Name</label>
               <Input
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+                className="bg-background border-border text-foreground"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Batch Code</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Batch Code</label>
                 <Input
                   value={editCode}
                   onChange={(e) => setEditCode(e.target.value)}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Capacity</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Capacity</label>
                 <Input
                   type="number"
                   value={editCapacity}
                   onChange={(e) => setEditCapacity(Number(e.target.value))}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
@@ -967,11 +969,11 @@ export const CounsellorBatches: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Schedule Pattern</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Schedule Pattern</label>
                 <select
                   value={editSchedulePattern}
                   onChange={(e) => setEditSchedulePattern(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                 >
                   <option value="MWF">MWF (Mon/Wed/Fri)</option>
                   <option value="TTS">TTS (Tue/Thu/Sat)</option>
@@ -981,11 +983,11 @@ export const CounsellorBatches: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Status</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Status</label>
                 <select
                   value={editStatus}
                   onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                 >
                   <option value="UPCOMING">Upcoming</option>
                   <option value="ACTIVE">Active</option>
@@ -997,21 +999,23 @@ export const CounsellorBatches: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Start Date</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Start Date</label>
                 <Input
                   type="date"
                   value={editStartDate}
                   onChange={(e) => setEditStartDate(e.target.value)}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Time Slot</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Time Slot</label>
                 <Input
                   placeholder="e.g. 10:00 AM - 12:00 PM"
                   value={editTimeSlot}
                   onChange={(e) => setEditTimeSlot(e.target.value)}
+                  className="bg-background border-border text-foreground"
                 />
               </div>
             </div>
@@ -1034,48 +1038,48 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 4. CONTEXTUAL VIEW BATCH DETAILS MODAL ───────────────────────── */}
       <Dialog open={!!detailsModalBatch} onOpenChange={(open) => !open && setDetailsModalBatch(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              <Eye className="h-5 w-5 text-[#1769AA]" />
+            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
+              <Eye className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
               Batch Overview — {detailsModalBatch?.name}
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-muted-foreground">
               Comprehensive information, schedule allocation, and enrolled students list.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-3 bg-muted/40 border border-border rounded-lg">
                 <span className="text-[11px] text-muted-foreground block font-medium">Batch Code</span>
-                <span className="text-sm font-mono font-bold text-slate-800">{detailsModalBatch?.code}</span>
+                <span className="text-sm font-mono font-bold text-foreground">{detailsModalBatch?.code}</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-3 bg-muted/40 border border-border rounded-lg">
                 <span className="text-[11px] text-muted-foreground block font-medium">Course</span>
-                <span className="text-sm font-bold text-slate-800 truncate block">{detailsModalBatch?.course?.name || "General"}</span>
+                <span className="text-sm font-bold text-foreground truncate block">{detailsModalBatch?.course?.name || "General"}</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-3 bg-muted/40 border border-border rounded-lg">
                 <span className="text-[11px] text-muted-foreground block font-medium">Assigned Faculty</span>
-                <span className="text-sm font-bold text-blue-700 truncate block">{detailsModalBatch?.faculty?.user?.name || "Unassigned"}</span>
+                <span className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate block">{detailsModalBatch?.faculty?.user?.name || "Unassigned"}</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <div className="p-3 bg-muted/40 border border-border rounded-lg">
                 <span className="text-[11px] text-muted-foreground block font-medium">Enrollments</span>
-                <span className="text-sm font-bold text-emerald-700">{detailsModalBatch?._count?.enrollments || currentBatchStudents.length} Students</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{detailsModalBatch?._count?.enrollments || currentBatchStudents.length} Students</span>
               </div>
             </div>
 
-            <div className="p-4 border border-border/70 rounded-lg space-y-3">
-              <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">Schedule & Session Details</h4>
+            <div className="p-4 border border-border rounded-lg space-y-3 bg-muted/20">
+              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Schedule & Session Details</h4>
               <div className="grid grid-cols-2 gap-3 text-xs">
                 <div>
-                  <span className="text-muted-foreground">Pattern:</span> <span className="font-semibold text-slate-800">{detailsModalBatch?.schedulePattern || "MWF"}</span>
+                  <span className="text-muted-foreground">Pattern:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.schedulePattern || "MWF"}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Time Slot:</span> <span className="font-semibold text-slate-800">{detailsModalBatch?.timeSlot || "10:00 AM - 12:00 PM"}</span>
+                  <span className="text-muted-foreground">Time Slot:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.timeSlot || "10:00 AM - 12:00 PM"}</span>
                 </div>
                 <div>
-                  <span className="text-muted-foreground">Start Date:</span> <span className="font-semibold text-slate-800">{detailsModalBatch?.startDate ? new Date(detailsModalBatch.startDate).toLocaleDateString() : "—"}</span>
+                  <span className="text-muted-foreground">Start Date:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.startDate ? new Date(detailsModalBatch.startDate).toLocaleDateString() : "—"}</span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="ml-1 text-[10px]">{detailsModalBatch?.status}</Badge>
@@ -1083,9 +1087,9 @@ export const CounsellorBatches: React.FC = () => {
               </div>
             </div>
 
-            <div className="border border-border/70 rounded-lg overflow-hidden">
-              <div className="p-3 bg-slate-50 border-b border-border/70 flex justify-between items-center">
-                <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+            <div className="border border-border rounded-lg overflow-hidden">
+              <div className="p-3 bg-muted/40 border-b border-border flex justify-between items-center">
+                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
                   Enrolled Students ({currentBatchStudents.length})
                 </h4>
                 <Button 
@@ -1096,18 +1100,18 @@ export const CounsellorBatches: React.FC = () => {
                     setDetailsModalBatch(null);
                     if (b) handleOpenStudentsModal(b);
                   }}
-                  className="h-7 text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50"
+                  className="h-7 text-xs text-[#1769AA] dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-500/10"
                 >
                   <GraduationCap className="h-3.5 w-3.5 mr-1" /> Manage Students
                 </Button>
               </div>
               <div className="max-h-[200px] overflow-y-auto">
                 <Table>
-                  <TableHeader className="bg-slate-50/50">
-                    <TableRow className="text-xs">
-                      <TableHead className="text-xs">Code & Name</TableHead>
-                      <TableHead className="text-xs">Phone</TableHead>
-                      <TableHead className="text-xs">Email</TableHead>
+                  <TableHeader className="bg-muted/60 border-b border-border">
+                    <TableRow className="text-xs border-border">
+                      <TableHead className="text-xs text-foreground font-semibold">Code & Name</TableHead>
+                      <TableHead className="text-xs text-foreground font-semibold">Phone</TableHead>
+                      <TableHead className="text-xs text-foreground font-semibold">Email</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1119,12 +1123,12 @@ export const CounsellorBatches: React.FC = () => {
                       </TableRow>
                     ) : (
                       currentBatchStudents.map((enr: any) => (
-                        <TableRow key={enr.id} className="text-xs">
+                        <TableRow key={enr.id} className="text-xs border-border hover:bg-muted/30">
                           <TableCell>
-                            <span className="font-semibold text-slate-900">{enr.student?.user?.name || "Student"}</span>
+                            <span className="font-semibold text-foreground">{enr.student?.user?.name || "Student"}</span>
                             <span className="font-mono text-muted-foreground text-[11px] block">{enr.student?.studentCode}</span>
                           </TableCell>
-                          <TableCell className="text-xs">{enr.student?.user?.phone || "—"}</TableCell>
+                          <TableCell className="text-xs text-foreground">{enr.student?.user?.phone || "—"}</TableCell>
                           <TableCell className="text-xs text-muted-foreground">{enr.student?.user?.email || "—"}</TableCell>
                         </TableRow>
                       ))
@@ -1145,57 +1149,60 @@ export const CounsellorBatches: React.FC = () => {
 
       {/* ─── 5. CREATE NEW BATCH MODAL ───────────────────────── */}
       <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
-            <DialogTitle>Create New Batch</DialogTitle>
-            <DialogDescription>Fill in the details to create a new training batch.</DialogDescription>
+            <DialogTitle className="text-foreground">Create New Batch</DialogTitle>
+            <DialogDescription className="text-muted-foreground">Fill in the details to create a new training batch.</DialogDescription>
           </DialogHeader>
 
           {errorMsg && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-600 rounded text-xs">
+            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-xs">
               {errorMsg}
             </div>
           )}
 
           <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Batch Name</label>
+              <label className="text-xs font-semibold text-foreground block mb-1">Batch Name</label>
               <Input
                 placeholder="e.g. FullStack Alpha 2026"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="bg-background border-border text-foreground"
                 required
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Batch Code</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Batch Code</label>
                 <Input
                   placeholder="e.g. FS-2026-A1"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Capacity</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Capacity</label>
                 <Input
                   type="number"
                   value={capacity}
                   onChange={(e) => setCapacity(Number(e.target.value))}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Course</label>
+              <label className="text-xs font-semibold text-foreground block mb-1">Course</label>
               <select
                 value={courseId}
                 onChange={(e) => setCourseId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                 required
               >
                 {courses.map((c) => (
@@ -1207,11 +1214,11 @@ export const CounsellorBatches: React.FC = () => {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Assigned Faculty (Optional)</label>
+              <label className="text-xs font-semibold text-foreground block mb-1">Assigned Faculty (Optional)</label>
               <select
                 value={facultyId}
                 onChange={(e) => setFacultyId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
               >
                 <option value="">Unassigned</option>
                 {facultyList.map((f) => (
@@ -1224,11 +1231,11 @@ export const CounsellorBatches: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Schedule Pattern</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Schedule Pattern</label>
                 <select
                   value={schedulePattern}
                   onChange={(e) => setSchedulePattern(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-bg-primary"
+                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                 >
                   <option value="MWF">MWF (Mon/Wed/Fri)</option>
                   <option value="TTS">TTS (Tue/Thu/Sat)</option>
@@ -1238,22 +1245,24 @@ export const CounsellorBatches: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-text-primary block mb-1">Start Date</label>
+                <label className="text-xs font-semibold text-foreground block mb-1">Start Date</label>
                 <Input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                  className="bg-background border-border text-foreground"
                   required
                 />
               </div>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-text-primary block mb-1">Time Slot</label>
+              <label className="text-xs font-semibold text-foreground block mb-1">Time Slot</label>
               <Input
                 placeholder="e.g. 10:00 AM - 12:00 PM"
                 value={timeSlot}
                 onChange={(e) => setTimeSlot(e.target.value)}
+                className="bg-background border-border text-foreground"
               />
             </div>
 

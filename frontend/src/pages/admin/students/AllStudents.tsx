@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
@@ -47,10 +47,22 @@ export const AllStudents: React.FC = () => {
   const branches = branchesResponse?.data || [];
   const { courses: allCourses } = useCourses();
 
+  // If selected branch doesn't exist in current branches (e.g. after re-seeding), reset to "ALL"
+  useEffect(() => {
+    if (branches.length > 0 && selectedBranchId !== "ALL" && !branches.some((b) => b.id === selectedBranchId)) {
+      setSelectedBranchId("ALL");
+    }
+  }, [branches, selectedBranchId, setSelectedBranchId]);
+
+  const activeBranchId =
+    selectedBranchId !== "ALL" && branches.some((b) => b.id === selectedBranchId)
+      ? selectedBranchId
+      : undefined;
+
   // Live database students filtered by branch
   const { data: liveStudentsResponse, isLoading } = useStudentList({
     limit: 200,
-    branchId: selectedBranchId !== "ALL" ? selectedBranchId : undefined,
+    branchId: activeBranchId,
   });
   const liveStudents = liveStudentsResponse?.data || [];
 

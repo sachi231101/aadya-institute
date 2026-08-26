@@ -427,14 +427,14 @@ export const Classes: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-16 animate-in fade-in duration-200">
+    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-foreground font-sans w-full max-w-[1720px] mx-auto pb-16 animate-in fade-in duration-200">
       {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             Classes Management
           </h1>
-          <p className="text-sm text-slate-500 font-medium mt-0.5">
+          <p className="text-sm text-muted-foreground font-medium mt-0.5">
             View, manage, and track all scheduled classes and faculty assignments.
           </p>
         </div>
@@ -444,29 +444,29 @@ export const Classes: React.FC = () => {
           className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>+ Schedule Class</span>
+          <span>Schedule Class</span>
         </Button>
       </div>
 
       {/* Notification Toast */}
       {notificationMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+        <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 flex items-center gap-2 text-xs font-bold shadow-2xs">
+          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
           <span>{notificationMsg}</span>
         </div>
       )}
 
       {/* ─── 2. BRANCH SELECTION BAR ────────────────────────────────────── */}
       <div className="space-y-1.5">
-        <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider pl-1">
+        <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider pl-1">
           Select Branch
         </label>
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-3.5">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-3.5">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex flex-wrap items-center gap-3 flex-1">
               {/* Branch Selector Dropdown */}
               <div className="relative min-w-[280px] sm:min-w-[320px]">
-                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-600 pointer-events-none" />
+                <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500 pointer-events-none" />
                 <select
                   value={selectedBranchId}
                   onChange={(e) => {
@@ -474,7 +474,7 @@ export const Classes: React.FC = () => {
                     setIsViewAllBranches(e.target.value === "ALL");
                     setCurrentPage(1);
                   }}
-                  className="w-full h-11 pl-10 pr-9 text-xs font-bold text-slate-900 bg-slate-50/80 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
+                  className="w-full h-11 pl-10 pr-9 text-xs font-bold text-foreground bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/30 outline-none transition-all appearance-none cursor-pointer"
                 >
                   <option value="ALL">🌐 All Branches</option>
                   {branchesList.map((b: any) => (
@@ -483,22 +483,22 @@ export const Classes: React.FC = () => {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
+                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground text-xs">
                   ▼
                 </div>
               </div>
 
               {/* Branch Code Card */}
-              <div className="h-11 px-4 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Branch Code</span>
-                <span className="text-xs font-black text-slate-800">{currentBranchInfo.code}</span>
+              <div className="h-11 px-4 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Branch Code</span>
+                <span className="text-xs font-black text-foreground">{currentBranchInfo.code}</span>
               </div>
 
               {/* Branch Location Card */}
-              <div className="h-11 px-4 bg-slate-50 border border-slate-200/80 rounded-xl flex flex-col justify-center">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Branch Location</span>
-                <span className="text-xs font-bold text-slate-800 flex items-center gap-1">
-                  <MapPin className="h-3 w-3 text-blue-600 shrink-0" />
+              <div className="h-11 px-4 bg-muted/40 border border-border rounded-xl flex flex-col justify-center">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">Branch Location</span>
+                <span className="text-xs font-bold text-foreground flex items-center gap-1">
+                  <MapPin className="h-3 w-3 text-blue-500 shrink-0" />
                   {currentBranchInfo.location}
                 </span>
               </div>
@@ -514,7 +514,7 @@ export const Classes: React.FC = () => {
               className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${
                 isViewAllBranches
                   ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                  : "border-border bg-card text-foreground hover:bg-muted"
               }`}
             >
               <Building2 className="h-4 w-4" />
@@ -527,68 +527,68 @@ export const Classes: React.FC = () => {
       {/* ─── 3. OVERVIEW METRIC CARDS ───────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Classes */}
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 shrink-0">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 shrink-0">
             <Calendar className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-900">{stats.total}</span>
-              <span className="text-xs font-semibold text-slate-500">Scheduled</span>
+              <span className="text-2xl font-black text-foreground">{stats.total}</span>
+              <span className="text-xs font-semibold text-muted-foreground">Scheduled</span>
             </div>
-            <span className="text-xs font-bold text-slate-500 block mt-0.5">Total Classes</span>
+            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Total Classes</span>
           </div>
         </Card>
 
         {/* Card 2: Faculty Assigned */}
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-500 shrink-0">
             <Users className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-900">{stats.facultyAssigned}</span>
-              <span className="text-xs font-semibold text-slate-500">Faculty</span>
+              <span className="text-2xl font-black text-foreground">{stats.facultyAssigned}</span>
+              <span className="text-xs font-semibold text-muted-foreground">Faculty</span>
             </div>
-            <span className="text-xs font-bold text-slate-500 block mt-0.5">Faculty Assigned</span>
+            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Faculty Assigned</span>
           </div>
         </Card>
 
         {/* Card 3: Today's Classes */}
-        <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 shrink-0">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-500 shrink-0">
             <Clock className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-slate-900">{stats.today}</span>
-              <span className="text-xs font-semibold text-slate-500">Scheduled Today</span>
+              <span className="text-2xl font-black text-foreground">{stats.today}</span>
+              <span className="text-xs font-semibold text-muted-foreground">Scheduled Today</span>
             </div>
-            <span className="text-xs font-bold text-slate-500 block mt-0.5">Today's Classes</span>
+            <span className="text-xs font-bold text-muted-foreground block mt-0.5">Today's Classes</span>
           </div>
         </Card>
 
         {/* Card 4: Unassigned Classes */}
-        <Card className="border-amber-200 shadow-xs bg-amber-50/40 rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-amber-100/80 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
+        <Card className="border border-amber-500/30 shadow-xs bg-amber-500/10 dark:bg-amber-950/20 rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-500 shrink-0">
             <AlertTriangle className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-amber-900">{stats.unassigned}</span>
-              <span className="text-xs font-semibold text-amber-700">Need Faculty</span>
+              <span className="text-2xl font-black text-amber-600 dark:text-amber-300">{stats.unassigned}</span>
+              <span className="text-xs font-semibold text-amber-600/80 dark:text-amber-400">Need Faculty</span>
             </div>
-            <span className="text-xs font-bold text-amber-800 block mt-0.5">Unassigned Classes</span>
+            <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mt-0.5">Unassigned Classes</span>
           </div>
         </Card>
       </div>
 
       {/* ─── 4. FILTER TOOLBAR ──────────────────────────────────────────── */}
-      <div className="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs space-y-3">
+      <div className="bg-card p-3.5 rounded-2xl border border-border shadow-xs space-y-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
           {/* Search Field */}
           <div className="relative sm:col-span-2 lg:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search class, course, batch, faculty or room..."
               value={searchQuery}
@@ -596,7 +596,7 @@ export const Classes: React.FC = () => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-10 pl-9 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl"
+              className="h-10 pl-9 bg-background border-border text-foreground text-xs font-medium rounded-xl"
             />
           </div>
 
@@ -607,7 +607,7 @@ export const Classes: React.FC = () => {
               setSelectedFaculty(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Faculties</option>
             <option value="UNASSIGNED">⚠ Faculty Not Assigned</option>
@@ -628,7 +628,7 @@ export const Classes: React.FC = () => {
               setSelectedCourse(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Courses</option>
             <option value="Java Full Stack">Java Full Stack</option>
@@ -647,7 +647,7 @@ export const Classes: React.FC = () => {
               setSelectedBatch(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Batches</option>
             <option value="JFS-B01">JFS-B01</option>
@@ -666,7 +666,7 @@ export const Classes: React.FC = () => {
               setSelectedMode(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Modes</option>
             <option value="OFFLINE">Offline</option>
@@ -676,7 +676,7 @@ export const Classes: React.FC = () => {
         </div>
 
         {/* Second Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border">
           <div className="flex flex-wrap items-center gap-3">
             {/* All Statuses */}
             <select
@@ -685,7 +685,7 @@ export const Classes: React.FC = () => {
                 setSelectedStatus(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 px-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              className="h-9 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
               <option value="LIVE">● Live</option>
@@ -696,8 +696,8 @@ export const Classes: React.FC = () => {
             </select>
 
             {/* Date Input */}
-            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 h-9 text-xs">
-              <span className="text-slate-400 font-medium">Select Date:</span>
+            <div className="flex items-center gap-1.5 bg-background border border-border rounded-xl px-2.5 h-9 text-xs">
+              <span className="text-muted-foreground font-medium">Select Date:</span>
               <input
                 type="date"
                 value={selectedDate}
@@ -705,7 +705,7 @@ export const Classes: React.FC = () => {
                   setSelectedDate(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer"
+                className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer"
               />
             </div>
           </div>
@@ -715,9 +715,9 @@ export const Classes: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleResetFilters}
-            className="h-9 text-xs font-bold text-slate-600 border-slate-200 hover:bg-slate-50 rounded-xl gap-1.5 cursor-pointer"
+            className="h-9 text-xs font-bold text-foreground border-border hover:bg-muted rounded-xl gap-1.5 cursor-pointer"
           >
-            <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
+            <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Reset Filters</span>
           </Button>
         </div>
@@ -728,7 +728,7 @@ export const Classes: React.FC = () => {
         <div className="overflow-x-auto w-full">
           <table className="w-full min-w-[1100px] border-collapse text-left">
             <thead>
-              <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
+              <tr className="bg-muted/60 dark:bg-slate-900/90 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
                 <th className="py-3.5 px-4 pl-5">CLASS TOPIC & COURSE</th>
                 <th className="py-3.5 px-3">BATCH CODE</th>
                 <th className="py-3.5 px-4">ASSIGNED FACULTY</th>
@@ -740,24 +740,24 @@ export const Classes: React.FC = () => {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-border/70 text-xs bg-card">
+            <tbody className="divide-y divide-border text-xs bg-card">
               {paginatedClasses.length > 0 ? (
                 paginatedClasses.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={item.id} className="hover:bg-muted/40 transition-colors">
                     {/* Column 1: Class Topic & Course */}
                     <td className="py-3 px-4 pl-5 align-middle">
                       <div className="flex items-center gap-3">
                         {renderTopicIcon(item.iconType)}
                         <div>
-                          <h4 className="font-bold text-slate-900 text-xs">{item.topicName}</h4>
-                          <p className="text-[11px] text-slate-500 font-medium">{item.moduleName}</p>
+                          <h4 className="font-bold text-foreground text-xs">{item.topicName}</h4>
+                          <p className="text-[11px] text-muted-foreground font-medium">{item.moduleName}</p>
                         </div>
                       </div>
                     </td>
 
                     {/* Column 2: Batch Code */}
                     <td className="py-3 px-3 align-middle">
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-slate-100 text-slate-800 border border-slate-200/80 inline-block tracking-wide">
+                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-black bg-muted text-foreground border border-border inline-block tracking-wide">
                         {item.batchCode}
                       </span>
                     </td>
@@ -766,31 +766,31 @@ export const Classes: React.FC = () => {
                     <td className="py-3 px-4 align-middle">
                       {item.isFacultyAssigned && item.facultyName ? (
                         <div className="flex items-center gap-2.5">
-                          <Avatar className="h-8 w-8 rounded-full border border-slate-200 shadow-2xs shrink-0">
+                          <Avatar className="h-8 w-8 rounded-full border border-border shadow-2xs shrink-0">
                             <AvatarImage src={item.facultyAvatar} alt={item.facultyName} />
                             <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
                               {item.facultyName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <span className="font-bold text-slate-900 text-xs block truncate">
+                            <span className="font-bold text-foreground text-xs block truncate">
                               {item.facultyName}
                             </span>
-                            <span className="text-[10px] text-slate-500 font-medium block truncate">
+                            <span className="text-[10px] text-muted-foreground font-medium block truncate">
                               {item.facultySpecialization}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-50/80 border border-amber-200 text-amber-800 inline-flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-900">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 inline-flex flex-col gap-1">
+                          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
+                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                             <span>Faculty Not Assigned</span>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleOpenAssignFaculty(item)}
-                            className="text-[10px] font-extrabold text-blue-600 hover:text-blue-800 underline text-left cursor-pointer"
+                            className="text-[10px] font-extrabold text-blue-500 dark:text-blue-400 hover:underline text-left cursor-pointer"
                           >
                             + Assign Faculty
                           </button>
@@ -801,12 +801,12 @@ export const Classes: React.FC = () => {
                     {/* Column 4: Date & Time Slot */}
                     <td className="py-3 px-4 align-middle">
                       <div>
-                        <div className="flex items-center gap-1.5 font-bold text-slate-800 text-[11px]">
-                          <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 font-bold text-foreground text-[11px]">
+                          <Calendar className="h-3 w-3 text-muted-foreground shrink-0" />
                           <span>{item.dateLabel}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-medium mt-0.5">
-                          <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium mt-0.5">
+                          <Clock className="h-3 w-3 text-muted-foreground shrink-0" />
                           <span>{item.startTime} – {item.endTime}</span>
                         </div>
                       </div>
@@ -816,8 +816,8 @@ export const Classes: React.FC = () => {
                     <td className="py-3 px-3 text-center align-middle">
                       <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
                         item.mode === "ONLINE"
-                          ? "bg-blue-50 text-blue-700 border-blue-200"
-                          : "bg-slate-100 text-slate-700 border-slate-200"
+                          ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
+                          : "bg-muted text-muted-foreground border-border"
                       }`}>
                         {item.mode === "ONLINE" ? "Online" : "Offline"}
                       </span>
@@ -829,14 +829,14 @@ export const Classes: React.FC = () => {
                         <a
                           href="#join"
                           onClick={(e) => e.preventDefault()}
-                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800 font-bold text-xs hover:underline"
+                          className="flex items-center gap-1 text-blue-500 hover:text-blue-400 font-bold text-xs hover:underline"
                         >
                           <LinkIcon className="h-3.5 w-3.5 text-blue-500" />
                           <span>Meeting Link</span>
                         </a>
                       ) : (
-                        <div className="flex items-center gap-1 text-slate-700 font-semibold text-xs">
-                          <Building2 className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                        <div className="flex items-center gap-1 text-foreground font-semibold text-xs">
+                          <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                           <span>{item.locationOrLink}</span>
                         </div>
                       )}
@@ -845,27 +845,27 @@ export const Classes: React.FC = () => {
                     {/* Column 7: Status */}
                     <td className="py-3 px-3 text-center align-middle">
                       {item.status === "LIVE" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1 shadow-2xs">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 inline-flex items-center gap-1 shadow-2xs">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
                         </span>
                       )}
                       {item.status === "SCHEDULED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 inline-flex items-center gap-1">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> Scheduled
                         </span>
                       )}
                       {item.status === "UNASSIGNED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 inline-flex items-center gap-1">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Unassigned
                         </span>
                       )}
                       {item.status === "COMPLETED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-slate-400" /> Completed
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-muted text-muted-foreground border border-border inline-flex items-center gap-1">
+                          <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" /> Completed
                         </span>
                       )}
                       {item.status === "CANCELLED" && (
-                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                        <span className="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/30 inline-flex items-center gap-1">
                           <span className="h-1.5 w-1.5 rounded-full bg-rose-500" /> Cancelled
                         </span>
                       )}
@@ -875,11 +875,11 @@ export const Classes: React.FC = () => {
                     <td className="py-3 px-4 text-center align-middle">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <button className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors cursor-pointer">
+                          <button className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                             <MoreVertical className="h-4 w-4" />
                           </button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-white rounded-xl shadow-xl p-1 text-xs">
+                        <DropdownMenuContent align="end" className="w-48 bg-popover border border-border rounded-xl shadow-xl p-1 text-xs">
                           <DropdownMenuItem
                             onClick={() => {
                               setSelectedClassItem(item);
@@ -887,7 +887,7 @@ export const Classes: React.FC = () => {
                             }}
                             className="gap-2 cursor-pointer font-medium"
                           >
-                            <Eye className="h-3.5 w-3.5 text-blue-600" /> View Class Details
+                            <Eye className="h-3.5 w-3.5 text-blue-500" /> View Class Details
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -905,13 +905,13 @@ export const Classes: React.FC = () => {
                             }}
                             className="gap-2 cursor-pointer font-medium"
                           >
-                            <Edit3 className="h-3.5 w-3.5 text-indigo-600" /> Edit Class
+                            <Edit3 className="h-3.5 w-3.5 text-indigo-400" /> Edit Class
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleOpenAssignFaculty(item)}
                             className="gap-2 cursor-pointer font-medium"
                           >
-                            <UserPlus className="h-3.5 w-3.5 text-emerald-600" /> Change Faculty
+                            <UserPlus className="h-3.5 w-3.5 text-emerald-400" /> Change Faculty
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -920,7 +920,7 @@ export const Classes: React.FC = () => {
                             }}
                             className="gap-2 cursor-pointer font-medium"
                           >
-                            <Users className="h-3.5 w-3.5 text-slate-600" /> View Students
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" /> View Students
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
@@ -929,18 +929,18 @@ export const Classes: React.FC = () => {
                             }}
                             className="gap-2 cursor-pointer font-medium"
                           >
-                            <UserCheck className="h-3.5 w-3.5 text-slate-600" /> View Attendance
+                            <UserCheck className="h-3.5 w-3.5 text-muted-foreground" /> View Attendance
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator />
+                          <DropdownMenuSeparator className="bg-border" />
                           <DropdownMenuItem
                             onClick={() => handleCancelClass(item)}
-                            className="gap-2 text-rose-600 font-medium cursor-pointer"
+                            className="gap-2 text-rose-500 font-medium cursor-pointer"
                           >
                             <XCircle className="h-3.5 w-3.5" /> Cancel Class
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleDeleteClass(item)}
-                            className="gap-2 text-rose-600 font-medium cursor-pointer"
+                            className="gap-2 text-rose-500 font-medium cursor-pointer"
                           >
                             <Trash2 className="h-3.5 w-3.5" /> Delete
                           </DropdownMenuItem>
@@ -953,20 +953,20 @@ export const Classes: React.FC = () => {
                 <tr>
                   <td colSpan={8} className="py-16 text-center">
                     <div className="max-w-md mx-auto space-y-3">
-                      <div className="w-16 h-16 rounded-3xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-600 mx-auto">
+                      <div className="w-16 h-16 rounded-3xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mx-auto">
                         <Calendar className="w-8 h-8 stroke-[1.8]" />
                       </div>
-                      <h3 className="text-base font-extrabold text-slate-900">
+                      <h3 className="text-base font-extrabold text-foreground">
                         No classes scheduled for this branch
                       </h3>
-                      <p className="text-xs text-slate-500 font-medium leading-relaxed">
+                      <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                         There are currently no classes scheduled matching the selected filters. Click below to schedule a new class session.
                       </p>
                       <Button
                         onClick={() => setIsScheduleModalOpen(true)}
                         className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" /> + Schedule Class
+                        <Plus className="w-3.5 h-3.5" /> Schedule Class
                       </Button>
                     </div>
                   </td>
@@ -977,9 +977,9 @@ export const Classes: React.FC = () => {
         </div>
 
         {/* ─── 6. PAGINATION FOOTER ──────────────────────────────────────── */}
-        <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <span className="text-slate-600 font-medium">
-            Showing <strong className="text-slate-900">{filteredClasses.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, filteredClasses.length)}</strong> of <strong className="text-slate-900">{stats.total}</strong> classes
+        <div className="p-4 bg-muted/40 dark:bg-slate-900/80 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <span className="text-muted-foreground font-medium">
+            Showing <strong className="text-foreground">{filteredClasses.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, filteredClasses.length)}</strong> of <strong className="text-foreground">{stats.total}</strong> classes
           </span>
 
           <div className="flex items-center gap-3">
@@ -990,7 +990,7 @@ export const Classes: React.FC = () => {
                 size="icon"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
+                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -1001,24 +1001,24 @@ export const Classes: React.FC = () => {
                   onClick={() => setCurrentPage(pg)}
                   className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     currentPage === pg
-                      ? "bg-[#1769AA] text-white shadow-xs"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-card text-foreground border border-border hover:bg-muted"
                   }`}
                 >
                   {pg}
                 </button>
               ))}
 
-              <span className="text-slate-400 px-1">...</span>
+              <span className="text-muted-foreground px-1">...</span>
               <button
                 onClick={() => setCurrentPage(totalPages)}
                 className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   currentPage === totalPages
-                    ? "bg-[#1769AA] text-white shadow-xs"
-                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "bg-card text-foreground border border-border hover:bg-muted"
                 }`}
               >
-                9
+                {totalPages > 5 ? totalPages : 6}
               </button>
 
               <Button
@@ -1026,21 +1026,21 @@ export const Classes: React.FC = () => {
                 size="icon"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
+                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
 
             {/* Rows Per Page */}
-            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
+            <div className="flex items-center gap-1.5 pl-2 border-l border-border">
               <select
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                className="h-8 px-2 bg-background border border-border rounded-lg text-xs font-bold text-foreground outline-none cursor-pointer"
               >
                 <option value={10}>10 / page</option>
                 <option value={20}>20 / page</option>
@@ -1053,12 +1053,12 @@ export const Classes: React.FC = () => {
 
       {/* ─── MODAL 1: SCHEDULE CLASS DIALOG ─────────────────────────────── */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
-            <DialogTitle className="text-xl font-black text-slate-900">
+            <DialogTitle className="text-xl font-black text-foreground">
               Schedule New Class Session
             </DialogTitle>
-            <DialogDescription className="text-xs text-slate-500 font-medium">
+            <DialogDescription className="text-xs text-muted-foreground font-medium">
               Create a scheduled classroom session and assign faculty for this batch.
             </DialogDescription>
           </DialogHeader>
@@ -1066,14 +1066,14 @@ export const Classes: React.FC = () => {
           <div className="space-y-3.5 my-3 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Course / Subject *</Label>
+                <Label className="text-[11px] font-bold text-foreground">Course / Subject *</Label>
                 <select
                   value={formCourse}
                   onChange={(e) => {
                     setFormCourse(e.target.value);
                     setFormTopic(e.target.value);
                   }}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="Java Full Stack">Java Full Stack</option>
                   <option value="Python Programming">Python Programming</option>
@@ -1086,33 +1086,33 @@ export const Classes: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Batch Code *</Label>
+                <Label className="text-[11px] font-bold text-foreground">Batch Code *</Label>
                 <Input
                   value={formBatch}
                   onChange={(e) => setFormBatch(e.target.value)}
                   placeholder="e.g. JFS-B01"
-                  className="h-9 mt-1 text-xs rounded-xl"
+                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-[11px] font-bold text-slate-700">Class Topic / Module *</Label>
+              <Label className="text-[11px] font-bold text-foreground">Class Topic / Module *</Label>
               <Input
                 value={formModule}
                 onChange={(e) => setFormModule(e.target.value)}
                 placeholder="e.g. Arrays & Collections"
-                className="h-9 mt-1 text-xs rounded-xl"
+                className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Branch Center</Label>
+                <Label className="text-[11px] font-bold text-foreground">Branch Center</Label>
                 <select
                   value={formBranch}
                   onChange={(e) => setFormBranch(e.target.value)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   {branchesList.map((b: any) => (
                     <option key={b.id} value={b.id}>
@@ -1123,11 +1123,11 @@ export const Classes: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Assign Faculty</Label>
+                <Label className="text-[11px] font-bold text-foreground">Assign Faculty</Label>
                 <select
                   value={formFacultyId}
                   onChange={(e) => setFormFacultyId(e.target.value)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#1769AA] outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-[#1769AA] outline-none"
                 >
                   <option value="none">⚠ Leave Unassigned for now</option>
                   {facultyMembers.map((f: any) => (
@@ -1141,43 +1141,43 @@ export const Classes: React.FC = () => {
 
             <div className="grid grid-cols-3 gap-2.5">
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Date</Label>
+                <Label className="text-[11px] font-bold text-foreground">Date</Label>
                 <Input
                   type="date"
                   value={formDate}
                   onChange={(e) => setFormDate(e.target.value)}
-                  className="h-9 mt-1 text-xs rounded-xl"
+                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
                 />
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Start Time</Label>
+                <Label className="text-[11px] font-bold text-foreground">Start Time</Label>
                 <Input
                   value={formStartTime}
                   onChange={(e) => setFormStartTime(e.target.value)}
                   placeholder="10:00 AM"
-                  className="h-9 mt-1 text-xs rounded-xl"
+                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
                 />
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">End Time</Label>
+                <Label className="text-[11px] font-bold text-foreground">End Time</Label>
                 <Input
                   value={formEndTime}
                   onChange={(e) => setFormEndTime(e.target.value)}
                   placeholder="11:30 AM"
-                  className="h-9 mt-1 text-xs rounded-xl"
+                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">Class Mode</Label>
+                <Label className="text-[11px] font-bold text-foreground">Class Mode</Label>
                 <select
                   value={formMode}
                   onChange={(e) => setFormMode(e.target.value as ClassMode)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="OFFLINE">Offline (In-Person)</option>
                   <option value="ONLINE">Online (Virtual Meeting)</option>
@@ -1186,26 +1186,26 @@ export const Classes: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-slate-700">
+                <Label className="text-[11px] font-bold text-foreground">
                   {formMode === "ONLINE" ? "Meeting URL Link" : "Room / Lab No"}
                 </Label>
                 <Input
                   value={formLocation}
                   onChange={(e) => setFormLocation(e.target.value)}
                   placeholder={formMode === "ONLINE" ? "https://meet.google.com/..." : "e.g. Room 201"}
-                  className="h-9 mt-1 text-xs rounded-xl"
+                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
                 />
               </div>
             </div>
 
             <div>
-              <Label className="text-[11px] font-bold text-slate-700">Enrolled Students Count</Label>
+              <Label className="text-[11px] font-bold text-foreground">Enrolled Students Count</Label>
               <Input
                 type="number"
                 value={formStudentsCount}
                 onChange={(e) => setFormStudentsCount(Number(e.target.value))}
                 placeholder="25"
-                className="h-9 mt-1 text-xs rounded-xl"
+                className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
               />
             </div>
           </div>
@@ -1214,7 +1214,7 @@ export const Classes: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => setIsScheduleModalOpen(false)}
-              className="text-xs font-bold h-9 rounded-xl"
+              className="text-xs font-bold h-9 rounded-xl border-border bg-card text-foreground hover:bg-muted"
             >
               Cancel
             </Button>
@@ -1230,81 +1230,81 @@ export const Classes: React.FC = () => {
 
       {/* ─── MODAL 2: CLASS DETAILS MODAL ───────────────────────────────── */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
           {selectedClassItem && (
             <>
               <DialogHeader className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1769AA] border border-blue-200">
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
                     {selectedClassItem.batchCode}
                   </span>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
                     selectedClassItem.status === "LIVE"
-                      ? "bg-emerald-100 text-emerald-800"
-                      : "bg-blue-100 text-blue-800"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                      : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
                   }`}>
                     {selectedClassItem.status}
                   </span>
                 </div>
-                <DialogTitle className="text-xl font-black text-slate-900">
+                <DialogTitle className="text-xl font-black text-foreground">
                   {selectedClassItem.topicName}
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 font-medium">
+                <DialogDescription className="text-xs text-muted-foreground font-medium">
                   {selectedClassItem.moduleName} • {selectedClassItem.branchName}
                 </DialogDescription>
               </DialogHeader>
 
-              <div className="space-y-3.5 my-3 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-200/60">
+              <div className="space-y-3.5 my-3 text-xs bg-muted/30 p-4 rounded-2xl border border-border">
                 {/* Faculty Section */}
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
                     Assigned Faculty Instructor
                   </span>
                   {selectedClassItem.isFacultyAssigned ? (
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 rounded-full border border-slate-200">
+                      <Avatar className="h-9 w-9 rounded-full border border-border">
                         <AvatarImage src={selectedClassItem.facultyAvatar} />
                         <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
                           {selectedClassItem.facultyName?.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div>
-                        <span className="font-bold text-slate-900 text-xs block">{selectedClassItem.facultyName}</span>
-                        <span className="text-[11px] text-slate-500 font-medium">{selectedClassItem.facultySpecialization}</span>
+                        <span className="font-bold text-foreground text-xs block">{selectedClassItem.facultyName}</span>
+                        <span className="text-[11px] text-muted-foreground font-medium">{selectedClassItem.facultySpecialization}</span>
                       </div>
                     </div>
                   ) : (
-                    <div className="text-amber-800 font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <div className="text-amber-600 dark:text-amber-300 font-bold flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" />
                       <span>No faculty assigned yet</span>
                     </div>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Timing</span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5">{selectedClassItem.startTime} – {selectedClassItem.endTime}</p>
-                    <p className="text-[10px] text-slate-500">{selectedClassItem.dateLabel}</p>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Timing</span>
+                    <p className="font-bold text-foreground text-xs mt-0.5">{selectedClassItem.startTime} – {selectedClassItem.endTime}</p>
+                    <p className="text-[10px] text-muted-foreground">{selectedClassItem.dateLabel}</p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Location / Mode</span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5">{selectedClassItem.locationOrLink}</p>
-                    <p className="text-[10px] text-slate-500 font-semibold">{selectedClassItem.mode}</p>
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Location / Mode</span>
+                    <p className="font-bold text-foreground text-xs mt-0.5">{selectedClassItem.locationOrLink}</p>
+                    <p className="text-[10px] text-muted-foreground font-semibold">{selectedClassItem.mode}</p>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/60">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Students Enrolled</span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5 flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5 text-slate-500" />
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Students Enrolled</span>
+                    <p className="font-bold text-foreground text-xs mt-0.5 flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
                       {selectedClassItem.enrolledStudentsCount} Students
                     </p>
                   </div>
                   <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase">Attendance</span>
-                    <p className="font-bold text-slate-800 text-xs mt-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Attendance</span>
+                    <p className="font-bold text-foreground text-xs mt-0.5">
                       {selectedClassItem.attendanceMarked ? "Marked & Logged" : "Pending Session"}
                     </p>
                   </div>
@@ -1315,7 +1315,7 @@ export const Classes: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => setIsDetailsModalOpen(false)}
-                  className="text-xs font-bold rounded-xl"
+                  className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
                 >
                   Close
                 </Button>
@@ -1336,20 +1336,20 @@ export const Classes: React.FC = () => {
 
       {/* ─── MODAL 3: ASSIGN / CHANGE FACULTY MODAL ─────────────────────── */}
       <Dialog open={isAssignFacultyModalOpen} onOpenChange={setIsAssignFacultyModalOpen}>
-        <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
           {selectedClassItem && (
             <>
               <DialogHeader className="space-y-1">
-                <DialogTitle className="text-xl font-black text-slate-900">
+                <DialogTitle className="text-xl font-black text-foreground">
                   Assign Faculty Instructor
                 </DialogTitle>
-                <DialogDescription className="text-xs text-slate-500 font-medium">
+                <DialogDescription className="text-xs text-muted-foreground font-medium">
                   Select a qualified faculty member for {selectedClassItem.topicName} ({selectedClassItem.batchCode}).
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-3 my-3 text-xs">
-                <Label className="text-[11px] font-bold text-slate-700">Choose Faculty Member</Label>
+                <Label className="text-[11px] font-bold text-foreground">Choose Faculty Member</Label>
                 <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                   {facultyMembers.map((fac: any) => {
                     const isSelected = targetFacultyId === fac.id;
@@ -1362,20 +1362,20 @@ export const Classes: React.FC = () => {
                         onClick={() => setTargetFacultyId(fac.id)}
                         className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isSelected
-                            ? "bg-blue-50 border-[#1769AA] ring-2 ring-[#1769AA]/20"
-                            : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60"
+                            ? "bg-blue-500/15 border-[#1769AA] ring-2 ring-[#1769AA]/20"
+                            : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-slate-200">
+                          <Avatar className="h-9 w-9 border border-border">
                             <AvatarImage src={avatar} />
                             <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
                               {name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div>
-                            <span className="font-bold text-slate-900 text-xs block">{name}</span>
-                            <span className="text-[10px] text-slate-500 font-medium">{specialization}</span>
+                            <span className="font-bold text-foreground text-xs block">{name}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">{specialization}</span>
                           </div>
                         </div>
 
@@ -1394,7 +1394,7 @@ export const Classes: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => setIsAssignFacultyModalOpen(false)}
-                  className="text-xs font-bold rounded-xl"
+                  className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
                 >
                   Cancel
                 </Button>

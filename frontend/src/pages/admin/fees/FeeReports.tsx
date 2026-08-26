@@ -132,14 +132,23 @@ export const FeeReports: React.FC = () => {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={reports.monthlyRevenue}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748b" }} />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "currentColor" }} className="text-muted-foreground" />
                     <YAxis 
-                      tick={{ fontSize: 12, fill: "#64748b" }} 
+                      tick={{ fontSize: 12, fill: "currentColor" }}
+                      className="text-muted-foreground"
                       tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} 
                     />
                     <Tooltip 
                       formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Revenue"]}
-                      contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      cursor={{ fill: "rgba(255, 255, 255, 0.05)", radius: 6 }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
                     />
                     <Bar dataKey="revenue" fill="#1769AA" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -148,13 +157,13 @@ export const FeeReports: React.FC = () => {
             </Card>
 
             {/* Course-Wise Revenue Distribution */}
-            <Card className="border-border/50 bg-white shadow-sm">
-              <CardHeader className="p-5 pb-2 border-b border-slate-100">
-                <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <PieChartIcon className="h-5 w-5 text-emerald-600" />
+            <Card className="border border-border bg-card shadow-sm">
+              <CardHeader className="p-5 pb-2 border-b border-border">
+                <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+                  <PieChartIcon className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                   Course Revenue Breakdown
                 </CardTitle>
-                <CardDescription className="text-xs">Revenue generated per course program</CardDescription>
+                <CardDescription className="text-xs text-muted-foreground">Revenue generated per course program</CardDescription>
               </CardHeader>
 
               <CardContent className="p-5 h-72 flex items-center justify-center">
@@ -175,7 +184,14 @@ export const FeeReports: React.FC = () => {
                     </Pie>
                     <Tooltip 
                       formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Revenue"]}
-                      contentStyle={{ borderRadius: "8px", border: "1px solid #e2e8f0" }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
                     />
                   </PieChart>
                 </ResponsiveContainer>
