@@ -54,6 +54,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.store";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 interface AiTranscriptMessage {
   speaker: "AI" | "LEAD";
@@ -152,6 +153,7 @@ export const AiCallingQualification: React.FC = () => {
   const [newLeadCourse, setNewLeadCourse] = useState("Digital Marketing");
   const [newLeadSource, setNewLeadSource] = useState<LeadSource>("Website");
   const [triggerImmediateCall, setTriggerImmediateCall] = useState(true);
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
   // Toast / Banner Message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -546,13 +548,12 @@ export const AiCallingQualification: React.FC = () => {
                 className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
               >
                 <option value="ALL">All Lead Sources</option>
-                <option value="Website">🌐 Website</option>
-                <option value="Google Ads">🔍 Google Ads</option>
-                <option value="Meta Ads">⚡ Meta Ads</option>
-                <option value="Instagram">📱 Instagram</option>
-                <option value="WhatsApp">💬 WhatsApp</option>
-                <option value="Direct Call">📞 Direct Call</option>
-                <option value="Referral">👥 Referral</option>
+                {leadSourceOptions.map((opt) => (
+                  <option key={opt.value} value={opt.label}>{opt.label}</option>
+                ))}
+                {leadSourceOptions.length === 0 && (
+                  <option value="" disabled>No sources — add in Master Setup</option>
+                )}
               </select>
 
               {/* Course Dropdown */}
@@ -1717,13 +1718,13 @@ export const AiCallingQualification: React.FC = () => {
                   onChange={(e) => setNewLeadSource(e.target.value as LeadSource)}
                   className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
-                  <option value="Website">🌐 Website Form</option>
-                  <option value="Google Ads">🔍 Google Ads</option>
-                  <option value="Meta Ads">⚡ Meta Ads / Facebook</option>
-                  <option value="Instagram">📱 Instagram Campaign</option>
-                  <option value="Referral">👥 Student Referral</option>
-                  <option value="Walk-in">🏢 Center Walk-in</option>
-                  <option value="Direct Call">📞 Direct Call</option>
+                  <option value="">Select Lead Source</option>
+                  {leadSourceOptions.map((opt) => (
+                    <option key={opt.value} value={opt.label}>{opt.label}</option>
+                  ))}
+                  {leadSourceOptions.length === 0 && (
+                    <option value="" disabled>No sources — add in Master Setup</option>
+                  )}
                 </select>
               </div>
             </div>

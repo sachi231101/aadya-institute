@@ -43,7 +43,7 @@ export const useCreateMasterRecord = () => {
     }) => mastersApi.createMaster(entityType, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
     },
   });
 };
@@ -62,7 +62,7 @@ export const useUpdateMasterRecord = () => {
     }) => mastersApi.updateMaster(entityType, id, payload),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
     },
   });
 };
@@ -79,7 +79,54 @@ export const useDeleteMasterRecord = () => {
     }) => mastersApi.deleteMaster(entityType, id),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
+    },
+  });
+};
+
+/**
+ * Fetch record counts for all entity types (for overview grid)
+ */
+export const useMasterEntityCounts = () => {
+  return useQuery({
+    queryKey: [MASTERS_KEY, "counts"],
+    queryFn: () => mastersApi.getEntityCounts(),
+    staleTime: 1000 * 60, // 1 minute
+  });
+};
+
+/**
+ * Fetch active-only records for a given entity type (for dropdown consumption)
+ */
+export const useActiveMasterRecords = (
+  entityType: string | undefined,
+  branchId?: string
+) => {
+  return useQuery({
+    queryKey: [MASTERS_KEY, "active", entityType, branchId],
+    queryFn: () => mastersApi.getActiveMasters(entityType!, branchId),
+    enabled: !!entityType,
+    staleTime: 1000 * 60 * 5, // 5 minutes
+  });
+};
+
+/**
+ * Toggle a master record's active/inactive status
+ */
+export const useToggleMasterStatus = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      entityType,
+      id,
+    }: {
+      entityType: string;
+      id: string;
+    }) => mastersApi.toggleMasterStatus(entityType, id),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "active", variables.entityType] });
     },
   });
 };

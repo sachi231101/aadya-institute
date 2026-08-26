@@ -63,6 +63,28 @@ export const findMasterRecordById = async (id: string, instituteId: string) => {
   });
 };
 
+/**
+ * Check for duplicate name within the same entity type and institute
+ */
+export const findDuplicateMasterRecord = async (
+  instituteId: string,
+  entityType: string,
+  name: string,
+  excludeId?: string
+) => {
+  const where: Prisma.MasterRecordWhereInput = {
+    instituteId,
+    entityType,
+    name: { equals: name, mode: "insensitive" },
+  };
+
+  if (excludeId) {
+    where.id = { not: excludeId };
+  }
+
+  return prisma.masterRecord.findFirst({ where });
+};
+
 export const createMasterRecord = async (
   instituteId: string,
   input: CreateMasterRecordInput
@@ -107,8 +129,84 @@ export const updateMasterRecord = async (
   });
 };
 
-export const deleteMasterRecord = async (id: string, instituteId: string) => {
-  return prisma.masterRecord.delete({
+/**
+ * Soft delete: set status to INACTIVE instead of removing the record
+ */
+export const softDeleteMasterRecord = async (id: string, instituteId: string) => {
+  return prisma.masterRecord.update({
     where: { id },
+    data: { status: "INACTIVE" },
+    include: {
+      branch: { select: { id: true, name: true, code: true } },
+    },
+  });
+};
+
+/**
+ * Toggle status between ACTIVE and INACTIVE
+ */
+export const toggleMasterRecordStatus = async (id: string, newStatus: "ACTIVE" | "INACTIVE") => {
+  return prisma.masterRecord.update({
+    where: { id },
+    data: { status: newStatus },
+    include: {
+      branch: { select: { id: true, name: true, code: true } },
+    },
+  });
+};
+
+/**
+ * Get counts for all entity types in one query (for the overview grid)
+ */
+export const findAllEntityTypeCounts = async (instituteId: string, branchId?: string) => {
+  const where: Prisma.MasterRecordWhereInput = {
+    instituteId,
+    ...(branchId
+      ? { OR: [{ branchId }, { branchId: null }] }
+      : {}),
+  };
+
+  const counts = await prisma.masterRecord.groupBy({
+    by: ["entityType"],
+    where,
+    _count: { id: true },
+    _max: { updatedAt: true },
+  });
+
+  return counts.map((c) => ({
+    entityType: c.entityType,
+    count: c._count.id,
+    lastUpdated: c._max.updatedAt ? c._max.updatedAt.toISOString() : null,
+  }));
+};
+
+/**
+ * Get only ACTIVE records for a given entity type (for dropdown consumption)
+ */
+export const findActiveMasterRecords = async (
+  instituteId: string,
+  entityType: string,
+  branchId?: string
+) => {
+  const where: Prisma.MasterRecordWhereInput = {
+    instituteId,
+    entityType,
+    status: "ACTIVE",
+    ...(branchId
+      ? { OR: [{ branchId }, { branchId: null }] }
+      : {}),
+  };
+
+  return prisma.masterRecord.findMany({
+    where,
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      description: true,
+      data: true,
+      sortOrder: true,
+    },
   });
 };

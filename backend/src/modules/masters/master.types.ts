@@ -41,3 +41,17 @@ export interface MasterListQuery {
   status?: "ACTIVE" | "INACTIVE";
   branchId?: string;
 }
+
+export interface EntityCountResult {
+  entityType: string;
+  count: number;
+  lastUpdated: string | null;
+}
+
+export interface ActiveMastersQuery {
+  branchId?: string;
+}
+
+export interface ToggleStatusInput {
+  status: "ACTIVE" | "INACTIVE";
+}
