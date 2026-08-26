@@ -562,13 +562,14 @@ export const BranchRevenueDetails: React.FC = () => {
                   <YAxis tick={{ fontSize: 11, fill: "currentColor" }} className="text-muted-foreground" axisLine={false} tickLine={false} tickFormatter={(v) => `${Math.round(v / 1000)}k`} />
                   <Tooltip
                     formatter={(val: any) => [formatINR(Number(val)), ""]}
+                    cursor={{ fill: "rgba(255, 255, 255, 0.05)", radius: 6 }}
                     contentStyle={{
                       backgroundColor: "var(--card, #131D31)",
                       borderColor: "var(--border, #1E293B)",
                       borderRadius: "12px",
                       fontSize: "12px",
                       color: "var(--foreground, #F8FAFC)",
-                      boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.3)",
+                      boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
                     }}
                   />
                   <Legend iconType="circle" wrapperStyle={{ fontSize: "12px", paddingTop: "8px" }} />

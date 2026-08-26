@@ -971,7 +971,7 @@ export const Timetable: React.FC = () => {
                     <div className="text-[11px] font-bold text-foreground tracking-tight whitespace-nowrap">
                       {col.timeTitle}
                     </div>
-                    <div className="text-[9px] text-slate-400 font-semibold tracking-wider uppercase">
+                    <div className="text-[9px] text-muted-foreground font-semibold tracking-wider uppercase">
                       {col.subTitle}
                     </div>
                   </th>
@@ -979,31 +979,31 @@ export const Timetable: React.FC = () => {
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-border bg-card">
               {paginatedFaculty.length > 0 ? (
                 paginatedFaculty.map((fac) => {
                   const daySlots = fac.weeklySchedule[selectedDayKey] || {};
 
                   return (
-                    <tr key={fac.id} className="hover:bg-slate-50/40 transition-colors">
+                    <tr key={fac.id} className="hover:bg-muted/40 transition-colors">
                       {/* Column 1: Faculty Card (Sticky) */}
-                      <td className="py-2.5 px-4 pl-5 border-r border-slate-200/60 align-middle bg-white sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                      <td className="py-2.5 px-4 pl-5 border-r border-border align-middle bg-card sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                         <div className="flex items-center gap-2.5">
-                          <Avatar className="w-9 h-9 border border-slate-200 shadow-2xs shrink-0">
+                          <Avatar className="w-9 h-9 border border-border shadow-2xs shrink-0">
                             <AvatarImage src={fac.avatar} alt={fac.name} />
                             <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-600 text-white font-bold text-xs">
                               {fac.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <h4 className="font-bold text-slate-900 text-xs truncate">{fac.name}</h4>
-                            <p className="text-[10px] text-slate-500 font-medium truncate">{fac.department}</p>
+                            <h4 className="font-bold text-foreground text-xs truncate">{fac.name}</h4>
+                            <p className="text-[10px] text-muted-foreground font-medium truncate">{fac.department}</p>
                             <div className="flex items-center gap-1 mt-0.5">
                               <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                                 fac.liveStatus === "Available" ? "bg-emerald-500" : "bg-blue-600"
                               }`} />
                               <span className={`text-[9px] font-semibold ${
-                                fac.liveStatus === "Available" ? "text-emerald-700" : "text-blue-700"
+                                fac.liveStatus === "Available" ? "text-emerald-600 dark:text-emerald-400" : "text-blue-600 dark:text-blue-400"
                               }`}>
                                 {fac.liveStatus}
                               </span>
@@ -1013,11 +1013,11 @@ export const Timetable: React.FC = () => {
                       </td>
 
                       {/* Column 2: Branch Location (Sticky) */}
-                      <td className="py-2.5 px-2 text-center border-r border-slate-200/60 align-middle bg-white sticky left-[200px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                        <span className="text-xs font-bold text-[#1769AA] block truncate">
+                      <td className="py-2.5 px-2 text-center border-r border-border align-middle bg-card sticky left-[200px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <span className="text-xs font-bold text-primary dark:text-blue-400 block truncate">
                           {fac.branchName.split(" ")[0]}
                         </span>
-                        <span className="text-[9px] text-slate-400 font-semibold block">
+                        <span className="text-[9px] text-muted-foreground font-semibold block">
                           {fac.branchName.split(" ")[1] || "Center"}
                         </span>
                       </td>
@@ -1034,48 +1034,48 @@ export const Timetable: React.FC = () => {
                         // 1. CLASS SLOT
                         if (cell.type === "CLASS") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
-                              <div className="h-[74px] p-2 rounded-xl border border-blue-200/90 bg-blue-50/50 hover:bg-blue-50/90 hover:border-blue-300 hover:shadow-xs transition-all text-left flex flex-col justify-between group">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
+                              <div className="h-[74px] p-2 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 hover:border-blue-500/50 hover:shadow-xs transition-all text-left flex flex-col justify-between group">
                                 <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[11px] font-bold text-blue-950 truncate block">
+                                  <span className="text-[11px] font-bold text-blue-900 dark:text-blue-200 truncate block">
                                     {cell.courseName}
                                   </span>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                      <button className="p-0.5 hover:bg-blue-200/60 rounded text-blue-700 transition-opacity cursor-pointer shrink-0">
+                                      <button className="p-0.5 hover:bg-blue-500/20 rounded text-blue-600 dark:text-blue-400 transition-opacity cursor-pointer shrink-0">
                                         <MoreVertical className="h-3 w-3" />
                                       </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-44 rounded-xl bg-white shadow-xl p-1 text-xs">
+                                    <DropdownMenuContent align="end" className="w-44 rounded-xl bg-popover border border-border shadow-xl p-1 text-xs">
                                       <DropdownMenuItem
                                         onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
                                         className="gap-2 cursor-pointer"
                                       >
-                                        <Edit3 className="h-3.5 w-3.5 text-blue-600" /> Edit Schedule
+                                        <Edit3 className="h-3.5 w-3.5 text-blue-500" /> Edit Schedule
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={() => handleOpenMoveModal(fac.id, selectedDayKey, col.period)}
                                         className="gap-2 cursor-pointer"
                                       >
-                                        <MoveHorizontal className="h-3.5 w-3.5 text-indigo-600" /> Move Time Slot
+                                        <MoveHorizontal className="h-3.5 w-3.5 text-indigo-400" /> Move Time Slot
                                       </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
+                                      <DropdownMenuSeparator className="bg-border" />
                                       <DropdownMenuItem
                                         onClick={() => handleDeleteSlot(fac.id, selectedDayKey, col.period)}
-                                        className="gap-2 text-rose-600 cursor-pointer"
+                                        className="gap-2 text-rose-500 cursor-pointer"
                                       >
                                         <Trash2 className="h-3.5 w-3.5" /> Remove Class
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </div>
-                                <div className="text-[10px] font-semibold text-slate-700 truncate">
+                                <div className="text-[10px] font-semibold text-foreground/90 truncate">
                                   {cell.batchCode}
                                 </div>
-                                <div className="flex items-center justify-between text-[9px] text-slate-500 pt-0.5 border-t border-blue-200/40">
+                                <div className="flex items-center justify-between text-[9px] text-muted-foreground pt-0.5 border-t border-blue-500/20">
                                   <span className="truncate">{cell.roomNo}</span>
-                                  <span className="flex items-center gap-0.5 font-bold text-slate-700 shrink-0">
-                                    <Users className="h-2.5 w-2.5 text-slate-400" />
+                                  <span className="flex items-center gap-0.5 font-bold text-foreground/80 shrink-0">
+                                    <Users className="h-2.5 w-2.5 text-muted-foreground" />
                                     {cell.studentCount || 20}
                                   </span>
                                 </div>
@@ -1087,13 +1087,13 @@ export const Timetable: React.FC = () => {
                         // 2. FREE SLOT
                         if (cell.type === "FREE") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                               <div
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-emerald-200/70 bg-emerald-50/40 hover:bg-emerald-100/60 hover:border-emerald-300 transition-all flex flex-col items-center justify-center cursor-pointer group"
+                                className="h-[74px] rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group"
                               >
-                                <span className="text-[11px] font-bold text-emerald-700 tracking-wide uppercase">FREE</span>
-                                <span className="text-[10px] font-bold text-emerald-600 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
+                                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-300 tracking-wide uppercase">FREE</span>
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
                                   <Plus className="h-2.5 w-2.5" /> Add Class
                                 </span>
                               </div>
@@ -1104,13 +1104,13 @@ export const Timetable: React.FC = () => {
                         // 3. BREAK SLOT
                         if (cell.type === "BREAK") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                               <div
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-amber-200/60 bg-amber-50/50 hover:bg-amber-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-amber-800"
+                                className="h-[74px] rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-amber-600 dark:text-amber-300"
                               >
                                 <span className="text-[11px] font-bold tracking-wide uppercase">BREAK</span>
-                                <Coffee className="h-3.5 w-3.5 mt-1 text-amber-600" />
+                                <Coffee className="h-3.5 w-3.5 mt-1 text-amber-500 dark:text-amber-400" />
                               </div>
                             </td>
                           );
@@ -1119,13 +1119,13 @@ export const Timetable: React.FC = () => {
                         // 4. LUNCH SLOT
                         if (cell.type === "LUNCH") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                               <div
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-orange-200/60 bg-orange-50/50 hover:bg-orange-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-orange-800"
+                                className="h-[74px] rounded-xl border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-orange-600 dark:text-orange-300"
                               >
                                 <span className="text-[11px] font-bold tracking-wide uppercase">LUNCH</span>
-                                <UtensilsCrossed className="h-3.5 w-3.5 mt-1 text-orange-600" />
+                                <UtensilsCrossed className="h-3.5 w-3.5 mt-1 text-orange-500 dark:text-orange-400" />
                               </div>
                             </td>
                           );
@@ -1134,13 +1134,13 @@ export const Timetable: React.FC = () => {
                         // 5. LEAVE SLOT
                         if (cell.type === "LEAVE") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                               <div
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-rose-200/60 bg-rose-50/50 hover:bg-rose-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-800"
+                                className="h-[74px] rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-600 dark:text-rose-300"
                               >
                                 <span className="text-[11px] font-bold tracking-wide uppercase">LEAVE</span>
-                                <span className="text-[9px] text-rose-500 font-semibold mt-0.5">Official Off</span>
+                                <span className="text-[9px] text-rose-500 dark:text-rose-400 font-semibold mt-0.5">Official Off</span>
                               </div>
                             </td>
                           );
@@ -1149,13 +1149,13 @@ export const Timetable: React.FC = () => {
                         // 6. MEETING SLOT
                         if (cell.type === "MEETING") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                               <div
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-purple-200/60 bg-purple-50/50 hover:bg-purple-100/50 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-800"
+                                className="h-[74px] rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-600 dark:text-purple-300"
                               >
                                 <span className="text-[11px] font-bold tracking-wide uppercase">MEETING</span>
-                                <span className="text-[9px] text-purple-600 font-semibold mt-0.5">Faculty Sync</span>
+                                <span className="text-[9px] text-purple-500 dark:text-purple-400 font-semibold mt-0.5">Faculty Sync</span>
                               </div>
                             </td>
                           );
@@ -1163,13 +1163,13 @@ export const Timetable: React.FC = () => {
 
                         // 7. NOT ASSIGNED SLOT
                         return (
-                          <td key={col.period} className="p-1.5 border-r border-slate-200/60 last:border-r-0 align-middle">
+                          <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
                             <div
                               onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                              className="h-[74px] rounded-xl border border-slate-200/60 bg-slate-50/60 hover:bg-slate-100/60 transition-colors flex flex-col items-center justify-center cursor-pointer group"
+                              className="h-[74px] rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col items-center justify-center cursor-pointer group"
                             >
-                              <span className="text-[11px] font-medium text-slate-500">Not Assigned</span>
-                              <span className="text-[9px] font-bold text-slate-400 mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
+                              <span className="text-[11px] font-medium text-muted-foreground">Not Assigned</span>
+                              <span className="text-[9px] font-bold text-muted-foreground mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
                                 <Plus className="h-2.5 w-2.5" /> Add Class
                               </span>
                             </div>
@@ -1181,7 +1181,7 @@ export const Timetable: React.FC = () => {
                 })
               ) : (
                 <tr>
-                  <td colSpan={10} className="p-12 text-center text-slate-400 text-sm font-medium">
+                  <td colSpan={10} className="p-12 text-center text-muted-foreground text-sm font-medium">
                     No faculty found matching the selected branch/filters.
                   </td>
                 </tr>
@@ -1191,8 +1191,8 @@ export const Timetable: React.FC = () => {
         </div>
 
         {/* ─── 6. TABLE PAGINATION FOOTER ───────────────────────────────── */}
-        <div className="p-4 bg-slate-50/80 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <span className="text-slate-500 font-medium">
+        <div className="p-4 bg-muted/40 dark:bg-slate-900/80 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+          <span className="text-muted-foreground font-medium">
             Showing {filteredFaculty.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to{" "}
             {Math.min(currentPage * rowsPerPage, totalFacultyCount)} of {totalFacultyCount} faculty
           </span>
@@ -1205,7 +1205,7 @@ export const Timetable: React.FC = () => {
                 size="icon"
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
+                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
               >
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
@@ -1216,8 +1216,8 @@ export const Timetable: React.FC = () => {
                   onClick={() => setCurrentPage(pg)}
                   className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     currentPage === pg
-                      ? "bg-[#1769AA] text-white shadow-xs"
-                      : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-50"
+                      ? "bg-primary text-primary-foreground shadow-xs"
+                      : "bg-card text-foreground border border-border hover:bg-muted"
                   }`}
                 >
                   {pg}
@@ -1229,22 +1229,22 @@ export const Timetable: React.FC = () => {
                 size="icon"
                 disabled={currentPage === totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 rounded-lg border-slate-200 bg-white"
+                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
               >
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             </div>
 
             {/* Rows Per Page */}
-            <div className="flex items-center gap-1.5 pl-2 border-l border-slate-200">
-              <span className="text-slate-500">Rows per page:</span>
+            <div className="flex items-center gap-1.5 pl-2 border-l border-border">
+              <span className="text-muted-foreground">Rows per page:</span>
               <select
                 value={rowsPerPage}
                 onChange={(e) => {
                   setRowsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="h-8 px-2 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-700 outline-none cursor-pointer"
+                className="h-8 px-2 bg-background border border-border rounded-lg text-xs font-bold text-foreground outline-none cursor-pointer"
               >
                 <option value={6}>6</option>
                 <option value={10}>10</option>

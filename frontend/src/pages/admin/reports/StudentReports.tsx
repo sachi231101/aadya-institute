@@ -193,15 +193,25 @@ export const StudentReports: React.FC = () => {
               {enrollmentTrend.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={enrollmentTrend}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "#64748B" }} />
-                    <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/60" />
+                    <XAxis dataKey="month" tick={{ fontSize: 12, fill: "currentColor" }} className="text-muted-foreground" />
+                    <YAxis tick={{ fontSize: 12, fill: "currentColor" }} className="text-muted-foreground" />
+                    <Tooltip 
+                      cursor={{ fill: "rgba(255, 255, 255, 0.05)", stroke: "transparent" }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
+                    />
                     <Area type="monotone" dataKey="students" stroke="#1769AA" fill="#1769AA" fillOpacity={0.15} strokeWidth={2} name="Total Students" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
                   No enrollment data available.
                 </div>
               )}
@@ -210,13 +220,13 @@ export const StudentReports: React.FC = () => {
         </Card>
 
         {/* Attendance Distribution Bar Chart */}
-        <Card className="border-border/50 bg-white shadow-sm">
-          <CardHeader className="p-5 pb-2 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-emerald-600" />
+        <Card className="border border-border bg-card shadow-sm">
+          <CardHeader className="p-5 pb-2 border-b border-border">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               Attendance Distribution Breakdown
             </CardTitle>
-            <CardDescription className="text-xs text-slate-500">
+            <CardDescription className="text-xs text-muted-foreground">
               Number of students grouped by attendance percentage thresholds.
             </CardDescription>
           </CardHeader>
@@ -225,10 +235,20 @@ export const StudentReports: React.FC = () => {
               {attendanceDistribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={attendanceDistribution}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                    <XAxis dataKey="range" tick={{ fontSize: 11, fill: "#64748B" }} />
-                    <YAxis tick={{ fontSize: 12, fill: "#64748B" }} />
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/60" />
+                    <XAxis dataKey="range" tick={{ fontSize: 11, fill: "currentColor" }} className="text-muted-foreground" />
+                    <YAxis tick={{ fontSize: 12, fill: "currentColor" }} className="text-muted-foreground" />
+                    <Tooltip 
+                      cursor={{ fill: "rgba(255, 255, 255, 0.05)", radius: 6 }}
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
+                    />
                     <Bar dataKey="count" radius={[4, 4, 0, 0]} name="Headcount">
                       {attendanceDistribution.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
@@ -237,7 +257,7 @@ export const StudentReports: React.FC = () => {
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
                   No attendance distribution available.
                 </div>
               )}
@@ -248,10 +268,10 @@ export const StudentReports: React.FC = () => {
 
       {/* Course Share Pie Chart & Performance Table */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="border-border/50 bg-white shadow-sm lg:col-span-1">
-          <CardHeader className="p-5 pb-2 border-b border-slate-100">
-            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <PieChartIcon className="h-5 w-5 text-purple-600" />
+        <Card className="border border-border bg-card shadow-sm lg:col-span-1">
+          <CardHeader className="p-5 pb-2 border-b border-border">
+            <CardTitle className="text-base font-bold text-foreground flex items-center gap-2">
+              <PieChartIcon className="h-5 w-5 text-purple-600 dark:text-purple-400" />
               Course Enrollment Share
             </CardTitle>
           </CardHeader>
@@ -274,11 +294,20 @@ export const StudentReports: React.FC = () => {
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: "#FFFFFF", borderColor: "#CBD5E1", borderRadius: "8px" }} />
+                    <Tooltip 
+                      contentStyle={{
+                        backgroundColor: "var(--card, #131D31)",
+                        borderColor: "var(--border, #1E293B)",
+                        borderRadius: "12px",
+                        fontSize: "12px",
+                        color: "var(--foreground, #F8FAFC)",
+                        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
+                      }}
+                    />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-xs text-slate-400">
+                <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
                   No course share data.
                 </div>
               )}
