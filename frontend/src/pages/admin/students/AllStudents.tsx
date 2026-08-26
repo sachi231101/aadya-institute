@@ -21,8 +21,8 @@ import { useStudentList } from "@/hooks/useStudents";
 import { useCourses } from "@/hooks/useCourses";
 
 const getFeeDetails = (fees?: any) => {
-  const total = Number(fees?.totalFee ?? fees?.total ?? 45000);
-  const paid = Number(fees?.amountPaid ?? fees?.paid ?? 40000);
+  const total = Number(fees?.totalFee ?? fees?.total ?? 0);
+  const paid = Number(fees?.amountPaid ?? fees?.paid ?? 0);
   const pending = Number(fees?.dueAmount ?? fees?.pending ?? Math.max(0, total - paid));
   return { total, paid, pending };
 };
@@ -88,7 +88,7 @@ export const AllStudents: React.FC = () => {
         qualification: s.qualification || "Graduate",
         guardianName: s.guardian?.name || "Parent/Guardian",
         guardianPhone: s.guardian?.phone || "—",
-        fees: s.fees || { total: 45000, paid: 40000, pending: 5000, status: "Pending" },
+        fees: s.fees || { total: 0, paid: 0, pending: 0, status: "Pending" },
         status: s.status === "ACTIVE" ? (isRisk ? "At Risk" : "Active") : s.status === "COMPLETED" ? "Completed" : "Dropped",
         joinDate: new Date(s.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
         counsellor: s.counsellorName || "Admissions Desk",

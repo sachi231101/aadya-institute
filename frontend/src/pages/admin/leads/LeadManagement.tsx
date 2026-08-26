@@ -116,7 +116,7 @@ export const LeadManagement: React.FC = () => {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpLead, setFollowUpLead] = useState<UnifiedLead | null>(null);
   const [followUpChannel, setFollowUpChannel] = useState<"PHONE" | "WHATSAPP" | "EMAIL">("PHONE");
-  const [followUpDate, setFollowUpDate] = useState("2026-08-25");
+  const [followUpDate, setFollowUpDate] = useState(new Date().toISOString().split("T")[0]);
   const [followUpTime, setFollowUpTime] = useState("11:00 AM");
   const [followUpType, setFollowUpType] = useState<"Phone Call" | "WhatsApp" | "Meeting" | "Other">("Phone Call");
   const [followUpNotes, setFollowUpNotes] = useState("");

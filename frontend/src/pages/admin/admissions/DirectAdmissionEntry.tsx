@@ -313,29 +313,29 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [isNewStudentMode, setIsNewStudentMode] = useState(true);
   const [selectedExistingStudentId, setSelectedExistingStudentId] = useState<string | null>(null);
 
-  const [firstName, setFirstName] = useState("Ananya");
-  const [lastName, setLastName] = useState("Sharma");
-  const [phone, setPhone] = useState("9876543210");
-  const [altPhone, setAltPhone] = useState("9876501234");
-  const [email, setEmail] = useState("ananya.sharma@gmail.com");
-  const [dob, setDob] = useState("2005-08-15");
-  const [gender, setGender] = useState("Female");
-  const [address, setAddress] = useState("12, 3rd Cross, HSR Layout");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [altPhone, setAltPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [dob, setDob] = useState("");
+  const [gender, setGender] = useState("Male");
+  const [address, setAddress] = useState("");
   const [city, setCity] = useState("Bengaluru");
   const [state, setState] = useState("Karnataka");
-  const [pincode, setPincode] = useState("560102");
+  const [pincode, setPincode] = useState("");
 
   // ─── 2. ADMISSION DETAILS STATE ─────────────────────────────────────────
   const [admissionType, setAdmissionType] = useState("Regular Admission");
   const [branchName, setBranchName] = useState("Aadya Institute - HSR Layout");
-  const [admissionNo, setAdmissionNo] = useState(`ADM-2026-${Math.floor(100000 + Math.random() * 900000)}`);
-  const [admissionDate, setAdmissionDate] = useState("2026-05-16");
-  const [academicYear, setAcademicYear] = useState("2026 - 2027");
-  const [counsellorName, setCounsellorName] = useState(user?.name || "Vidhya K A");
+  const [admissionNo, setAdmissionNo] = useState(`ADM-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10));
+  const [academicYear, setAcademicYear] = useState(`${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`);
+  const [counsellorName, setCounsellorName] = useState(user?.name || "Counsellor");
   const [leadSource, setLeadSource] = useState("");
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
-  const [referralSource, setReferralSource] = useState("Google Ads");
-  const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Draft");
+  const [referralSource, setReferralSource] = useState("Walk-in");
+  const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
 
   // ─── 3. MULTI-COURSE DUAL PANEL & SELECTION STATE ───────────────────────
   const [selectedPackageId, setSelectedPackageId] = useState("");
@@ -345,57 +345,14 @@ export const DirectAdmissionEntry: React.FC = () => {
   // Track single selected course in Available panel
   const [selectedAvailableCourseId, setSelectedAvailableCourseId] = useState<string | null>(null);
 
-  // Selected courses list for admission (Initial sample matching mockup)
-  const [selectedCoursesList, setSelectedCoursesList] = useState<SelectedCourseItem[]>([
-    {
-      id: "sel-dm",
-      courseId: "c-dm",
-      courseName: "Digital Marketing Advanced",
-      packageProgram: "Performance Marketing Pro",
-      batchId: "b-c-dm-morn",
-      batchCode: "DM-JUN-2026-MORN",
-      facultyName: "Ramesh Kumar",
-      facultyAvatar: "R",
-      schedule: "Mon - Fri 09:00 AM - 11:00 AM",
-      startDate: "2026-06-01",
-      endDate: "2026-11-30",
-      fee: 30000,
-    },
-    {
-      id: "sel-gd",
-      courseId: "c-gd",
-      courseName: "Graphic Designing Professional",
-      packageProgram: "Brand Identity Design",
-      batchId: "b-c-gd-eve",
-      batchCode: "GD-JUL-2026-EVE",
-      facultyName: "Suresh Kumar",
-      facultyAvatar: "S",
-      schedule: "Mon - Fri 04:00 PM - 06:00 PM",
-      startDate: "2026-07-05",
-      endDate: "2027-01-05",
-      fee: 25000,
-    },
-    {
-      id: "sel-excel",
-      courseId: "c-excel",
-      courseName: "Advanced Excel",
-      packageProgram: "Advanced Excel Mastery",
-      batchId: "b-c-excel-morn",
-      batchCode: "EX-JUN-2026-MORN",
-      facultyName: "Megha P",
-      facultyAvatar: "M",
-      schedule: "Mon - Fri 11:30 AM - 01:30 PM",
-      startDate: "2026-06-02",
-      endDate: "2026-09-02",
-      fee: 15000,
-    },
-  ]);
+  // Selected courses list for admission
+  const [selectedCoursesList, setSelectedCoursesList] = useState<SelectedCourseItem[]>([]);
 
   // ─── 4. FEE & PAYMENT STATE ─────────────────────────────────────────────
-  const [registrationFee, setRegistrationFee] = useState<number>(2000);
-  const [additionalCharges, setAdditionalCharges] = useState<number>(1000);
+  const [registrationFee, setRegistrationFee] = useState<number>(0);
+  const [additionalCharges, setAdditionalCharges] = useState<number>(0);
   const [discountType, setDiscountType] = useState<"Percentage" | "Fixed">("Fixed");
-  const [discountValue, setDiscountValue] = useState<number>(5000);
+  const [discountValue, setDiscountValue] = useState<number>(0);
   const [scholarshipAmount, setScholarshipAmount] = useState<number>(0);
   const [customGstAmount, setCustomGstAmount] = useState<number | null>(null);
   const [customFinalPayable, setCustomFinalPayable] = useState<number | null>(null);
@@ -403,18 +360,14 @@ export const DirectAdmissionEntry: React.FC = () => {
   // Amount Paid at Admission & Mode
   const [amountPaidAtAdmission, setAmountPaidAtAdmission] = useState<number>(0);
   const [initialPaymentMethod, setInitialPaymentMethod] = useState("UPI / QR Code");
-  const [transactionRef, setTransactionRef] = useState("UPI/61928392182");
+  const [transactionRef, setTransactionRef] = useState("");
 
   // ─── 5. INSTALLMENT DETAILS STATE ───────────────────────────────────────
   const [paymentMode, setPaymentMode] = useState<"FULL" | "INSTALLMENT">("INSTALLMENT");
-  const [installments, setInstallments] = useState<InstallmentItem[]>([
-    { installmentNo: 1, dueDate: "2026-06-01", amount: 22120, status: "Pending" },
-    { installmentNo: 2, dueDate: "2026-07-01", amount: 22120, status: "Pending" },
-    { installmentNo: 3, dueDate: "2026-08-01", amount: 22120, status: "Pending" },
-  ]);
+  const [installments, setInstallments] = useState<InstallmentItem[]>([]);
 
   // ─── 6. REMARKS & TERMS STATE ───────────────────────────────────────────
-  const [remarks, setRemarks] = useState("Student wishes to specialize in Digital Marketing & Creative Design with placement assistance.");
+  const [remarks, setRemarks] = useState("");
   const [termsAccepted1, setTermsAccepted1] = useState(true);
   const [termsAccepted2, setTermsAccepted2] = useState(true);
 
@@ -441,8 +394,18 @@ export const DirectAdmissionEntry: React.FC = () => {
   });
 
   const allAvailableCourses = useMemo(() => {
+    const dbCourses = (dbCoursesRes?.data || []).map((c: any) => ({
+      id: c.id,
+      name: c.name,
+      code: c.code,
+      fee: c.fee || 35000,
+      durationMonths: c.duration || 6,
+      category: c.category || "Development",
+      packageProgram: c.name,
+    }));
+    if (dbCourses.length > 0) return dbCourses;
     return PRESET_COURSES;
-  }, []);
+  }, [dbCoursesRes]);
 
   const existingStudents = useMemo(() => {
     const list = (studentsRes?.data || []).map((s: any) => {
@@ -886,11 +849,18 @@ export const DirectAdmissionEntry: React.FC = () => {
         phone,
         courseId: selectedCoursesList[0]?.courseId || "c-dm",
         batchId: selectedCoursesList[0]?.batchId || undefined,
+        studentId: selectedExistingStudentId || undefined,
         feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
         status: "CONFIRMED",
         notes: remarks,
+        totalFee: finalPayableAmount,
+        amountPaid: Number(amountPaidAtAdmission) || 0,
       });
       await queryClient.invalidateQueries({ queryKey: ["admissions"] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      await queryClient.invalidateQueries({ queryKey: ["pending-fees"] });
+      await queryClient.invalidateQueries({ queryKey: ["payments"] });
     } catch (err: any) {
       console.log("Admission confirmed in local state backup:", err);
     } finally {
@@ -1410,8 +1380,8 @@ export const DirectAdmissionEntry: React.FC = () => {
                               <span className="block truncate font-medium group-hover:text-primary transition-colors">
                                 {course.name}
                               </span>
-                              <span className="text-[10px] text-muted-foreground block font-normal">
-                                {course.category} • {course.duration}
+                              <span className="text-[10px] text-slate-400 block font-normal">
+                                {course.category} • {(course as any).duration || ((course as any).durationMonths ? `${(course as any).durationMonths} Months` : "6 Months")}
                               </span>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">

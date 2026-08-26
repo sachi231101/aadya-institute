@@ -66,8 +66,8 @@ export const Payments: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [admissionNo, setAdmissionNo] = useState("");
-  const [courseName, setCourseName] = useState(courses[0]?.name || "Full Stack MERN Architecture");
-  const [amount, setAmount] = useState<number>(25000);
+  const [courseName, setCourseName] = useState(courses[0]?.name || "");
+  const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [method, setMethod] = useState<PaymentMethod>("UPI");
   const [transactionRef, setTransactionRef] = useState("");
