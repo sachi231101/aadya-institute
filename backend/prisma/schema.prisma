@@ -1209,6 +1209,7 @@ model MasterRecord {
   institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch      Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
+  @@unique([instituteId, entityType, name])
   @@index([instituteId, entityType])
   @@index([branchId, entityType])
   @@index([entityType, status])

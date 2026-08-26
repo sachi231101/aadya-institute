@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 const addLeadSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
@@ -31,17 +32,7 @@ const addLeadSchema = z.object({
 
 type AddLeadFormValues = z.infer<typeof addLeadSchema>;
 
-const SOURCE_OPTIONS = [
-  { value: "WALK_IN", label: "Walk-In" },
-  { value: "PHONE_CALL", label: "Phone Call" },
-  { value: "WHATSAPP", label: "WhatsApp" },
-  { value: "INSTAGRAM", label: "Instagram" },
-  { value: "FACEBOOK", label: "Facebook" },
-  { value: "GOOGLE", label: "Google" },
-  { value: "REFERRAL", label: "Referral" },
-  { value: "ONLINE", label: "Online / Website" },
-  { value: "OTHER", label: "Other" },
-];
+// SOURCE_OPTIONS now fetched dynamically from Master Module via useMasterDropdown("leadsource")
 
 export const AddLead: React.FC = () => {
   const navigate = useNavigate();
@@ -51,6 +42,7 @@ export const AddLead: React.FC = () => {
   const createLeadMutation = useCreateLead();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const { courses } = useCourses();
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
   const branches = branchesResponse?.data || [];
 
@@ -228,9 +220,13 @@ export const AddLead: React.FC = () => {
                     <FormLabel>Lead Source</FormLabel>
                     <FormControl>
                       <select {...field} className="w-full h-9 px-3 rounded-md border border-border text-sm bg-background">
-                        {SOURCE_OPTIONS.map(s => (
-                          <option key={s.value} value={s.value}>{s.label}</option>
+                        <option value="">Select Lead Source</option>
+                        {leadSourceOptions.map(s => (
+                          <option key={s.value} value={s.label}>{s.label}</option>
                         ))}
+                        {leadSourceOptions.length === 0 && (
+                          <option value="" disabled>No sources — add in Master Setup</option>
+                        )}
                       </select>
                     </FormControl>
                     <FormMessage />

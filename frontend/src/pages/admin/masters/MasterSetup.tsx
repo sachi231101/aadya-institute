@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   MapPin,
   School,
@@ -27,6 +27,7 @@ import {
   Percent,
   Search,
   ChevronRight,
+  ChevronLeft,
   Plus,
   Edit2,
   Trash2,
@@ -39,6 +40,12 @@ import {
   Eye,
   SlidersHorizontal,
   Layers,
+  AlertTriangle,
+  Loader2,
+  PackageOpen,
+  XCircle,
+  ToggleLeft,
+  ToggleRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -57,6 +64,8 @@ import {
   useCreateMasterRecord,
   useUpdateMasterRecord,
   useDeleteMasterRecord,
+  useMasterEntityCounts,
+  useToggleMasterStatus,
 } from "@/hooks/useMasters";
 
 // ─── MASTER ENTITY CATEGORY DEFINITIONS ──────────────────────────────────────
@@ -77,10 +86,7 @@ export interface MasterEntity {
   iconBgColor: string;
   iconColor: string;
   description: string;
-  count: number;
-  lastUpdated: string;
-  status: "ACTIVE" | "INACTIVE";
-  columns: { key: string; label: string }[];
+  columns: { key: string; label: string; required?: boolean }[];
 }
 
 export const ALL_25_MASTERS: MasterEntity[] = [
@@ -94,15 +100,11 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
     description: "Manage areas / regions for operations",
-    count: 8,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Area Code" },
-      { key: "name", label: "Area Name" },
+      { key: "name", label: "Area Name", required: true },
       { key: "city", label: "City" },
       { key: "pincode", label: "PIN Code" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -114,15 +116,11 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
     description: "Manage classrooms and locations",
-    count: 6,
-    lastUpdated: "23 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Room Code" },
-      { key: "name", label: "Room Name" },
+      { key: "name", label: "Room Name", required: true },
       { key: "capacity", label: "Capacity" },
       { key: "type", label: "Room Type" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -134,15 +132,11 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
     iconColor: "text-purple-600",
     description: "Manage employee designations",
-    count: 7,
-    lastUpdated: "22 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Code" },
-      { key: "title", label: "Designation Title" },
+      { key: "name", label: "Designation Title", required: true },
       { key: "level", label: "Hierarchy Level" },
       { key: "department", label: "Department" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -154,14 +148,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
     description: "Manage education levels & groups",
-    count: 9,
-    lastUpdated: "21 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Code" },
-      { key: "qualification", label: "Degree / Qualification" },
+      { key: "name", label: "Degree / Qualification", required: true },
       { key: "stream", label: "Stream / Field" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -173,14 +163,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
     iconColor: "text-teal-600",
     description: "Manage parent information types",
-    count: 5,
-    lastUpdated: "20 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "relation", label: "Relation Type" },
+      { key: "name", label: "Relation Type", required: true },
       { key: "occupationGroup", label: "Occupation Group" },
       { key: "incomeBracket", label: "Income Bracket" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -192,15 +178,11 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
     iconColor: "text-orange-600",
     description: "Manage employees and staff",
-    count: 5,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "empCode", label: "Emp Code" },
-      { key: "name", label: "Staff Name" },
+      { key: "code", label: "Emp Code" },
+      { key: "name", label: "Staff Name", required: true },
       { key: "role", label: "Role" },
       { key: "branch", label: "Branch" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -212,11 +194,8 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-rose-50 text-rose-600 border-rose-100",
     iconColor: "text-rose-600",
     description: "Manage institute holidays",
-    count: 5,
-    lastUpdated: "19 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "title", label: "Holiday Title" },
+      { key: "name", label: "Holiday Title", required: true },
       { key: "date", label: "Date" },
       { key: "type", label: "Holiday Type" },
       { key: "description", label: "Details" },
@@ -231,15 +210,12 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-indigo-50 text-indigo-600 border-indigo-100",
     iconColor: "text-indigo-600",
     description: "Manage time slots for scheduling",
-    count: 5,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Slot Code" },
+      { key: "name", label: "Slot Name", required: true },
       { key: "startTime", label: "Start Time" },
       { key: "endTime", label: "End Time" },
       { key: "period", label: "Period" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -251,11 +227,8 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-violet-50 text-violet-600 border-violet-100",
     iconColor: "text-violet-600",
     description: "Manage events and important days",
-    count: 4,
-    lastUpdated: "18 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "name", label: "Event Name" },
+      { key: "name", label: "Event Name", required: true },
       { key: "date", label: "Event Date" },
       { key: "venue", label: "Venue / Branch" },
       { key: "category", label: "Event Type" },
@@ -270,14 +243,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
     description: "Manage exam terms and sessions",
-    count: 4,
-    lastUpdated: "17 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Term Code" },
-      { key: "name", label: "Term Name" },
+      { key: "name", label: "Term Name", required: true },
       { key: "academicYear", label: "Academic Year" },
-      { key: "status", label: "Status" },
     ],
   },
 
@@ -291,14 +260,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
     description: "Manage lead sources",
-    count: 8,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Source Code" },
-      { key: "name", label: "Source Channel" },
+      { key: "name", label: "Source Channel", required: true },
       { key: "channelType", label: "Channel Type" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -310,12 +275,9 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-green-50 text-green-600 border-green-100",
     iconColor: "text-green-600",
     description: "Manage lead stages and pipeline",
-    count: 6,
-    lastUpdated: "23 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "stageNumber", label: "Order" },
-      { key: "name", label: "Stage Name" },
+      { key: "code", label: "Order" },
+      { key: "name", label: "Stage Name", required: true },
       { key: "description", label: "Pipeline Action" },
       { key: "color", label: "Badge Color" },
     ],
@@ -329,14 +291,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
     iconColor: "text-purple-600",
     description: "Manage types of leads",
-    count: 3,
-    lastUpdated: "20 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Type Code" },
-      { key: "name", label: "Lead Category" },
+      { key: "name", label: "Lead Category", required: true },
       { key: "slaHours", label: "Follow-up SLA" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -348,14 +306,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
     description: "Manage admission statuses",
-    count: 5,
-    lastUpdated: "22 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Status Code" },
-      { key: "name", label: "Status Title" },
+      { key: "name", label: "Status Title", required: true },
       { key: "step", label: "Enrollment Step" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -367,12 +321,9 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
     iconColor: "text-teal-600",
     description: "Manage admission batches",
-    count: 5,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "batchCode", label: "Batch Code" },
-      { key: "batchName", label: "Batch Name" },
+      { key: "code", label: "Batch Code" },
+      { key: "name", label: "Batch Name", required: true },
       { key: "capacity", label: "Seat Capacity" },
       { key: "targetIntake", label: "Target Intake" },
     ],
@@ -386,14 +337,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-pink-50 text-pink-600 border-pink-100",
     iconColor: "text-pink-600",
     description: "Manage course reviews",
-    count: 5,
-    lastUpdated: "21 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "reviewType", label: "Feedback Type" },
+      { key: "name", label: "Feedback Type", required: true },
       { key: "frequency", label: "Frequency" },
       { key: "ratingScale", label: "Rating Scale" },
-      { key: "status", label: "Status" },
     ],
   },
 
@@ -407,14 +354,11 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
     description: "Manage notification templates",
-    count: 6,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Template Code" },
+      { key: "name", label: "Template Name", required: true },
       { key: "channel", label: "Channel" },
       { key: "trigger", label: "System Trigger" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -426,14 +370,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-green-50 text-green-600 border-green-100",
     iconColor: "text-green-600",
     description: "Manage assignment types",
-    count: 4,
-    lastUpdated: "19 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Type Code" },
-      { key: "name", label: "Assignment Type" },
+      { key: "name", label: "Assignment Type", required: true },
       { key: "maxMarks", label: "Standard Max Marks" },
-      { key: "status", label: "Status" },
     ],
   },
 
@@ -447,14 +387,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
     iconColor: "text-purple-600",
     description: "Manage inventory categories",
-    count: 5,
-    lastUpdated: "20 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Category Code" },
-      { key: "name", label: "Category Name" },
+      { key: "name", label: "Category Name", required: true },
       { key: "department", label: "Custodian Dept" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -466,14 +402,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
     iconColor: "text-orange-600",
     description: "Manage inventory subcategories",
-    count: 6,
-    lastUpdated: "18 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "parentCategory", label: "Parent Category" },
+      { key: "name", label: "Sub Category Name", required: true },
       { key: "code", label: "Sub Category Code" },
-      { key: "name", label: "Sub Category Name" },
-      { key: "status", label: "Status" },
+      { key: "parentCategory", label: "Parent Category" },
     ],
   },
 
@@ -487,11 +419,8 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
     description: "Manage bank accounts",
-    count: 3,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
-      { key: "accountName", label: "Bank Name" },
+      { key: "name", label: "Bank Name", required: true },
       { key: "accountNumber", label: "Account No" },
       { key: "ifsc", label: "IFSC Code" },
       { key: "branch", label: "Bank Branch" },
@@ -506,12 +435,9 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
     description: "Manage fee heads",
-    count: 5,
-    lastUpdated: "22 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Head Code" },
-      { key: "name", label: "Fee Head Title" },
+      { key: "name", label: "Fee Head Title", required: true },
       { key: "type", label: "Fee Type" },
       { key: "gstApplicable", label: "GST Rate" },
     ],
@@ -525,12 +451,9 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
     iconColor: "text-purple-600",
     description: "Manage financial ledgers",
-    count: 8,
-    lastUpdated: "23 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Ledger Code" },
-      { key: "name", label: "Ledger Name" },
+      { key: "name", label: "Ledger Name", required: true },
       { key: "group", label: "Account Group" },
       { key: "openingBalance", label: "Opening Balance" },
     ],
@@ -544,14 +467,10 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
     description: "Manage payment modes",
-    count: 5,
-    lastUpdated: "24 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Mode Code" },
-      { key: "name", label: "Payment Mode" },
+      { key: "name", label: "Payment Mode", required: true },
       { key: "processingFee", label: "Gateway Charge" },
-      { key: "status", label: "Status" },
     ],
   },
   {
@@ -563,20 +482,31 @@ export const ALL_25_MASTERS: MasterEntity[] = [
     iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
     iconColor: "text-teal-600",
     description: "Manage concession heads",
-    count: 4,
-    lastUpdated: "19 Aug 2026",
-    status: "ACTIVE",
     columns: [
       { key: "code", label: "Code" },
-      { key: "name", label: "Scholarship / Discount" },
+      { key: "name", label: "Scholarship / Discount", required: true },
       { key: "percentage", label: "Max Discount" },
       { key: "approvalLevel", label: "Approval Required" },
     ],
   },
 ];
 
-// Initial records store (populated dynamically from PostgreSQL API)
-const INITIAL_RECORDS: Record<string, Record<string, string>[]> = {};
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+const formatDate = (isoStr: string | null | undefined) => {
+  if (!isoStr) return "—";
+  try {
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(isoStr));
+  } catch {
+    return "—";
+  }
+};
+
+// ─── COMPONENT ────────────────────────────────────────────────────────────────
 
 export const MasterSetup: React.FC = () => {
   // View switcher: "GRID" or "CRUD"
@@ -590,26 +520,68 @@ export const MasterSetup: React.FC = () => {
   const [selectedMasterEntity, setSelectedMasterEntity] = useState<MasterEntity | null>(null);
   const [isRecordsModalOpen, setIsRecordsModalOpen] = useState(false);
 
-  // Record CRUD Store
-  const [recordsData, setRecordsData] = useState<Record<string, Record<string, string>[]>>(INITIAL_RECORDS);
+  // Record CRUD
   const [isAddEditRecordOpen, setIsAddEditRecordOpen] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [recordFormValues, setRecordFormValues] = useState<Record<string, string>>({});
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [recordSearchQuery, setRecordSearchQuery] = useState("");
+  const [recordStatusFilter, setRecordStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [recordPage, setRecordPage] = useState(1);
+  const RECORDS_PER_PAGE = 20;
+
+  // Confirmation Dialog
+  const [isConfirmDialogOpen, setIsConfirmDialogOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{ type: "delete" | "toggle"; entityId: string; recordId: string; recordName: string } | null>(null);
 
   // History & Toast
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  // ─── HOOKS ──────────────────────────────────────────────────────────────────
+
+  // Real entity counts from PostgreSQL
+  const { data: entityCountsData, isLoading: isCountsLoading } = useMasterEntityCounts();
+
+  // Mutations
+  const createMasterMutation = useCreateMasterRecord();
+  const updateMasterMutation = useUpdateMasterRecord();
+  const deleteMasterMutation = useDeleteMasterRecord();
+  const toggleStatusMutation = useToggleMasterStatus();
+
+  // Active Entity Selection query from PostgreSQL (with pagination & filters)
+  const entityQueryParams = useMemo(() => {
+    const params: Record<string, any> = {
+      page: recordPage,
+      limit: RECORDS_PER_PAGE,
+    };
+    if (recordSearchQuery.trim()) params.search = recordSearchQuery.trim();
+    if (recordStatusFilter !== "ALL") params.status = recordStatusFilter;
+    return params;
+  }, [recordPage, recordSearchQuery, recordStatusFilter]);
+
+  const { data: entityApiData, isLoading: isEntityLoading, isError: isEntityError, error: entityError } = useMasterRecords(
+    isRecordsModalOpen ? selectedMasterEntity?.id : undefined,
+    entityQueryParams
+  );
+
+  // Build a lookup of counts by entity type
+  const countsMap = useMemo(() => {
+    const map: Record<string, { count: number; lastUpdated: string | null }> = {};
+    if (entityCountsData?.data) {
+      for (const item of entityCountsData.data) {
+        map[item.entityType] = { count: item.count, lastUpdated: item.lastUpdated };
+      }
+    }
+    return map;
+  }, [entityCountsData]);
 
   // Filtered Master Entities
   const filteredMasters = useMemo(() => {
     return ALL_25_MASTERS.filter((entity) => {
-      // Category filter
       if (selectedModuleFilter !== "ALL" && entity.category !== selectedModuleFilter) {
         return false;
       }
-
-      // Search filter
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchName = entity.name.toLowerCase().includes(q);
@@ -619,38 +591,9 @@ export const MasterSetup: React.FC = () => {
           return false;
         }
       }
-
       return true;
     });
   }, [searchQuery, selectedModuleFilter]);
-
-  // Real PostgreSQL Backend API Hooks
-  const createMasterMutation = useCreateMasterRecord();
-  const updateMasterMutation = useUpdateMasterRecord();
-  const deleteMasterMutation = useDeleteMasterRecord();
-
-  // Active Entity Selection query from PostgreSQL
-  const { data: entityApiData, isLoading: isEntityLoading } = useMasterRecords(
-    selectedMasterEntity?.id
-  );
-
-  // Sync real database records into local state for rendering & instant filtering
-  React.useEffect(() => {
-    if (selectedMasterEntity && entityApiData?.data) {
-      const mapped = entityApiData.data.map((r: any) => ({
-        id: r.id,
-        name: r.name,
-        code: r.code || "",
-        description: r.description || "",
-        status: r.status === "ACTIVE" ? "Active" : "Inactive",
-        ...(r.data || {}),
-      }));
-      setRecordsData((prev) => ({
-        ...prev,
-        [selectedMasterEntity.id]: mapped,
-      }));
-    }
-  }, [selectedMasterEntity, entityApiData]);
 
   // Grouped filtered entities by Category
   const academicMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACADEMIC_ORG"), [filteredMasters]);
@@ -659,10 +602,21 @@ export const MasterSetup: React.FC = () => {
   const inventoryMasters = useMemo(() => filteredMasters.filter((m) => m.category === "INVENTORY"), [filteredMasters]);
   const accountingMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACCOUNTING_FEES"), [filteredMasters]);
 
+  // ─── TOAST HELPER ───────────────────────────────────────────────────────────
+
+  const showToast = useCallback((text: string, type: "success" | "error" = "success") => {
+    setToastMessage({ text, type });
+    setTimeout(() => setToastMessage(null), 4000);
+  }, []);
+
+  // ─── HANDLERS ───────────────────────────────────────────────────────────────
+
   // Open records drilldown for an entity
   const handleOpenMasterRecords = (entity: MasterEntity) => {
     setSelectedMasterEntity(entity);
     setRecordSearchQuery("");
+    setRecordStatusFilter("ALL");
+    setRecordPage(1);
     setIsRecordsModalOpen(true);
   };
 
@@ -675,44 +629,73 @@ export const MasterSetup: React.FC = () => {
       initialForm[col.key] = "";
     });
     setRecordFormValues(initialForm);
+    setFormErrors({});
     setIsAddEditRecordOpen(true);
   };
 
   // Open Edit Record Dialog
-  const handleOpenEditRecord = (entity: MasterEntity, rec: Record<string, string>) => {
+  const handleOpenEditRecord = (entity: MasterEntity, rec: any) => {
     setSelectedMasterEntity(entity);
     setEditingRecordId(rec.id);
-    setRecordFormValues({ ...rec });
+    const formVals: Record<string, string> = {};
+    entity.columns.forEach((col) => {
+      formVals[col.key] = rec.data?.[col.key] ?? rec[col.key] ?? "";
+    });
+    // Ensure name is populated
+    formVals.name = formVals.name || rec.name || "";
+    formVals.code = formVals.code || rec.code || "";
+    formVals.description = formVals.description || rec.description || "";
+    setRecordFormValues(formVals);
+    setFormErrors({});
     setIsAddEditRecordOpen(true);
+  };
+
+  // Validate form
+  const validateForm = (): boolean => {
+    if (!selectedMasterEntity) return false;
+    const errors: Record<string, string> = {};
+
+    for (const col of selectedMasterEntity.columns) {
+      if (col.required && !recordFormValues[col.key]?.trim()) {
+        errors[col.key] = `${col.label} is required`;
+      }
+    }
+
+    // Name is always required
+    if (!recordFormValues.name?.trim()) {
+      errors.name = "Name is required";
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   // Save Add/Edit Record to PostgreSQL Backend
   const handleSaveRecord = async () => {
     if (!selectedMasterEntity) return;
+    if (!validateForm()) return;
+
     const entityId = selectedMasterEntity.id;
 
     const recordName =
-      recordFormValues.name ||
-      recordFormValues.title ||
-      recordFormValues.qualification ||
-      recordFormValues.batchName ||
-      recordFormValues.reviewType ||
-      recordFormValues.role ||
+      recordFormValues.name?.trim() ||
+      recordFormValues.title?.trim() ||
+      recordFormValues.qualification?.trim() ||
       selectedMasterEntity.name;
 
-    const recordCode =
-      recordFormValues.code ||
-      recordFormValues.stageNumber ||
-      recordFormValues.empCode ||
-      recordFormValues.batchCode ||
-      recordFormValues.slotCode ||
-      undefined;
+    const recordCode = recordFormValues.code?.trim() || undefined;
+    const recordDesc = recordFormValues.description?.trim() || undefined;
 
-    const recordDesc = recordFormValues.description || recordFormValues.details || undefined;
+    // Build data object from all form values
+    const dataObj: Record<string, string> = {};
+    selectedMasterEntity.columns.forEach((col) => {
+      if (recordFormValues[col.key]?.trim()) {
+        dataObj[col.key] = recordFormValues[col.key].trim();
+      }
+    });
 
     try {
       if (editingRecordId) {
-        // Update via PostgreSQL Backend API
         await updateMasterMutation.mutateAsync({
           entityType: entityId,
           id: editingRecordId,
@@ -720,81 +703,88 @@ export const MasterSetup: React.FC = () => {
             name: recordName,
             code: recordCode,
             description: recordDesc,
-            data: { ...recordFormValues },
+            data: dataObj,
           },
         });
-
-        setRecordsData((prev) => ({
-          ...prev,
-          [entityId]: (prev[entityId] || []).map((r) =>
-            r.id === editingRecordId ? { ...recordFormValues, id: editingRecordId } : r
-          ),
-        }));
-        setToastMessage(`✓ Record updated in ${selectedMasterEntity.name} (PostgreSQL).`);
+        showToast(`Record updated in ${selectedMasterEntity.name} successfully.`);
       } else {
-        // Create via PostgreSQL Backend API
-        const created = await createMasterMutation.mutateAsync({
+        await createMasterMutation.mutateAsync({
           entityType: entityId,
           payload: {
             name: recordName,
             code: recordCode,
             description: recordDesc,
-            data: { ...recordFormValues },
+            data: dataObj,
           },
         });
-
-        const newRec = {
-          ...recordFormValues,
-          id: created.data.id,
-          name: recordName,
-          code: recordCode || "",
-        };
-
-        setRecordsData((prev) => ({
-          ...prev,
-          [entityId]: [newRec, ...(prev[entityId] || [])],
-        }));
-        setToastMessage(`✓ New record saved to ${selectedMasterEntity.name} (PostgreSQL).`);
+        showToast(`New record created in ${selectedMasterEntity.name} successfully.`);
       }
     } catch (err: any) {
-      setToastMessage(`⚠ Failed to save record: ${err?.message || "Server error"}`);
+      const errorMsg = err?.response?.data?.message || err?.message || "Server error";
+      showToast(`Failed to save record: ${errorMsg}`, "error");
+      return; // Don't close dialog on error
     }
 
     setIsAddEditRecordOpen(false);
-    setTimeout(() => setToastMessage(null), 3500);
   };
 
-  // Delete Record from PostgreSQL Backend
-  const handleDeleteRecord = async (entityId: string, recId: string) => {
+  // Open confirmation dialog for delete/deactivate
+  const handleRequestDelete = (entityId: string, recordId: string, recordName: string) => {
+    setConfirmAction({ type: "delete", entityId, recordId, recordName });
+    setIsConfirmDialogOpen(true);
+  };
+
+  // Confirm delete (soft delete = deactivate)
+  const handleConfirmDelete = async () => {
+    if (!confirmAction) return;
     try {
       await deleteMasterMutation.mutateAsync({
-        entityType: entityId,
-        id: recId,
+        entityType: confirmAction.entityId,
+        id: confirmAction.recordId,
       });
-
-      setRecordsData((prev) => ({
-        ...prev,
-        [entityId]: (prev[entityId] || []).filter((r) => r.id !== recId),
-      }));
-      setToastMessage(`✓ Record deleted from ${selectedMasterEntity?.name || "master"}.`);
+      showToast(`"${confirmAction.recordName}" has been deactivated.`);
     } catch (err: any) {
-      setToastMessage(`⚠ Failed to delete record: ${err?.message || "Server error"}`);
+      const errorMsg = err?.response?.data?.message || err?.message || "Server error";
+      showToast(`Failed to deactivate: ${errorMsg}`, "error");
     }
-    setTimeout(() => setToastMessage(null), 3000);
+    setIsConfirmDialogOpen(false);
+    setConfirmAction(null);
+  };
+
+  // Toggle status
+  const handleToggleStatus = async (entityId: string, recordId: string, recordName: string) => {
+    try {
+      const result = await toggleStatusMutation.mutateAsync({
+        entityType: entityId,
+        id: recordId,
+      });
+      const newStatus = result.data.status;
+      showToast(`"${recordName}" ${newStatus === "ACTIVE" ? "activated" : "deactivated"} successfully.`);
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || "Server error";
+      showToast(`Failed to toggle status: ${errorMsg}`, "error");
+    }
   };
 
   // Export CSV
   const handleExportCSV = (entity: MasterEntity) => {
-    const list = recordsData[entity.id] || [];
-    if (list.length === 0) {
-      setToastMessage("⚠ No records to export.");
-      setTimeout(() => setToastMessage(null), 3000);
+    const records = entityApiData?.data || [];
+    if (records.length === 0) {
+      showToast("No records to export.", "error");
       return;
     }
 
-    const headers = entity.columns.map((c) => c.label).join(",");
-    const rows = list
-      .map((r) => entity.columns.map((c) => `"${r[c.key] || ""}"`).join(","))
+    const headers = ["Name", "Code", "Status", ...entity.columns.filter(c => c.key !== "name" && c.key !== "code").map((c) => c.label)].join(",");
+    const rows = records
+      .map((r: any) => {
+        const vals = [
+          `"${r.name || ""}"`,
+          `"${r.code || ""}"`,
+          `"${r.status || ""}"`,
+          ...entity.columns.filter(c => c.key !== "name" && c.key !== "code").map((c) => `"${r.data?.[c.key] || ""}"`),
+        ];
+        return vals.join(",");
+      })
       .join("\n");
     const csvContent = "data:text/csv;charset=utf-8," + headers + "\n" + rows;
     const encodedUri = encodeURI(csvContent);
@@ -804,14 +794,14 @@ export const MasterSetup: React.FC = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-
-    setToastMessage(`✓ Exported ${list.length} records for ${entity.name}.`);
-    setTimeout(() => setToastMessage(null), 3000);
+    showToast(`Exported ${records.length} records for ${entity.name}.`);
   };
 
-  // Helper renderer for entity card in Grid View
+  // ─── RENDER HELPERS ─────────────────────────────────────────────────────────
+
   const renderEntityCard = (entity: MasterEntity) => {
-    const currentCount = recordsData[entity.id]?.length ?? 0;
+    const countInfo = countsMap[entity.id];
+    const currentCount = countInfo?.count ?? 0;
     const IconComp = entity.icon;
 
     return (
@@ -821,14 +811,11 @@ export const MasterSetup: React.FC = () => {
         className="p-4 rounded-2xl bg-white border border-slate-200/80 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all duration-200 cursor-pointer flex flex-col justify-between group min-h-[140px]"
       >
         <div>
-          {/* Top Icon & Status */}
           <div className="flex items-start justify-between gap-2">
             <div className={`p-2.5 rounded-xl border ${entity.iconBgColor} shrink-0 transition-transform group-hover:scale-105`}>
               <IconComp className="h-5 w-5 stroke-[2.2]" />
             </div>
           </div>
-
-          {/* Name & Description */}
           <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#1769AA] transition-colors">
             {entity.name}
           </h4>
@@ -836,15 +823,66 @@ export const MasterSetup: React.FC = () => {
             {entity.description}
           </p>
         </div>
-
-        {/* Bottom Counts and Arrow */}
         <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
           <span className="text-[11px] font-bold text-slate-500">
-            {currentCount} Records
+            {isCountsLoading ? (
+              <span className="inline-flex items-center gap-1"><Loader2 className="h-3 w-3 animate-spin" /> ...</span>
+            ) : (
+              `${currentCount} Records`
+            )}
           </span>
           <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1769AA] group-hover:translate-x-0.5 transition-all" />
         </div>
       </div>
+    );
+  };
+
+  // Status badge component
+  const StatusBadge = ({ status }: { status: string }) => {
+    const isActive = status === "ACTIVE";
+    return (
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
+        isActive
+          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          : "bg-slate-100 text-slate-500 border border-slate-200"
+      }`}>
+        <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
+        {isActive ? "Active" : "Inactive"}
+      </span>
+    );
+  };
+
+  // Category section renderer
+  const renderCategorySection = (
+    title: string,
+    description: string,
+    masters: MasterEntity[],
+    filterKey: string,
+    gridCols: string = "lg:grid-cols-5"
+  ) => {
+    if (masters.length === 0) return null;
+    return (
+      <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
+          <div>
+            <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
+              {title}
+            </h2>
+            <p className="text-xs text-slate-500 font-medium">{description}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedModuleFilter(filterKey)}
+            className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+          >
+            <span>View All ({masters.length})</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${gridCols} gap-3.5`}>
+          {masters.map(renderEntityCard)}
+        </div>
+      </Card>
     );
   };
 
@@ -883,7 +921,6 @@ export const MasterSetup: React.FC = () => {
             <LayoutGrid className="h-4 w-4" />
             <span>Grid View</span>
           </button>
-
           <button
             type="button"
             onClick={() => setViewMode("CRUD")}
@@ -899,17 +936,24 @@ export const MasterSetup: React.FC = () => {
         </div>
       </div>
 
-      {/* Notification Toast */}
+      {/* Toast Notification */}
       {toastMessage && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>{toastMessage}</span>
+        <div className={`p-3.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs ${
+          toastMessage.type === "success"
+            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+            : "bg-rose-50 border-rose-200 text-rose-800"
+        }`}>
+          {toastMessage.type === "success" ? (
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+          ) : (
+            <XCircle className="h-4 w-4 text-rose-600 shrink-0" />
+          )}
+          <span>{toastMessage.text}</span>
         </div>
       )}
 
       {/* ─── 2. SEARCH & MODULE CATEGORY FILTER BAR ───────────────────────── */}
       <div className="bg-white p-3 sm:p-3.5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-        {/* Search Field */}
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
@@ -919,8 +963,6 @@ export const MasterSetup: React.FC = () => {
             className="h-10 pl-10 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:bg-white"
           />
         </div>
-
-        {/* Category Module Filter */}
         <div className="relative min-w-[220px]">
           <SlidersHorizontal className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
           <select
@@ -935,159 +977,33 @@ export const MasterSetup: React.FC = () => {
             <option value="INVENTORY">Inventory (2)</option>
             <option value="ACCOUNTING_FEES">Accounting & Fees (5)</option>
           </select>
-          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-            ▼
-          </div>
+          <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
         </div>
       </div>
 
-      {/* ─── 3. GRID VIEW (5 CATEGORIZED CONTAINERS) ─────────────────────── */}
+      {/* ─── 3. GRID VIEW ─────────────────────────────────────────────────── */}
       {viewMode === "GRID" && (
         <div className="space-y-6">
-          {/* CATEGORY 1: ACADEMIC & ORGANIZATION (10) */}
-          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACADEMIC_ORG") && academicMasters.length > 0 && (
-            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
-                <div>
-                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
-                    Academic & Organization
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Manage academic structure, staff, classrooms and institutional setup.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedModuleFilter("ACADEMIC_ORG")}
-                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-                >
-                  <span>View All (10)</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACADEMIC_ORG") &&
+            renderCategorySection("Academic & Organization", "Manage academic structure, staff, classrooms and institutional setup.", academicMasters, "ACADEMIC_ORG")}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-                {academicMasters.map(renderEntityCard)}
-              </div>
-            </Card>
-          )}
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ADMISSIONS_LEADS") &&
+            renderCategorySection("Admissions & Leads", "Configure lead management and admission related masters.", admissionsMasters, "ADMISSIONS_LEADS", "lg:grid-cols-6")}
 
-          {/* CATEGORY 2: ADMISSIONS & LEADS (6) */}
-          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ADMISSIONS_LEADS") && admissionsMasters.length > 0 && (
-            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
-                <div>
-                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
-                    Admissions & Leads
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Configure lead management and admission related masters.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedModuleFilter("ADMISSIONS_LEADS")}
-                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-                >
-                  <span>View All (6)</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
-                {admissionsMasters.map(renderEntityCard)}
-              </div>
-            </Card>
-          )}
-
-          {/* ROW 3: CATEGORY 3 (COMMUNICATION & SYSTEM) & CATEGORY 4 (INVENTORY) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* CATEGORY 3: COMMUNICATION & SYSTEM (2) */}
-            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "COMMUNICATION_SYSTEM") && communicationMasters.length > 0 && (
-              <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
-                  <div>
-                    <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight uppercase">
-                      Communication & System
-                    </h2>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Templates and system-level configurations.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModuleFilter("COMMUNICATION_SYSTEM")}
-                    className="text-xs font-bold text-[#1769AA] hover:underline cursor-pointer"
-                  >
-                    View All (2) →
-                  </button>
-                </div>
+            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "COMMUNICATION_SYSTEM") &&
+              communicationMasters.length > 0 && renderCategorySection("Communication & System", "Templates and system-level configurations.", communicationMasters, "COMMUNICATION_SYSTEM", "sm:grid-cols-2 lg:grid-cols-2")}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {communicationMasters.map(renderEntityCard)}
-                </div>
-              </Card>
-            )}
-
-            {/* CATEGORY 4: INVENTORY (2) */}
-            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "INVENTORY") && inventoryMasters.length > 0 && (
-              <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-200/70 pb-3">
-                  <div>
-                    <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight uppercase">
-                      Inventory
-                    </h2>
-                    <p className="text-[11px] text-slate-500 font-medium">
-                      Manage inventory and stock related masters.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedModuleFilter("INVENTORY")}
-                    className="text-xs font-bold text-[#1769AA] hover:underline cursor-pointer"
-                  >
-                    View All (2) →
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {inventoryMasters.map(renderEntityCard)}
-                </div>
-              </Card>
-            )}
+            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "INVENTORY") &&
+              inventoryMasters.length > 0 && renderCategorySection("Inventory", "Manage inventory and stock related masters.", inventoryMasters, "INVENTORY", "sm:grid-cols-2 lg:grid-cols-2")}
           </div>
 
-          {/* ROW 4: CATEGORY 5: ACCOUNTING & FEES (5) - FULL WIDTH SPACIOUS 5 COLUMNS */}
-          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACCOUNTING_FEES") && accountingMasters.length > 0 && (
-            <Card className="border-slate-200/80 shadow-xs bg-slate-50/40 rounded-3xl p-5 sm:p-6 space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/70 pb-3">
-                <div>
-                  <h2 className="text-sm sm:text-base font-black text-slate-900 tracking-tight uppercase">
-                    Accounting & Fees
-                  </h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    Financial and accounting master configurations.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setSelectedModuleFilter("ACCOUNTING_FEES")}
-                  className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
-                >
-                  <span>View All (5)</span>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {accountingMasters.map(renderEntityCard)}
-              </div>
-            </Card>
-          )}
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACCOUNTING_FEES") &&
+            renderCategorySection("Accounting & Fees", "Financial and accounting master configurations.", accountingMasters, "ACCOUNTING_FEES")}
         </div>
       )}
 
-      {/* ─── 4. CRUD VIEW (STRUCTURED CATALOG TABLE) ──────────────────────── */}
+      {/* ─── 4. CRUD VIEW ─────────────────────────────────────────────────── */}
       {viewMode === "CRUD" && (
         <Card className="border border-border shadow-xs bg-card rounded-3xl overflow-hidden">
           <div className="overflow-x-auto w-full">
@@ -1103,15 +1019,15 @@ export const MasterSetup: React.FC = () => {
                   <th className="py-3.5 px-4 text-center">ACTIONS</th>
                 </tr>
               </thead>
-
               <tbody className="divide-y divide-border/70 bg-card">
                 {filteredMasters.map((item) => {
-                  const currentCount = recordsData[item.id]?.length ?? 0;
+                  const countInfo = countsMap[item.id];
+                  const currentCount = countInfo?.count ?? 0;
+                  const lastUpdated = countInfo?.lastUpdated;
                   const IconComp = item.icon;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* Entity Name */}
                       <td className="py-3.5 px-4 pl-5 font-bold text-slate-900 align-middle">
                         <div className="flex items-center gap-2.5">
                           <div className={`p-2 rounded-xl border ${item.iconBgColor} shrink-0`}>
@@ -1120,37 +1036,23 @@ export const MasterSetup: React.FC = () => {
                           <span>{item.name}</span>
                         </div>
                       </td>
-
-                      {/* Category */}
                       <td className="py-3.5 px-4 align-middle">
                         <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
                           {item.categoryName}
                         </span>
                       </td>
-
-                      {/* Description */}
                       <td className="py-3.5 px-4 text-slate-500 font-medium align-middle max-w-xs truncate">
                         {item.description}
                       </td>
-
-                      {/* Records */}
                       <td className="py-3.5 px-3 text-center font-bold text-slate-800 align-middle">
-                        {currentCount}
+                        {isCountsLoading ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : currentCount}
                       </td>
-
-                      {/* Last Updated */}
                       <td className="py-3.5 px-3 text-slate-500 font-medium align-middle">
-                        {item.lastUpdated}
+                        {formatDate(lastUpdated)}
                       </td>
-
-                      {/* Status */}
                       <td className="py-3.5 px-3 text-center align-middle">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Active
-                        </span>
+                        <StatusBadge status="ACTIVE" />
                       </td>
-
-                      {/* Actions */}
                       <td className="py-3.5 px-4 text-center align-middle">
                         <div className="inline-flex items-center gap-1.5">
                           <Button
@@ -1189,15 +1091,12 @@ export const MasterSetup: React.FC = () => {
             <Info className="h-4 w-4 stroke-[2.2]" />
           </div>
           <div>
-            <span className="font-extrabold text-slate-900 text-xs block">
-              About Master Setup
-            </span>
+            <span className="font-extrabold text-slate-900 text-xs block">About Master Setup</span>
             <p className="text-[11px] text-slate-500 font-medium">
               Masters are the foundation of your ERP system. Changes here will apply across all modules.
             </p>
           </div>
         </div>
-
         <Button
           variant="outline"
           onClick={() => setIsHistoryModalOpen(true)}
@@ -1210,7 +1109,7 @@ export const MasterSetup: React.FC = () => {
 
       {/* ─── MODAL 1: DRILL-DOWN ENTITY RECORDS CRUD VIEW ──────────────────── */}
       <Dialog open={isRecordsModalOpen} onOpenChange={setIsRecordsModalOpen}>
-        <DialogContent className="sm:max-w-4xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="sm:max-w-5xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
           {selectedMasterEntity && (
             <>
               <DialogHeader className="space-y-1">
@@ -1223,10 +1122,9 @@ export const MasterSetup: React.FC = () => {
                       {selectedMasterEntity.name} Master
                     </DialogTitle>
                     <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#1769AA]">
-                      {recordsData[selectedMasterEntity.id]?.length || 0} Records
+                      {entityApiData?.meta?.total ?? 0} Records
                     </span>
                   </div>
-
                   <div className="flex items-center gap-2">
                     <Button
                       variant="outline"
@@ -1241,7 +1139,7 @@ export const MasterSetup: React.FC = () => {
                       onClick={() => handleOpenAddRecord(selectedMasterEntity)}
                       className="h-8 text-xs font-bold bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-1.5"
                     >
-                      <Plus className="h-3.5 w-3.5" /> + Add Record
+                      <Plus className="h-3.5 w-3.5" /> Add Record
                     </Button>
                   </div>
                 </div>
@@ -1250,70 +1148,166 @@ export const MasterSetup: React.FC = () => {
                 </DialogDescription>
               </DialogHeader>
 
-              {/* Records Filter */}
-              <div className="relative my-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-                <Input
-                  placeholder={`Search ${selectedMasterEntity.name.toLowerCase()} records...`}
-                  value={recordSearchQuery}
-                  onChange={(e) => setRecordSearchQuery(e.target.value)}
-                  className="h-9 pl-9 text-xs rounded-xl bg-slate-50"
-                />
+              {/* Records Filter Bar */}
+              <div className="flex items-center gap-2 my-2">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                  <Input
+                    placeholder={`Search ${selectedMasterEntity.name.toLowerCase()} records...`}
+                    value={recordSearchQuery}
+                    onChange={(e) => { setRecordSearchQuery(e.target.value); setRecordPage(1); }}
+                    className="h-9 pl-9 text-xs rounded-xl bg-slate-50"
+                  />
+                </div>
+                <select
+                  value={recordStatusFilter}
+                  onChange={(e) => { setRecordStatusFilter(e.target.value as any); setRecordPage(1); }}
+                  className="h-9 px-3 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none appearance-none cursor-pointer min-w-[100px]"
+                >
+                  <option value="ALL">All</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="INACTIVE">Inactive</option>
+                </select>
               </div>
 
               {/* Records Table */}
-              <div className="border border-slate-200/80 rounded-2xl overflow-hidden max-h-[360px] overflow-y-auto">
-                <table className="w-full border-collapse text-left text-xs">
-                  <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                    <tr>
-                      {selectedMasterEntity.columns.map((col) => (
-                        <th key={col.key} className="py-2.5 px-3">
-                          {col.label}
-                        </th>
-                      ))}
-                      <th className="py-2.5 px-3 text-center">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {(recordsData[selectedMasterEntity.id] || [])
-                      .filter((r) => {
-                        if (!recordSearchQuery.trim()) return true;
-                        return Object.values(r).some((val) =>
-                          val.toLowerCase().includes(recordSearchQuery.toLowerCase())
-                        );
-                      })
-                      .map((rec) => (
-                        <tr key={rec.id} className="hover:bg-slate-50">
-                          {selectedMasterEntity.columns.map((col) => (
-                            <td key={col.key} className="py-2.5 px-3 text-slate-800 font-medium">
-                              {rec[col.key] || "—"}
-                            </td>
-                          ))}
-                          <td className="py-2.5 px-3 text-center">
-                            <div className="inline-flex items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenEditRecord(selectedMasterEntity, rec)}
-                                className="p-1 hover:bg-blue-50 text-blue-600 rounded-lg cursor-pointer"
-                                title="Edit Record"
-                              >
-                                <Edit2 className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteRecord(selectedMasterEntity.id, rec.id)}
-                                className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
-                                title="Delete Record"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </div>
-                          </td>
+              <div className="border border-slate-200/80 rounded-2xl overflow-hidden min-h-[200px]">
+                {isEntityLoading ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <Loader2 className="h-8 w-8 animate-spin mb-3" />
+                    <span className="text-xs font-bold">Loading records...</span>
+                  </div>
+                ) : isEntityError ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-rose-400">
+                    <AlertTriangle className="h-8 w-8 mb-3" />
+                    <span className="text-xs font-bold text-rose-600">
+                      Failed to load records: {(entityError as Error)?.message || "Unknown error"}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setRecordPage(1)}
+                      className="mt-3 text-xs"
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                ) : !entityApiData?.data || entityApiData.data.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+                    <PackageOpen className="h-10 w-10 mb-3 text-slate-300" />
+                    <span className="text-sm font-bold text-slate-500">No records found</span>
+                    <p className="text-xs text-slate-400 mt-1">Add your first {selectedMasterEntity.name} record to get started.</p>
+                    <Button
+                      size="sm"
+                      onClick={() => handleOpenAddRecord(selectedMasterEntity)}
+                      className="mt-4 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Add First Record
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="max-h-[380px] overflow-y-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
+                        <tr>
+                          <th className="py-2.5 px-3">Name</th>
+                          <th className="py-2.5 px-3">Code</th>
+                          {selectedMasterEntity.columns
+                            .filter((c) => c.key !== "name" && c.key !== "code")
+                            .map((col) => (
+                              <th key={col.key} className="py-2.5 px-3">{col.label}</th>
+                            ))}
+                          <th className="py-2.5 px-3 text-center">Status</th>
+                          <th className="py-2.5 px-3 text-center">Actions</th>
                         </tr>
-                      ))}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {entityApiData.data.map((rec: any) => (
+                          <tr key={rec.id} className="hover:bg-slate-50">
+                            <td className="py-2.5 px-3 text-slate-800 font-semibold">{rec.name || "—"}</td>
+                            <td className="py-2.5 px-3 text-slate-600 font-medium">{rec.code || "—"}</td>
+                            {selectedMasterEntity.columns
+                              .filter((c) => c.key !== "name" && c.key !== "code")
+                              .map((col) => (
+                                <td key={col.key} className="py-2.5 px-3 text-slate-600 font-medium">
+                                  {rec.data?.[col.key] || "—"}
+                                </td>
+                              ))}
+                            <td className="py-2.5 px-3 text-center">
+                              <StatusBadge status={rec.status} />
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <div className="inline-flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditRecord(selectedMasterEntity, rec)}
+                                  className="p-1 hover:bg-blue-50 text-blue-600 rounded-lg cursor-pointer"
+                                  title="Edit Record"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleStatus(selectedMasterEntity.id, rec.id, rec.name)}
+                                  className={`p-1 rounded-lg cursor-pointer ${
+                                    rec.status === "ACTIVE"
+                                      ? "hover:bg-amber-50 text-amber-600"
+                                      : "hover:bg-emerald-50 text-emerald-600"
+                                  }`}
+                                  title={rec.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                >
+                                  {rec.status === "ACTIVE" ? (
+                                    <ToggleRight className="h-4 w-4" />
+                                  ) : (
+                                    <ToggleLeft className="h-4 w-4" />
+                                  )}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRequestDelete(selectedMasterEntity.id, rec.id, rec.name)}
+                                  className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
+                                  title="Deactivate Record"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
+
+              {/* Pagination */}
+              {entityApiData?.meta && entityApiData.meta.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-3 text-xs">
+                  <span className="text-slate-500 font-medium">
+                    Showing page {entityApiData.meta.page} of {entityApiData.meta.totalPages} ({entityApiData.meta.total} total records)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={recordPage <= 1}
+                      onClick={() => setRecordPage((p) => Math.max(1, p - 1))}
+                      className="h-7 px-2 text-xs rounded-lg"
+                    >
+                      <ChevronLeft className="h-3.5 w-3.5" /> Prev
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={recordPage >= entityApiData.meta.totalPages}
+                      onClick={() => setRecordPage((p) => p + 1)}
+                      className="h-7 px-2 text-xs rounded-lg"
+                    >
+                      Next <ChevronRight className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               <DialogFooter className="mt-3">
                 <Button
@@ -1339,25 +1333,43 @@ export const MasterSetup: React.FC = () => {
                   {editingRecordId ? "Edit Record" : "Add New Record"} — {selectedMasterEntity.name}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500">
-                  Fill in the details for this master entity record.
+                  Fill in the details for this master entity record. Fields marked with * are required.
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-3 my-3 text-xs">
                 {selectedMasterEntity.columns.map((col) => (
                   <div key={col.key} className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">{col.label}</Label>
+                    <Label className="text-[11px] font-bold text-slate-700">
+                      {col.label}
+                      {(col.required || col.key === "name") && (
+                        <span className="text-rose-500 ml-0.5">*</span>
+                      )}
+                    </Label>
                     <Input
                       value={recordFormValues[col.key] || ""}
-                      onChange={(e) =>
+                      onChange={(e) => {
                         setRecordFormValues((prev) => ({
                           ...prev,
                           [col.key]: e.target.value,
-                        }))
-                      }
+                        }));
+                        // Clear error when user types
+                        if (formErrors[col.key]) {
+                          setFormErrors((prev) => {
+                            const next = { ...prev };
+                            delete next[col.key];
+                            return next;
+                          });
+                        }
+                      }}
                       placeholder={`Enter ${col.label.toLowerCase()}...`}
-                      className="h-9 text-xs rounded-xl bg-slate-50"
+                      className={`h-9 text-xs rounded-xl bg-slate-50 ${
+                        formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
+                      }`}
                     />
+                    {formErrors[col.key] && (
+                      <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1372,8 +1384,12 @@ export const MasterSetup: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleSaveRecord}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl"
+                  disabled={createMasterMutation.isPending || updateMasterMutation.isPending}
+                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
                 >
+                  {(createMasterMutation.isPending || updateMasterMutation.isPending) && (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  )}
                   {editingRecordId ? "Save Changes" : "Create Record"}
                 </Button>
               </DialogFooter>
@@ -1382,7 +1398,41 @@ export const MasterSetup: React.FC = () => {
         </DialogContent>
       </Dialog>
 
-      {/* ─── MODAL 3: AUDIT HISTORY MODAL ─────────────────────────────────── */}
+      {/* ─── MODAL 3: CONFIRMATION DIALOG ──────────────────────────────────── */}
+      <Dialog open={isConfirmDialogOpen} onOpenChange={setIsConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-sm bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-black text-slate-900 flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              Confirm Deactivation
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500 mt-2">
+              Are you sure you want to deactivate <strong>"{confirmAction?.recordName}"</strong>?
+              This record will be marked as inactive and will no longer appear in new selections across the application.
+              Existing references will remain intact.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex gap-2 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => { setIsConfirmDialogOpen(false); setConfirmAction(null); }}
+              className="text-xs font-bold rounded-xl"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              disabled={deleteMasterMutation.isPending}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl gap-1.5"
+            >
+              {deleteMasterMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Deactivate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MODAL 4: AUDIT HISTORY MODAL ─────────────────────────────────── */}
       <Dialog open={isHistoryModalOpen} onOpenChange={setIsHistoryModalOpen}>
         <DialogContent className="sm:max-w-md bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
@@ -1395,17 +1445,10 @@ export const MasterSetup: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-2.5 my-3 divide-y divide-slate-100 text-xs">
-            <div className="pt-2">
-              <span className="font-bold text-slate-800 block">Added 'Vidyanagar' to Area Master</span>
-              <span className="text-[11px] text-slate-500">By Aadya Admin • 24 Aug 2026, 11:20 AM</span>
-            </div>
-            <div className="pt-2">
-              <span className="font-bold text-slate-800 block">Updated Time Slot 'SLOT-03' Timings</span>
-              <span className="text-[11px] text-slate-500">By Aadya Admin • 23 Aug 2026, 04:15 PM</span>
-            </div>
-            <div className="pt-2">
-              <span className="font-bold text-slate-800 block">Created 'Campus Recruitment' in Events</span>
-              <span className="text-[11px] text-slate-500">By Aadya Admin • 22 Aug 2026, 02:40 PM</span>
+            <div className="flex flex-col items-center justify-center py-8 text-slate-400">
+              <History className="h-8 w-8 mb-3 text-slate-300" />
+              <span className="text-sm font-bold text-slate-500">Audit history</span>
+              <p className="text-xs text-slate-400 mt-1">All master data changes are tracked in the Activity Log.</p>
             </div>
           </div>
 

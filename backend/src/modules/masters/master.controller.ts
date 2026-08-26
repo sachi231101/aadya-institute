@@ -6,6 +6,9 @@ import {
   createMasterService,
   updateMasterService,
   deleteMasterService,
+  toggleMasterStatusService,
+  listAllEntityCountsService,
+  listActiveMastersByTypeService,
 } from "./master.service";
 import {
   masterListQuerySchema,
@@ -84,7 +87,58 @@ export const deleteMaster = async (
   try {
     const id = String(req.params.id);
     const result = await deleteMasterService(req.user!, id);
-    sendSuccess(res, result, 200, "Master record deleted successfully");
+    sendSuccess(res, result, 200, "Master record deactivated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Toggle a master record's active/inactive status
+ */
+export const toggleMasterStatus = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const id = String(req.params.id);
+    const record = await toggleMasterStatusService(req.user!, id);
+    sendSuccess(res, record, 200, `Master record ${record.status === "ACTIVE" ? "activated" : "deactivated"} successfully`);
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get counts for all entity types (overview grid)
+ */
+export const getEntityCounts = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const counts = await listAllEntityCountsService(req.user!);
+    sendSuccess(res, counts, 200, "Entity counts retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Get active-only records for a given entity type (for dropdown consumption)
+ */
+export const getActiveMasters = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const entityType = String(req.params.entityType);
+    const branchId = req.query.branchId ? String(req.query.branchId) : undefined;
+    const records = await listActiveMastersByTypeService(req.user!, entityType, branchId);
+    sendSuccess(res, records, 200, "Active master records retrieved successfully");
   } catch (err) {
     next(err);
   }

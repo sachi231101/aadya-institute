@@ -48,6 +48,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +170,7 @@ export const Classes: React.FC = () => {
   const [formStartTime, setFormStartTime] = useState("10:00 AM");
   const [formEndTime, setFormEndTime] = useState("11:30 AM");
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
-  const [formLocation, setFormLocation] = useState("Room 201");
+  const [formLocation, setFormLocation] = useState("");
   const [formStudentsCount, setFormStudentsCount] = useState(25);
 
   // Assign Faculty Target

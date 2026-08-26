@@ -67,6 +67,7 @@ import { studentsApi } from "@/services/students.api";
 import { admissionsApi } from "@/services/admissions.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 export interface CourseCatalogItem {
   id: string;
@@ -331,7 +332,8 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [admissionDate, setAdmissionDate] = useState("2026-05-16");
   const [academicYear, setAcademicYear] = useState("2026 - 2027");
   const [counsellorName, setCounsellorName] = useState(user?.name || "Vidhya K A");
-  const [leadSource, setLeadSource] = useState("Website");
+  const [leadSource, setLeadSource] = useState("");
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const [referralSource, setReferralSource] = useState("Google Ads");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Draft");
 
@@ -1271,10 +1273,13 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setLeadSource(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      <option value="Website">Website</option>
-                      <option value="Direct Walk-in">Direct Walk-in</option>
-                      <option value="Social Media">Social Media</option>
-                      <option value="Telecalling">Telecalling</option>
+                      <option value="">Select Lead Source</option>
+                      {leadSourceOptions.map((opt) => (
+                        <option key={opt.value} value={opt.label}>{opt.label}</option>
+                      ))}
+                      {leadSourceOptions.length === 0 && (
+                        <option value="" disabled>No sources — add in Master Setup</option>
+                      )}
                     </select>
                   </div>
 
@@ -1285,10 +1290,10 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setReferralSource(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      <option value="Google Ads">Google Ads</option>
-                      <option value="Student Referral">Student Referral</option>
-                      <option value="Alumni Referral">Alumni Referral</option>
-                      <option value="Event / Seminar">Event / Seminar</option>
+                      <option value="">Select Referral Source</option>
+                      {leadSourceOptions.map((opt) => (
+                        <option key={opt.value} value={opt.label}>{opt.label}</option>
+                      ))}
                     </select>
                   </div>
 
