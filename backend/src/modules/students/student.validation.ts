@@ -2,13 +2,24 @@ import { z } from "zod";
 
 export const createStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email").optional(),
-  phone: z.string().min(10, "Phone must be at least 10 characters").optional(),
+  email: z.string().email("Invalid email").optional().or(z.literal("")),
+  phone: z.string().min(10, "Phone must be at least 10 characters").optional().or(z.literal("")),
   password: z.string().min(8, "Password must be at least 8 characters"),
   studentCode: z.string().min(1, "Student code is required").max(30).toUpperCase(),
-  dateOfBirth: z.string().optional(),
-  qualification: z.string().optional(),
+  dateOfBirth: z.string().optional().or(z.literal("")),
+  qualification: z.string().optional().or(z.literal("")),
   branchId: z.string().min(1, "Branch ID is required"),
+  courseId: z.string().optional().or(z.literal("")),
+  batchId: z.string().optional().or(z.literal("")),
+  totalFee: z.coerce.number().optional(),
+  feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
+  downPayment: z.coerce.number().optional(),
+  gender: z.string().optional(),
+  guardianName: z.string().optional(),
+  guardianPhone: z.string().optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  pincode: z.string().optional(),
 });
 
 export const updateStudentSchema = z.object({

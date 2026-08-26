@@ -30,6 +30,10 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+import { useQuery } from "@tanstack/react-query";
+import { studentsApi } from "../../services/students.api";
+import { batchesApi } from "../../services/batches.api";
+
 type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
 
 interface StudentRecord {
@@ -43,94 +47,57 @@ interface StudentRecord {
   isSelected: boolean;
 }
 
-const INITIAL_STUDENTS: StudentRecord[] = [
-  {
-    id: "1",
-    studentId: "STU-037",
-    name: "Rahul Sharma",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80",
-    email: "rahul.sharma@aadya.in",
-    status: "PRESENT",
-    remarks: "",
-    isSelected: true,
-  },
-  {
-    id: "2",
-    studentId: "STU-038",
-    name: "Ananya Singh",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80",
-    email: "ananya.singh@aadya.in",
-    status: "ABSENT",
-    remarks: "",
-    isSelected: false,
-  },
-  {
-    id: "3",
-    studentId: "STU-039",
-    name: "Virat Kohli",
-    avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&auto=format&fit=crop&q=80",
-    email: "virat.kohli@aadya.in",
-    status: "PRESENT",
-    remarks: "",
-    isSelected: true,
-  },
-  {
-    id: "4",
-    studentId: "STU-040",
-    name: "Hardik Pandya",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80",
-    email: "hardik.pandya@aadya.in",
-    status: "PRESENT",
-    remarks: "",
-    isSelected: false,
-  },
-  {
-    id: "5",
-    studentId: "STU-041",
-    name: "Smriti Mandhana",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80",
-    email: "smriti.mandhana@aadya.in",
-    status: "EXCUSED",
-    remarks: "Medical Leave",
-    isSelected: true,
-  },
-  {
-    id: "6",
-    studentId: "STU-042",
-    name: "Rishabh Pant",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80",
-    email: "rishabh.pant@aadya.in",
-    status: "ABSENT",
-    remarks: "Family Emergency",
-    isSelected: false,
-  },
-];
-
 export const FacultyMarkAttendance: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const facultyName = user?.name || "Ramesh Kumar";
-  const [students, setStudents] = useState<StudentRecord[]>(INITIAL_STUDENTS);
+  const facultyName = user?.name || "Faculty Member";
+
+  const { data: batchesRes } = useQuery({
+    queryKey: ["batches"],
+    queryFn: () => batchesApi.getAll(),
+  });
+
+  const { data: studentsRes } = useQuery({
+    queryKey: ["students"],
+    queryFn: () => studentsApi.getAll({ limit: 100 }),
+  });
+
+  const [students, setStudents] = useState<StudentRecord[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
 
-  // Status counts (simulated for full 42 batch based on state)
+  React.useEffect(() => {
+    const rawStudents = studentsRes?.data || [];
+    if (rawStudents.length > 0) {
+      setStudents(
+        rawStudents.map((s: any) => ({
+          id: s.id,
+          studentId: s.studentCode || `STU-${s.id.slice(0, 4)}`,
+          name: s.user?.name || s.name || "Enrolled Student",
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.user?.name || s.name || "ST")}`,
+          email: s.user?.email || "student@aadyainstitute.com",
+          status: "PRESENT",
+          remarks: "",
+          isSelected: true,
+        }))
+      );
+    } else {
+      setStudents([]);
+    }
+  }, [studentsRes]);
+
+  // Real status counts based on active batch enrollment
   const stats = useMemo(() => {
+    const totalStudents = students.length;
     const presentCount = students.filter(s => s.status === "PRESENT").length;
     const absentCount = students.filter(s => s.status === "ABSENT").length;
     const excusedCount = students.filter(s => s.status === "EXCUSED").length;
-    
-    // Scale up for 42 student batch display
-    const totalStudents = 42;
-    const computedPresent = 36 + presentCount;
-    const computedAbsent = absentCount;
-    const computedExcused = excusedCount;
 
     return {
       total: totalStudents,
-      present: computedPresent,
-      absent: computedAbsent,
-      excused: computedExcused,
+      present: presentCount,
+      absent: absentCount,
+      excused: excusedCount,
     };
   }, [students]);
 
@@ -388,7 +355,16 @@ export const FacultyMarkAttendance: React.FC = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {students.map((student, idx) => {
+                {students.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="p-12 text-center text-slate-500">
+                      <Users className="h-8 w-8 mx-auto text-slate-300 mb-2" />
+                      <p className="text-sm font-semibold text-slate-700">No students enrolled in this batch yet</p>
+                      <p className="text-xs text-slate-400 mt-0.5">Admitted students assigned to this batch will appear here automatically.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  students.map((student, idx) => {
                   return (
                     <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
                       {/* Checkbox */}
@@ -493,18 +469,19 @@ export const FacultyMarkAttendance: React.FC = () => {
                           />
                         )}
                       </td>
-                    </tr>
-                  );
-                })}
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
 
           {/* Table Footer: Student Counter */}
           <div className="p-3.5 bg-slate-50/70 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-slate-500 font-medium">
-            <span>Showing 1 to 6 of 42 Students in Batch DM-01</span>
+            <span>Showing {students.length} Students in Active Batch</span>
             <div className="flex items-center gap-3">
-              <span className="font-bold text-slate-700">42 / 42 Students Marked</span>
+              <span className="font-bold text-slate-700">{students.length} / {students.length} Students Marked</span>
               <div className="w-32 bg-slate-200 h-2 rounded-full overflow-hidden">
                 <div className="bg-emerald-500 h-full rounded-full w-full" />
               </div>
@@ -518,7 +495,7 @@ export const FacultyMarkAttendance: React.FC = () => {
         {/* Left Side: Count & Helper Text */}
         <div>
           <span className="text-sm font-black text-slate-900 block leading-tight">
-            42 / 42 Students Marked
+            {students.length} / {students.length} Students Marked
           </span>
           <span className="text-xs text-slate-500 font-medium mt-0.5 block">
             All attendance changes are ready to be saved.

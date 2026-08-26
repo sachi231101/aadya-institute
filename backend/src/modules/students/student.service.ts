@@ -59,6 +59,20 @@ export const getAllStudents = async (
 
     const overallPercentage = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 92;
 
+    const payments = s.payments || [];
+    const pendingFees = s.pendingFees || [];
+    const totalPaidFromPayments = payments
+      .filter((p: any) => p.status === "SUCCESS")
+      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+    const totalPendingDue = pendingFees.reduce((sum: number, f: any) => sum + (f.dueAmount || 0), 0);
+    const calculatedTotalFee =
+      pendingFees[0]?.totalFee || (totalPaidFromPayments + totalPendingDue > 0 ? totalPaidFromPayments + totalPendingDue : 45000);
+    const finalAmountPaid =
+      totalPaidFromPayments > 0 ? totalPaidFromPayments : Math.max(0, calculatedTotalFee - totalPendingDue);
+    const finalDueAmount =
+      totalPendingDue > 0 ? totalPendingDue : Math.max(0, calculatedTotalFee - finalAmountPaid);
+    const feeStatus = finalDueAmount === 0 ? "Paid" : "Pending";
+
     return {
       id: s.id,
       userId: s.userId,
@@ -85,13 +99,13 @@ export const getAllStudents = async (
         isDiscontinuationRisk: consecutiveAbsences >= 2,
       },
       fees: {
-        totalFee: 45000,
+        totalFee: calculatedTotalFee,
         discount: 0,
-        finalFee: 45000,
-        amountPaid: 40000,
-        dueAmount: 5000,
-        feePlan: "INSTALLMENT",
-        status: "Pending",
+        finalFee: calculatedTotalFee,
+        amountPaid: finalAmountPaid,
+        dueAmount: finalDueAmount,
+        feePlan: admission?.feePlan || "INSTALLMENT",
+        status: feeStatus,
       },
     };
   });
@@ -110,9 +124,11 @@ export const getStudentById = async (id: string) => {
 };
 
 import { prisma } from "../../config/database";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent } from "../whatsapp/whatsapp.constants";
 
 /**
- * Create a new student (User + Student + STUDENT role).
+ * Create a new student (User + Student + STUDENT role + optional Course/Batch/Fee).
  */
 export const createStudent = async (instituteId: string, dto: CreateStudentDto) => {
   // Validate branch exists
@@ -130,9 +146,9 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
   }
 
   // Check for duplicate email if provided
-  if (dto.email) {
+  if (dto.email && dto.email.trim() !== "") {
     const existingEmail = await prisma.user.findFirst({
-      where: { instituteId, email: dto.email },
+      where: { instituteId, email: dto.email.trim() },
     });
     if (existingEmail) {
       throw new AppError(`A user with email '${dto.email}' already exists`, 409);
@@ -140,9 +156,9 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
   }
 
   // Check for duplicate phone if provided
-  if (dto.phone) {
+  if (dto.phone && dto.phone.trim() !== "") {
     const existingPhone = await prisma.user.findFirst({
-      where: { instituteId, phone: dto.phone },
+      where: { instituteId, phone: dto.phone.trim() },
     });
     if (existingPhone) {
       throw new AppError(`A user with phone number '${dto.phone}' already exists`, 409);
@@ -152,17 +168,48 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
   // Hash password for the new User
   const passwordHash = await hashPassword(dto.password);
 
-  return repo.createStudentWithUser({
+  const student = await repo.createStudentWithUser({
     instituteId,
     branchId: dto.branchId,
     name: dto.name,
-    email: dto.email,
-    phone: dto.phone,
+    email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : undefined,
+    phone: dto.phone && dto.phone.trim() !== "" ? dto.phone.trim() : undefined,
     passwordHash,
     studentCode: dto.studentCode,
-    dateOfBirth: dto.dateOfBirth,
-    qualification: dto.qualification,
+    dateOfBirth: dto.dateOfBirth || undefined,
+    qualification: dto.qualification || undefined,
+    courseId: dto.courseId || undefined,
+    batchId: dto.batchId || undefined,
+    totalFee: dto.totalFee,
+    feePlan: dto.feePlan,
+    downPayment: dto.downPayment,
   });
+
+  // Asynchronous WhatsApp notification
+  setImmediate(async () => {
+    try {
+      const courseName = student.admissions?.[0]?.course?.name || "Program";
+      await triggerNotification({
+        instituteId,
+        studentId: student.id,
+        event: NotificationEvent.ADMISSION_CREATED,
+        idempotencyKey: `STUDENT_WELCOME_${student.id}`,
+        templateParams: {
+          student_name: student.user?.name || student.studentCode,
+          course_name: courseName,
+          admission_no: student.studentCode,
+        },
+        metadata: {
+          studentId: student.id,
+          phone: student.user?.phone,
+        },
+      });
+    } catch {
+      // Async failure is logged internally by triggerNotification
+    }
+  });
+
+  return student;
 };
 
 /**

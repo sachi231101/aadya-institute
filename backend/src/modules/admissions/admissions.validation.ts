@@ -50,10 +50,13 @@ export const createAdmissionSchema = z.object({
   phone: z.string().min(8, "Phone number must be at least 8 digits"),
   courseId: z.string().min(1, "Course is required"),
   batchId: z.string().optional(),
+  studentId: z.string().optional(),
   applicationId: z.string().optional(),
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
   status: z.enum(["CONFIRMED", "PROVISIONAL", "CANCELLED", "PENDING", "ACTIVE", "COMPLETED"]).optional(),
   notes: z.string().optional(),
+  totalFee: z.coerce.number().optional(),
+  amountPaid: z.coerce.number().optional(),
 });
 
 export const updateAdmissionSchema = createAdmissionSchema.partial();

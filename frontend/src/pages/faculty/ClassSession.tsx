@@ -19,6 +19,9 @@ import { useSessionStore } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useNotificationStore } from "@/store/notification.store";
 
+import { useQuery } from "@tanstack/react-query";
+import { studentsApi } from "@/services/students.api";
+
 type AttendanceStatus = "PRESENT" | "ABSENT";
 type SessionWorkflowStep = "ATTENDANCE" | "CONFIRM_LIVE" | "LIVE_IN_PROGRESS" | "COMPLETED";
 
@@ -31,27 +34,17 @@ interface EnrolledStudent {
   status: AttendanceStatus;
 }
 
-const INITIAL_STUDENTS_LIST: EnrolledStudent[] = [
-  { id: "1", studentId: "STU001", name: "Rahul Sharma", initials: "RS", avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "2", studentId: "STU002", name: "Sneha Patil", initials: "SP", avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "3", studentId: "STU003", name: "Amit Kumar", initials: "AK", avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=120&auto=format&fit=crop&q=80", status: "ABSENT" },
-  { id: "4", studentId: "STU004", name: "Pooja Nair", initials: "PN", avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "5", studentId: "STU005", name: "Vikram Singh", initials: "VS", avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "6", studentId: "STU006", name: "Mohammed Danish", initials: "MD", avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "7", studentId: "STU007", name: "Kavya R", initials: "KR", avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "8", studentId: "STU008", name: "Arjun S", initials: "AS", avatar: "https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "9", studentId: "STU009", name: "Ria Deshmukh", initials: "RD", avatar: "https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80", status: "ABSENT" },
-  { id: "10", studentId: "STU010", name: "Siddharth Rao", initials: "SR", avatar: "https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "11", studentId: "STU011", name: "Ananya Hegde", initials: "AH", avatar: "https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-  { id: "12", studentId: "STU012", name: "Karan Mehta", initials: "KM", avatar: "https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?w=120&auto=format&fit=crop&q=80", status: "PRESENT" },
-];
-
 export const FacultyClassSession: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { addRecording, addSessionHistory, sessionHistories, setActiveLiveClass, endActiveLiveClass } = useSessionStore();
   const { addNotification } = useNotificationStore();
+
+  const { data: studentsRes } = useQuery({
+    queryKey: ["students"],
+    queryFn: () => studentsApi.getAll({ limit: 100 }),
+  });
 
   // Class Session Meta Parameters
   const sessionId = searchParams.get("id") || `sess-${Date.now()}`;
@@ -68,15 +61,36 @@ export const FacultyClassSession: React.FC = () => {
     const cleanBatch = batchCode.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 4) || "dm";
     const cleanCourse = courseName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 4) || "mkt";
     return `aady-${cleanBatch}-${cleanCourse}`;
-  }, [courseName, batchCode]);
+  }, [batchCode, courseName]);
 
+  const [meetLink, setMeetLink] = useState(`https://meet.google.com/${defaultMeetId}`);
   const [customMeetUrl, setCustomMeetUrl] = useState(`https://meet.google.com/${defaultMeetId}`);
+  const [isMeetLinkEdited, setIsMeetLinkEdited] = useState(false);
 
-  // Tab & Workflow State
+  // Workflow State
   const [workflowStep, setWorkflowStep] = useState<SessionWorkflowStep>("ATTENDANCE");
   const [activeTab, setActiveTab] = useState<"attendance" | "live_classroom" | "session_history">("attendance");
-  const [students, setStudents] = useState<EnrolledStudent[]>(INITIAL_STUDENTS_LIST);
+  const [students, setStudents] = useState<EnrolledStudent[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+
+  useEffect(() => {
+    const rawStudents = studentsRes?.data || [];
+    if (rawStudents.length > 0) {
+      setStudents(
+        rawStudents.map((s: any) => ({
+          id: s.id,
+          studentId: s.studentCode || `STU-${s.id.slice(0, 4)}`,
+          name: s.user?.name || s.name || "Student",
+          initials: (s.user?.name || s.name || "ST").slice(0, 2).toUpperCase(),
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.user?.name || s.name || "ST")}`,
+          status: "PRESENT",
+        }))
+      );
+    } else {
+      setStudents([]);
+    }
+  }, [studentsRes]);
 
   // Live Class Timer State
   const [secondsElapsed, setSecondsElapsed] = useState(0);
