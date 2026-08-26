@@ -82,6 +82,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // Donut colors for Lead Sources
 const LEAD_SOURCE_COLORS = [
@@ -2376,19 +2377,7 @@ export const CounselorDashboard: React.FC = () => {
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-slate-700">Room / Lab *</Label>
-                  <select
-                    value={batchRoomNo}
-                    onChange={(e) => setBatchRoomNo(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
-                  >
-                    <option value="Room 201">Room 201 (Theory)</option>
-                    <option value="Room 202">Room 202 (Theory)</option>
-                    <option value="Room 203">Room 203 (Interactive)</option>
-                    <option value="Lab 1">Computer Lab 1</option>
-                    <option value="Lab 2">Digital Marketing Lab 2</option>
-                    <option value="Design Lab 1">Design Studio 1</option>
-                    <option value="Analytics Lab 3">Analytics Lab 3</option>
-                  </select>
+                  <ClassroomDropdown value={batchRoomNo} onChange={setBatchRoomNo} />
                 </div>
               </div>
             </div>

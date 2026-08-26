@@ -6,6 +6,7 @@ import * as z from "zod";
 import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 import {
   Form,
@@ -48,6 +49,7 @@ export const AddFaculty: React.FC = () => {
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
+  const { options: designationOptions } = useMasterDropdown("designation");
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -69,7 +71,7 @@ export const AddFaculty: React.FC = () => {
       branchId: isCenterManager && user?.branchId ? user.branchId : "",
       dateOfBirth: "",
       gender: "Male",
-      designation: "Faculty Trainer",
+      designation: "",
       department: "",
       dateOfJoining: new Date().toISOString().split("T")[0],
       employmentType: "Full-Time",
@@ -321,11 +323,15 @@ export const AddFaculty: React.FC = () => {
                             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
                             {...field}
                           >
-                            <option value="Faculty Trainer">Faculty Trainer</option>
-                            <option value="Sr. Faculty">Sr. Faculty</option>
-                            <option value="HOD">Head of Department (HOD)</option>
-                            <option value="Lab Assistant">Lab Assistant</option>
-                            <option value="Guest Faculty">Guest / Visiting Faculty</option>
+                            <option value="">Select Designation</option>
+                            {designationOptions.map((opt) => (
+                              <option key={opt.value} value={opt.label}>
+                                {opt.label}{opt.code ? ` (${opt.code})` : ""}
+                              </option>
+                            ))}
+                            {designationOptions.length === 0 && (
+                              <option value="" disabled>No designations — add in Master Setup</option>
+                            )}
                           </select>
                         </FormControl>
                         <FormMessage />

@@ -83,6 +83,7 @@ export interface EnrichedLead {
 }
 
 import { useLeads, useCreateLead, useUpdateLead } from "../../../hooks/useLeads";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 export const Enquiries: React.FC = () => {
   const navigate = useNavigate();
@@ -99,6 +100,7 @@ export const Enquiries: React.FC = () => {
   const { data: leadsResponse, isLoading: isLoadingLeads } = useLeads({ limit: 100 });
   const createLeadMutation = useCreateLead();
   const updateLeadMutation = useUpdateLead();
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
   const apiLeads = useMemo(() => {
     const rawList = leadsResponse?.data ?? [];
@@ -662,12 +664,12 @@ export const Enquiries: React.FC = () => {
               className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
             >
               <option value="All Sources">All Sources</option>
-              <option value="Google Ads">Google Ads</option>
-              <option value="Instagram">Instagram</option>
-              <option value="Website">Website</option>
-              <option value="Referral">Referral</option>
-              <option value="Meta Ads">Meta Ads</option>
-              <option value="Walk-in">Walk-in</option>
+              {leadSourceOptions.map((opt) => (
+                <option key={opt.value} value={opt.label}>{opt.label}</option>
+              ))}
+              {leadSourceOptions.length === 0 && (
+                <option value="" disabled>No sources — add in Master Setup</option>
+              )}
             </select>
 
             {/* All Statuses */}
@@ -1529,13 +1531,13 @@ export const Enquiries: React.FC = () => {
                   onChange={(e: any) => setNewFormSource(e.target.value)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
                 >
-                  <option value="Walk-in">Walk-in</option>
-                  <option value="Google Ads">Google Search / Ads</option>
-                  <option value="Instagram">Instagram / Meta</option>
-                  <option value="Website">Website Enquiry</option>
-                  <option value="Referral">Friend / Alumni Reference</option>
-                  <option value="Meta Ads">Telecalling</option>
-                  <option value="Other">College Seminar / Other</option>
+                  <option value="">Select Lead Source</option>
+                  {leadSourceOptions.map((opt) => (
+                    <option key={opt.value} value={opt.label}>{opt.label}</option>
+                  ))}
+                  {leadSourceOptions.length === 0 && (
+                    <option value="" disabled>No sources — add in Master Setup</option>
+                  )}
                 </select>
               </div>
             </div>

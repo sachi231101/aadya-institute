@@ -31,6 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
@@ -979,12 +980,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab *</Label>
-                    <Input
-                      value={formRoomNo}
-                      onChange={(e) => setFormRoomNo(e.target.value)}
-                      placeholder="e.g. Room 301"
-                      className="h-9 mt-1 text-xs rounded-xl"
-                    />
+                    <ClassroomDropdown value={formRoomNo} onChange={setFormRoomNo} />
                   </div>
                   <div>
                     <Label className="text-[11px] font-bold text-slate-700">Student Count</Label>

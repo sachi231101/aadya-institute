@@ -48,6 +48,8 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -168,7 +170,7 @@ export const Classes: React.FC = () => {
   const [formStartTime, setFormStartTime] = useState("10:00 AM");
   const [formEndTime, setFormEndTime] = useState("11:30 AM");
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
-  const [formLocation, setFormLocation] = useState("Room 201");
+  const [formLocation, setFormLocation] = useState("");
   const [formStudentsCount, setFormStudentsCount] = useState(25);
 
   // Assign Faculty Target
@@ -1189,12 +1191,16 @@ export const Classes: React.FC = () => {
                 <Label className="text-[11px] font-bold text-slate-700">
                   {formMode === "ONLINE" ? "Meeting URL Link" : "Room / Lab No"}
                 </Label>
-                <Input
-                  value={formLocation}
-                  onChange={(e) => setFormLocation(e.target.value)}
-                  placeholder={formMode === "ONLINE" ? "https://meet.google.com/..." : "e.g. Room 201"}
-                  className="h-9 mt-1 text-xs rounded-xl"
-                />
+                {formMode === "ONLINE" ? (
+                  <Input
+                    value={formLocation}
+                    onChange={(e) => setFormLocation(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    className="h-9 mt-1 text-xs rounded-xl"
+                  />
+                ) : (
+                  <ClassroomDropdown value={formLocation} onChange={setFormLocation} />
+                )}
               </div>
             </div>
 
