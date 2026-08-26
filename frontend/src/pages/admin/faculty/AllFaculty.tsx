@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   GraduationCap, BookOpen, Search, Plus,
@@ -36,7 +36,16 @@ export const AllFaculty: React.FC = () => {
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
 
-  const activeBranchId = selectedBranchId === "ALL" ? undefined : selectedBranchId;
+  useEffect(() => {
+    if (branches.length > 0 && selectedBranchId !== "ALL" && !branches.some((b) => b.id === selectedBranchId)) {
+      setSelectedBranchId("ALL");
+    }
+  }, [branches, selectedBranchId, setSelectedBranchId]);
+
+  const activeBranchId =
+    selectedBranchId !== "ALL" && branches.some((b) => b.id === selectedBranchId)
+      ? selectedBranchId
+      : undefined;
   const { data: facultyReport, isLoading: isReportLoading } = useFacultyReport(activeBranchId);
   const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({ branchId: activeBranchId });
 
