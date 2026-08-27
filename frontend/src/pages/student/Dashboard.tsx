@@ -19,36 +19,77 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/auth.store";
 import { useSessionStore } from "../../store/session.store";
 import { classSessionsApi } from "../../services/class-sessions.api";
+import { attendanceApi } from "../../services/attendance.api";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { activeLiveClass } = useSessionStore();
   const [liveSessions, setLiveSessions] = useState<any[]>([]);
+  const [attendancePct, setAttendancePct] = useState<number | null>(null);
+  const [attendanceMeta, setAttendanceMeta] = useState<{ total: number; present: number } | null>(null);
+  const [courseName, setCourseName] = useState<string>("Enrolled Academy Program");
 
-  // Fetch backend active live classes on mount
+  // Fetch backend active live classes + attendance summary on mount
   useEffect(() => {
     let mounted = true;
+    const studentId = user?.studentId || null;
+    // #region agent log
+    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A,D',location:'student/Dashboard.tsx:mount',message:'Student dashboard mount',data:{userId:user?.id,hasStudentId:!!studentId,studentId,roles:user?.roles,attendanceKpiHardcoded:false,branchId:user?.branchId},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const fetchLive = async () => {
       try {
         const res = await classSessionsApi.getActiveLive();
+        // #region agent log
+        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:live',message:'Live class fetch result',data:{count:res.data?.length??0,ok:true},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         if (mounted && res.data && res.data.length > 0) {
           setLiveSessions(res.data);
+          const first = res.data[0];
+          if (first?.batch?.course?.name) setCourseName(first.batch.course.name);
         }
       } catch (err) {
-        // Local state fallback handled by activeLiveClass
+        // #region agent log
+        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:live-err',message:'Live class fetch failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
       }
     };
+
+    const fetchAttendance = async () => {
+      if (!studentId) return;
+      try {
+        const res = await attendanceApi.getStudentSummary(studentId);
+        const summary = res?.data;
+        if (mounted && summary) {
+          setAttendancePct(Number(summary.attendancePercentage ?? 0));
+          setAttendanceMeta({
+            total: Number(summary.totalClasses ?? 0),
+            present: Number(summary.presentCount ?? 0),
+          });
+          // #region agent log
+          fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:attendance',message:'Attendance summary loaded',data:{pct:summary.attendancePercentage,total:summary.totalClasses},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+        }
+      } catch (err) {
+        // #region agent log
+        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:attendance-err',message:'Attendance summary failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      }
+    };
+
     fetchLive();
+    fetchAttendance();
     const interval = setInterval(fetchLive, 15000);
     return () => {
       mounted = false;
       clearInterval(interval);
     };
-  }, []);
+  }, [user?.studentId, user?.id]);
 
   const studentName = user?.name || "Student";
   const studentBatchCode = user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE";
+  const displayAttendance = attendancePct ?? 0;
+  const hasAttendanceData = attendancePct !== null;
 
   // Check if live class is active (either from session store or backend query)
   const isClassLive = activeLiveClass?.status === "LIVE" || liveSessions.length > 0;
@@ -160,16 +201,20 @@ export const StudentDashboard: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-end gap-4 mt-2">
-                  <div className="text-4xl font-bold text-text-primary">100%</div>
+                  <div className="text-4xl font-bold text-text-primary">
+                    {hasAttendanceData ? `${displayAttendance}%` : "—"}
+                  </div>
                   <div className="text-sm text-text-secondary mb-1">
-                    Live Record
+                    {hasAttendanceData
+                      ? `${attendanceMeta?.present ?? 0}/${attendanceMeta?.total ?? 0} classes`
+                      : "No records yet"}
                   </div>
                 </div>
                 
                 <div className="mt-4 w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
                   <div 
                     className="bg-[#10b981] h-2.5 rounded-full transition-all duration-1000 ease-out"
-                    style={{ width: `100%` }}
+                    style={{ width: `${hasAttendanceData ? displayAttendance : 0}%` }}
                   />
                 </div>
                 <p className="text-xs text-text-muted mt-3 flex items-center gap-1">
@@ -188,7 +233,7 @@ export const StudentDashboard: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <h3 className="text-xl font-bold text-text-primary mt-2">Enrolled Academy Program</h3>
+                <h3 className="text-xl font-bold text-text-primary mt-2">{courseName}</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge variant="secondary" className="bg-blue-50 text-[#1769AA] border border-blue-100">Active</Badge>
                 </div>

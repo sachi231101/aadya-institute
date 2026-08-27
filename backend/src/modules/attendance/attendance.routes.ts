@@ -16,6 +16,14 @@ router.use(authMiddleware);
 
 // ─── Required Business API Endpoints ──────────────────────────────────────────
 
+// GET /api/v1/attendance/discontinuation-risk — must be before /:attendanceId
+router.get(
+  "/discontinuation-risk",
+  requirePermission("attendance.read"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  controller.getDiscontinuationRisk
+);
+
 // PATCH /api/v1/attendance/:attendanceId — Update single attendance record
 router.patch(
   "/:attendanceId",

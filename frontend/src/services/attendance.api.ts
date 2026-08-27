@@ -24,6 +24,21 @@ export const attendanceApi = {
     return response.data;
   },
 
+  // ─── Student history / summary ─────────────────────────────────────────
+
+  getStudentHistory: async (
+    studentId: string,
+    params?: { page?: number; limit?: number; fromDate?: string; toDate?: string }
+  ) => {
+    const response = await api.get(`/students/${studentId}/attendance`, { params });
+    return response.data;
+  },
+
+  getStudentSummary: async (studentId: string) => {
+    const response = await api.get(`/students/${studentId}/attendance/summary`);
+    return response.data;
+  },
+
   // ─── Mark Attendance ──────────────────────────────────────────────────
 
   mark: async (data: MarkAttendancePayload): Promise<SingleResponse<AttendanceRecord>> => {

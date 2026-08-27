@@ -326,6 +326,96 @@ export const getStudentAttendanceSummary = async (
   };
 };
 
+/**
+ * List students at discontinuation risk (2+ consecutive theory absences).
+ * Approved LEAVE does not count toward the streak; PRESENT resets it.
+ */
+export const getDiscontinuationRisk = async (
+  currentUser: AuthUser,
+  query: { branchId?: string }
+) => {
+  const scope = getBranchScopeFilter(currentUser, query.branchId);
+
+  const students = await prisma.student.findMany({
+    where: {
+      instituteId: scope.instituteId,
+      status: "ACTIVE",
+      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+    },
+    include: {
+      user: { select: { id: true, name: true, email: true, phone: true } },
+      branch: { select: { id: true, name: true, code: true } },
+      batchEnrollments: {
+        where: { status: "ACTIVE" },
+        take: 1,
+        include: {
+          batch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              course: { select: { id: true, name: true } },
+            },
+          },
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  const riskStudents: Array<Record<string, unknown>> = [];
+
+  for (const student of students) {
+    const recent = await prisma.studentAttendance.findMany({
+      where: {
+        studentId: student.id,
+        classSession: {
+          // Theory-class focus: exclude explicitly practical-labelled titles when present
+          NOT: { title: { contains: "Practical", mode: "insensitive" } },
+        },
+      },
+      orderBy: { classSession: { scheduledDate: "desc" } },
+      take: 15,
+      select: { status: true },
+    });
+
+    let consecutiveAbsences = 0;
+    for (const record of recent) {
+      if (record.status === "LEAVE") continue;
+      if (record.status === "ABSENT") {
+        consecutiveAbsences++;
+        continue;
+      }
+      // PRESENT (or any other status) breaks the streak
+      break;
+    }
+
+    if (consecutiveAbsences < 2) continue;
+
+    const enrollment = student.batchEnrollments[0];
+    riskStudents.push({
+      id: student.id,
+      studentId: student.id,
+      studentCode: student.studentCode,
+      name: student.user?.name ?? student.studentCode,
+      email: student.user?.email ?? null,
+      phone: student.user?.phone ?? null,
+      branchId: student.branchId,
+      branch: student.branch,
+      batchName: enrollment?.batch?.name ?? null,
+      courseName: enrollment?.batch?.course?.name ?? null,
+      consecutiveAbsences,
+      riskLevel: consecutiveAbsences >= 3 ? "CRITICAL" : "WARNING",
+    });
+  }
+
+  riskStudents.sort(
+    (a, b) => Number(b.consecutiveAbsences) - Number(a.consecutiveAbsences)
+  );
+
+  return riskStudents;
+};
+
 // ─── Legacy functions ─────────────────────────────────────────────────────────
 
 export const getRoster = async (currentUser: AuthUser, query: RosterQuery) => {

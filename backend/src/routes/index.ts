@@ -26,6 +26,7 @@ import aiAgentRoutes from "../modules/ai-agent/ai-agent.routes";
 import masterRoutes from "../modules/masters/master.routes";
 import googleWorkspaceRoutes from "../modules/google-workspace/google-workspace.routes";
 import chatRoutes from "../modules/chat/chat.routes";
+import feedbackRoutes from "../modules/feedback/feedback.routes";
 
 const router = Router();
 
@@ -70,6 +71,9 @@ router.use("/class-sessions", classSessionRoutes);
 
 // Assignments
 router.use("/assignments", assignmentRoutes);
+
+// Feedback
+router.use("/feedback", feedbackRoutes);
 
 // Recordings
 router.use("/recordings", recordingRoutes);

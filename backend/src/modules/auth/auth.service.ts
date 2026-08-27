@@ -59,6 +59,8 @@ const buildAuthUser = (user: any): AuthUser => {
       roles,
       permissions: permsList,
       modulePermissions: resolvePermissionsToModules(permsList),
+      studentId: user.student?.id ?? null,
+      facultyId: user.faculty?.id ?? null,
     };
   }
 
@@ -80,6 +82,8 @@ const buildAuthUser = (user: any): AuthUser => {
     roles,
     permissions: allPermsList,
     modulePermissions: resolvePermissionsToModules(allPermsList),
+    studentId: user.student?.id ?? null,
+    facultyId: user.faculty?.id ?? null,
   };
 };
 
@@ -109,6 +113,33 @@ export const loginService = async (
   if (!isValid) throw new AppError("Invalid credentials", 401);
 
   const authUser = buildAuthUser(user);
+
+  // #region agent log
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const logPath = path.resolve(process.cwd(), "..", ".cursor", "debug-c11d90.log");
+    fs.appendFileSync(
+      logPath,
+      JSON.stringify({
+        sessionId: "c11d90",
+        runId: "post-fix",
+        hypothesisId: "D",
+        location: "auth.service.ts:login",
+        message: "login auth user shape",
+        data: {
+          userId: authUser.id,
+          studentId: authUser.studentId ?? null,
+          facultyId: authUser.facultyId ?? null,
+          roles: authUser.roles,
+        },
+        timestamp: Date.now(),
+      }) + "\n"
+    );
+  } catch {
+    /* ignore debug log failures */
+  }
+  // #endregion
 
   const jwtPayload = {
     userId: user.id,
