@@ -39,7 +39,8 @@ import {
   VolumeX,
   Clock,
   ListChecks,
-  Activity
+  Activity,
+  Award,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -57,6 +58,7 @@ import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.st
 import { useFinancialReport } from "@/hooks/useReports";
 import { useMasterRecords } from "@/hooks/useMasters";
 import { useLeads, useCreateLead } from "@/hooks/useLeads";
+import { useMyCurrentTargets } from "@/hooks/useTargets";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -183,6 +185,9 @@ export const CounselorDashboard: React.FC = () => {
   // Real Database Leads Query from PostgreSQL
   const { data: dbLeadsResponse } = useLeads();
   const createLeadMutation = useCreateLead();
+
+  // Real Database Counselor Targets Query
+  const { data: myTargetsData } = useMyCurrentTargets();
 
   // Combine Real Database Leads with Local Store Leads
   const combinedLeadsList = useMemo(() => {
@@ -734,6 +739,88 @@ export const CounselorDashboard: React.FC = () => {
             </div>
           </div>
         </Card>
+      </div>
+
+      {/* ─── TARGETS & LIVE INCENTIVE TRACKER ─── */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl text-white">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-amber-500/20 border border-amber-500/30 rounded-xl">
+              <Award className="w-5 h-5 text-amber-400" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white flex items-center gap-2">
+                My Active Targets & Potential Incentives
+                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
+                  Live Calculation
+                </Badge>
+              </h2>
+              <p className="text-xs text-slate-300">
+                System calculated performance from admissions, payments, and lead calls.
+              </p>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => navigate("/counselor/performance")}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md gap-1.5 h-9"
+          >
+            View Performance & Rewards <ArrowRight className="w-3.5 h-3.5" />
+          </Button>
+        </div>
+
+        {myTargetsData?.targets && myTargetsData.targets.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+            {myTargetsData.targets.map((t) => {
+              const achievement = Number(t.currentProgress?.achievementPercentage || 0);
+              const achieved = t.currentProgress?.achievedValue || 0;
+              const incentive = Number(t.currentProgress?.potentialIncentive || 0);
+              const isRevenue = t.metric === "ADMISSION_REVENUE" || t.metric === "FEE_COLLECTION";
+
+              return (
+                <div key={t.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-sm text-white">{t.title}</h3>
+                      <p className="text-[11px] text-slate-400">
+                        Goal: {isRevenue ? `₹${Number(t.targetValue).toLocaleString()}` : `${t.targetValue} units`}
+                      </p>
+                    </div>
+                    <span
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        achievement >= 100
+                          ? "bg-emerald-500/20 text-emerald-400"
+                          : "bg-amber-500/20 text-amber-400"
+                      }`}
+                    >
+                      {achievement}%
+                    </span>
+                  </div>
+
+                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-emerald-500 h-full rounded-full transition-all"
+                      style={{ width: `${Math.min(achievement, 100)}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-between text-[11px] font-medium text-slate-400 pt-1">
+                    <span>
+                      Achieved: <strong className="text-emerald-400">{isRevenue ? `₹${Number(achieved).toLocaleString()}` : achieved}</strong>
+                    </span>
+                    <span>
+                      Est. Reward: <strong className="text-amber-400">₹{incentive.toLocaleString()}</strong>
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="py-4 text-center text-xs text-slate-400">
+            No active targets assigned for current period. Contact your branch administrator.
+          </div>
+        )}
       </div>
 
       {/* ─── 3. REVENUE & FEE OVERVIEW (3 CARDS) ─── */}

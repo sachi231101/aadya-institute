@@ -17,7 +17,8 @@ import {
   UserCheck,
   Sparkles,
   Layers,
-  Bot
+  Bot,
+  Award
 } from "lucide-react"
 
 import {
@@ -122,6 +123,17 @@ const data = {
         { title: "Overview", url: "/admin/counselor/overview" },
         { title: "Manage Counsellors", url: "/admin/counselor/all" },
         { title: "Create & Manage Batches", url: "/admin/counselor/batches" },
+      ],
+    },
+    {
+      title: "Targets & Incentives",
+      url: "/admin/targets",
+      icon: Award,
+      isActive: false,
+      items: [
+        { title: "Manage Targets", url: "/admin/targets" },
+        { title: "Leaderboard & Stats", url: "/admin/performance" },
+        { title: "Incentive Approvals", url: "/admin/incentives" },
       ],
     },
     {

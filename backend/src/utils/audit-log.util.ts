@@ -16,7 +16,11 @@ const SENSITIVE_KEYS = new Set([
  * Recursively masks sensitive fields in data payloads before logging
  */
 export const maskSensitiveData = (data: any): any => {
-  if (!data || typeof data !== "object") return data;
+  if (!data) return data;
+  if (typeof data !== "object") return data;
+  if (data instanceof Date) return data.toISOString();
+  if (typeof data.toNumber === "function") return data.toNumber();
+  if (typeof data.toFixed === "function" && typeof data.d === "object") return Number(data.toString());
   if (Array.isArray(data)) return data.map(maskSensitiveData);
 
   const sanitized: Record<string, any> = {};

@@ -1,0 +1,325 @@
+{
+	"info": {
+		"_postman_id": "7f6e5d4c-3b2a-1098-8765-4321fedcba09",
+		"name": "Aadya Target & Incentive Management System",
+		"description": "Comprehensive Postman API collection for Aadya Institute's Target & Incentive Management System. Covers Target Plans, Target Assignments with Fixed/Slab/Percentage Incentive Rules, CRM Metric Progress Sync, Counselor Self-Service, Leaderboard Rankings, and Incentive Approvals.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:5000/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "adminToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "counselorToken",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "Target Plans",
+			"item": [
+				{
+					"name": "List Target Plans",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{adminToken}}"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/plans?periodType=MONTHLY&page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "plans"],
+							"query": [
+								{ "key": "periodType", "value": "MONTHLY" },
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Target Plan",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"September 2026 Admissions Drive\",\n  \"description\": \"Monthly admissions and revenue goals for all branches.\",\n  \"periodType\": \"MONTHLY\",\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets/plans",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "plans"]
+						}
+					}
+				},
+				{
+					"name": "Publish Target Plan",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/plans/:id/publish",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "plans", ":id", "publish"],
+							"variable": [{ "key": "id", "value": "plan_uuid_here" }]
+						}
+					}
+				},
+				{
+					"name": "Lock Target Plan",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/plans/:id/lock",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "plans", ":id", "lock"],
+							"variable": [{ "key": "id", "value": "plan_uuid_here" }]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Targets & Incentive Rules",
+			"item": [
+				{
+					"name": "List Assigned Targets",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets?status=ACTIVE&targetMetric=ADMISSIONS",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets"],
+							"query": [
+								{ "key": "status", "value": "ACTIVE" },
+								{ "key": "targetMetric", "value": "ADMISSIONS" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Create Target with Slab Incentive",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Admissions Target\",\n  \"targetMetric\": \"ADMISSIONS\",\n  \"targetValue\": 15,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"SLAB\",\n    \"slabs\": [\n      { \"minPercent\": 80, \"maxPercent\": 99, \"amount\": 2500 },\n      { \"minPercent\": 100, \"maxPercent\": 119, \"amount\": 5000 },\n      { \"minPercent\": 120, \"maxPercent\": 999, \"amount\": 8000 }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets"]
+						}
+					}
+				},
+				{
+					"name": "Create Target with Percentage Incentive",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"planId\": \"plan_uuid_here\",\n  \"userId\": \"counselor_uuid_here\",\n  \"title\": \"September 2026 Revenue Target\",\n  \"targetMetric\": \"REVENUE\",\n  \"targetValue\": 300000,\n  \"startDate\": \"2026-09-01T00:00:00.000Z\",\n  \"endDate\": \"2026-09-30T23:59:59.999Z\",\n  \"incentiveRule\": {\n    \"calculationType\": \"PERCENTAGE\",\n    \"percentageRates\": [\n      { \"minPercent\": 100, \"maxPercent\": 120, \"percentage\": 3.0 },\n      { \"minPercent\": 121, \"maxPercent\": 999, \"percentage\": 5.0 }\n    ]\n  }\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets"]
+						}
+					}
+				},
+				{
+					"name": "Sync Live Target Progress",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/:id/sync",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", ":id", "sync"],
+							"variable": [{ "key": "id", "value": "target_uuid_here" }]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Counselor Self-Service",
+			"item": [
+				{
+					"name": "Get My Active Targets (Counselor)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{counselorToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/my-targets",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "my-targets"]
+						}
+					}
+				},
+				{
+					"name": "Get My Historical Performance (Counselor)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{counselorToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/my-performance?page=1&limit=10",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "my-performance"],
+							"query": [
+								{ "key": "page", "value": "1" },
+								{ "key": "limit", "value": "10" }
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Performance Analytics & Leaderboard",
+			"item": [
+				{
+					"name": "Academy Performance Summary",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/performance/summary",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "performance", "summary"]
+						}
+					}
+				},
+				{
+					"name": "Counselor Leaderboard Rankings",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/performance/leaderboard",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "performance", "leaderboard"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "Incentive Approvals & Payouts",
+			"item": [
+				{
+					"name": "List Incentives",
+					"request": {
+						"method": "GET",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/incentives?status=PENDING_APPROVAL",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "incentives"],
+							"query": [
+								{ "key": "status", "value": "PENDING_APPROVAL" }
+							]
+						}
+					}
+				},
+				{
+					"name": "Approve Incentive",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"approvedAmount\": 5000,\n  \"notes\": \"Exceeded target bracket by 15%. Approved for monthly salary disbursement.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets/incentives/:id/approve",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "incentives", ":id", "approve"],
+							"variable": [{ "key": "id", "value": "incentive_uuid_here" }]
+						}
+					}
+				},
+				{
+					"name": "Reject Incentive",
+					"request": {
+						"method": "PATCH",
+						"header": [
+							{ "key": "Content-Type", "value": "application/json" },
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Refund processed for 2 batch admissions, bringing total below the minimum incentive eligibility threshold.\"\n}"
+						},
+						"url": {
+							"raw": "{{baseUrl}}/targets/incentives/:id/reject",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "incentives", ":id", "reject"],
+							"variable": [{ "key": "id", "value": "incentive_uuid_here" }]
+						}
+					}
+				},
+				{
+					"name": "Settle Expired Targets (Batch / Cron Trigger)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{ "key": "Authorization", "value": "Bearer {{adminToken}}" }
+						],
+						"url": {
+							"raw": "{{baseUrl}}/targets/settle-expired",
+							"host": ["{{baseUrl}}"],
+							"path": ["targets", "settle-expired"]
+						}
+					}
+				}
+			]
+		}
+	]
+}
