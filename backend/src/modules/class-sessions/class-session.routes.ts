@@ -7,6 +7,9 @@ import {
   updateClassSessionSchema,
 } from "./class-session.validation";
 import {
+  createMeetSpaceSchema,
+} from "../google-workspace/google-workspace.validation";
+import {
   getSessions,
   getSessionById,
   createSession,
@@ -16,7 +19,13 @@ import {
   startLiveSession,
   endLiveSession,
   getActiveLiveSessions,
+  getSessionMeeting,
+  getMeetSpace,
 } from "./class-session.controller";
+import {
+  createMeetForSession,
+  syncSessionRecordings,
+} from "../google-workspace/google-workspace.controller";
 import {
   getSessionAttendance,
   postSessionAttendance,
@@ -28,6 +37,14 @@ router.use(authMiddleware);
 
 // Active live sessions query (for Student & Faculty dashboards)
 router.get("/active/live", getActiveLiveSessions);
+
+// Meeting Access endpoint (Student, Faculty, Staff authorized access)
+router.get("/:id/meeting", getSessionMeeting);
+
+// Google Meet Space management
+router.post("/:id/google-meet", requirePermission("google_meet.create"), validate(createMeetSpaceSchema), createMeetForSession);
+router.get("/:id/google-meet", requirePermission("google_meet.read"), getMeetSpace);
+router.post("/:id/recordings/sync", requirePermission("recording.manage"), syncSessionRecordings);
 
 // Attendance sub-routes for class session
 router.get("/:id/attendance", requirePermission("attendance.read"), getSessionAttendance);

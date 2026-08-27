@@ -25,4 +25,12 @@ export const env = {
   // Queue config
   WHATSAPP_MAX_RETRIES: Number(process.env.WHATSAPP_MAX_RETRIES) || 3,
   WHATSAPP_QUEUE_CONCURRENCY: Number(process.env.WHATSAPP_QUEUE_CONCURRENCY) || 5,
+  // Google Workspace & Google Meet OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || "",
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || "",
+  GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/v1/integrations/google/callback",
+  GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID || "",
+  GOOGLE_MEET_SCOPES: process.env.GOOGLE_MEET_SCOPES || "https://www.googleapis.com/auth/meetings.space.created https://www.googleapis.com/auth/meetings.space.readonly",
+  GOOGLE_DRIVE_SCOPES: process.env.GOOGLE_DRIVE_SCOPES || "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly",
+  GOOGLE_TOKEN_ENCRYPTION_KEY: process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || "aadya-google-token-encryption-secret-key-32",
 };

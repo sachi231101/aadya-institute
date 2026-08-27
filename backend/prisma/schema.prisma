@@ -105,6 +105,27 @@ enum BatchStatus {
   CANCELLED
 }
 
+enum GoogleConnectionStatus {
+  CONNECTED
+  REAUTH_REQUIRED
+  DISCONNECTED
+  EXPIRED
+}
+
+enum MeetRecordingStatus {
+  ENABLED
+  DISABLED
+  NOT_SUPPORTED
+  PERMISSION_DENIED
+  UNKNOWN
+}
+
+enum MeetSpaceStatus {
+  ACTIVE
+  ENDED
+  CANCELLED
+}
+
 model Institute {
   id        String   @id @default(cuid())
   name      String
@@ -134,6 +155,8 @@ model Institute {
   leads       Lead[]
   aiConversations AIConversation[]
   masterRecords MasterRecord[]
+  googleConnections GoogleWorkspaceConnection[]
+  conversations Conversation[]
 }
 
 model Branch {
@@ -163,6 +186,7 @@ model Branch {
   notifications Notification[]
   leads       Lead[]
   masterRecords MasterRecord[]
+  conversations Conversation[]
 
 
   @@unique([instituteId, code])
@@ -227,6 +251,10 @@ model User {
   followUpsCreated     LeadFollowUp[]     @relation("FollowUpCreatedBy")
   aiConversations      AIConversation[]
   permissionsGranted   UserPermission[]   @relation("PermissionGrantedBy")
+  googleConnection     GoogleWorkspaceConnection?
+  organizedMeetSpaces  GoogleMeetSpace[]
+  chatMemberships      ConversationMember[]
+  sentMessages         Message[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -597,6 +625,7 @@ model ClassSession {
   attendance        StudentAttendance[]
   facultyAttendance FacultyAttendance[]
   recording         Recording?
+  googleMeetSpace   GoogleMeetSpace?
   assignments       Assignment[]
   feedback          Feedback[]
 
@@ -636,17 +665,70 @@ model FacultyAttendance {
 }
 
 model Recording {
-  id             String    @id @default(cuid())
-  classSessionId String    @unique
-  storageKey     String
-  duration       Int?
-  startedAt      DateTime?
-  endedAt        DateTime?
-  expiresAt      DateTime
-  status         Status    @default(ACTIVE)
-  createdAt      DateTime  @default(now())
+  id                       String    @id @default(cuid())
+  classSessionId           String    @unique
+  storageKey               String    @default("")
+  googleConferenceRecordId String?
+  googleRecordingId        String?   @unique
+  googleDriveFileId        String?
+  playbackUrl              String?
+  duration                 Int?
+  startedAt                DateTime?
+  endedAt                  DateTime?
+  expiresAt                DateTime
+  recordingStatus          String    @default("PENDING") // PENDING, RECORDING, PROCESSING, READY, FAILED, DELETED
+  storageProvider          String    @default("GOOGLE_DRIVE")
+  metadata                 Json?
+  status                   Status    @default(ACTIVE)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @default(now()) @updatedAt
 
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+
+  @@index([googleRecordingId])
+  @@index([googleDriveFileId])
+  @@index([recordingStatus])
+}
+
+model GoogleWorkspaceConnection {
+  id                    String                 @id @default(cuid())
+  userId                String                 @unique
+  instituteId           String
+  googleAccountId       String?
+  email                 String
+  encryptedRefreshToken String
+  scopes                String[]               @default([])
+  status                GoogleConnectionStatus @default(CONNECTED)
+  lastSyncedAt          DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@index([instituteId])
+  @@index([email])
+}
+
+model GoogleMeetSpace {
+  id                           String              @id @default(cuid())
+  classSessionId               String              @unique
+  spaceName                    String              // e.g. "spaces/xxx-yyyy-zzz"
+  meetingUri                   String              // e.g. "https://meet.google.com/xxx-yyyy-zzz"
+  meetingCode                  String?             // e.g. "xxx-yyyy-zzz"
+  organizerUserId              String
+  recordingEnabled             Boolean             @default(false)
+  recordingConfigurationStatus MeetRecordingStatus @default(UNKNOWN)
+  status                       MeetSpaceStatus     @default(ACTIVE)
+  config                       Json?
+  createdAt                    DateTime            @default(now())
+  updatedAt                    DateTime            @updatedAt
+
+  classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  organizer    User         @relation(fields: [organizerUserId], references: [id], onDelete: Cascade)
+
+  @@index([spaceName])
+  @@index([organizerUserId])
 }
 
 model Assignment {
@@ -1213,6 +1295,64 @@ model MasterRecord {
   @@index([branchId, entityType])
   @@index([entityType, status])
   @@index([createdAt])
+}
+
+// ─── Internal Team Chat ──────────────────────────────────────────────────────
+
+enum ConversationType {
+  TEAM
+  DIRECT
+}
+
+model Conversation {
+  id          String           @id @default(cuid())
+  instituteId String
+  branchId    String?
+  type        ConversationType @default(DIRECT)
+  title       String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  institute   Institute        @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch      Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+
+  members     ConversationMember[]
+  messages    Message[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([type])
+  @@index([updatedAt])
+}
+
+model ConversationMember {
+  id             String       @id @default(cuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime     @default(now())
+  lastReadAt     DateTime?
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  content        String       @db.Text
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([senderId])
 }
 
 

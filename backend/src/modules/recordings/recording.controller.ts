@@ -68,3 +68,19 @@ export const deleteRecording = async (
     next(error);
   }
 };
+
+export const getRecordingAccess = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const access = await service.getRecordingAccess(
+      req.user as unknown as AuthUser,
+      req.params.id as string
+    );
+    sendSuccess(res, access, 200, "Recording playback access retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};

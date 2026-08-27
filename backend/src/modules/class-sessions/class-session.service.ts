@@ -154,4 +154,131 @@ export const classSessionService = {
     }
     return classSessionRepository.delete(id);
   },
+
+  getSessionMeeting: async (currentUser: any, id: string) => {
+    const session = await prisma.classSession.findUnique({
+      where: { id },
+      include: {
+        batch: {
+          include: {
+            enrollments: {
+              where: { status: "ACTIVE" },
+            },
+          },
+        },
+        faculty: true,
+        googleMeetSpace: true,
+      },
+    });
+
+    if (!session || session.batch.instituteId !== currentUser.instituteId) {
+      const err: any = new Error("Class session not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Branch isolation for non-ADMIN
+    if (
+      !currentUser.roles.includes("ADMIN") &&
+      currentUser.branchId &&
+      session.branchId !== currentUser.branchId
+    ) {
+      const err: any = new Error("Class session not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Role-specific authorization
+    const isStudent = currentUser.roles.includes("STUDENT");
+    const isFaculty = currentUser.roles.includes("FACULTY");
+
+    if (isStudent && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
+      const student = await prisma.student.findFirst({
+        where: {
+          userId: currentUser.id || currentUser.userId,
+          instituteId: currentUser.instituteId,
+        },
+      });
+
+      if (!student) {
+        const err: any = new Error("Student profile not found");
+        err.statusCode = 403;
+        throw err;
+      }
+
+      // Check active enrollment in this session's batch
+      const isEnrolled = session.batch.enrollments.some((e: any) => e.studentId === student.id);
+      if (!isEnrolled) {
+        const err: any = new Error("You are not enrolled in this class session's batch");
+        err.statusCode = 403;
+        throw err;
+      }
+    } else if (isFaculty && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
+      const faculty = await prisma.faculty.findUnique({
+        where: { userId: currentUser.id || currentUser.userId },
+      });
+
+      if (!faculty || faculty.id !== session.facultyId) {
+        const err: any = new Error("You are not authorized to access this class meeting");
+        err.statusCode = 403;
+        throw err;
+      }
+    }
+
+    const meetingUrl = session.meetingUrl || session.googleMeetSpace?.meetingUri;
+
+    return {
+      classSessionId: session.id,
+      title: session.title,
+      scheduledDate: session.scheduledDate,
+      startTime: session.startTime,
+      endTime: session.endTime,
+      mode: session.mode,
+      meetingUrl,
+      meetingCode: session.googleMeetSpace?.meetingCode || (meetingUrl ? meetingUrl.split("/").pop() : undefined),
+      spaceName: session.googleMeetSpace?.spaceName,
+      recordingEnabled: session.googleMeetSpace?.recordingEnabled ?? false,
+      sessionStatus: session.sessionStatus,
+    };
+  },
+
+  getMeetSpaceForSession: async (currentUser: any, id: string) => {
+    const session = await prisma.classSession.findUnique({
+      where: { id },
+      include: {
+        batch: true,
+        googleMeetSpace: {
+          include: {
+            organizer: {
+              select: { id: true, name: true, email: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!session || session.batch.instituteId !== currentUser.instituteId) {
+      const err: any = new Error("Class session not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (
+      !currentUser.roles.includes("ADMIN") &&
+      currentUser.branchId &&
+      session.branchId !== currentUser.branchId
+    ) {
+      const err: any = new Error("Class session not found");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    if (!session.googleMeetSpace) {
+      const err: any = new Error("No Google Meet space linked to this class session");
+      err.statusCode = 404;
+      throw err;
+    }
+
+    return session.googleMeetSpace;
+  },
 };
