@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
 import { classSessionService } from "./class-session.service";
 import { sendSuccess, sendError } from "../../utils/response";
+import { assertFacultyOwnsSession, toAuthUser } from "../../utils/auth-user.util";
 
 export const getSessions = async (
   req: AuthenticatedRequest,
@@ -76,6 +77,7 @@ export const getSessionById = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
+    await assertFacultyOwnsSession(toAuthUser(req), req.params.id as string);
     const session = await classSessionService.getSessionById(req.params.id as string, instituteId);
     sendSuccess(res, session, 200, "Class session details retrieved successfully");
   } catch (error) {
@@ -132,6 +134,7 @@ export const startLiveSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
+    await assertFacultyOwnsSession(toAuthUser(req), req.params.id as string);
     const meetingUrl = req.body?.meetingUrl as string | undefined;
     const result = await classSessionService.startLiveClass(req.params.id as string, instituteId, meetingUrl);
     sendSuccess(
@@ -152,6 +155,7 @@ export const endLiveSession = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
+    await assertFacultyOwnsSession(toAuthUser(req), req.params.id as string);
     const result = await classSessionService.endLiveClass(req.params.id as string, instituteId);
     sendSuccess(res, result, 200, "Live class ended and recorded successfully");
   } catch (error) {

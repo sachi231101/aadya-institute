@@ -380,6 +380,7 @@ async function main() {
     "chat.send",
     "feedback.read",
     "notification.read",
+    "report.read",
   ];
   for (const name of facultyPermNames) {
     if (permissions[name]) {

@@ -1,25 +1,13 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import type { AuthUser } from "../auth/auth.types";
 import { sendSuccess, sendPaginated, sendError } from "../../utils/response";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./attendance.service";
 import {
   postSessionAttendanceSchema,
   patchAttendanceSchema,
   studentAttendanceQuerySchema,
 } from "./attendance.validation";
-
-const buildAuthUser = (req: AuthenticatedRequest): AuthUser => {
-  const user = req.user!;
-  return {
-    id: user.userId,
-    name: "User",
-    instituteId: user.instituteId,
-    branchId: user.branchId,
-    roles: user.roles,
-    permissions: [],
-  };
-};
 
 /**
  * GET /api/v1/class-sessions/:id/attendance
@@ -32,7 +20,7 @@ export const getSessionAttendance = async (
 ): Promise<void> => {
   try {
     const id = (req.params.id || req.params.sessionId) as string;
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const data = await service.getSessionAttendance(authUser, id);
     sendSuccess(res, data, 200, "Class session attendance retrieved successfully");
   } catch (err) {
@@ -52,7 +40,7 @@ export const postSessionAttendance = async (
   try {
     const classSessionId = req.params.id as string;
     const { attendance } = postSessionAttendanceSchema.parse(req.body);
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const data = await service.submitBulkSessionAttendance(authUser, classSessionId, attendance);
     sendSuccess(res, data, 200, "Bulk attendance submitted successfully");
   } catch (err) {
@@ -72,7 +60,7 @@ export const patchAttendance = async (
   try {
     const { attendanceId } = req.params;
     const body = patchAttendanceSchema.parse(req.body);
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const data = await service.updateAttendanceRecord(authUser, attendanceId as string, body);
     sendSuccess(res, data, 200, "Attendance record updated successfully");
   } catch (err) {
@@ -92,7 +80,7 @@ export const getStudentAttendance = async (
   try {
     const { studentId } = req.params;
     const query = studentAttendanceQuerySchema.parse(req.query);
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const result = await service.getStudentAttendance(authUser, studentId as string, query);
     sendPaginated(res, result.data, result.meta, "Student attendance history retrieved successfully");
   } catch (err) {
@@ -111,7 +99,7 @@ export const getStudentAttendanceSummary = async (
 ): Promise<void> => {
   try {
     const { studentId } = req.params;
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const data = await service.getStudentAttendanceSummary(authUser, studentId as string);
     sendSuccess(res, data, 200, "Student attendance summary retrieved successfully");
   } catch (err) {
@@ -123,7 +111,7 @@ export const getStudentAttendanceSummary = async (
 
 export const getRoster = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const authUser = buildAuthUser(req);
+    const authUser = toAuthUser(req);
     const { data, meta } = await service.getRoster(authUser, req.query as any);
     sendPaginated(res, data, meta);
   } catch (err) { next(err); }

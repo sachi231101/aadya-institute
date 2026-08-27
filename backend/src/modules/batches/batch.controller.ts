@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
+import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./batch.service";
 
 export const getAll = async (
@@ -58,6 +59,7 @@ export const getById = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
+    await assertFacultyOwnsBatch(toAuthUser(req), req.params.id as string);
     const batch = await service.getBatchById(req.params.id as string, instituteId);
     res.json({
       success: true,
@@ -129,6 +131,7 @@ export const getStudents = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
+    await assertFacultyOwnsBatch(toAuthUser(req), req.params.id as string);
     const students = await service.getBatchStudents(req.params.id as string, instituteId);
     res.json({
       success: true,
