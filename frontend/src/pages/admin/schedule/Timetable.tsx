@@ -44,6 +44,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // ─── TYPES & SCHEDULE DATA STRUCTURES ──────────────────────────────────────
 
@@ -1381,12 +1382,7 @@ export const Timetable: React.FC = () => {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab *</Label>
-                    <Input
-                      value={modalRoomNo}
-                      onChange={(e) => setModalRoomNo(e.target.value)}
-                      placeholder="e.g. Room 201"
-                      className="h-9 mt-1 text-xs rounded-xl"
-                    />
+                    <ClassroomDropdown value={modalRoomNo} onChange={setModalRoomNo} />
                   </div>
                   <div>
                     <Label className="text-[11px] font-bold text-slate-700">Enrolled Students</Label>

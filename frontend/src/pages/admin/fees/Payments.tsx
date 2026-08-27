@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 export const Payments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -55,6 +56,8 @@ export const Payments: React.FC = () => {
   const deletePaymentMutation = useDeletePayment();
 
   const { courses } = useCourseStore();
+  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
+  const { options: bankAccountOptions } = useMasterDropdown("bankaccounts");
 
   // Receipt Modal State
   const [viewReceiptItem, setViewReceiptItem] = useState<Payment | null>(null);
@@ -63,8 +66,8 @@ export const Payments: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
   const [studentName, setStudentName] = useState("");
   const [admissionNo, setAdmissionNo] = useState("");
-  const [courseName, setCourseName] = useState(courses[0]?.name || "Full Stack MERN Architecture");
-  const [amount, setAmount] = useState<number>(25000);
+  const [courseName, setCourseName] = useState(courses[0]?.name || "");
+  const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [method, setMethod] = useState<PaymentMethod>("UPI");
   const [transactionRef, setTransactionRef] = useState("");
@@ -242,10 +245,12 @@ export const Payments: React.FC = () => {
                 className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
               >
                 <option value="ALL">All Payment Methods</option>
-                <option value="UPI">UPI</option>
-                <option value="NET_BANKING">NetBanking</option>
-                <option value="CARD">Card</option>
-                <option value="CASH">Cash</option>
+                {paymentModeOptions.map((opt) => (
+                  <option key={opt.value} value={opt.label}>{opt.label}</option>
+                ))}
+                {paymentModeOptions.length === 0 && (
+                  <option value="" disabled>No modes — add in Master Setup</option>
+                )}
               </select>
 
               <select
@@ -513,11 +518,13 @@ export const Payments: React.FC = () => {
                     onChange={(e) => setMethod(e.target.value as PaymentMethod)}
                     className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                   >
-                    <option value="UPI">UPI / QR Code</option>
-                    <option value="NET_BANKING">Net Banking (NEFT/IMPS)</option>
-                    <option value="CARD">Debit / Credit Card</option>
-                    <option value="CASH">Cash</option>
-                    <option value="CHEQUE">Cheque</option>
+                    <option value="">Select Payment Mode</option>
+                    {paymentModeOptions.map((opt) => (
+                      <option key={opt.value} value={opt.label}>{opt.label}</option>
+                    ))}
+                    {paymentModeOptions.length === 0 && (
+                      <option value="" disabled>No modes — add in Master Setup</option>
+                    )}
                   </select>
                 </div>
 
@@ -541,10 +548,12 @@ export const Payments: React.FC = () => {
                     className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                   >
                     <option value="">Select Bank Account</option>
-                    <option value="HDFC - Main">HDFC Bank - Main A/C</option>
-                    <option value="SBI - Operations">SBI - Operations A/C</option>
-                    <option value="ICICI - Fee Collection">ICICI - Fee Collection A/C</option>
-                    <option value="Cash Counter">Cash Counter</option>
+                    {bankAccountOptions.map((opt) => (
+                      <option key={opt.value} value={opt.label}>{opt.label}{opt.code ? ` (${opt.code})` : ""}</option>
+                    ))}
+                    {bankAccountOptions.length === 0 && (
+                      <option value="" disabled>No bank accounts — add in Master Setup</option>
+                    )}
                   </select>
                 </div>
                 {method === "CHEQUE" && (

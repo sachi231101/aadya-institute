@@ -30,6 +30,7 @@ const studentInclude = {
   admissions: {
     include: {
       course: { select: { id: true, name: true, code: true } },
+      batch: { select: { id: true, name: true, code: true, timeSlot: true } },
     },
     orderBy: { createdAt: "desc" as const },
     take: 1,
@@ -42,6 +43,7 @@ const studentInclude = {
           name: true,
           code: true,
           status: true,
+          timeSlot: true,
           course: { select: { id: true, name: true, code: true } },
           faculty: { select: { id: true, user: { select: { name: true } } } },
         },
@@ -49,6 +51,28 @@ const studentInclude = {
     },
     where: { status: "ACTIVE" as any },
     take: 1,
+  },
+  payments: {
+    select: {
+      id: true,
+      amount: true,
+      status: true,
+      receiptNo: true,
+      date: true,
+    },
+    orderBy: { createdAt: "desc" as const },
+  },
+  pendingFees: {
+    select: {
+      id: true,
+      totalFee: true,
+      amountPaid: true,
+      dueAmount: true,
+      dueDate: true,
+      installmentNo: true,
+      status: true,
+    },
+    orderBy: { installmentNo: "asc" as const },
   },
   studentAttendances: {
     select: {
@@ -114,6 +138,7 @@ export const findStudentById = (id: string) =>
       admissions: {
         include: {
           course: { select: { id: true, name: true, code: true } },
+          batch: { select: { id: true, name: true, code: true, timeSlot: true } },
         },
         orderBy: { createdAt: "desc" },
       },
@@ -125,7 +150,9 @@ export const findStudentById = (id: string) =>
               name: true,
               code: true,
               status: true,
+              timeSlot: true,
               course: { select: { id: true, name: true, code: true } },
+              faculty: { select: { id: true, user: { select: { name: true } } } },
             },
           },
         },
@@ -142,7 +169,7 @@ export const findStudentByCode = (instituteId: string, studentCode: string) =>
   });
 
 /**
- * Creates User + Student + assigns STUDENT role in a single transaction.
+ * Creates User + Student + assigns STUDENT role, and optionally creates Admission, BatchEnrollment, and Fee records in a single transaction.
  */
 export const createStudentWithUser = async (data: {
   instituteId: string;
@@ -154,6 +181,11 @@ export const createStudentWithUser = async (data: {
   studentCode: string;
   dateOfBirth?: string;
   qualification?: string;
+  courseId?: string;
+  batchId?: string;
+  totalFee?: number;
+  feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
+  downPayment?: number;
 }) => {
   return prisma.$transaction(async (tx) => {
     // 1. Create the User record
@@ -162,8 +194,8 @@ export const createStudentWithUser = async (data: {
         instituteId: data.instituteId,
         branchId: data.branchId,
         name: data.name,
-        email: data.email,
-        phone: data.phone,
+        email: data.email || null,
+        phone: data.phone || null,
         passwordHash: data.passwordHash,
       },
     });
@@ -176,9 +208,8 @@ export const createStudentWithUser = async (data: {
         branchId: data.branchId,
         studentCode: data.studentCode,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
-        qualification: data.qualification,
+        qualification: data.qualification || null,
       },
-      include: studentInclude,
     });
 
     // 3. Find the STUDENT role and assign it
@@ -195,7 +226,148 @@ export const createStudentWithUser = async (data: {
       });
     }
 
-    return student;
+    // 4. Optional Admission & Course Mapping
+    let admissionId: string | null = null;
+    let courseName = "General Course";
+    const admissionNo = `ADM-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    if (data.courseId) {
+      const course = await tx.course.findUnique({ where: { id: data.courseId } });
+      if (course) courseName = course.name;
+
+      const admission = await tx.admission.create({
+        data: {
+          instituteId: data.instituteId,
+          branchId: data.branchId,
+          studentId: student.id,
+          courseId: data.courseId,
+          batchId: data.batchId || null,
+          studentName: data.name,
+          email: data.email || null,
+          phone: data.phone || null,
+          feePlan: data.feePlan || "INSTALLMENT",
+          status: "CONFIRMED",
+          admissionNo,
+        },
+      });
+      admissionId = admission.id;
+    }
+
+    // 5. Optional Batch Enrollment
+    if (data.batchId) {
+      await tx.batchEnrollment.create({
+        data: {
+          batchId: data.batchId,
+          studentId: student.id,
+          admissionId: admissionId,
+          status: "ACTIVE",
+        },
+      });
+    }
+
+    // 6. Optional Fee & Payment Setup
+    if (data.totalFee && data.totalFee > 0) {
+      const totalFee = Number(data.totalFee);
+      const downPay = Number(data.downPayment || 0);
+
+      // Record initial payment receipt if down payment was made
+      if (downPay > 0) {
+        const receiptNo = `RCP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        await tx.payment.create({
+          data: {
+            receiptNo,
+            instituteId: data.instituteId,
+            branchId: data.branchId,
+            studentId: student.id,
+            admissionId: admissionId,
+            studentName: data.name,
+            admissionNo,
+            courseName,
+            amount: downPay,
+            method: "UPI",
+            status: "SUCCESS",
+            notes: "Initial registration payment",
+          },
+        });
+      }
+
+      const balance = Math.max(0, totalFee - downPay);
+      if (balance > 0) {
+        if (data.feePlan === "FULL_PAYMENT") {
+          const dueDate = new Date();
+          dueDate.setDate(dueDate.getDate() + 30);
+          await tx.pendingFee.create({
+            data: {
+              instituteId: data.instituteId,
+              branchId: data.branchId,
+              studentId: student.id,
+              admissionId: admissionId,
+              studentName: data.name,
+              admissionNo,
+              phone: data.phone || "9876543210",
+              courseName,
+              totalFee,
+              amountPaid: downPay,
+              dueAmount: balance,
+              dueDate,
+              installmentNo: 1,
+              status: "DUE_SOON",
+            },
+          });
+        } else {
+          // 2 installments
+          const part1 = Math.floor(balance / 2);
+          const part2 = balance - part1;
+          const d1 = new Date();
+          d1.setDate(d1.getDate() + 30);
+          const d2 = new Date();
+          d2.setDate(d2.getDate() + 60);
+
+          await tx.pendingFee.createMany({
+            data: [
+              {
+                instituteId: data.instituteId,
+                branchId: data.branchId,
+                studentId: student.id,
+                admissionId: admissionId,
+                studentName: data.name,
+                admissionNo,
+                phone: data.phone || "9876543210",
+                courseName,
+                totalFee,
+                amountPaid: downPay,
+                dueAmount: part1,
+                dueDate: d1,
+                installmentNo: 1,
+                status: "DUE_SOON",
+              },
+              {
+                instituteId: data.instituteId,
+                branchId: data.branchId,
+                studentId: student.id,
+                admissionId: admissionId,
+                studentName: data.name,
+                admissionNo,
+                phone: data.phone || "9876543210",
+                courseName,
+                totalFee,
+                amountPaid: 0,
+                dueAmount: part2,
+                dueDate: d2,
+                installmentNo: 2,
+                status: "DUE_SOON",
+              },
+            ],
+          });
+        }
+      }
+    }
+
+    // Return the full student record
+    return tx.student.findUniqueOrThrow({
+      where: { id: student.id },
+      include: studentInclude,
+    });
   });
 };
 

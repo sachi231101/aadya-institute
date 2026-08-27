@@ -8,6 +8,7 @@ import { useBranches } from "../../../hooks/useBranches";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 import {
   Form,
@@ -115,6 +116,9 @@ export const AddStudent: React.FC = () => {
 
   const { courses } = useCourses();
   const { batches } = useBatches();
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
+  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
+  const { options: concessionOptions } = useMasterDropdown("concessionheads");
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema) as any,
@@ -629,12 +633,13 @@ export const AddStudent: React.FC = () => {
                           className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
                           {...field}
                         >
-                          <option value="Walk-in">Direct Walk-in</option>
-                          <option value="Website">Official Website</option>
-                          <option value="WhatsApp">WhatsApp Inquiry</option>
-                          <option value="AI_Calling">AI Calling Campaign</option>
-                          <option value="Social_Media">Instagram / Social Ads</option>
-                          <option value="Referral">Student Referral</option>
+                          <option value="">Select Lead Source</option>
+                          {leadSourceOptions.map((opt) => (
+                            <option key={opt.value} value={opt.label}>{opt.label}</option>
+                          ))}
+                          {leadSourceOptions.length === 0 && (
+                            <option value="" disabled>No sources — add in Master Setup</option>
+                          )}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -1018,10 +1023,12 @@ export const AddStudent: React.FC = () => {
                           {...field}
                         >
                           <option value="">None</option>
-                          <option value="Merit Scholarship">Merit Scholarship</option>
-                          <option value="Early Bird">Early Bird Offer</option>
-                          <option value="Sibling Discount">Sibling Discount</option>
-                          <option value="Director Special">Director Special Approval</option>
+                          {concessionOptions.map((opt) => (
+                            <option key={opt.value} value={opt.label}>{opt.label}</option>
+                          ))}
+                          {concessionOptions.length === 0 && (
+                            <option value="" disabled>No concessions — add in Master Setup</option>
+                          )}
                         </select>
                       </FormControl>
                       <FormMessage />
@@ -1041,11 +1048,13 @@ export const AddStudent: React.FC = () => {
                           className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
                           {...field}
                         >
-                          <option value="UPI">UPI / QR Code</option>
-                          <option value="Cash">Cash</option>
-                          <option value="NEFT">Net Banking (NEFT/IMPS)</option>
-                          <option value="Card">Credit/Debit Card</option>
-                          <option value="Cheque">Cheque</option>
+                          <option value="">Select Payment Mode</option>
+                          {paymentModeOptions.map((opt) => (
+                            <option key={opt.value} value={opt.label}>{opt.label}</option>
+                          ))}
+                          {paymentModeOptions.length === 0 && (
+                            <option value="" disabled>No payment modes — add in Master Setup</option>
+                          )}
                         </select>
                       </FormControl>
                       <FormMessage />

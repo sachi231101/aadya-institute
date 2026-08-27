@@ -30,6 +30,7 @@ import {
   type LeadSource,
   type PipelineStage,
 } from "@/store/lead.store";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 // Visual source badge helpers
 const getSourceBadge = (source: string) => {
@@ -98,6 +99,7 @@ export const LeadManagement: React.FC = () => {
   const [sourceFilter, setSourceFilter] = useState("ALL");
   const [stageFilter, setStageFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const [counsellorFilter, setCounsellorFilter] = useState("ALL");
   const [followUpStatusFilter, setFollowUpStatusFilter] = useState("ALL");
 
@@ -114,7 +116,7 @@ export const LeadManagement: React.FC = () => {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpLead, setFollowUpLead] = useState<UnifiedLead | null>(null);
   const [followUpChannel, setFollowUpChannel] = useState<"PHONE" | "WHATSAPP" | "EMAIL">("PHONE");
-  const [followUpDate, setFollowUpDate] = useState("2026-08-25");
+  const [followUpDate, setFollowUpDate] = useState(new Date().toISOString().split("T")[0]);
   const [followUpTime, setFollowUpTime] = useState("11:00 AM");
   const [followUpType, setFollowUpType] = useState<"Phone Call" | "WhatsApp" | "Meeting" | "Other">("Phone Call");
   const [followUpNotes, setFollowUpNotes] = useState("");
@@ -498,15 +500,12 @@ export const LeadManagement: React.FC = () => {
               className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
             >
               <option value="ALL">🌐 All Sources</option>
-              <option value="Website">🌐 Website Form</option>
-              <option value="Meta Ads">📱 Meta / Facebook Ads</option>
-              <option value="Google Ads">🔎 Google Search Ads</option>
-              <option value="Instagram">📱 Instagram Campaign</option>
-              <option value="WhatsApp">📲 WhatsApp Inbound</option>
-              <option value="Walk-in">🚶 Center Walk-in</option>
-              <option value="Direct Call">📞 Direct Call</option>
-              <option value="Referral">👥 Student Referral</option>
-              <option value="Campaign">🤖 AI Campaign</option>
+              {leadSourceOptions.map((opt) => (
+                <option key={opt.value} value={opt.label}>{opt.label}</option>
+              ))}
+              {leadSourceOptions.length === 0 && (
+                <option value="" disabled>No sources — add in Master Setup</option>
+              )}
             </select>
 
             {/* 2. All Stages Dropdown */}
@@ -1192,14 +1191,13 @@ export const LeadManagement: React.FC = () => {
                   onChange={(e) => setFormSource(e.target.value as LeadSource)}
                   className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
                 >
-                  <option value="Website">🌐 Website Form</option>
-                  <option value="Meta Ads">📱 Meta / Facebook Ads</option>
-                  <option value="Google Ads">🔎 Google Ads</option>
-                  <option value="Instagram">📱 Instagram Campaign</option>
-                  <option value="WhatsApp">📲 WhatsApp Inbound</option>
-                  <option value="Walk-in">🚶 Center Walk-in</option>
-                  <option value="Direct Call">📞 Direct Call</option>
-                  <option value="Referral">👥 Student Referral</option>
+                  <option value="">Select Lead Source</option>
+                  {leadSourceOptions.map((opt) => (
+                    <option key={opt.value} value={opt.label}>{opt.label}</option>
+                  ))}
+                  {leadSourceOptions.length === 0 && (
+                    <option value="" disabled>No sources — add in Master Setup</option>
+                  )}
                 </select>
               </div>
             </div>

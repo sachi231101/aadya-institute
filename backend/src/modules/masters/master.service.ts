@@ -8,9 +8,13 @@ import type {
 import {
   findMasterRecords,
   findMasterRecordById,
+  findDuplicateMasterRecord,
   createMasterRecord,
   updateMasterRecord,
-  deleteMasterRecord,
+  softDeleteMasterRecord,
+  toggleMasterRecordStatus,
+  findAllEntityTypeCounts,
+  findActiveMasterRecords,
 } from "./master.repository";
 import type { Status } from "@prisma/client";
 
@@ -82,6 +86,19 @@ export const createMasterService = async (
     ? (currentUser.branchId || input.branchId || undefined)
     : input.branchId;
 
+  // Duplicate name check
+  const duplicate = await findDuplicateMasterRecord(
+    instituteId,
+    input.entityType,
+    input.name
+  );
+  if (duplicate) {
+    throw new AppError(
+      `A record with the name "${input.name}" already exists in ${input.entityType}`,
+      409
+    );
+  }
+
   return createMasterRecord(instituteId, {
     ...input,
     branchId,
@@ -109,6 +126,22 @@ export const updateMasterService = async (
     throw new AppError("Master record not found", 404);
   }
 
+  // Duplicate name check on update (if name is being changed)
+  if (input.name && input.name !== existing.name) {
+    const duplicate = await findDuplicateMasterRecord(
+      instituteId,
+      existing.entityType,
+      input.name,
+      id
+    );
+    if (duplicate) {
+      throw new AppError(
+        `A record with the name "${input.name}" already exists in ${existing.entityType}`,
+        409
+      );
+    }
+  }
+
   return updateMasterRecord(id, instituteId, input);
 };
 
@@ -132,6 +165,58 @@ export const deleteMasterService = async (
     throw new AppError("Master record not found", 404);
   }
 
-  await deleteMasterRecord(id, instituteId);
-  return { id, deleted: true };
+  // Soft delete: set status to INACTIVE
+  const deactivated = await softDeleteMasterRecord(id, instituteId);
+  return { id, deleted: true, status: deactivated.status };
+};
+
+/**
+ * Toggle a master record's status between ACTIVE and INACTIVE
+ */
+export const toggleMasterStatusService = async (
+  currentUser: MasterAuthUser,
+  id: string
+) => {
+  const instituteId = currentUser.instituteId;
+  const existing = await findMasterRecordById(id, instituteId);
+  if (!existing) {
+    throw new AppError("Master record not found", 404);
+  }
+
+  // Branch isolation guard
+  if (
+    currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("ADMIN") &&
+    existing.branchId &&
+    existing.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("Master record not found", 404);
+  }
+
+  const newStatus = existing.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+  return toggleMasterRecordStatus(id, newStatus);
+};
+
+/**
+ * Get counts for all entity types (for the Master Setup overview grid)
+ */
+export const listAllEntityCountsService = async (
+  currentUser: MasterAuthUser
+) => {
+  const instituteId = currentUser.instituteId;
+  const branchId = getBranchFilter(currentUser);
+  return findAllEntityTypeCounts(instituteId, branchId);
+};
+
+/**
+ * Get only ACTIVE master records for dropdown consumption (no pagination, all records)
+ */
+export const listActiveMastersByTypeService = async (
+  currentUser: MasterAuthUser,
+  entityType: string,
+  requestedBranchId?: string
+) => {
+  const instituteId = currentUser.instituteId;
+  const branchId = getBranchFilter(currentUser, requestedBranchId);
+  return findActiveMasterRecords(instituteId, entityType, branchId);
 };

@@ -1,5 +1,6 @@
 import { AdmissionsRepository } from "./admissions.repository";
 import { prisma } from "../../config/database";
+import { hashPassword } from "../../utils/password";
 import type { 
   CreateEnquiryDTO, 
   UpdateEnquiryDTO, 
@@ -188,12 +189,69 @@ export const AdmissionsService = {
         data: { status: "ADMITTED" },
       });
 
-      // 2. Create Admission record
+      // 2. Ensure Student & User exist
+      let studentId: string | null = null;
+      let existingUser: any = null;
+      if (app.email && app.email.trim() !== "") {
+        existingUser = await tx.user.findFirst({
+          where: { instituteId: app.instituteId, email: app.email.trim() },
+          include: { student: true },
+        });
+      }
+      if (!existingUser && app.phone && app.phone.trim() !== "") {
+        existingUser = await tx.user.findFirst({
+          where: { instituteId: app.instituteId, phone: app.phone.trim() },
+          include: { student: true },
+        });
+      }
+
+      if (existingUser?.student) {
+        studentId = existingUser.student.id;
+      } else {
+        const passwordHash = await hashPassword("Student@123");
+        const studentCode = `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const branchId = app.branchId || (await tx.branch.findFirst({ where: { instituteId: app.instituteId } }))?.id || "";
+
+        let userId = existingUser?.id;
+        if (!userId) {
+          const newUser = await tx.user.create({
+            data: {
+              instituteId: app.instituteId,
+              branchId,
+              name: app.applicantName,
+              email: app.email || null,
+              phone: app.phone || null,
+              passwordHash,
+            },
+          });
+          userId = newUser.id;
+
+          const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+          if (studentRole) {
+            await tx.userRole.create({
+              data: { userId: newUser.id, roleId: studentRole.id },
+            });
+          }
+        }
+
+        const newStudent = await tx.student.create({
+          data: {
+            userId,
+            instituteId: app.instituteId,
+            branchId,
+            studentCode,
+          },
+        });
+        studentId = newStudent.id;
+      }
+
+      // 3. Create Admission record
       const newAdmission = await tx.admission.create({
         data: {
           instituteId: app.instituteId,
           branchId: app.branchId || (await tx.branch.findFirst({ where: { instituteId: app.instituteId } }))?.id || "",
           admissionNo,
+          studentId,
           applicationId: app.id,
           studentName: app.applicantName,
           email: app.email,
@@ -207,8 +265,28 @@ export const AdmissionsService = {
         include: {
           course: { select: { id: true, name: true, code: true } },
           batch: { select: { id: true, name: true, code: true } },
+          student: { select: { id: true, studentCode: true } },
         },
       });
+
+      // 4. Enroll in batch if provided
+      if (dto.batchId && studentId) {
+        await tx.batchEnrollment.upsert({
+          where: {
+            batchId_studentId: { batchId: dto.batchId, studentId },
+          },
+          update: {
+            status: "ACTIVE",
+            admissionId: newAdmission.id,
+          },
+          create: {
+            batchId: dto.batchId,
+            studentId,
+            admissionId: newAdmission.id,
+            status: "ACTIVE",
+          },
+        });
+      }
 
       return newAdmission;
     });

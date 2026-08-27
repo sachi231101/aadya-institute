@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   Megaphone,
+  MessageSquareQuote,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -79,6 +80,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
+    { label: "Feedback", icon: MessageSquareQuote, path: "/student/feedback", badge: "NEW" },
     { label: "My Profile", icon: User, path: "/student/profile" },
   ];
 
@@ -161,6 +163,17 @@ export const StudentLayout: React.FC = () => {
                   <Icon className={`w-4 h-4 ${isActive ? "text-white stroke-[2.2]" : "text-muted-foreground stroke-[1.8]"}`} />
                   <span>{item.label}</span>
                 </div>
+                {item.badge && (
+                  <span
+                    className={`px-1.5 py-0.2 rounded-md text-[9px] font-black uppercase tracking-wider ${
+                      isActive
+                        ? "bg-white/20 text-white"
+                        : "bg-indigo-100 text-indigo-700 font-black"
+                    }`}
+                  >
+                    {item.badge}
+                  </span>
+                )}
               </Link>
             );
           })}

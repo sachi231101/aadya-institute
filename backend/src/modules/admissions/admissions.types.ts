@@ -79,10 +79,13 @@ export interface CreateAdmissionDTO {
   phone: string;
   courseId: string;
   batchId?: string;
+  studentId?: string;
   applicationId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;
   notes?: string;
+  totalFee?: number;
+  amountPaid?: number;
 }
 
 export interface UpdateAdmissionDTO {

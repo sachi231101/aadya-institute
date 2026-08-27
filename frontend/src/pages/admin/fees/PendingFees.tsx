@@ -24,6 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PaymentMethod, PendingFee } from "../../../types/fee.types";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 export const PendingFees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,6 +39,7 @@ export const PendingFees: React.FC = () => {
   const { data: statsData } = useFeeStats();
   const collectFeeMutation = useCollectPendingFee();
   const sendReminderMutation = useSendFeeReminder();
+  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
 
   // Modal State for Fee Collection
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
@@ -353,11 +355,13 @@ export const PendingFees: React.FC = () => {
                   onChange={(e) => setCollectMethod(e.target.value as PaymentMethod)}
                   className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
                 >
-                  <option value="UPI">UPI</option>
-                  <option value="NET_BANKING">Net Banking</option>
-                  <option value="CARD">Debit / Credit Card</option>
-                  <option value="CASH">Cash</option>
-                  <option value="CHEQUE">Cheque</option>
+                  <option value="">Select Payment Mode</option>
+                  {paymentModeOptions.map((opt) => (
+                    <option key={opt.value} value={opt.label}>{opt.label}</option>
+                  ))}
+                  {paymentModeOptions.length === 0 && (
+                    <option value="" disabled>No modes — add in Master Setup</option>
+                  )}
                 </select>
               </div>
 
