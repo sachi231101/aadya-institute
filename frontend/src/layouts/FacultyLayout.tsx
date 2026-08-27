@@ -18,8 +18,10 @@ export const FacultyLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  if (!userRoles.includes("FACULTY") && !userRoles.includes("ADMIN")) {
+  const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
+    typeof r === "string" ? r.toUpperCase() : ""
+  );
+  if (!userRoles.includes("FACULTY") && !userRoles.includes("ADMIN") && !userRoles.includes("SUPER_ADMIN")) {
     if (userRoles.includes("COUNSELLOR")) {
       return <Navigate to="/counselor/dashboard" replace />;
     }

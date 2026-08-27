@@ -1,0 +1,193 @@
+{
+  "info": {
+    "_postman_id": "aadya-proctored-exams-v1",
+    "name": "Aadya Institute - Proctored Online Examination System (V1)",
+    "description": "Comprehensive Postman API collection for Aadya Institute Examination & Proctoring Engine.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Student Exams",
+      "item": [
+        {
+          "name": "1. Get Student Available Exams",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/student/available",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "student", "available"]
+            }
+          }
+        },
+        {
+          "name": "2. Get Exam Instructions & Consent Policy",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/student/{{exam_id}}/instructions",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "student", "{{exam_id}}", "instructions"]
+            }
+          }
+        },
+        {
+          "name": "3. Start Proctored Exam Attempt",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientDeviceInfo\": {\n    \"userAgent\": \"Mozilla/5.0 Chrome/122.0.0.0\",\n    \"screenResolution\": \"1920x1080\",\n    \"browserName\": \"Chrome\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/student/{{exam_id}}/start",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "student", "{{exam_id}}", "start"]
+            }
+          }
+        },
+        {
+          "name": "4. Get Active Attempt Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}"]
+            }
+          }
+        },
+        {
+          "name": "5. Autosave / Save Question Answers",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"answers\": [\n    {\n      \"questionId\": \"{{question_id}}\",\n      \"selectedOptionIds\": [\"{{option_id}}\"],\n      \"isFlagged\": false\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}/answers",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}", "answers"]
+            }
+          }
+        },
+        {
+          "name": "6. Dispatch Proctoring Event (Tab Switch / Blur / Esc)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"eventType\": \"TAB_SWITCH\",\n  \"clientEventId\": \"event-tab-switch-101\",\n  \"occurredAt\": \"2026-08-27T12:00:00.000Z\",\n  \"metadata\": {\n    \"reason\": \"User switched browser tab\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}/proctoring-events",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}", "proctoring-events"]
+            }
+          }
+        },
+        {
+          "name": "7. Submit & Finalize Exam",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{student_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}/submit",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}", "submit"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Staff / Admin Proctoring Monitor",
+      "item": [
+        {
+          "name": "1. Get Exam Attempts (Live Monitor)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/{{exam_id}}/attempts?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "{{exam_id}}", "attempts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "2. Get Attempt Proctoring Timeline & Diagnostics",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_access_token}}" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}/proctoring",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}", "proctoring"]
+            }
+          }
+        },
+        {
+          "name": "3. Terminate Attempt Manually",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{admin_access_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"External aid confirmed by invigilator\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/exams/attempts/{{attempt_id}}/terminate",
+              "host": ["{{base_url}}"],
+              "path": ["exams", "attempts", "{{attempt_id}}", "terminate"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:5000/api/v1" },
+    { "key": "student_access_token", "value": "" },
+    { "key": "admin_access_token", "value": "" },
+    { "key": "exam_id", "value": "" },
+    { "key": "attempt_id", "value": "" },
+    { "key": "question_id", "value": "" },
+    { "key": "option_id", "value": "" }
+  ]
+}

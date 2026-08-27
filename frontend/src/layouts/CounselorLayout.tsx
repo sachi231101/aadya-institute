@@ -22,8 +22,10 @@ export const CounselorLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  if (!userRoles.includes("COUNSELLOR") && !userRoles.includes("ADMIN")) {
+  const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
+    typeof r === "string" ? r.toUpperCase() : ""
+  );
+  if (!userRoles.includes("COUNSELLOR") && !userRoles.includes("ADMIN") && !userRoles.includes("SUPER_ADMIN")) {
     return <Navigate to="/login" replace />;
   }
   return (

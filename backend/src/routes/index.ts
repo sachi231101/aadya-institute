@@ -107,6 +107,16 @@ router.use("/chat", chatRoutes);
 import targetRoutes from "../modules/targets/target.routes";
 router.use("/targets", targetRoutes);
 
+// Examination Management System & Proctoring Engine
+import examAttemptRoutes from "../modules/exam-attempts/attempt.routes";
+import examRoutes from "../modules/exams/exam.routes";
+import questionRoutes from "../modules/questions/question.routes";
+import questionBankRoutes from "../modules/question-banks/question-bank.routes";
+router.use("/exams", examAttemptRoutes);
+router.use("/exams", examRoutes);
+router.use("/questions", questionRoutes);
+router.use("/question-banks", questionBankRoutes);
+
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);
 router.post("/webhooks/whatsapp", whatsappWebhookHandler);

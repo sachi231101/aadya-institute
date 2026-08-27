@@ -188,6 +188,33 @@ export const broadcastToConversation = async (
 };
 
 /**
+ * Broadcasts a real-time event directly to a specific user's active sockets
+ */
+export const broadcastToUser = (
+  userId: string,
+  event: string,
+  data: any
+): void => {
+  try {
+    const userSockets = userSocketsMap.get(userId);
+    if (!userSockets) return;
+
+    const payloadStr = JSON.stringify({ event, data });
+    for (const ws of userSockets) {
+      if (ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(payloadStr);
+        } catch (err) {
+          logger.warn({ err }, "[WebSocket] Failed to deliver message to user socket");
+        }
+      }
+    }
+  } catch (err: any) {
+    logger.error({ err: err?.message || err, userId, event }, "[WebSocket] Error broadcasting to user");
+  }
+};
+
+/**
  * Utility for testing: check if a user is currently connected to WebSocket
  */
 export const isUserConnected = (userId: string): boolean => {

@@ -82,7 +82,7 @@ export const assertFacultyOwnsSession = async (
   if (!facultyId) return;
 
   const session = await prisma.classSession.findFirst({
-    where: { id: sessionId, instituteId: currentUser.instituteId },
+    where: { id: sessionId, batch: { instituteId: currentUser.instituteId } },
     select: { facultyId: true },
   });
   if (!session) {

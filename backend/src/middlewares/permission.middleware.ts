@@ -22,7 +22,8 @@ export const requirePermission = (permission: string) => {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
-    const userRoles = req.user?.roles ?? [];
+    const rawRoles = req.user?.roles ?? [];
+    const userRoles = rawRoles.map((r: string) => r.toUpperCase());
     const userId = req.user?.userId;
 
     if (!userId) {
@@ -36,7 +37,7 @@ export const requirePermission = (permission: string) => {
     }
 
     // ADMIN always has full access
-    if (userRoles.includes("ADMIN")) {
+    if (userRoles.includes("ADMIN") || userRoles.includes("SUPER_ADMIN")) {
       next();
       return;
     }
@@ -143,6 +144,25 @@ export const requirePermission = (permission: string) => {
       });
 
       if (!match) {
+        // Fallback for default STUDENT role permissions
+        if (
+          userRoles.includes("STUDENT") &&
+          [
+            "exam.take",
+            "exam.read",
+            "schedule.read",
+            "attendance.read",
+            "assignment.read",
+            "assignment.submit",
+            "recording.read",
+            "student.read",
+            "feedback.create",
+          ].includes(permission)
+        ) {
+          next();
+          return;
+        }
+
         logger.warn(
           { userId, roles: userRoles, requiredPermission: permission },
           "Permission check failed"

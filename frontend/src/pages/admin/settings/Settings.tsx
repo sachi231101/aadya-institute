@@ -59,7 +59,7 @@ export const Settings: React.FC = () => {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    "personal" | "security" | "notifications" | "system" | "sessions"
+    "personal" | "security" | "notifications" | "system" | "sessions" | "permissions"
   >("personal");
 
   // Personal Information State (matching exact mockup defaults)
@@ -310,6 +310,18 @@ export const Settings: React.FC = () => {
         >
           <Monitor className="h-4 w-4" />
           <span>Active Sessions</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("permissions")}
+          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === "permissions"
+              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <ShieldCheck className="h-4 w-4 text-purple-600" />
+          <span>Roles & Permissions</span>
         </button>
       </div>
 
@@ -999,6 +1011,108 @@ export const Settings: React.FC = () => {
               >
                 Revoke
               </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* ─── 4F. TAB 6: ROLES & PERMISSIONS (EXAMINATION SYSTEM) ─────────── */}
+      {activeTab === "permissions" && (
+        <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 sm:p-7 space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-purple-600" />
+                Examination Roles & Granular RBAC Permissions
+              </h2>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Review and configure system-wide access controls, role inheritance, and granular examination rights.
+              </p>
+            </div>
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                window.location.href = "/admin/counselor/all";
+              }}
+              className="text-xs text-purple-700 border-purple-200 hover:bg-purple-50 shrink-0 gap-1.5"
+            >
+              <Briefcase className="h-3.5 w-3.5" />
+              Manage Staff Permissions
+            </Button>
+          </div>
+
+          {/* Role Hierarchy Overview */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1">
+              <span className="text-[10px] font-extrabold uppercase text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                ADMIN
+              </span>
+              <p className="text-xs font-bold text-slate-900 pt-1">Full Institute Scope</p>
+              <p className="text-[11px] text-slate-500">
+                Unrestricted access to all exams, banks, questions, scheduling, publishing, and delete actions.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100 space-y-1">
+              <span className="text-[10px] font-extrabold uppercase text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full">
+                CENTER MANAGER
+              </span>
+              <p className="text-xs font-bold text-slate-900 pt-1">Branch Isolated Scope</p>
+              <p className="text-[11px] text-slate-500">
+                Create, schedule, assign batches, and manage question banks for their designated branch.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-1">
+              <span className="text-[10px] font-extrabold uppercase text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                COUNSELLOR / FACULTY
+              </span>
+              <p className="text-xs font-bold text-slate-900 pt-1">Configurable Access</p>
+              <p className="text-[11px] text-slate-500">
+                Default read access. Admins can grant authoring and question bank rights via user management.
+              </p>
+            </div>
+          </div>
+
+          {/* Granular Permissions Breakdown */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-black uppercase text-slate-700 tracking-wider">
+              Examination Permission Dictionary
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {[
+                { name: "exam.read", desc: "View examinations, status, and metadata", roles: "ADMIN, CM, COUNSELLOR, FACULTY" },
+                { name: "exam.create", desc: "Create new examination drafts and configure rules", roles: "ADMIN, CM" },
+                { name: "exam.update", desc: "Update details, duration, passing marks, and instructions", roles: "ADMIN, CM" },
+                { name: "exam.publish", desc: "Publish draft exams after pre-flight readiness checklist", roles: "ADMIN, CM" },
+                { name: "exam.schedule", desc: "Set start/end live windows and submission deadlines", roles: "ADMIN, CM" },
+                { name: "exam.assign", desc: "Assign and unassign student batches to examinations", roles: "ADMIN, CM" },
+                { name: "exam.manage_questions", desc: "Add, remove, and reorder questions inside exams", roles: "ADMIN, CM" },
+                { name: "exam.manage_question_bank", desc: "Create, update, and manage question banks", roles: "ADMIN, CM" },
+                { name: "exam.manage_settings", desc: "Configure proctoring, fullscreen, and anti-cheat parameters", roles: "ADMIN" },
+                { name: "question.read", desc: "Browse questions catalog and options", roles: "ADMIN, CM, COUNSELLOR, FACULTY" },
+                { name: "question.create", desc: "Author single/multiple choice, numerical, or descriptive questions", roles: "ADMIN, CM" },
+                { name: "question.update", desc: "Update question text, correct answers, and scoring", roles: "ADMIN, CM" },
+                { name: "question.delete", desc: "Delete questions not in use by any exam", roles: "ADMIN, CM" },
+                { name: "question_bank.create", desc: "Create subject-specific question repositories", roles: "ADMIN, CM" },
+              ].map((perm) => (
+                <div
+                  key={perm.name}
+                  className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 flex flex-col justify-between gap-1"
+                >
+                  <div className="flex items-center justify-between">
+                    <code className="text-[11px] font-bold text-purple-700 bg-purple-100/70 px-1.5 py-0.5 rounded">
+                      {perm.name}
+                    </code>
+                    <span className="text-[10px] font-semibold text-slate-400">
+                      {perm.roles}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-1">{perm.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </Card>
