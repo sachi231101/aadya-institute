@@ -92,6 +92,12 @@ import { DiscontinuationRisk } from "../pages/admin/students/DiscontinuationRisk
 // Phase 3 — Placement Export
 import { PlacementExport } from "../pages/admin/reports/PlacementExport";
 
+// Target & Incentive Management System
+import { TargetManagement } from "../pages/admin/targets/TargetManagement";
+import { TargetPerformance } from "../pages/admin/targets/TargetPerformance";
+import { IncentiveManagement } from "../pages/admin/targets/IncentiveManagement";
+import { CounselorPerformance } from "../pages/counselor/CounselorPerformance";
+
 // Faculty Portal Expansion
 import { FacultyAssignments } from "../pages/faculty/Assignments";
 import { FacultyBatchClasses } from "../pages/faculty/BatchClasses";
@@ -216,7 +222,6 @@ export const AppRoutes: React.FC = () => {
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />
-
         {/* Phase 1 — Leads & AI Calling */}
         <Route path="leads">
           <Route index element={<LeadManagement />} />
@@ -227,6 +232,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
+
+        {/* Target & Incentive Management System */}
+        <Route path="targets" element={<TargetManagement />} />
+        <Route path="performance" element={<TargetPerformance />} />
+        <Route path="incentives" element={<IncentiveManagement />} />
       </Route>
 
 
@@ -309,8 +319,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="placement" element={<PlacementExport />} />
         </Route>
 
-        {/* Settings, Notifications & Masters */}
-        <Route path="masters" element={<MasterSetup />} />
+        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />
@@ -325,6 +334,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
+
+        {/* Target & Incentive Management System */}
+        <Route path="targets" element={<TargetManagement />} />
+        <Route path="performance" element={<TargetPerformance />} />
+        <Route path="incentives" element={<IncentiveManagement />} />
       </Route>
 
       {/* Counselor Routes */}
@@ -396,7 +410,15 @@ export const AppRoutes: React.FC = () => {
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
+
+        {/* Personal Performance & Target Rewards */}
+        <Route path="performance" element={<CounselorPerformance />} />
+        <Route path="targets" element={<CounselorPerformance />} />
       </Route>
+
+      {/* Top-Level Shortcut Redirects */}
+      <Route path="/my-targets" element={<Navigate to="/counselor/performance" replace />} />
+      <Route path="/my-performance" element={<Navigate to="/counselor/performance" replace />} />
 
       {/* Faculty Routes */}
       <Route path="/faculty" element={<FacultyLayout />}>

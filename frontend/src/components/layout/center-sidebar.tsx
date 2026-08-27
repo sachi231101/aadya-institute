@@ -19,6 +19,7 @@ import {
   Bot,
   Building2,
   Lock,
+  Award,
 } from "lucide-react";
 
 import {
@@ -131,6 +132,16 @@ const rawCenterNavItems: NavItem[] = [
       { title: "Overview", url: "/center/counselor/overview" },
       { title: "Manage Counsellors", url: "/center/counselor/all" },
       { title: "Create & Manage Batches", url: "/center/counselor/batches" },
+    ],
+  },
+  {
+    title: "Targets & Incentives",
+    url: "/center/targets",
+    icon: Award,
+    items: [
+      { title: "Manage Targets", url: "/center/targets" },
+      { title: "Leaderboard & Stats", url: "/center/performance" },
+      { title: "Incentive Approvals", url: "/center/incentives" },
     ],
   },
   {

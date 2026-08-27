@@ -6,6 +6,7 @@ import { moduleStartJob } from "../modules/whatsapp/jobs/module-start.job";
 import { recordingCleanupJob } from "./recording-cleanup.job";
 import { googleRecordingSyncJob } from "./google-recording-sync.job";
 import { aiFollowupJob } from "./ai-followup.job";
+import { targetSyncJob } from "../modules/targets/jobs/target-sync.job";
 import { logger } from "../config/logger";
 
 export const startCronJobs = (): void => {
@@ -46,6 +47,14 @@ export const startCronJobs = (): void => {
     logger.info("[cron] Running google-recording-sync job");
     await googleRecordingSyncJob().catch((e) =>
       logger.error({ err: e }, "[cron] google-recording-sync failed")
+    );
+  });
+
+  // Target progress synchronization & period settlement — every 30 minutes
+  cron.schedule("*/30 * * * *", async () => {
+    logger.info("[cron] Running target-sync job");
+    await targetSyncJob().catch((e) =>
+      logger.error({ err: e }, "[cron] target-sync failed")
     );
   });
 

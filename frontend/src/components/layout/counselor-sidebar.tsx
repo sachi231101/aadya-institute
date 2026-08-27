@@ -13,6 +13,7 @@ import {
   Sparkles,
   Bot,
   Layers,
+  Award,
 } from "lucide-react"
 
 import {
@@ -54,6 +55,11 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     title: "Dashboard",
     url: "/counselor/dashboard",
     icon: LayoutDashboard,
+  },
+  {
+    title: "My Targets & Rewards",
+    url: "/counselor/performance",
+    icon: Award,
   },
   {
     title: "Leads & AI Calling",

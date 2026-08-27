@@ -99,6 +99,10 @@ router.use("/integrations/google", googleWorkspaceRoutes);
 // Internal Team Chat (Staff only)
 router.use("/chat", chatRoutes);
 
+// Target & Incentive Management System
+import targetRoutes from "../modules/targets/target.routes";
+router.use("/targets", targetRoutes);
+
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);
 router.post("/webhooks/whatsapp", whatsappWebhookHandler);

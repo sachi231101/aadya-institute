@@ -207,6 +207,15 @@ async function main() {
     { name: "notification.read", description: "View notifications" },
     { name: "notification.resend", description: "Resend WhatsApp notification" },
     { name: "notification.manage", description: "Manage notification templates & rules" },
+
+    // Targets & Incentives
+    { name: "target.read", description: "View target plans, individual targets, and performance" },
+    { name: "target.manage", description: "Create, publish, activate, lock, and manage target plans and targets" },
+    { name: "target.assign", description: "Assign individual and branch targets" },
+    { name: "target.approve", description: "Approve and finalize target plans" },
+    { name: "incentive.read", description: "View calculated and approved incentives" },
+    { name: "incentive.manage", description: "Manage incentive configurations and rules" },
+    { name: "incentive.approve", description: "Approve or reject calculated employee incentives" },
   ];
 
   const permissions: Record<string, any> = {};
@@ -284,6 +293,11 @@ async function main() {
     "report.read",
     "notification.read",
     "notification.resend",
+    "target.read",
+    "target.manage",
+    "target.assign",
+    "incentive.read",
+    "incentive.approve",
   ];
   for (const name of cmPermNames) {
     if (permissions[name]) {
@@ -320,6 +334,8 @@ async function main() {
     "chat.read",
     "chat.send",
     "notification.read",
+    "target.read",
+    "incentive.read",
   ];
   for (const name of counsellorPermNames) {
     if (permissions[name]) {
@@ -686,8 +702,8 @@ async function main() {
     });
 
     const fac = await prisma.faculty.upsert({
-      where: { instituteId_employeeCode: { instituteId: institute.id, employeeCode: f.employeeCode } },
-      update: { userId: u.id, specialization: f.specialization, status: "ACTIVE" },
+      where: { userId: u.id },
+      update: { employeeCode: f.employeeCode, specialization: f.specialization, status: "ACTIVE" },
       create: {
         userId: u.id,
         instituteId: institute.id,
@@ -1255,27 +1271,34 @@ async function main() {
   ];
 
   for (const m of masterRecords) {
-    await prisma.masterRecord.upsert({
+    const existing = await prisma.masterRecord.findFirst({
       where: {
-        instituteId_entityType_name: {
-          instituteId: institute.id,
-          entityType: m.entityType,
-          name: m.name,
-        },
-      },
-      update: {
-        code: m.code,
-        data: m.data,
-      },
-      create: {
         instituteId: institute.id,
-        branchId: branchKormangala.id,
         entityType: m.entityType,
         name: m.name,
-        code: m.code,
-        data: m.data,
       },
     });
+
+    if (existing) {
+      await prisma.masterRecord.update({
+        where: { id: existing.id },
+        data: {
+          code: m.code,
+          data: m.data,
+        },
+      });
+    } else {
+      await prisma.masterRecord.create({
+        data: {
+          instituteId: institute.id,
+          branchId: branchKormangala.id,
+          entityType: m.entityType,
+          name: m.name,
+          code: m.code,
+          data: m.data,
+        },
+      });
+    }
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1317,6 +1340,145 @@ async function main() {
       configuration: { offsetMinutes: -120 },
     },
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // 12. TARGET PLANS & INCENTIVE RULES
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log("🎯 Seeding Target Plans & Incentive Rules...");
+  const targetAdmin = await prisma.user.findFirst({ where: { email: "admin@aadya.in" } });
+  const targetCounsellor = await prisma.user.findFirst({ where: { email: "counsellor@aadya.in" } });
+
+  if (targetAdmin && targetCounsellor) {
+    const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const currentMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
+
+    const targetPlan = await prisma.targetPlan.upsert({
+      where: { id: "seed-target-plan-current-month" },
+      update: {},
+      create: {
+        id: "seed-target-plan-current-month",
+        instituteId: institute.id,
+        branchId: branchKormangala.id,
+        name: "Monthly Admissions & Revenue Drive",
+        description: "Primary quarterly counselor performance and incentive campaign",
+        periodType: "MONTHLY",
+        startDate: currentMonthStart,
+        endDate: currentMonthEnd,
+        status: "ACTIVE",
+        createdById: targetAdmin.id,
+      },
+    });
+
+    // 1. Admissions Target (Slab Incentive)
+    const admissionsTarget = await prisma.target.upsert({
+      where: { id: "seed-target-counsellor-admissions" },
+      update: {},
+      create: {
+        id: "seed-target-counsellor-admissions",
+        instituteId: institute.id,
+        branchId: branchKormangala.id,
+        targetPlanId: targetPlan.id,
+        userId: targetCounsellor.id,
+        title: "Monthly Admissions Target",
+        targetType: "INDIVIDUAL",
+        metric: "ADMISSIONS",
+        targetValue: 20,
+        unit: "COUNT",
+        startDate: currentMonthStart,
+        endDate: currentMonthEnd,
+        status: "ACTIVE",
+        createdById: targetAdmin.id,
+      },
+    });
+
+    await prisma.incentiveRule.upsert({
+      where: { targetId: admissionsTarget.id },
+      update: {},
+      create: {
+        targetId: admissionsTarget.id,
+        incentiveType: "SLAB",
+        slabs: [
+          { minPercent: 0, maxPercent: 49, amount: 0 },
+          { minPercent: 50, maxPercent: 74, amount: 2000 },
+          { minPercent: 75, maxPercent: 89, amount: 5000 },
+          { minPercent: 90, maxPercent: 99, amount: 7500 },
+          { minPercent: 100, maxPercent: 109, amount: 10000 },
+          { minPercent: 110, maxPercent: 124, amount: 12500 },
+          { minPercent: 125, maxPercent: 999, amount: 15000 },
+        ],
+      },
+    });
+
+    // 2. Revenue Target (Percentage Incentive)
+    const revenueTarget = await prisma.target.upsert({
+      where: { id: "seed-target-counsellor-revenue" },
+      update: {},
+      create: {
+        id: "seed-target-counsellor-revenue",
+        instituteId: institute.id,
+        branchId: branchKormangala.id,
+        targetPlanId: targetPlan.id,
+        userId: targetCounsellor.id,
+        title: "Monthly Fee Collection Target",
+        targetType: "INDIVIDUAL",
+        metric: "ADMISSION_REVENUE",
+        targetValue: 500000,
+        unit: "INR",
+        startDate: currentMonthStart,
+        endDate: currentMonthEnd,
+        status: "ACTIVE",
+        createdById: targetAdmin.id,
+      },
+    });
+
+    await prisma.incentiveRule.upsert({
+      where: { targetId: revenueTarget.id },
+      update: {},
+      create: {
+        targetId: revenueTarget.id,
+        incentiveType: "PERCENTAGE",
+        percentages: [
+          { minPercent: 0, maxPercent: 79, ratePercent: 0 },
+          { minPercent: 80, maxPercent: 99, ratePercent: 0.5 },
+          { minPercent: 100, maxPercent: 109, ratePercent: 1.0 },
+          { minPercent: 110, maxPercent: 124, ratePercent: 1.25 },
+          { minPercent: 125, maxPercent: 999, ratePercent: 1.5 },
+        ],
+      },
+    });
+
+    // 3. Leads Created / Contacted (Fixed Incentive)
+    const leadsTarget = await prisma.target.upsert({
+      where: { id: "seed-target-counsellor-leads" },
+      update: {},
+      create: {
+        id: "seed-target-counsellor-leads",
+        instituteId: institute.id,
+        branchId: branchKormangala.id,
+        targetPlanId: targetPlan.id,
+        userId: targetCounsellor.id,
+        title: "Lead Generation & Outreach",
+        targetType: "INDIVIDUAL",
+        metric: "LEADS_CREATED",
+        targetValue: 50,
+        unit: "COUNT",
+        startDate: currentMonthStart,
+        endDate: currentMonthEnd,
+        status: "ACTIVE",
+        createdById: targetAdmin.id,
+      },
+    });
+
+    await prisma.incentiveRule.upsert({
+      where: { targetId: leadsTarget.id },
+      update: {},
+      create: {
+        targetId: leadsTarget.id,
+        incentiveType: "FIXED",
+        fixedAmount: 3000,
+      },
+    });
+  }
 
   console.log("\n===================================================================");
   console.log("✅ AADYA INSTITUTE DATABASE SEEDING COMPLETED SUCCESSFULLY!");
