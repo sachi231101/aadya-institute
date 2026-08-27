@@ -13,19 +13,234 @@ import {
   BookOpen,
   CheckCircle2,
   XCircle,
-  Download
+  Download,
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+interface SubjectAttendanceData {
+  id: string;
+  name: string;
+  attended: number;
+  total: number;
+  missed: number;
+  matrix: {
+    month: string;
+    // Map day (1..31) to status: 'P' (Present), 'A' (Absent), or null (Week off / No class)
+    days: Record<number, "P" | "A" | null>;
+  }[];
+}
+
+// Multi-subject Attendance matrix datasets matching the exact layout in the screenshot
+const SUBJECTS_DATA: SubjectAttendanceData[] = [
+  {
+    id: "core-java",
+    name: "Core Java",
+    attended: 34,
+    total: 72,
+    missed: 38,
+    matrix: [
+      {
+        month: "Jun",
+        days: {
+          15: "A", 16: "A", 17: "A", 18: "P", 19: "P", 24: "P", 25: "A", 26: "P", 27: "P", 28: "P", 30: "A",
+        },
+      },
+      {
+        month: "July",
+        days: {
+          1: "P", 2: "A", 3: "A", 4: "A", 7: "P", 8: "A", 10: "P", 11: "P",
+          14: "P", 15: "P", 16: "P", 17: "P", 18: "P", 19: "P", 22: "A", 23: "P",
+          24: "P", 25: "P", 26: "P", 29: "P", 30: "P", 31: "P",
+        },
+      },
+      {
+        month: "Aug",
+        days: {
+          1: "P", 5: "P", 7: "P", 8: "A", 11: "A", 12: "A", 14: "P",
+          18: "A", 19: "P", 20: "P", 21: "P", 25: "A", 26: "P", 28: "P", 29: "A", 30: "A",
+        },
+      },
+      {
+        month: "Sep",
+        days: {
+          1: "P", 2: "P", 3: "A", 4: "A", 5: "A", 8: "P", 9: "A", 10: "A", 11: "A", 12: "A",
+          15: "A", 16: "A", 17: "A", 18: "A", 19: "A", 22: "A", 23: "A", 24: "A", 25: "A", 26: "A",
+          29: "A", 30: "A", 31: "A",
+        },
+      },
+      {
+        month: "Oct",
+        days: {
+          3: "A", 4: "A",
+        },
+      },
+    ],
+  },
+  {
+    id: "programming",
+    name: "Programming",
+    attended: 48,
+    total: 60,
+    missed: 12,
+    matrix: [
+      {
+        month: "Jun",
+        days: { 10: "P", 11: "P", 12: "P", 15: "P", 16: "P", 18: "P", 19: "P", 24: "P", 25: "P", 26: "P" },
+      },
+      {
+        month: "July",
+        days: { 1: "P", 2: "P", 3: "P", 4: "P", 7: "P", 8: "P", 10: "P", 11: "P", 14: "P", 15: "P", 16: "P", 22: "A", 23: "P", 24: "P", 25: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 1: "P", 5: "P", 7: "P", 8: "P", 11: "P", 12: "P", 14: "P", 18: "A", 19: "P", 20: "P", 21: "P" },
+      },
+      {
+        month: "Sep",
+        days: { 1: "P", 2: "P", 3: "P", 4: "P", 8: "P", 9: "A", 10: "A", 15: "P", 16: "P", 17: "P" },
+      },
+      {
+        month: "Oct",
+        days: { 1: "P", 2: "P", 3: "P" },
+      },
+    ],
+  },
+  {
+    id: "sql",
+    name: "SQL",
+    attended: 38,
+    total: 45,
+    missed: 7,
+    matrix: [
+      {
+        month: "Jun",
+        days: { 14: "P", 15: "P", 16: "P", 20: "P", 21: "P", 22: "P", 27: "P", 28: "P" },
+      },
+      {
+        month: "July",
+        days: { 2: "P", 3: "P", 5: "P", 9: "P", 10: "P", 12: "P", 16: "P", 17: "P", 23: "A", 24: "P", 30: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 3: "P", 4: "P", 6: "P", 10: "P", 11: "P", 13: "P", 17: "P", 18: "P", 24: "A", 25: "P" },
+      },
+      {
+        month: "Sep",
+        days: { 1: "P", 2: "P", 7: "P", 8: "A", 14: "P", 15: "P", 21: "P", 22: "A" },
+      },
+      {
+        month: "Oct",
+        days: { 2: "P", 5: "P" },
+      },
+    ],
+  },
+  {
+    id: "adv-java",
+    name: "Advanced Java",
+    attended: 28,
+    total: 40,
+    missed: 12,
+    matrix: [
+      {
+        month: "July",
+        days: { 10: "P", 11: "P", 14: "P", 15: "P", 17: "P", 18: "P", 24: "P", 25: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 1: "P", 5: "P", 7: "P", 8: "A", 12: "P", 14: "P", 19: "P", 20: "A", 26: "P" },
+      },
+      {
+        month: "Sep",
+        days: { 2: "P", 3: "A", 8: "P", 9: "A", 10: "A", 16: "P", 17: "P", 23: "A", 24: "P" },
+      },
+      {
+        month: "Oct",
+        days: { 1: "P", 3: "A" },
+      },
+    ],
+  },
+  {
+    id: "soft-skills",
+    name: "Soft Skills",
+    attended: 20,
+    total: 22,
+    missed: 2,
+    matrix: [
+      {
+        month: "Jun",
+        days: { 18: "P", 25: "P" },
+      },
+      {
+        month: "July",
+        days: { 2: "P", 9: "P", 16: "P", 23: "P", 30: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 6: "P", 13: "P", 20: "P", 27: "A" },
+      },
+      {
+        month: "Sep",
+        days: { 3: "P", 10: "P", 17: "P", 24: "P" },
+      },
+      {
+        month: "Oct",
+        days: { 1: "P" },
+      },
+    ],
+  },
+  {
+    id: "html-css",
+    name: "HTML & CSS",
+    attended: 30,
+    total: 32,
+    missed: 2,
+    matrix: [
+      {
+        month: "Jun",
+        days: { 1: "P", 2: "P", 3: "P", 4: "P", 5: "P", 8: "P", 9: "P", 10: "P" },
+      },
+      {
+        month: "July",
+        days: { 1: "P", 2: "P", 6: "P", 7: "P", 8: "P", 9: "P", 13: "P", 14: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 3: "P", 4: "P", 5: "P", 10: "P", 11: "A" },
+      },
+    ],
+  },
+  {
+    id: "python",
+    name: "Python",
+    attended: 24,
+    total: 30,
+    missed: 6,
+    matrix: [
+      {
+        month: "July",
+        days: { 15: "P", 16: "P", 22: "P", 23: "P", 29: "P", 30: "P" },
+      },
+      {
+        month: "Aug",
+        days: { 5: "P", 6: "P", 12: "P", 13: "A", 19: "P", 20: "P", 26: "P", 27: "P" },
+      },
+      {
+        month: "Sep",
+        days: { 2: "P", 3: "P", 9: "A", 10: "A", 16: "P", 17: "P", 23: "P", 24: "P" },
+      },
+      {
+        month: "Oct",
+        days: { 1: "A", 2: "P" },
+      },
+    ],
+  },
+];
 
 interface AttendanceRecord {
   id: string;
@@ -36,754 +251,437 @@ interface AttendanceRecord {
   batchCode: string;
   courseName: string;
   facultyName: string;
-  facultyAvatar?: string;
-  status: "PRESENT" | "ABSENT" | "EXCUSED" | "NO_CLASS";
+  status: "PRESENT" | "ABSENT" | "EXCUSED";
   remarks: string;
   markedAt: string;
 }
 
-interface DualTrackDay {
-  dayInitial: string;
-  dateStr: string;
-  displayDate: string;
-  dotTop: "PRESENT" | "ABSENT" | "EXCUSED" | "NO_CLASS";
-  dotBottom: "PRESENT" | "ABSENT" | "EXCUSED" | "NO_CLASS";
-  topicTop?: string;
-  topicBottom?: string;
-}
-
-// 24 Day Columns with dual-track dots matching the screenshot precisely
-const DUAL_TRACK_TIMELINE: DualTrackDay[] = [
-  { dayInitial: "M", dateStr: "2026-07-14", displayDate: "14 Jul", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Intro to SEO", topicBottom: "Lab: Keyword Discovery" },
-  { dayInitial: "T", dateStr: "2026-07-15", displayDate: "15 Jul", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Market Research", topicBottom: "Lab: Competitor Analysis" },
-  { dayInitial: "W", dateStr: "2026-07-16", displayDate: "16 Jul", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Search Intent", topicBottom: "Lab: Search Console Setup" },
-  { dayInitial: "T", dateStr: "2026-07-17", displayDate: "17 Jul", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Content Strategy", topicBottom: "Lab: Copywriting Practice" },
-  { dayInitial: "F", dateStr: "2026-07-18", displayDate: "18 Jul", dotTop: "PRESENT", dotBottom: "NO_CLASS", topicTop: "Lecture: Backlinks & DA", topicBottom: "No Afternoon Session" },
-  { dayInitial: "S", dateStr: "2026-07-19", displayDate: "19 Jul", dotTop: "NO_CLASS", dotBottom: "EXCUSED", topicTop: "Weekend Self-Study", topicBottom: "Special Q&A (Excused)" },
-  { dayInitial: "S", dateStr: "2026-07-20", displayDate: "20 Jul", dotTop: "NO_CLASS", dotBottom: "PRESENT", topicTop: "Sunday Review", topicBottom: "Evening Practice" },
-  { dayInitial: "M", dateStr: "2026-07-21", displayDate: "21 Jul", dotTop: "EXCUSED", dotBottom: "PRESENT", topicTop: "Morning Lab (Excused)", topicBottom: "Lecture: Technical SEO" },
-  { dayInitial: "M", dateStr: "2026-07-22", displayDate: "22 Jul", dotTop: "PRESENT", dotBottom: "EXCUSED", topicTop: "Lecture: Indexing & Crawling", topicBottom: "Lab Session (Excused)" },
-  { dayInitial: "W", dateStr: "2026-07-23", displayDate: "23 Jul", dotTop: "PRESENT", dotBottom: "EXCUSED", topicTop: "Lecture: Canonical URLs", topicBottom: "Lab Practice (Excused)" },
-  { dayInitial: "T", dateStr: "2026-07-24", displayDate: "24 Jul", dotTop: "EXCUSED", dotBottom: "PRESENT", topicTop: "Theory Class (Excused)", topicBottom: "Lab: Sitemaps XML" },
-  { dayInitial: "W", dateStr: "2026-07-25", displayDate: "25 Jul", dotTop: "NO_CLASS", dotBottom: "PRESENT", topicTop: "Study Break", topicBottom: "Evening Hackathon" },
-  { dayInitial: "T", dateStr: "2026-07-26", displayDate: "26 Jul", dotTop: "NO_CLASS", dotBottom: "NO_CLASS", topicTop: "No Class", topicBottom: "No Class" },
-  { dayInitial: "F", dateStr: "2026-07-27", displayDate: "27 Jul", dotTop: "ABSENT", dotBottom: "PRESENT", topicTop: "Morning Lab (Absent)", topicBottom: "Lecture: Mobile SEO" },
-  { dayInitial: "F", dateStr: "2026-07-28", displayDate: "28 Jul", dotTop: "ABSENT", dotBottom: "PRESENT", topicTop: "Lecture: Page Speed (Absent)", topicBottom: "Lab Practice" },
-  { dayInitial: "S", dateStr: "2026-07-29", displayDate: "29 Jul", dotTop: "ABSENT", dotBottom: "NO_CLASS", topicTop: "Workshop (Absent)", topicBottom: "No Class" },
-  { dayInitial: "S", dateStr: "2026-07-30", displayDate: "30 Jul", dotTop: "PRESENT", dotBottom: "NO_CLASS", topicTop: "Live SEO Audit", topicBottom: "No Class" },
-  { dayInitial: "Y", dateStr: "2026-07-31", displayDate: "31 Jul", dotTop: "PRESENT", dotBottom: "NO_CLASS", topicTop: "Review Session", topicBottom: "No Class" },
-  { dayInitial: "W", dateStr: "2026-08-01", displayDate: "01 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Google Analytics 4", topicBottom: "Lab: Event Tracking" },
-  { dayInitial: "T", dateStr: "2026-08-02", displayDate: "02 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Conversion Funnels", topicBottom: "Lab: GA4 Reports" },
-  { dayInitial: "F", dateStr: "2026-08-03", displayDate: "03 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Tag Manager", topicBottom: "Lab: Trigger Config" },
-  { dayInitial: "S", dateStr: "2026-08-04", displayDate: "04 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Local SEO", topicBottom: "Lab: GBP Setup" },
-  { dayInitial: "M", dateStr: "2026-08-05", displayDate: "05 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Link Building", topicBottom: "Lab: Outreach Templates" },
-  { dayInitial: "T", dateStr: "2026-08-06", displayDate: "06 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Content Optimization", topicBottom: "Lab: Live Editing" },
-  { dayInitial: "W", dateStr: "2026-08-07", displayDate: "07 Aug", dotTop: "PRESENT", dotBottom: "PRESENT", topicTop: "Lecture: Schema Data", topicBottom: "Lab: Rich Snippets" },
-  { dayInitial: "T", dateStr: "2026-08-08", displayDate: "08 Aug", dotTop: "ABSENT", dotBottom: "EXCUSED", topicTop: "Lecture: Technical SEO (Absent)", topicBottom: "Lab (Excused)" },
-  { dayInitial: "F", dateStr: "2026-08-09", displayDate: "09 Aug", dotTop: "NO_CLASS", dotBottom: "NO_CLASS", topicTop: "No Scheduled Class", topicBottom: "No Scheduled Class" },
-  { dayInitial: "S", dateStr: "2026-08-10", displayDate: "10 Aug", dotTop: "NO_CLASS", dotBottom: "NO_CLASS", topicTop: "Public Holiday", topicBottom: "Public Holiday" },
-];
-
 const ATTENDANCE_HISTORY_DATA: AttendanceRecord[] = [
   {
     id: "att-1",
-    date: "12 Aug 2026",
+    date: "27 Aug 2026",
     timeSlot: "09:30 AM – 11:00 AM",
-    topic: "On-Page SEO Techniques",
-    moduleName: "Module: SEO Fundamentals",
-    batchCode: "DM-01",
-    courseName: "Digital Marketing",
-    facultyName: "Ramesh Kumar",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    topic: "React Hooks, Context API & State Management",
+    moduleName: "Frontend Development",
+    batchCode: "FSD-01",
+    courseName: "Full Stack Web Development",
+    facultyName: "Dr. Vikram Seth",
     status: "PRESENT",
-    remarks: "Active participation in session",
-    markedAt: "12 Aug 2026, 11:05 AM",
+    remarks: "Active in live coding lab",
+    markedAt: "27 Aug 2026, 11:05 AM",
   },
   {
     id: "att-2",
-    date: "10 Aug 2026",
-    timeSlot: "02:00 PM – 03:30 PM",
-    topic: "Keyword Research Strategy",
-    moduleName: "Module: SEO Fundamentals",
-    batchCode: "DM-01",
-    courseName: "Digital Marketing",
-    facultyName: "Ramesh Kumar",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    date: "25 Aug 2026",
+    timeSlot: "09:30 AM – 11:00 AM",
+    topic: "Component Lifecycle & Custom Hooks",
+    moduleName: "Frontend Development",
+    batchCode: "FSD-01",
+    courseName: "Full Stack Web Development",
+    facultyName: "Dr. Vikram Seth",
     status: "PRESENT",
-    remarks: "Good engagement",
-    markedAt: "10 Aug 2026, 02:05 PM",
+    remarks: "Submitted exercise on time",
+    markedAt: "25 Aug 2026, 11:02 AM",
   },
   {
     id: "att-3",
-    date: "08 Aug 2026",
-    timeSlot: "09:30 AM – 11:00 AM",
-    topic: "Technical SEO Audit",
-    moduleName: "Module: Technical SEO",
-    batchCode: "DM-01",
-    courseName: "Digital Marketing",
-    facultyName: "Ramesh Kumar",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
+    date: "22 Aug 2026",
+    timeSlot: "02:00 PM – 03:30 PM",
+    topic: "Database Indexing & Complex Joins in PostgreSQL",
+    moduleName: "Database Systems",
+    batchCode: "FSD-01",
+    courseName: "Full Stack Web Development",
+    facultyName: "Ananya Iyer",
     status: "ABSENT",
-    remarks: "-",
-    markedAt: "08 Aug 2026, 11:00 AM",
+    remarks: "Consecutive Absence #1",
+    markedAt: "22 Aug 2026, 03:35 PM",
   },
   {
     id: "att-4",
-    date: "06 Aug 2026",
-    timeSlot: "02:00 PM – 03:30 PM",
-    topic: "Content Optimization",
-    moduleName: "Module: On-Page SEO",
-    batchCode: "DM-01",
-    courseName: "Digital Marketing",
-    facultyName: "Ramesh Kumar",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    status: "EXCUSED",
-    remarks: "Medical reason",
-    markedAt: "06 Aug 2026, 02:10 PM",
+    date: "20 Aug 2026",
+    timeSlot: "09:30 AM – 11:00 AM",
+    topic: "Node.js Architecture & Express Routing",
+    moduleName: "Backend Architecture",
+    batchCode: "FSD-01",
+    courseName: "Full Stack Web Development",
+    facultyName: "Rohan Verma",
+    status: "PRESENT",
+    remarks: "Completed lab challenge",
+    markedAt: "20 Aug 2026, 11:00 AM",
   },
   {
     id: "att-5",
-    date: "05 Aug 2026",
-    timeSlot: "09:30 AM – 11:00 AM",
-    topic: "Link Building Basics",
-    moduleName: "Module: Off-Page SEO",
-    batchCode: "DM-01",
-    courseName: "Digital Marketing",
-    facultyName: "Ramesh Kumar",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150",
-    status: "NO_CLASS",
-    remarks: "Public Holiday",
-    markedAt: "-",
+    date: "18 Aug 2026",
+    timeSlot: "02:00 PM – 03:30 PM",
+    topic: "RESTful API Security & JWT Authorization",
+    moduleName: "Backend Architecture",
+    batchCode: "FSD-01",
+    courseName: "Full Stack Web Development",
+    facultyName: "Rohan Verma",
+    status: "EXCUSED",
+    remarks: "Medical leave approved by Center Manager",
+    markedAt: "18 Aug 2026, 02:15 PM",
   },
 ];
 
-export const StudentAttendance: React.FC = () => {
-  const [selectedFilter, setSelectedFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [hoveredDot, setHoveredDot] = useState<{ date: string; topic: string; status: string } | null>(null);
+const DAYS_HEADER = Array.from({ length: 31 }, (_, i) => i + 1);
 
-  // Filter records based on segmented button and search input
-  const filteredRecords = useMemo(() => {
-    return ATTENDANCE_HISTORY_DATA.filter((record) => {
-      // Filter status
-      if (selectedFilter !== "ALL" && record.status !== selectedFilter) {
-        return false;
-      }
-      // Search query
+export const StudentAttendance: React.FC = () => {
+  // Selected Subject for Matrix
+  const [selectedSubjectId, setSelectedSubjectId] = useState("core-java");
+  const [startDate, setStartDate] = useState("2026-06-01");
+  const [endDate, setEndDate] = useState("2026-10-31");
+
+  // Filter for history table
+  const [historyFilter, setHistoryFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Hover state for interactive tooltip
+  const [hoveredCell, setHoveredCell] = useState<{
+    day: number;
+    month: string;
+    status: "P" | "A" | "OFF";
+    subject: string;
+  } | null>(null);
+
+  const currentSubject = useMemo(() => {
+    return SUBJECTS_DATA.find((s) => s.id === selectedSubjectId) || SUBJECTS_DATA[0];
+  }, [selectedSubjectId]);
+
+  const percentage = Math.round((currentSubject.attended / currentSubject.total) * 100);
+  const isGoodStanding = percentage >= 75;
+
+  const filteredHistory = useMemo(() => {
+    return ATTENDANCE_HISTORY_DATA.filter((item) => {
+      if (historyFilter !== "ALL" && item.status !== historyFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchTopic = record.topic.toLowerCase().includes(q);
-        const matchFaculty = record.facultyName.toLowerCase().includes(q);
-        const matchModule = record.moduleName.toLowerCase().includes(q);
-        const matchCourse = record.courseName.toLowerCase().includes(q);
-        return matchTopic || matchFaculty || matchModule || matchCourse;
+        return (
+          item.topic.toLowerCase().includes(q) ||
+          item.facultyName.toLowerCase().includes(q) ||
+          item.moduleName.toLowerCase().includes(q)
+        );
       }
       return true;
     });
-  }, [selectedFilter, searchQuery]);
-
-  const renderDot = (status: "PRESENT" | "ABSENT" | "EXCUSED" | "NO_CLASS") => {
-    switch (status) {
-      case "PRESENT":
-        return <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] inline-block shadow-2xs" />;
-      case "ABSENT":
-        return <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] inline-block shadow-2xs" />;
-      case "EXCUSED":
-        return <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] inline-block shadow-2xs" />;
-      case "NO_CLASS":
-      default:
-        return <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />;
-    }
-  };
-
-  const renderStatusBadge = (status: AttendanceRecord["status"]) => {
-    switch (status) {
-      case "PRESENT":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] text-[#059669] border border-[#A7F3D0]">
-            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
-            Present
-          </span>
-        );
-      case "ABSENT":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#FEF2F2] text-[#DC2626] border border-[#FECACA]">
-            <X className="w-3.5 h-3.5 stroke-[2.5]" />
-            Absent
-          </span>
-        );
-      case "EXCUSED":
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-[#FFFBEB] text-[#D97706] border border-[#FDE68A]">
-            <Clock className="w-3.5 h-3.5 stroke-[2.5]" />
-            Excused
-          </span>
-        );
-      case "NO_CLASS":
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
-            -- No Class
-          </span>
-        );
-    }
-  };
-
-  const getBorderColorClass = (status: AttendanceRecord["status"]) => {
-    switch (status) {
-      case "PRESENT":
-        return "border-l-4 border-l-[#10B981]";
-      case "ABSENT":
-        return "border-l-4 border-l-[#EF4444]";
-      case "EXCUSED":
-        return "border-l-4 border-l-[#F59E0B]";
-      case "NO_CLASS":
-      default:
-        return "border-l-4 border-l-slate-300";
-    }
-  };
+  }, [historyFilter, searchQuery]);
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-5 sm:space-y-6 animate-in fade-in duration-300 pb-12 font-sans">
-      {/* ── 5 Horizontal Summary Cards (Matching Mockup with Left Icons) ──────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
-        {/* 1. Total Classes */}
-        <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-50/90 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-              <Calendar className="w-5 h-5 stroke-[2.2]" />
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
+      {/* ─── 1. PAGE HEADER ──────────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2.5">
+            <div className="h-10 w-10 rounded-2xl bg-[#5B50EC]/10 text-[#5B50EC] dark:text-indigo-400 border border-[#5B50EC]/20 flex items-center justify-center">
+              <Calendar className="h-5 w-5 stroke-[2.2]" />
             </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-slate-500 block">
-                Total Classes
-              </span>
-              <div className="text-2xl font-black text-slate-900 leading-none">
-                32
-              </div>
-              <span className="text-[11px] font-medium text-slate-400 block pt-0.5">
-                Scheduled
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+            <span>Attendance &amp; Class Tracking</span>
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 font-medium mt-1">
+            Monitor your live attendance percentage, subject heatmaps, and session history
+          </p>
+        </div>
 
-        {/* 2. Present */}
-        <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-emerald-50/90 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
-              <CheckCircle2 className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-slate-500 block">
-                Present
-              </span>
-              <div className="text-2xl font-black text-slate-900 leading-none">
-                26
-              </div>
-              <span className="text-[11px] font-bold text-emerald-600 block pt-0.5">
-                81.25%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 3. Absent */}
-        <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-rose-50/90 border border-rose-100 flex items-center justify-center text-rose-500 shrink-0">
-              <XCircle className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-slate-500 block">
-                Absent
-              </span>
-              <div className="text-2xl font-black text-slate-900 leading-none">
-                4
-              </div>
-              <span className="text-[11px] font-bold text-slate-600 block pt-0.5">
-                12.50%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 4. Excused */}
-        <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-xs hover:shadow-md transition-shadow">
-          <CardContent className="p-4 sm:p-5 flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-amber-50/90 border border-amber-100 flex items-center justify-center text-amber-600 shrink-0">
-              <Clock className="w-5 h-5 stroke-[2.2]" />
-            </div>
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-slate-500 block">
-                Excused
-              </span>
-              <div className="text-2xl font-black text-slate-900 leading-none">
-                2
-              </div>
-              <span className="text-[11px] font-bold text-slate-600 block pt-0.5">
-                6.25%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 5. Attendance Rate (with Gauge on Right) */}
-        <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-xs hover:shadow-md transition-shadow sm:col-span-2 md:col-span-3 lg:col-span-1">
-          <CardContent className="p-4 sm:p-5 flex items-center justify-between gap-2">
-            <div className="space-y-0.5">
-              <span className="text-[11px] font-bold text-slate-500 block">
-                Attendance Rate
-              </span>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 leading-none">
-                81.25%
-              </div>
-              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1 pt-0.5">
-                <span>✓</span> Good Standing
-              </span>
-            </div>
-
-            {/* Circular Gauge Ring */}
-            <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-              <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-100"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#0284C7]"
-                  strokeDasharray="81.25, 100"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span className="absolute text-[11px] font-black text-slate-800">
-                81%
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 75% Mandatory Notice Badge */}
+        <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-xs font-bold text-amber-800 dark:text-amber-300">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+          <span>75% Minimum Attendance Required for Final Certification</span>
+        </div>
       </div>
 
-      {/* ── Attendance Overview (Last 30 Days) Dual-Track Consistency Card ──── */}
-      <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <CardContent className="p-5 sm:p-6 space-y-6">
-          {/* Card Header with Dropdown */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#5B50EC] flex items-center justify-center text-white shadow-2xs">
-                <Calendar className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight flex items-center gap-1.5">
-                  <span>Attendance Overview</span>
-                  <span className="text-slate-500 font-medium text-sm">(Last 30 Days)</span>
-                </h3>
-              </div>
-            </div>
+      {/* ─── 2. EXACT ATTENDANCE OVERVIEW MATRIX (MATCHING SCREENSHOT) ───── */}
+      <div className="bg-white dark:bg-[#0B1120] text-slate-900 dark:text-slate-100 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-xs dark:shadow-2xl p-5 sm:p-7 space-y-6 overflow-hidden transition-colors">
+        {/* Row 1: Section Title & Date Range Picker */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <span className="text-xs font-black tracking-widest text-slate-500 dark:text-slate-400 uppercase">
+            ATTENDANCE
+          </span>
 
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-9 px-3.5 text-xs font-semibold text-slate-700 rounded-xl border-slate-200/80 bg-white hover:bg-slate-50 gap-2 shadow-2xs"
+          {/* Date Range Selector */}
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#111A2E] border border-slate-200 dark:border-slate-700/60 text-xs font-medium text-slate-700 dark:text-slate-300 shadow-2xs">
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+            />
+            <span className="text-blue-600 dark:text-sky-400 font-bold">→</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
+            />
+            <Calendar className="w-4 h-4 text-blue-600 dark:text-sky-400 shrink-0 ml-1" />
+          </div>
+        </div>
+
+        {/* Row 2: Subject Filter Pills Bar */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {SUBJECTS_DATA.map((subject) => {
+            const isActive = subject.id === selectedSubjectId;
+            return (
+              <button
+                key={subject.id}
+                onClick={() => setSelectedSubjectId(subject.id)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                  isActive
+                    ? "bg-[#2563EB] text-white shadow-md shadow-blue-600/30 scale-102"
+                    : "bg-slate-100 dark:bg-[#131C31] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-[#1C2844] border border-slate-200/80 dark:border-slate-800/60"
+                }`}
               >
-                <span>Last 30 Days</span>
-                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-              </Button>
-            </div>
+                {subject.name}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Row 3: Big Rate Percentage & Legend */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          {/* Rate Stats */}
+          <div className="flex items-baseline gap-3">
+            <span
+              className={`text-3xl sm:text-4xl font-black tracking-tight ${
+                isGoodStanding
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-rose-500 dark:text-[#F87171]"
+              }`}
+            >
+              {percentage}%
+            </span>
+            <span className="text-sm font-semibold text-slate-500 dark:text-slate-400">attended</span>
+            <span className="text-slate-300 dark:text-slate-600">|</span>
+            <span className="text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+              <strong className="text-slate-900 dark:text-white font-bold">{currentSubject.attended} of {currentSubject.total}</strong>{" "}
+              classes attended • <span className="text-slate-500 dark:text-slate-400">{currentSubject.missed} missed</span>
+            </span>
           </div>
 
-          {/* Dual-Track Visual Grid with Legend */}
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 overflow-x-auto pb-2 no-scrollbar">
-            {/* Timeline Track */}
-            <div className="space-y-3 min-w-[620px] flex-1">
-              {/* Day Columns Container */}
-              <div className="flex items-center justify-between w-full">
-                {DUAL_TRACK_TIMELINE.map((day, idx) => (
-                  <div key={idx} className="flex flex-col items-center gap-2 flex-1">
-                    {/* Day Initial */}
-                    <span className="text-[11px] font-bold text-slate-400 uppercase select-none block">
-                      {day.dayInitial}
-                    </span>
-                    {/* Track 1 Dot (Morning) */}
+          {/* Legend */}
+          <div className="flex items-center gap-5 text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+              <span className="text-sm font-bold">✓</span>
+              <span>Present</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-rose-500 dark:text-[#F87171]">
+              <span className="text-sm font-bold">✕</span>
+              <span>Absent</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-slate-400 dark:text-slate-500">
+              <span className="text-base font-bold leading-none">—</span>
+              <span>Week off</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 4: 31-Day Matrix Heatmap Table */}
+        <div className="overflow-x-auto pb-3 pt-2 no-scrollbar">
+          <div className="min-w-[780px] space-y-2.5">
+            {/* Header: Numbers 1 to 31 */}
+            <div className="grid grid-cols-[64px_repeat(31,_1fr)] gap-1 text-center items-center">
+              <div className="text-[11px] font-bold text-transparent select-none">Month</div>
+              {DAYS_HEADER.map((dayNum) => (
+                <div
+                  key={dayNum}
+                  className="text-[11px] font-mono font-bold text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
+                >
+                  {dayNum}
+                </div>
+              ))}
+            </div>
+
+            {/* Matrix Rows: Month + 31 Days Cells */}
+            {currentSubject.matrix.map((row) => (
+              <div
+                key={row.month}
+                className="grid grid-cols-[64px_repeat(31,_1fr)] gap-1 items-center"
+              >
+                {/* Month Name */}
+                <div className="text-xs font-bold text-slate-700 dark:text-slate-300 pl-1">{row.month}</div>
+
+                {/* Day Columns */}
+                {DAYS_HEADER.map((dayNum) => {
+                  const status = row.days[dayNum];
+
+                  return (
                     <div
-                      onMouseEnter={() => setHoveredDot({ date: `${day.displayDate} (Morning)`, topic: day.topicTop || "Regular Session", status: day.dotTop })}
-                      onMouseLeave={() => setHoveredDot(null)}
-                      className="p-0.5 cursor-pointer transition-transform hover:scale-135"
+                      key={dayNum}
+                      onMouseEnter={() =>
+                        setHoveredCell({
+                          day: dayNum,
+                          month: row.month,
+                          status: status === "P" ? "P" : status === "A" ? "A" : "OFF",
+                          subject: currentSubject.name,
+                        })
+                      }
+                      onMouseLeave={() => setHoveredCell(null)}
+                      className="h-7 rounded-md flex items-center justify-center transition-all cursor-pointer select-none group relative hover:bg-slate-100 dark:hover:bg-slate-800/60"
                     >
-                      {renderDot(day.dotTop)}
+                      {status === "P" && (
+                        <span className="text-emerald-600 dark:text-emerald-400 text-xs font-extrabold group-hover:scale-125 transition-transform">
+                          ✓
+                        </span>
+                      )}
+                      {status === "A" && (
+                        <span className="text-rose-500 dark:text-[#F87171] text-xs font-extrabold group-hover:scale-125 transition-transform">
+                          ✕
+                        </span>
+                      )}
+                      {status === undefined && (
+                        <span className="text-slate-300 dark:text-slate-700/60 text-[10px] opacity-0 group-hover:opacity-40">
+                          •
+                        </span>
+                      )}
                     </div>
-                    {/* Track 2 Dot (Afternoon) */}
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Hover Tooltip Bar */}
+        <div className="h-6 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800/80">
+          {hoveredCell ? (
+            <div className="flex items-center gap-3 animate-in fade-in">
+              <span className="text-slate-900 dark:text-slate-200 font-bold font-mono">
+                {hoveredCell.day} {hoveredCell.month} 2026
+              </span>
+              <span>•</span>
+              <span>Subject: <strong className="text-blue-600 dark:text-sky-400">{hoveredCell.subject}</strong></span>
+              <span>•</span>
+              <span>
+                Status:{" "}
+                {hoveredCell.status === "P" ? (
+                  <strong className="text-emerald-600 dark:text-emerald-400">✓ PRESENT</strong>
+                ) : hoveredCell.status === "A" ? (
+                  <strong className="text-rose-600 dark:text-rose-400">✕ ABSENT</strong>
+                ) : (
+                  <strong className="text-slate-400 dark:text-slate-500">— Week off / No class scheduled</strong>
+                )}
+              </span>
+            </div>
+          ) : (
+            <span className="italic text-slate-400 dark:text-slate-500">
+              Hover over any date cell in the grid to view session details
+            </span>
+          )}
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-mono">
+            {currentSubject.name} Cohort Attendance
+          </span>
+        </div>
+      </div>
+
+      {/* ─── 3. DETAILED ATTENDANCE SESSION HISTORY ──────────────────────── */}
+      <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 shadow-xs rounded-3xl overflow-hidden">
+        <div className="p-5 border-b border-slate-200/80 dark:border-slate-800/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="w-5 h-5 text-[#5B50EC] dark:text-indigo-400" />
+            <h3 className="text-sm font-black text-slate-900 dark:text-white">
+              Recent Class Attendance History
+            </h3>
+            <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-900/50 font-bold text-xs">
+              {filteredHistory.length} Sessions Logged
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Filter Tabs */}
+            <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#0D1527] p-1 rounded-xl border border-slate-200 dark:border-slate-800">
+              {(["ALL", "PRESENT", "ABSENT", "EXCUSED"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setHistoryFilter(tab)}
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
+                    historyFilter === tab
+                      ? "bg-[#5B50EC] text-white shadow-2xs"
+                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-48 sm:w-60">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search topic or faculty..."
+                className="pl-8 h-8 text-xs bg-slate-50 dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 rounded-xl"
+              />
+            </div>
+          </div>
+        </div>
+
+        <CardContent className="p-0">
+          <div className="divide-y divide-slate-100 dark:divide-slate-800/80">
+            {filteredHistory.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No attendance logs found matching your filters.
+              </div>
+            ) : (
+              filteredHistory.map((rec) => (
+                <div
+                  key={rec.id}
+                  className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-slate-50/50 dark:hover:bg-[#162547]/40 transition-colors"
+                >
+                  <div className="flex items-start gap-3.5">
                     <div
-                      onMouseEnter={() => setHoveredDot({ date: `${day.displayDate} (Afternoon)`, topic: day.topicBottom || "Practical Lab", status: day.dotBottom })}
-                      onMouseLeave={() => setHoveredDot(null)}
-                      className="p-0.5 cursor-pointer transition-transform hover:scale-135"
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
+                        rec.status === "PRESENT"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
+                          : rec.status === "ABSENT"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                      }`}
                     >
-                      {renderDot(day.dotBottom)}
+                      {rec.status === "PRESENT" && <Check className="w-5 h-5 stroke-[2.5]" />}
+                      {rec.status === "ABSENT" && <X className="w-5 h-5 stroke-[2.5]" />}
+                      {rec.status === "EXCUSED" && <Clock className="w-5 h-5 stroke-[2.2]" />}
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white">
+                          {rec.topic}
+                        </h4>
+                        <span className="text-[11px] text-slate-400">• {rec.moduleName}</span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                        <span>Faculty: <strong className="text-slate-700 dark:text-slate-300">{rec.facultyName}</strong></span>
+                        <span>•</span>
+                        <span>Batch: <strong className="font-mono text-slate-700 dark:text-slate-300">{rec.batchCode}</strong></span>
+                        <span>•</span>
+                        <span>Time: {rec.timeSlot}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
-              </div>
 
-              {/* Date Markers Row */}
-              <div className="flex justify-between text-[11px] font-bold text-slate-400 pt-1 px-1">
-                <span>15 Jul</span>
-                <span>22 Jul</span>
-                <span>29 Jul</span>
-                <span>05 Aug</span>
-                <span>12 Aug</span>
-              </div>
-            </div>
-
-            {/* Right Legend Column */}
-            <div className="flex lg:flex-col items-center lg:items-start gap-4 lg:gap-2.5 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 lg:border-l border-slate-100 lg:pl-8 text-xs font-semibold text-slate-700">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#10B981] inline-block" />
-                <span className="text-xs font-medium">Present</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#EF4444] inline-block" />
-                <span className="text-xs font-medium">Absent</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#F59E0B] inline-block" />
-                <span className="text-xs font-medium">Excused</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-300 inline-block" />
-                <span className="text-xs font-medium">No Class</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Hovered Day Tooltip Box */}
-          {hoveredDot && (
-            <div className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-xl text-xs flex items-center justify-between text-slate-700 animate-in fade-in duration-150">
-              <div className="flex items-center gap-2">
-                {renderDot(hoveredDot.status as any)}
-                <span className="font-bold text-slate-900">{hoveredDot.date}</span>
-                <span className="text-slate-400">•</span>
-                <span>{hoveredDot.topic}</span>
-              </div>
-              <span className="font-bold uppercase text-[10px] tracking-wider text-slate-500">
-                {hoveredDot.status.replace("_", " ")}
-              </span>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── Segmented Filters & Search Bar (Matching Mockup) ─────────────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5">
-        {/* Segmented Filter Buttons */}
-        <div className="flex items-center gap-2.5 overflow-x-auto no-scrollbar shrink-0">
-          <button
-            type="button"
-            onClick={() => setSelectedFilter("ALL")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "ALL"
-                ? "bg-[#5B50EC] text-white shadow-indigo-200"
-                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-              }`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span>All Classes</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedFilter("PRESENT")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "PRESENT"
-                ? "bg-[#5B50EC] text-white shadow-indigo-200"
-                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-              }`}
-          >
-            <Check className="w-4 h-4 text-emerald-600" />
-            <span>Present (26)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedFilter("ABSENT")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "ABSENT"
-                ? "bg-[#5B50EC] text-white shadow-indigo-200"
-                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-              }`}
-          >
-            <XCircle className="w-4 h-4 text-rose-500" />
-            <span>Absent (4)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setSelectedFilter("EXCUSED")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "EXCUSED"
-                ? "bg-[#5B50EC] text-white shadow-indigo-200"
-                : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-              }`}
-          >
-            <Clock className="w-4 h-4 text-amber-500" />
-            <span>Excused (2)</span>
-          </button>
-        </div>
-
-        {/* Right Search Input & Filter Button */}
-        <div className="flex items-center gap-2.5 flex-1 lg:max-w-md">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder="Search by class or instructor..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9.5 h-10 text-xs rounded-xl border-slate-200/80 bg-white placeholder:text-slate-400 focus-visible:ring-1 focus-visible:ring-indigo-500"
-            />
-          </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => alert("Attendance filter modal")}
-            className="h-10 px-3.5 rounded-xl border-slate-200/80 text-slate-700 bg-white hover:bg-slate-50 text-xs font-semibold gap-1.5 shrink-0 shadow-2xs"
-          >
-            <Filter className="w-4 h-4 text-slate-500" />
-            <span>Filter</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* ── Attendance History Card & Table ───────────────────────────────────── */}
-      <Card className="bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden">
-        <CardContent className="p-0">
-          {/* Card Title Header */}
-          <div className="p-5 sm:p-6 pb-3 sm:pb-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-base sm:text-lg font-bold text-slate-900 tracking-tight">
-                Attendance History
-              </h3>
-              <p className="text-xs text-slate-400 font-medium">
-                Detailed record of your class attendance.
-              </p>
-            </div>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => alert("Exporting attendance records...")}
-              className="h-8 text-xs font-semibold text-slate-600 hover:text-indigo-600 gap-1.5 hidden sm:flex"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export
-            </Button>
-          </div>
-
-          {/* Table Container */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead>
-                <tr className="border-b border-slate-100 bg-slate-50/60 text-slate-400 text-[11px] font-bold uppercase tracking-wider">
-                  <th className="py-3 px-4 sm:px-6">Date & Time</th>
-                  <th className="py-3 px-4 sm:px-6">Class Topic & Module</th>
-                  <th className="py-3 px-4 sm:px-6">Batch & Course</th>
-                  <th className="py-3 px-4 sm:px-6">Faculty Instructor</th>
-                  <th className="py-3 px-4 sm:px-6">Status</th>
-                  <th className="py-3 px-4 sm:px-6">Remarks</th>
-                  <th className="py-3 px-4 sm:px-6">Marked At</th>
-                  <th className="py-3 px-4 sm:px-6 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredRecords.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="py-12 text-center text-slate-400">
-                      <div className="flex flex-col items-center justify-center space-y-2">
-                        <Info className="w-8 h-8 text-slate-300" />
-                        <p className="text-sm font-semibold text-slate-600">No attendance records found</p>
-                        <p className="text-xs text-slate-400">Try adjusting your filter or search terms</p>
-                      </div>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRecords.map((record) => (
-                    <tr
-                      key={record.id}
-                      className={`hover:bg-slate-50/80 transition-colors ${getBorderColorClass(record.status)}`}
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0">
+                    <Badge
+                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
+                        rec.status === "PRESENT"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                          : rec.status === "ABSENT"
+                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                      }`}
                     >
-                      {/* Date & Time */}
-                      <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                        <span className="font-bold text-slate-900 block text-xs">
-                          {record.date}
-                        </span>
-                        <span className="text-[11px] text-slate-400 block mt-0.5">
-                          {record.timeSlot}
-                        </span>
-                      </td>
-
-                      {/* Class Topic & Module */}
-                      <td className="py-3.5 px-4 sm:px-6 min-w-[200px]">
-                        <span className="font-bold text-slate-900 block text-xs">
-                          {record.topic}
-                        </span>
-                        <span className="text-[11px] text-slate-400 block mt-0.5">
-                          {record.moduleName}
-                        </span>
-                      </td>
-
-                      {/* Batch & Course */}
-                      <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                        <Badge
-                          variant="outline"
-                          className="bg-blue-50 text-[#1769AA] border-blue-200 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md"
-                        >
-                          {record.batchCode}
-                        </Badge>
-                        <span className="text-[11px] text-slate-500 block mt-0.5">
-                          {record.courseName}
-                        </span>
-                      </td>
-
-                      {/* Faculty Instructor */}
-                      <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="w-7 h-7 rounded-full border border-slate-200">
-                            <AvatarImage src={record.facultyAvatar} alt={record.facultyName} />
-                            <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700 font-bold">
-                              {record.facultyName.substring(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-medium text-slate-800 text-xs">
-                            {record.facultyName}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                        {renderStatusBadge(record.status)}
-                      </td>
-
-                      {/* Remarks */}
-                      <td className="py-3.5 px-4 sm:px-6 text-slate-600 text-xs max-w-xs truncate">
-                        {record.remarks}
-                      </td>
-
-                      {/* Marked At */}
-                      <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap text-[11px] text-slate-500">
-                        {record.markedAt}
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-3.5 px-4 sm:px-6 text-right whitespace-nowrap">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <button className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors">
-                              <MoreVertical className="w-4 h-4" />
-                            </button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-40 bg-white rounded-xl shadow-lg border border-slate-200 p-1">
-                            <DropdownMenuItem
-                              onClick={() => alert(`Viewing details for ${record.topic}`)}
-                              className="text-xs text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
-                            >
-                              View Class Details
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => alert(`Requesting attendance review for ${record.date}`)}
-                              className="text-xs text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
-                            >
-                              Request Review
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                      {rec.status}
+                    </Badge>
+                    <span className="text-[11px] font-mono text-slate-400">
+                      {rec.date}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
           </div>
         </CardContent>
       </Card>
-
-      {/* ── Bottom Motivational Progress Section ──────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-        {/* Left Motivational Banner */}
-        <div className="lg:col-span-7 bg-gradient-to-r from-[#EEF2FF] to-[#F5F3FF] border border-indigo-100/90 rounded-2xl p-5 flex items-center gap-4 shadow-2xs">
-          <div className="w-12 h-12 rounded-2xl bg-[#5B50EC] flex items-center justify-center text-white shrink-0 shadow-xs">
-            <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
-          </div>
-          <div className="force-black">
-            <h4 
-              className="text-sm sm:text-base font-bold text-black !text-black dark:!text-black"
-              style={{ color: "#000000" }}
-            >
-              Consistent Attendance, Strong Learning!
-            </h4>
-            <p 
-              className="text-xs text-black !text-black dark:!text-black mt-0.5 leading-relaxed font-medium"
-              style={{ color: "#000000" }}
-            >
-              You need at least <strong className="font-bold text-black !text-black dark:!text-black underline decoration-indigo-500/60" style={{ color: "#000000" }}>75% attendance</strong> to maintain good standing.
-            </p>
-          </div>
-        </div>
-
-        {/* Right Motivational Card with Student Graphic */}
-        <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 shadow-2xs">
-          <div className="space-y-1 force-black">
-            <div 
-              className="flex items-center gap-1.5 text-xs font-bold text-black !text-black dark:!text-black"
-              style={{ color: "#000000" }}
-            >
-              <span>You're doing great!</span>
-              <span>🎉</span>
-            </div>
-            <p 
-              className="text-[11px] text-black !text-black dark:!text-black font-medium"
-              style={{ color: "#000000" }}
-            >
-              Keep it up and aim for 100%
-            </p>
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            {/* 81% Circular Progress */}
-            <div className="relative w-11 h-11 flex items-center justify-center">
-              <svg className="w-11 h-11 -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-100"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#5B50EC]"
-                  strokeDasharray="81.25, 100"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <span className="absolute text-[10px] font-black text-slate-800">
-                81%
-              </span>
-            </div>
-
-            {/* Studying Student Illustration Badge */}
-            <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-lg">
-              👨‍💻
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 };
