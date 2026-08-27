@@ -391,20 +391,42 @@ async function main() {
   // ───────────────────────────────────────────────────────────────────────────
   console.log("👤 Seeding Users & Granting User Permissions...");
 
-  // 4.1 Super Admin User
+  // Passwords matching UI Login.tsx
+  const ADMIN_PASS = "ChangeMe@123";
+  const MANAGER_PASS = "Manager@123";
+  const COUNSELLOR_PASS = "Counsellor@123";
+  const FACULTY_PASS = "Faculty@123";
+  const STUDENT_PASS = "Student@123";
+
+  const adminPasswordHash = await bcrypt.hash(ADMIN_PASS, SALT_ROUNDS);
+  const managerPasswordHash = await bcrypt.hash(MANAGER_PASS, SALT_ROUNDS);
+  const counsellorPasswordHash = await bcrypt.hash(COUNSELLOR_PASS, SALT_ROUNDS);
+  const facultyPasswordHash = await bcrypt.hash(FACULTY_PASS, SALT_ROUNDS);
+  const studentPasswordHash = await bcrypt.hash(STUDENT_PASS, SALT_ROUNDS);
+
+  // 4.1 Super Admin User (admin@aadya.in)
   let adminUser = await prisma.user.findFirst({
-    where: { email: "admin@aadya.com" },
+    where: { email: "admin@aadya.in" },
   });
   if (!adminUser) {
     adminUser = await prisma.user.create({
       data: {
         instituteId: institute.id,
-        name: "Aadya Administrator",
-        email: "admin@aadya.com",
-        phone: "+91 9876543210",
-        passwordHash: hashedPassword,
+        name: "Aadya System Admin",
+        email: "admin@aadya.in",
+        phone: "+91 99999 99999",
+        passwordHash: adminPasswordHash,
         status: "ACTIVE",
         whatsappEnabled: true,
+      },
+    });
+  } else {
+    adminUser = await prisma.user.update({
+      where: { id: adminUser.id },
+      data: {
+        name: "Aadya System Admin",
+        passwordHash: adminPasswordHash,
+        status: "ACTIVE",
       },
     });
   }
@@ -422,23 +444,26 @@ async function main() {
     },
   });
 
-  // 4.2 Center Managers
+  // 4.2 Center Managers (manager@aadya.in + additional managers)
   const cmData = [
     {
       name: "Suresh Sharma",
-      email: "manager.koramangala@aadya.com",
-      phone: "+91 9876543211",
+      email: "manager@aadya.in",
+      passwordHash: managerPasswordHash,
+      phone: "+91 9876543210",
       branchId: branchKormangala.id,
     },
     {
       name: "Deepa Nair",
       email: "manager.indiranagar@aadya.com",
+      passwordHash: managerPasswordHash,
       phone: "+91 9876543212",
       branchId: branchIndiranagar.id,
     },
     {
       name: "Ramesh Verma",
       email: "manager.hsr@aadya.com",
+      passwordHash: managerPasswordHash,
       phone: "+91 9876543213",
       branchId: branchHSR.id,
     },
@@ -454,9 +479,18 @@ async function main() {
           name: cm.name,
           email: cm.email,
           phone: cm.phone,
-          passwordHash: hashedPassword,
+          passwordHash: cm.passwordHash,
           status: "ACTIVE",
           whatsappEnabled: true,
+        },
+      });
+    } else {
+      u = await prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: cm.name,
+          passwordHash: cm.passwordHash,
+          status: "ACTIVE",
         },
       });
     }
@@ -479,17 +513,26 @@ async function main() {
     }
   }
 
-  // 4.3 Counsellors
+  // 4.3 Counsellors (counsellor@aadya.in + additional counsellors)
   const counsellorData = [
+    {
+      name: "Priya Singh",
+      email: "counsellor@aadya.in",
+      passwordHash: counsellorPasswordHash,
+      phone: "+91 9876543211",
+      branchId: branchKormangala.id,
+    },
     {
       name: "Ananya Iyer",
       email: "counsellor.ananya@aadya.com",
+      passwordHash: counsellorPasswordHash,
       phone: "+91 9876543220",
       branchId: branchKormangala.id,
     },
     {
       name: "Rohit Deshmukh",
       email: "counsellor.rohit@aadya.com",
+      passwordHash: counsellorPasswordHash,
       phone: "+91 9876543221",
       branchId: branchIndiranagar.id,
     },
@@ -506,9 +549,18 @@ async function main() {
           name: c.name,
           email: c.email,
           phone: c.phone,
-          passwordHash: hashedPassword,
+          passwordHash: c.passwordHash,
           status: "ACTIVE",
           whatsappEnabled: true,
+        },
+      });
+    } else {
+      u = await prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: c.name,
+          passwordHash: c.passwordHash,
+          status: "ACTIVE",
         },
       });
     }
@@ -531,11 +583,21 @@ async function main() {
     counsellorsList.push(u);
   }
 
-  // 4.4 Faculty
+  // 4.4 Faculty (ramesh@aadya.in + additional faculty)
   const facultyData = [
+    {
+      name: "Ramesh Kumar",
+      email: "ramesh@aadya.in",
+      passwordHash: facultyPasswordHash,
+      phone: "+91 9888888888",
+      branchId: branchKormangala.id,
+      employeeCode: "FAC-101",
+      specialization: "Full Stack Web Development & AI",
+    },
     {
       name: "Prof. Rajesh Kumar",
       email: "faculty.rajesh@aadya.com",
+      passwordHash: facultyPasswordHash,
       phone: "+91 9876543230",
       branchId: branchKormangala.id,
       employeeCode: "EMP-FAC-001",
@@ -544,6 +606,7 @@ async function main() {
     {
       name: "Dr. Priya Sundaram",
       email: "faculty.priya@aadya.com",
+      passwordHash: facultyPasswordHash,
       phone: "+91 9876543231",
       branchId: branchIndiranagar.id,
       employeeCode: "EMP-FAC-002",
@@ -552,6 +615,7 @@ async function main() {
     {
       name: "Vikram Sethi",
       email: "faculty.vikram@aadya.com",
+      passwordHash: facultyPasswordHash,
       phone: "+91 9876543232",
       branchId: branchHSR.id,
       employeeCode: "EMP-FAC-003",
@@ -570,9 +634,18 @@ async function main() {
           name: f.name,
           email: f.email,
           phone: f.phone,
-          passwordHash: hashedPassword,
+          passwordHash: f.passwordHash,
           status: "ACTIVE",
           whatsappEnabled: true,
+        },
+      });
+    } else {
+      u = await prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: f.name,
+          passwordHash: f.passwordHash,
+          status: "ACTIVE",
         },
       });
     }
@@ -584,13 +657,14 @@ async function main() {
 
     const fac = await prisma.faculty.upsert({
       where: { instituteId_employeeCode: { instituteId: institute.id, employeeCode: f.employeeCode } },
-      update: { specialization: f.specialization },
+      update: { userId: u.id, specialization: f.specialization, status: "ACTIVE" },
       create: {
         userId: u.id,
         instituteId: institute.id,
         branchId: f.branchId,
         employeeCode: f.employeeCode,
         specialization: f.specialization,
+        status: "ACTIVE",
       },
     });
     facultyList.push(fac);
@@ -764,10 +838,11 @@ async function main() {
 
   const studentsData = [
     {
-      name: "Arjun Venkat",
-      email: "student.arjun@aadya.com",
-      phone: "+91 9876543301",
-      studentCode: "STD-2026-001",
+      name: "Rahul Verma",
+      email: "student@aadya.in",
+      passwordHash: studentPasswordHash,
+      phone: "+91 9777777777",
+      studentCode: "AAD-2026-1001",
       qualification: "B.Tech Computer Science",
       branchId: branchKormangala.id,
       feePlan: "INSTALLMENT" as const,
@@ -776,6 +851,7 @@ async function main() {
     {
       name: "Sneha Reddy",
       email: "student.sneha@aadya.com",
+      passwordHash: studentPasswordHash,
       phone: "+91 9876543302",
       studentCode: "STD-2026-002",
       qualification: "BCA",
@@ -786,6 +862,7 @@ async function main() {
     {
       name: "Rahul Sharma",
       email: "student.rahul@aadya.com",
+      passwordHash: studentPasswordHash,
       phone: "+91 9876543303",
       studentCode: "STD-2026-003",
       qualification: "B.Sc Statistics",
@@ -796,6 +873,7 @@ async function main() {
     {
       name: "Kavita Menon",
       email: "student.kavita@aadya.com",
+      passwordHash: studentPasswordHash,
       phone: "+91 9876543304",
       studentCode: "STD-2026-004",
       qualification: "B.E Electronics",
@@ -806,6 +884,7 @@ async function main() {
     {
       name: "Amit Patel",
       email: "student.amit@aadya.com",
+      passwordHash: studentPasswordHash,
       phone: "+91 9876543305",
       studentCode: "STD-2026-005",
       qualification: "MCA",
@@ -827,9 +906,18 @@ async function main() {
           name: s.name,
           email: s.email,
           phone: s.phone,
-          passwordHash: hashedPassword,
+          passwordHash: s.passwordHash,
           status: "ACTIVE",
           whatsappEnabled: true,
+        },
+      });
+    } else {
+      u = await prisma.user.update({
+        where: { id: u.id },
+        data: {
+          name: s.name,
+          passwordHash: s.passwordHash,
+          status: "ACTIVE",
         },
       });
     }
@@ -841,7 +929,7 @@ async function main() {
 
     const student = await prisma.student.upsert({
       where: { instituteId_studentCode: { instituteId: institute.id, studentCode: s.studentCode } },
-      update: { qualification: s.qualification },
+      update: { userId: u.id, qualification: s.qualification, status: s.status },
       create: {
         userId: u.id,
         instituteId: institute.id,
@@ -1137,21 +1225,27 @@ async function main() {
   ];
 
   for (const m of masterRecords) {
-    const existing = await prisma.masterRecord.findFirst({
-      where: { instituteId: institute.id, code: m.code },
-    });
-    if (!existing) {
-      await prisma.masterRecord.create({
-        data: {
+    await prisma.masterRecord.upsert({
+      where: {
+        instituteId_entityType_name: {
           instituteId: institute.id,
-          branchId: branchKormangala.id,
           entityType: m.entityType,
           name: m.name,
-          code: m.code,
-          data: m.data,
         },
-      });
-    }
+      },
+      update: {
+        code: m.code,
+        data: m.data,
+      },
+      create: {
+        instituteId: institute.id,
+        branchId: branchKormangala.id,
+        entityType: m.entityType,
+        name: m.name,
+        code: m.code,
+        data: m.data,
+      },
+    });
   }
 
   // ───────────────────────────────────────────────────────────────────────────
@@ -1197,15 +1291,12 @@ async function main() {
   console.log("\n===================================================================");
   console.log("✅ AADYA INSTITUTE DATABASE SEEDING COMPLETED SUCCESSFULLY!");
   console.log("===================================================================");
-  console.log("🔑 Default Credentials (All passwords: " + DEFAULT_PASSWORD + "):");
-  console.log("   • Super Admin:       admin@aadya.com");
-  console.log("   • Center Manager 1:  manager.koramangala@aadya.com");
-  console.log("   • Center Manager 2:  manager.indiranagar@aadya.com");
-  console.log("   • Counsellor 1:      counsellor.ananya@aadya.com");
-  console.log("   • Faculty (FSD):     faculty.rajesh@aadya.com");
-  console.log("   • Faculty (AI/DS):   faculty.priya@aadya.com");
-  console.log("   • Student 1 (FSD):   student.arjun@aadya.com");
-  console.log("   • Student 2 (FSD):   student.sneha@aadya.com");
+  console.log("🔑 5 1-Click Instant Login Accounts Ready:");
+  console.log("   • Admin:          admin@aadya.in      / ChangeMe@123");
+  console.log("   • Center Manager: manager@aadya.in    / Manager@123");
+  console.log("   • Counsellor:     counsellor@aadya.in / Counsellor@123");
+  console.log("   • Faculty:        ramesh@aadya.in     / Faculty@123");
+  console.log("   • Student:        student@aadya.in    / Student@123");
   console.log("===================================================================\n");
 }
 
