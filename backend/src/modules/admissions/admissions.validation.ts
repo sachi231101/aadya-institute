@@ -44,19 +44,30 @@ export const queryApplicationsSchema = z.object({
   limit: z.coerce.number().optional().default(20),
 });
 
+const installmentItemSchema = z.object({
+  installmentNo: z.coerce.number().int().min(1),
+  dueDate: z.string().min(1),
+  amount: z.coerce.number().min(0),
+});
+
 export const createAdmissionSchema = z.object({
   studentName: z.string().min(2, "Student name must be at least 2 characters"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(8, "Phone number must be at least 8 digits"),
   courseId: z.string().min(1, "Course is required"),
-  batchId: z.string().optional(),
+  batchId: z.string().optional().or(z.literal("")),
   studentId: z.string().optional(),
   applicationId: z.string().optional(),
+  branchId: z.string().optional(),
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
   status: z.enum(["CONFIRMED", "PROVISIONAL", "CANCELLED", "PENDING", "ACTIVE", "COMPLETED"]).optional(),
   notes: z.string().optional(),
   totalFee: z.coerce.number().optional(),
   amountPaid: z.coerce.number().optional(),
+  paymentMethod: z.enum(["UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]).optional(),
+  transactionRef: z.string().optional(),
+  admissionDate: z.string().optional(),
+  installments: z.array(installmentItemSchema).optional(),
 });
 
 export const updateAdmissionSchema = createAdmissionSchema.partial();

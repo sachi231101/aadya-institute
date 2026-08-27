@@ -7,7 +7,7 @@ import {
   BookOpen, Bell, X, Trash2, Sparkles, Check, Flame,
   UserCheck, UserPlus, Play, Pause, Volume2, VolumeX,
   FileText, RotateCcw, AlertTriangle, ChevronRight,
-  Filter, HelpCircle
+  Filter, HelpCircle, GraduationCap
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -81,6 +81,12 @@ const getStageBadge = (stage: string) => {
 export const LeadManagement: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  const basePath = location.pathname.startsWith("/counselor")
+    ? "/counselor"
+    : location.pathname.startsWith("/center")
+    ? "/center"
+    : "/admin";
 
   // Centralized Store
   const {
@@ -309,7 +315,7 @@ export const LeadManagement: React.FC = () => {
       phone: formPhone.trim(),
       email: formEmail.trim() || undefined,
       course: formCourse,
-      source: formSource,
+      source: formSource || "Website",
       notes: formNotes.trim(),
       triggerImmediateCall: formTriggerAi,
     });
@@ -320,7 +326,7 @@ export const LeadManagement: React.FC = () => {
         : `✓ Lead ${created.name} added successfully!`
     );
 
-    // Reset Form
+    // Reset Form & Filters so the newly created lead is immediately visible
     setFormName("");
     setFormPhone("");
     setFormEmail("");
@@ -328,6 +334,7 @@ export const LeadManagement: React.FC = () => {
     setFormSource("Website");
     setFormNotes("");
     setFormTriggerAi(true);
+    handleResetFilters();
     setShowAddLeadModal(false);
   };
 
@@ -809,6 +816,12 @@ export const LeadManagement: React.FC = () => {
                                 className="cursor-pointer gap-2 py-2"
                               >
                                 <MessageSquare className="w-3.5 h-3.5 text-green-600" /> Send WhatsApp
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => navigate(`${basePath}/admissions/direct-entry`, { state: { lead } })}
+                                className="cursor-pointer gap-2 py-2 font-bold text-[#1769AA] hover:bg-blue-50"
+                              >
+                                <GraduationCap className="w-3.5 h-3.5 text-[#1769AA]" /> Convert to Admission
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -1600,10 +1613,22 @@ export const LeadManagement: React.FC = () => {
                     setShowDetailsDrawer(false);
                     handleOpenFollowUp(activeLead);
                   }}
-                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-4 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
                 >
                   <CalendarDays className="w-4 h-4" />
                   Schedule Follow-up
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowDetailsDrawer(false);
+                    navigate(`${basePath}/admissions/direct-entry`, { state: { lead: activeLead } });
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-4 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                >
+                  <GraduationCap className="w-4 h-4" />
+                  Convert to Admission
                 </Button>
               </div>
             </div>

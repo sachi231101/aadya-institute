@@ -73,6 +73,12 @@ export interface QueryApplicationsDTO {
 }
 
 // ─── Admission Types ───────────────────────────────────────────────────────────
+export interface AdmissionInstallmentDTO {
+  installmentNo: number;
+  dueDate: string;
+  amount: number;
+}
+
 export interface CreateAdmissionDTO {
   studentName: string;
   email?: string;
@@ -81,11 +87,16 @@ export interface CreateAdmissionDTO {
   batchId?: string;
   studentId?: string;
   applicationId?: string;
+  branchId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;
   notes?: string;
   totalFee?: number;
   amountPaid?: number;
+  paymentMethod?: "UPI" | "NET_BANKING" | "CARD" | "CASH" | "CHEQUE";
+  transactionRef?: string;
+  admissionDate?: string;
+  installments?: AdmissionInstallmentDTO[];
 }
 
 export interface UpdateAdmissionDTO {

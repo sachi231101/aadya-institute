@@ -81,6 +81,12 @@ export interface CreateApplicationPayload {
   notes?: string;
 }
 
+export interface AdmissionInstallmentPayload {
+  installmentNo: number;
+  dueDate: string;
+  amount: number;
+}
+
 export interface CreateAdmissionPayload {
   studentName: string;
   email?: string;
@@ -88,11 +94,16 @@ export interface CreateAdmissionPayload {
   courseId: string;
   batchId?: string;
   studentId?: string;
+  branchId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;
   notes?: string;
   totalFee?: number;
   amountPaid?: number;
+  paymentMethod?: "UPI" | "NET_BANKING" | "CARD" | "CASH" | "CHEQUE";
+  transactionRef?: string;
+  admissionDate?: string;
+  installments?: AdmissionInstallmentPayload[];
 }
 
 export interface ConvertEnquiryPayload {

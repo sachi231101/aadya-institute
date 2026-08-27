@@ -270,7 +270,9 @@ export const AdmissionsController = {
       const instituteId = req.user!.instituteId;
       const branchId = req.user!.branchId || undefined;
       const dto = createAdmissionSchema.parse(req.body);
-      const data = await AdmissionsService.createAdmission(instituteId, branchId, dto);
+      const data = await AdmissionsService.createAdmission(instituteId, branchId, dto, {
+        roles: req.user!.roles || [],
+      });
       res.status(201).json({
         success: true,
         message: "Admission created successfully",

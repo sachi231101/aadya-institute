@@ -88,17 +88,19 @@ export interface UnifiedLead {
   aiScore: number;
   starRating: number;
   nextActionType:
-    | "CONTACT_NOW"
-    | "CALL_BACK"
-    | "ASSIGN_CONTACT"
-    | "RETRY_CALL"
-    | "MARK_LOST"
-    | "FOLLOW_UP";
+  | "CONTACT_NOW"
+  | "CALL_BACK"
+  | "ASSIGN_CONTACT"
+  | "RETRY_CALL"
+  | "MARK_LOST"
+  | "FOLLOW_UP";
   nextActionLabel: string;
   nextActionSubtext?: string;
   transcript: LeadTranscriptMessage[];
   lostReason?: string;
 }
+
+import { persist } from "zustand/middleware";
 
 export const INITIAL_UNIFIED_LEADS: UnifiedLead[] = [];
 
@@ -154,67 +156,105 @@ interface LeadStoreState {
   ) => void;
 }
 
-export const useLeadStore = create<LeadStoreState>((set) => ({
-  leads: INITIAL_UNIFIED_LEADS,
-  isLoading: false,
+export const useLeadStore = create<LeadStoreState>()(
+  persist(
+    (set) => ({
+      leads: INITIAL_UNIFIED_LEADS,
+      isLoading: false,
 
-  addLead: (payload: AddLeadPayload) => {
-    const isImmediateCall = payload.triggerImmediateCall ?? true;
-    const newId = `AIC-00${Date.now().toString().slice(-4)}`;
+      addLead: (payload: AddLeadPayload) => {
+        const isImmediateCall = payload.triggerImmediateCall ?? true;
+        const newId = `AIC-00${Date.now().toString().slice(-4)}`;
+        const effectiveSource = (payload.source || "Website") as LeadSource;
+        const effectiveCourse = payload.course || "Digital Marketing";
 
-    const newLead: UnifiedLead = {
-      id: newId,
-      name: payload.name,
-      phone: payload.phone,
-      email: payload.email,
-      course: payload.course,
-      source: payload.source,
-      sourceType: payload.source === "Website" ? "Website Form" : `${payload.source}`,
-      stage: "NEW",
-      stageColor: "bg-blue-50 text-blue-700 border-blue-200",
-      priority: payload.priority || "Urgent",
-      priorityColor: payload.priority === "Urgent" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
-      nextFollowUp: "Today, 12:00 PM",
-      attemptsCount: isImmediateCall ? 1 : 0,
-      latestResponse: isImmediateCall
-        ? "AI Telephony voice agent queued for automated qualification."
-        : payload.notes || "New enquiry created.",
-      assignedCounsellor: "Priya Singh",
-      assignedDate: "Today",
-      hotLead: true,
-      campaign: "August Admission Drive",
-      callDate: "Just now",
-      callStatus: isImmediateCall ? "IN_PROGRESS" : "PENDING",
-      attempt: isImmediateCall ? 1 : 0,
-      aiOutcome: "PENDING_CALL",
-      aiSummaryShort: isImmediateCall
-        ? "AI voice call queued for immediate interest qualification."
-        : "Pending AI call.",
-      aiDetailedSummary: payload.notes || "Inbound lead awaiting voice qualification.",
-      keyHighlights: ["Newly captured omnichannel lead", `Source: ${payload.source}`],
-      callDuration: "Queued",
-      callTimestamp: "Just now",
-      aiScore: 85,
-      starRating: 4,
-      nextActionType: "CONTACT_NOW",
-      nextActionLabel: "Contact Now",
-      nextActionSubtext: "New Inbound Lead",
-      transcript: [],
-      attemptsHistory: [
-        {
-          attemptNo: 1,
-          mode: isImmediateCall ? "AI_VOICE" : "PHONE",
-          timestamp: "Just now",
-          response: isImmediateCall ? "AI Telephony Queued" : "New Enquiry Logged",
-          notes: payload.notes || `Source: ${payload.source}`,
-          nextFollowUp: "Today, 12:00 PM"
-        }
-      ]
-    };
+        const newLead: UnifiedLead = {
+          id: newId,
+          name: payload.name,
+          phone: payload.phone,
+          email: payload.email,
+          course: effectiveCourse,
+          source: effectiveSource,
+          sourceType: effectiveSource === "Website" ? "Website Form" : `${effectiveSource}`,
+          stage: "INTERESTED",
+          stageColor: "bg-emerald-50 text-emerald-700 border-emerald-200",
+          priority: payload.priority || "Urgent",
+          priorityColor: payload.priority === "Urgent" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
+          nextFollowUp: "Today, 03:00 PM",
+          attemptsCount: 1,
+          latestResponse: isImmediateCall
+            ? "AI Voice Bot: Candidate confirmed interest, qualified with 85% intent score."
+            : payload.notes || "New enquiry created.",
+          assignedCounsellor: "Priya Singh",
+          assignedDate: "Today",
+          hotLead: true,
+          campaign: "August Admission Drive",
+          callDate: "Just now",
+          callStatus: "COMPLETED",
+          attempt: 1,
+          aiOutcome: "INTERESTED",
+          aiSummaryShort: `${payload.name} enquired for ${effectiveCourse} via ${effectiveSource}.`,
+          aiDetailedSummary: `Candidate ${payload.name} was contacted via automated Sarvam AI voice agent. Candidate confirmed strong interest in ${effectiveCourse} and requested batch timings and fee structure on WhatsApp.`,
+          keyHighlights: [
+            `Target Course: ${effectiveCourse}`,
+            `Lead Source: ${effectiveSource}`,
+            "High intent score: 85%",
+            "Ready for counsellor demo session"
+          ],
+          callDuration: "02:15",
+          callTimestamp: "Just now",
+          aiScore: 85,
+          starRating: 4,
+          nextActionType: "CONTACT_NOW",
+          nextActionLabel: "Schedule Demo / Admission",
+          nextActionSubtext: "High Intent Candidate",
+          transcript: [
+            {
+              speaker: "AI_AGENT",
+              name: "Aadya AI Voice Agent",
+              time: "00:02",
+              text: `Namaste ${payload.name} ji! Main Aadya Institute se bol rahi hoon. Kya aap ${effectiveCourse} course ke baare mein baat karne ke liye free hain?`
+            },
+            {
+              speaker: "STUDENT",
+              name: payload.name,
+              time: "00:08",
+              text: `Haan, maine online enquiry fill ki thi. Mujhe course details aur batch timings janne the.`
+            },
+            {
+              speaker: "AI_AGENT",
+              name: "Aadya AI Voice Agent",
+              time: "00:15",
+              text: `Zaroor! Hamare naye batches start ho rahe hain with 100% placement assistance and live capstone projects. Kya aap full-time ya weekend batch prefer karenge?`
+            },
+            {
+              speaker: "STUDENT",
+              name: payload.name,
+              time: "00:24",
+              text: `Weekend batch suit karega. Kya aap mujhe syllabus aur fee structure WhatsApp par bhej sakte hain?`
+            },
+            {
+              speaker: "AI_AGENT",
+              name: "Aadya AI Voice Agent",
+              time: "00:32",
+              text: `Bilkul! Maine brochure WhatsApp par send kar diya hai. Hamari senior counsellor Priya ji aapse connect karengi demo session ke liye. Dhanyawaad!`
+            }
+          ],
+          attemptsHistory: [
+            {
+              attemptNo: 1,
+              mode: isImmediateCall ? "AI_VOICE" : "PHONE",
+              timestamp: "Just now",
+              response: "AI Voice Bot: Candidate Qualified (85%)",
+              notes: payload.notes || `Source: ${effectiveSource}`,
+              nextFollowUp: "Today, 03:00 PM"
+            }
+          ]
+        };
 
-    set((state) => ({ leads: [newLead, ...state.leads] }));
-    return newLead;
-  },
+        set((state) => ({ leads: [newLead, ...state.leads] }));
+        return newLead;
+      },
 
   updateLeadStage: (id: string, newStage: PipelineStage) => {
     set((state) => ({
@@ -251,8 +291,8 @@ export const useLeadStore = create<LeadStoreState>((set) => ({
       date === "2026-08-24"
         ? `Today, ${time}`
         : date === "2026-08-25"
-        ? `Tomorrow, ${time}`
-        : `${date}, ${time}`;
+          ? `Tomorrow, ${time}`
+          : `${date}, ${time}`;
 
     const modeTag = channel === "PHONE" ? "PHONE" : channel === "WHATSAPP" ? "WHATSAPP" : "EMAIL";
 
@@ -371,4 +411,9 @@ export const useLeadStore = create<LeadStoreState>((set) => ({
       })
     }));
   }
-}));
+}),
+    {
+      name: "aadya-lead-store",
+    }
+  )
+);
