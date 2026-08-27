@@ -1,5 +1,7 @@
 import http from "http";
+// Aadya Institute Management Server
 import app from "./app";
+export { app };
 import { connectDatabase } from "./config/database";
 import { env } from "./config/env";
 import { initWebSocketServer } from "./websocket/ws.server";
