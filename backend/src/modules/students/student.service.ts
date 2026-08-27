@@ -2,12 +2,17 @@ import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import {
+  assertFacultyCanAccessStudent,
+  requireFacultyIdIfPureFaculty,
+} from "../../utils/auth-user.util";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
 import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
 
 /**
  * List students with pagination, search, and optional branch isolation.
+ * Pure FACULTY users only see students enrolled in their assigned batches.
  */
 export const getAllStudents = async (
   currentUser: AuthUser,
@@ -18,12 +23,14 @@ export const getAllStudents = async (
   const skip = (page - 1) * limit;
 
   const scope = getBranchScopeFilter(currentUser, query.branchId);
+  const facultyId = await requireFacultyIdIfPureFaculty(currentUser);
 
   const params: repo.FindAllStudentsParams = {
     instituteId: scope.instituteId,
     branchId: scope.branchId,
     search: query.search || undefined,
     status: query.status || undefined,
+    facultyId: facultyId || undefined,
     skip,
     take: limit,
   };
@@ -35,6 +42,7 @@ export const getAllStudents = async (
       branchId: params.branchId,
       search: params.search,
       status: params.status,
+      facultyId: params.facultyId,
     }),
   ]);
 
@@ -117,9 +125,13 @@ export const getAllStudents = async (
 /**
  * Get a single student by ID.
  */
-export const getStudentById = async (id: string) => {
+export const getStudentById = async (id: string, currentUser: AuthUser) => {
   const student = await repo.findStudentById(id);
   if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+  await assertFacultyCanAccessStudent(currentUser, id);
   return student;
 };
 
@@ -216,7 +228,8 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
  * Update a student's details.
  */
 export const updateStudent = async (id: string, dto: UpdateStudentDto) => {
-  await getStudentById(id); // throws 404 if not found
+  const student = await repo.findStudentById(id);
+  if (!student) throw new AppError("Student not found", 404);
   return repo.updateStudent(id, dto);
 };
 
@@ -224,7 +237,8 @@ export const updateStudent = async (id: string, dto: UpdateStudentDto) => {
  * Soft-delete a student.
  */
 export const deleteStudent = async (id: string) => {
-  await getStudentById(id); // throws 404 if not found
+  const student = await repo.findStudentById(id);
+  if (!student) throw new AppError("Student not found", 404);
   return repo.softDeleteStudent(id);
 };
 
@@ -237,9 +251,9 @@ export const deleteStudent = async (id: string) => {
  * - Course enrollment progress
  * - 3-consecutive-absence discontinuation flag (AGENTS.md Rule 28)
  */
-export const getStudentPerformance = async (studentId: string) => {
-  // Verify student exists
-  await getStudentById(studentId);
+export const getStudentPerformance = async (studentId: string, currentUser: AuthUser) => {
+  // Verify student exists and faculty may access
+  await getStudentById(studentId, currentUser);
 
   const [attendanceRecords, submissions, enrollments] = await Promise.all([
     repo.findStudentAttendanceRecords(studentId),

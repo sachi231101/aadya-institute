@@ -1,19 +1,19 @@
 import type { Response, NextFunction } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import type { AuthUser } from "../auth/auth.types";
 import { sendSuccess, sendPaginated } from "../../utils/response";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./student.service";
 
 export const getAll = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { data, meta } = await service.getAllStudents(req.user as unknown as AuthUser, req.query as any);
+    const { data, meta } = await service.getAllStudents(toAuthUser(req), req.query as any);
     sendPaginated(res, data, meta);
   } catch (err) { next(err); }
 };
 
 export const getById = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.getStudentById(req.params.id as string);
+    const data = await service.getStudentById(req.params.id as string, toAuthUser(req));
     sendSuccess(res, data);
   } catch (err) { next(err); }
 };
@@ -42,7 +42,7 @@ export const remove = async (req: AuthenticatedRequest, res: Response, next: Nex
 
 export const getPerformance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.getStudentPerformance(req.params.id as string);
+    const data = await service.getStudentPerformance(req.params.id as string, toAuthUser(req));
     sendSuccess(res, data);
   } catch (err) { next(err); }
 };

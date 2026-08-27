@@ -32,7 +32,7 @@ router.get(
 // POST /api/v1/faculty/courses/assign — Assign faculty to a batch
 router.post(
   "/courses/assign",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(assignCourseSchema),
   controller.assignCourse
 );
@@ -67,10 +67,10 @@ router.post(
   controller.create
 );
 
-// PATCH /api/v1/faculty/:id — Update faculty
+// PATCH /api/v1/faculty/:id — Update faculty (not self-serve for FACULTY role)
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(updateFacultySchema),
   controller.update
 );

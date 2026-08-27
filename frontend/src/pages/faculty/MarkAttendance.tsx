@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { 
   Check, 
   X, 
@@ -31,8 +31,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { useQuery } from "@tanstack/react-query";
-import { studentsApi } from "../../services/students.api";
-import { batchesApi } from "../../services/batches.api";
+import { classSessionsApi } from "../../services/class-sessions.api";
 
 type AttendanceStatus = "PRESENT" | "ABSENT" | "EXCUSED";
 
@@ -49,17 +48,16 @@ interface StudentRecord {
 
 export const FacultyMarkAttendance: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const sessionId = searchParams.get("sessionId") || "";
   const { user } = useAuthStore();
   const facultyName = user?.name || "Faculty Member";
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const { data: batchesRes } = useQuery({
-    queryKey: ["batches"],
-    queryFn: () => batchesApi.getAll(),
-  });
-
-  const { data: studentsRes } = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentsApi.getAll({ limit: 100 }),
+  const { data: sessionAttendanceRes, isLoading: sessionLoading } = useQuery({
+    queryKey: ["class-session-attendance", sessionId],
+    queryFn: () => classSessionsApi.getAttendance(sessionId),
+    enabled: Boolean(sessionId),
   });
 
   const [students, setStudents] = useState<StudentRecord[]>([]);
@@ -67,24 +65,40 @@ export const FacultyMarkAttendance: React.FC = () => {
   const [isSavedPopupOpen, setIsSavedPopupOpen] = useState(false);
 
   React.useEffect(() => {
-    const rawStudents = studentsRes?.data || [];
-    if (rawStudents.length > 0) {
+    if (!sessionId) {
+      setStudents([]);
+      setSaveError("Open attendance from My Classes with a valid sessionId. Saving without a session is disabled.");
+      return;
+    }
+
+    const roster = sessionAttendanceRes?.data?.students;
+    if (Array.isArray(roster) && roster.length > 0) {
       setStudents(
-        rawStudents.map((s: any) => ({
-          id: s.id,
-          studentId: s.studentCode || `STU-${s.id.slice(0, 4)}`,
-          name: s.user?.name || s.name || "Enrolled Student",
-          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.user?.name || s.name || "ST")}`,
-          email: s.user?.email || "student@aadyainstitute.com",
-          status: "PRESENT",
-          remarks: "",
-          isSelected: true,
-        }))
+        roster.map((s: any) => {
+          const name = s.name || "Student";
+          const rawStatus = s.status as string | null;
+          const status: AttendanceStatus =
+            rawStatus === "ABSENT" ? "ABSENT" : rawStatus === "LEAVE" ? "EXCUSED" : "PRESENT";
+          return {
+            id: s.studentId || s.id,
+            studentId: s.studentCode || `STU-${String(s.studentId || s.id).slice(0, 4)}`,
+            name,
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+            email: s.email || "",
+            status,
+            remarks: s.remarks || "",
+            isSelected: true,
+          };
+        })
       );
-    } else {
+      setSaveError(null);
+      return;
+    }
+
+    if (!sessionLoading) {
       setStudents([]);
     }
-  }, [studentsRes]);
+  }, [sessionAttendanceRes, sessionId, sessionLoading]);
 
   // Real status counts based on active batch enrollment
   const stats = useMemo(() => {
@@ -130,12 +144,28 @@ export const FacultyMarkAttendance: React.FC = () => {
     setStudents(prev => prev.map(s => ({ ...s, isSelected: checked })));
   };
 
-  const handleSaveAttendance = () => {
+  const handleSaveAttendance = async () => {
+    if (!sessionId) {
+      setSaveError("Open attendance from a class session (sessionId required). Go to My Classes and open a session.");
+      return;
+    }
     setIsSaving(true);
-    setTimeout(() => {
-      setIsSaving(false);
+    setSaveError(null);
+    try {
+      await classSessionsApi.saveAttendance(
+        sessionId,
+        students.map((s) => ({
+          studentId: s.id,
+          status: s.status === "EXCUSED" ? "LEAVE" : s.status,
+          remarks: s.remarks || undefined,
+        }))
+      );
       setIsSavedPopupOpen(true);
-    }, 450);
+    } catch (err: any) {
+      setSaveError(err?.response?.data?.message || err?.message || "Failed to save attendance");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -491,39 +521,53 @@ export const FacultyMarkAttendance: React.FC = () => {
       </Card>
 
       {/* ─── BOTTOM STICKY ACTION BAR ───────────────────────────────── */}
-      <div className="sticky bottom-4 z-20 p-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-lg">
-        {/* Left Side: Count & Helper Text */}
-        <div>
-          <span className="text-sm font-black text-slate-900 block leading-tight">
-            {students.length} / {students.length} Students Marked
-          </span>
-          <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-            All attendance changes are ready to be saved.
-          </span>
-        </div>
+      <div className="sticky bottom-4 z-20 p-4 bg-white/95 backdrop-blur-md border border-slate-200/90 rounded-2xl flex flex-col gap-3 shadow-lg">
+        {saveError && (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700">
+            {saveError}
+          </div>
+        )}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="text-sm font-black text-slate-900 block leading-tight">
+              {students.length} Students in Session Roster
+            </span>
+            <span className="text-xs text-slate-500 font-medium mt-0.5 block">
+              {sessionId
+                ? "Attendance saves to the selected class session."
+                : "Open this page from My Classes with a sessionId."}
+            </span>
+          </div>
 
-        {/* Right Side: Exactly Two Buttons */}
-        <div className="flex items-center gap-3">
-          {/* Save Attendance Button */}
-          <Button
-            variant="outline"
-            onClick={handleSaveAttendance}
-            disabled={isSaving}
-            className="bg-white hover:bg-slate-50 text-[#1769AA] border-[#1769AA] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
-          >
-            <Save className="h-4 w-4 text-[#1769AA]" />
-            <span>{isSaving ? "Saving..." : "Save Attendance"}</span>
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleSaveAttendance}
+              disabled={isSaving || !sessionId || students.length === 0}
+              className="bg-white hover:bg-slate-50 text-[#1769AA] border-[#1769AA] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
+            >
+              <Save className="h-4 w-4 text-[#1769AA]" />
+              <span>{isSaving ? "Saving..." : "Save Attendance"}</span>
+            </Button>
 
-          {/* Save & Go Live Button */}
-          <Button
-            onClick={() => navigate("/faculty/class-session?mode=live", { state: { live: true } })}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group"
-          >
-            <Video className="h-4 w-4 fill-white/20 stroke-[2.2]" />
-            <span>Save & Go Live</span>
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-          </Button>
+            <Button
+              onClick={() => {
+                if (!sessionId) {
+                  setSaveError("Open attendance from My Classes with a valid sessionId first.");
+                  return;
+                }
+                navigate(`/faculty/class-session?id=${encodeURIComponent(sessionId)}&mode=live`, {
+                  state: { live: true },
+                });
+              }}
+              disabled={!sessionId}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group disabled:opacity-50 disabled:hover:scale-100"
+            >
+              <Video className="h-4 w-4 fill-white/20 stroke-[2.2]" />
+              <span>Save & Go Live</span>
+              <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </div>
         </div>
       </div>
 

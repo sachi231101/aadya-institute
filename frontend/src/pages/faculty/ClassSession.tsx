@@ -41,13 +41,10 @@ export const FacultyClassSession: React.FC = () => {
   const { addRecording, addSessionHistory, sessionHistories, setActiveLiveClass, endActiveLiveClass } = useSessionStore();
   const { addNotification } = useNotificationStore();
 
-  const { data: studentsRes } = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentsApi.getAll({ limit: 100 }),
-  });
-
   // Class Session Meta Parameters
-  const sessionId = searchParams.get("id") || `sess-${Date.now()}`;
+  const sessionIdParam = searchParams.get("id") || searchParams.get("sessionId") || "";
+  const hasValidSessionId = Boolean(sessionIdParam) && !sessionIdParam.startsWith("sess-");
+  const sessionId = hasValidSessionId ? sessionIdParam : "";
   const courseName = searchParams.get("course") || "Digital Marketing";
   const batchCode = searchParams.get("batch") || "Digital Marketing – Batch A";
   const roomNo = searchParams.get("room") || "Online / Virtual";
@@ -55,6 +52,18 @@ export const FacultyClassSession: React.FC = () => {
   const scheduledDate = searchParams.get("date") || "Today, 25 Aug 2026";
   const facultyName = user?.name || "Ramesh Kumar";
   const subjectName = searchParams.get("subject") || "Search Engine Optimization & Google Ads";
+
+  const { data: sessionAttendanceRes } = useQuery({
+    queryKey: ["class-session-attendance", sessionId],
+    queryFn: () => classSessionsApi.getAttendance(sessionId),
+    enabled: hasValidSessionId,
+  });
+
+  const { data: studentsRes } = useQuery({
+    queryKey: ["students", "faculty-session-fallback"],
+    queryFn: () => studentsApi.getAll({ limit: 100 }),
+    enabled: !hasValidSessionId,
+  });
 
   // Google Meet Config
   const defaultMeetId = useMemo(() => {
@@ -75,6 +84,24 @@ export const FacultyClassSession: React.FC = () => {
   const [sessionSeconds, setSessionSeconds] = useState(0);
 
   useEffect(() => {
+    const roster = sessionAttendanceRes?.data?.students;
+    if (hasValidSessionId && Array.isArray(roster) && roster.length > 0) {
+      setStudents(
+        roster.map((s: any) => {
+          const name = s.name || "Student";
+          return {
+            id: s.studentId || s.id,
+            studentId: s.studentCode || `STU-${String(s.studentId || s.id).slice(0, 4)}`,
+            name,
+            initials: name.slice(0, 2).toUpperCase(),
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+            status: (s.status === "ABSENT" ? "ABSENT" : "PRESENT") as AttendanceStatus,
+          };
+        })
+      );
+      return;
+    }
+
     const rawStudents = studentsRes?.data || [];
     if (rawStudents.length > 0) {
       setStudents(
@@ -84,13 +111,13 @@ export const FacultyClassSession: React.FC = () => {
           name: s.user?.name || s.name || "Student",
           initials: (s.user?.name || s.name || "ST").slice(0, 2).toUpperCase(),
           avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(s.user?.name || s.name || "ST")}`,
-          status: "PRESENT",
+          status: "PRESENT" as AttendanceStatus,
         }))
       );
     } else {
       setStudents([]);
     }
-  }, [studentsRes]);
+  }, [sessionAttendanceRes, studentsRes, hasValidSessionId]);
 
   // Live Class Timer State
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -168,34 +195,50 @@ export const FacultyClassSession: React.FC = () => {
 
   // ─── STEP 1: Save Attendance & Go Live ──────────────────────────────────────
   const handleSaveAttendanceAndGoLive = async () => {
+    if (!sessionId || sessionId.startsWith("sess-")) {
+      triggerToast("Open attendance from a real class session. Invalid session id.");
+      return;
+    }
     try {
-      try {
-        await classSessionsApi.saveAttendance(sessionId, students.map(s => ({
+      await classSessionsApi.saveAttendance(
+        sessionId,
+        students.map((s) => ({
           studentId: s.id,
           status: s.status,
-        })));
-      } catch (e) {
-        console.warn("Using local session for attendance save", e);
-      }
-
+        }))
+      );
       setWorkflowStep("CONFIRM_LIVE");
-      triggerToast("✓ Attendance saved successfully! Please confirm Google Meet link to launch class.");
-    } catch (err) {
-      triggerToast("✓ Attendance saved! Ready to start live class.");
-      setWorkflowStep("CONFIRM_LIVE");
+      triggerToast("Attendance saved. Confirm Google Meet link to launch class.");
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || "Failed to save attendance. Please try again.";
+      triggerToast(message);
     }
   };
 
   // ─── STEP 2: 🔴 Start Live Class ───────────────────────────────────────────
   const handleStartLiveClass = async () => {
+    if (!sessionId || sessionId.startsWith("sess-")) {
+      triggerToast("Cannot start live class without a valid session.");
+      return;
+    }
+
     const meetUrl = customMeetUrl.trim() || `https://meet.google.com/${defaultMeetId}`;
     const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
-    
+
+    try {
+      await classSessionsApi.startLive(sessionId, meetUrl);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || "Failed to start live class on server.";
+      triggerToast(message);
+      return;
+    }
+
     setWorkflowStep("LIVE_IN_PROGRESS");
     setSessionStartTime(currentTimeStr);
     setActiveTab("live_classroom");
 
-    // 1. Set global active live class state so student portal & dashboards update instantly
     setActiveLiveClass({
       id: sessionId,
       courseName,
@@ -212,7 +255,6 @@ export const FacultyClassSession: React.FC = () => {
       status: "LIVE",
     });
 
-    // 2. Set clear confirmation feedback
     const notifiedCount = attendanceCounts.total;
     setNotificationFeedback({
       attendanceSaved: true,
@@ -220,17 +262,8 @@ export const FacultyClassSession: React.FC = () => {
       notifiedCount,
     });
 
-    // 3. Call backend API to record live state & trigger in-app notifications to assigned students
-    try {
-      await classSessionsApi.startLive(sessionId, meetUrl);
-    } catch (err) {
-      console.warn("Backend live trigger synced locally", err);
-    }
-
-    addNotification(`🔴 Live class for ${courseName} started. ${notifiedCount} assigned students notified!`, "success");
-    triggerToast(`✓ Attendance Saved  •  ✓ Live Class Started  •  ✓ ${notifiedCount} Students Notified`);
-
-    // 4. Automatically open Google Meet session in a new tab
+    addNotification(`Live class for ${courseName} started. ${notifiedCount} students notified.`, "success");
+    triggerToast(`Live class started. ${notifiedCount} students notified.`);
     window.open(meetUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -320,12 +353,15 @@ export const FacultyClassSession: React.FC = () => {
     // 4. Call backend end-live endpoint
     try {
       await classSessionsApi.endLive(sessionId);
-    } catch (err) {
-      console.warn("Backend end live session synced", err);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message || err?.message || "Failed to end live class on server.";
+      triggerToast(message);
+      return;
     }
 
     addNotification(`Class completed. Recording is now available in Student & Faculty portals.`, "info");
-    triggerToast("🏁 Class session completed! Google Meet recording saved to Recordings tab.");
+    triggerToast("Class session completed. Recording saved.");
   };
 
   const handleSaveNotes = () => {
@@ -349,6 +385,12 @@ export const FacultyClassSession: React.FC = () => {
           >
             <ArrowLeft className="w-4 h-4" /> Back to My Classes
           </button>
+
+          {!hasValidSessionId && (
+            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+              Open this page from My Classes with a real session id. Attendance and live class actions are blocked without one.
+            </div>
+          )}
 
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0A2540] tracking-tight">

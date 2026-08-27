@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { sendSuccess } from "../../utils/response";
-import type { AuthUser } from "../auth/auth.types";
+import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./assignment.service";
 import type { AssignmentQueryDTO } from "./assignment.types";
 
@@ -11,10 +11,7 @@ export const getAssignments = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await service.getAssignments(
-      req.user as unknown as AuthUser,
-      req.query as AssignmentQueryDTO
-    );
+    const result = await service.getAssignments(toAuthUser(req), req.query as AssignmentQueryDTO);
     sendSuccess(res, result.data, 200, "Assignments retrieved successfully");
   } catch (error) {
     next(error);
@@ -27,10 +24,7 @@ export const getAssignmentById = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const assignment = await service.getAssignmentById(
-      req.user as unknown as AuthUser,
-      req.params.id as string
-    );
+    const assignment = await service.getAssignmentById(toAuthUser(req), req.params.id as string);
     sendSuccess(res, assignment, 200, "Assignment retrieved successfully");
   } catch (error) {
     next(error);
@@ -43,10 +37,7 @@ export const createAssignment = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const assignment = await service.createAssignment(
-      req.user as unknown as AuthUser,
-      req.body
-    );
+    const assignment = await service.createAssignment(toAuthUser(req), req.body);
     sendSuccess(res, assignment, 201, "Assignment created successfully");
   } catch (error) {
     next(error);
@@ -60,7 +51,7 @@ export const updateAssignment = async (
 ): Promise<void> => {
   try {
     const assignment = await service.updateAssignment(
-      req.user as unknown as AuthUser,
+      toAuthUser(req),
       req.params.id as string,
       req.body
     );
@@ -76,10 +67,7 @@ export const deleteAssignment = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const result = await service.deleteAssignment(
-      req.user as unknown as AuthUser,
-      req.params.id as string
-    );
+    const result = await service.deleteAssignment(toAuthUser(req), req.params.id as string);
     sendSuccess(res, result, 200, "Assignment deleted successfully");
   } catch (error) {
     next(error);

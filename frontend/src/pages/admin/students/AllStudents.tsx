@@ -41,6 +41,7 @@ export const AllStudents: React.FC = () => {
     : location.pathname.startsWith("/faculty")
     ? "/faculty"
     : "/admin";
+  const isFacultyPortal = basePath === "/faculty";
 
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
@@ -180,12 +181,14 @@ export const AllStudents: React.FC = () => {
           <Button variant="outline" className="text-slate-700 border-slate-300 font-medium bg-white shadow-sm">
             <Download className="h-4 w-4 mr-2 text-slate-500" /> Export Excel
           </Button>
-          <Button
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
-            onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-          >
-            <Plus className="h-4 w-4 mr-2" /> Register Student
-          </Button>
+          {!isFacultyPortal && (
+            <Button
+              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
+              onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+            >
+              <Plus className="h-4 w-4 mr-2" /> Register Student
+            </Button>
+          )}
         </div>
       </div>
 

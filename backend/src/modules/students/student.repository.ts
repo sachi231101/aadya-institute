@@ -5,6 +5,8 @@ export interface FindAllStudentsParams {
   branchId?: string;
   search?: string;
   status?: string;
+  /** When set, only students enrolled in batches assigned to this faculty */
+  facultyId?: string;
   skip: number;
   take: number;
 }
@@ -99,6 +101,15 @@ const buildWhereClause = (params: Omit<FindAllStudentsParams, "skip" | "take">) 
 
   if (params.status) {
     where.status = params.status;
+  }
+
+  if (params.facultyId) {
+    where.batchEnrollments = {
+      some: {
+        status: "ACTIVE",
+        batch: { facultyId: params.facultyId },
+      },
+    };
   }
 
   if (params.search) {
