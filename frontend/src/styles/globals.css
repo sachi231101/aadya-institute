@@ -292,8 +292,15 @@ button {
   border-color: #334155 !important;
 }
 
-.dark .text-slate-900,
-.dark .text-slate-800 {
+.dark .text-black,
+.dark [class*="text-black"],
+.dark .force-black,
+.dark .force-black * {
+  color: #000000 !important;
+}
+
+.dark .text-slate-900:not(.text-black):not([class*="text-black"]),
+.dark .text-slate-800:not(.text-black):not([class*="text-black"]) {
   color: var(--text-primary) !important;
 }
 
@@ -315,8 +322,8 @@ button {
   border-color: var(--border-color) !important;
 }
 
-.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
-.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+.dark .divide-slate-100> :not([hidden])~ :not([hidden]),
+.dark .divide-slate-200> :not([hidden])~ :not([hidden]) {
   border-color: var(--border-color) !important;
 }
 
@@ -325,6 +332,7 @@ button {
 .dark [class*="bg-blue-100"] {
   background-color: rgba(37, 99, 235, 0.2) !important;
 }
+
 .dark [class*="border-blue-100"],
 .dark [class*="border-blue-200"] {
   border-color: rgba(56, 189, 248, 0.35) !important;
@@ -334,6 +342,7 @@ button {
 .dark [class*="bg-emerald-100"] {
   background-color: rgba(16, 185, 129, 0.2) !important;
 }
+
 .dark [class*="border-emerald-100"],
 .dark [class*="border-emerald-200"] {
   border-color: rgba(52, 211, 153, 0.35) !important;
@@ -343,6 +352,7 @@ button {
 .dark [class*="bg-amber-100"] {
   background-color: rgba(245, 158, 11, 0.2) !important;
 }
+
 .dark [class*="border-amber-100"],
 .dark [class*="border-amber-200"] {
   border-color: rgba(251, 191, 36, 0.35) !important;
@@ -354,6 +364,7 @@ button {
 .dark [class*="bg-red-100"] {
   background-color: rgba(244, 63, 94, 0.2) !important;
 }
+
 .dark [class*="border-rose-100"],
 .dark [class*="border-rose-200"],
 .dark [class*="border-red-100"],
@@ -367,6 +378,7 @@ button {
 .dark [class*="bg-indigo-100"] {
   background-color: rgba(139, 92, 246, 0.2) !important;
 }
+
 .dark [class*="border-purple-100"],
 .dark [class*="border-purple-200"],
 .dark [class*="border-indigo-100"],
@@ -459,6 +471,7 @@ button {
 .dark [class*="bg-orange-100"] {
   background-color: rgba(249, 115, 22, 0.2) !important;
 }
+
 .dark [class*="border-orange-100"],
 .dark [class*="border-orange-200"] {
   border-color: rgba(249, 115, 22, 0.35) !important;

@@ -1,24 +1,24 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { 
-  GraduationCap, 
-  Search, 
-  UserPlus, 
-  UserCheck, 
-  Check, 
-  Loader2, 
-  AlertCircle, 
-  CheckCircle2, 
-  Layers, 
-  Clock, 
-  Filter, 
-  X, 
-  ArrowRight, 
-  Trash2, 
-  Calendar, 
-  AlertTriangle, 
-  Users, 
-  Plus, 
+import {
+  GraduationCap,
+  Search,
+  UserPlus,
+  UserCheck,
+  Check,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  Layers,
+  Clock,
+  Filter,
+  X,
+  ArrowRight,
+  Trash2,
+  Calendar,
+  AlertTriangle,
+  Users,
+  Plus,
   RefreshCw,
   MoreVertical,
   ChevronRight,
@@ -263,7 +263,7 @@ export const AssignStudents: React.FC = () => {
 
     try {
       const studentIdsArray = Array.from(selectedStudentIds);
-      
+
       // Sequential enrollments to ensure all succeed
       await Promise.all(
         studentIdsArray.map(async (sId) => {
@@ -468,7 +468,7 @@ export const AssignStudents: React.FC = () => {
 
       {/* ─── MAIN TWO-PANEL WORKSPACE ─── */}
       <div id="student-selection-workspace" className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        
+
         {/* ─── LEFT PANEL: (1) SELECT STUDENTS ─── */}
         <Card className="lg:col-span-7 border border-slate-200/80 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
           <div className="p-5 border-b border-slate-100 space-y-4">
@@ -487,25 +487,22 @@ export const AssignStudents: React.FC = () => {
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 text-xs font-bold">
                 <button
                   onClick={() => setActiveTab("ALL")}
-                  className={`px-3 py-1 rounded-lg transition-all ${
-                    activeTab === "ALL" ? "bg-white text-[#1769AA] shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ALL" ? "bg-white text-[#1769AA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   All ({totalStudentsCount})
                 </button>
                 <button
                   onClick={() => setActiveTab("UNASSIGNED")}
-                  className={`px-3 py-1 rounded-lg transition-all ${
-                    activeTab === "UNASSIGNED" ? "bg-amber-500 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "UNASSIGNED" ? "bg-amber-500 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   Unassigned ({unassignedStudentsCount})
                 </button>
                 <button
                   onClick={() => setActiveTab("ASSIGNED")}
-                  className={`px-3 py-1 rounded-lg transition-all ${
-                    activeTab === "ASSIGNED" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ASSIGNED" ? "bg-emerald-600 text-white shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   Assigned ({enrolledStudentsCount})
                 </button>
@@ -598,9 +595,8 @@ export const AssignStudents: React.FC = () => {
                       <TableRow
                         key={student.id}
                         onClick={() => handleToggleStudent(student.id)}
-                        className={`cursor-pointer hover:bg-slate-50 transition-colors ${
-                          isSelected ? "bg-blue-50/40" : ""
-                        }`}
+                        className={`cursor-pointer hover:bg-slate-50 transition-colors ${isSelected ? "bg-blue-50/40" : ""
+                          }`}
                       >
                         <TableCell className="text-center" onClick={(e) => e.stopPropagation()}>
                           <input
@@ -803,9 +799,8 @@ export const AssignStudents: React.FC = () => {
                   </div>
                   <div className="w-full bg-muted/50 h-2 rounded-full overflow-hidden">
                     <div
-                      className={`h-full rounded-full transition-all duration-300 ${
-                        targetBatchAlreadyAssigned >= targetBatchCapacity ? "bg-rose-500" : "bg-emerald-500"
-                      }`}
+                      className={`h-full rounded-full transition-all duration-300 ${targetBatchAlreadyAssigned >= targetBatchCapacity ? "bg-rose-500" : "bg-emerald-500"
+                        }`}
                       style={{ width: `${Math.min(100, (targetBatchAlreadyAssigned / (targetBatchCapacity || 1)) * 100)}%` }}
                     />
                   </div>
@@ -874,7 +869,7 @@ export const AssignStudents: React.FC = () => {
           {/* Assignment Summary Box */}
           <div className="p-4 bg-muted/30 border-t border-border space-y-3">
             <h4 className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Assignment Summary</h4>
-            
+
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div className="p-2.5 rounded-xl bg-card border border-border">
                 <span className="text-[10px] text-muted-foreground font-bold block flex items-center gap-1">

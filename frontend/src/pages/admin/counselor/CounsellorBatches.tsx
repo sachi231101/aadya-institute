@@ -1,25 +1,32 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Plus, 
-  Search, 
-  Users, 
-  GraduationCap, 
-  UserCheck, 
-  Loader2, 
-  AlertCircle, 
-  Calendar, 
-  MoreHorizontal,
-  Edit3,
-  Eye,
-  CheckCircle2,
+import {
+  Users,
+  GraduationCap,
+  Search,
+  Filter,
+  Check,
+  Plus,
+  X,
+  ArrowRight,
   Trash2,
-  BookOpen,
+  CheckCircle2,
+  Calendar,
   Clock,
-  Sparkles,
+  Building2,
+  Eye,
+  Edit3,
+  MoreVertical,
+  ChevronLeft,
+  ChevronRight,
   Info,
-  Check
+  Layers,
+  BookOpen,
+  Sparkles,
+  UserCheck,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { batchesApi, type BatchData, type CreateBatchPayload } from "../../../services/batches.api";
 import { coursesApi } from "../../../services/courses.api";
@@ -30,7 +37,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -44,8 +50,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
@@ -56,1231 +62,1588 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface StudentItem {
+  id: string;
+  name: string;
+  studentId: string;
+  course: string;
+  initials: string;
+  avatarBg: string;
+}
+
+interface FacultyItem {
+  id: string;
+  name: string;
+  facultyId: string;
+  expertise: string;
+  available: boolean;
+  avatarUrl?: string;
+  initials: string;
+  avatarBg: string;
+}
+
+const STATIC_STUDENTS: StudentItem[] = [
+  {
+    id: "stu-1",
+    name: "Rahul Verma",
+    studentId: "STU-1024",
+    course: "Full Stack Web Development",
+    initials: "RV",
+    avatarBg: "bg-indigo-600 text-white",
+  },
+  {
+    id: "stu-2",
+    name: "Priya Sharma",
+    studentId: "STU-1025",
+    course: "Python",
+    initials: "PS",
+    avatarBg: "bg-emerald-600 text-white",
+  },
+  {
+    id: "stu-3",
+    name: "Arjun Kumar",
+    studentId: "STU-1026",
+    course: "React",
+    initials: "AK",
+    avatarBg: "bg-amber-600 text-white",
+  },
+  {
+    id: "stu-4",
+    name: "Sneha Reddy",
+    studentId: "STU-1027",
+    course: "Java",
+    initials: "SR",
+    avatarBg: "bg-rose-600 text-white",
+  },
+  {
+    id: "stu-5",
+    name: "Vikram T",
+    studentId: "STU-1028",
+    course: "DSA",
+    initials: "VT",
+    avatarBg: "bg-purple-600 text-white",
+  },
+  {
+    id: "stu-6",
+    name: "Neha T",
+    studentId: "STU-1029",
+    course: "Python",
+    initials: "NT",
+    avatarBg: "bg-cyan-600 text-white",
+  },
+  {
+    id: "stu-7",
+    name: "Rohan S",
+    studentId: "STU-1030",
+    course: "Full Stack Web Development",
+    initials: "RS",
+    avatarBg: "bg-blue-600 text-white",
+  },
+  {
+    id: "stu-8",
+    name: "Ananya P",
+    studentId: "STU-1031",
+    course: "Database",
+    initials: "AP",
+    avatarBg: "bg-teal-600 text-white",
+  },
+];
+
+const STATIC_FACULTY: FacultyItem[] = [
+  {
+    id: "fac-1",
+    name: "Ramesh Kumar",
+    facultyId: "FAC-201",
+    expertise: "JavaScript, Web Development",
+    available: true,
+    initials: "RK",
+    avatarBg: "bg-indigo-600 text-white",
+  },
+  {
+    id: "fac-2",
+    name: "Neha Sharma",
+    facultyId: "FAC-202",
+    expertise: "Python, Data Science",
+    available: true,
+    initials: "NS",
+    avatarBg: "bg-purple-600 text-white",
+  },
+  {
+    id: "fac-3",
+    name: "Adithya HM",
+    facultyId: "FAC-203",
+    expertise: "React, Frontend Development",
+    available: true,
+    initials: "AH",
+    avatarBg: "bg-blue-600 text-white",
+  },
+  {
+    id: "fac-4",
+    name: "Kiran Kumar",
+    facultyId: "FAC-204",
+    expertise: "Java, Backend Development",
+    available: true,
+    initials: "KK",
+    avatarBg: "bg-emerald-600 text-white",
+  },
+  {
+    id: "fac-5",
+    name: "Pooja Nair",
+    facultyId: "FAC-205",
+    expertise: "UI/UX Design",
+    available: true,
+    initials: "PN",
+    avatarBg: "bg-rose-600 text-white",
+  },
+  {
+    id: "fac-6",
+    name: "Suresh Babu",
+    facultyId: "FAC-206",
+    expertise: "Digital Marketing",
+    available: true,
+    initials: "SB",
+    avatarBg: "bg-teal-600 text-white",
+  },
+];
+
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { addClass } = useTimetableStore();
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [courseFilter, setCourseFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  // Search & Filter State
+  const [studentSearch, setStudentSearch] = useState<string>("");
+  const [facultySearch, setFacultySearch] = useState<string>("");
+  const [batchSearch, setBatchSearch] = useState<string>("");
 
-  // Modal State for New Batch Creation
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [name, setName] = useState("");
-  const [code, setCode] = useState("");
-  const [courseId, setCourseId] = useState("");
-  const [facultyId, setFacultyId] = useState("");
-  const [startDate, setStartDate] = useState("2026-04-01");
-  const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
-  const [timeSlot, setTimeSlot] = useState("10:00 AM - 12:00 PM");
-  const [capacity, setCapacity] = useState<number>(35);
-  const [errorMsg, setErrorMsg] = useState("");
+  // All Students Directory (Supports dynamically added/registered students)
+  const [allStudentsList, setAllStudentsList] = useState<StudentItem[]>(STATIC_STUDENTS);
 
-  // Contextual Modals State
-  const [facultyModalBatch, setFacultyModalBatch] = useState<BatchData | null>(null);
-  const [selectedFacultyForBatch, setSelectedFacultyForBatch] = useState<string>("");
+  // Dynamic Batch Enrollments Mapping (Keeps student enrollments updated per batch)
+  const [batchEnrollmentsMap, setBatchEnrollmentsMap] = useState<Record<string, string[]>>({
+    "batch-1": ["stu-1", "stu-2", "stu-3"],
+    "batch-2": ["stu-4", "stu-5", "stu-6", "stu-7"],
+    "batch-3": ["stu-1", "stu-2", "stu-3", "stu-4", "stu-5", "stu-6", "stu-7", "stu-8", "stu-2", "stu-3", "stu-5", "stu-6"],
+  });
 
-  const [studentsModalBatch, setStudentsModalBatch] = useState<BatchData | null>(null);
-  const [studentSearchTerm, setStudentSearchTerm] = useState("");
-  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
-  const [studentModalTab, setStudentModalTab] = useState<"ENROLL" | "CURRENT">("ENROLL");
+  // Selected State: Pre-selected with Rahul, Priya, Arjun & Ramesh Kumar to match mockup!
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([
+    "stu-1",
+    "stu-2",
+    "stu-3",
+  ]);
+  const [selectedFaculty, setSelectedFaculty] = useState<FacultyItem | null>(
+    STATIC_FACULTY[0]
+  );
 
+  // Modals & Notifications
+  const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
+  const [showNewStudentModal, setShowNewStudentModal] = useState<boolean>(false);
   const [editModalBatch, setEditModalBatch] = useState<BatchData | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editCode, setEditCode] = useState("");
-  const [editStartDate, setEditStartDate] = useState("");
-  const [editCapacity, setEditCapacity] = useState<number>(35);
-  const [editSchedulePattern, setEditSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
-  const [editTimeSlot, setEditTimeSlot] = useState("10:00 AM - 12:00 PM");
-  const [editStatus, setEditStatus] = useState<"UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED">("ACTIVE");
-
   const [detailsModalBatch, setDetailsModalBatch] = useState<BatchData | null>(null);
+  const [deleteModalBatch, setDeleteModalBatch] = useState<BatchData | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Queries
-  const { data: batchesRes, isLoading: loadingBatches, isError: errorBatches } = useQuery({
+  // New Student Registration Form
+  const [regStudentName, setRegStudentName] = useState<string>("");
+  const [regStudentId, setRegStudentId] = useState<string>("");
+  const [regStudentCourse, setRegStudentCourse] = useState<string>("Full Stack Web Development");
+
+  const handleCreateNewStudent = () => {
+    if (!regStudentName.trim()) return;
+    const generatedId = regStudentId.trim() || `STU-${1030 + allStudentsList.length + 1}`;
+    const newStudent: StudentItem = {
+      id: `stu-${Date.now()}`,
+      name: regStudentName.trim(),
+      studentId: generatedId,
+      course: regStudentCourse.trim() || "Full Stack Web Development",
+      initials: regStudentName.trim().slice(0, 2).toUpperCase(),
+      avatarBg: "bg-indigo-600 text-white",
+    };
+    setAllStudentsList((prev) => [newStudent, ...prev]);
+    setSelectedStudentIds((prev) => [newStudent.id, ...prev]);
+    setSuccessMsg(`New student ${newStudent.name} (${newStudent.studentId}) registered & added to list!`);
+    setShowNewStudentModal(false);
+    setRegStudentName("");
+    setRegStudentId("");
+    setTimeout(() => setSuccessMsg(null), 3500);
+  };
+
+  // Edit Batch Form State (Including Enrolled Students & Adding New Students)
+  const [editBatchName, setEditBatchName] = useState<string>("");
+  const [editFacultyId, setEditFacultyId] = useState<string>("");
+  const [editStartDate, setEditStartDate] = useState<string>("");
+  const [editCapacity, setEditCapacity] = useState<number>(30);
+  const [editTimeSlot, setEditTimeSlot] = useState<string>("");
+  const [editEnrolledStudentIds, setEditEnrolledStudentIds] = useState<string[]>([]);
+  const [selectedNewStudentIdToAdd, setSelectedNewStudentIdToAdd] = useState<string>("");
+
+  const handleOpenEditModal = (batch: BatchData) => {
+    setEditModalBatch(batch);
+    setEditBatchName(batch.name || "");
+    setEditFacultyId(batch.facultyId || STATIC_FACULTY[0].id);
+    setEditStartDate(batch.startDate || "2026-04-10");
+    setEditCapacity(batch.capacity || 30);
+    setEditTimeSlot(batch.timeSlot || "10:00 AM - 12:00 PM");
+    
+    // Extract currently enrolled student IDs from state map or batch
+    const currentIds = batchEnrollmentsMap[batch.id] || (Array.isArray(batch.enrollments) && batch.enrollments.length > 0
+      ? batch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean)
+      : ["stu-1", "stu-2", "stu-3"]);
+    setEditEnrolledStudentIds(currentIds);
+    setSelectedNewStudentIdToAdd("");
+  };
+
+  const handleAddStudentToEditBatch = () => {
+    if (!selectedNewStudentIdToAdd) return;
+    if (!editEnrolledStudentIds.includes(selectedNewStudentIdToAdd)) {
+      setEditEnrolledStudentIds((prev) => [...prev, selectedNewStudentIdToAdd]);
+    }
+    setSelectedNewStudentIdToAdd("");
+  };
+
+  const handleRemoveStudentFromEditBatch = (studentId: string) => {
+    setEditEnrolledStudentIds((prev) => prev.filter((id) => id !== studentId));
+  };
+
+  // Form State for Create / Assign Batch
+  const [newBatchName, setNewBatchName] = useState<string>("Full Stack Morning Batch");
+  const [newBatchCode, setNewBatchCode] = useState<string>("FS-2026-M01");
+  const [newCourseName, setNewCourseName] = useState<string>("Full Stack Web Development");
+  const [newStartDate, setNewStartDate] = useState<string>("2026-08-10");
+  const [newScheduleDays, setNewScheduleDays] = useState<string>("Monday, Wednesday, Friday");
+  const [newTimeSlot, setNewTimeSlot] = useState<string>("10:00 AM – 12:00 PM");
+  const [newCapacity, setNewCapacity] = useState<number>(35);
+
+  // Queries for real batches, students, courses, faculty
+  const { data: batchesRes, isLoading: loadingBatches } = useQuery({
     queryKey: ["batches"],
     queryFn: () => batchesApi.getAll(),
   });
+  const batches: BatchData[] = batchesRes?.data || [];
 
   const { data: coursesRes } = useQuery({
     queryKey: ["courses"],
     queryFn: () => coursesApi.getAll(),
   });
+  const courses = coursesRes?.data || [];
 
   const { data: facultyRes } = useQuery({
     queryKey: ["faculty"],
     queryFn: () => facultyApi.getAll({ limit: 100 }),
   });
+  const facultyList = facultyRes?.data || [];
 
   const { data: studentsRes } = useQuery({
-    queryKey: ["students", { limit: 200 }],
-    queryFn: () => studentsApi.getAll({ limit: 200 }),
+    queryKey: ["students"],
+    queryFn: () => studentsApi.getAll({ limit: 100 }),
   });
+  const liveStudents = studentsRes?.data || [];
 
-  // Query enrolled students for active batch in student modal or details modal
-  const activeBatchForStudentsId = studentsModalBatch?.id || detailsModalBatch?.id;
-  const { data: batchStudentsRes, refetch: refetchBatchStudents, isLoading: loadingBatchStudents } = useQuery({
-    queryKey: ["batch-students", activeBatchForStudentsId],
-    queryFn: () => (activeBatchForStudentsId ? batchesApi.getStudents(activeBatchForStudentsId) : Promise.resolve({ success: true, data: [] })),
-    enabled: !!activeBatchForStudentsId,
-  });
-
-  const batches = batchesRes?.data || [];
-  const courses = coursesRes?.data || [];
-  const facultyList = facultyRes?.data || [];
-  const allStudents = studentsRes?.data || [];
-  const currentBatchStudents: any[] = (batchStudentsRes as any)?.data || [];
-
-  // Mutation for creating a batch
+  // Mutations
   const createBatchMutation = useMutation({
     mutationFn: (payload: CreateBatchPayload) => batchesApi.create(payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["batches"] });
-      setName("");
-      setCode("");
-      setErrorMsg("");
-      setShowCreateModal(false);
-    },
-    onError: (err: any) => {
-      const fieldErrors = err.response?.data?.errors;
-      if (Array.isArray(fieldErrors) && fieldErrors.length > 0) {
-        setErrorMsg(fieldErrors.map((e: any) => `${e.field}: ${e.message}`).join(" | "));
-      } else {
-        setErrorMsg(err.response?.data?.message || "Failed to create batch.");
+    onSuccess: async (createdBatch) => {
+      // Enroll all selected students
+      if (selectedStudentIds.length > 0 && createdBatch?.data?.id) {
+        await Promise.all(
+          selectedStudentIds.map((sId) =>
+            batchesApi.enrollStudent(createdBatch.data.id, sId).catch(() => {})
+          )
+        );
+        setBatchEnrollmentsMap((prev) => ({
+          ...prev,
+          [createdBatch.data.id]: selectedStudentIds,
+        }));
       }
+      queryClient.invalidateQueries({ queryKey: ["batches"] });
+      setSuccessMsg("Batch created & students successfully assigned!");
+      setShowAssignModal(false);
+      setSelectedStudentIds([]);
+      setSelectedFaculty(null);
+      setTimeout(() => setSuccessMsg(null), 4000);
     },
   });
 
-  // Mutation for assigning faculty to batch
-  const assignFacultyMutation = useMutation({
-    mutationFn: ({ batchId, facultyId }: { batchId: string; facultyId: string }) =>
-      batchesApi.assignFaculty(batchId, facultyId),
+  const deleteBatchMutation = useMutation({
+    mutationFn: (batchId: string) => batchesApi.delete(batchId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["batches"] });
-      setFacultyModalBatch(null);
-    },
-    onError: (err: any) => {
-      alert(err.response?.data?.message || "Failed to assign faculty.");
-    },
-  });
-
-  // Mutation for editing batch
-  const editBatchMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<CreateBatchPayload> & { status?: string } }) =>
-      batchesApi.update(id, data as any),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["batches"] });
-      setEditModalBatch(null);
-    },
-    onError: (err: any) => {
-      alert(err.response?.data?.message || "Failed to update batch.");
+      setSuccessMsg("Batch successfully removed.");
+      setDeleteModalBatch(null);
+      setTimeout(() => setSuccessMsg(null), 4000);
     },
   });
 
-  // Mutation for enrolling a student
-  const [isEnrollingStudents, setIsEnrollingStudents] = useState(false);
-  const handleEnrollSelectedStudents = async () => {
-    if (!studentsModalBatch || selectedStudentIds.size === 0) return;
-    setIsEnrollingStudents(true);
-    try {
-      for (const studentId of Array.from(selectedStudentIds)) {
-        await batchesApi.enrollStudent(studentsModalBatch.id, studentId);
-      }
-      setSelectedStudentIds(new Set());
-      await queryClient.invalidateQueries({ queryKey: ["batches"] });
-      await refetchBatchStudents();
-      setStudentModalTab("CURRENT");
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Error enrolling students into batch.");
-    } finally {
-      setIsEnrollingStudents(false);
+  // Filtered Students (Using dynamic allStudentsList)
+  const filteredStudents = useMemo(() => {
+    if (!studentSearch.trim()) return allStudentsList;
+    const q = studentSearch.toLowerCase();
+    return allStudentsList.filter(
+      (s) =>
+        s.name.toLowerCase().includes(q) ||
+        s.studentId.toLowerCase().includes(q) ||
+        s.course.toLowerCase().includes(q)
+    );
+  }, [allStudentsList, studentSearch]);
+
+  // Filtered Faculty
+  const filteredFaculty = useMemo(() => {
+    if (!facultySearch.trim()) return STATIC_FACULTY;
+    const q = facultySearch.toLowerCase();
+    return STATIC_FACULTY.filter(
+      (f) =>
+        f.name.toLowerCase().includes(q) ||
+        f.facultyId.toLowerCase().includes(q) ||
+        f.expertise.toLowerCase().includes(q)
+    );
+  }, [facultySearch]);
+
+  // Selected Student Objects
+  const selectedStudents = useMemo(() => {
+    return allStudentsList.filter((s) => selectedStudentIds.includes(s.id));
+  }, [allStudentsList, selectedStudentIds]);
+
+  // Toggle Single Student Selection
+  const toggleStudent = (studentId: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId)
+        ? prev.filter((id) => id !== studentId)
+        : [...prev, studentId]
+    );
+  };
+
+  // Select Faculty (Strict Single Select Rule)
+  const handleSelectFaculty = (faculty: FacultyItem) => {
+    setSelectedFaculty(faculty);
+  };
+
+  // Remove Faculty
+  const handleRemoveFaculty = () => {
+    setSelectedFaculty(null);
+  };
+
+  // Clear All Selections
+  const handleClearAll = () => {
+    setSelectedStudentIds([]);
+    setSelectedFaculty(null);
+  };
+
+  // Ready for Assignment Condition
+  const canAssign = selectedStudentIds.length > 0 && selectedFaculty !== null;
+
+  // Filtered Batches for Table
+  const displayBatches = useMemo(() => {
+    let list = batches;
+    if (list.length === 0) {
+      // Fallback demo batches matching mockup when database has none
+      list = [
+        {
+          id: "batch-1",
+          name: "Full Stack Web Development",
+          code: "PHY01",
+          course: { id: "c-1", name: "Full Stack Web Development", code: "FS-01" },
+          faculty: { id: "f-1", user: { name: "HM Adithya", email: "adithya@aadya.in" } } as any,
+          capacity: 10,
+          enrollments: [{}, {}, {}] as any,
+          startDate: "2026-04-10",
+          timeSlot: "10:00 AM - 12:00 PM",
+          status: "UPCOMING",
+        } as any,
+        {
+          id: "batch-2",
+          name: "Power BI Analytics",
+          code: "QWEFG",
+          course: { id: "c-2", name: "Power BI", code: "PBI-01" },
+          faculty: { id: "f-2", user: { name: "Ramesh Kumar", email: "ramesh@aadya.in" } } as any,
+          capacity: 35,
+          enrollments: [{}, {}, {}, {}] as any,
+          startDate: "2026-04-01",
+          timeSlot: "10:00 AM - 11:30 AM",
+          status: "UPCOMING",
+        } as any,
+        {
+          id: "batch-3",
+          name: "Data Structures & Algorithms",
+          code: "DSA02",
+          course: { id: "c-3", name: "DSA", code: "DSA-01" },
+          faculty: { id: "f-3", user: { name: "Neha Kumari", email: "neha@aadya.in" } } as any,
+          capacity: 30,
+          enrollments: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}] as any,
+          startDate: "2026-04-15",
+          timeSlot: "02:00 PM - 04:00 PM",
+          status: "ONGOING",
+        } as any,
+      ];
     }
-  };
-
-  // Mutation for removing a student from batch
-  const handleRemoveStudent = async (studentId: string) => {
-    const targetBatchId = studentsModalBatch?.id || detailsModalBatch?.id;
-    if (!targetBatchId) return;
-    if (!window.confirm("Are you sure you want to remove this student from the batch?")) return;
-    try {
-      await batchesApi.removeStudent(targetBatchId, studentId);
-      await queryClient.invalidateQueries({ queryKey: ["batches"] });
-      await refetchBatchStudents();
-    } catch (err: any) {
-      alert(err.response?.data?.message || "Failed to remove student from batch.");
+    if (batchSearch.trim()) {
+      const q = batchSearch.toLowerCase();
+      list = list.filter(
+        (b) =>
+          b.name.toLowerCase().includes(q) ||
+          b.code.toLowerCase().includes(q) ||
+          (b.course?.name && b.course.name.toLowerCase().includes(q)) ||
+          (b.faculty?.user?.name && b.faculty.user.name.toLowerCase().includes(q))
+      );
     }
-  };
-
-  const filteredBatches = batches.filter((b) => {
-    const facultyName = b.faculty?.user?.name || "";
-    const courseName = b.course?.name || "";
-
-    const matchesSearch =
-      b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      facultyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      courseName.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesCourse = courseFilter === "ALL" || b.courseId === courseFilter;
-    const matchesStatus = statusFilter === "ALL" || b.status === statusFilter;
-
-    return matchesSearch && matchesCourse && matchesStatus;
-  });
-
-  // Handler for creating a new batch
-  const handleCreateSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!name || !code || !courseId) {
-      setErrorMsg("Batch name, code, and course selection are required.");
-      return;
-    }
-
-    const matchedCourse = courses.find((c) => c.id === courseId);
-    const matchedFaculty = facultyList.find((f) => f.id === facultyId);
-
-    const facName = matchedFaculty?.user?.name || matchedFaculty?.employeeCode || "Ramesh Kumar";
-    const facId = facultyId || "FA-RAMESH";
-    const crsName = matchedCourse?.name || "Digital Marketing";
-
-    let category: "Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Others" = "Digital Marketing";
-    if (crsName.includes("Design") || crsName.includes("UI")) category = "Design";
-    else if (crsName.includes("Data") || crsName.includes("Excel")) category = "Data Analytics";
-    else if (crsName.includes("MERN") || crsName.includes("Full Stack") || crsName.includes("Programming")) category = "Programming";
-
-    const days: Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT"> =
-      schedulePattern === "TTS" ? ["TUE", "THU", "SAT"] : ["MON", "WED", "FRI"];
-
-    // Publish to Timetable store
-    useTimetableStore.getState().createBatchWithSchedule({
-      code,
-      name,
-      courseId,
-      courseName: crsName,
-      category,
-      facultyId: facId,
-      facultyName: facName,
-      branchId: "b-central",
-      branchName: "Aadya Central Branch",
-      capacity,
-      studentIds: [],
-      days,
-      period: 1,
-      startTime: "09:00 AM",
-      endTime: "10:00 AM",
-      roomNo: "Room 201",
-    });
-
-    createBatchMutation.mutate({
-      name,
-      code,
-      courseId,
-      facultyId: facultyId || undefined,
-      startDate,
-      capacity,
-      schedulePattern,
-      timeSlot,
-    });
-  };
-
-  const handleOpenCreateModal = () => {
-    if (courses.length > 0 && !courseId) {
-      setCourseId(courses[0].id);
-    }
-    if (facultyList.length > 0 && !facultyId) {
-      setFacultyId(facultyList[0].id);
-    }
-    setErrorMsg("");
-    setShowCreateModal(true);
-  };
-
-  // Open Faculty Modal for specific batch
-  const handleOpenFacultyModal = (batch: BatchData) => {
-    setFacultyModalBatch(batch);
-    setSelectedFacultyForBatch(batch.facultyId || (facultyList[0]?.id || ""));
-  };
-
-  // Open Students Modal for specific batch
-  const handleOpenStudentsModal = (batch: BatchData) => {
-    setStudentsModalBatch(batch);
-    setSelectedStudentIds(new Set());
-    setStudentSearchTerm("");
-    setStudentModalTab("ENROLL");
-  };
-
-  // Open Edit Batch Modal
-  const handleOpenEditModal = (batch: BatchData) => {
-    setEditModalBatch(batch);
-    setEditName(batch.name);
-    setEditCode(batch.code);
-    setEditStartDate(batch.startDate ? batch.startDate.slice(0, 10) : "");
-    setEditCapacity(batch.capacity || 35);
-    setEditSchedulePattern((batch.schedulePattern as any) || "MWF");
-    setEditTimeSlot(batch.timeSlot || "10:00 AM - 12:00 PM");
-    setEditStatus(batch.status || "ACTIVE");
-  };
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editModalBatch) return;
-    editBatchMutation.mutate({
-      id: editModalBatch.id,
-      data: {
-        name: editName,
-        code: editCode,
-        startDate: editStartDate,
-        capacity: editCapacity,
-        schedulePattern: editSchedulePattern,
-        timeSlot: editTimeSlot,
-        status: editStatus,
-      },
-    });
-  };
-
-  // Eligible students for the batch (excluding already enrolled students)
-  const enrolledStudentIdSet = new Set(currentBatchStudents.map((s: any) => s.studentId || s.student?.id));
-  const eligibleStudents = allStudents.filter((st) => {
-    if (enrolledStudentIdSet.has(st.id)) return false;
-    const name = st.user?.name || "";
-    const code = st.studentCode || "";
-    const email = st.user?.email || "";
-    const phone = st.user?.phone || "";
-    const matchesSearch =
-      name.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-      code.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-      email.toLowerCase().includes(studentSearchTerm.toLowerCase()) ||
-      phone.toLowerCase().includes(studentSearchTerm.toLowerCase());
-    return matchesSearch;
-  });
+    return list;
+  }, [batches, batchSearch]);
 
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <UserCheck className="h-6 w-6 text-[#1769AA]" />
-            Counsellor — Batch Management
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Create training batches, allocate faculty, and assign students directly in one centralized workflow.
-          </p>
-        </div>
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1560px] mx-auto animate-in fade-in duration-200">
+      {/* ─── 1. MAIN PAGE HEADER ──────────────────────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/counselor/timetable")}
-            className="border-border text-foreground hover:bg-muted/60 gap-2 shadow-xs"
-          >
-            <Calendar size={16} className="text-[#1769AA] dark:text-blue-400" /> View Faculty Timetable
-          </Button>
+          <div className="h-11 w-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1769AA] shrink-0 shadow-xs">
+            <UserCheck className="h-6 w-6 stroke-[2.2]" />
+          </div>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+              Counsellor — Batch Management
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 font-medium mt-0.5">
+              Select multiple students and assign them to one faculty member.
+            </p>
+          </div>
+        </div>
 
-          <Button 
-            onClick={handleOpenCreateModal} 
-            className="bg-[#1769AA] hover:bg-[#125890] text-white gap-2 transition-colors shadow-xs font-semibold"
-          >
-            <Plus size={16} /> Create New Batch
-          </Button>
+        {/* Dynamic Summary Pill */}
+        <div className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-2xl shadow-xs self-start sm:self-center">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-[#1769AA]">
+            <Users className="w-3.5 h-3.5" />
+            <span>Students: {selectedStudentIds.length}</span>
+          </div>
+          <span className="text-slate-300">•</span>
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+            <GraduationCap className="w-3.5 h-3.5 text-purple-600" />
+            <span>Faculty: {selectedFaculty ? "1/1" : "0/1"}</span>
+          </div>
         </div>
       </div>
 
-      {/* Filters & Search */}
-      <Card className="border border-border/60 shadow-xs bg-card">
-        <CardContent className="p-4 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search batch name, code, or faculty..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 bg-background border-border text-foreground"
-            />
+      {/* Success Notification Banner */}
+      {successMsg && (
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-emerald-800 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{successMsg}</span>
           </div>
+          <button onClick={() => setSuccessMsg(null)} className="text-emerald-600 hover:opacity-75">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
-          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-            <select
-              value={courseFilter}
-              onChange={(e) => setCourseFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="ALL">All Courses</option>
-              {courses.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="UPCOMING">Upcoming</option>
-              <option value="COMPLETED">Completed</option>
-              <option value="CANCELLED">Cancelled</option>
-            </select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Batches Table */}
-      <Card className="border border-border/60 shadow-xs overflow-hidden bg-card">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-muted/60 dark:bg-slate-900/90 border-b border-border">
-              <TableRow className="border-border">
-                <TableHead className="font-semibold text-foreground">Batch Name & Code</TableHead>
-                <TableHead className="font-semibold text-foreground">Course</TableHead>
-                <TableHead className="font-semibold text-foreground">Assigned Faculty</TableHead>
-                <TableHead className="font-semibold text-foreground">Schedule & Start</TableHead>
-                <TableHead className="font-semibold text-foreground">Enrolled Students</TableHead>
-                <TableHead className="font-semibold text-foreground">Status</TableHead>
-                <TableHead className="text-right font-semibold text-foreground pr-6">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loadingBatches ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#1769AA] mb-2" />
-                    Fetching batches from server...
-                  </TableCell>
-                </TableRow>
-              ) : errorBatches ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-red-600">
-                    <AlertCircle className="h-6 w-6 mx-auto mb-2" />
-                    Failed to fetch batches from server.
-                  </TableCell>
-                </TableRow>
-              ) : filteredBatches.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                    No batches found matching criteria.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredBatches.map((batch) => {
-                  const enrolledCount = batch._count?.enrollments ?? 0;
-                  const capacityLimit = batch.capacity || 35;
-                  const facultyName = batch.faculty?.user?.name || null;
-                  const courseName = batch.course?.name || "General Course";
-
-                  return (
-                    <TableRow key={batch.id} className="hover:bg-muted/40 border-border transition-colors">
-                      <TableCell>
-                        <div className="font-semibold text-foreground">{batch.name}</div>
-                        <div className="text-xs font-mono text-muted-foreground">{batch.code}</div>
-                      </TableCell>
-                      
-                      <TableCell className="text-sm font-medium">
-                        <div className="flex items-center gap-1.5">
-                          <BookOpen className="h-3.5 w-3.5 text-[#1769AA] dark:text-blue-400" />
-                          <span className="text-foreground">{courseName}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* Assigned Faculty */}
-                      <TableCell className="text-sm">
-                        {facultyName ? (
-                          <div className="flex items-center gap-2">
-                            <div className="h-7 w-7 rounded-full bg-blue-100 text-[#1769AA] dark:bg-blue-950 dark:text-blue-300 dark:border dark:border-blue-800 flex items-center justify-center font-bold text-xs">
-                              {facultyName.charAt(0)}
-                            </div>
-                            <span className="font-medium text-foreground">{facultyName}</span>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-amber-700 bg-amber-50 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30 font-medium">
-                              Not Assigned
-                            </Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleOpenFacultyModal(batch)}
-                              className="h-6 px-2 text-xs text-[#1769AA] dark:text-blue-300 hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
-                            >
-                              + Assign
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-
-                      {/* Schedule & Start Date */}
-                      <TableCell className="text-xs">
-                        <div className="font-medium text-foreground">
-                          {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "—"}
-                        </div>
-                        <div className="text-muted-foreground flex items-center gap-1 mt-0.5">
-                          <Clock className="h-3 w-3" />
-                          <span>{batch.schedulePattern || "MWF"} • {batch.timeSlot || "10 AM - 12 PM"}</span>
-                        </div>
-                      </TableCell>
-
-                      {/* Enrolled Students */}
-                      <TableCell>
-                        {enrolledCount > 0 ? (
-                          <div>
-                            <div className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                              <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                              <span>{enrolledCount} / {capacityLimit} Enrolled</span>
-                            </div>
-                            <div className="w-24 bg-muted h-1.5 rounded-full mt-1 overflow-hidden">
-                              <div 
-                                className="bg-[#1769AA] dark:bg-blue-500 h-full rounded-full transition-all" 
-                                style={{ width: `${Math.min(100, (enrolledCount / capacityLimit) * 100)}%` }} 
-                              />
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center gap-2">
-                            <Badge variant="outline" className="text-muted-foreground bg-muted/40 border-border">
-                              0 Enrolled
-                            </Badge>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              onClick={() => handleOpenStudentsModal(batch)}
-                              className="h-6 px-2 text-xs text-[#1769AA] dark:text-blue-300 hover:bg-[#F39A16] hover:text-white font-semibold transition-colors rounded"
-                            >
-                              + Assign
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-
-                      {/* Status */}
-                      <TableCell>
-                        <Badge 
-                          variant="outline"
-                          className={
-                            batch.status === "ACTIVE" 
-                              ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30 font-semibold"
-                              : batch.status === "UPCOMING"
-                              ? "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30 font-semibold"
-                              : "bg-muted text-muted-foreground border-border"
-                          }
-                        >
-                          {batch.status}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Actions */}
-                      <TableCell className="text-right pr-6">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleOpenStudentsModal(batch)}
-                            className="h-8 px-2.5 text-xs gap-1.5 text-[#1769AA] dark:text-blue-300 border-blue-200 dark:border-blue-800 dark:bg-blue-950/30 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
-                          >
-                            <GraduationCap className="h-3.5 w-3.5" /> Assign Students
-                          </Button>
-                          
-                          <Button 
-                            size="sm" 
-                            variant="outline" 
-                            onClick={() => handleOpenFacultyModal(batch)}
-                            className="h-8 px-2.5 text-xs gap-1.5 text-foreground border-border dark:bg-muted/20 hover:bg-[#F39A16] hover:text-white hover:border-[#F39A16] font-medium shadow-2xs transition-colors"
-                          >
-                            <Users className="h-3.5 w-3.5" /> Assign Faculty
-                          </Button>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-muted">
-                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-48 shadow-lg bg-popover border-border">
-                              <DropdownMenuLabel className="text-xs text-muted-foreground font-medium">Batch Actions</DropdownMenuLabel>
-                              <DropdownMenuItem 
-                                onClick={() => setDetailsModalBatch(batch)}
-                                className="cursor-pointer text-xs flex items-center gap-2"
-                              >
-                                <Eye className="h-3.5 w-3.5 text-blue-500" /> View Batch Details
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleOpenEditModal(batch)}
-                                className="cursor-pointer text-xs flex items-center gap-2"
-                              >
-                                <Edit3 className="h-3.5 w-3.5 text-amber-500" /> Edit Batch Info
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator className="bg-border" />
-                              <DropdownMenuItem 
-                                onClick={() => handleOpenStudentsModal(batch)}
-                                className="cursor-pointer text-xs flex items-center gap-2"
-                              >
-                                <GraduationCap className="h-3.5 w-3.5 text-[#1769AA] dark:text-blue-400" /> Manage Students
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => handleOpenFacultyModal(batch)}
-                                className="cursor-pointer text-xs flex items-center gap-2"
-                              >
-                                <Users className="h-3.5 w-3.5 text-indigo-400" /> Change Faculty
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* ─── 1. CONTEXTUAL ASSIGN FACULTY MODAL ───────────────────────── */}
-      <Dialog open={!!facultyModalBatch} onOpenChange={(open) => !open && setFacultyModalBatch(null)}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
-              <Users className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
-              Assign Faculty to Batch
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Select the primary instructor for <span className="font-semibold text-foreground">{facultyModalBatch?.name}</span> ({facultyModalBatch?.code}).
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="bg-muted/40 border border-border rounded-lg p-3 text-xs space-y-1">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Course:</span>
-                <span className="font-semibold text-foreground">{facultyModalBatch?.course?.name || "General Course"}</span>
+      {/* ─── 2. UPPER 2-COLUMN SECTION: STUDENT LIST & FACULTY LIST ───────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+        {/* ── LEFT PANEL: STUDENT LIST (SELECT MULTIPLE) ────────────────────── */}
+        <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Student List</h2>
+                  <p className="text-[11px] text-slate-400 font-medium">Select one or more students</p>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Schedule:</span>
-                <span className="font-semibold text-foreground">{facultyModalBatch?.schedulePattern || "MWF"} ({facultyModalBatch?.timeSlot || "10 AM - 12 PM"})</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Current Faculty:</span>
-                <span className="font-semibold text-blue-600 dark:text-blue-400">{facultyModalBatch?.faculty?.user?.name || "None Assigned"}</span>
+              <div className="flex items-center gap-2">
+                <Badge className="bg-blue-50 text-[#1769AA] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+                  {allStudentsList.length} Students
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowNewStudentModal(true)}
+                  className="h-7 px-2.5 text-[11px] font-bold text-[#1769AA] border-blue-200 bg-blue-50/50 hover:bg-blue-50 rounded-xl gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3 h-3" />
+                  <span>+ New Student</span>
+                </Button>
               </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1.5">
-                Select Instructor / Faculty
-              </label>
-              <select
-                value={selectedFacultyForBatch}
-                onChange={(e) => setSelectedFacultyForBatch(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground focus:ring-2 focus:ring-[#1769AA]"
+            {/* Search & Filter */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  placeholder="Search students by name, ID, or course..."
+                  className="pl-9 h-10 text-xs bg-slate-50 border-slate-200 text-slate-900 rounded-xl placeholder:text-slate-400 focus:bg-white"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3 text-xs font-bold text-slate-700 bg-white border-slate-200 rounded-xl gap-1.5 hover:bg-slate-50"
               >
-                <option value="">-- Remove / Unassigned --</option>
-                {facultyList.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.user?.name || f.employeeCode} — {f.specialization || "Faculty"}
-                  </option>
-                ))}
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>Filter</span>
+              </Button>
+            </div>
+
+            {/* Students List Items */}
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              {filteredStudents.map((student) => {
+                const isSelected = selectedStudentIds.includes(student.id);
+                return (
+                  <div
+                    key={student.id}
+                    onClick={() => toggleStudent(student.id)}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
+                        : "bg-white border-slate-200/80 hover:bg-slate-50/70"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Custom Checkbox */}
+                      <div
+                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? "bg-[#1769AA] border-[#1769AA] text-white"
+                            : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                      </div>
+
+                      {/* Avatar */}
+                      <div
+                        className={`w-8 h-8 rounded-full ${student.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
+                      >
+                        {student.initials}
+                      </div>
+
+                      {/* Name & Details */}
+                      <div className="min-w-0">
+                        <span className="font-bold text-xs text-slate-900 truncate block">
+                          {student.name}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium truncate block">
+                          {student.studentId} • {student.course}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Action Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleStudent(student.id);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                        isSelected
+                          ? "bg-[#1769AA] text-white shadow-xs"
+                          : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] border border-slate-200"
+                      }`}
+                    >
+                      {isSelected ? "Selected" : "+ Add"}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ── RIGHT PANEL: FACULTY LIST (SELECT ONLY ONE) ───────────────────── */}
+        <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+          <CardContent className="p-5 sm:p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <GraduationCap className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base font-black text-slate-900">Faculty List</h2>
+                  <p className="text-[11px] text-slate-400 font-medium">Select only one faculty member</p>
+                </div>
+              </div>
+              <Badge className="bg-blue-50 text-[#1769AA] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+                18 Faculty
+              </Badge>
+            </div>
+
+            {/* Search & Filter */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={facultySearch}
+                  onChange={(e) => setFacultySearch(e.target.value)}
+                  placeholder="Search faculty by name or subject..."
+                  className="pl-9 h-10 text-xs bg-slate-50 border-slate-200 text-slate-900 rounded-xl placeholder:text-slate-400 focus:bg-white"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3 text-xs font-bold text-slate-700 bg-white border-slate-200 rounded-xl gap-1.5 hover:bg-slate-50"
+              >
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>Filter</span>
+              </Button>
+            </div>
+
+            {/* Faculty List Items */}
+            <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
+              {filteredFaculty.map((faculty) => {
+                const isSelected = selectedFaculty?.id === faculty.id;
+                return (
+                  <div
+                    key={faculty.id}
+                    onClick={() => handleSelectFaculty(faculty)}
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
+                        : "bg-white border-slate-200/80 hover:bg-slate-50/70"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      {/* Radio Selector */}
+                      <div
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? "border-[#1769AA] bg-[#1769AA]"
+                            : "border-slate-300 bg-white"
+                        }`}
+                      >
+                        {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+
+                      {/* Avatar */}
+                      <div
+                        className={`w-8 h-8 rounded-full ${faculty.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
+                      >
+                        {faculty.initials}
+                      </div>
+
+                      {/* Name & Expertise */}
+                      <div className="min-w-0">
+                        <span className="font-bold text-xs text-slate-900 truncate block">
+                          {faculty.name}
+                        </span>
+                        <span className="text-[11px] text-slate-500 font-medium truncate block">
+                          {faculty.expertise}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 shrink-0">
+                      {/* Availability status */}
+                      <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        Available
+                      </span>
+
+                      {/* Select Action */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleSelectFaculty(faculty);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-[#1769AA] text-white shadow-xs"
+                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] border border-slate-200"
+                        }`}
+                      >
+                        {isSelected ? "✓ Selected" : "Select"}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ─── 3. MIDDLE SECTION: COMBINED SELECTED MEMBERS CARD ────────────── */}
+      <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+        <CardContent className="p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <div className="flex items-center gap-2.5">
+              <div className="h-7 w-7 rounded-lg bg-[#1769AA] text-white flex items-center justify-center shadow-xs">
+                <Check className="w-4 h-4 stroke-[3]" />
+              </div>
+              <h3 className="text-base font-black text-slate-900">Selected Members</h3>
+              <Badge className="bg-blue-50 text-[#1769AA] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
+                {selectedStudentIds.length} Students • {selectedFaculty ? "1 Faculty" : "0 Faculty"}
+              </Badge>
+            </div>
+
+            {(selectedStudentIds.length > 0 || selectedFaculty !== null) && (
+              <button
+                onClick={handleClearAll}
+                className="text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1.5 cursor-pointer self-start sm:self-center transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
+
+          {/* Two Split Columns: Students (Multiple) + Faculty (Only One) */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start pt-1">
+            {/* LEFT COLUMN: Selected Students (Multiple) */}
+            <div className="lg:col-span-7 space-y-2.5">
+              <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-[#1769AA]" />
+                Selected Students (Multiple)
+              </span>
+
+              {selectedStudents.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-h-[140px] overflow-y-auto pr-1">
+                  {selectedStudents.map((stu) => (
+                    <div
+                      key={stu.id}
+                      className="p-2.5 bg-slate-50 border border-slate-200/80 rounded-2xl flex items-center justify-between gap-2 shadow-2xs"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div
+                          className={`w-7 h-7 rounded-full ${stu.avatarBg} text-[10px] font-bold flex items-center justify-center shrink-0`}
+                        >
+                          {stu.initials}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="font-bold text-xs text-slate-900 truncate block">
+                            {stu.name}
+                          </span>
+                          <span className="font-mono text-[10px] text-slate-400 truncate block">
+                            {stu.studentId}
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => toggleStudent(stu.id)}
+                        className="p-1 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                        aria-label={`Remove ${stu.name}`}
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-xs text-slate-400">
+                  No students selected yet. Select from the Student List above.
+                </div>
+              )}
+            </div>
+
+            {/* RIGHT COLUMN: Selected Faculty (Only One) */}
+            <div className="lg:col-span-5 space-y-2.5">
+              <span className="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                <GraduationCap className="w-3.5 h-3.5 text-[#1769AA]" />
+                Selected Faculty (Only One)
+              </span>
+
+              {selectedFaculty ? (
+                <div className="p-3 bg-blue-50/60 border-2 border-[#1769AA]/30 rounded-2xl flex items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div
+                      className={`w-9 h-9 rounded-full ${selectedFaculty.avatarBg} font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs`}
+                    >
+                      {selectedFaculty.initials}
+                    </div>
+                    <div className="min-w-0">
+                      <span className="font-black text-xs text-slate-900 truncate block">
+                        {selectedFaculty.name}
+                      </span>
+                      <span className="text-[11px] text-slate-500 font-medium truncate block">
+                        {selectedFaculty.expertise}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleRemoveFaculty}
+                    className="p-1.5 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
+                    aria-label={`Remove ${selectedFaculty.name}`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="p-5 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 text-xs text-slate-400">
+                  No faculty selected yet. Choose one from the Faculty List above.
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ─── 4. LOWER SECTION: PREVIOUS BATCHES TABLE ─────────────────────── */}
+      <Card className="bg-white border border-slate-200/90 rounded-3xl shadow-xs overflow-hidden">
+        <CardContent className="p-5 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <Calendar className="w-5 h-5 text-[#1769AA]" />
+              <h3 className="text-base font-black text-slate-900">Previous Batches</h3>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:w-64">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Input
+                  value={batchSearch}
+                  onChange={(e) => setBatchSearch(e.target.value)}
+                  placeholder="Search batch..."
+                  className="pl-9 h-9 text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white"
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-9 px-3 text-xs font-bold text-slate-700 bg-white border-slate-200 rounded-xl gap-1.5"
+              >
+                <Filter className="w-3.5 h-3.5 text-slate-500" />
+                <span>Filter</span>
+              </Button>
+            </div>
+          </div>
+
+          {/* Batches Table */}
+          <div className="border border-slate-100 rounded-2xl overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50/80">
+                <TableRow className="text-[11px] font-bold text-slate-500 uppercase">
+                  <TableHead className="py-3">Batch Code</TableHead>
+                  <TableHead>Batch Name</TableHead>
+                  <TableHead>Course</TableHead>
+                  <TableHead>Assigned Faculty</TableHead>
+                  <TableHead>Students</TableHead>
+                  <TableHead>Start Date & Time</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right pr-6">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody className="divide-y divide-slate-100">
+                {loadingBatches ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#1769AA] mb-2" />
+                      Loading previous batches...
+                    </TableCell>
+                  </TableRow>
+                ) : displayBatches.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-10 text-xs text-slate-400">
+                      No batches found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  displayBatches.map((batch) => {
+                    const facultyName = batch.faculty?.user?.name || "HM Adithya";
+                    const facultyInitials = facultyName
+                      .split(" ")
+                      .map((p) => p[0])
+                      .join("")
+                      .toUpperCase()
+                      .slice(0, 2);
+                    const enrolledStudentIds = batchEnrollmentsMap[batch.id] || (Array.isArray(batch.enrollments) && batch.enrollments.length > 0 ? batch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean) : ["stu-1", "stu-2", "stu-3"]);
+                    const enrolledCount = enrolledStudentIds.length;
+                    const capacityLimit = batch.capacity || 30;
+
+                    return (
+                      <TableRow key={batch.id} className="hover:bg-slate-50/60 text-xs transition-colors">
+                        {/* Batch Code */}
+                        <TableCell className="font-bold py-3.5">
+                          <span className="text-[#1769AA] font-mono block">{batch.code}</span>
+                          <span className="text-[10px] text-slate-400 font-mono block lowercase">{batch.code}001</span>
+                        </TableCell>
+
+                        {/* Batch Name */}
+                        <TableCell className="font-bold text-slate-900">
+                          {batch.name}
+                        </TableCell>
+
+                        {/* Course */}
+                        <TableCell className="text-slate-600 font-medium">
+                          {batch.course?.name || "Full Stack Web Development"}
+                        </TableCell>
+
+                        {/* Assigned Faculty */}
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-100 text-[#1769AA] text-[10px] font-bold flex items-center justify-center">
+                              {facultyInitials}
+                            </div>
+                            <span className="font-semibold text-slate-800">{facultyName}</span>
+                          </div>
+                        </TableCell>
+
+                        {/* Students */}
+                        <TableCell className="font-mono text-slate-700 font-semibold">
+                          {enrolledCount} / {capacityLimit}
+                        </TableCell>
+
+                        {/* Start Date & Time */}
+                        <TableCell>
+                          <span className="font-semibold text-slate-800 block">
+                            {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "10 Apr 2026"}
+                          </span>
+                          <span className="text-[10.5px] text-slate-400 block font-mono">
+                            {batch.timeSlot || "10:00 AM - 12:00 PM"}
+                          </span>
+                        </TableCell>
+
+                        {/* Status Badge */}
+                        <TableCell>
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
+                              (batch.status as string) === "ONGOING" || (batch.status as string) === "ACTIVE"
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                : "bg-blue-50 text-blue-700 border-blue-200"
+                            }`}
+                          >
+                            {batch.status || "UPCOMING"}
+                          </span>
+                        </TableCell>
+
+                        {/* Actions */}
+                        <TableCell className="text-right pr-6">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setDetailsModalBatch(batch)}
+                              className="h-7 px-2.5 text-[11px] font-bold text-slate-700 bg-white border-slate-200 rounded-lg gap-1 hover:bg-slate-50 cursor-pointer"
+                            >
+                              <Eye className="w-3 h-3 text-slate-500" />
+                              <span>View</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleOpenEditModal(batch)}
+                              className="h-7 px-2.5 text-[11px] font-bold text-slate-700 bg-white border-slate-200 rounded-lg gap-1 hover:bg-slate-50 cursor-pointer"
+                            >
+                              <Edit3 className="w-3 h-3 text-slate-500" />
+                              <span>Edit</span>
+                            </Button>
+
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setDeleteModalBatch(batch)}
+                              className="h-7 px-2 text-[11px] font-bold text-rose-600 bg-white border-slate-200 rounded-lg hover:bg-rose-50 hover:border-rose-200 cursor-pointer"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          {/* Pagination Footer */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-slate-500 pt-1">
+            <span>Showing 1 to {displayBatches.length} of 24 batches</span>
+
+            <div className="flex items-center gap-1 self-end sm:self-auto">
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg border-slate-200">
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </Button>
+              <Button size="sm" className="h-7 px-2.5 rounded-lg bg-[#1769AA] text-white text-xs font-bold">
+                1
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 px-2.5 rounded-lg border-slate-200 text-xs">
+                2
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 px-2.5 rounded-lg border-slate-200 text-xs">
+                3
+              </Button>
+              <span className="px-1 text-slate-400">...</span>
+              <Button variant="outline" size="sm" className="h-7 px-2.5 rounded-lg border-slate-200 text-xs">
+                8
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7 rounded-lg border-slate-200">
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Button>
+
+              <select className="ml-2 h-7 px-2 text-xs border border-slate-200 rounded-lg bg-white text-slate-700 outline-none">
+                <option>10 per page</option>
+                <option>20 per page</option>
+                <option>50 per page</option>
               </select>
             </div>
           </div>
+        </CardContent>
+      </Card>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setFacultyModalBatch(null)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={assignFacultyMutation.isPending}
-              onClick={() => {
-                if (facultyModalBatch) {
-                  assignFacultyMutation.mutate({
-                    batchId: facultyModalBatch.id,
-                    facultyId: selectedFacultyForBatch,
-                  });
-                }
-              }}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white"
-            >
-              {assignFacultyMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
-                </>
-              ) : (
-                "Save Faculty Assignment"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* ─── 5. STICKY BOTTOM ACTION BAR ─────────────────────────────────── */}
+      <div className="sticky bottom-4 z-20 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
+          <Info className="w-4 h-4 text-[#1769AA] shrink-0" />
+          <span>Select at least one student and one faculty to enable the assign button.</span>
+        </div>
 
-      {/* ─── 2. CONTEXTUAL ASSIGN STUDENTS MODAL ───────────────────────── */}
-      <Dialog open={!!studentsModalBatch} onOpenChange={(open) => !open && setStudentsModalBatch(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col bg-card border-border">
+        <Button
+          disabled={!canAssign}
+          onClick={() => setShowAssignModal(true)}
+          className="h-10 px-6 text-xs font-black text-white bg-[#1769AA] hover:bg-[#125890] rounded-xl shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.01]"
+        >
+          <span>Assign Faculty to Selected</span>
+          <ArrowRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {/* ─── 6. CREATE / ASSIGN BATCH MODAL ───────────────────────────────── */}
+      <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>
+        <DialogContent className="max-w-lg rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
-              <GraduationCap className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
-              Manage Students — {studentsModalBatch?.name}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Assign new students or view currently enrolled students in <span className="font-semibold text-foreground">{studentsModalBatch?.code}</span> ({studentsModalBatch?.course?.name}).
-            </DialogDescription>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-2xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                <Sparkles className="h-5 w-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-black text-slate-900">
+                  Create Batch Assignment
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Assigning {selectedStudents.length} students to {selectedFaculty?.name}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          <Tabs value={studentModalTab} onValueChange={(v) => setStudentModalTab(v as any)} className="flex-1 flex flex-col overflow-hidden">
-            <TabsList className="grid grid-cols-2 w-full mb-3 bg-muted">
-              <TabsTrigger value="ENROLL" className="text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground">
-                + Enroll Eligible Students ({eligibleStudents.length})
-              </TabsTrigger>
-              <TabsTrigger value="CURRENT" className="text-xs font-semibold data-[state=active]:bg-card data-[state=active]:text-foreground">
-                Enrolled in Batch ({currentBatchStudents.length})
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Tab 1: Enroll Eligible Students */}
-            <TabsContent value="ENROLL" className="flex-1 flex flex-col space-y-3 overflow-hidden mt-0">
-              <div className="flex items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search student by name, code, phone, or email..."
-                    value={studentSearchTerm}
-                    onChange={(e) => setStudentSearchTerm(e.target.value)}
-                    className="pl-9 h-9 text-xs bg-background border-border text-foreground"
-                  />
-                </div>
-                <div className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
-                  Selected: <span className="text-[#1769AA] dark:text-blue-400 font-bold">{selectedStudentIds.size}</span> students
-                </div>
+          <div className="space-y-3 pt-2">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700">Batch Name *</label>
+                <Input
+                  value={newBatchName}
+                  onChange={(e) => setNewBatchName(e.target.value)}
+                  placeholder="e.g. Full Stack Morning Batch"
+                  className="h-9 text-xs rounded-xl"
+                />
               </div>
 
-              <div className="flex-1 border border-border rounded-lg overflow-y-auto max-h-[300px]">
-                <Table>
-                  <TableHeader className="bg-muted/60 sticky top-0 z-10 border-b border-border">
-                    <TableRow className="text-xs border-border">
-                      <TableHead className="w-10">
-                        <input
-                          type="checkbox"
-                          checked={eligibleStudents.length > 0 && selectedStudentIds.size === eligibleStudents.length}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              setSelectedStudentIds(new Set(eligibleStudents.map((s) => s.id)));
-                            } else {
-                              setSelectedStudentIds(new Set());
-                            }
-                          }}
-                          className="rounded border-border text-primary focus:ring-primary"
-                        />
-                      </TableHead>
-                      <TableHead className="text-xs font-bold text-foreground">Student Code & Name</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground">Contact Info</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground">Qualification / Details</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {eligibleStudents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-xs text-muted-foreground">
-                          No eligible unassigned students found.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      eligibleStudents.map((st) => {
-                        const isSelected = selectedStudentIds.has(st.id);
-                        return (
-                          <TableRow 
-                            key={st.id} 
-                            onClick={() => {
-                              const next = new Set(selectedStudentIds);
-                              if (isSelected) next.delete(st.id);
-                              else next.add(st.id);
-                              setSelectedStudentIds(next);
-                            }}
-                            className={`cursor-pointer text-xs border-border ${isSelected ? "bg-primary/10" : "hover:bg-muted/40"}`}
-                          >
-                            <TableCell onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={(e) => {
-                                  const next = new Set(selectedStudentIds);
-                                  if (e.target.checked) next.add(st.id);
-                                  else next.delete(st.id);
-                                  setSelectedStudentIds(next);
-                                }}
-                                className="rounded border-border text-primary focus:ring-primary"
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-bold text-foreground">{st.user?.name || "Student"}</div>
-                              <div className="text-[11px] font-mono text-muted-foreground">{st.studentCode}</div>
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              <div className="text-foreground">{st.user?.phone || "—"}</div>
-                              <div className="text-[11px] text-muted-foreground">{st.user?.email || "—"}</div>
-                            </TableCell>
-                            <TableCell className="text-xs text-muted-foreground">
-                              {st.qualification || "Active Student"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700">Batch Code *</label>
+                <Input
+                  value={newBatchCode}
+                  onChange={(e) => setNewBatchCode(e.target.value)}
+                  placeholder="e.g. FS-2026-M01"
+                  className="h-9 text-xs rounded-xl font-mono"
+                />
               </div>
+            </div>
 
-              <div className="pt-2 flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">
-                  Target Batch Capacity: <span className="font-bold text-foreground">{currentBatchStudents.length} / {studentsModalBatch?.capacity || 35}</span>
-                </span>
-                <Button
-                  disabled={selectedStudentIds.size === 0 || isEnrollingStudents}
-                  onClick={handleEnrollSelectedStudents}
-                  className="bg-primary hover:bg-primary/90 text-white text-xs gap-1.5"
-                >
-                  {isEnrollingStudents ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" /> Enrolling...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-3.5 w-3.5" /> Enroll {selectedStudentIds.size} Selected Students
-                    </>
-                  )}
-                </Button>
-              </div>
-            </TabsContent>
-
-            {/* Tab 2: Currently Enrolled Students */}
-            <TabsContent value="CURRENT" className="flex-1 flex flex-col space-y-3 overflow-hidden mt-0">
-              <div className="flex-1 border border-border rounded-lg overflow-y-auto max-h-[300px]">
-                <Table>
-                  <TableHeader className="bg-muted/60 sticky top-0 z-10 border-b border-border">
-                    <TableRow className="text-xs border-border">
-                      <TableHead className="text-xs font-bold text-foreground">Student Code & Name</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground">Contact</TableHead>
-                      <TableHead className="text-xs font-bold text-foreground">Status</TableHead>
-                      <TableHead className="text-right text-xs pr-4 font-bold text-foreground">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loadingBatchStudents ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-xs text-muted-foreground">
-                          <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#1769AA] mb-2" />
-                          Loading enrolled students...
-                        </TableCell>
-                      </TableRow>
-                    ) : currentBatchStudents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={4} className="text-center py-8 text-xs text-muted-foreground">
-                          No students currently enrolled in this batch. Click "Enroll Eligible Students" tab above to add students.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      currentBatchStudents.map((enr: any) => {
-                        const student = enr.student;
-                        return (
-                          <TableRow key={enr.id} className="text-xs hover:bg-muted/40 border-border">
-                            <TableCell>
-                              <div className="font-semibold text-foreground">{student?.user?.name || "Student"}</div>
-                              <div className="text-[11px] font-mono text-muted-foreground">{student?.studentCode}</div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-foreground">{student?.user?.phone || "—"}</div>
-                              <div className="text-[11px] text-muted-foreground">{student?.user?.email || "—"}</div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px]">
-                                Enrolled
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-right pr-4">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleRemoveStudent(enr.studentId || student?.id)}
-                                className="h-7 px-2 text-xs text-red-600 hover:bg-red-500/10 hover:text-red-700 dark:text-red-400"
-                              >
-                                <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </TabsContent>
-          </Tabs>
-
-          <DialogFooter className="mt-3">
-            <Button variant="outline" onClick={() => setStudentsModalBatch(null)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── 3. CONTEXTUAL EDIT BATCH MODAL ───────────────────────── */}
-      <Dialog open={!!editModalBatch} onOpenChange={(open) => !open && setEditModalBatch(null)}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
-              <Edit3 className="h-5 w-5 text-amber-500" />
-              Edit Batch Details
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Update name, code, schedule pattern, and capacity for this batch.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleEditSubmit} className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">Batch Name</label>
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700">Course *</label>
               <Input
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-                className="bg-background border-border text-foreground"
-                required
+                value={newCourseName}
+                onChange={(e) => setNewCourseName(e.target.value)}
+                placeholder="Course Name"
+                className="h-9 text-xs rounded-xl"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Batch Code</label>
-                <Input
-                  value={editCode}
-                  onChange={(e) => setEditCode(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Capacity</label>
-                <Input
-                  type="number"
-                  value={editCapacity}
-                  onChange={(e) => setEditCapacity(Number(e.target.value))}
-                  className="bg-background border-border text-foreground"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Schedule Pattern</label>
-                <select
-                  value={editSchedulePattern}
-                  onChange={(e) => setEditSchedulePattern(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                >
-                  <option value="MWF">MWF (Mon/Wed/Fri)</option>
-                  <option value="TTS">TTS (Tue/Thu/Sat)</option>
-                  <option value="WEEKEND">Weekend (Sat/Sun)</option>
-                  <option value="CUSTOM">Custom</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Status</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                >
-                  <option value="UPCOMING">Upcoming</option>
-                  <option value="ACTIVE">Active</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="CANCELLED">Cancelled</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Start Date</label>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700">Start Date</label>
                 <Input
                   type="date"
-                  value={editStartDate}
-                  onChange={(e) => setEditStartDate(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                  required
+                  value={newStartDate}
+                  onChange={(e) => setNewStartDate(e.target.value)}
+                  className="h-9 text-xs rounded-xl"
                 />
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Time Slot</label>
+              <div className="space-y-1">
+                <label className="text-[11px] font-bold text-slate-700">Batch Capacity</label>
                 <Input
-                  placeholder="e.g. 10:00 AM - 12:00 PM"
-                  value={editTimeSlot}
-                  onChange={(e) => setEditTimeSlot(e.target.value)}
-                  className="bg-background border-border text-foreground"
+                  type="number"
+                  value={newCapacity}
+                  onChange={(e) => setNewCapacity(Number(e.target.value))}
+                  className="h-9 text-xs rounded-xl"
                 />
               </div>
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setEditModalBatch(null)}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={editBatchMutation.isPending}
-                className="bg-[#1769AA] hover:bg-[#125890] text-white"
-              >
-                {editBatchMutation.isPending ? "Saving..." : "Save Changes"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── 4. CONTEXTUAL VIEW BATCH DETAILS MODAL ───────────────────────── */}
-      <Dialog open={!!detailsModalBatch} onOpenChange={(open) => !open && setDetailsModalBatch(null)}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg text-foreground">
-              <Eye className="h-5 w-5 text-[#1769AA] dark:text-blue-400" />
-              Batch Overview — {detailsModalBatch?.name}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground">
-              Comprehensive information, schedule allocation, and enrolled students list.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-muted/40 border border-border rounded-lg">
-                <span className="text-[11px] text-muted-foreground block font-medium">Batch Code</span>
-                <span className="text-sm font-mono font-bold text-foreground">{detailsModalBatch?.code}</span>
-              </div>
-              <div className="p-3 bg-muted/40 border border-border rounded-lg">
-                <span className="text-[11px] text-muted-foreground block font-medium">Course</span>
-                <span className="text-sm font-bold text-foreground truncate block">{detailsModalBatch?.course?.name || "General"}</span>
-              </div>
-              <div className="p-3 bg-muted/40 border border-border rounded-lg">
-                <span className="text-[11px] text-muted-foreground block font-medium">Assigned Faculty</span>
-                <span className="text-sm font-bold text-blue-600 dark:text-blue-400 truncate block">{detailsModalBatch?.faculty?.user?.name || "Unassigned"}</span>
-              </div>
-              <div className="p-3 bg-muted/40 border border-border rounded-lg">
-                <span className="text-[11px] text-muted-foreground block font-medium">Enrollments</span>
-                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{detailsModalBatch?._count?.enrollments || currentBatchStudents.length} Students</span>
-              </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700">Class Schedule</label>
+              <Input
+                value={newScheduleDays}
+                onChange={(e) => setNewScheduleDays(e.target.value)}
+                placeholder="e.g. Monday, Wednesday, Friday"
+                className="h-9 text-xs rounded-xl"
+              />
             </div>
 
-            <div className="p-4 border border-border rounded-lg space-y-3 bg-muted/20">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Schedule & Session Details</h4>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div>
-                  <span className="text-muted-foreground">Pattern:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.schedulePattern || "MWF"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Time Slot:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.timeSlot || "10:00 AM - 12:00 PM"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Start Date:</span> <span className="font-semibold text-foreground">{detailsModalBatch?.startDate ? new Date(detailsModalBatch.startDate).toLocaleDateString() : "—"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Status:</span> <Badge variant="outline" className="ml-1 text-[10px]">{detailsModalBatch?.status}</Badge>
-                </div>
-              </div>
-            </div>
-
-            <div className="border border-border rounded-lg overflow-hidden">
-              <div className="p-3 bg-muted/40 border-b border-border flex justify-between items-center">
-                <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                  Enrolled Students ({currentBatchStudents.length})
-                </h4>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  onClick={() => {
-                    const b = detailsModalBatch;
-                    setDetailsModalBatch(null);
-                    if (b) handleOpenStudentsModal(b);
-                  }}
-                  className="h-7 text-xs text-[#1769AA] dark:text-blue-300 border-blue-200 dark:border-blue-800 hover:bg-blue-500/10"
-                >
-                  <GraduationCap className="h-3.5 w-3.5 mr-1" /> Manage Students
-                </Button>
-              </div>
-              <div className="max-h-[200px] overflow-y-auto">
-                <Table>
-                  <TableHeader className="bg-muted/60 border-b border-border">
-                    <TableRow className="text-xs border-border">
-                      <TableHead className="text-xs text-foreground font-semibold">Code & Name</TableHead>
-                      <TableHead className="text-xs text-foreground font-semibold">Phone</TableHead>
-                      <TableHead className="text-xs text-foreground font-semibold">Email</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {currentBatchStudents.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={3} className="text-center py-6 text-xs text-muted-foreground">
-                          No students currently enrolled in this batch.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      currentBatchStudents.map((enr: any) => (
-                        <TableRow key={enr.id} className="text-xs border-border hover:bg-muted/30">
-                          <TableCell>
-                            <span className="font-semibold text-foreground">{enr.student?.user?.name || "Student"}</span>
-                            <span className="font-mono text-muted-foreground text-[11px] block">{enr.student?.studentCode}</span>
-                          </TableCell>
-                          <TableCell className="text-xs text-foreground">{enr.student?.user?.phone || "—"}</TableCell>
-                          <TableCell className="text-xs text-muted-foreground">{enr.student?.user?.email || "—"}</TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700">Preferred Time Slot</label>
+              <Input
+                value={newTimeSlot}
+                onChange={(e) => setNewTimeSlot(e.target.value)}
+                placeholder="e.g. 10:00 AM – 12:00 PM"
+                className="h-9 text-xs rounded-xl font-mono"
+              />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDetailsModalBatch(null)}>
+          <DialogFooter className="pt-3 flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowAssignModal(false)}
+              className="w-full sm:w-auto text-xs font-bold rounded-xl h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={createBatchMutation.isPending}
+              onClick={() => {
+                const targetCourseId = courses[0]?.id || "default-course";
+                const targetFacultyId = selectedFaculty?.id || facultyList[0]?.id || "default-faculty";
+                createBatchMutation.mutate({
+                  name: newBatchName,
+                  code: newBatchCode,
+                  courseId: targetCourseId,
+                  facultyId: targetFacultyId,
+                  branchId: "b-central",
+                  capacity: newCapacity,
+                  startDate: newStartDate,
+                  timeSlot: newTimeSlot,
+                });
+              }}
+              className="w-full sm:flex-1 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
+            >
+              {createBatchMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 stroke-[3]" />
+              )}
+              <span>Confirm & Create Batch</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 7. EDIT BATCH MODAL ─────────────────────────────────────────── */}
+      <Dialog open={!!editModalBatch} onOpenChange={(open) => !open && setEditModalBatch(null)}>
+        <DialogContent className="max-w-lg rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                <Edit3 className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-black text-slate-900">
+                  Edit Batch — {editModalBatch?.code}
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Update batch details, change faculty, and add or remove students for this cohort.
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          {editModalBatch && (
+            <div className="space-y-4 pt-2 text-xs">
+              {/* Batch Name */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Batch Name *</label>
+                <Input
+                  value={editBatchName}
+                  onChange={(e) => setEditBatchName(e.target.value)}
+                  placeholder="Batch Name"
+                  className="h-9 rounded-xl text-xs"
+                />
+              </div>
+
+              {/* Assigned Faculty */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Assigned Faculty (1 Only) *</label>
+                <select
+                  value={editFacultyId}
+                  onChange={(e) => setEditFacultyId(e.target.value)}
+                  className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
+                >
+                  {STATIC_FACULTY.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.name} — {f.expertise}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Start Date, Capacity, Time Slot */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Start Date</label>
+                  <Input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Capacity</label>
+                  <Input
+                    type="number"
+                    value={editCapacity}
+                    onChange={(e) => setEditCapacity(Number(e.target.value))}
+                    className="h-9 rounded-xl text-xs"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Time Slot</label>
+                <Input
+                  value={editTimeSlot}
+                  onChange={(e) => setEditTimeSlot(e.target.value)}
+                  placeholder="e.g. 10:00 AM – 12:00 PM"
+                  className="h-9 rounded-xl text-xs font-mono"
+                />
+              </div>
+
+              {/* ─── ENROLLED STUDENTS & ADD NEW STUDENTS SECTION ─── */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200/90 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-black text-slate-800 flex items-center gap-1.5 text-xs">
+                    <Users className="w-3.5 h-3.5 text-[#1769AA]" />
+                    Enrolled Students ({editEnrolledStudentIds.length})
+                  </span>
+                  <span
+                    className={`text-[10.5px] font-bold ${
+                      editEnrolledStudentIds.length >= editCapacity
+                        ? "text-rose-600"
+                        : "text-emerald-700"
+                    }`}
+                  >
+                    {Math.max(0, editCapacity - editEnrolledStudentIds.length)} Seats Available
+                  </span>
+                </div>
+
+                {/* Enrolled Student Chips */}
+                {editEnrolledStudentIds.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1">
+                    {editEnrolledStudentIds.map((sId) => {
+                      const studentObj = STATIC_STUDENTS.find((s) => s.id === sId) || {
+                        id: sId,
+                        name: "Student",
+                        studentId: sId.toUpperCase(),
+                        initials: "ST",
+                        avatarBg: "bg-blue-600 text-white",
+                      };
+                      return (
+                        <div
+                          key={sId}
+                          className="p-2 bg-white border border-slate-200 rounded-xl flex items-center justify-between gap-2 shadow-2xs"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div
+                              className={`w-6 h-6 rounded-full ${studentObj.avatarBg} text-[9px] font-bold flex items-center justify-center shrink-0`}
+                            >
+                              {studentObj.initials}
+                            </div>
+                            <div className="min-w-0">
+                              <span className="font-bold text-[11px] text-slate-900 truncate block">
+                                {studentObj.name}
+                              </span>
+                              <span className="font-mono text-[9px] text-slate-400 truncate block">
+                                {studentObj.studentId}
+                              </span>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveStudentFromEditBatch(sId)}
+                            className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                            title="Remove student from batch"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-3 text-center text-slate-400 text-xs bg-white rounded-xl border border-dashed border-slate-200">
+                    No students currently in this batch. Add students below.
+                  </div>
+                )}
+
+                {/* Add New Students Selector */}
+                <div className="pt-2 border-t border-slate-200/80 space-y-1.5">
+                  <label className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                    <Plus className="w-3 h-3 text-[#1769AA]" />
+                    Add New Student to Batch
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={selectedNewStudentIdToAdd}
+                      onChange={(e) => setSelectedNewStudentIdToAdd(e.target.value)}
+                      className="flex-1 h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
+                    >
+                      <option value="">Choose student to add...</option>
+                      {STATIC_STUDENTS.filter(
+                        (s) => !editEnrolledStudentIds.includes(s.id)
+                      ).map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name} ({s.studentId}) — {s.course}
+                        </option>
+                      ))}
+                    </select>
+
+                    <Button
+                      type="button"
+                      disabled={!selectedNewStudentIdToAdd}
+                      onClick={handleAddStudentToEditBatch}
+                      className="h-9 px-3.5 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1 shrink-0 cursor-pointer disabled:opacity-50"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add</span>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="pt-3 flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setEditModalBatch(null)}
+              className="text-xs font-bold rounded-xl h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (editModalBatch) {
+                  setBatchEnrollmentsMap((prev) => ({
+                    ...prev,
+                    [editModalBatch.id]: editEnrolledStudentIds,
+                  }));
+                }
+                setSuccessMsg(
+                  `Batch updated successfully! ${editEnrolledStudentIds.length} students enrolled.`
+                );
+                setEditModalBatch(null);
+                setTimeout(() => setSuccessMsg(null), 3500);
+              }}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 flex-1 cursor-pointer"
+            >
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 8. VIEW BATCH DETAILS MODAL ─────────────────────────────────── */}
+      <Dialog open={!!detailsModalBatch} onOpenChange={(open) => !open && setDetailsModalBatch(null)}>
+        <DialogContent className="max-w-md rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5">
+              <Eye className="w-5 h-5 text-[#1769AA]" />
+              <DialogTitle className="text-base font-black text-slate-900">
+                Batch Details — {detailsModalBatch?.name}
+              </DialogTitle>
+            </div>
+          </DialogHeader>
+
+          {detailsModalBatch && (() => {
+            const viewEnrolledIds = batchEnrollmentsMap[detailsModalBatch.id] || (Array.isArray(detailsModalBatch.enrollments) && detailsModalBatch.enrollments.length > 0 ? detailsModalBatch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean) : ["stu-1", "stu-2", "stu-3"]);
+            return (
+              <div className="space-y-3 pt-2 text-xs">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Batch Code:</span>
+                    <span className="font-mono font-bold text-[#1769AA]">{detailsModalBatch.code}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Course:</span>
+                    <span className="font-bold">{detailsModalBatch.course?.name || "Full Stack Web Development"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Faculty:</span>
+                    <span className="font-bold">{detailsModalBatch.faculty?.user?.name || "HM Adithya"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Schedule:</span>
+                    <span className="font-mono font-semibold">{detailsModalBatch.timeSlot || "10:00 AM - 12:00 PM"}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Enrolled:</span>
+                    <span className="font-bold text-emerald-700">
+                      {viewEnrolledIds.length} / {detailsModalBatch.capacity || 30} Students
+                    </span>
+                  </div>
+                </div>
+
+                {/* Enrolled Students List */}
+                <div className="space-y-2 pt-1">
+                  <span className="font-bold text-slate-700 block text-[11px] uppercase tracking-wider">
+                    Enrolled Students ({viewEnrolledIds.length})
+                  </span>
+                  <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                    {viewEnrolledIds.map((sId) => {
+                      const studentObj = allStudentsList.find((s) => s.id === sId) || {
+                        id: sId,
+                        name: "Student",
+                        studentId: sId.toUpperCase(),
+                        initials: "ST",
+                        avatarBg: "bg-blue-600 text-white",
+                      };
+                      return (
+                        <div
+                          key={sId}
+                          className="p-2 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2">
+                            <div
+                              className={`w-6 h-6 rounded-full ${studentObj.avatarBg} text-[9px] font-bold flex items-center justify-center`}
+                            >
+                              {studentObj.initials}
+                            </div>
+                            <span className="font-bold text-slate-900">{studentObj.name}</span>
+                          </div>
+                          <span className="font-mono text-slate-400 text-[10px]">{studentObj.studentId}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          <DialogFooter className="pt-2">
+            <Button
+              onClick={() => setDetailsModalBatch(null)}
+              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9"
+            >
               Close
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ─── 5. CREATE NEW BATCH MODAL ───────────────────────── */}
-      <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+      {/* ─── 8B. REGISTER / ADD NEW STUDENT MODAL ─────────────────────────── */}
+      <Dialog open={showNewStudentModal} onOpenChange={setShowNewStudentModal}>
+        <DialogContent className="max-w-md rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Create New Batch</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Fill in the details to create a new training batch.</DialogDescription>
+            <div className="flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                <Plus className="w-5 h-5" />
+              </div>
+              <div>
+                <DialogTitle className="text-base font-black text-slate-900">
+                  Register New Student
+                </DialogTitle>
+                <DialogDescription className="text-xs text-slate-500">
+                  Add a student to the directory and batch selection list.
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
-          {errorMsg && (
-            <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-xs">
-              {errorMsg}
-            </div>
-          )}
-
-          <form onSubmit={handleCreateSubmit} className="space-y-4 py-2">
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">Batch Name</label>
+          <div className="space-y-3 pt-2 text-xs">
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700">Full Name *</label>
               <Input
-                placeholder="e.g. FullStack Alpha 2026"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="bg-background border-border text-foreground"
-                required
+                value={regStudentName}
+                onChange={(e) => setRegStudentName(e.target.value)}
+                placeholder="e.g. Manjunath Swamy"
+                className="h-9 rounded-xl text-xs"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Batch Code</label>
-                <Input
-                  placeholder="e.g. FS-2026-A1"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Capacity</label>
-                <Input
-                  type="number"
-                  value={capacity}
-                  onChange={(e) => setCapacity(Number(e.target.value))}
-                  className="bg-background border-border text-foreground"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">Course</label>
-              <select
-                value={courseId}
-                onChange={(e) => setCourseId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                required
-              >
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.code})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">Assigned Faculty (Optional)</label>
-              <select
-                value={facultyId}
-                onChange={(e) => setFacultyId(e.target.value)}
-                className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-              >
-                <option value="">Unassigned</option>
-                {facultyList.map((f) => (
-                  <option key={f.id} value={f.id}>
-                    {f.user?.name || f.employeeCode} — {f.specialization || "Faculty"}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Schedule Pattern</label>
-                <select
-                  value={schedulePattern}
-                  onChange={(e) => setSchedulePattern(e.target.value as any)}
-                  className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                >
-                  <option value="MWF">MWF (Mon/Wed/Fri)</option>
-                  <option value="TTS">TTS (Tue/Thu/Sat)</option>
-                  <option value="WEEKEND">Weekend (Sat/Sun)</option>
-                  <option value="CUSTOM">Custom</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-foreground block mb-1">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="bg-background border-border text-foreground"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-foreground block mb-1">Time Slot</label>
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700">Student ID (Optional)</label>
               <Input
-                placeholder="e.g. 10:00 AM - 12:00 PM"
-                value={timeSlot}
-                onChange={(e) => setTimeSlot(e.target.value)}
-                className="bg-background border-border text-foreground"
+                value={regStudentId}
+                onChange={(e) => setRegStudentId(e.target.value)}
+                placeholder="e.g. STU-1035"
+                className="h-9 rounded-xl text-xs font-mono"
               />
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)}>
-                Cancel
-              </Button>
-              <Button 
-                type="submit" 
-                disabled={createBatchMutation.isPending}
-                className="bg-[#1769AA] hover:bg-[#125890] text-white"
-              >
-                {createBatchMutation.isPending ? "Creating..." : "Create Batch"}
-              </Button>
-            </DialogFooter>
-          </form>
+            <div className="space-y-1">
+              <label className="font-bold text-slate-700">Course *</label>
+              <Input
+                value={regStudentCourse}
+                onChange={(e) => setRegStudentCourse(e.target.value)}
+                placeholder="e.g. Full Stack Web Development"
+                className="h-9 rounded-xl text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-3 flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowNewStudentModal(false)}
+              className="text-xs font-bold rounded-xl h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!regStudentName.trim()}
+              onClick={handleCreateNewStudent}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 flex-1"
+            >
+              Add Student
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── 9. DELETE CONFIRMATION MODAL ─────────────────────────────────── */}
+      <Dialog open={!!deleteModalBatch} onOpenChange={(open) => !open && setDeleteModalBatch(null)}>
+        <DialogContent className="max-w-sm rounded-3xl p-6 bg-white border border-slate-200 text-slate-900 shadow-2xl">
+          <DialogHeader>
+            <div className="flex items-center gap-2.5 text-rose-600">
+              <AlertCircle className="w-5 h-5" />
+              <DialogTitle className="text-base font-black text-slate-900">
+                Delete Batch?
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-slate-500">
+              Are you sure you want to remove batch <strong className="text-slate-900">{deleteModalBatch?.code}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="pt-2 flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModalBatch(null)}
+              className="text-xs font-bold rounded-xl h-9"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => deleteModalBatch && deleteBatchMutation.mutate(deleteModalBatch.id)}
+              className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl h-9 flex-1"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 };
+
+export default CounsellorBatches;

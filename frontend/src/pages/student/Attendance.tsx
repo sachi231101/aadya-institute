@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from "react";
-import { 
-  Calendar, 
-  Check, 
-  X, 
-  Clock, 
-  Search, 
-  Filter, 
-  MoreVertical, 
-  ShieldCheck, 
+import {
+  Calendar,
+  Check,
+  X,
+  Clock,
+  Search,
+  Filter,
+  MoreVertical,
+  ShieldCheck,
   ChevronDown,
   Info,
   BookOpen,
@@ -412,7 +412,7 @@ export const StudentAttendance: React.FC = () => {
                       {day.dayInitial}
                     </span>
                     {/* Track 1 Dot (Morning) */}
-                    <div 
+                    <div
                       onMouseEnter={() => setHoveredDot({ date: `${day.displayDate} (Morning)`, topic: day.topicTop || "Regular Session", status: day.dotTop })}
                       onMouseLeave={() => setHoveredDot(null)}
                       className="p-0.5 cursor-pointer transition-transform hover:scale-135"
@@ -420,7 +420,7 @@ export const StudentAttendance: React.FC = () => {
                       {renderDot(day.dotTop)}
                     </div>
                     {/* Track 2 Dot (Afternoon) */}
-                    <div 
+                    <div
                       onMouseEnter={() => setHoveredDot({ date: `${day.displayDate} (Afternoon)`, topic: day.topicBottom || "Practical Lab", status: day.dotBottom })}
                       onMouseLeave={() => setHoveredDot(null)}
                       className="p-0.5 cursor-pointer transition-transform hover:scale-135"
@@ -486,11 +486,10 @@ export const StudentAttendance: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedFilter("ALL")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${
-              selectedFilter === "ALL"
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "ALL"
                 ? "bg-[#5B50EC] text-white shadow-indigo-200"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <BookOpen className="w-4 h-4" />
             <span>All Classes</span>
@@ -499,11 +498,10 @@ export const StudentAttendance: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedFilter("PRESENT")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${
-              selectedFilter === "PRESENT"
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "PRESENT"
                 ? "bg-[#5B50EC] text-white shadow-indigo-200"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <Check className="w-4 h-4 text-emerald-600" />
             <span>Present (26)</span>
@@ -512,11 +510,10 @@ export const StudentAttendance: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedFilter("ABSENT")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${
-              selectedFilter === "ABSENT"
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "ABSENT"
                 ? "bg-[#5B50EC] text-white shadow-indigo-200"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <XCircle className="w-4 h-4 text-rose-500" />
             <span>Absent (4)</span>
@@ -525,11 +522,10 @@ export const StudentAttendance: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedFilter("EXCUSED")}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${
-              selectedFilter === "EXCUSED"
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-2xs whitespace-nowrap ${selectedFilter === "EXCUSED"
                 ? "bg-[#5B50EC] text-white shadow-indigo-200"
                 : "bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-50"
-            }`}
+              }`}
           >
             <Clock className="w-4 h-4 text-amber-500" />
             <span>Excused (2)</span>
@@ -640,8 +636,8 @@ export const StudentAttendance: React.FC = () => {
 
                       {/* Batch & Course */}
                       <td className="py-3.5 px-4 sm:px-6 whitespace-nowrap">
-                        <Badge 
-                          variant="outline" 
+                        <Badge
+                          variant="outline"
                           className="bg-blue-50 text-[#1769AA] border-blue-200 text-[10px] font-mono font-bold px-1.5 py-0.2 rounded-md"
                         >
                           {record.batchCode}
@@ -690,13 +686,13 @@ export const StudentAttendance: React.FC = () => {
                             </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end" className="w-40 bg-white rounded-xl shadow-lg border border-slate-200 p-1">
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => alert(`Viewing details for ${record.topic}`)}
                               className="text-xs text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
                             >
                               View Class Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               onClick={() => alert(`Requesting attendance review for ${record.date}`)}
                               className="text-xs text-slate-700 hover:bg-slate-50 rounded-lg cursor-pointer"
                             >
@@ -721,24 +717,36 @@ export const StudentAttendance: React.FC = () => {
           <div className="w-12 h-12 rounded-2xl bg-[#5B50EC] flex items-center justify-center text-white shrink-0 shadow-xs">
             <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
           </div>
-          <div>
-            <h4 className="text-sm sm:text-base font-bold text-slate-900">
+          <div className="force-black">
+            <h4 
+              className="text-sm sm:text-base font-bold text-black !text-black dark:!text-black"
+              style={{ color: "#000000" }}
+            >
               Consistent Attendance, Strong Learning!
             </h4>
-            <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-              You need at least <strong className="text-indigo-700 font-bold">75% attendance</strong> to maintain good standing.
+            <p 
+              className="text-xs text-black !text-black dark:!text-black mt-0.5 leading-relaxed font-medium"
+              style={{ color: "#000000" }}
+            >
+              You need at least <strong className="font-bold text-black !text-black dark:!text-black underline decoration-indigo-500/60" style={{ color: "#000000" }}>75% attendance</strong> to maintain good standing.
             </p>
           </div>
         </div>
 
         {/* Right Motivational Card with Student Graphic */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 flex items-center justify-between gap-4 shadow-2xs">
-          <div className="space-y-1">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+          <div className="space-y-1 force-black">
+            <div 
+              className="flex items-center gap-1.5 text-xs font-bold text-black !text-black dark:!text-black"
+              style={{ color: "#000000" }}
+            >
               <span>You're doing great!</span>
               <span>🎉</span>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p 
+              className="text-[11px] text-black !text-black dark:!text-black font-medium"
+              style={{ color: "#000000" }}
+            >
               Keep it up and aim for 100%
             </p>
           </div>

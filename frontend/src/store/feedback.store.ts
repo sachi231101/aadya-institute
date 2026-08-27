@@ -12,6 +12,9 @@ export interface ClassFeedbackItem {
   studentName: string;
   rating: number; // 1 to 5
   ratingLabel: "Poor" | "Fair" | "Good" | "Very Good" | "Excellent";
+  classExperienceRating?: number;
+  facultyRating?: number;
+  teachingQuality?: "Excellent" | "Good" | "Average" | "Needs Improvement";
   comments?: string;
   submittedAt: string;
 }
@@ -23,23 +26,26 @@ interface FeedbackStore {
   getFacultyAverageRating: (facultyName: string) => { average: number; count: number };
 }
 
-const STORAGE_KEY = "aadya_class_feedbacks_v1";
+const STORAGE_KEY = "aadya_class_feedbacks_v3";
 
 const INITIAL_FEEDBACKS: ClassFeedbackItem[] = [
   {
-    id: "fb-1",
-    sessionId: "sc-prev-1",
-    courseName: "Java Programming",
-    batchCode: "JS-2026-A",
-    facultyName: "Ramesh Kumar",
-    classDate: "2026-08-11",
-    classTime: "02:00 PM – 04:00 PM",
+    id: "fb-re-104",
+    sessionId: "sc-re-104",
+    courseName: "React Development Basics",
+    batchCode: "RE-104",
+    facultyName: "Adithya HM",
+    classDate: "2025-05-27",
+    classTime: "07:00 PM – 09:00 PM",
     studentId: "std-current",
     studentName: "Rahul Verma",
-    rating: 5,
-    ratingLabel: "Excellent",
-    comments: "Great explanation of asynchronous JavaScript and event loop fundamentals.",
-    submittedAt: "11 Aug 2026, 04:15 PM",
+    rating: 4.5,
+    ratingLabel: "Very Good",
+    classExperienceRating: 5,
+    facultyRating: 4,
+    teachingQuality: "Excellent",
+    comments: "Great live coding session on React Hooks, useEffect dependency arrays, and state optimization.",
+    submittedAt: "27 May 2025, 09:10 PM",
   },
 ];
 

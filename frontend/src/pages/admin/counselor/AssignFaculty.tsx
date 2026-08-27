@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { 
-  Users, 
-  Search, 
-  CheckCircle2, 
-  UserCheck, 
+import {
+  Users,
+  Search,
+  CheckCircle2,
+  UserCheck,
   Loader2,
   AlertCircle
 } from "lucide-react";
@@ -245,8 +245,8 @@ export const AssignFaculty: React.FC = () => {
             <Button variant="outline" onClick={() => setSelectedBatchId(null)}>
               Cancel
             </Button>
-            <Button 
-              onClick={handleSaveFacultyAssignment} 
+            <Button
+              onClick={handleSaveFacultyAssignment}
               disabled={assignFacultyMutation.isPending || !targetFacultyId}
               className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
             >
