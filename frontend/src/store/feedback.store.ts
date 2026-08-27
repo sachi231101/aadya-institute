@@ -10,8 +10,11 @@ export interface ClassFeedbackItem {
   classTime: string;
   studentId: string;
   studentName: string;
-  rating: number; // 1 to 5
+  rating: number; // 1 to 5 (average)
   ratingLabel: "Poor" | "Fair" | "Good" | "Very Good" | "Excellent";
+  teachingRating?: number; // 1. How would you rate the faculty's teaching?
+  understandingRating?: number; // 2. How well did you understand the class?
+  overallExperienceRating?: number; // 3. How would you rate the overall class experience?
   classExperienceRating?: number;
   facultyRating?: number;
   teachingQuality?: "Excellent" | "Good" | "Average" | "Needs Improvement";

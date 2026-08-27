@@ -51,7 +51,7 @@ export const assignmentsApi = {
   },
 
   createAssignment: async (data: {
-    classSessionId: string;
+    classSessionId?: string;
     batchId: string;
     facultyId: string;
     title: string;

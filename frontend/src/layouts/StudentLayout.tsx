@@ -17,6 +17,8 @@ import {
   X,
   Megaphone,
   MessageSquareQuote,
+  Briefcase,
+  ExternalLink,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -79,7 +81,16 @@ export const StudentLayout: React.FC = () => {
     .substring(0, 2)
     .toUpperCase();
 
-  const navItems = [
+  interface NavItem {
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    path: string;
+    dot?: boolean;
+    badge?: string;
+    isExternal?: boolean;
+  }
+
+  const navItems: NavItem[] = [
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
@@ -87,7 +98,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
-    { label: "Feedback", icon: MessageSquareQuote, path: "/student/feedback", badge: "NEW" },
+    { label: "Placement Portal", icon: Briefcase, path: "https://placement.aadyainstitution.com/", isExternal: true, badge: "NEW" },
     { label: "My Profile", icon: User, path: "/student/profile" },
   ];
 
@@ -155,6 +166,35 @@ export const StudentLayout: React.FC = () => {
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
+
+            if (item.isExternal) {
+              return (
+                <a
+                  key={item.path}
+                  href={item.path}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors no-underline group"
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className="w-4 h-4 text-indigo-600 dark:text-indigo-400 stroke-[1.8] group-hover:scale-110 transition-transform" />
+                    <span className="flex items-center gap-1.5 text-foreground font-bold">
+                      {item.label}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {item.badge && (
+                      <span className="px-1.5 py-0.2 rounded-md text-[9px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-2xs">
+                        {item.badge}
+                      </span>
+                    )}
+                    <ExternalLink className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground" />
+                  </div>
+                </a>
+              );
+            }
+
             return (
               <Link
                 key={item.path}
