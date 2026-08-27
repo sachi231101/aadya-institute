@@ -160,6 +160,11 @@ model Institute {
   targetPlans TargetPlan[]
   targets     Target[]
   incentives  Incentive[]
+  exams       Exam[]
+  questions   Question[]
+  questionBanks QuestionBank[]
+  examAttempts ExamAttempt[]
+  examProctoringEvents ExamProctoringEvent[]
 }
 
 model Branch {
@@ -193,6 +198,10 @@ model Branch {
   targetPlans TargetPlan[]
   targets     Target[]
   incentives  Incentive[]
+  exams       Exam[]
+  questions   Question[]
+  questionBanks QuestionBank[]
+  examAttempts ExamAttempt[]
 
 
   @@unique([instituteId, code])
@@ -267,6 +276,10 @@ model User {
   incentivesEarned     Incentive[]        @relation("IncentiveUser")
   incentivesApproved   Incentive[]        @relation("IncentiveApprovedBy")
   targetProgress       TargetProgress[]
+  createdExams         Exam[]             @relation("ExamCreatedBy")
+  createdQuestions     Question[]         @relation("QuestionCreatedBy")
+  createdQuestionBanks QuestionBank[]     @relation("QuestionBankCreatedBy")
+  examAttempts         ExamAttempt[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -340,6 +353,7 @@ model Student {
   payments              Payment[]
   pendingFees           PendingFee[]
   convertedFromLeads    Lead[]
+  examAttempts          ExamAttempt[]
 
   @@unique([instituteId, studentCode])
   @@index([instituteId])
@@ -396,6 +410,9 @@ model Course {
 
   batches    Batch[]
   leads      Lead[]
+  exams      Exam[]
+  questions  Question[]
+  questionBanks QuestionBank[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -417,6 +434,8 @@ model CourseModule {
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
   batchModules BatchModule[]
+  questions    Question[]
+  exams        Exam[]
 
   @@unique([courseId, sequence])
   @@index([courseId])
@@ -545,6 +564,7 @@ model Batch {
   enrollments   BatchEnrollment[]
   classSessions ClassSession[]
   admissions    Admission[]
+  examAssignments ExamBatch[]
 
 
   @@unique([instituteId, code])
@@ -1562,8 +1582,326 @@ model Incentive {
   @@index([periodStart, periodEnd])
 }
 
+// ─── Examination Management System ───────────────────────────────────────────
 
+enum ExamStatus {
+  DRAFT
+  PUBLISHED
+  SCHEDULED
+  LIVE
+  ENDED
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
 
+enum ExamType {
+  ONLINE
+  OFFLINE
+}
 
+enum QuestionType {
+  MCQ_SINGLE
+  MCQ_MULTIPLE
+  TRUE_FALSE
+  SHORT_ANSWER
+  LONG_ANSWER
+  NUMERICAL
+  FILL_BLANK
+}
+
+enum DifficultyLevel {
+  EASY
+  MEDIUM
+  HARD
+}
+
+enum QuestionStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model QuestionBank {
+  id          String        @id @default(cuid())
+  instituteId String
+  branchId    String?
+  name        String
+  description String?
+  courseId    String?
+  status      QuestionStatus @default(ACTIVE)
+  createdById String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  institute   Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch      Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  course      Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  createdBy   User          @relation("QuestionBankCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  questions   Question[]
+
+  @@unique([instituteId, name])
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([courseId])
+  @@index([status])
+}
+
+model Question {
+  id             String         @id @default(cuid())
+  instituteId    String
+  branchId       String?
+  questionBankId String?
+  courseId       String?
+  moduleId       String?
+  questionType   QuestionType
+  questionText   String         @db.Text
+  difficulty     DifficultyLevel @default(MEDIUM)
+  marks          Float          @default(1)
+  negativeMarks  Float          @default(0)
+  explanation    String?        @db.Text
+  status         QuestionStatus @default(ACTIVE)
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  institute    Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch       Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  questionBank QuestionBank? @relation(fields: [questionBankId], references: [id], onDelete: SetNull)
+  course       Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  module       CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  createdBy    User          @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  options      QuestionOption[]
+  examQuestions ExamQuestion[]
+  examAnswers   ExamAnswer[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([questionBankId])
+  @@index([courseId])
+  @@index([moduleId])
+  @@index([questionType])
+  @@index([difficulty])
+  @@index([status])
+}
+
+model QuestionOption {
+  id           String   @id @default(cuid())
+  questionId   String
+  optionText   String
+  isCorrect    Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model Exam {
+  id                   String     @id @default(cuid())
+  instituteId          String
+  branchId             String?
+  name                 String
+  description          String?    @db.Text
+  instructions         String?    @db.Text
+  courseId             String?
+  moduleId             String?
+  createdById          String
+  durationMinutes      Int        @default(60)
+  totalMarks           Float      @default(0)
+  passingMarks         Float      @default(0)
+  attemptsAllowed      Int        @default(1)
+  status               ExamStatus @default(DRAFT)
+  examType             ExamType   @default(ONLINE)
+  startAt              DateTime?
+  endAt                DateTime?
+  negativeMarkingEnabled Boolean  @default(false)
+  showResults          Boolean    @default(true)
+  randomizeQuestions   Boolean    @default(false)
+  randomizeOptions     Boolean    @default(false)
+  // Proctoring config
+  proctoringEnabled          Boolean    @default(false)
+  fullscreenRequired         Boolean    @default(true)
+  maxWarnings                Int        @default(3)
+  tabSwitchDetection         Boolean    @default(true)
+  windowBlurDetection        Boolean    @default(true)
+  fullscreenExitDetection    Boolean    @default(true)
+  keyboardShortcutDetection  Boolean    @default(true)
+  copyPasteDetection         Boolean    @default(true)
+  rightClickDetection        Boolean    @default(false)
+  networkGracePeriodSeconds  Int        @default(30)
+  autoTerminateOnMaxViolations Boolean  @default(true)
+  createdAt                  DateTime   @default(now())
+  updatedAt                  DateTime   @updatedAt
+
+  institute  Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch     Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  course     Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  module     CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  createdBy  User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  examQuestions    ExamQuestion[]
+  batchAssignments ExamBatch[]
+  attempts         ExamAttempt[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([courseId])
+  @@index([moduleId])
+  @@index([status])
+  @@index([examType])
+  @@index([createdById])
+  @@index([startAt])
+  @@index([instituteId, status])
+}
+
+model ExamQuestion {
+  id           String   @id @default(cuid())
+  examId       String
+  questionId   String
+  displayOrder Int      @default(0)
+  marksOverride Float?  // Override question's default marks for this exam
+  createdAt    DateTime @default(now())
+
+  exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, questionId])
+  @@index([examId])
+  @@index([questionId])
+}
+
+model ExamBatch {
+  id        String   @id @default(cuid())
+  examId    String
+  batchId   String
+  assignedAt DateTime @default(now())
+
+  exam  Exam  @relation(fields: [examId], references: [id], onDelete: Cascade)
+  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, batchId])
+  @@index([examId])
+  @@index([batchId])
+}
+
+enum AttemptStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  SUBMITTED
+  AUTO_SUBMITTED
+  EVALUATING
+  COMPLETED
+  TERMINATED
+  EXPIRED
+}
+
+enum ProctoringEventType {
+  TAB_SWITCH
+  WINDOW_BLUR
+  VISIBILITY_HIDDEN
+  FULLSCREEN_EXIT
+  KEYBOARD_SHORTCUT
+  COPY_ATTEMPT
+  PASTE_ATTEMPT
+  RIGHT_CLICK
+  DEVTOOLS_ATTEMPT
+  NETWORK_DISCONNECT
+  SESSION_CONFLICT
+  SUSPICIOUS_BROWSER_EVENT
+}
+
+model ExamAttempt {
+  id                   String        @id @default(cuid())
+  instituteId          String
+  branchId             String?
+  examId               String
+  studentId            String
+  userId               String
+  status               AttemptStatus @default(NOT_STARTED)
+  attemptNumber        Int           @default(1)
+  startedAt            DateTime?
+  expiresAt            DateTime?     // Server-authoritative timer deadline
+  submittedAt          DateTime?
+  terminatedAt         DateTime?
+  terminationReason    String?
+  proctoringEnabled    Boolean       @default(true)
+  violationCount       Int           @default(0)
+  warningCount         Int           @default(0)
+  maxViolations        Int           @default(3)
+  lastProctoringEventAt DateTime?
+  score                Float?
+  totalMarks           Float?
+  percentage           Float?
+  passed               Boolean?
+  feedback             String?       @db.Text
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  institute   Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  exam        Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  answers          ExamAnswer[]
+  proctoringEvents ExamProctoringEvent[]
+
+  @@unique([examId, studentId, attemptNumber])
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([examId])
+  @@index([studentId])
+  @@index([userId])
+  @@index([status])
+  @@index([startedAt])
+}
+
+model ExamAnswer {
+  id                 String   @id @default(cuid())
+  attemptId          String
+  questionId         String
+  selectedOptionIds  Json?    // String array of option IDs
+  textAnswer         String?  @db.Text
+  numericalAnswer    Float?
+  isCorrect          Boolean?
+  marksAwarded       Float?   @default(0)
+  isFlagged          Boolean  @default(false)
+  savedAt            DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  attempt  ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+  @@index([questionId])
+}
+
+model ExamProctoringEvent {
+  id                 String              @id @default(cuid())
+  attemptId          String
+  instituteId        String
+  eventType          ProctoringEventType
+  clientEventId      String?             // For client-side idempotency
+  occurredAt         DateTime            // When browser detected it
+  receivedAt         DateTime            @default(now()) // When server received it
+  metadata           Json?               // Safe diagnostic payload
+  sequenceNumber     Int                 @default(1)
+  isCountedViolation Boolean             @default(true) // False if suppressed by debounce
+  warningNumber      Int?
+  createdAt          DateTime            @default(now())
+
+  attempt   ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  institute Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([attemptId, clientEventId])
+  @@index([attemptId])
+  @@index([instituteId])
+  @@index([eventType])
+  @@index([occurredAt])
+}
 
 

@@ -73,13 +73,15 @@ export const AdminLayout: React.FC = () => {
     },
   });
 
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
+    typeof r === "string" ? r.toUpperCase() : ""
+  );
 
   if (!token) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!userRoles.includes("ADMIN")) {
+  if (!userRoles.includes("ADMIN") && !userRoles.includes("SUPER_ADMIN")) {
     if (userRoles.includes("COUNSELLOR")) {
       return <Navigate to="/counselor/dashboard" replace />;
     }

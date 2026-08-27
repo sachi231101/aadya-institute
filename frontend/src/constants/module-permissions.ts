@@ -9,6 +9,7 @@ import {
   BarChart3,
   UserCheck,
   Layers,
+  FileText,
   type LucideIcon,
 } from "lucide-react";
 
@@ -94,6 +95,13 @@ export const MODULE_OPTIONS: FrontendModuleDef[] = [
     icon: Layers,
     category: "Operations",
   },
+  {
+    key: "examinations",
+    label: "Examinations & Question Banks",
+    description: "Create assessments, manage question banks, schedule exams, and view submissions",
+    icon: FileText,
+    category: "Academic",
+  },
 ];
 
 export const ALL_MODULE_KEYS = MODULE_OPTIONS.map((m) => m.key);
@@ -136,6 +144,13 @@ export const COUNSELLOR_MODULE_OPTIONS: FrontendModuleDef[] = [
     label: "Batches & Timetable",
     description: "View batches, class timetables, and scheduled sessions",
     icon: Layers,
+    category: "Academic",
+  },
+  {
+    key: "examinations",
+    label: "Examinations & Assessments",
+    description: "View examination schedules, assigned assessments, and candidate batches",
+    icon: FileText,
     category: "Academic",
   },
   {

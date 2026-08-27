@@ -102,6 +102,31 @@ export const MODULE_DEFINITIONS: ModuleDefinition[] = [
     description: "Configure classrooms, time slots, holidays, lead stages, fee heads, and institute reference data",
     permissions: ["master.read", "master.create", "master.update"],
   },
+  {
+    key: "examinations",
+    label: "Examinations & Question Banks",
+    description: "Create assessments, manage question banks, schedule exams, and view submissions",
+    permissions: [
+      "exam.read",
+      "exam.create",
+      "exam.update",
+      "exam.publish",
+      "exam.schedule",
+      "exam.manage_questions",
+      "exam.manage_question_bank",
+      "exam.assign",
+      "exam.view_attempts",
+      "exam.manage_settings",
+      "question.read",
+      "question.create",
+      "question.update",
+      "question.delete",
+      "question_bank.read",
+      "question_bank.create",
+      "question_bank.update",
+      "question_bank.delete",
+    ],
+  },
 ];
 
 /**

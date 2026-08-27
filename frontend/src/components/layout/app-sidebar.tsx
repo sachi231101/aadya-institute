@@ -18,7 +18,8 @@ import {
   Sparkles,
   Layers,
   Bot,
-  Award
+  Award,
+  FileText
 } from "lucide-react"
 
 import {
@@ -146,6 +147,17 @@ const data = {
         { title: "Timetable", url: "/admin/schedule/timetable" },
         { title: "Recordings", url: "/admin/schedule/recordings" },
         { title: "Assignments", url: "/admin/schedule/assignments" },
+      ],
+    },
+    {
+      title: "Examinations",
+      url: "/admin/exams",
+      icon: FileText,
+      isActive: false,
+      items: [
+        { title: "All Examinations", url: "/admin/exams" },
+        { title: "Create Exam", url: "/admin/exams/create" },
+        { title: "Question Bank", url: "/admin/exams/question-bank" },
       ],
     },
     {

@@ -58,6 +58,20 @@ import { AssignFaculty } from "../pages/admin/counselor/AssignFaculty";
 
 // Schedule
 import { Classes } from "../pages/admin/schedule/Classes";
+
+// Examinations & Proctoring
+import { ExamManagement } from "../pages/admin/exams/ExamManagement";
+import { CreateExam } from "../pages/admin/exams/CreateExam";
+import { ExamDetails } from "../pages/admin/exams/ExamDetails";
+import { EditExam } from "../pages/admin/exams/EditExam";
+import { QuestionBank } from "../pages/admin/exams/QuestionBank";
+import { CreateQuestion } from "../pages/admin/exams/CreateQuestion";
+import { ExamAttempts } from "../pages/admin/exams/ExamAttempts";
+import { AttemptProctoringDetails } from "../pages/admin/exams/AttemptProctoringDetails";
+import { MyExams } from "../pages/student/exams/MyExams";
+import { ExamConsentScreen } from "../pages/student/exams/ExamConsentScreen";
+import { TakeExam } from "../pages/student/exams/TakeExam";
+import { ExamResultScreen } from "../pages/student/exams/ExamResultScreen";
 import { Timetable } from "../pages/admin/schedule/Timetable";
 
 // Fees
@@ -237,6 +251,19 @@ export const AppRoutes: React.FC = () => {
         <Route path="targets" element={<TargetManagement />} />
         <Route path="performance" element={<TargetPerformance />} />
         <Route path="incentives" element={<IncentiveManagement />} />
+
+        {/* Examination Management System & Proctoring */}
+        <Route path="exams">
+          <Route index element={<ExamManagement />} />
+          <Route path="all" element={<ExamManagement />} />
+          <Route path="create" element={<CreateExam />} />
+          <Route path="question-bank" element={<QuestionBank />} />
+          <Route path="questions/create" element={<CreateQuestion />} />
+          <Route path=":id" element={<ExamDetails />} />
+          <Route path=":id/edit" element={<EditExam />} />
+          <Route path=":id/attempts" element={<ExamAttempts />} />
+          <Route path="attempts/:attemptId/proctoring" element={<AttemptProctoringDetails />} />
+        </Route>
       </Route>
 
 
@@ -339,6 +366,19 @@ export const AppRoutes: React.FC = () => {
         <Route path="targets" element={<TargetManagement />} />
         <Route path="performance" element={<TargetPerformance />} />
         <Route path="incentives" element={<IncentiveManagement />} />
+
+        {/* Examination Management System (Branch Scoped) */}
+        <Route path="exams">
+          <Route index element={<ExamManagement />} />
+          <Route path="all" element={<ExamManagement />} />
+          <Route path="create" element={<CreateExam />} />
+          <Route path="question-bank" element={<QuestionBank />} />
+          <Route path="questions/create" element={<CreateQuestion />} />
+          <Route path=":id" element={<ExamDetails />} />
+          <Route path=":id/edit" element={<EditExam />} />
+          <Route path=":id/attempts" element={<ExamAttempts />} />
+          <Route path="attempts/:attemptId/proctoring" element={<AttemptProctoringDetails />} />
+        </Route>
       </Route>
 
       {/* Counselor Routes */}
@@ -470,10 +510,15 @@ export const AppRoutes: React.FC = () => {
         <Route path="assignments" element={<StudentAssignments />} />
         <Route path="feedback" element={<StudentFeedback />} />
         <Route path="profile" element={<StudentProfile />} />
+        <Route path="exams" element={<MyExams />} />
+        <Route path="exams/:id/start" element={<ExamConsentScreen />} />
+        <Route path="exams/:attemptId/result" element={<ExamResultScreen />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
       </Route>
 
+      {/* Standalone Fullscreen Proctored Examination Session */}
+      <Route path="/student/exams/:attemptId/take" element={<TakeExam />} />
 
       {/* Default Fallback */}
       <Route path="*" element={<Navigate to="/login" replace />} />

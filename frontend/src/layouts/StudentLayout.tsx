@@ -47,16 +47,25 @@ export const StudentLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  if (!userRoles.includes("STUDENT") && !userRoles.includes("ADMIN")) {
+  const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
+    typeof r === "string" ? r.toUpperCase() : ""
+  );
+
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // Allow Student, Admin, Super Admin, Center Manager, and Faculty to access the student portal / preview
+  const isAllowed =
+    userRoles.includes("STUDENT") ||
+    userRoles.includes("ADMIN") ||
+    userRoles.includes("SUPER_ADMIN") ||
+    userRoles.includes("CENTER_MANAGER") ||
+    userRoles.includes("FACULTY");
+
+  if (!isAllowed) {
     if (userRoles.includes("COUNSELLOR")) {
       return <Navigate to="/counselor/dashboard" replace />;
-    }
-    if (userRoles.includes("CENTER_MANAGER")) {
-      return <Navigate to="/center/dashboard" replace />;
-    }
-    if (userRoles.includes("FACULTY")) {
-      return <Navigate to="/faculty/dashboard" replace />;
     }
     return <Navigate to="/login" replace />;
   }
@@ -94,6 +103,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
+    { label: "Online Exams", icon: ShieldCheck, path: "/student/exams", badge: "PROCTORED" },
     { label: "Announcements", icon: Megaphone, path: "/student/announcements", dot: true },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },

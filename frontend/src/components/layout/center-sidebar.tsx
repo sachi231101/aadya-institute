@@ -20,6 +20,7 @@ import {
   Building2,
   Lock,
   Award,
+  FileText,
 } from "lucide-react";
 
 import {
@@ -155,6 +156,18 @@ const rawCenterNavItems: NavItem[] = [
       { title: "Timetable", url: "/center/schedule/timetable" },
       { title: "Recordings", url: "/center/schedule/recordings" },
       { title: "Assignments", url: "/center/schedule/assignments" },
+    ],
+  },
+  {
+    title: "Examinations",
+    url: "/center/exams",
+    icon: FileText,
+    moduleKey: "examinations",
+    requiredPermissions: ["exam.read"],
+    items: [
+      { title: "All Examinations", url: "/center/exams" },
+      { title: "Create Exam", url: "/center/exams/create" },
+      { title: "Question Bank", url: "/center/exams/question-bank" },
     ],
   },
   {

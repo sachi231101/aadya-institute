@@ -216,6 +216,28 @@ async function main() {
     { name: "incentive.read", description: "View calculated and approved incentives" },
     { name: "incentive.manage", description: "Manage incentive configurations and rules" },
     { name: "incentive.approve", description: "Approve or reject calculated employee incentives" },
+
+    // Examination Management
+    { name: "exam.read", description: "View examinations" },
+    { name: "exam.create", description: "Create examination" },
+    { name: "exam.update", description: "Update examination details" },
+    { name: "exam.delete", description: "Delete examination" },
+    { name: "exam.publish", description: "Publish examination" },
+    { name: "exam.schedule", description: "Schedule examination" },
+    { name: "exam.manage_questions", description: "Add, remove and reorder questions in an exam" },
+    { name: "exam.manage_question_bank", description: "Manage question banks" },
+    { name: "exam.assign", description: "Assign exam to batches" },
+    { name: "exam.view_attempts", description: "View student exam attempts" },
+    { name: "exam.manage_settings", description: "Manage exam settings and proctoring configuration" },
+    { name: "question.read", description: "View questions" },
+    { name: "question.create", description: "Create question" },
+    { name: "question.update", description: "Update question" },
+    { name: "question.delete", description: "Delete question" },
+    { name: "question_bank.read", description: "View question banks" },
+    { name: "question_bank.create", description: "Create question bank" },
+    { name: "question_bank.update", description: "Update question bank" },
+    { name: "question_bank.delete", description: "Delete question bank" },
+    { name: "exam.take", description: "Take authorized online examination" },
   ];
 
   const permissions: Record<string, any> = {};
@@ -298,6 +320,25 @@ async function main() {
     "target.assign",
     "incentive.read",
     "incentive.approve",
+    // Examination Management
+    "exam.read",
+    "exam.create",
+    "exam.update",
+    "exam.publish",
+    "exam.schedule",
+    "exam.manage_questions",
+    "exam.manage_question_bank",
+    "exam.assign",
+    "exam.view_attempts",
+    "exam.manage_settings",
+    "question.read",
+    "question.create",
+    "question.update",
+    "question.delete",
+    "question_bank.read",
+    "question_bank.create",
+    "question_bank.update",
+    "question_bank.delete",
   ];
   for (const name of cmPermNames) {
     if (permissions[name]) {
@@ -336,6 +377,10 @@ async function main() {
     "notification.read",
     "target.read",
     "incentive.read",
+    // Examination Management — Counsellor defaults (read only; admin can grant more via UserPermission)
+    "exam.read",
+    "question.read",
+    "question_bank.read",
   ];
   for (const name of counsellorPermNames) {
     if (permissions[name]) {
@@ -381,6 +426,10 @@ async function main() {
     "feedback.read",
     "notification.read",
     "report.read",
+    // Examination Management — Faculty defaults (read only; admin can grant more via UserPermission)
+    "exam.read",
+    "question.read",
+    "question_bank.read",
   ];
   for (const name of facultyPermNames) {
     if (permissions[name]) {
@@ -414,6 +463,8 @@ async function main() {
     "google_meet.read",
     "feedback.create",
     "notification.read",
+    "exam.read",
+    "exam.take",
   ];
   for (const name of studentPermNames) {
     if (permissions[name]) {

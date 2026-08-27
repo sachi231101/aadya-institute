@@ -6,14 +6,11 @@ import {
   LogOut,
   User,
   ShieldCheck,
-  Bell,
-  Sparkles,
 } from "lucide-react";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentUserSync } from "@/hooks/useAuth";
-import { useBranch } from "@/hooks/useBranches";
 import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -63,8 +60,10 @@ export const CenterLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
-  const userRoles = user?.roles || (user?.role ? [user.role] : []);
-  if (!userRoles.includes("CENTER_MANAGER") && !userRoles.includes("ADMIN")) {
+  const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
+    typeof r === "string" ? r.toUpperCase() : ""
+  );
+  if (!userRoles.includes("CENTER_MANAGER") && !userRoles.includes("ADMIN") && !userRoles.includes("SUPER_ADMIN")) {
     if (userRoles.includes("COUNSELLOR")) {
       return <Navigate to="/counselor/dashboard" replace />;
     }
