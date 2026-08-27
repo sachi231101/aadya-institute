@@ -19,10 +19,13 @@ const userInclude = {
       permission: true,
     },
   },
+  student: { select: { id: true } },
+  faculty: { select: { id: true } },
 };
 
 export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
-  return prisma.user.findFirst({
+  // Duplicate emails can exist across re-seeds; prefer a profile-linked account.
+  const users = await prisma.user.findMany({
     where: {
       OR: [
         { email: emailOrPhone },
@@ -31,7 +34,13 @@ export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
       status: "ACTIVE",
     },
     include: userInclude,
+    orderBy: { updatedAt: "desc" },
   });
+
+  if (users.length === 0) return null;
+
+  const withProfile = users.find((u) => u.student != null || u.faculty != null);
+  return withProfile ?? users[0];
 };
 
 export const findUserById = async (userId: string) => {

@@ -61,11 +61,17 @@ export const AllStudents: React.FC = () => {
       : undefined;
 
   // Live database students filtered by branch
-  const { data: liveStudentsResponse, isLoading } = useStudentList({
+  const { data: liveStudentsResponse, isLoading, isError, error } = useStudentList({
     limit: 200,
     branchId: activeBranchId,
   });
   const liveStudents = liveStudentsResponse?.data || [];
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'student-e2e',hypothesisId:'E',location:'AllStudents.tsx',message:'Admin students list state',data:{isLoading,isError,errStatus:(error as any)?.response?.status,errMsg:(error as any)?.response?.data?.message||(error as any)?.message,count:liveStudents.length,sampleDefaults:liveStudents[0]?{attendance:liveStudents[0].attendance,courseName:liveStudents[0].courseName,gender:(liveStudents[0] as any).gender}:null},timestamp:Date.now()})}).catch(()=>{});
+  }, [isLoading, isError, liveStudents.length]);
+  // #endregion
 
   const combinedStudents = useMemo(() => {
     return liveStudents.map((s) => {

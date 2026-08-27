@@ -36,6 +36,74 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
+import { classSessionsApi } from "@/services/class-sessions.api";
+
+const parseTimeParts = (time: string): { hour24: number; min: number; label: string } => {
+  const ampm = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let hour24 = parseInt(ampm[1], 10) % 12;
+    if (ampm[3].toUpperCase() === "PM") hour24 += 12;
+    const min = parseInt(ampm[2], 10);
+    return { hour24, min, label: time };
+  }
+  const hhmm = time.match(/^(\d{1,2}):(\d{2})$/);
+  if (hhmm) {
+    const hour24 = parseInt(hhmm[1], 10);
+    const min = parseInt(hhmm[2], 10);
+    const period = hour24 >= 12 ? "PM" : "AM";
+    const hour12 = hour24 % 12 || 12;
+    return {
+      hour24,
+      min,
+      label: `${hour12.toString().padStart(2, "0")}:${min.toString().padStart(2, "0")} ${period}`,
+    };
+  }
+  return { hour24: 0, min: 0, label: time };
+};
+
+const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
+  const start = parseTimeParts(raw.startTime || "00:00");
+  const end = parseTimeParts(raw.endTime || "00:00");
+  const title = raw.title || raw.batch?.course?.name || "Class Session";
+  const initials = title
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w: string) => w[0]?.toUpperCase() || "")
+    .join("");
+  const modeRaw = (raw.mode || "OFFLINE").toUpperCase();
+  const mode: StudentClassSession["mode"] =
+    modeRaw === "ONLINE" ? "Online" : modeRaw === "HYBRID" ? "Hybrid" : "Campus";
+  let forceStatus: StudentClassSession["forceStatus"];
+  if (raw.sessionStatus === "ONGOING" || raw.status === "LIVE") forceStatus = "LIVE NOW";
+  else if (raw.sessionStatus === "COMPLETED") forceStatus = "COMPLETED";
+  else forceStatus = "UPCOMING";
+
+  const durationMins = Math.max(1, end.hour24 * 60 + end.min - (start.hour24 * 60 + start.min));
+
+  return {
+    id: raw.id,
+    title,
+    courseCode: raw.batch?.course?.code || raw.batch?.code || "CLASS",
+    facultyName: raw.faculty?.user?.name || "Faculty",
+    date: raw.scheduledDate ? new Date(raw.scheduledDate).toISOString().split("T")[0] : "",
+    startTime: start.label,
+    endTime: end.label,
+    startHour24: start.hour24,
+    startMin: start.min,
+    endHour24: end.hour24,
+    endMin: end.min,
+    joinAvailableMinutesBefore: 15,
+    duration: `${Math.floor(durationMins / 60)}h ${(durationMins % 60).toString().padStart(2, "0")}m`,
+    roomNo: raw.roomNo || "TBD",
+    block: "Campus",
+    mode,
+    forceStatus,
+    avatarText: initials || "CL",
+    avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
+    avatarColor: "text-blue-500",
+    meetingUrl: raw.meetingUrl,
+  };
+};
 
 interface StudentClassSession {
   id: string;
@@ -273,8 +341,40 @@ export const StudentSchedule: React.FC = () => {
   const { user } = useAuthStore();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
 
-  const studentId = user?.id || "std-current";
+  const studentId = user?.studentId || user?.id || "std-current";
   const studentName = user?.name || "Rahul Verma";
+  const [apiSessions, setApiSessions] = useState<StudentClassSession[] | null>(null);
+
+  // #region agent log
+  useEffect(() => {
+    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A,D',location:'student/Schedule.tsx:mount',message:'Student schedule mounting',data:{dataSource:'api-preferred',studentIdUsed:studentId,hasAuthStudentId:!!user?.studentId,feedbackStoreLocal:true},timestamp:Date.now()})}).catch(()=>{});
+  }, []);
+  // #endregion
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      try {
+        const res = await classSessionsApi.getAll({ limit: 50 });
+        const mapped = (res.data || []).map(mapApiSessionToStudentSession);
+        if (mounted) {
+          setApiSessions(mapped);
+          // #region agent log
+          fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Schedule.tsx:api',message:'Schedule sessions from API',data:{count:mapped.length},timestamp:Date.now()})}).catch(()=>{});
+          // #endregion
+        }
+      } catch (err) {
+        if (mounted) setApiSessions([]);
+        // #region agent log
+        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Schedule.tsx:api-err',message:'Schedule API failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   // Dynamic Live Time & Date Ticker (Updates every 1s)
   const [currentSystemTime, setCurrentSystemTime] = useState<Date>(new Date());
@@ -309,10 +409,11 @@ export const StudentSchedule: React.FC = () => {
   const [liveJoiningSession, setLiveJoiningSession] = useState<StudentClassSession | null>(null);
   const [viewingFeedbackSession, setViewingFeedbackSession] = useState<ClassFeedbackItem | null>(null);
 
-  // Filter sessions for the active selected day
+  // Filter sessions for the active selected day — prefer live API data once loaded
   const daySessions = useMemo(() => {
-    return SCHEDULE_SESSIONS.filter((s) => s.date === selectedDay.fullDate);
-  }, [selectedDay]);
+    const source = apiSessions !== null ? apiSessions : [];
+    return source.filter((s) => s.date === selectedDay.fullDate);
+  }, [selectedDay, apiSessions]);
 
   // Determine real-time lifecycle status of a session
   const getSessionLifecycle = (session: StudentClassSession) => {

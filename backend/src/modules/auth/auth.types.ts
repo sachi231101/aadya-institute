@@ -19,4 +19,8 @@ export interface AuthUser {
   roles: string[];
   permissions: string[];
   modulePermissions?: string[];
+  /** Linked Student row id when the user has a student profile */
+  studentId?: string | null;
+  /** Linked Faculty row id when the user has a faculty profile */
+  facultyId?: string | null;
 }

@@ -9,6 +9,9 @@ export interface User {
   branchId?: string | null;
   permissions?: string[];
   modulePermissions?: string[];
+  /** Linked Student row id (from auth login/me) */
+  studentId?: string | null;
+  facultyId?: string | null;
 }
 
 export interface AuthState {

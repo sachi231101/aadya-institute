@@ -1,3 +1,1 @@
-// feedback module — scaffold placeholder
-// Replace with controller, service, repository, routes, validation, types
-
+export { default as feedbackRoutes } from "./feedback.routes";

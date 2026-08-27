@@ -46,11 +46,23 @@ export const getSessions = async (
           batchEnrollments: { where: { status: "ACTIVE" as any } },
         },
       });
-      if (studentRecord) {
-        const studentBatchIds = (studentRecord.batchEnrollments || []).map((e: any) => e.batchId).filter(Boolean);
-        if (studentBatchIds.length > 0) {
-          batchFilter = batchFilter && studentBatchIds.includes(batchFilter) ? batchFilter : studentBatchIds[0];
-        }
+      if (!studentRecord) {
+        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        return;
+      }
+      const studentBatchIds = (studentRecord.batchEnrollments || [])
+        .map((e: any) => e.batchId)
+        .filter(Boolean);
+      if (studentBatchIds.length === 0) {
+        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        return;
+      }
+      // Prefer explicit batch filter only when the student is enrolled in it
+      if (batchFilter && studentBatchIds.includes(batchFilter)) {
+        // keep batchFilter
+      } else {
+        // Pass first enrolled batch; multi-batch students can filter via query later
+        batchFilter = studentBatchIds[0];
       }
     }
 
