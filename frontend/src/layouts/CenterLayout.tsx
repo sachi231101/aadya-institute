@@ -20,6 +20,8 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { TeamChatButton } from "@/components/chat/TeamChatButton";
+import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -103,6 +105,7 @@ export const CenterLayout: React.FC = () => {
 
             <div className="flex items-center gap-2.5 sm:gap-3">
               <InstallAppButton variant="header" />
+              <TeamChatButton />
               <ThemeToggle />
               <NotificationPopover />
 
@@ -138,15 +141,27 @@ export const CenterLayout: React.FC = () => {
                     Center Manager Account
                   </DropdownMenuLabel>
                   <div className="px-2 py-1.5 mb-1 bg-slate-50 rounded-xl">
-                    <p className="text-xs font-bold text-slate-900">{managerName}</p>
-                    <p className="text-[11px] text-slate-500">{branchName}</p>
+                    <p className="text-xs font-bold text-slate-900 leading-none mb-1">
+                      {managerName}
+                    </p>
+                    <p className="text-[10px] text-slate-500 font-medium truncate">
+                      {user?.email || "manager@aadya.in"}
+                    </p>
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-50 text-amber-700 border border-amber-200/60">
+                        <ShieldCheck size={10} /> Center Manager
+                      </span>
+                      <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+                        <Building2 size={10} /> Active
+                      </span>
+                    </div>
                   </div>
                   <DropdownMenuItem
-                    onClick={() => navigate("/center/settings")}
+                    onClick={() => navigate("/center/dashboard")}
                     className="text-xs font-medium text-slate-700 hover:bg-slate-50 rounded-lg px-2 py-1.5 cursor-pointer flex items-center gap-2"
                   >
                     <User className="w-3.5 h-3.5 text-slate-400" />
-                    <span>Branch Profile & Settings</span>
+                    <span>Manager Dashboard</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="my-1 border-slate-100" />
                   <DropdownMenuItem
@@ -166,6 +181,7 @@ export const CenterLayout: React.FC = () => {
           </main>
         </div>
       </div>
+      <TeamChatDrawer />
     </SidebarProvider>
   );
 };

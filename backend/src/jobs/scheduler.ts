@@ -4,6 +4,7 @@ import { feedbackJob } from "../modules/whatsapp/jobs/feedback.job";
 import { firstClassJob } from "../modules/whatsapp/jobs/first-class.job";
 import { moduleStartJob } from "../modules/whatsapp/jobs/module-start.job";
 import { recordingCleanupJob } from "./recording-cleanup.job";
+import { googleRecordingSyncJob } from "./google-recording-sync.job";
 import { aiFollowupJob } from "./ai-followup.job";
 import { logger } from "../config/logger";
 
@@ -37,6 +38,14 @@ export const startCronJobs = (): void => {
     logger.info("[cron] Running feedback job");
     await feedbackJob().catch((e) =>
       logger.error({ err: e }, "[cron] feedback failed")
+    );
+  });
+
+  // Google Meet recording sync — every 10 minutes
+  cron.schedule("*/10 * * * *", async () => {
+    logger.info("[cron] Running google-recording-sync job");
+    await googleRecordingSyncJob().catch((e) =>
+      logger.error({ err: e }, "[cron] google-recording-sync failed")
     );
   });
 

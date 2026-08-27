@@ -1,0 +1,239 @@
+{
+  "info": {
+    "_postman_id": "aadya-google-meet-recordings-v1",
+    "name": "Aadya Institute — Google Workspace, Google Meet & Recordings API",
+    "description": "Enterprise API collection for Google Workspace connection, Google Meet space provisioning, live session meetings, recording synchronization, and secure playback.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "facultyToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "studentToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "classSessionId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "recordingId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Authentication & OAuth",
+      "item": [
+        {
+          "name": "Login (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@aadya.com\",\n  \"password\": \"ChangeMe@123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Get Google Workspace Connect URL",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/integrations/google/connect",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "google", "connect"]
+            }
+          }
+        },
+        {
+          "name": "Get Google Connection Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/integrations/google/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "google", "status"]
+            }
+          }
+        },
+        {
+          "name": "Disconnect Google Workspace",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/integrations/google/disconnect",
+              "host": ["{{baseUrl}}"],
+              "path": ["integrations", "google", "disconnect"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Google Meet Spaces & Class Sessions",
+      "item": [
+        {
+          "name": "Create Google Meet Space for Class Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{facultyToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enableAutomaticRecording\": true,\n  \"accessType\": \"TRUSTED\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/class-sessions/{{classSessionId}}/google-meet",
+              "host": ["{{baseUrl}}"],
+              "path": ["class-sessions", "{{classSessionId}}", "google-meet"]
+            }
+          }
+        },
+        {
+          "name": "Get Google Meet Space Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{facultyToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/class-sessions/{{classSessionId}}/google-meet",
+              "host": ["{{baseUrl}}"],
+              "path": ["class-sessions", "{{classSessionId}}", "google-meet"]
+            }
+          }
+        },
+        {
+          "name": "Get Class Meeting Access (Student / Faculty)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/class-sessions/{{classSessionId}}/meeting",
+              "host": ["{{baseUrl}}"],
+              "path": ["class-sessions", "{{classSessionId}}", "meeting"]
+            }
+          }
+        },
+        {
+          "name": "Sync Class Session Recordings from Google",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/class-sessions/{{classSessionId}}/recordings/sync",
+              "host": ["{{baseUrl}}"],
+              "path": ["class-sessions", "{{classSessionId}}", "recordings", "sync"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Class Recordings & Playback",
+      "item": [
+        {
+          "name": "List Recordings (Filter by Batch, Course, Status)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recordings?page=1&limit=20&status=ACTIVE",
+              "host": ["{{baseUrl}}"],
+              "path": ["recordings"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "ACTIVE" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Recording by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recordings/{{recordingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recordings", "{{recordingId}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Secure Playback Access",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{studentToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recordings/{{recordingId}}/access",
+              "host": ["{{baseUrl}}"],
+              "path": ["recordings", "{{recordingId}}", "access"]
+            }
+          }
+        },
+        {
+          "name": "Delete Recording (Faculty / Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/recordings/{{recordingId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["recordings", "{{recordingId}}"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,136 @@
+{
+  "info": {
+    "_postman_id": "aadya-internal-chat-v1",
+    "name": "Aadya Institute — Internal Team Chat API",
+    "description": "API collection for Aadya Institute internal team communication between Admin, Center Managers, Counsellors, Faculty, and Staff. Students are strictly barred.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:5000/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "recipientUserId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. List Conversations",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations"]
+        },
+        "description": "Lists all conversations the authenticated staff member participates in, including their branch team chat and direct one-to-one chats with last message and unread count."
+      }
+    },
+    {
+      "name": "2. Get Conversation by ID",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations", "{{conversationId}}"]
+        },
+        "description": "Retrieves conversation details and member information with tenant, branch, and membership authorization."
+      }
+    },
+    {
+      "name": "3. Create / Get Direct Chat",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"recipientUserId\": \"{{recipientUserId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations/direct",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations", "direct"]
+        },
+        "description": "Starts or retrieves an existing 1-on-1 DIRECT chat with another internal employee. Rejects self-chat, cross-tenant users, and students."
+      }
+    },
+    {
+      "name": "4. List Messages (Paginated)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages?page=1&limit=50",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations", "{{conversationId}}", "messages"],
+          "query": [
+            { "key": "page", "value": "1" },
+            { "key": "limit", "value": "50" }
+          ]
+        },
+        "description": "Retrieves messages in chronological order with pagination metadata."
+      }
+    },
+    {
+      "name": "5. Send Message",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"content\": \"Hello team, please update today's attendance summary.\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/messages",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations", "{{conversationId}}", "messages"]
+        },
+        "description": "Sends a plain text message to the conversation. Plain text is sanitized (HTML stripped), max length 2000 chars, and real-time event is broadcasted over WebSocket to connected conversation members."
+      }
+    },
+    {
+      "name": "6. Mark Conversation as Read",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}/read",
+          "host": ["{{baseUrl}}"],
+          "path": ["chat", "conversations", "{{conversationId}}", "read"]
+        },
+        "description": "Marks all unread messages sent by other participants as read and dispatches real-time read event over WebSocket."
+      }
+    }
+  ]
+}

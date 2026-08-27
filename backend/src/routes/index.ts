@@ -24,6 +24,8 @@ import reportRoutes from "../modules/reports/report.routes";
 import settingsRoutes from "../modules/settings/settings.routes";
 import aiAgentRoutes from "../modules/ai-agent/ai-agent.routes";
 import masterRoutes from "../modules/masters/master.routes";
+import googleWorkspaceRoutes from "../modules/google-workspace/google-workspace.routes";
+import chatRoutes from "../modules/chat/chat.routes";
 
 const router = Router();
 
@@ -90,6 +92,12 @@ router.use("/ai", aiAgentRoutes);
 
 // Master Data Management (All 25 Masters)
 router.use("/masters", masterRoutes);
+
+// Google Workspace & Google Meet Integration
+router.use("/integrations/google", googleWorkspaceRoutes);
+
+// Internal Team Chat (Staff only)
+router.use("/chat", chatRoutes);
 
 // Webhooks (no auth — must be publicly accessible)
 router.get("/webhooks/whatsapp", whatsappWebhookVerify);

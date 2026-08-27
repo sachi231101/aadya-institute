@@ -165,8 +165,20 @@ async function main() {
     { name: "recording.read", description: "View class recordings" },
     { name: "recording.create", description: "Upload recording" },
     { name: "recording.delete", description: "Delete recording" },
+    { name: "recording.manage", description: "Trigger recording synchronization and cleanup" },
     { name: "feedback.read", description: "View student feedback" },
     { name: "feedback.create", description: "Submit feedback" },
+
+    // Google Workspace & Google Meet
+    { name: "google_meet.connect", description: "Connect and manage Google Workspace account" },
+    { name: "google_meet.create", description: "Create Google Meet space for class sessions" },
+    { name: "google_meet.read", description: "View Google Meet details and join info" },
+    { name: "google_meet.manage", description: "Manage and sync Google Meet spaces" },
+
+    // Internal Team Chat (Staff only)
+    { name: "chat.read", description: "View team and direct chat messages" },
+    { name: "chat.send", description: "Send chat messages in team and direct conversations" },
+    { name: "chat.manage", description: "Manage team chat conversations" },
 
     // Admissions & Fees
     { name: "admission.read", description: "View admissions" },
@@ -244,6 +256,14 @@ async function main() {
     "attendance.update",
     "assignment.read",
     "recording.read",
+    "recording.manage",
+    "google_meet.connect",
+    "google_meet.create",
+    "google_meet.read",
+    "google_meet.manage",
+    "chat.read",
+    "chat.send",
+    "chat.manage",
     "feedback.read",
     "admission.read",
     "admission.create",
@@ -297,6 +317,8 @@ async function main() {
     "admission.read",
     "admission.create",
     "master.read",
+    "chat.read",
+    "chat.send",
     "notification.read",
   ];
   for (const name of counsellorPermNames) {
@@ -333,6 +355,13 @@ async function main() {
     "assignment.grade",
     "recording.read",
     "recording.create",
+    "recording.manage",
+    "google_meet.connect",
+    "google_meet.create",
+    "google_meet.read",
+    "google_meet.manage",
+    "chat.read",
+    "chat.send",
     "feedback.read",
     "notification.read",
   ];
@@ -365,6 +394,7 @@ async function main() {
     "assignment.read",
     "assignment.submit",
     "recording.read",
+    "google_meet.read",
     "feedback.create",
     "notification.read",
   ];

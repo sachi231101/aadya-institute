@@ -76,6 +76,8 @@ export const classSessionRepository = {
             courseModule: true,
           },
         },
+        googleMeetSpace: true,
+        recording: true,
       },
       orderBy: [
         { scheduledDate: "asc" },
@@ -115,6 +117,8 @@ export const classSessionRepository = {
             courseModule: true,
           },
         },
+        googleMeetSpace: true,
+        recording: true,
         attendance: true,
       },
     });

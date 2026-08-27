@@ -8,6 +8,8 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { TeamChatButton } from "@/components/chat/TeamChatButton";
+import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -135,6 +137,7 @@ export const AdminLayout: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <InstallAppButton variant="header" />
+              <TeamChatButton />
               <Button 
                 onClick={() => {
                   form.reset();
@@ -156,6 +159,8 @@ export const AdminLayout: React.FC = () => {
           </main>
         </div>
       </div>
+
+      <TeamChatDrawer />
 
       <Dialog open={isBranchModalOpen} onOpenChange={setIsBranchModalOpen}>
         <DialogContent className="sm:max-w-[425px]">

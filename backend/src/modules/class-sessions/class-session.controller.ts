@@ -220,3 +220,29 @@ export const deleteSession = async (
     next(error);
   }
 };
+
+export const getSessionMeeting = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await classSessionService.getSessionMeeting(req.user, req.params.id as string);
+    sendSuccess(res, result, 200, "Class meeting access details retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMeetSpace = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await classSessionService.getMeetSpaceForSession(req.user, req.params.id as string);
+    sendSuccess(res, result, 200, "Google Meet space details retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};

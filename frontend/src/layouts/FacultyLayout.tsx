@@ -8,6 +8,8 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { TeamChatButton } from "@/components/chat/TeamChatButton";
+import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
 
 export const FacultyLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -42,6 +44,7 @@ export const FacultyLayout: React.FC = () => {
 
             <div className="flex items-center gap-3">
               <InstallAppButton variant="header" />
+              <TeamChatButton />
               <ThemeToggle />
               <NotificationPopover />
             </div>
@@ -52,6 +55,7 @@ export const FacultyLayout: React.FC = () => {
           </main>
         </div>
       </div>
+      <TeamChatDrawer />
     </SidebarProvider>
   );
 };
