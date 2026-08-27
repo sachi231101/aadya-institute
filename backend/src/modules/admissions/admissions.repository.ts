@@ -336,13 +336,16 @@ export const AdmissionsRepository = {
       }
 
       // Ensure valid batchId
-      let validBatchId = dto.batchId || null;
+      let validBatchId = dto.batchId && dto.batchId.trim() !== "" ? dto.batchId : null;
       if (validBatchId) {
         const batchExists = await tx.batch.findUnique({ where: { id: validBatchId } });
         if (!batchExists) {
           validBatchId = null;
         }
       }
+
+      const parsedAdmissionDate = dto.admissionDate ? new Date(dto.admissionDate) : undefined;
+      const paymentMethod = dto.paymentMethod || "UPI";
 
       // 2. Create Admission record
       const admission = await tx.admission.create({
@@ -360,6 +363,9 @@ export const AdmissionsRepository = {
           feePlan: dto.feePlan || "INSTALLMENT",
           status: dto.status || "CONFIRMED",
           notes: dto.notes || null,
+          ...(parsedAdmissionDate && !Number.isNaN(parsedAdmissionDate.getTime())
+            ? { admissionDate: parsedAdmissionDate }
+            : {}),
         },
         include: {
           course: { select: { id: true, name: true, code: true } },
@@ -406,35 +412,61 @@ export const AdmissionsRepository = {
               admissionNo,
               courseName,
               amount: amountPaid,
-              method: "UPI",
+              method: paymentMethod,
               status: "SUCCESS",
+              transactionRef: dto.transactionRef || null,
               notes: "Initial admission payment",
             },
           });
         }
 
-        const balance = Math.max(0, totalFee - amountPaid);
-        if (balance > 0) {
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 30);
-          await tx.pendingFee.create({
-            data: {
-              instituteId,
-              branchId,
-              studentId: finalStudentId,
-              admissionId: admission.id,
-              studentName: dto.studentName,
-              admissionNo,
-              phone: dto.phone,
-              courseName,
-              totalFee,
-              amountPaid,
-              dueAmount: balance,
-              dueDate,
-              installmentNo: 1,
-              status: "DUE_SOON",
-            },
+        const plannedInstallments = (dto.installments || []).filter((item) => Number(item.amount) > 0);
+        if (plannedInstallments.length > 0) {
+          await tx.pendingFee.createMany({
+            data: plannedInstallments.map((item) => {
+              const dueDate = new Date(item.dueDate);
+              return {
+                instituteId,
+                branchId,
+                studentId: finalStudentId,
+                admissionId: admission.id,
+                studentName: dto.studentName,
+                admissionNo,
+                phone: dto.phone,
+                courseName,
+                totalFee,
+                amountPaid: 0,
+                dueAmount: Number(item.amount),
+                dueDate: Number.isNaN(dueDate.getTime()) ? new Date() : dueDate,
+                installmentNo: item.installmentNo,
+                status: "DUE_SOON" as const,
+              };
+            }),
           });
+        } else {
+          const balance = Math.max(0, totalFee - amountPaid);
+          if (balance > 0) {
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 30);
+            await tx.pendingFee.create({
+              data: {
+                instituteId,
+                branchId,
+                studentId: finalStudentId,
+                admissionId: admission.id,
+                studentName: dto.studentName,
+                admissionNo,
+                phone: dto.phone,
+                courseName,
+                totalFee,
+                amountPaid,
+                dueAmount: balance,
+                dueDate,
+                installmentNo: 1,
+                status: "DUE_SOON",
+              },
+            });
+          }
         }
       }
 

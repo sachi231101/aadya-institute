@@ -65,9 +65,12 @@ import { coursesApi } from "@/services/courses.api";
 import { batchesApi, type BatchData } from "@/services/batches.api";
 import { studentsApi } from "@/services/students.api";
 import { admissionsApi } from "@/services/admissions.api";
+import { branchesApi } from "@/services/branches.api";
+import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import type { CreateAdmissionPayload } from "@/types/admission.types";
 
 export interface CourseCatalogItem {
   id: string;
@@ -252,43 +255,133 @@ export interface InstallmentItem {
   status: "Pending" | "Partially Paid" | "Paid" | "Overdue";
 }
 
-// Generate realistic batches per course
+const toDateInput = (value?: string | Date | null) => {
+  if (!value) return "";
+  const date = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toISOString().slice(0, 10);
+};
+
+const addMonthsIso = (base: Date, months: number) => {
+  const next = new Date(base);
+  next.setMonth(next.getMonth() + months);
+  return next.toISOString().slice(0, 10);
+};
+
+const resolveCourseFee = (course: { fee?: number; duration?: number | string; durationMonths?: number; category?: string }) => {
+  if (typeof course.fee === "number" && course.fee > 0) return course.fee;
+  const months = Number(course.durationMonths ?? course.duration);
+  if (Number.isFinite(months) && months > 0) return Math.max(15000, Math.round(months * 2500));
+  const categoryFees: Record<string, number> = {
+    Design: 25000,
+    Marketing: 30000,
+    Programming: 28000,
+    Development: 45000,
+    "Data Science": 45000,
+    "Data & AI": 45000,
+    Accounting: 18000,
+    Cybersecurity: 35000,
+  };
+  return categoryFees[course.category || ""] || 25000;
+};
+
+const formatBatchSchedule = (batch: BatchData) => {
+  if (batch.schedules && batch.schedules.length > 0) {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const labels = batch.schedules
+      .map((slot) => `${days[slot.dayOfWeek] || slot.dayOfWeek} ${slot.startTime}-${slot.endTime}`)
+      .join(", ");
+    if (labels) return labels;
+  }
+  const pattern = batch.schedulePattern || "Custom";
+  return `${pattern} ${batch.timeSlot || ""}`.trim();
+};
+
+const mapBatchToSelection = (batch: BatchData) => {
+  const facultyName = batch.faculty?.user?.name || "Faculty to be assigned";
+  return {
+    batchId: batch.id,
+    batchCode: batch.code,
+    facultyName,
+    facultyAvatar: facultyName.charAt(0).toUpperCase(),
+    schedule: formatBatchSchedule(batch),
+    startDate: toDateInput(batch.startDate),
+    endDate: toDateInput((batch as { expectedEndDate?: string }).expectedEndDate || ""),
+  };
+};
+
+const buildEqualInstallments = (
+  total: number,
+  count: number,
+  existing: InstallmentItem[] = []
+): InstallmentItem[] => {
+  const splitCount = Math.max(count, 1);
+  const equalPart = Math.floor(total / splitCount);
+  const remainder = total - equalPart * splitCount;
+  const start = existing[0]?.dueDate ? new Date(existing[0].dueDate) : new Date();
+  if (Number.isNaN(start.getTime())) start.setTime(Date.now());
+
+  return Array.from({ length: splitCount }, (_, idx) => ({
+    installmentNo: idx + 1,
+    dueDate: existing[idx]?.dueDate || addMonthsIso(start, idx === 0 && existing[0]?.dueDate ? 0 : idx + 1),
+    amount: idx === 0 ? equalPart + remainder : equalPart,
+    status: existing[idx]?.status || "Pending",
+  }));
+};
+
+const mapPaymentMethod = (label: string): CreateAdmissionPayload["paymentMethod"] => {
+  const value = label.toLowerCase();
+  if (value.includes("net") || value.includes("imps") || value.includes("neft")) return "NET_BANKING";
+  if (value.includes("card")) return "CARD";
+  if (value.includes("cash")) return "CASH";
+  if (value.includes("cheque") || value.includes("dd")) return "CHEQUE";
+  return "UPI";
+};
+
+const currentYear = new Date().getFullYear();
+const ACADEMIC_YEAR_OPTIONS = [
+  `${currentYear} - ${currentYear + 1}`,
+  `${currentYear - 1} - ${currentYear}`,
+  `${currentYear + 1} - ${currentYear + 2}`,
+];
+
+// Fallback batches only when the course has none in the database. Fake IDs are never sent to the API.
 export const getBatchesForCourse = (courseId: string, courseName: string, courseCode: string) => {
   const prefix = courseCode.split("-")[0] || "CRS";
   return [
     {
       id: `b-${courseId}-morn`,
       name: `${courseName} — Morning Regular`,
-      code: `${prefix}-JUN-2026-MORN`,
-      facultyName: "Ramesh Kumar",
-      facultyAvatar: "R",
+      code: `${prefix}-JUN-${currentYear}-MORN`,
+      facultyName: "To be assigned",
+      facultyAvatar: "T",
       schedule: "Mon - Fri 09:00 AM - 11:00 AM",
-      startDate: "2026-06-01",
-      endDate: "2026-11-30",
+      startDate: `${currentYear}-06-01`,
+      endDate: `${currentYear}-11-30`,
       availableSeats: 14,
       totalCapacity: 35,
     },
     {
       id: `b-${courseId}-eve`,
       name: `${courseName} — Evening Fast-Track`,
-      code: `${prefix}-JUL-2026-EVE`,
-      facultyName: "Suresh Kumar",
-      facultyAvatar: "S",
+      code: `${prefix}-JUL-${currentYear}-EVE`,
+      facultyName: "To be assigned",
+      facultyAvatar: "T",
       schedule: "Mon - Fri 04:00 PM - 06:00 PM",
-      startDate: "2026-07-05",
-      endDate: "2027-01-05",
+      startDate: `${currentYear}-07-05`,
+      endDate: `${currentYear + 1}-01-05`,
       availableSeats: 8,
       totalCapacity: 30,
     },
     {
       id: `b-${courseId}-wknd`,
       name: `${courseName} — Weekend Intensive`,
-      code: `${prefix}-JUN-2026-WKND`,
-      facultyName: "Megha P",
-      facultyAvatar: "M",
+      code: `${prefix}-JUN-${currentYear}-WKND`,
+      facultyName: "To be assigned",
+      facultyAvatar: "T",
       schedule: "Sat - Sun 10:00 AM - 02:00 PM",
-      startDate: "2026-06-06",
-      endDate: "2026-12-06",
+      startDate: `${currentYear}-06-06`,
+      endDate: `${currentYear}-12-06`,
       availableSeats: 18,
       totalCapacity: 25,
     },
@@ -327,15 +420,18 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   // ─── 2. ADMISSION DETAILS STATE ─────────────────────────────────────────
   const [admissionType, setAdmissionType] = useState("Regular Admission");
-  const [branchName, setBranchName] = useState("Aadya Institute - HSR Layout");
-  const [admissionNo, setAdmissionNo] = useState(`ADM-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 900000)}`);
+  const [branchId, setBranchId] = useState("");
+  const [admissionNo] = useState(`ADM-${currentYear}-PREVIEW`);
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10));
-  const [academicYear, setAcademicYear] = useState(`${new Date().getFullYear()} - ${new Date().getFullYear() + 1}`);
-  const [counsellorName, setCounsellorName] = useState(user?.name || "Counsellor");
+  const [academicYear, setAcademicYear] = useState(ACADEMIC_YEAR_OPTIONS[0]);
+  const [counsellorName, setCounsellorName] = useState(user?.name || "");
   const [leadSource, setLeadSource] = useState("");
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
-  const [referralSource, setReferralSource] = useState("Walk-in");
+  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
+  const [referralSource, setReferralSource] = useState("");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
+  const [formError, setFormError] = useState<string | null>(null);
+  const [formSuccess, setFormSuccess] = useState<string | null>(null);
 
   // ─── 3. MULTI-COURSE DUAL PANEL & SELECTION STATE ───────────────────────
   const [selectedPackageId, setSelectedPackageId] = useState("");
@@ -368,150 +464,158 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   // ─── 6. REMARKS & TERMS STATE ───────────────────────────────────────────
   const [remarks, setRemarks] = useState("");
-  const [termsAccepted1, setTermsAccepted1] = useState(true);
-  const [termsAccepted2, setTermsAccepted2] = useState(true);
+  const [termsAccepted1, setTermsAccepted1] = useState(false);
+  const [termsAccepted2, setTermsAccepted2] = useState(false);
 
   // ─── 7. MODALS STATE ───────────────────────────────────────────────────
   const [showReviewStepModal, setShowReviewStepModal] = useState(false);
-  const [reviewVerifiedCheck, setReviewVerifiedCheck] = useState(true);
+  const [reviewVerifiedCheck, setReviewVerifiedCheck] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdAdmissionSummary, setCreatedAdmissionSummary] = useState<any>(null);
 
+  // Auto-fill student details when converted directly from a Lead
+  useEffect(() => {
+    if (location.state?.lead) {
+      const { lead } = location.state;
+      const parts = (lead.name || "").trim().split(" ");
+      setFirstName(parts[0] || "");
+      setLastName(parts.slice(1).join(" ") || "");
+      if (lead.phone) setPhone(lead.phone.replace(/[^0-9+]/g, ""));
+      if (lead.email) setEmail(lead.email);
+      if (lead.source) setLeadSource(lead.source);
+      if (lead.notes) setRemarks(lead.notes);
+    }
+  }, [location.state]);
+
   // ─── QUERIES ─────────────────────────────────────────────────────────────
-  const { data: dbCoursesRes } = useQuery({
+  const { data: dbCoursesRes, isLoading: coursesLoading } = useQuery({
     queryKey: ["courses"],
     queryFn: () => coursesApi.getAll(),
   });
 
-  const { data: batchesRes } = useQuery({
+  const { data: batchesRes, isLoading: batchesLoading } = useQuery({
     queryKey: ["batches"],
     queryFn: () => batchesApi.getAll(),
   });
 
-  const { data: studentsRes } = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentsApi.getAll({ limit: 100 }),
+  const { data: studentsRes, isLoading: studentsLoading } = useQuery({
+    queryKey: ["students", "direct-entry", studentSearch],
+    queryFn: () => studentsApi.getAll({ limit: 50, search: studentSearch.trim() || undefined }),
+    enabled: !isNewStudentMode,
   });
+
+  const { data: branchesRes, isLoading: branchesLoading } = useQuery({
+    queryKey: ["branches"],
+    queryFn: () => branchesApi.getBranches({ limit: 50, status: "ACTIVE" }),
+    retry: false,
+  });
+
+  const { data: counselorsRes } = useQuery({
+    queryKey: ["users", "counsellors"],
+    queryFn: () => usersApi.getUsers({ role: "COUNSELLOR", limit: 50, status: "ACTIVE" }),
+    retry: false,
+  });
+
+  const branches = useMemo(() => {
+    const list = branchesRes?.data || [];
+    if (list.length > 0) return list;
+    if (user?.branchId) {
+      return [{ id: user.branchId, name: "Assigned Center", code: "", instituteId: user.instituteId, address: null, phone: null, status: "ACTIVE" as const, createdAt: "", updatedAt: "" }];
+    }
+    return [];
+  }, [branchesRes, user]);
+  const allDbBatches = useMemo(() => (batchesRes?.data || []) as BatchData[], [batchesRes]);
+  const counselors = useMemo(() => {
+    const list = counselorsRes?.data || [];
+    if (user?.name && !list.some((c) => c.name === user.name)) {
+      return [{ id: user.id, name: user.name }, ...list];
+    }
+    return list;
+  }, [counselorsRes, user]);
+
+  const selectedBranch = useMemo(
+    () => branches.find((b) => b.id === branchId) || branches[0],
+    [branches, branchId]
+  );
+  const branchName = selectedBranch?.name || "";
+
+  useEffect(() => {
+    if (branchId || branches.length === 0) return;
+    if (selectedBranchId && selectedBranchId !== "ALL" && branches.some((b) => b.id === selectedBranchId)) {
+      setBranchId(selectedBranchId);
+      return;
+    }
+    if (user?.branchId && branches.some((b) => b.id === user.branchId)) {
+      setBranchId(user.branchId);
+      return;
+    }
+    setBranchId(branches[0].id);
+  }, [branches, branchId, selectedBranchId, user?.branchId]);
+
+  useEffect(() => {
+    if (counsellorName) return;
+    if (user?.name) setCounsellorName(user.name);
+    else if (counselors[0]?.name) setCounsellorName(counselors[0].name);
+  }, [counsellorName, user?.name, counselors]);
+
+  useEffect(() => {
+    if (paymentModeOptions.length === 0) return;
+    if (!paymentModeOptions.some((opt) => opt.label === initialPaymentMethod)) {
+      setInitialPaymentMethod(paymentModeOptions[0].label);
+    }
+  }, [paymentModeOptions, initialPaymentMethod]);
 
   const allAvailableCourses = useMemo(() => {
     const dbCourses = (dbCoursesRes?.data || []).map((c: any) => ({
       id: c.id,
       name: c.name,
       code: c.code,
-      fee: c.fee || 35000,
+      fee: resolveCourseFee(c),
       durationMonths: c.duration || 6,
       category: c.category || "Development",
       packageProgram: c.name,
     }));
     if (dbCourses.length > 0) return dbCourses;
-    return PRESET_COURSES;
+    return PRESET_COURSES.map((c) => ({ ...c, durationMonths: 6 }));
   }, [dbCoursesRes]);
 
+  const availablePackages = useMemo(() => {
+    return PRESET_PACKAGES.map((pkg) => {
+      const matchedCourses = pkg.courseIds
+        .map((presetId) => {
+          const preset = PRESET_COURSES.find((c) => c.id === presetId);
+          return allAvailableCourses.find(
+            (c) =>
+              c.id === presetId ||
+              c.name.toLowerCase() === (preset?.name || "").toLowerCase() ||
+              c.name.toLowerCase().includes((preset?.name || "").split(" ")[0].toLowerCase())
+          );
+        })
+        .filter((c): c is (typeof allAvailableCourses)[number] => Boolean(c));
+      return { ...pkg, matchedCourses };
+    }).filter((pkg) => pkg.matchedCourses.length > 0);
+  }, [allAvailableCourses]);
+
   const existingStudents = useMemo(() => {
-    const list = (studentsRes?.data || []).map((s: any) => {
+    return (studentsRes?.data || []).map((s: any) => {
       const names = (s.user?.name || s.name || "Student").split(" ");
+      const street = typeof s.address === "string" ? s.address : s.address?.street || "";
       return {
         id: s.id,
-        studentCode: s.studentCode || `STU-${s.id.slice(0, 6)}`,
+        studentCode: s.studentCode || `STU-${String(s.id).slice(0, 6)}`,
         name: s.user?.name || s.name || "Student",
         firstName: names[0] || "",
         lastName: names.slice(1).join(" ") || "",
         email: s.user?.email || s.email || "",
         phone: s.user?.phone || s.phone || "",
-        dob: s.dateOfBirth ? s.dateOfBirth.slice(0, 10) : "2004-05-12",
-        gender: s.gender || "Female",
-        address: s.address || "12, 3rd Cross, HSR Layout",
-        city: s.city || "Bengaluru",
-        state: s.state || "Karnataka",
-        pincode: s.pincode || "560102",
+        dob: s.dateOfBirth ? String(s.dateOfBirth).slice(0, 10) : "",
+        gender: s.gender || "Male",
+        address: street,
+        city: s.city || s.address?.city || "",
+        state: s.state || s.address?.state || "",
+        pincode: s.pincode || s.address?.pincode || "",
       };
     });
-
-    const defaults = [
-      {
-        id: "st-1",
-        studentCode: "STU-000126",
-        name: "Ananya Sharma",
-        firstName: "Ananya",
-        lastName: "Sharma",
-        email: "ananya.sharma@gmail.com",
-        phone: "9876543210",
-        dob: "2005-08-15",
-        gender: "Female",
-        address: "12, 3rd Cross, HSR Layout",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560102",
-      },
-      {
-        id: "st-2",
-        studentCode: "STU-000127",
-        name: "Rahul Verma",
-        firstName: "Rahul",
-        lastName: "Verma",
-        email: "rahul.verma@gmail.com",
-        phone: "9812345678",
-        dob: "2004-11-20",
-        gender: "Male",
-        address: "45, 2nd Main, Koramangala",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560034",
-      },
-      {
-        id: "st-3",
-        studentCode: "STU-000128",
-        name: "Sneha Patel",
-        firstName: "Sneha",
-        lastName: "Patel",
-        email: "sneha.patel@gmail.com",
-        phone: "9823456789",
-        dob: "2003-04-10",
-        gender: "Female",
-        address: "78, 100 Feet Rd, Indiranagar",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560038",
-      },
-      {
-        id: "st-4",
-        studentCode: "STU-000129",
-        name: "Priya Reddy",
-        firstName: "Priya",
-        lastName: "Reddy",
-        email: "priya.reddy@gmail.com",
-        phone: "9834567890",
-        dob: "2005-01-25",
-        gender: "Female",
-        address: "19, Electronic City Phase 1",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560100",
-      },
-      {
-        id: "st-5",
-        studentCode: "STU-000130",
-        name: "Karthik Nair",
-        firstName: "Karthik",
-        lastName: "Nair",
-        email: "karthik.nair@gmail.com",
-        phone: "9845678901",
-        dob: "2004-09-08",
-        gender: "Male",
-        address: "88, Bannerghatta Main Rd",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560076",
-      },
-    ];
-
-    const uniqueMap = new Map();
-    [...list, ...defaults].forEach((item) => {
-      if (!uniqueMap.has(item.studentCode)) {
-        uniqueMap.set(item.studentCode, item);
-      }
-    });
-    return Array.from(uniqueMap.values());
   }, [studentsRes]);
 
   // Autocomplete search for existing students
@@ -561,10 +665,54 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   const handleSwitchToSearchExisting = () => {
     setIsNewStudentMode(false);
-    // Pre-select first student as sample if none selected
-    if (!selectedExistingStudentId && existingStudents.length > 0) {
-      handleSelectExistingStudent(existingStudents[0]);
+    setSelectedExistingStudentId(null);
+    setStudentSearch("");
+  };
+
+  const getCourseBatches = (courseId: string, courseName: string, courseCode: string) => {
+    const realBatches = allDbBatches.filter((b) => b.courseId === courseId && b.status !== "CANCELLED");
+    if (realBatches.length > 0) {
+      return realBatches.map((batch) => {
+        const mapped = mapBatchToSelection(batch);
+        return {
+          id: mapped.batchId,
+          name: batch.name,
+          code: mapped.batchCode,
+          facultyName: mapped.facultyName,
+          facultyAvatar: mapped.facultyAvatar,
+          schedule: mapped.schedule,
+          startDate: mapped.startDate,
+          endDate: mapped.endDate,
+          availableSeats: Math.max(0, (batch.capacity || 35) - (batch._count?.enrollments || 0)),
+          totalCapacity: batch.capacity || 35,
+          isPersisted: true,
+        };
+      });
     }
+
+    return getBatchesForCourse(courseId, courseName, courseCode).map((batch) => ({
+      ...batch,
+      isPersisted: false,
+    }));
+  };
+
+  const buildSelectedCourseItem = (cObj: (typeof allAvailableCourses)[number]): SelectedCourseItem => {
+    const courseBatches = getCourseBatches(cObj.id, cObj.name, cObj.code);
+    const defaultBatch = courseBatches[0];
+    return {
+      id: `sel-${cObj.id}-${Date.now()}`,
+      courseId: cObj.id,
+      courseName: cObj.name,
+      packageProgram: cObj.packageProgram,
+      batchId: defaultBatch?.id || "",
+      batchCode: defaultBatch?.code || "Unassigned",
+      facultyName: defaultBatch?.facultyName || "To be assigned",
+      facultyAvatar: defaultBatch?.facultyAvatar,
+      schedule: defaultBatch?.schedule || "Schedule pending",
+      startDate: defaultBatch?.startDate || admissionDate,
+      endDate: defaultBatch?.endDate || "",
+      fee: resolveCourseFee(cObj),
+    };
   };
 
   // Available courses list (excluding already selected courses)
@@ -591,26 +739,8 @@ export const DirectAdmissionEntry: React.FC = () => {
   const handleQuickAddCourse = (courseId: string) => {
     const cObj = allAvailableCourses.find((c) => c.id === courseId);
     if (!cObj) return;
-
-    const courseBatches = getBatchesForCourse(cObj.id, cObj.name, cObj.code);
-    const defaultBatch = courseBatches[0];
-
-    const newItem: SelectedCourseItem = {
-      id: `sel-${cObj.id}-${Date.now()}`,
-      courseId: cObj.id,
-      courseName: cObj.name,
-      packageProgram: cObj.packageProgram,
-      batchId: defaultBatch.id,
-      batchCode: defaultBatch.code,
-      facultyName: defaultBatch.facultyName,
-      facultyAvatar: defaultBatch.facultyAvatar,
-      schedule: defaultBatch.schedule,
-      startDate: defaultBatch.startDate,
-      endDate: defaultBatch.endDate,
-      fee: cObj.fee,
-    };
-
-    setSelectedCoursesList((prev) => [...prev, newItem]);
+    if (selectedCoursesList.some((item) => item.courseId === cObj.id)) return;
+    setSelectedCoursesList((prev) => [...prev, buildSelectedCourseItem(cObj)]);
     setSelectedAvailableCourseId(null);
   };
 
@@ -629,39 +759,24 @@ export const DirectAdmissionEntry: React.FC = () => {
     const idToApply = pkgId || selectedPackageId;
     if (!idToApply) return;
 
-    const pkg = PRESET_PACKAGES.find((p) => p.id === idToApply);
-    if (!pkg) return;
+    const pkg = availablePackages.find((p) => p.id === idToApply);
+    if (!pkg) {
+      setFormError("This package has no matching courses in the current catalog.");
+      return;
+    }
 
     const existingCourseIds = new Set(selectedCoursesList.map((c) => c.courseId));
-    const newItems: SelectedCourseItem[] = [];
+    const newItems = pkg.matchedCourses
+      .filter((cObj) => !existingCourseIds.has(cObj.id))
+      .map((cObj) => buildSelectedCourseItem(cObj));
 
-    pkg.courseIds.forEach((cId) => {
-      if (existingCourseIds.has(cId)) return;
-      const cObj = allAvailableCourses.find((c) => c.id === cId);
-      if (!cObj) return;
-
-      const courseBatches = getBatchesForCourse(cObj.id, cObj.name, cObj.code);
-      const defaultBatch = courseBatches[0];
-
-      newItems.push({
-        id: `sel-${cObj.id}-${Date.now()}`,
-        courseId: cObj.id,
-        courseName: cObj.name,
-        packageProgram: cObj.packageProgram,
-        batchId: defaultBatch.id,
-        batchCode: defaultBatch.code,
-        facultyName: defaultBatch.facultyName,
-        facultyAvatar: defaultBatch.facultyAvatar,
-        schedule: defaultBatch.schedule,
-        startDate: defaultBatch.startDate,
-        endDate: defaultBatch.endDate,
-        fee: cObj.fee,
-      });
-    });
-
-    if (newItems.length > 0) {
-      setSelectedCoursesList((prev) => [...prev, ...newItems]);
+    if (newItems.length === 0) {
+      setFormError("All courses in this package are already selected.");
+      return;
     }
+
+    setSelectedCoursesList((prev) => [...prev, ...newItems]);
+    setFormError(null);
   };
 
   // ─── BATCH & COURSE CONFIGURATION HANDLERS ──────────────────────────────
@@ -670,8 +785,11 @@ export const DirectAdmissionEntry: React.FC = () => {
       prev.map((item) => {
         if (item.id !== courseItemId) return item;
         const cObj = allAvailableCourses.find((c) => c.id === item.courseId);
-        const courseBatches = getBatchesForCourse(item.courseId, item.courseName, cObj?.code || "CRS");
-        const foundBatch = courseBatches.find((b) => b.id === newBatchId) || courseBatches[0];
+        const courseBatches = getCourseBatches(item.courseId, item.courseName, cObj?.code || "CRS");
+        const foundBatch = courseBatches.find((b) => b.id === newBatchId);
+        if (!foundBatch) {
+          return { ...item, batchId: "", batchCode: "Unassigned", facultyName: "To be assigned", schedule: "Schedule pending" };
+        }
 
         return {
           ...item,
@@ -741,70 +859,138 @@ export const DirectAdmissionEntry: React.FC = () => {
     return Math.max(0, finalPayableAmount - (Number(amountPaidAtAdmission) || 0));
   }, [finalPayableAmount, amountPaidAtAdmission]);
 
+  useEffect(() => {
+    setCustomGstAmount(null);
+    setCustomFinalPayable(null);
+  }, [totalBaseCourseFee, registrationFee, additionalCharges, discountValue, discountType, scholarshipAmount]);
+
+  useEffect(() => {
+    if (paymentMode !== "INSTALLMENT" || balanceToBePaid <= 0) {
+      if (paymentMode === "FULL" || balanceToBePaid <= 0) {
+        setInstallments([]);
+      }
+      return;
+    }
+    setInstallments((prev) => buildEqualInstallments(balanceToBePaid, prev.length > 0 ? prev.length : 3, prev));
+  }, [paymentMode, balanceToBePaid]);
+
   const totalInstallmentAmount = useMemo(() => {
     return installments.reduce((acc, curr) => acc + (Number(curr.amount) || 0), 0);
   }, [installments]);
 
-  // Auto distribute remaining balance across installments
-  const handleAutoDistributeInstallments = () => {
-    if (installments.length === 0) return;
-    const splitCount = installments.length;
-    const equalPart = Math.floor(balanceToBePaid / splitCount);
-    const remainder = balanceToBePaid - equalPart * splitCount;
+  const notifyError = (message: string) => {
+    setFormSuccess(null);
+    setFormError(message);
+    window.setTimeout(() => setFormError(null), 5000);
+  };
 
-    setInstallments(
-      installments.map((inst, idx) => ({
-        ...inst,
-        amount: idx === 0 ? equalPart + remainder : equalPart,
-      }))
-    );
+  const notifySuccess = (message: string) => {
+    setFormError(null);
+    setFormSuccess(message);
+    window.setTimeout(() => setFormSuccess(null), 4000);
+  };
+
+  const handleAutoDistributeInstallments = () => {
+    if (installments.length === 0) {
+      setInstallments(buildEqualInstallments(balanceToBePaid, 3));
+      return;
+    }
+    setInstallments(buildEqualInstallments(balanceToBePaid, installments.length, installments));
   };
 
   const handleAddInstallment = () => {
-    const nextNo = installments.length + 1;
-    const lastDate = installments.length > 0 ? new Date(installments[installments.length - 1].dueDate) : new Date();
-    lastDate.setMonth(lastDate.getMonth() + 1);
-
-    setInstallments([
+    const next = [
       ...installments,
       {
-        installmentNo: nextNo,
-        dueDate: lastDate.toISOString().slice(0, 10),
+        installmentNo: installments.length + 1,
+        dueDate: addMonthsIso(new Date(installments[installments.length - 1]?.dueDate || Date.now()), 1),
         amount: 0,
-        status: "Pending",
+        status: "Pending" as const,
       },
-    ]);
+    ];
+    setInstallments(buildEqualInstallments(balanceToBePaid, next.length, next));
   };
 
   const handleRemoveInstallment = (index: number) => {
     if (installments.length <= 1) return;
-    const updated = installments.filter((_, idx) => idx !== index).map((inst, idx) => ({ ...inst, installmentNo: idx + 1 }));
-    setInstallments(updated);
+    const remaining = installments.filter((_, idx) => idx !== index);
+    setInstallments(buildEqualInstallments(balanceToBePaid, remaining.length, remaining));
   };
 
-  // ─── 2-STEP CONFIRMATION HANDLERS ────────────────────────────────────────
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleConfirmAdmission = (statusOverride?: "Draft" | "Confirmed") => {
-    if (!firstName || !phone || !email) {
-      alert("Please fill in the required student contact information.");
-      return;
+  const validateAdmissionForm = (statusOverride?: "Draft" | "Confirmed") => {
+    if (!firstName.trim()) {
+      notifyError("Please enter the student's first name.");
+      return false;
+    }
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) {
+      notifyError("Please enter a valid 10-digit mobile number.");
+      return false;
+    }
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      notifyError("Please enter a valid email address.");
+      return false;
+    }
+    if (!branchId && !user?.branchId) {
+      notifyError("Please select a branch / center.");
+      return false;
+    }
+    if (!counsellorName) {
+      notifyError("Please select a counsellor.");
+      return false;
     }
     if (selectedCoursesList.length === 0) {
-      alert("Please select at least one course for this admission.");
-      return;
+      notifyError("Please select at least one course.");
+      return false;
     }
-    if ((!termsAccepted1 || !termsAccepted2) && statusOverride !== "Draft") {
-      alert("Please accept all terms and conditions before confirming.");
-      return;
+    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0 && installments.length === 0) {
+      notifyError("Please add at least one installment for the remaining balance.");
+      return false;
     }
+    if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0) {
+      const installmentTotal = installments.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+      if (Math.abs(installmentTotal - balanceToBePaid) > 1) {
+        notifyError(`Installment amounts (₹${installmentTotal.toLocaleString()}) must equal the remaining balance (₹${balanceToBePaid.toLocaleString()}). Use Auto-Balance.`);
+        return false;
+      }
+    }
+    if (Number(amountPaidAtAdmission) > finalPayableAmount) {
+      notifyError("Amount paid cannot exceed the total payable amount.");
+      return false;
+    }
+    if (statusOverride !== "Draft" && (!termsAccepted1 || !termsAccepted2)) {
+      notifyError("Please accept the terms and conditions before confirming.");
+      return false;
+    }
+    return true;
+  };
+
+  const buildAdmissionNotes = () => {
+    return [
+      remarks.trim() || null,
+      `Admission type: ${admissionType}`,
+      `Academic year: ${academicYear}`,
+      counsellorName ? `Counsellor: ${counsellorName}` : null,
+      leadSource ? `Lead source: ${leadSource}` : null,
+      referralSource ? `Referral: ${referralSource}` : null,
+      altPhone ? `Alternate mobile: ${altPhone}` : null,
+      address ? `Address: ${address}` : null,
+    ]
+      .filter(Boolean)
+      .join(" | ");
+  };
+
+  const handleConfirmAdmission = (statusOverride?: "Draft" | "Confirmed") => {
+    if (!validateAdmissionForm(statusOverride)) return;
 
     const studentFullName = `${firstName} ${lastName}`.trim() || "Student";
     const coursesSummary = selectedCoursesList.map((c) => c.courseName).join(", ");
     const batchesSummary = selectedCoursesList.map((c) => c.batchCode).join(", ");
 
     const summaryPayload = {
-      admissionNo: admissionNo || `ADM-2026-${Math.floor(100000 + Math.random() * 900000)}`,
+      admissionNo,
       studentName: studentFullName,
       email,
       phone,
@@ -817,7 +1003,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       amountPaid: Number(amountPaidAtAdmission) || 0,
       balanceToPay: balanceToBePaid,
       paymentMethod: initialPaymentMethod || "UPI / Online",
-      transactionRef: transactionRef || "UPI/Direct-Settled",
+      transactionRef: transactionRef || "",
       status: statusOverride === "Draft" ? "Draft Saved" : "Confirmed",
       date: admissionDate || new Date().toISOString().slice(0, 10),
     };
@@ -825,53 +1011,106 @@ export const DirectAdmissionEntry: React.FC = () => {
     setCreatedAdmissionSummary(summaryPayload);
 
     if (statusOverride === "Draft") {
-      setShowSuccessModal(true);
+      void submitAdmissions("PENDING");
       return;
     }
 
-    // Open Step 1 Review Modal
+    setReviewVerifiedCheck(false);
     setShowReviewStepModal(true);
   };
 
-  const handleFinalSubmitAdmission = async () => {
-    if (!reviewVerifiedCheck) {
-      alert("Please verify the confirmation checkbox before proceeding.");
-      return;
-    }
-
+  const submitAdmissions = async (status: "PENDING" | "CONFIRMED" | "PROVISIONAL") => {
     setIsSubmitting(true);
-    const studentFullName = createdAdmissionSummary?.studentName || `${firstName} ${lastName}`.trim();
+    const studentFullName = `${firstName} ${lastName}`.trim();
+    const realStudentId = selectedExistingStudentId && !selectedExistingStudentId.startsWith("st-")
+      ? selectedExistingStudentId
+      : undefined;
 
     try {
-      await admissionsApi.createAdmission({
-        studentName: studentFullName,
-        email,
-        phone,
-        courseId: selectedCoursesList[0]?.courseId || "c-dm",
-        batchId: selectedCoursesList[0]?.batchId || undefined,
-        studentId: selectedExistingStudentId || undefined,
-        feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
-        status: "CONFIRMED",
-        notes: remarks,
-        totalFee: finalPayableAmount,
-        amountPaid: Number(amountPaidAtAdmission) || 0,
-      });
+      let createdStudentId = realStudentId;
+      let firstAdmissionNo = admissionNo;
+
+      for (let index = 0; index < selectedCoursesList.length; index += 1) {
+        const course = selectedCoursesList[index];
+        const isPrimary = index === 0;
+        const payload: CreateAdmissionPayload = {
+          studentName: studentFullName,
+          email: email.trim(),
+          phone: phone.replace(/\D/g, "").slice(-10),
+          courseId: course.courseId,
+          batchId: allDbBatches.some((b) => b.id === course.batchId) ? course.batchId : undefined,
+          studentId: createdStudentId,
+          branchId: branchId || undefined,
+          feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
+          status,
+          notes: buildAdmissionNotes(),
+          admissionDate,
+          paymentMethod: mapPaymentMethod(initialPaymentMethod),
+          transactionRef: transactionRef || undefined,
+          totalFee: isPrimary ? finalPayableAmount : undefined,
+          amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
+          installments:
+            isPrimary && paymentMode === "INSTALLMENT" && balanceToBePaid > 0
+              ? installments.map((item) => ({
+                  installmentNo: item.installmentNo,
+                  dueDate: item.dueDate,
+                  amount: item.amount,
+                }))
+              : undefined,
+        };
+
+        const result = await admissionsApi.createAdmission(payload);
+        if (isPrimary) {
+          firstAdmissionNo = result.data?.admissionNo || firstAdmissionNo;
+          createdStudentId = (result.data as { student?: { id?: string }; studentId?: string })?.student?.id
+            || (result.data as { studentId?: string })?.studentId
+            || createdStudentId;
+        }
+      }
+
       await queryClient.invalidateQueries({ queryKey: ["admissions"] });
       await queryClient.invalidateQueries({ queryKey: ["students"] });
       await queryClient.invalidateQueries({ queryKey: ["batches"] });
       await queryClient.invalidateQueries({ queryKey: ["pending-fees"] });
       await queryClient.invalidateQueries({ queryKey: ["payments"] });
-    } catch (err: any) {
-      console.log("Admission confirmed in local state backup:", err);
-    } finally {
-      setIsSubmitting(false);
+
+      setCreatedAdmissionSummary((prev: any) => ({
+        ...(prev || {}),
+        admissionNo: firstAdmissionNo,
+        status: status === "PENDING" ? "Draft Saved" : "Confirmed",
+      }));
       setShowReviewStepModal(false);
       setShowSuccessModal(true);
+      notifySuccess(status === "PENDING" ? "Admission saved as draft." : "Admission confirmed successfully.");
+    } catch (err: any) {
+      const message = err?.response?.data?.message || err?.message || "Failed to create admission. Please try again.";
+      notifyError(message);
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleFinalSubmitAdmission = async () => {
+    if (!reviewVerifiedCheck) {
+      notifyError("Please verify the confirmation checkbox before proceeding.");
+      return;
+    }
+    const nextStatus = admissionStatus === "Provisional" ? "PROVISIONAL" : "CONFIRMED";
+    await submitAdmissions(nextStatus);
   };
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-16">
+      {(formError || formSuccess) && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
+          {formError ? (
+            <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          )}
+          <span>{formError || formSuccess}</span>
+        </div>
+      )}
       {/* ─── TOP BREADCRUMB & HEADER ────────────────────────────────────────── */}
       <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border px-4 sm:px-8 py-3.5">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -918,7 +1157,20 @@ export const DirectAdmissionEntry: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleConfirmAdmission("Draft")}
+              onClick={() => {
+                if (!firstName.trim() || phone.replace(/\D/g, "").length < 10 || !email.trim()) {
+                  document.getElementById("section-student")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  notifyError("Complete student details first.");
+                  return;
+                }
+                if (selectedCoursesList.length === 0) {
+                  document.getElementById("section-courses")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  notifyError("Select at least one course to continue.");
+                  return;
+                }
+                document.getElementById("section-fees")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                notifySuccess("Details saved locally. Review fees, installments, and terms next.");
+              }}
               disabled={isSubmitting}
               className="text-xs font-semibold border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
             >
@@ -946,7 +1198,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           {/* LEFT 8 COLS: FORM WORKSPACE */}
           <div className="lg:col-span-8 space-y-6">
             {/* ──── 1. STUDENT DETAILS ────────────────────────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-student" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -997,7 +1249,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                       />
                     </div>
 
-                    {/* Autocomplete Dropdown */}
+                    {studentsLoading && studentSearch.trim() && (
+                      <div className="border border-border rounded-xl bg-card p-3 text-xs text-muted-foreground">
+                        Searching students...
+                      </div>
+                    )}
+                    {!studentsLoading && studentSearch.trim() && !selectedExistingStudentId && searchedExistingStudents.length === 0 && (
+                      <div className="border border-border rounded-xl bg-card p-3 text-xs text-muted-foreground">
+                        No matching students found. Switch to Add New Student to register them.
+                      </div>
+                    )}
                     {!selectedExistingStudentId && searchedExistingStudents.length > 0 && (
                       <div className="border border-border rounded-xl bg-card shadow-lg overflow-hidden divide-y divide-border max-h-56 overflow-y-auto">
                         {searchedExistingStudents.map((st) => (
@@ -1094,7 +1355,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">
-                      Last Name <span className="text-red-500">*</span>
+                      Last Name
                     </label>
                     <Input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last Name" required className="bg-background border-border text-foreground" />
                   </div>
@@ -1145,7 +1406,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 2. ADMISSION DETAILS ──────────────────────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-admission" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center gap-2.5">
                   <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
@@ -1178,14 +1439,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                       Branch / Center <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={branchName}
-                      onChange={(e) => setBranchName(e.target.value)}
+                      value={branchId}
+                      onChange={(e) => setBranchId(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      <option value="Aadya Institute - HSR Layout">Aadya Institute - HSR Layout</option>
-                      <option value="Aadya Institute - Koramangala">Aadya Institute - Koramangala</option>
-                      <option value="Aadya Institute - Indiranagar">Aadya Institute - Indiranagar</option>
-                      <option value="Aadya Institute - Electronic City">Aadya Institute - Electronic City</option>
+                      {branchesLoading && <option value="">Loading branches...</option>}
+                      {!branchesLoading && branches.length === 0 && <option value="">No branches found</option>}
+                      {branches.map((branch) => (
+                        <option key={branch.id} value={branch.id}>
+                          {branch.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -1193,9 +1457,10 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <label className="text-xs font-semibold text-foreground block mb-1">Admission No.</label>
                     <Input
                       value={admissionNo}
-                      onChange={(e) => setAdmissionNo(e.target.value)}
-                      className="font-mono text-foreground font-bold bg-background border-border"
+                      readOnly
+                      className="font-mono text-foreground font-bold bg-muted/50 border-border"
                     />
+                    <p className="text-[10px] text-muted-foreground mt-1">Final number is assigned when you confirm.</p>
                   </div>
 
                   <div>
@@ -1214,9 +1479,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setAcademicYear(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      <option value="2026 - 2027">2026 - 2027</option>
-                      <option value="2025 - 2026">2025 - 2026</option>
-                      <option value="2024 - 2025">2024 - 2025</option>
+                      {ACADEMIC_YEAR_OPTIONS.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -1229,10 +1496,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setCounsellorName(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      <option value="Vidhya K A">Vidhya K A</option>
-                      <option value="Rohit Sharma">Rohit Sharma</option>
-                      <option value="Meera Nair">Meera Nair</option>
-                      <option value="Kavita Deshmukh">Kavita Deshmukh</option>
+                      {counsellorName && !counselors.some((c) => c.name === counsellorName) && (
+                        <option value={counsellorName}>{counsellorName}</option>
+                      )}
+                      {counselors.map((counselor) => (
+                        <option key={counselor.id} value={counselor.name}>
+                          {counselor.name}
+                        </option>
+                      ))}
+                      {counselors.length === 0 && !counsellorName && (
+                        <option value="">No counsellors found</option>
+                      )}
                     </select>
                   </div>
 
@@ -1284,7 +1558,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 3. COURSE SELECTION (SINGLE SELECT AT A TIME) ─────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-courses" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -1319,11 +1593,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                         className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                       >
                         <option value="">Select Course Package...</option>
-                        {PRESET_PACKAGES.map((pkg) => (
+                        {availablePackages.map((pkg) => (
                           <option key={pkg.id} value={pkg.id}>
-                            {pkg.name} ({pkg.description})
+                            {pkg.name} ({pkg.matchedCourses.map((c) => c.name).join(" + ")})
                           </option>
                         ))}
+                        {availablePackages.length === 0 && (
+                          <option value="" disabled>
+                            No packages match the current course catalog
+                          </option>
+                        )}
                       </select>
                     </div>
                     <Button
@@ -1364,9 +1643,15 @@ export const DirectAdmissionEntry: React.FC = () => {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-                      {filteredAvailableCourses.length === 0 ? (
+                      {coursesLoading ? (
+                        <div className="p-6 text-center text-xs text-muted-foreground">Loading courses...</div>
+                      ) : filteredAvailableCourses.length === 0 ? (
                         <div className="p-6 text-center text-xs text-muted-foreground">
-                          {availableSearchQuery ? "No matching courses found." : "All available courses have been added."}
+                          {availableSearchQuery
+                            ? "No matching courses found."
+                            : allAvailableCourses.length === 0
+                            ? "No courses found. Add courses in Course Management first."
+                            : "All available courses have been added."}
                         </div>
                       ) : (
                         filteredAvailableCourses.map((course) => (
@@ -1505,7 +1790,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 4. BATCH & COURSE CONFIGURATION TABLE ─────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-batches" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -1550,7 +1835,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                       <TableBody>
                         {selectedCoursesList.map((item) => {
                           const cObj = allAvailableCourses.find((c) => c.id === item.courseId);
-                          const courseBatches = getBatchesForCourse(item.courseId, item.courseName, cObj?.code || "CRS");
+                          const courseBatches = getCourseBatches(item.courseId, item.courseName, cObj?.code || "CRS");
 
                           return (
                             <TableRow key={item.id} className="text-xs hover:bg-muted/40 transition-colors border-border">
@@ -1567,12 +1852,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                                   onChange={(e) => handleBatchChangeForCourse(item.id, e.target.value)}
                                   className="w-full px-2.5 py-1.5 text-xs rounded-md border border-border bg-background font-medium text-foreground"
                                 >
+                                  {courseBatches.length === 0 && <option value="">No batch available</option>}
                                   {courseBatches.map((b) => (
                                     <option key={b.id} value={b.id}>
-                                      {b.code} ({b.availableSeats} seats left)
+                                      {b.code} {b.isPersisted ? `(${b.availableSeats} seats left)` : "(preview)"}
                                     </option>
                                   ))}
                                 </select>
+                                {batchesLoading && (
+                                  <span className="text-[10px] text-muted-foreground">Loading batches...</span>
+                                )}
                               </TableCell>
 
                               {/* Faculty Auto-filled */}
@@ -1643,7 +1932,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
             {/* ──── 5. FEE DETAILS (AUTO-CALCULATED) ──────────────────────────── */}
             {/* ──── 5. FEE DETAILS ────────────────────────────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-fees" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -1770,11 +2059,11 @@ export const DirectAdmissionEntry: React.FC = () => {
                         onChange={(e) => setInitialPaymentMethod(e.target.value)}
                         className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground font-medium"
                       >
-                        <option value="UPI / QR Code">UPI / QR Code</option>
-                        <option value="Net Banking / IMPS">Net Banking / IMPS</option>
-                        <option value="Credit / Debit Card">Credit / Debit Card</option>
-                        <option value="Cash">Cash</option>
-                        <option value="Cheque / DD">Cheque / DD</option>
+                        {paymentModeOptions.map((opt) => (
+                          <option key={opt.value} value={opt.label}>
+                            {opt.label}
+                          </option>
+                        ))}
                       </select>
                     </div>
 
@@ -1818,7 +2107,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 6. INSTALLMENT PLAN ────────────────────────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-installments" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2.5">
@@ -1853,10 +2142,18 @@ export const DirectAdmissionEntry: React.FC = () => {
               </CardHeader>
 
               <CardContent className="p-6 space-y-4">
-                {paymentMode === "FULL" || balanceToBePaid === 0 ? (
+                {selectedCoursesList.length === 0 ? (
+                  <div className="p-6 text-center border-2 border-dashed border-border rounded-xl text-xs text-muted-foreground space-y-1.5">
+                    <Wallet className="h-6 w-6 text-muted-foreground/60 mx-auto" />
+                    <p className="font-bold text-foreground">Select courses to configure the installment plan.</p>
+                    <p>Fees and remaining balance appear here after course selection.</p>
+                  </div>
+                ) : paymentMode === "FULL" || balanceToBePaid === 0 ? (
                   <div className="p-6 text-center bg-emerald-500/10 border border-emerald-500/30 rounded-xl space-y-1.5">
                     <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400 mx-auto" />
-                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">100% Full Payment Configured</h4>
+                    <h4 className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                      {paymentMode === "FULL" ? "Full Payment Selected" : "100% Paid at Admission"}
+                    </h4>
                     <p className="text-xs text-emerald-600/80 dark:text-emerald-400/80">
                       No remaining balance required for installment scheduling.
                     </p>
@@ -1970,7 +2267,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             </Card>
 
             {/* ──── 7. REMARKS & TERMS ────────────────────────────────────────── */}
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            <Card id="section-remarks" className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
               <CardHeader className="bg-muted/40 border-b border-border pb-3 pt-4 px-6">
                 <div className="flex items-center gap-2.5">
                   <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">
@@ -2052,8 +2349,20 @@ export const DirectAdmissionEntry: React.FC = () => {
                 </div>
                 <div className="flex justify-between items-center pt-1 border-t border-border">
                   <span className="text-muted-foreground">Status</span>
-                  <span className="inline-flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
-                    <span className="h-2 w-2 rounded-full bg-amber-500" /> Draft
+                  <span className={`inline-flex items-center gap-1.5 font-bold ${
+                    admissionStatus === "Confirmed"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : admissionStatus === "Cancelled"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-amber-600 dark:text-amber-400"
+                  }`}>
+                    <span className={`h-2 w-2 rounded-full ${
+                      admissionStatus === "Confirmed"
+                        ? "bg-emerald-500"
+                        : admissionStatus === "Cancelled"
+                        ? "bg-rose-500"
+                        : "bg-amber-500"
+                    }`} /> {admissionStatus}
                   </span>
                 </div>
               </CardContent>
@@ -2146,8 +2455,22 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <CreditCard className="h-4 w-4 text-primary" />
                     <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">Payment Summary</CardTitle>
                   </div>
-                  <Badge variant="outline" className={`text-[10px] font-bold ${balanceToBePaid === 0 ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" : "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30"}`}>
-                    {balanceToBePaid === 0 ? "Fully Paid" : "Partially Paid"}
+                  <Badge variant="outline" className={`text-[10px] font-bold ${
+                    finalPayableAmount === 0
+                      ? "text-muted-foreground bg-muted border-border"
+                      : balanceToBePaid === 0
+                      ? "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30"
+                      : amountPaidAtAdmission > 0
+                      ? "text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/30"
+                      : "text-rose-600 dark:text-rose-400 bg-rose-500/10 border-rose-500/30"
+                  }`}>
+                    {finalPayableAmount === 0
+                      ? "No Fees Yet"
+                      : balanceToBePaid === 0
+                      ? "Fully Paid"
+                      : amountPaidAtAdmission > 0
+                      ? "Partially Paid"
+                      : "Unpaid"}
                   </Badge>
                 </div>
               </CardHeader>

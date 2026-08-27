@@ -311,9 +311,24 @@ export const AdmissionsService = {
     return adm;
   },
 
-  async createAdmission(instituteId: string, userBranchId: string | undefined, dto: CreateAdmissionDTO) {
-    // Determine branchId
+  async createAdmission(
+    instituteId: string,
+    userBranchId: string | undefined,
+    dto: CreateAdmissionDTO,
+    options?: { roles?: string[] }
+  ) {
+    const isAdmin = (options?.roles || []).includes("ADMIN");
     let branchId = userBranchId;
+
+    if (isAdmin && dto.branchId) {
+      const requestedBranch = await prisma.branch.findFirst({
+        where: { id: dto.branchId, instituteId },
+      });
+      if (requestedBranch) {
+        branchId = requestedBranch.id;
+      }
+    }
+
     if (!branchId) {
       const defaultBranch = await prisma.branch.findFirst({ where: { instituteId } });
       if (!defaultBranch) {
