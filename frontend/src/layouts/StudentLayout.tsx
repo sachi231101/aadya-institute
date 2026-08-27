@@ -64,6 +64,13 @@ export const StudentLayout: React.FC = () => {
     navigate("/login");
   };
 
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
+
+  React.useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const studentName = user?.name || "Rahul Verma";
   const studentInitials = studentName
     .split(" ")
@@ -76,7 +83,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
-    { label: "Announcements", icon: Megaphone, path: "/student/announcements" },
+    { label: "Announcements", icon: Megaphone, path: "/student/announcements", dot: true },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
@@ -161,7 +168,12 @@ export const StudentLayout: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <Icon className={`w-4 h-4 ${isActive ? "text-white stroke-[2.2]" : "text-muted-foreground stroke-[1.8]"}`} />
-                  <span>{item.label}</span>
+                  <span className="flex items-center gap-1.5">
+                    {item.label}
+                    {(item as any).dot && (
+                      <span className="w-2 h-2 rounded-full bg-rose-500 inline-block shadow-xs" />
+                    )}
+                  </span>
                 </div>
                 {item.badge && (
                   <span
@@ -265,10 +277,18 @@ export const StudentLayout: React.FC = () => {
 
           {/* Right Header Widgets */}
           <div className="flex items-center gap-2 sm:gap-3.5">
-            {/* Date Pill */}
-            <div className="hidden xl:flex items-center gap-2 bg-muted/40 border border-border/60 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-muted-foreground">
-              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-              <span>Tuesday, 13 Aug 2026</span>
+            {/* Dynamic Date & Time Pill */}
+            <div className="hidden xl:flex items-center gap-2 bg-muted/40 border border-border/60 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-muted-foreground shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+              <span>
+                {currentTime.toLocaleDateString("en-GB", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                })}{" "}
+                • {currentTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+              </span>
             </div>
 
             <InstallAppButton variant="header" />
