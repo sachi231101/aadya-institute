@@ -10,6 +10,7 @@ import {
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
 import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
+import { SequenceService } from "../masters/sequence.service";
 
 type AttendanceLike = {
   status: string;
@@ -240,10 +241,20 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     throw new AppError("Selected branch not found or does not belong to this institute", 400);
   }
 
-  // Check for duplicate student code
-  const existingCode = await repo.findStudentByCode(instituteId, dto.studentCode);
-  if (existingCode) {
-    throw new AppError(`Student code '${dto.studentCode}' already exists`, 409);
+  // Determine studentCode: auto-generate via SequenceService if omitted, or validate uniqueness
+  let studentCode = dto.studentCode?.trim();
+  const sequenceContext = { branchCode: branch.code };
+
+  if (
+    !studentCode ||
+    (await SequenceService.matchesNextPreview(instituteId, "STUDENT", studentCode, sequenceContext))
+  ) {
+    studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT", sequenceContext);
+  } else {
+    const existingCode = await repo.findStudentByCode(instituteId, studentCode);
+    if (existingCode) {
+      throw new AppError(`Student code '${studentCode}' already exists`, 409);
+    }
   }
 
   // Check for duplicate email if provided
@@ -301,7 +312,7 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : undefined,
     phone: dto.phone && dto.phone.trim() !== "" ? dto.phone.trim() : undefined,
     passwordHash,
-    studentCode: dto.studentCode,
+    studentCode,
     dateOfBirth: dto.dateOfBirth || undefined,
     qualification,
     qualificationMasterId,

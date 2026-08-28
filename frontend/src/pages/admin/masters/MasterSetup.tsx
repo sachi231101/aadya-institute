@@ -47,6 +47,8 @@ import {
   XCircle,
   ToggleLeft,
   ToggleRight,
+  Hash,
+  Sparkles,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -68,18 +70,25 @@ import {
   useDeleteMasterRecord,
   useMasterEntityCounts,
   useToggleMasterStatus,
+  useNumberingSeriesPreview,
 } from "@/hooks/useMasters";
 import {
   MASTER_ENTITY_TYPES,
   MASTER_CATEGORY_LABELS,
 } from "@/constants/master-types";
+import {
+  computePatternPreview,
+  getDefaultPatternForTarget,
+  getNextSequenceForPreview,
+} from "@/utils/numbering-series";
 
 // ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
 export type MasterCategoryGroup =
   | "ACADEMIC_ORG"
   | "ADMISSIONS_LEADS"
-  | "ACCOUNTING_FEES";
+  | "ACCOUNTING_FEES"
+  | "SYSTEM_AUTOMATION";
 
 export interface MasterEntity {
   id: string;
@@ -263,6 +272,20 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "approvalLevel", label: "Approval Required" },
     ],
   },
+  numberingseries: {
+    icon: Hash,
+    iconBgColor: "bg-slate-50 text-slate-600 border-slate-100",
+    iconColor: "text-slate-600",
+    description: "Auto-generate sequential document numbers",
+    columns: [
+      { key: "code", label: "Target Document", required: true },
+      { key: "name", label: "Series Name", required: true },
+      { key: "pattern", label: "Format Pattern" },
+      { key: "startNumber", label: "Start No" },
+      { key: "currentSequence", label: "Last Issued No" },
+      { key: "resetFrequency", label: "Reset Cycle" },
+    ],
+  },
 };
 
 const buildMasterEntities = (): MasterEntity[] =>
@@ -288,8 +311,6 @@ const CATEGORY_COUNTS = MASTER_ENTITY_TYPES.reduce(
   {} as Record<string, number>
 );
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
 const formatDate = (isoStr: string | null | undefined) => {
   if (!isoStr) return "—";
   try {
@@ -304,6 +325,24 @@ const formatDate = (isoStr: string | null | undefined) => {
 };
 
 // ─── COMPONENT ────────────────────────────────────────────────────────────────
+
+const NumberingSeriesPreviewCell: React.FC<{ target: string }> = ({ target }) => {
+  const { data, isLoading, isError } = useNumberingSeriesPreview(target);
+
+  if (isLoading) {
+    return <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-500" />;
+  }
+
+  if (isError || !data?.data?.preview) {
+    return <span className="text-slate-400 text-xs">—</span>;
+  }
+
+  return (
+    <span className="font-mono font-bold text-xs px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200">
+      {data.data.preview}
+    </span>
+  );
+};
 
 export const MasterSetup: React.FC = () => {
   // View switcher: "GRID" or "CRUD"
@@ -320,6 +359,7 @@ export const MasterSetup: React.FC = () => {
   // Record CRUD
   const [isAddEditRecordOpen, setIsAddEditRecordOpen] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
+  const [editingCurrentSequence, setEditingCurrentSequence] = useState(0);
   const [recordFormValues, setRecordFormValues] = useState<Record<string, string>>({});
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [recordSearchQuery, setRecordSearchQuery] = useState("");
@@ -399,6 +439,27 @@ export const MasterSetup: React.FC = () => {
   const academicMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACADEMIC_ORG"), [filteredMasters]);
   const admissionsMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ADMISSIONS_LEADS"), [filteredMasters]);
   const accountingMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACCOUNTING_FEES"), [filteredMasters]);
+  const systemMasters = useMemo(() => filteredMasters.filter((m) => m.category === "SYSTEM_AUTOMATION"), [filteredMasters]);
+
+  const formPreviewTarget = recordFormValues.code || "ADMISSION";
+  const { data: liveFormPreviewData } = useNumberingSeriesPreview(
+    selectedMasterEntity?.id === "numberingseries" && editingRecordId ? formPreviewTarget : "",
+    undefined
+  );
+
+  const formPreviewSequence = editingRecordId
+    ? liveFormPreviewData?.data?.nextSequence ??
+      getNextSequenceForPreview(
+        editingCurrentSequence,
+        Number(recordFormValues.startNumber) || 1,
+        false
+      )
+    : Number(recordFormValues.startNumber) || 1;
+
+  const formPatternPreview = computePatternPreview(
+    recordFormValues.pattern || getDefaultPatternForTarget(formPreviewTarget),
+    formPreviewSequence
+  );
 
   // ─── TOAST HELPER ───────────────────────────────────────────────────────────
 
@@ -422,10 +483,18 @@ export const MasterSetup: React.FC = () => {
   const handleOpenAddRecord = (entity: MasterEntity) => {
     setSelectedMasterEntity(entity);
     setEditingRecordId(null);
+    setEditingCurrentSequence(0);
     const initialForm: Record<string, string> = {};
     entity.columns.forEach((col) => {
       initialForm[col.key] = "";
     });
+    if (entity.id === "numberingseries") {
+      initialForm.code = "ADMISSION";
+      initialForm.name = "Admission Number Series";
+      initialForm.pattern = "AADYA/{YEAR}/{SEQ:4}";
+      initialForm.startNumber = "1";
+      initialForm.resetFrequency = "YEARLY";
+    }
     setRecordFormValues(initialForm);
     setFormErrors({});
     setIsAddEditRecordOpen(true);
@@ -435,6 +504,7 @@ export const MasterSetup: React.FC = () => {
   const handleOpenEditRecord = (entity: MasterEntity, rec: any) => {
     setSelectedMasterEntity(entity);
     setEditingRecordId(rec.id);
+    setEditingCurrentSequence(Number(rec.data?.currentSequence) || 0);
     const formVals: Record<string, string> = {};
     entity.columns.forEach((col) => {
       formVals[col.key] = rec.data?.[col.key] ?? rec[col.key] ?? "";
@@ -443,6 +513,13 @@ export const MasterSetup: React.FC = () => {
     formVals.name = formVals.name || rec.name || "";
     formVals.code = formVals.code || rec.code || "";
     formVals.description = formVals.description || rec.description || "";
+    if (entity.id === "numberingseries") {
+      formVals.code = rec.code || rec.data?.target || "ADMISSION";
+      formVals.pattern = rec.data?.pattern || formVals.pattern || "AADYA/{YEAR}/{SEQ:4}";
+      formVals.startNumber = String(rec.data?.startNumber ?? "1");
+      formVals.resetFrequency = rec.data?.resetFrequency || "YEARLY";
+      formVals.currentSequence = String(rec.data?.currentSequence ?? "0");
+    }
     setRecordFormValues(formVals);
     setFormErrors({});
     setIsAddEditRecordOpen(true);
@@ -485,12 +562,20 @@ export const MasterSetup: React.FC = () => {
     const recordDesc = recordFormValues.description?.trim() || undefined;
 
     // Build data object from all form values
-    const dataObj: Record<string, string> = {};
+    const dataObj: Record<string, any> = {};
     selectedMasterEntity.columns.forEach((col) => {
       if (recordFormValues[col.key]?.trim()) {
         dataObj[col.key] = recordFormValues[col.key].trim();
       }
     });
+
+    if (entityId === "numberingseries") {
+      dataObj.target = recordCode || "ADMISSION";
+      dataObj.pattern = recordFormValues.pattern || getDefaultPatternForTarget(recordCode);
+      dataObj.startNumber = Number(recordFormValues.startNumber) || 1;
+      dataObj.resetFrequency = recordFormValues.resetFrequency || "YEARLY";
+      dataObj.currentSequence = editingRecordId ? editingCurrentSequence : 0;
+    }
 
     try {
       if (editingRecordId) {
@@ -780,6 +865,7 @@ export const MasterSetup: React.FC = () => {
             <option value="ACADEMIC_ORG">{MASTER_CATEGORY_LABELS.ACADEMIC_ORG} ({CATEGORY_COUNTS.ACADEMIC_ORG ?? 0})</option>
             <option value="ADMISSIONS_LEADS">{MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS} ({CATEGORY_COUNTS.ADMISSIONS_LEADS ?? 0})</option>
             <option value="ACCOUNTING_FEES">{MASTER_CATEGORY_LABELS.ACCOUNTING_FEES} ({CATEGORY_COUNTS.ACCOUNTING_FEES ?? 0})</option>
+            <option value="SYSTEM_AUTOMATION">{MASTER_CATEGORY_LABELS.SYSTEM_AUTOMATION} ({CATEGORY_COUNTS.SYSTEM_AUTOMATION ?? 0})</option>
           </select>
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
         </div>
@@ -796,6 +882,9 @@ export const MasterSetup: React.FC = () => {
 
           {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACCOUNTING_FEES") &&
             renderCategorySection("Accounting & Fees", "Financial and accounting master configurations.", accountingMasters, "ACCOUNTING_FEES")}
+
+          {(selectedModuleFilter === "ALL" || selectedModuleFilter === "SYSTEM_AUTOMATION") &&
+            renderCategorySection("System & Automation", "Auto-generated document numbering and system-wide automation settings.", systemMasters, "SYSTEM_AUTOMATION", "lg:grid-cols-2")}
         </div>
       )}
 
@@ -1028,6 +1117,9 @@ export const MasterSetup: React.FC = () => {
                             .map((col) => (
                               <th key={col.key} className="py-2.5 px-3">{col.label}</th>
                             ))}
+                          {selectedMasterEntity.id === "numberingseries" && (
+                            <th className="py-2.5 px-3 text-blue-700">Next Number Preview</th>
+                          )}
                           <th className="py-2.5 px-3 text-center">Status</th>
                           <th className="py-2.5 px-3 text-center">Actions</th>
                         </tr>
@@ -1044,6 +1136,11 @@ export const MasterSetup: React.FC = () => {
                                   {rec.data?.[col.key] || "—"}
                                 </td>
                               ))}
+                            {selectedMasterEntity.id === "numberingseries" && (
+                              <td className="py-2.5 px-3">
+                                <NumberingSeriesPreviewCell target={rec.code || rec.data?.target || "ADMISSION"} />
+                              </td>
+                            )}
                             <td className="py-2.5 px-3 text-center">
                               <StatusBadge status={rec.status} />
                             </td>
@@ -1148,39 +1245,179 @@ export const MasterSetup: React.FC = () => {
               </DialogHeader>
 
               <div className="space-y-3 my-3 text-xs">
-                {selectedMasterEntity.columns.map((col) => (
-                  <div key={col.key} className="space-y-1">
-                    <Label className="text-[11px] font-bold text-slate-700">
-                      {col.label}
-                      {(col.required || col.key === "name") && (
-                        <span className="text-rose-500 ml-0.5">*</span>
+                {selectedMasterEntity.columns.map((col) => {
+                  const isNumberingSeries = selectedMasterEntity.id === "numberingseries";
+
+                  if (isNumberingSeries && col.key === "code") {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label} <span className="text-rose-500">*</span>
+                        </Label>
+                        <select
+                          value={recordFormValues[col.key] || "ADMISSION"}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setRecordFormValues((prev) => ({
+                              ...prev,
+                              [col.key]: val,
+                              name: prev.name || `${val.charAt(0) + val.slice(1).toLowerCase()} Series`,
+                            }));
+                          }}
+                          className="w-full h-9 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                        >
+                          <option value="ADMISSION">ADMISSION (Student Admission Number)</option>
+                          <option value="STUDENT">STUDENT (Student Code / Roll No)</option>
+                          <option value="RECEIPT">RECEIPT (Fee Payment Receipt Number)</option>
+                          <option value="ENQUIRY">ENQUIRY (Enquiry Number)</option>
+                          <option value="APPLICATION">APPLICATION (Application Number)</option>
+                        </select>
+                      </div>
+                    );
+                  }
+
+                  if (isNumberingSeries && col.key === "resetFrequency") {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label}
+                        </Label>
+                        <select
+                          value={recordFormValues[col.key] || "YEARLY"}
+                          onChange={(e) => {
+                            setRecordFormValues((prev) => ({
+                              ...prev,
+                              [col.key]: e.target.value,
+                            }));
+                          }}
+                          className="w-full h-9 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                        >
+                          <option value="YEARLY">YEARLY (Resets counter every Jan 1st)</option>
+                          <option value="MONTHLY">MONTHLY (Resets counter every 1st of month)</option>
+                          <option value="NEVER">NEVER (Continuous sequential numbering)</option>
+                        </select>
+                      </div>
+                    );
+                  }
+
+                  if (isNumberingSeries && col.key === "pattern") {
+                    const insertTag = (tag: string) => {
+                      const current = recordFormValues.pattern || "";
+                      setRecordFormValues((prev) => ({
+                        ...prev,
+                        pattern: current + tag,
+                      }));
+                    };
+
+                    return (
+                      <div key={col.key} className="space-y-1.5">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label} <span className="text-rose-500">*</span>
+                        </Label>
+                        <Input
+                          value={recordFormValues[col.key] || ""}
+                          onChange={(e) => {
+                            setRecordFormValues((prev) => ({
+                              ...prev,
+                              [col.key]: e.target.value,
+                            }));
+                          }}
+                          placeholder="e.g. AADYA/{YEAR}/{SEQ:4}"
+                          className="h-9 font-mono text-xs rounded-xl bg-slate-50"
+                        />
+                        <div className="flex flex-wrap items-center gap-1 pt-0.5">
+                          <span className="text-[10px] text-slate-500 font-medium">Insert tag:</span>
+                          {["{YEAR}", "{YY}", "{MONTH}", "{BRANCH}", "{SEQ:4}"].map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => insertTag(tag)}
+                              className="px-1.5 py-0.5 text-[10px] font-mono font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md border border-blue-200 cursor-pointer"
+                            >
+                              +{tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (isNumberingSeries && col.key === "currentSequence") {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label}
+                        </Label>
+                        <Input
+                          value={editingRecordId ? String(editingCurrentSequence) : "0"}
+                          readOnly
+                          disabled
+                          className="h-9 text-xs rounded-xl bg-slate-100 font-mono"
+                        />
+                        <p className="text-[10px] text-slate-500">
+                          Counter increments automatically when documents are created.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={col.key} className="space-y-1">
+                      <Label className="text-[11px] font-bold text-slate-700">
+                        {col.label}
+                        {(col.required || col.key === "name") && (
+                          <span className="text-rose-500 ml-0.5">*</span>
+                        )}
+                      </Label>
+                      <Input
+                        value={recordFormValues[col.key] || ""}
+                        onChange={(e) => {
+                          setRecordFormValues((prev) => ({
+                            ...prev,
+                            [col.key]: e.target.value,
+                          }));
+                          // Clear error when user types
+                          if (formErrors[col.key]) {
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[col.key];
+                              return next;
+                            });
+                          }
+                        }}
+                        placeholder={`Enter ${col.label.toLowerCase()}...`}
+                        className={`h-9 text-xs rounded-xl bg-slate-50 ${formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
+                          }`}
+                      />
+                      {formErrors[col.key] && (
+                        <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
                       )}
-                    </Label>
-                    <Input
-                      value={recordFormValues[col.key] || ""}
-                      onChange={(e) => {
-                        setRecordFormValues((prev) => ({
-                          ...prev,
-                          [col.key]: e.target.value,
-                        }));
-                        // Clear error when user types
-                        if (formErrors[col.key]) {
-                          setFormErrors((prev) => {
-                            const next = { ...prev };
-                            delete next[col.key];
-                            return next;
-                          });
-                        }
-                      }}
-                      placeholder={`Enter ${col.label.toLowerCase()}...`}
-                      className={`h-9 text-xs rounded-xl bg-slate-50 ${formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
-                        }`}
-                    />
-                    {formErrors[col.key] && (
-                      <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
+                    </div>
+                  );
+                })}
+
+                {/* Live Preview for numbering series */}
+                {selectedMasterEntity.id === "numberingseries" && (
+                  <div className="p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-2 mt-2">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-blue-900">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-blue-600" /> Live Pattern Preview
+                      </span>
+                      <Badge className="bg-blue-600 text-white text-[9px] font-mono">LIVE SAMPLE</Badge>
+                    </div>
+                    <div className="font-mono text-sm font-black text-blue-700 bg-white px-3.5 py-2 rounded-xl border border-blue-200 shadow-2xs">
+                      {formPatternPreview}
+                    </div>
+                    {editingRecordId && liveFormPreviewData?.data && (
+                      <p className="text-[10px] text-blue-700/80">
+                        Live counter: last issued #{liveFormPreviewData.data.currentSequence}, next will be #{liveFormPreviewData.data.nextSequence}
+                      </p>
                     )}
+                    <p className="text-[10px] text-blue-600/80 leading-relaxed">
+                      Generated sequentially on creating new {recordFormValues.code || "records"} in Aadya Institute.
+                    </p>
                   </div>
-                ))}
+                )}
               </div>
 
               <DialogFooter className="flex gap-2">

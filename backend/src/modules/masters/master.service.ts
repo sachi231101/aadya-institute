@@ -1,4 +1,5 @@
 import { AppError } from "../../middlewares/error.middleware";
+import { prisma } from "../../config/database";
 import { buildMeta } from "../../utils/pagination";
 import type {
   CreateMasterRecordInput,
@@ -15,9 +16,58 @@ import {
   toggleMasterRecordStatus,
   findAllEntityTypeCounts,
   findActiveMasterRecords,
+  findActiveNumberingSeriesByTarget,
 } from "./master.repository";
 import type { Status } from "@prisma/client";
 import { isAllowedMasterEntityType } from "./master.entity-types";
+import type { NumberingSeriesData } from "./master.types";
+
+const NUMBERING_SERIES_TARGETS = [
+  "ADMISSION",
+  "RECEIPT",
+  "STUDENT",
+  "ENQUIRY",
+  "APPLICATION",
+] as const;
+
+const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
+  ADMISSION: "AADYA/{YEAR}/{SEQ:4}",
+  RECEIPT: "RCP/{YEAR}/{SEQ:4}",
+  STUDENT: "AAD-{YEAR}-{SEQ:4}",
+  ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
+  APPLICATION: "APP-{YEAR}-{SEQ:4}",
+};
+
+const normalizeNumberingSeriesData = (
+  code: string | undefined,
+  data: Record<string, unknown> | undefined,
+  existingData?: Record<string, unknown> | null
+): NumberingSeriesData => {
+  const target = (code || (data?.target as string) || "ADMISSION").toUpperCase();
+  const startNumber = Number(data?.startNumber ?? existingData?.startNumber ?? 1) || 1;
+  const currentSequence = existingData
+    ? Number(existingData.currentSequence) || 0
+    : 0;
+
+  return {
+    target,
+    pattern:
+      (data?.pattern as string) ||
+      (existingData?.pattern as string) ||
+      DEFAULT_NUMBERING_PATTERNS[target] ||
+      "{SEQ:4}",
+    startNumber,
+    currentSequence,
+    resetFrequency:
+      (data?.resetFrequency as NumberingSeriesData["resetFrequency"]) ||
+      (existingData?.resetFrequency as NumberingSeriesData["resetFrequency"]) ||
+      "YEARLY",
+    lastResetPeriod:
+      (existingData?.lastResetPeriod as string | undefined) ??
+      (data?.lastResetPeriod as string | undefined) ??
+      "",
+  };
+};
 
 export interface MasterAuthUser {
   userId: string;
@@ -91,7 +141,67 @@ export const createMasterService = async (
     ? (currentUser.branchId || input.branchId || undefined)
     : input.branchId;
 
-  // Duplicate name check
+  let payload: CreateMasterRecordInput = { ...input, branchId };
+
+  if (input.entityType === "numberingseries") {
+    const target = (input.code || (input.data?.target as string) || "ADMISSION").toUpperCase();
+    if (!NUMBERING_SERIES_TARGETS.includes(target as (typeof NUMBERING_SERIES_TARGETS)[number])) {
+      throw new AppError(
+        `Invalid numbering series target. Allowed: ${NUMBERING_SERIES_TARGETS.join(", ")}`,
+        400
+      );
+    }
+
+    const existingSeries = await findActiveNumberingSeriesByTarget(instituteId, target);
+
+    const numberingData = normalizeNumberingSeriesData(
+      target,
+      input.data,
+      (existingSeries?.data as Record<string, unknown>) ?? undefined
+    );
+
+    if (existingSeries) {
+      // Deactivate any other series for this target
+      await prisma.masterRecord.updateMany({
+        where: {
+          instituteId,
+          entityType: "numberingseries",
+          code: target,
+          id: { not: existingSeries.id },
+        },
+        data: { status: "INACTIVE" },
+      });
+
+      // Update existing record with the new pattern/settings and activate it
+      return updateMasterRecord(existingSeries.id, instituteId, {
+        name: input.name,
+        code: target,
+        description: input.description,
+        status: "ACTIVE",
+        data: numberingData as any,
+      });
+    }
+
+    // Deactivate previous active series for this target
+    await prisma.masterRecord.updateMany({
+      where: {
+        instituteId,
+        entityType: "numberingseries",
+        code: target,
+      },
+      data: { status: "INACTIVE" },
+    });
+
+    payload = {
+      ...payload,
+      code: target,
+      data: numberingData,
+    };
+
+    return createMasterRecord(instituteId, payload);
+  }
+
+  // Duplicate name check for other master entity types
   const duplicate = await findDuplicateMasterRecord(
     instituteId,
     input.entityType,
@@ -104,10 +214,7 @@ export const createMasterService = async (
     );
   }
 
-  return createMasterRecord(instituteId, {
-    ...input,
-    branchId,
-  });
+  return createMasterRecord(instituteId, payload);
 };
 
 export const updateMasterService = async (
@@ -147,7 +254,49 @@ export const updateMasterService = async (
     }
   }
 
-  return updateMasterRecord(id, instituteId, input);
+  let updatePayload: UpdateMasterRecordInput = { ...input };
+
+  if (existing.entityType === "numberingseries") {
+    const target = (input.code || existing.code || (input.data?.target as string) || "").toUpperCase();
+    if (
+      target &&
+      !NUMBERING_SERIES_TARGETS.includes(target as (typeof NUMBERING_SERIES_TARGETS)[number])
+    ) {
+      throw new AppError(
+        `Invalid numbering series target. Allowed: ${NUMBERING_SERIES_TARGETS.join(", ")}`,
+        400
+      );
+    }
+
+    if (input.status === "ACTIVE" || (!input.status && existing.status === "ACTIVE")) {
+      await prisma.masterRecord.updateMany({
+        where: {
+          instituteId,
+          entityType: "numberingseries",
+          code: target,
+          id: { not: id },
+        },
+        data: { status: "INACTIVE" },
+      });
+    }
+
+    const mergedData = {
+      ...(existing.data as Record<string, unknown> | null),
+      ...(input.data ?? {}),
+    };
+
+    updatePayload = {
+      ...updatePayload,
+      code: target || existing.code || undefined,
+      data: normalizeNumberingSeriesData(
+        target || existing.code || undefined,
+        mergedData,
+        existing.data as Record<string, unknown> | null
+      ),
+    };
+  }
+
+  return updateMasterRecord(id, instituteId, updatePayload);
 };
 
 export const deleteMasterService = async (
@@ -199,6 +348,19 @@ export const toggleMasterStatusService = async (
   }
 
   const newStatus = existing.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
+
+  if (existing.entityType === "numberingseries" && newStatus === "ACTIVE" && existing.code) {
+    await prisma.masterRecord.updateMany({
+      where: {
+        instituteId,
+        entityType: "numberingseries",
+        code: existing.code,
+        id: { not: id },
+      },
+      data: { status: "INACTIVE" },
+    });
+  }
+
   return toggleMasterRecordStatus(id, newStatus);
 };
 

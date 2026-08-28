@@ -210,3 +210,29 @@ export const findActiveMasterRecords = async (
     },
   });
 };
+
+export const findActiveNumberingSeriesByTarget = async (
+  instituteId: string,
+  target: string,
+  excludeId?: string
+) => {
+  const normalizedTarget = target.toUpperCase();
+  const baseWhere = {
+    instituteId,
+    entityType: "numberingseries",
+    status: "ACTIVE" as const,
+    ...(excludeId ? { id: { not: excludeId } } : {}),
+  };
+
+  const byCode = await prisma.masterRecord.findFirst({
+    where: { ...baseWhere, code: normalizedTarget },
+  });
+  if (byCode) return byCode;
+
+  return prisma.masterRecord.findFirst({
+    where: {
+      ...baseWhere,
+      data: { path: ["target"], equals: normalizedTarget },
+    },
+  });
+};

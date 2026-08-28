@@ -105,6 +105,78 @@ const TIER1_MASTERS: MasterSeed[] = [
   { entityType: "examterm", name: "Final Term", code: "FINAL", sortOrder: 2 },
   { entityType: "examterm", name: "Module Assessment", code: "MODULE", sortOrder: 3 },
 
+  // ─── Numbering Series (auto-generation patterns) ──────────────────────────
+  {
+    entityType: "numberingseries",
+    name: "Admission Number Series",
+    code: "ADMISSION",
+    data: {
+      target: "ADMISSION",
+      pattern: "AADYA/{YEAR}/{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 1,
+  },
+  {
+    entityType: "numberingseries",
+    name: "Student Code Series",
+    code: "STUDENT",
+    data: {
+      target: "STUDENT",
+      pattern: "AAD-{YEAR}-{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 2,
+  },
+  {
+    entityType: "numberingseries",
+    name: "Receipt Number Series",
+    code: "RECEIPT",
+    data: {
+      target: "RECEIPT",
+      pattern: "RCP/{YEAR}/{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 3,
+  },
+  {
+    entityType: "numberingseries",
+    name: "Enquiry Number Series",
+    code: "ENQUIRY",
+    data: {
+      target: "ENQUIRY",
+      pattern: "ENQ-{YEAR}-{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 4,
+  },
+  {
+    entityType: "numberingseries",
+    name: "Application Number Series",
+    code: "APPLICATION",
+    data: {
+      target: "APPLICATION",
+      pattern: "APP-{YEAR}-{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 5,
+  },
+
 ];
 
 export async function seedMastersForInstitute(
@@ -117,7 +189,10 @@ export async function seedMastersForInstitute(
       where: {
         instituteId,
         entityType: m.entityType,
-        code: m.code,
+        OR: [
+          { name: m.name },
+          { code: m.code },
+        ],
       },
     });
     if (!existing) {

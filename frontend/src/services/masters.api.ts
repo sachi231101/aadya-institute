@@ -173,4 +173,18 @@ export const mastersApi = {
     );
     return response.data;
   },
+
+  /**
+   * Preview next sequential number for numbering series
+   */
+  previewNumberingSeries: async (
+    target: string,
+    params?: { branchCode?: string; courseCode?: string }
+  ): Promise<{ success: boolean; data: { preview: string; currentSequence: number; nextSequence: number } }> => {
+    const response = await api.get<{ success: boolean; data: { preview: string; currentSequence: number; nextSequence: number } }>(
+      "/masters/numbering-series/preview",
+      { params: { target, ...params } }
+    );
+    return response.data;
+  },
 };

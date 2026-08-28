@@ -143,3 +143,28 @@ export const getActiveMasters = async (
     next(err);
   }
 };
+
+/**
+ * Preview next sequential number for a given target document type
+ */
+export const previewNumberingSeries = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { SequenceService } = await import("./sequence.service");
+    const target = String(req.query.target || "ADMISSION");
+    const branchCode = req.query.branchCode ? String(req.query.branchCode) : undefined;
+    const courseCode = req.query.courseCode ? String(req.query.courseCode) : undefined;
+    const result = await SequenceService.previewNextNumber(
+      req.user!.instituteId,
+      target,
+      { branchCode, courseCode }
+    );
+    sendSuccess(res, result, 200, "Numbering series preview generated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+

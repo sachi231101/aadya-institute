@@ -125,3 +125,19 @@ export const useToggleMasterStatus = () => {
     },
   });
 };
+
+/**
+ * Fetch live preview of next sequential number for numbering series
+ */
+export const useNumberingSeriesPreview = (
+  target: string,
+  params?: { branchCode?: string; courseCode?: string }
+) => {
+  return useQuery({
+    queryKey: [MASTERS_KEY, "preview", target, params?.branchCode, params?.courseCode],
+    queryFn: () => mastersApi.previewNumberingSeries(target, params),
+    enabled: !!target,
+    staleTime: 1000 * 30, // 30s
+  });
+};
+
