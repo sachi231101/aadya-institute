@@ -111,6 +111,7 @@ export const useStaffExamAttempts = (
     queryKey: attemptKeys.staffList(examId, params),
     queryFn: () => examAttemptsApi.getExamAttemptsStaff(examId, params),
     enabled: !!examId,
+    refetchInterval: 5000,
   });
 };
 

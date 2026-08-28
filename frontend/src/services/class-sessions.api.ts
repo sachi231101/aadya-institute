@@ -44,6 +44,13 @@ export interface BackendClassSession {
       phone?: string;
     };
   };
+  batchModule?: {
+    id: string;
+    courseModule?: {
+      id: string;
+      name: string;
+    };
+  };
 }
 
 export interface SingleResponse<T> {

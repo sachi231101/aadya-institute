@@ -76,122 +76,12 @@ export interface CourseCatalogItem {
   id: string;
   name: string;
   code: string;
-  duration: string;
+  duration?: string;
+  durationMonths?: number;
   fee: number;
   category: string;
   packageProgram: string;
 }
-
-export const PRESET_COURSES: CourseCatalogItem[] = [
-  {
-    id: "c-excel",
-    name: "Advanced Excel",
-    code: "EX-2026",
-    duration: "2 Months",
-    fee: 15000,
-    category: "Analytics & Tools",
-    packageProgram: "Advanced Excel Mastery",
-  },
-  {
-    id: "c-biz",
-    name: "Business Communication & Basics",
-    code: "BC-2026",
-    duration: "2 Months",
-    fee: 12000,
-    category: "Business Skills",
-    packageProgram: "Corporate Communication",
-  },
-  {
-    id: "c-dm",
-    name: "Digital Marketing Advanced",
-    code: "DM-2026",
-    duration: "6 Months",
-    fee: 30000,
-    category: "Marketing",
-    packageProgram: "Performance Marketing Pro",
-  },
-  {
-    id: "c-gd",
-    name: "Graphic Designing Professional",
-    code: "GD-2026",
-    duration: "4 Months",
-    fee: 25000,
-    category: "Design",
-    packageProgram: "Brand Identity Design",
-  },
-  {
-    id: "c-tally",
-    name: "Tally Prime with GST",
-    code: "TP-2026",
-    duration: "3 Months",
-    fee: 18000,
-    category: "Accounting",
-    packageProgram: "Accounting & GST Practitioner",
-  },
-  {
-    id: "c-py",
-    name: "Python Programming",
-    code: "PY-2026",
-    duration: "4 Months",
-    fee: 28000,
-    category: "Programming",
-    packageProgram: "Core & Advanced Python",
-  },
-  {
-    id: "c-eh",
-    name: "Ethical Hacking",
-    code: "EH-2026",
-    duration: "5 Months",
-    fee: 35000,
-    category: "Cybersecurity",
-    packageProgram: "Cyber Defense & PenTesting",
-  },
-  {
-    id: "c-sap",
-    name: "SAP FICO",
-    code: "SAP-2026",
-    duration: "5 Months",
-    fee: 40000,
-    category: "Enterprise ERP",
-    packageProgram: "SAP Financials & Controlling",
-  },
-  {
-    id: "c-ds",
-    name: "Data Science with Python",
-    code: "DS-2026",
-    duration: "6 Months",
-    fee: 45000,
-    category: "Data & AI",
-    packageProgram: "Data Science Masterclass",
-  },
-  {
-    id: "c-fs",
-    name: "Web Development Full Stack",
-    code: "FS-2026",
-    duration: "6 Months",
-    fee: 50000,
-    category: "Development",
-    packageProgram: "MERN Stack Bootcamp",
-  },
-  {
-    id: "c-uiux",
-    name: "UI/UX Product Design",
-    code: "UX-2026",
-    duration: "4 Months",
-    fee: 32000,
-    category: "Design",
-    packageProgram: "Figma & Design Systems",
-  },
-  {
-    id: "c-cloud",
-    name: "Cloud & DevOps Engineering",
-    code: "CD-2026",
-    duration: "5 Months",
-    fee: 42000,
-    category: "Infrastructure",
-    packageProgram: "AWS & Kubernetes Track",
-  },
-];
 
 export interface CoursePackageItem {
   id: string;
@@ -199,39 +89,6 @@ export interface CoursePackageItem {
   courseIds: string[];
   description: string;
 }
-
-export const PRESET_PACKAGES: CoursePackageItem[] = [
-  {
-    id: "pkg-dm-gd",
-    name: "Digital Marketing & Design Combo",
-    courseIds: ["c-dm", "c-gd"],
-    description: "Digital Marketing Advanced + Graphic Designing Professional",
-  },
-  {
-    id: "pkg-fs-py",
-    name: "Full Stack & Python Professional Track",
-    courseIds: ["c-fs", "c-py"],
-    description: "Web Development Full Stack + Python Programming",
-  },
-  {
-    id: "pkg-fin-biz",
-    name: "Financial Accounting & Business Suite",
-    courseIds: ["c-tally", "c-excel", "c-biz"],
-    description: "Tally Prime with GST + Advanced Excel + Business Communication",
-  },
-  {
-    id: "pkg-ds-excel",
-    name: "Data Science & Analytics Bundle",
-    courseIds: ["c-ds", "c-excel"],
-    description: "Data Science with Python + Advanced Excel",
-  },
-  {
-    id: "pkg-sec-py",
-    name: "Cybersecurity & Python Specialist",
-    courseIds: ["c-eh", "c-py"],
-    description: "Ethical Hacking + Python Programming",
-  },
-];
 
 export interface SelectedCourseItem {
   id: string;
@@ -268,21 +125,8 @@ const addMonthsIso = (base: Date, months: number) => {
   return next.toISOString().slice(0, 10);
 };
 
-const resolveCourseFee = (course: { fee?: number; duration?: number | string; durationMonths?: number; category?: string }) => {
-  if (typeof course.fee === "number" && course.fee > 0) return course.fee;
-  const months = Number(course.durationMonths ?? course.duration);
-  if (Number.isFinite(months) && months > 0) return Math.max(15000, Math.round(months * 2500));
-  const categoryFees: Record<string, number> = {
-    Design: 25000,
-    Marketing: 30000,
-    Programming: 28000,
-    Development: 45000,
-    "Data Science": 45000,
-    "Data & AI": 45000,
-    Accounting: 18000,
-    Cybersecurity: 35000,
-  };
-  return categoryFees[course.category || ""] || 25000;
+const resolveCourseFee = (course: { fee?: number | null }) => {
+  return typeof course.fee === "number" && course.fee >= 0 ? course.fee : 0;
 };
 
 const formatBatchSchedule = (batch: BatchData) => {
@@ -344,49 +188,6 @@ const ACADEMIC_YEAR_OPTIONS = [
   `${currentYear - 1} - ${currentYear}`,
   `${currentYear + 1} - ${currentYear + 2}`,
 ];
-
-// Fallback batches only when the course has none in the database. Fake IDs are never sent to the API.
-export const getBatchesForCourse = (courseId: string, courseName: string, courseCode: string) => {
-  const prefix = courseCode.split("-")[0] || "CRS";
-  return [
-    {
-      id: `b-${courseId}-morn`,
-      name: `${courseName} — Morning Regular`,
-      code: `${prefix}-JUN-${currentYear}-MORN`,
-      facultyName: "To be assigned",
-      facultyAvatar: "T",
-      schedule: "Mon - Fri 09:00 AM - 11:00 AM",
-      startDate: `${currentYear}-06-01`,
-      endDate: `${currentYear}-11-30`,
-      availableSeats: 14,
-      totalCapacity: 35,
-    },
-    {
-      id: `b-${courseId}-eve`,
-      name: `${courseName} — Evening Fast-Track`,
-      code: `${prefix}-JUL-${currentYear}-EVE`,
-      facultyName: "To be assigned",
-      facultyAvatar: "T",
-      schedule: "Mon - Fri 04:00 PM - 06:00 PM",
-      startDate: `${currentYear}-07-05`,
-      endDate: `${currentYear + 1}-01-05`,
-      availableSeats: 8,
-      totalCapacity: 30,
-    },
-    {
-      id: `b-${courseId}-wknd`,
-      name: `${courseName} — Weekend Intensive`,
-      code: `${prefix}-JUN-${currentYear}-WKND`,
-      facultyName: "To be assigned",
-      facultyAvatar: "T",
-      schedule: "Sat - Sun 10:00 AM - 02:00 PM",
-      startDate: `${currentYear}-06-06`,
-      endDate: `${currentYear}-12-06`,
-      availableSeats: 18,
-      totalCapacity: 25,
-    },
-  ];
-};
 
 export const DirectAdmissionEntry: React.FC = () => {
   const navigate = useNavigate();
@@ -489,8 +290,8 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   // ─── QUERIES ─────────────────────────────────────────────────────────────
   const { data: dbCoursesRes, isLoading: coursesLoading } = useQuery({
-    queryKey: ["courses"],
-    queryFn: () => coursesApi.getAll(),
+    queryKey: ["courses", "direct-admission"],
+    queryFn: () => coursesApi.getAll({ status: "ACTIVE" }),
   });
 
   const { data: batchesRes, isLoading: batchesLoading } = useQuery({
@@ -566,35 +367,24 @@ export const DirectAdmissionEntry: React.FC = () => {
   }, [paymentModeOptions, initialPaymentMethod]);
 
   const allAvailableCourses = useMemo(() => {
-    const dbCourses = (dbCoursesRes?.data || []).map((c: any) => ({
-      id: c.id,
-      name: c.name,
-      code: c.code,
-      fee: resolveCourseFee(c),
-      durationMonths: c.duration || 6,
-      category: c.category || "Development",
-      packageProgram: c.name,
-    }));
-    if (dbCourses.length > 0) return dbCourses;
-    return PRESET_COURSES.map((c) => ({ ...c, durationMonths: 6 }));
+    return (dbCoursesRes?.data || [])
+      .filter((c: { status?: string }) => c.status !== "INACTIVE" && c.status !== "DELETED")
+      .map((c: { id: string; name: string; code: string; duration?: number; category?: string; fee?: number | null }) => {
+        const durationMonths = c.duration || 0;
+        return {
+          id: c.id,
+          name: c.name,
+          code: c.code,
+          fee: resolveCourseFee(c),
+          durationMonths,
+          duration: durationMonths > 0 ? `${durationMonths} Months` : undefined,
+          category: c.category || "General",
+          packageProgram: c.name,
+        };
+      });
   }, [dbCoursesRes]);
 
-  const availablePackages = useMemo(() => {
-    return PRESET_PACKAGES.map((pkg) => {
-      const matchedCourses = pkg.courseIds
-        .map((presetId) => {
-          const preset = PRESET_COURSES.find((c) => c.id === presetId);
-          return allAvailableCourses.find(
-            (c) =>
-              c.id === presetId ||
-              c.name.toLowerCase() === (preset?.name || "").toLowerCase() ||
-              c.name.toLowerCase().includes((preset?.name || "").split(" ")[0].toLowerCase())
-          );
-        })
-        .filter((c): c is (typeof allAvailableCourses)[number] => Boolean(c));
-      return { ...pkg, matchedCourses };
-    }).filter((pkg) => pkg.matchedCourses.length > 0);
-  }, [allAvailableCourses]);
+  const availablePackages = useMemo(() => [] as Array<CoursePackageItem & { matchedCourses: typeof allAvailableCourses }>, []);
 
   const existingStudents = useMemo(() => {
     return (studentsRes?.data || []).map((s: any) => {
@@ -690,10 +480,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       });
     }
 
-    return getBatchesForCourse(courseId, courseName, courseCode).map((batch) => ({
-      ...batch,
-      isPersisted: false,
-    }));
+    return [];
   };
 
   const buildSelectedCourseItem = (cObj: (typeof allAvailableCourses)[number]): SelectedCourseItem => {
@@ -1646,12 +1433,25 @@ export const DirectAdmissionEntry: React.FC = () => {
                       {coursesLoading ? (
                         <div className="p-6 text-center text-xs text-muted-foreground">Loading courses...</div>
                       ) : filteredAvailableCourses.length === 0 ? (
-                        <div className="p-6 text-center text-xs text-muted-foreground">
-                          {availableSearchQuery
-                            ? "No matching courses found."
-                            : allAvailableCourses.length === 0
-                            ? "No courses found. Add courses in Course Management first."
-                            : "All available courses have been added."}
+                        <div className="p-6 text-center text-xs text-muted-foreground space-y-2">
+                          {availableSearchQuery ? (
+                            <p>No matching courses found.</p>
+                          ) : allAvailableCourses.length === 0 ? (
+                            <>
+                              <p>No courses available yet.</p>
+                              <p className="text-[11px]">Add courses in Course Management to enable admissions.</p>
+                              {basePath === "/admin" && (
+                                <Link
+                                  to="/admin/courses/add"
+                                  className="inline-flex items-center gap-1 text-primary font-semibold hover:underline"
+                                >
+                                  Add Course <ArrowRight className="h-3 w-3" />
+                                </Link>
+                              )}
+                            </>
+                          ) : (
+                            <p>All available courses have been added.</p>
+                          )}
                         </div>
                       ) : (
                         filteredAvailableCourses.map((course) => (
@@ -1855,7 +1655,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                                   {courseBatches.length === 0 && <option value="">No batch available</option>}
                                   {courseBatches.map((b) => (
                                     <option key={b.id} value={b.id}>
-                                      {b.code} {b.isPersisted ? `(${b.availableSeats} seats left)` : "(preview)"}
+                                      {b.code} ({b.availableSeats} seats left)
                                     </option>
                                   ))}
                                 </select>

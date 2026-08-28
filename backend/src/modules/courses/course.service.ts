@@ -1,5 +1,6 @@
 import * as repository from "./course.repository";
 import { CreateCourseDto, UpdateCourseDto, CourseQueryFilters } from "./course.types";
+import { AppError } from "../../middlewares/error.middleware";
 
 export const getCourses = async (instituteId: string, filters: CourseQueryFilters) => {
   return repository.findAllCourses(instituteId, filters);
@@ -8,7 +9,7 @@ export const getCourses = async (instituteId: string, filters: CourseQueryFilter
 export const getCourseById = async (id: string, instituteId: string) => {
   const course = await repository.findCourseById(id, instituteId);
   if (!course) {
-    throw new Error("Course not found");
+    throw new AppError("Course not found", 404);
   }
   return course;
 };

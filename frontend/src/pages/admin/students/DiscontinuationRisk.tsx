@@ -17,21 +17,12 @@ export const DiscontinuationRisk: React.FC = () => {
     queryFn: async () => {
       const params: Record<string, string> = {};
       if (selectedBranchId !== "ALL") params.branchId = selectedBranchId;
-      // #region agent log
-      fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'student-e2e',hypothesisId:'C',location:'DiscontinuationRisk.tsx:queryFn',message:'Calling discontinuation-risk API',data:{selectedBranchId,params},timestamp:Date.now()})}).catch(()=>{});
-      // #endregion
       const response = await api.get("/attendance/discontinuation-risk", { params });
       return response.data;
     },
   });
 
   const riskStudents = riskResponse?.data || [];
-
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'student-e2e',hypothesisId:'C',location:'DiscontinuationRisk.tsx:state',message:'Discontinuation risk page state',data:{isLoading,isError,errStatus:(error as any)?.response?.status,errMsg:(error as any)?.response?.data?.message||(error as any)?.message,riskCount:riskStudents.length},timestamp:Date.now()})}).catch(()=>{});
-  }, [isLoading, isError, riskStudents.length]);
-  // #endregion
 
   return (
     <div className="p-6 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300">

@@ -7,6 +7,7 @@ export interface CreateCourseDto {
   mode?: string;
   level?: string;
   totalHours?: number;
+  fee?: number;
 }
 
 export interface UpdateCourseDto {
@@ -18,6 +19,7 @@ export interface UpdateCourseDto {
   mode?: string;
   level?: string;
   totalHours?: number;
+  fee?: number;
   status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 }
 

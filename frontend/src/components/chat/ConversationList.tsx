@@ -196,7 +196,6 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                         {initials}
                       </AvatarFallback>
                     </Avatar>
-                    <span className="absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background" />
                   </div>
 
                   <div className="flex-1 min-w-0">

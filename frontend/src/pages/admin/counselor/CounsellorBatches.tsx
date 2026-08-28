@@ -82,129 +82,69 @@ interface FacultyItem {
   avatarBg: string;
 }
 
-const STATIC_STUDENTS: StudentItem[] = [
-  {
-    id: "stu-1",
-    name: "Rahul Verma",
-    studentId: "STU-1024",
-    course: "Full Stack Web Development",
-    initials: "RV",
-    avatarBg: "bg-indigo-600 text-white",
-  },
-  {
-    id: "stu-2",
-    name: "Priya Sharma",
-    studentId: "STU-1025",
-    course: "Python",
-    initials: "PS",
-    avatarBg: "bg-emerald-600 text-white",
-  },
-  {
-    id: "stu-3",
-    name: "Arjun Kumar",
-    studentId: "STU-1026",
-    course: "React",
-    initials: "AK",
-    avatarBg: "bg-amber-600 text-white",
-  },
-  {
-    id: "stu-4",
-    name: "Sneha Reddy",
-    studentId: "STU-1027",
-    course: "Java",
-    initials: "SR",
-    avatarBg: "bg-rose-600 text-white",
-  },
-  {
-    id: "stu-5",
-    name: "Vikram T",
-    studentId: "STU-1028",
-    course: "DSA",
-    initials: "VT",
-    avatarBg: "bg-purple-600 text-white",
-  },
-  {
-    id: "stu-6",
-    name: "Neha T",
-    studentId: "STU-1029",
-    course: "Python",
-    initials: "NT",
-    avatarBg: "bg-cyan-600 text-white",
-  },
-  {
-    id: "stu-7",
-    name: "Rohan S",
-    studentId: "STU-1030",
-    course: "Full Stack Web Development",
-    initials: "RS",
-    avatarBg: "bg-blue-600 text-white",
-  },
-  {
-    id: "stu-8",
-    name: "Ananya P",
-    studentId: "STU-1031",
-    course: "Database",
-    initials: "AP",
-    avatarBg: "bg-teal-600 text-white",
-  },
+const AVATAR_COLORS = [
+  "bg-indigo-600 text-white",
+  "bg-emerald-600 text-white",
+  "bg-amber-600 text-white",
+  "bg-rose-600 text-white",
+  "bg-purple-600 text-white",
+  "bg-cyan-600 text-white",
+  "bg-blue-600 text-white",
+  "bg-teal-600 text-white",
 ];
 
-const STATIC_FACULTY: FacultyItem[] = [
-  {
-    id: "fac-1",
-    name: "Ramesh Kumar",
-    facultyId: "FAC-201",
-    expertise: "JavaScript, Web Development",
-    available: true,
-    initials: "RK",
-    avatarBg: "bg-indigo-600 text-white",
-  },
-  {
-    id: "fac-2",
-    name: "Neha Sharma",
-    facultyId: "FAC-202",
-    expertise: "Python, Data Science",
-    available: true,
-    initials: "NS",
-    avatarBg: "bg-purple-600 text-white",
-  },
-  {
-    id: "fac-3",
-    name: "Adithya HM",
-    facultyId: "FAC-203",
-    expertise: "React, Frontend Development",
-    available: true,
-    initials: "AH",
-    avatarBg: "bg-blue-600 text-white",
-  },
-  {
-    id: "fac-4",
-    name: "Kiran Kumar",
-    facultyId: "FAC-204",
-    expertise: "Java, Backend Development",
-    available: true,
-    initials: "KK",
-    avatarBg: "bg-emerald-600 text-white",
-  },
-  {
-    id: "fac-5",
-    name: "Pooja Nair",
-    facultyId: "FAC-205",
-    expertise: "UI/UX Design",
-    available: true,
-    initials: "PN",
-    avatarBg: "bg-rose-600 text-white",
-  },
-  {
-    id: "fac-6",
-    name: "Suresh Babu",
-    facultyId: "FAC-206",
-    expertise: "Digital Marketing",
-    available: true,
-    initials: "SB",
-    avatarBg: "bg-teal-600 text-white",
-  },
-];
+const getInitials = (name: string) =>
+  name
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "??";
+
+const mapStudentToItem = (student: {
+  id: string;
+  studentCode: string;
+  courseName?: string;
+  batchName?: string;
+  user?: { name?: string } | null;
+}, index: number): StudentItem => {
+  const name = student.user?.name || "Unknown Student";
+  return {
+    id: student.id,
+    name,
+    studentId: student.studentCode,
+    course: student.courseName || student.batchName || "—",
+    initials: getInitials(name),
+    avatarBg: AVATAR_COLORS[index % AVATAR_COLORS.length],
+  };
+};
+
+const mapFacultyToItem = (faculty: {
+  id: string;
+  employeeCode: string;
+  specialization?: string | null;
+  status?: string;
+  user?: { name?: string };
+}, index: number): FacultyItem => {
+  const name = faculty.user?.name || "Unknown Faculty";
+  return {
+    id: faculty.id,
+    name,
+    facultyId: faculty.employeeCode,
+    expertise: faculty.specialization || "—",
+    available: faculty.status !== "INACTIVE",
+    initials: getInitials(name),
+    avatarBg: AVATAR_COLORS[index % AVATAR_COLORS.length],
+  };
+};
+
+const getBatchEnrolledStudentIds = (batch: BatchData): string[] => {
+  if (!Array.isArray(batch.enrollments)) return [];
+  return batch.enrollments
+    .map((e) => e.studentId || e.student?.id)
+    .filter((id): id is string => Boolean(id));
+};
 
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
@@ -216,25 +156,9 @@ export const CounsellorBatches: React.FC = () => {
   const [facultySearch, setFacultySearch] = useState<string>("");
   const [batchSearch, setBatchSearch] = useState<string>("");
 
-  // All Students Directory (Supports dynamically added/registered students)
-  const [allStudentsList, setAllStudentsList] = useState<StudentItem[]>(STATIC_STUDENTS);
-
-  // Dynamic Batch Enrollments Mapping (Keeps student enrollments updated per batch)
-  const [batchEnrollmentsMap, setBatchEnrollmentsMap] = useState<Record<string, string[]>>({
-    "batch-1": ["stu-1", "stu-2", "stu-3"],
-    "batch-2": ["stu-4", "stu-5", "stu-6", "stu-7"],
-    "batch-3": ["stu-1", "stu-2", "stu-3", "stu-4", "stu-5", "stu-6", "stu-7", "stu-8", "stu-2", "stu-3", "stu-5", "stu-6"],
-  });
-
-  // Selected State: Pre-selected with Rahul, Priya, Arjun & Ramesh Kumar to match mockup!
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([
-    "stu-1",
-    "stu-2",
-    "stu-3",
-  ]);
-  const [selectedFaculty, setSelectedFaculty] = useState<FacultyItem | null>(
-    STATIC_FACULTY[0]
-  );
+  // All Students Directory — sourced from backend API
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const [selectedFaculty, setSelectedFaculty] = useState<FacultyItem | null>(null);
 
   // Modals & Notifications
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
@@ -243,31 +167,12 @@ export const CounsellorBatches: React.FC = () => {
   const [detailsModalBatch, setDetailsModalBatch] = useState<BatchData | null>(null);
   const [deleteModalBatch, setDeleteModalBatch] = useState<BatchData | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [batchEnrollmentsMap, setBatchEnrollmentsMap] = useState<Record<string, string[]>>({});
 
   // New Student Registration Form
   const [regStudentName, setRegStudentName] = useState<string>("");
   const [regStudentId, setRegStudentId] = useState<string>("");
-  const [regStudentCourse, setRegStudentCourse] = useState<string>("Full Stack Web Development");
-
-  const handleCreateNewStudent = () => {
-    if (!regStudentName.trim()) return;
-    const generatedId = regStudentId.trim() || `STU-${1030 + allStudentsList.length + 1}`;
-    const newStudent: StudentItem = {
-      id: `stu-${Date.now()}`,
-      name: regStudentName.trim(),
-      studentId: generatedId,
-      course: regStudentCourse.trim() || "Full Stack Web Development",
-      initials: regStudentName.trim().slice(0, 2).toUpperCase(),
-      avatarBg: "bg-indigo-600 text-white",
-    };
-    setAllStudentsList((prev) => [newStudent, ...prev]);
-    setSelectedStudentIds((prev) => [newStudent.id, ...prev]);
-    setSuccessMsg(`New student ${newStudent.name} (${newStudent.studentId}) registered & added to list!`);
-    setShowNewStudentModal(false);
-    setRegStudentName("");
-    setRegStudentId("");
-    setTimeout(() => setSuccessMsg(null), 3500);
-  };
+  const [regStudentCourse, setRegStudentCourse] = useState<string>("");
 
   // Edit Batch Form State (Including Enrolled Students & Adding New Students)
   const [editBatchName, setEditBatchName] = useState<string>("");
@@ -281,16 +186,11 @@ export const CounsellorBatches: React.FC = () => {
   const handleOpenEditModal = (batch: BatchData) => {
     setEditModalBatch(batch);
     setEditBatchName(batch.name || "");
-    setEditFacultyId(batch.facultyId || STATIC_FACULTY[0].id);
-    setEditStartDate(batch.startDate || "2026-04-10");
+    setEditFacultyId(batch.facultyId || batch.faculty?.id || "");
+    setEditStartDate(batch.startDate ? batch.startDate.split("T")[0] : "");
     setEditCapacity(batch.capacity || 30);
-    setEditTimeSlot(batch.timeSlot || "10:00 AM - 12:00 PM");
-    
-    // Extract currently enrolled student IDs from state map or batch
-    const currentIds = batchEnrollmentsMap[batch.id] || (Array.isArray(batch.enrollments) && batch.enrollments.length > 0
-      ? batch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean)
-      : ["stu-1", "stu-2", "stu-3"]);
-    setEditEnrolledStudentIds(currentIds);
+    setEditTimeSlot(batch.timeSlot || "");
+    setEditEnrolledStudentIds(getBatchEnrolledStudentIds(batch));
     setSelectedNewStudentIdToAdd("");
   };
 
@@ -334,27 +234,60 @@ export const CounsellorBatches: React.FC = () => {
   });
   const facultyList = facultyRes?.data || [];
 
-  const { data: studentsRes } = useQuery({
+  const { data: studentsRes, isLoading: loadingStudents } = useQuery({
     queryKey: ["students"],
     queryFn: () => studentsApi.getAll({ limit: 100 }),
   });
   const liveStudents = studentsRes?.data || [];
 
+  const allStudentsList = useMemo(
+    () => liveStudents.map((student, index) => mapStudentToItem(student, index)),
+    [liveStudents]
+  );
+
+  const allFacultyList = useMemo(
+    () => facultyList.map((faculty, index) => mapFacultyToItem(faculty, index)),
+    [facultyList]
+  );
+
+  const handleCreateNewStudent = async () => {
+    if (!regStudentName.trim()) return;
+    const branchId = liveStudents[0]?.branchId || facultyList[0]?.branchId;
+    if (!branchId) {
+      setSuccessMsg("Cannot register student: no branch available. Add a branch first.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      return;
+    }
+    const generatedCode = regStudentId.trim() || `STU-${Date.now().toString().slice(-6)}`;
+    try {
+      await studentsApi.create({
+        name: regStudentName.trim(),
+        studentCode: generatedCode,
+        password: "Student@123",
+        branchId,
+        courseId: courses.find((c) => c.name === regStudentCourse)?.id,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      setSuccessMsg(`New student ${regStudentName.trim()} (${generatedCode}) registered successfully!`);
+      setShowNewStudentModal(false);
+      setRegStudentName("");
+      setRegStudentId("");
+    } catch (err: any) {
+      setSuccessMsg(err?.response?.data?.message || "Failed to register student.");
+    }
+    setTimeout(() => setSuccessMsg(null), 3500);
+  };
+
   // Mutations
   const createBatchMutation = useMutation({
     mutationFn: (payload: CreateBatchPayload) => batchesApi.create(payload),
     onSuccess: async (createdBatch) => {
-      // Enroll all selected students
       if (selectedStudentIds.length > 0 && createdBatch?.data?.id) {
         await Promise.all(
           selectedStudentIds.map((sId) =>
             batchesApi.enrollStudent(createdBatch.data.id, sId).catch(() => {})
           )
         );
-        setBatchEnrollmentsMap((prev) => ({
-          ...prev,
-          [createdBatch.data.id]: selectedStudentIds,
-        }));
       }
       queryClient.invalidateQueries({ queryKey: ["batches"] });
       setSuccessMsg("Batch created & students successfully assigned!");
@@ -389,15 +322,15 @@ export const CounsellorBatches: React.FC = () => {
 
   // Filtered Faculty
   const filteredFaculty = useMemo(() => {
-    if (!facultySearch.trim()) return STATIC_FACULTY;
+    if (!facultySearch.trim()) return allFacultyList;
     const q = facultySearch.toLowerCase();
-    return STATIC_FACULTY.filter(
+    return allFacultyList.filter(
       (f) =>
         f.name.toLowerCase().includes(q) ||
         f.facultyId.toLowerCase().includes(q) ||
         f.expertise.toLowerCase().includes(q)
     );
-  }, [facultySearch]);
+  }, [allFacultyList, facultySearch]);
 
   // Selected Student Objects
   const selectedStudents = useMemo(() => {
@@ -435,47 +368,6 @@ export const CounsellorBatches: React.FC = () => {
   // Filtered Batches for Table
   const displayBatches = useMemo(() => {
     let list = batches;
-    if (list.length === 0) {
-      // Fallback demo batches matching mockup when database has none
-      list = [
-        {
-          id: "batch-1",
-          name: "Full Stack Web Development",
-          code: "PHY01",
-          course: { id: "c-1", name: "Full Stack Web Development", code: "FS-01" },
-          faculty: { id: "f-1", user: { name: "HM Adithya", email: "adithya@aadya.in" } } as any,
-          capacity: 10,
-          enrollments: [{}, {}, {}] as any,
-          startDate: "2026-04-10",
-          timeSlot: "10:00 AM - 12:00 PM",
-          status: "UPCOMING",
-        } as any,
-        {
-          id: "batch-2",
-          name: "Power BI Analytics",
-          code: "QWEFG",
-          course: { id: "c-2", name: "Power BI", code: "PBI-01" },
-          faculty: { id: "f-2", user: { name: "Ramesh Kumar", email: "ramesh@aadya.in" } } as any,
-          capacity: 35,
-          enrollments: [{}, {}, {}, {}] as any,
-          startDate: "2026-04-01",
-          timeSlot: "10:00 AM - 11:30 AM",
-          status: "UPCOMING",
-        } as any,
-        {
-          id: "batch-3",
-          name: "Data Structures & Algorithms",
-          code: "DSA02",
-          course: { id: "c-3", name: "DSA", code: "DSA-01" },
-          faculty: { id: "f-3", user: { name: "Neha Kumari", email: "neha@aadya.in" } } as any,
-          capacity: 30,
-          enrollments: [{}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}] as any,
-          startDate: "2026-04-15",
-          timeSlot: "02:00 PM - 04:00 PM",
-          status: "ONGOING",
-        } as any,
-      ];
-    }
     if (batchSearch.trim()) {
       const q = batchSearch.toLowerCase();
       list = list.filter(
@@ -588,7 +480,17 @@ export const CounsellorBatches: React.FC = () => {
 
             {/* Students List Items */}
             <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1">
-              {filteredStudents.map((student) => {
+              {loadingStudents ? (
+                <div className="py-10 text-center text-xs text-slate-400">
+                  <Loader2 className="w-5 h-5 animate-spin mx-auto text-[#1769AA] mb-2" />
+                  Loading students...
+                </div>
+              ) : filteredStudents.length === 0 ? (
+                <div className="py-10 text-center text-xs text-slate-400">
+                  No students found. Add students from Admissions or use + New Student.
+                </div>
+              ) : (
+              filteredStudents.map((student) => {
                 const isSelected = selectedStudentIds.includes(student.id);
                 return (
                   <div
@@ -647,7 +549,8 @@ export const CounsellorBatches: React.FC = () => {
                     </button>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           </CardContent>
         </Card>
@@ -666,7 +569,7 @@ export const CounsellorBatches: React.FC = () => {
                 </div>
               </div>
               <Badge className="bg-blue-50 text-[#1769AA] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
-                18 Faculty
+                {allFacultyList.length} Faculty
               </Badge>
             </div>
 
@@ -944,15 +847,15 @@ export const CounsellorBatches: React.FC = () => {
                   </TableRow>
                 ) : (
                   displayBatches.map((batch) => {
-                    const facultyName = batch.faculty?.user?.name || "HM Adithya";
+                    const facultyName = batch.faculty?.user?.name || "—";
                     const facultyInitials = facultyName
                       .split(" ")
                       .map((p) => p[0])
                       .join("")
                       .toUpperCase()
                       .slice(0, 2);
-                    const enrolledStudentIds = batchEnrollmentsMap[batch.id] || (Array.isArray(batch.enrollments) && batch.enrollments.length > 0 ? batch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean) : ["stu-1", "stu-2", "stu-3"]);
-                    const enrolledCount = enrolledStudentIds.length;
+                    const enrolledStudentIds = getBatchEnrolledStudentIds(batch);
+                    const enrolledCount = batch._count?.enrollments ?? enrolledStudentIds.length;
                     const capacityLimit = batch.capacity || 30;
 
                     return (
@@ -970,7 +873,7 @@ export const CounsellorBatches: React.FC = () => {
 
                         {/* Course */}
                         <TableCell className="text-slate-600 font-medium">
-                          {batch.course?.name || "Full Stack Web Development"}
+                          {batch.course?.name || "—"}
                         </TableCell>
 
                         {/* Assigned Faculty */}
@@ -991,10 +894,10 @@ export const CounsellorBatches: React.FC = () => {
                         {/* Start Date & Time */}
                         <TableCell>
                           <span className="font-semibold text-slate-800 block">
-                            {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "10 Apr 2026"}
+                            {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : "—"}
                           </span>
                           <span className="text-[10.5px] text-slate-400 block font-mono">
-                            {batch.timeSlot || "10:00 AM - 12:00 PM"}
+                            {batch.timeSlot || "—"}
                           </span>
                         </TableCell>
 
@@ -1210,14 +1113,22 @@ export const CounsellorBatches: React.FC = () => {
             <Button
               disabled={createBatchMutation.isPending}
               onClick={() => {
-                const targetCourseId = courses[0]?.id || "default-course";
-                const targetFacultyId = selectedFaculty?.id || facultyList[0]?.id || "default-faculty";
+                const targetCourseId = courses[0]?.id;
+                const targetFacultyId = selectedFaculty?.id || facultyList[0]?.id;
+                const targetBranchId =
+                  facultyList.find((f) => f.id === targetFacultyId)?.branchId ||
+                  liveStudents[0]?.branchId;
+                if (!targetCourseId || !targetFacultyId || !targetBranchId) {
+                  setSuccessMsg("Select a faculty member and ensure at least one course exists.");
+                  setTimeout(() => setSuccessMsg(null), 3500);
+                  return;
+                }
                 createBatchMutation.mutate({
                   name: newBatchName,
                   code: newBatchCode,
                   courseId: targetCourseId,
                   facultyId: targetFacultyId,
-                  branchId: "b-central",
+                  branchId: targetBranchId,
                   capacity: newCapacity,
                   startDate: newStartDate,
                   timeSlot: newTimeSlot,
@@ -1276,7 +1187,7 @@ export const CounsellorBatches: React.FC = () => {
                   onChange={(e) => setEditFacultyId(e.target.value)}
                   className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
                 >
-                  {STATIC_FACULTY.map((f) => (
+                  {allFacultyList.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name} — {f.expertise}
                     </option>
@@ -1338,7 +1249,7 @@ export const CounsellorBatches: React.FC = () => {
                 {editEnrolledStudentIds.length > 0 ? (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1">
                     {editEnrolledStudentIds.map((sId) => {
-                      const studentObj = STATIC_STUDENTS.find((s) => s.id === sId) || {
+                      const studentObj = allStudentsList.find((s) => s.id === sId) || {
                         id: sId,
                         name: "Student",
                         studentId: sId.toUpperCase(),
@@ -1397,7 +1308,7 @@ export const CounsellorBatches: React.FC = () => {
                       className="flex-1 h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
                     >
                       <option value="">Choose student to add...</option>
-                      {STATIC_STUDENTS.filter(
+                      {allStudentsList.filter(
                         (s) => !editEnrolledStudentIds.includes(s.id)
                       ).map((s) => (
                         <option key={s.id} value={s.id}>
@@ -1464,7 +1375,7 @@ export const CounsellorBatches: React.FC = () => {
           </DialogHeader>
 
           {detailsModalBatch && (() => {
-            const viewEnrolledIds = batchEnrollmentsMap[detailsModalBatch.id] || (Array.isArray(detailsModalBatch.enrollments) && detailsModalBatch.enrollments.length > 0 ? detailsModalBatch.enrollments.map((e: any) => e.studentId || e.id).filter(Boolean) : ["stu-1", "stu-2", "stu-3"]);
+            const viewEnrolledIds = getBatchEnrolledStudentIds(detailsModalBatch);
             return (
               <div className="space-y-3 pt-2 text-xs">
                 <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
@@ -1474,15 +1385,15 @@ export const CounsellorBatches: React.FC = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Course:</span>
-                    <span className="font-bold">{detailsModalBatch.course?.name || "Full Stack Web Development"}</span>
+                    <span className="font-bold">{detailsModalBatch.course?.name || "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Faculty:</span>
-                    <span className="font-bold">{detailsModalBatch.faculty?.user?.name || "HM Adithya"}</span>
+                    <span className="font-bold">{detailsModalBatch.faculty?.user?.name || "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Schedule:</span>
-                    <span className="font-mono font-semibold">{detailsModalBatch.timeSlot || "10:00 AM - 12:00 PM"}</span>
+                    <span className="font-mono font-semibold">{detailsModalBatch.timeSlot || "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-500">Enrolled:</span>

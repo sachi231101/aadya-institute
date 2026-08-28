@@ -20,6 +20,11 @@ export interface ConversationSummaryDTO {
   instituteId: string;
   branchId?: string | null;
   branchName?: string | null;
+  branch?: {
+    id: string;
+    name: string;
+    code: string;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
   otherParticipant?: {
@@ -28,13 +33,31 @@ export interface ConversationSummaryDTO {
     email?: string | null;
     roles?: string[];
   } | null;
+  members?: Array<{
+    id: string;
+    conversationId: string;
+    userId: string;
+    joinedAt: Date;
+    lastReadAt: Date | null;
+    user?: {
+      id: string;
+      name: string;
+      email?: string | null;
+      roles?: string[];
+    };
+  }>;
   lastMessage?: {
     id: string;
+    conversationId: string;
     content: string;
     senderId: string;
     senderName: string;
     createdAt: Date;
     readAt?: Date | null;
+    sender?: {
+      id: string;
+      name: string;
+    };
   } | null;
   unreadCount: number;
 }

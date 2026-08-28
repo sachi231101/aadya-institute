@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -54,12 +54,6 @@ export const AdminDashboard: React.FC = () => {
   const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(activeBranchId);
   const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
-
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'student-e2e',hypothesisId:'E',location:'admin/Dashboard.tsx',message:'Admin dashboard student report',data:{isStudentLoading,hasReport:!!studentReport,totalStudents:studentReport?.summary?.totalStudents??null,studentsLen:studentReport?.students?.length??null},timestamp:Date.now()})}).catch(()=>{});
-  }, [isStudentLoading, studentReport]);
-  // #endregion
 
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 

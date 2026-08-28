@@ -12,27 +12,6 @@ export const listFeedback = async (
 ): Promise<void> => {
   try {
     const result = await service.listFeedback(toAuthUser(req), req.query as ListFeedbackQuery);
-    // #region agent log
-    try {
-      const fs = await import("fs");
-      const path = await import("path");
-      const logPath = path.resolve(process.cwd(), "..", ".cursor", "debug-c11d90.log");
-      fs.appendFileSync(
-        logPath,
-        JSON.stringify({
-          sessionId: "c11d90",
-          runId: "post-fix",
-          hypothesisId: "B",
-          location: "feedback.controller.ts:list",
-          message: "feedback list served",
-          data: { count: result.data.length, studentId: (req.query as any)?.studentId ?? null },
-          timestamp: Date.now(),
-        }) + "\n"
-      );
-    } catch {
-      /* ignore */
-    }
-    // #endregion
     sendPaginated(res, result.data, result.meta, "Feedback retrieved successfully");
   } catch (err) {
     next(err);

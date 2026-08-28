@@ -21,7 +21,9 @@ export const findAllQuestions = async (
 
   const where: Record<string, unknown> = { instituteId };
 
-  if (branchId) where.branchId = branchId;
+  if (branchId) {
+    where.OR = [{ branchId }, { branchId: null }];
+  }
   if (filters.questionType) where.questionType = filters.questionType;
   if (filters.difficulty) where.difficulty = filters.difficulty;
   if (filters.status) where.status = filters.status;

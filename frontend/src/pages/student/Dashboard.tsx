@@ -34,24 +34,15 @@ export const StudentDashboard: React.FC = () => {
   useEffect(() => {
     let mounted = true;
     const studentId = user?.studentId || null;
-    // #region agent log
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A,D',location:'student/Dashboard.tsx:mount',message:'Student dashboard mount',data:{userId:user?.id,hasStudentId:!!studentId,studentId,roles:user?.roles,attendanceKpiHardcoded:false,branchId:user?.branchId},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const fetchLive = async () => {
       try {
         const res = await classSessionsApi.getActiveLive();
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:live',message:'Live class fetch result',data:{count:res.data?.length??0,ok:true},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (mounted && res.data && res.data.length > 0) {
           setLiveSessions(res.data);
           const first = res.data[0];
           if (first?.batch?.course?.name) setCourseName(first.batch.course.name);
         }
-      } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:live-err',message:'Live class fetch failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+      } catch {
       }
     };
 
@@ -66,14 +57,8 @@ export const StudentDashboard: React.FC = () => {
             total: Number(summary.totalClasses ?? 0),
             present: Number(summary.presentCount ?? 0),
           });
-          // #region agent log
-          fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:attendance',message:'Attendance summary loaded',data:{pct:summary.attendancePercentage,total:summary.totalClasses},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         }
-      } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Dashboard.tsx:attendance-err',message:'Attendance summary failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+      } catch {
       }
     };
 

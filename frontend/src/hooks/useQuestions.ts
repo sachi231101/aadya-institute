@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNotificationStore } from '@/store/notification.store';
 import * as api from '@/services/questions.api';
+import { questionBankKeys } from '@/hooks/useQuestionBanks';
 
 export const questionKeys = {
   all: ['questions'] as const,
@@ -32,6 +33,7 @@ export const useCreateQuestion = () => {
     mutationFn: api.createQuestion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionBankKeys.lists() });
       addNotification('Question created successfully!', 'success');
     },
     onError: (err: any) => {
@@ -49,6 +51,7 @@ export const useUpdateQuestion = (id: string) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionKeys.detail(id) });
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionBankKeys.lists() });
       addNotification('Question updated successfully!', 'success');
     },
     onError: (err: any) => {
@@ -65,6 +68,7 @@ export const useDeleteQuestion = () => {
     mutationFn: api.deleteQuestion,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: questionKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: questionBankKeys.lists() });
       addNotification('Question deleted successfully', 'success');
     },
     onError: (err: any) => {

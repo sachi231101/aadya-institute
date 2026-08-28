@@ -334,12 +334,6 @@ export const StudentAttendance: React.FC = () => {
   const [startDate, setStartDate] = useState("2026-06-01");
   const [endDate, setEndDate] = useState("2026-10-31");
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Attendance.tsx:mount',message:'Student attendance page mount',data:{dataSource:'api-preferred',hasStudentId:!!(useAuthStore.getState().user?.studentId),callsApi:true},timestamp:Date.now()})}).catch(()=>{});
-  }, []);
-  // #endregion
-
   // Filter for history table
   const [historyFilter, setHistoryFilter] = useState<"ALL" | "PRESENT" | "ABSENT" | "EXCUSED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -366,13 +360,7 @@ export const StudentAttendance: React.FC = () => {
           });
         }
         setApiHistory(Array.isArray(historyRes?.data) ? historyRes.data : []);
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Attendance.tsx:api',message:'Attendance API loaded',data:{pct:summary?.attendancePercentage,historyCount:(historyRes?.data||[]).length},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
-      } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Attendance.tsx:api-err',message:'Attendance API failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
+      } catch {
       }
     })();
     return () => {

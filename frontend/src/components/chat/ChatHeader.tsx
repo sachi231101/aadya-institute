@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Conversation } from "../../types/chat.types";
 import { useAuthStore } from "../../store/auth.store";
+import { useChatStore } from "../../store/chat.store";
 
 interface ChatHeaderProps {
   activeConversation?: Conversation | null;
@@ -19,6 +20,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
   showBack = false,
 }) => {
   const { user: currentUser } = useAuthStore();
+  const isSocketConnected = useChatStore((s) => s.isSocketConnected);
 
   let title = "Team Chat";
   let subtitle = "Internal Employee Communication";
@@ -78,7 +80,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
 
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0 inline-block" />
+                <span
+                  className={`h-2 w-2 rounded-full shrink-0 inline-block ${
+                    isSocketConnected ? "bg-emerald-500" : "bg-amber-500"
+                  }`}
+                  title={isSocketConnected ? "Connected — live updates on" : "Reconnecting…"}
+                />
                 <h2 className="text-xs sm:text-sm font-bold text-foreground truncate leading-tight">
                   {title}
                 </h2>

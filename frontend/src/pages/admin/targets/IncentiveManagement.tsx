@@ -129,12 +129,12 @@ export const IncentiveManagement: React.FC = () => {
     <div className="space-y-6 pb-16">
       {/* Toast */}
       {toastMsg && (
-        <div className="fixed top-20 right-8 z-50 bg-slate-900 text-white border border-slate-700 shadow-2xl px-5 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-          <Sparkles className="w-5 h-5 text-amber-400" />
+        <div className="fixed top-20 right-8 z-50 bg-card text-foreground border border-border shadow-2xl px-5 py-3 rounded-xl flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+          <Sparkles className="w-5 h-5 text-amber-500" />
           <span className="text-sm font-medium">{toastMsg}</span>
           <button
             onClick={() => setToastMsg(null)}
-            className="text-slate-400 hover:text-white text-xs ml-2 cursor-pointer"
+            className="text-muted-foreground hover:text-foreground text-xs ml-2 cursor-pointer"
           >
             ✕
           </button>
@@ -142,84 +142,84 @@ export const IncentiveManagement: React.FC = () => {
       )}
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl text-white">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-card border border-border p-6 rounded-2xl shadow-xs">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="p-2.5 bg-emerald-500/20 border border-emerald-500/30 rounded-xl">
-              <Award className="w-6 h-6 text-emerald-400" />
+            <div className="p-2.5 bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500/20 dark:border-emerald-500/30 rounded-xl">
+              <Award className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">
               Incentive Approvals & Payouts
             </h1>
           </div>
-          <p className="text-slate-300 text-sm">
+          <p className="text-muted-foreground text-sm">
             Review automatically calculated counselor rewards, apply administrative adjustments, and authorize payouts.
           </p>
         </div>
 
         <button
           onClick={() => refetch()}
-          className="flex items-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold rounded-xl border border-slate-700 transition cursor-pointer"
+          className="flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold rounded-xl border border-border transition cursor-pointer"
         >
-          <RefreshCw className="w-4 h-4 text-indigo-400" />
+          <RefreshCw className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
           Refresh
         </button>
       </div>
 
       {/* Summary KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-sm">
+        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Pending Approvals
             </span>
             <div className="p-2 bg-amber-500/10 rounded-lg">
-              <Clock className="w-5 h-5 text-amber-400" />
+              <Clock className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-amber-400 mb-1">{pendingCount}</div>
-          <p className="text-xs text-slate-400">Awaiting management review</p>
+          <div className="text-3xl font-bold text-amber-600 dark:text-amber-400 mb-1">{pendingCount}</div>
+          <p className="text-xs text-muted-foreground">Awaiting management review</p>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-sm">
+        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Approved Rewards
             </span>
             <div className="p-2 bg-emerald-500/10 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-emerald-400 mb-1">
+          <div className="text-3xl font-bold text-emerald-600 dark:text-emerald-400 mb-1">
             {formatCurrency(approvedTotal)}
           </div>
-          <p className="text-xs text-slate-400">Queued for monthly payroll</p>
+          <p className="text-xs text-muted-foreground">Queued for monthly payroll</p>
         </div>
 
-        <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl shadow-sm">
+        <div className="bg-card border border-border p-5 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Total Claims
             </span>
             <div className="p-2 bg-indigo-500/10 rounded-lg">
-              <FileCheck className="w-5 h-5 text-indigo-400" />
+              <FileCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
           </div>
-          <div className="text-3xl font-bold text-white mb-1">{incentives.length}</div>
-          <p className="text-xs text-slate-400">System calculated records</p>
+          <div className="text-3xl font-bold text-foreground mb-1">{incentives.length}</div>
+          <p className="text-xs text-muted-foreground">System calculated records</p>
         </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-4 rounded-2xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-card border border-border p-4 rounded-2xl shadow-xs">
         <div className="relative flex-1 w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             placeholder="Search counselor or target..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-xl text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           />
         </div>
 
@@ -227,7 +227,7 @@ export const IncentiveManagement: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3.5 py-2 bg-slate-950/80 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300 focus:outline-none focus:border-indigo-500 cursor-pointer"
+            className="px-3.5 py-2 bg-background border border-input rounded-xl text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="PENDING_APPROVAL">Pending Approval</option>
@@ -239,24 +239,24 @@ export const IncentiveManagement: React.FC = () => {
       </div>
 
       {/* Incentives Table */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
+      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-xs">
         {isLoading ? (
-          <div className="p-12 text-center text-slate-400">
-            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-400 mb-3" />
+          <div className="p-12 text-center text-muted-foreground">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto text-indigo-500 dark:text-indigo-400 mb-3" />
             <p>Loading incentive records...</p>
           </div>
         ) : filtered.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">
-            <Award className="w-12 h-12 text-slate-600 mx-auto mb-3" />
-            <h3 className="text-base font-bold text-white mb-1">No Incentives Found</h3>
-            <p className="text-xs text-slate-400">
+          <div className="p-12 text-center text-muted-foreground">
+            <Award className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-foreground mb-1">No Incentives Found</h3>
+            <p className="text-xs text-muted-foreground">
               No incentive records match the current status filter.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-950 text-xs uppercase font-semibold text-slate-400 border-b border-slate-800">
+            <table className="w-full text-left text-sm text-foreground">
+              <thead className="bg-muted/50 text-xs uppercase font-semibold text-muted-foreground border-b border-border">
                 <tr>
                   <th className="py-4 px-4">Counselor</th>
                   <th className="py-4 px-4">Target Goal</th>
@@ -268,43 +268,43 @@ export const IncentiveManagement: React.FC = () => {
                   <th className="py-4 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60">
+              <tbody className="divide-y divide-border">
                 {filtered.map((inc) => (
-                  <tr key={inc.id} className="hover:bg-slate-800/30 transition">
+                  <tr key={inc.id} className="hover:bg-muted/50 transition">
                     <td className="py-4 px-4">
-                      <div className="font-semibold text-white">{inc.user?.name}</div>
-                      <div className="text-xs text-slate-400">{inc.branch?.name || "All Branches"}</div>
+                      <div className="font-semibold text-foreground">{inc.user?.name}</div>
+                      <div className="text-xs text-muted-foreground">{inc.branch?.name || "All Branches"}</div>
                     </td>
 
                     <td className="py-4 px-4">
-                      <div className="font-semibold text-white">
+                      <div className="font-semibold text-foreground">
                         {inc.target?.title || "Monthly Target"}
                       </div>
-                      <div className="text-xs text-slate-400">
+                      <div className="text-xs text-muted-foreground">
                         {new Date(inc.periodStart).toLocaleDateString()} -{" "}
                         {new Date(inc.periodEnd).toLocaleDateString()}
                       </div>
                     </td>
 
                     <td className="py-4 px-4 text-xs">
-                      <span className="text-slate-400">
+                      <span className="text-muted-foreground">
                         Target: {Number(inc.targetValue).toLocaleString()}
                       </span>
                       <br />
-                      <span className="text-emerald-400 font-semibold">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-semibold">
                         Achieved: {Number(inc.achievedValue).toLocaleString()}
                       </span>
                     </td>
 
-                    <td className="py-4 px-4 font-bold text-white">
+                    <td className="py-4 px-4 font-bold text-foreground">
                       {Number(inc.achievementPercentage)}%
                     </td>
 
-                    <td className="py-4 px-4 font-semibold text-amber-300">
+                    <td className="py-4 px-4 font-semibold text-amber-600 dark:text-amber-400">
                       {formatCurrency(Number(inc.calculatedAmount))}
                     </td>
 
-                    <td className="py-4 px-4 font-bold text-emerald-400">
+                    <td className="py-4 px-4 font-bold text-emerald-600 dark:text-emerald-400">
                       {inc.approvedAmount ? formatCurrency(Number(inc.approvedAmount)) : "—"}
                     </td>
 
@@ -312,10 +312,10 @@ export const IncentiveManagement: React.FC = () => {
                       <span
                         className={`px-2.5 py-1 text-xs font-bold rounded-full ${
                           inc.status === "APPROVED" || inc.status === "PAID"
-                            ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
                             : inc.status === "PENDING_APPROVAL"
-                            ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                            : "bg-rose-500/10 text-rose-400 border border-rose-500/30"
+                            ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
+                            : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30"
                         }`}
                       >
                         {inc.status.replace(/_/g, " ")}
@@ -327,14 +327,14 @@ export const IncentiveManagement: React.FC = () => {
                         <div className="flex items-center justify-end gap-2">
                           <button
                             onClick={() => handleOpenApprove(inc)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-md shadow-emerald-600/20"
+                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-emerald-600/20"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleOpenReject(inc)}
-                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-md shadow-rose-600/20"
+                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-rose-600/20"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                             Reject
@@ -343,13 +343,13 @@ export const IncentiveManagement: React.FC = () => {
                       )}
 
                       {inc.status === "APPROVED" && (
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-muted-foreground">
                           Approved by {inc.approvedBy?.name || "Admin"}
                         </span>
                       )}
 
                       {inc.status === "REJECTED" && (
-                        <span className="text-xs text-rose-400" title={inc.rejectionReason || ""}>
+                        <span className="text-xs text-rose-600 dark:text-rose-400" title={inc.rejectionReason || ""}>
                           Reason: {inc.rejectionReason || "Declined"}
                         </span>
                       )}
@@ -364,41 +364,41 @@ export const IncentiveManagement: React.FC = () => {
 
       {/* ─── MODAL: APPROVE INCENTIVE ─── */}
       {showApproveModal && selectedIncentive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-white">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-foreground">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                 <h3 className="font-bold text-lg">Approve Incentive Reward</h3>
               </div>
               <button
                 onClick={() => setShowApproveModal(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleApproveSubmit} className="space-y-4 text-sm">
-              <div className="bg-slate-950/80 p-3.5 rounded-xl border border-slate-800 text-xs space-y-1.5">
-                <div className="flex justify-between text-slate-400">
+              <div className="bg-muted/40 p-3.5 rounded-xl border border-border text-xs space-y-1.5">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Counselor:</span>
-                  <span className="text-white font-bold">{selectedIncentive.user?.name}</span>
+                  <span className="text-foreground font-bold">{selectedIncentive.user?.name}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Target:</span>
-                  <span className="text-slate-200">{selectedIncentive.target?.title}</span>
+                  <span className="text-foreground">{selectedIncentive.target?.title}</span>
                 </div>
-                <div className="flex justify-between text-slate-400">
+                <div className="flex justify-between text-muted-foreground">
                   <span>Calculated Amount:</span>
-                  <span className="text-amber-400 font-bold">
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">
                     {formatCurrency(Number(selectedIncentive.calculatedAmount))}
                   </span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Final Approved Amount (₹) *
                 </label>
                 <input
@@ -407,15 +407,15 @@ export const IncentiveManagement: React.FC = () => {
                   min={0}
                   value={approvedAmount}
                   onChange={(e) => setApprovedAmount(Number(e.target.value))}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500 font-bold text-base text-emerald-400"
+                  className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold text-base text-emerald-600 dark:text-emerald-400"
                 />
-                <span className="text-[11px] text-slate-400 mt-1 block">
+                <span className="text-[11px] text-muted-foreground mt-1 block">
                   You can adjust the payout amount upward or downward if needed.
                 </span>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Adjustment / Approval Notes (Optional)
                 </label>
                 <textarea
@@ -423,22 +423,22 @@ export const IncentiveManagement: React.FC = () => {
                   placeholder="e.g. Excellent admission conversion rate for high-ticket batch."
                   value={adjustmentNotes}
                   onChange={(e) => setAdjustmentNotes(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-emerald-500"
+                  className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2.5">
+              <div className="pt-3 border-t border-border flex justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowApproveModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition cursor-pointer border border-border"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={approveMutation.isPending}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-emerald-600/30 transition cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-600/30 transition cursor-pointer disabled:opacity-50"
                 >
                   {approveMutation.isPending ? "Approving..." : "Confirm & Authorize"}
                 </button>
@@ -450,16 +450,16 @@ export const IncentiveManagement: React.FC = () => {
 
       {/* ─── MODAL: REJECT INCENTIVE ─── */}
       {showRejectModal && selectedIncentive && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-white">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in">
+          <div className="bg-card border border-border w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-5 text-foreground">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2">
-                <XCircle className="w-5 h-5 text-rose-400" />
+                <XCircle className="w-5 h-5 text-rose-600 dark:text-rose-400" />
                 <h3 className="font-bold text-lg">Reject Incentive Claim</h3>
               </div>
               <button
                 onClick={() => setShowRejectModal(false)}
-                className="text-slate-400 hover:text-white p-1 cursor-pointer"
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -467,7 +467,7 @@ export const IncentiveManagement: React.FC = () => {
 
             <form onSubmit={handleRejectSubmit} className="space-y-4 text-sm">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Rejection Reason *
                 </label>
                 <textarea
@@ -476,22 +476,22 @@ export const IncentiveManagement: React.FC = () => {
                   placeholder="Explain why this incentive is being rejected..."
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-white focus:outline-none focus:border-rose-500"
+                  className="w-full px-3.5 py-2.5 bg-background border border-input rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
 
-              <div className="pt-3 border-t border-slate-800 flex justify-end gap-2.5">
+              <div className="pt-3 border-t border-border flex justify-end gap-2.5">
                 <button
                   type="button"
                   onClick={() => setShowRejectModal(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+                  className="px-4 py-2 bg-muted hover:bg-muted/80 text-foreground text-xs font-bold rounded-xl transition cursor-pointer border border-border"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={rejectMutation.isPending}
-                  className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-lg shadow-rose-600/30 transition cursor-pointer disabled:opacity-50"
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl shadow-md shadow-rose-600/30 transition cursor-pointer disabled:opacity-50"
                 >
                   {rejectMutation.isPending ? "Rejecting..." : "Confirm Rejection"}
                 </button>

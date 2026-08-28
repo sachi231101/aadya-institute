@@ -68,6 +68,15 @@ export const getUserConversations = async (
   // If user is attached to a branch, ensure they are in their branch's team chat
   if (currentUser.branchId) {
     await getOrCreateBranchTeamChat(currentUser.instituteId, currentUser.branchId, userId);
+  } else if (currentUser.roles.includes("ADMIN")) {
+    // Admins without a fixed branch can access all branch team channels in their institute
+    const branches = await prisma.branch.findMany({
+      where: { instituteId: currentUser.instituteId, status: "ACTIVE" },
+      select: { id: true },
+    });
+    for (const branch of branches) {
+      await getOrCreateBranchTeamChat(currentUser.instituteId, branch.id, userId);
+    }
   }
 
   const rawConversations = await repo.findUserConversations(userId, currentUser.instituteId);
@@ -98,17 +107,40 @@ export const getUserConversations = async (
       instituteId: conv.instituteId,
       branchId: conv.branchId,
       branchName: conv.branch?.name,
+      branch: conv.branch
+        ? { id: conv.branch.id, name: conv.branch.name, code: conv.branch.code }
+        : null,
       createdAt: conv.createdAt,
       updatedAt: conv.updatedAt,
       otherParticipant,
+      members: conv.members.map((m) => ({
+        id: m.id,
+        conversationId: conv.id,
+        userId: m.userId,
+        joinedAt: m.joinedAt,
+        lastReadAt: m.lastReadAt,
+        user: m.user
+          ? {
+              id: m.user.id,
+              name: m.user.name,
+              email: m.user.email,
+              roles: m.user.userRoles?.map((ur) => ur.role.name) || [],
+            }
+          : undefined,
+      })),
       lastMessage: lastMsg
         ? {
             id: lastMsg.id,
+            conversationId: conv.id,
             content: lastMsg.content,
             senderId: lastMsg.senderId,
             senderName: lastMsg.sender.name,
             createdAt: lastMsg.createdAt,
             readAt: lastMsg.readAt,
+            sender: {
+              id: lastMsg.sender.id,
+              name: lastMsg.sender.name,
+            },
           }
         : null,
       unreadCount,

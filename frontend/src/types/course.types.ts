@@ -25,6 +25,7 @@ export interface Course {
   level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
   durationMonths: number;
   totalHours: number;
+  fee: number;
   modulesCount: number;
   enrolledStudents: number;
   status: "ACTIVE" | "INACTIVE";

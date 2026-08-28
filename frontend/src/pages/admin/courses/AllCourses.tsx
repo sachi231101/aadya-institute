@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   BookOpen,
   Plus,
@@ -10,6 +10,7 @@ import {
   Clock,
   MoreVertical,
   Trash2,
+  Pencil,
   LayoutGrid,
   List,
   GraduationCap,
@@ -39,6 +40,8 @@ import {
 
 export const AllCourses: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const coursesBasePath = location.pathname.startsWith("/center") ? "/center/courses" : "/admin/courses";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -86,6 +89,10 @@ export const AllCourses: React.FC = () => {
     }
   };
 
+  const handleEditCourse = (course: (typeof courses)[number]) => {
+    navigate(`${coursesBasePath}/${course.id}/edit`, { state: { course } });
+  };
+
   const handleDelete = async (id: string) => {
     if (confirm("Are you sure you want to delete this course?")) {
       await deleteCourse(id);
@@ -105,7 +112,7 @@ export const AllCourses: React.FC = () => {
 
         <Button
           className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
-          onClick={() => navigate("/admin/courses/add")}
+          onClick={() => navigate(`${coursesBasePath}/add`)}
         >
           <Plus className="mr-1.5 h-4 w-4" />
           Add New Course
@@ -260,6 +267,9 @@ export const AllCourses: React.FC = () => {
                             <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
                               <DropdownMenuLabel className="text-xs font-bold">Course Options</DropdownMenuLabel>
                               <DropdownMenuSeparator className="bg-border" />
+                              <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
+                                <Pencil className="mr-2 h-4 w-4" /> Edit Course
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> View Curriculum
                               </DropdownMenuItem>
@@ -298,6 +308,9 @@ export const AllCourses: React.FC = () => {
                         <div className="flex items-center gap-1.5">
                           <Users className="h-3.5 w-3.5 text-muted-foreground" />
                           <span>{course._count?.admissions || 0} Students</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 font-bold text-emerald-600 dark:text-emerald-400">
+                          <span>₹{(course.fee ?? 0).toLocaleString()}</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           {getModeBadge(course.mode)}
@@ -345,6 +358,7 @@ export const AllCourses: React.FC = () => {
                     <TableHead className="font-bold text-foreground">Category</TableHead>
                     <TableHead className="font-bold text-foreground">Mode</TableHead>
                     <TableHead className="font-bold text-foreground">Duration</TableHead>
+                    <TableHead className="font-bold text-foreground">Fee</TableHead>
                     <TableHead className="font-bold text-foreground">Modules</TableHead>
                     <TableHead className="font-bold text-foreground">Enrolled</TableHead>
                     <TableHead className="font-bold text-foreground">Status</TableHead>
@@ -370,6 +384,9 @@ export const AllCourses: React.FC = () => {
                         <TableCell className="text-xs text-foreground py-3.5">
                           {course.duration || course.durationMonths || 6} Mos ({course.totalHours || 100} hrs)
                         </TableCell>
+                        <TableCell className="text-xs font-bold text-emerald-600 dark:text-emerald-400 py-3.5">
+                          ₹{(course.fee ?? 0).toLocaleString()}
+                        </TableCell>
                         <TableCell className="text-xs text-foreground py-3.5">{course.modules?.length || 0}</TableCell>
                         <TableCell className="text-xs font-bold text-foreground py-3.5">{course._count?.admissions || 0}</TableCell>
                         <TableCell className="py-3.5">
@@ -385,6 +402,9 @@ export const AllCourses: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
+                              <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
+                                <Pencil className="mr-2 h-4 w-4" /> Edit Course
+                              </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> Curriculum
                               </DropdownMenuItem>
@@ -405,7 +425,7 @@ export const AllCourses: React.FC = () => {
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-xs font-medium">
+                      <TableCell colSpan={9} className="h-32 text-center text-muted-foreground text-xs font-medium">
                         No courses found matching criteria.
                       </TableCell>
                     </TableRow>

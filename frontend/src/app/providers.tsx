@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { ChatSocketProvider } from "@/components/chat/ChatSocketProvider";
 import { useAuthStore } from "@/store/auth.store";
 import { authApi } from "@/services/auth.api";
 
@@ -54,6 +55,7 @@ export const AppProviders: React.FC<AppProvidersProps> = ({ children }) => {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <SessionValidator />
+        <ChatSocketProvider />
         {children}
       </ThemeProvider>
     </QueryClientProvider>

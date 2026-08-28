@@ -397,6 +397,7 @@ model Course {
   mode        String?  @default("HYBRID")
   level       String?  @default("BEGINNER")
   totalHours  Int?     @default(100)
+  fee         Float?
   status      Status   @default(ACTIVE)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

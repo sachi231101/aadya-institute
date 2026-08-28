@@ -222,9 +222,6 @@ export const StudentAttendance: React.FC = () => {
 
   // Save attendance explicit action
   const handleSaveAttendance = () => {
-    // #region agent log
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'student-e2e',hypothesisId:'E',location:'StudentAttendance.tsx:save',message:'Attendance save clicked — no API call',data:{selectedDate,studentCount:students.length,callsAttendanceApi:false},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     setAutoSaveState("saving");
     setTimeout(() => {
       setAutoSaveState("saved");
