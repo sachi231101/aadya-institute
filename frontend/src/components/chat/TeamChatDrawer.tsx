@@ -7,7 +7,6 @@ import {
   useSendMessage,
   useMarkConversationRead,
 } from "../../hooks/useChat";
-import { useChatSocket } from "../../hooks/useChatSocket";
 import { ChatHeader } from "./ChatHeader";
 import { ConversationList } from "./ConversationList";
 import { MessageList } from "./MessageList";
@@ -20,9 +19,6 @@ export const TeamChatDrawer: React.FC = () => {
   const { user } = useAuthStore();
   const { isOpen, activeConversationId, closeChat, setActiveConversationId } = useChatStore();
   const [, startTransition] = useTransition();
-
-  // Initialize persistent WebSocket listener
-  useChatSocket();
 
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isAllowed = userRoles.some((r) => ALLOWED_STAFF_ROLES.includes(r)) && !userRoles.includes("STUDENT");

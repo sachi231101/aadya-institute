@@ -34,6 +34,7 @@ import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
 // Courses
 import { AllCourses } from "../pages/admin/courses/AllCourses";
 import { AddCourse } from "../pages/admin/courses/AddCourse";
+import { EditCourse } from "../pages/admin/courses/EditCourse";
 import { Batches } from "../pages/admin/courses/Batches";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
 
@@ -186,6 +187,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="courses">
           <Route path="all" element={<AllCourses />} />
           <Route path="add" element={<AddCourse />} />
+          <Route path=":id/edit" element={<EditCourse />} />
           <Route path="batches" element={<Batches />} />
           <Route path="curriculum" element={<Curriculum />} />
         </Route>
@@ -333,6 +335,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="courses">
           <Route path="all" element={<AllCourses />} />
           <Route path="add" element={<AddCourse />} />
+          <Route path=":id/edit" element={<EditCourse />} />
           <Route path="batches" element={<Batches />} />
           <Route path="curriculum" element={<Curriculum />} />
         </Route>

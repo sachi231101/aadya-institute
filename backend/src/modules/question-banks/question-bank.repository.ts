@@ -19,7 +19,9 @@ export const findAllQuestionBanks = async (
 
   const where: Record<string, unknown> = { instituteId };
 
-  if (branchId) where.branchId = branchId;
+  if (branchId) {
+    where.OR = [{ branchId }, { branchId: null }];
+  }
   if (filters.status) where.status = filters.status;
   if (filters.courseId) where.courseId = filters.courseId;
 

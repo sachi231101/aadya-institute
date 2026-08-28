@@ -10,12 +10,6 @@ export const StudentFeedback: React.FC = () => {
   const { data: feedbackResponse, isLoading, isError, error } = useFeedbackByStudent(resolvedStudentId);
   const feedbacks = feedbackResponse?.data || [];
 
-  // #region agent log
-  React.useEffect(() => {
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'B,D',location:'student/Feedback.tsx',message:'Feedback page state',data:{resolvedStudentId,hasAuthStudentId:!!user?.studentId,usingUserIdFallback:false,isLoading,isError,errMsg:(error as any)?.response?.data?.message||(error as any)?.message,feedbackCount:feedbacks.length},timestamp:Date.now()})}).catch(()=>{});
-  }, [resolvedStudentId, isLoading, isError, feedbacks.length]);
-  // #endregion
-
   if (!resolvedStudentId) {
     return (
       <div className="space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500">

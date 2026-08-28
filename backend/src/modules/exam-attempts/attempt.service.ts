@@ -69,7 +69,8 @@ export const getStudentAvailableExams = async (userId: string, instituteId: stri
   }
 
   const batchIds = student.batchEnrollments.map((be) => be.batchId);
-  return repository.findStudentAvailableExams(instituteId, student.id, batchIds);
+  const exams = await repository.findStudentAvailableExams(instituteId, student.id, batchIds);
+  return exams;
 };
 
 // ─── Student Exam Instructions & Consent ──────────────────────────────────────
@@ -335,6 +336,47 @@ const formatSanitizedQuestions = (exam: any, attemptId: string) => {
   return questions;
 };
 
+/** Attach sanitized exam questions to an in-progress attempt for the Take Exam UI. */
+const attachSanitizedExamQuestions = async (attempt: any, instituteId: string) => {
+  const examWithQuestions = await prisma.exam.findFirst({
+    where: { id: attempt.examId, instituteId },
+    include: {
+      examQuestions: {
+        orderBy: { displayOrder: 'asc' },
+        include: {
+          question: {
+            include: {
+              options: { orderBy: { displayOrder: 'asc' } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!examWithQuestions) return attempt;
+
+  const sanitized = formatSanitizedQuestions(examWithQuestions, attempt.id);
+  attempt.exam = {
+    ...attempt.exam,
+    examQuestions: sanitized.map((q, index) => ({
+      questionId: q.id,
+      displayOrder: q.displayOrder ?? index,
+      marksOverride: q.marks,
+      question: {
+        id: q.id,
+        questionText: q.questionText,
+        questionType: q.questionType,
+        marks: q.marks,
+        negativeMarks: q.negativeMarks,
+        options: q.options,
+      },
+    })),
+  };
+
+  return attempt;
+};
+
 // ─── Get Attempt Details & Active State ────────────────────────────────────────
 export const getAttemptDetails = async (
   attemptId: string,
@@ -357,6 +399,11 @@ export const getAttemptDetails = async (
     // Attempt expired: auto-finalize
     await submitExam(attempt.id, userId, instituteId);
     return repository.findAttemptById(attemptId, instituteId);
+  }
+
+  // Include sanitized questions for active attempts so TakeExam can load after navigation/refresh
+  if (['IN_PROGRESS', 'NOT_STARTED'].includes(attempt.status)) {
+    await attachSanitizedExamQuestions(attempt, instituteId);
   }
 
   return attempt;

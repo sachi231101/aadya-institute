@@ -83,6 +83,7 @@ export const createCourse = (instituteId: string, data: CreateCourseDto) => {
       mode: data.mode || "HYBRID",
       level: data.level || "BEGINNER",
       totalHours: data.totalHours || 100,
+      fee: data.fee,
     },
   });
 };

@@ -8,6 +8,7 @@ export interface CourseData {
   duration?: number;
   durationMonths?: number;
   totalHours?: number;
+  fee?: number | null;
   category?: string;
   mode?: "OFFLINE" | "ONLINE" | "HYBRID" | string;
   level?: "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | string;
@@ -26,6 +27,11 @@ export interface CreateCoursePayload {
   mode?: string;
   level?: string;
   totalHours?: number;
+  fee?: number;
+}
+
+export interface UpdateCoursePayload extends Partial<CreateCoursePayload> {
+  status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 }
 
 export const coursesApi = {
@@ -44,7 +50,7 @@ export const coursesApi = {
     return response.data;
   },
 
-  update: async (id: string, data: Partial<CreateCoursePayload>) => {
+  update: async (id: string, data: UpdateCoursePayload) => {
     const response = await api.patch<{ success: boolean }>(`/courses/${id}`, data);
     return response.data;
   },

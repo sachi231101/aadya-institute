@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import {
   HelpCircle,
   ArrowLeft,
@@ -30,11 +30,13 @@ interface OptionItem {
 export const CreateQuestion: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
   const createQuestionMutation = useCreateQuestion();
   const { courses } = useCourses();
   const { data: banksResponse } = useQuestionBanks();
   const questionBanks = banksResponse?.data || [];
+  const preselectedBankId = searchParams.get("bankId") || "";
 
   // Form State
   const [questionType, setQuestionType] = useState<
@@ -45,9 +47,19 @@ export const CreateQuestion: React.FC = () => {
   const [marks, setMarks] = useState(1);
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [explanation, setExplanation] = useState("");
-  const [questionBankId, setQuestionBankId] = useState("");
+  const [questionBankId, setQuestionBankId] = useState(preselectedBankId);
   const [courseId, setCourseId] = useState("");
   const [moduleId, setModuleId] = useState("");
+
+  useEffect(() => {
+    if (preselectedBankId) {
+      setQuestionBankId(preselectedBankId);
+      const bank = questionBanks.find((b: any) => b.id === preselectedBankId);
+      if (bank?.courseId && !courseId) {
+        setCourseId(bank.courseId);
+      }
+    }
+  }, [preselectedBankId, questionBanks, courseId]);
 
   const [options, setOptions] = useState<OptionItem[]>([
     { id: "1", optionText: "", isCorrect: true },
@@ -162,7 +174,9 @@ export const CreateQuestion: React.FC = () => {
           : undefined,
       });
 
-      navigate(`${basePath}/question-bank`);
+      navigate(`${basePath}/question-bank`, {
+        state: questionBankId ? { bankId: questionBankId } : null,
+      });
     } catch (err: any) {
       setValidationError(err?.response?.data?.message || "Failed to create question");
     }
@@ -245,7 +259,7 @@ export const CreateQuestion: React.FC = () => {
                   <option value="">No Bank (General Catalog)</option>
                   {questionBanks.map((b: any) => (
                     <option key={b.id} value={b.id}>
-                      {b.name}
+                      {b.name || "Unnamed Bank"}
                     </option>
                   ))}
                 </select>

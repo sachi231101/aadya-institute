@@ -143,27 +143,6 @@ export const getDiscontinuationRisk = async (
     const authUser = toAuthUser(req);
     const branchId = typeof req.query.branchId === "string" ? req.query.branchId : undefined;
     const data = await service.getDiscontinuationRisk(authUser, { branchId });
-    // #region agent log
-    try {
-      const fs = await import("fs");
-      const path = await import("path");
-      const logPath = path.resolve(process.cwd(), "..", ".cursor", "debug-c11d90.log");
-      fs.appendFileSync(
-        logPath,
-        JSON.stringify({
-          sessionId: "c11d90",
-          runId: "post-fix",
-          hypothesisId: "C",
-          location: "attendance.controller.ts:getDiscontinuationRisk",
-          message: "discontinuation-risk served",
-          data: { count: Array.isArray(data) ? data.length : 0, branchId: branchId ?? null },
-          timestamp: Date.now(),
-        }) + "\n"
-      );
-    } catch {
-      /* ignore */
-    }
-    // #endregion
     sendSuccess(res, data, 200, "Discontinuation risk students retrieved successfully");
   } catch (err) {
     next(err);

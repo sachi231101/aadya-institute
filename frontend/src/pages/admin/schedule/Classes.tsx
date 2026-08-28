@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import {
   Calendar,
   Plus,
@@ -83,61 +83,131 @@ export interface ScheduledClassItem {
   attendanceMarked: boolean;
 }
 
+const inferIconType = (name: string): ScheduledClassItem["iconType"] => {
+  const lower = name.toLowerCase();
+  if (lower.includes("java")) return "java";
+  if (lower.includes("python")) return "python";
+  if (lower.includes("marketing")) return "marketing";
+  if (lower.includes("excel")) return "excel";
+  if (lower.includes("power")) return "powerbi";
+  if (lower.includes("web")) return "web";
+  return "general";
+};
+
+const mapSessionStatusToUI = (sessionStatus?: string): ClassStatus => {
+  switch (sessionStatus) {
+    case "ONGOING":
+      return "LIVE";
+    case "COMPLETED":
+      return "COMPLETED";
+    case "CANCELLED":
+      return "CANCELLED";
+    default:
+      return "SCHEDULED";
+  }
+};
+
+const formatDateLabel = (dateStr: string): string => {
+  const today = new Date().toISOString().split("T")[0];
+  const formatted = new Date(`${dateStr}T00:00:00`).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return dateStr === today ? `${formatted} (Today)` : formatted;
+};
+
+const mapSessionToScheduledClassItem = (
+  session: BackendClassSession,
+  branchesList: Array<{ id: string; name: string }>
+): ScheduledClassItem => {
+  const branchObj = branchesList.find((b) => b.id === session.branchId);
+  const courseName = session.batch?.course?.name || "General Course";
+  const topicName = session.title || courseName;
+  const dateStr = session.scheduledDate
+    ? new Date(session.scheduledDate).toISOString().split("T")[0]
+    : new Date().toISOString().split("T")[0];
+  const mode = (session.mode || "OFFLINE") as ClassMode;
+  const facultyName = session.faculty?.user?.name || session.faculty?.employeeCode;
+  const isFacultyAssigned = !!session.facultyId && !!facultyName;
+
+  return {
+    id: session.id,
+    topicName,
+    courseName,
+    moduleName: session.batchModule?.courseModule?.name || "Core Module",
+    iconType: inferIconType(`${topicName} ${courseName}`),
+    batchCode: session.batch?.code || "BATCH",
+    batchName: session.batch?.name || "Batch",
+    branchId: session.branchId,
+    branchName: branchObj?.name || "Branch",
+    facultyId: session.facultyId,
+    facultyName,
+    facultySpecialization: undefined,
+    facultyAvatar: undefined,
+    isFacultyAssigned,
+    date: dateStr,
+    dateLabel: formatDateLabel(dateStr),
+    startTime: session.startTime,
+    endTime: session.endTime,
+    mode,
+    locationOrLink:
+      mode === "ONLINE" ? session.meetingUrl || "Online" : session.roomNo || "TBD",
+    isOnlineLink: mode === "ONLINE",
+    status: isFacultyAssigned ? mapSessionStatusToUI(session.sessionStatus) : "UNASSIGNED",
+    enrolledStudentsCount: 0,
+    attendanceMarked: session.sessionStatus === "COMPLETED",
+  };
+};
+
 import { useBatches } from "../../../hooks/useBatches";
 import { useBranches } from "../../../hooks/useBranches";
 import { useFacultyList } from "../../../hooks/useFaculty";
+import {
+  useClassSessions,
+  useCreateClassSession,
+  useUpdateClassSession,
+  useDeleteClassSession,
+} from "../../../hooks/useClassSessions";
+import { useQueryClient } from "@tanstack/react-query";
+import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
 
 export const Classes: React.FC = () => {
+  const queryClient = useQueryClient();
   const { data: branchData } = useBranches();
   const branchesList = branchData?.data ?? [];
   const { batches } = useBatches();
   const { data: facultyData } = useFacultyList({ limit: 50 });
   const facultyMembers = facultyData?.data ?? [];
 
-  // Generate dynamic scheduled class list from active batches
-  const realClassesList: ScheduledClassItem[] = useMemo(() => {
-    return batches.map((b: any, idx: number) => {
-      const branchObj = branchesList.find((br: any) => br.id === b.branchId) || branchesList[0];
-      const facultyObj = facultyMembers.find((f: any) => f.id === b.facultyId);
-
-      return {
-        id: b.id,
-        topicName: b.course?.name || b.name || "Live Lecture",
-        courseName: b.course?.name || "Full Stack Web Development",
-        moduleName: "Core Concepts & Practical Lab",
-        iconType: "web",
-        batchCode: b.code || `BATCH-${idx + 1}`,
-        batchName: b.name || "Active Batch",
-        branchId: b.branchId || branchObj?.id || "main",
-        branchName: branchObj?.name || "Aadya Institute",
-        facultyId: facultyObj?.id,
-        facultyName: facultyObj?.user?.name || "Assigned Faculty",
-        facultySpecialization: facultyObj?.specialization || "Technical Instructor",
-        facultyAvatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
-        isFacultyAssigned: !!facultyObj || !!b.facultyId,
-        date: new Date().toISOString().split("T")[0],
-        dateLabel: "Today",
-        startTime: b.schedule?.startTime || "10:00 AM",
-        endTime: b.schedule?.endTime || "11:30 AM",
-        mode: (b.type === "ONLINE" ? "ONLINE" : b.type === "HYBRID" ? "HYBRID" : "OFFLINE") as ClassMode,
-        locationOrLink: b.type === "ONLINE" ? "https://meet.google.com/live" : "Classroom 101",
-        isOnlineLink: b.type === "ONLINE",
-        status: (b.status === "ACTIVE" ? "LIVE" : b.status === "COMPLETED" ? "COMPLETED" : "SCHEDULED") as ClassStatus,
-        enrolledStudentsCount: b._count?.enrollments || b.enrollments?.length || 20,
-        attendanceMarked: false,
-      };
-    });
-  }, [batches, branchesList, facultyMembers]);
-
-  // State
-  const [classesList, setClassesList] = useState<ScheduledClassItem[]>([]);
-
-  useEffect(() => {
-    setClassesList(realClassesList);
-  }, [realClassesList]);
-
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
+
+  const sessionQueryParams = useMemo(() => {
+    if (!isViewAllBranches && selectedBranchId && selectedBranchId !== "ALL") {
+      return { branchId: selectedBranchId };
+    }
+    return undefined;
+  }, [isViewAllBranches, selectedBranchId]);
+
+  const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
+  const createSession = useCreateClassSession();
+  const updateSession = useUpdateClassSession();
+  const deleteSession = useDeleteClassSession();
+
+  const classesList = useMemo(() => {
+    const sessions = sessionsResponse?.data ?? [];
+    return sessions.map((session) => mapSessionToScheduledClassItem(session, branchesList));
+  }, [sessionsResponse, branchesList]);
+
+  const uniqueCourses = useMemo(
+    () => [...new Set(classesList.map((c) => c.courseName))].sort(),
+    [classesList]
+  );
+  const uniqueBatches = useMemo(
+    () => [...new Set(classesList.map((c) => c.batchCode))].sort(),
+    [classesList]
+  );
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -186,20 +256,19 @@ export const Classes: React.FC = () => {
 
   // Dynamic Statistics
   const stats = useMemo(() => {
-    const scopeClasses = isViewAllBranches || selectedBranchId === "ALL"
-      ? classesList
-      : classesList.filter((c) => c.branchId === selectedBranchId);
+    const scopeClasses =
+      isViewAllBranches || selectedBranchId === "ALL"
+        ? classesList
+        : classesList.filter((c) => c.branchId === selectedBranchId);
 
-    const totalClasses = scopeClasses.length || 15;
-    const facultyAssigned = scopeClasses.filter((c) => c.isFacultyAssigned).length || 10;
-    const todayClasses = scopeClasses.length || 5;
-    const unassignedClasses = scopeClasses.filter((c) => !c.isFacultyAssigned).length;
+    const today = new Date().toISOString().split("T")[0];
+    const activeClasses = scopeClasses.filter((c) => c.status !== "CANCELLED");
 
     return {
-      total: totalClasses,
-      facultyAssigned,
-      today: todayClasses,
-      unassigned: unassignedClasses,
+      total: activeClasses.length,
+      facultyAssigned: activeClasses.filter((c) => c.isFacultyAssigned).length,
+      today: activeClasses.filter((c) => c.date === today).length,
+      unassigned: activeClasses.filter((c) => !c.isFacultyAssigned).length,
     };
   }, [classesList, selectedBranchId, isViewAllBranches]);
 
@@ -299,91 +368,84 @@ export const Classes: React.FC = () => {
     setIsAssignFacultyModalOpen(true);
   };
 
-  const handleSaveAssignFaculty = () => {
+  const handleSaveAssignFaculty = async () => {
     if (!selectedClassItem) return;
     const fac = facultyMembers.find((f: any) => f.id === targetFacultyId);
     if (!fac) return;
     const facName = fac.user?.name || fac.employeeCode || "Faculty";
-    const facSpec = fac.specialization || "Technical Instructor";
 
-    setClassesList((prev) =>
-      prev.map((c) =>
-        c.id === selectedClassItem.id
-          ? {
-              ...c,
-              facultyId: fac.id,
-              facultyName: facName,
-              facultySpecialization: facSpec,
-              facultyAvatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
-              isFacultyAssigned: true,
-              status: c.status === "UNASSIGNED" ? "SCHEDULED" : c.status,
-            }
-          : c
-      )
-    );
-
-    setIsAssignFacultyModalOpen(false);
-    setNotificationMsg(`✓ Assigned ${facName} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
-    setTimeout(() => setNotificationMsg(null), 3500);
+    try {
+      await updateSession.mutateAsync({
+        id: selectedClassItem.id,
+        payload: { facultyId: fac.id },
+      });
+      setIsAssignFacultyModalOpen(false);
+      setNotificationMsg(`✓ Assigned ${facName} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
+      setTimeout(() => setNotificationMsg(null), 3500);
+    } catch {
+      setNotificationMsg("Failed to assign faculty. Please try again.");
+      setTimeout(() => setNotificationMsg(null), 3500);
+    }
   };
 
-  const handleCreateNewClass = () => {
+  const handleCreateNewClass = async () => {
     const fac = formFacultyId !== "none" ? facultyMembers.find((f: any) => f.id === formFacultyId) : null;
-    const br = branchesList.find((b: any) => b.id === formBranch) || branchesList[0];
+    const batch = batches.find((b: any) => b.code === formBatch || b.id === formBatch);
 
-    const newClass: ScheduledClassItem = {
-      id: `cls-${Date.now()}`,
-      topicName: formTopic,
-      courseName: formCourse,
-      moduleName: formModule,
-      iconType: formTopic.toLowerCase().includes("python")
-        ? "python"
-        : formTopic.toLowerCase().includes("excel")
-        ? "excel"
-        : formTopic.toLowerCase().includes("marketing")
-        ? "marketing"
-        : formTopic.toLowerCase().includes("power")
-        ? "powerbi"
-        : "java",
-      batchCode: formBatch,
-      batchName: `${formCourse} Batch`,
-      branchId: br.id,
-      branchName: br.name,
-      facultyId: fac?.id,
-      facultyName: (fac as any)?.user?.name || (fac as any)?.employeeCode || undefined,
-      facultySpecialization: fac?.specialization || undefined,
-      facultyAvatar: fac ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150" : undefined,
-      isFacultyAssigned: !!fac,
-      date: formDate,
-      dateLabel: `${formDate} (Scheduled)`,
-      startTime: formStartTime,
-      endTime: formEndTime,
-      mode: formMode,
-      locationOrLink: formLocation,
-      isOnlineLink: formMode === "ONLINE",
-      status: fac ? "SCHEDULED" : "UNASSIGNED",
-      enrolledStudentsCount: formStudentsCount,
-      attendanceMarked: false,
-    };
+    if (!batch) {
+      setNotificationMsg("Please enter a valid batch code from your active batches.");
+      setTimeout(() => setNotificationMsg(null), 3500);
+      return;
+    }
 
-    setClassesList((prev) => [newClass, ...prev]);
-    setIsScheduleModalOpen(false);
-    setNotificationMsg(`✓ Successfully scheduled new class: ${formTopic} (${formBatch}).`);
-    setTimeout(() => setNotificationMsg(null), 3500);
+    if (!fac) {
+      setNotificationMsg("Faculty assignment is required to schedule a class session.");
+      setTimeout(() => setNotificationMsg(null), 3500);
+      return;
+    }
+
+    try {
+      await createSession.mutateAsync({
+        title: formModule || formTopic,
+        batchId: batch.id,
+        facultyId: fac.id,
+        scheduledDate: formDate,
+        startTime: formStartTime,
+        endTime: formEndTime,
+        roomNo: formMode !== "ONLINE" ? formLocation : undefined,
+        mode: formMode,
+        meetingUrl: formMode === "ONLINE" ? formLocation : undefined,
+      });
+      setIsScheduleModalOpen(false);
+      setNotificationMsg(`✓ Successfully scheduled new class: ${formTopic} (${formBatch}).`);
+      setTimeout(() => setNotificationMsg(null), 3500);
+    } catch {
+      setNotificationMsg("Failed to schedule class. Please check the form and try again.");
+      setTimeout(() => setNotificationMsg(null), 3500);
+    }
   };
 
-  const handleCancelClass = (classItem: ScheduledClassItem) => {
-    setClassesList((prev) =>
-      prev.map((c) => (c.id === classItem.id ? { ...c, status: "CANCELLED" } : c))
-    );
-    setNotificationMsg(`✓ Class ${classItem.topicName} marked as Cancelled.`);
-    setTimeout(() => setNotificationMsg(null), 3000);
+  const handleCancelClass = async (classItem: ScheduledClassItem) => {
+    try {
+      await classSessionsApi.cancel(classItem.id);
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      setNotificationMsg(`✓ Class ${classItem.topicName} marked as Cancelled.`);
+      setTimeout(() => setNotificationMsg(null), 3000);
+    } catch {
+      setNotificationMsg("Failed to cancel class. Please try again.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+    }
   };
 
-  const handleDeleteClass = (classItem: ScheduledClassItem) => {
-    setClassesList((prev) => prev.filter((c) => c.id !== classItem.id));
-    setNotificationMsg(`✓ Removed class ${classItem.topicName} from schedule.`);
-    setTimeout(() => setNotificationMsg(null), 3000);
+  const handleDeleteClass = async (classItem: ScheduledClassItem) => {
+    try {
+      await deleteSession.mutateAsync(classItem.id);
+      setNotificationMsg(`✓ Removed class ${classItem.topicName} from schedule.`);
+      setTimeout(() => setNotificationMsg(null), 3000);
+    } catch {
+      setNotificationMsg("Failed to delete class. Please try again.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+    }
   };
 
   // Helper Icon Renderer
@@ -535,7 +597,9 @@ export const Classes: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">{stats.total}</span>
+              <span className="text-2xl font-black text-foreground">
+                {sessionsLoading ? "—" : stats.total}
+              </span>
               <span className="text-xs font-semibold text-muted-foreground">Scheduled</span>
             </div>
             <span className="text-xs font-bold text-muted-foreground block mt-0.5">Total Classes</span>
@@ -549,7 +613,9 @@ export const Classes: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">{stats.facultyAssigned}</span>
+              <span className="text-2xl font-black text-foreground">
+                {sessionsLoading ? "—" : stats.facultyAssigned}
+              </span>
               <span className="text-xs font-semibold text-muted-foreground">Faculty</span>
             </div>
             <span className="text-xs font-bold text-muted-foreground block mt-0.5">Faculty Assigned</span>
@@ -563,7 +629,9 @@ export const Classes: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-foreground">{stats.today}</span>
+              <span className="text-2xl font-black text-foreground">
+                {sessionsLoading ? "—" : stats.today}
+              </span>
               <span className="text-xs font-semibold text-muted-foreground">Scheduled Today</span>
             </div>
             <span className="text-xs font-bold text-muted-foreground block mt-0.5">Today's Classes</span>
@@ -577,7 +645,9 @@ export const Classes: React.FC = () => {
           </div>
           <div>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-2xl font-black text-amber-600 dark:text-amber-300">{stats.unassigned}</span>
+              <span className="text-2xl font-black text-amber-600 dark:text-amber-300">
+                {sessionsLoading ? "—" : stats.unassigned}
+              </span>
               <span className="text-xs font-semibold text-amber-600/80 dark:text-amber-400">Need Faculty</span>
             </div>
             <span className="text-xs font-bold text-amber-700 dark:text-amber-400 block mt-0.5">Unassigned Classes</span>
@@ -633,13 +703,11 @@ export const Classes: React.FC = () => {
             className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Courses</option>
-            <option value="Java Full Stack">Java Full Stack</option>
-            <option value="Python Programming">Python Programming</option>
-            <option value="Digital Marketing">Digital Marketing</option>
-            <option value="Advanced Excel">Advanced Excel</option>
-            <option value="Power BI">Power BI</option>
-            <option value="Web Development">Web Development</option>
-            <option value="Database Systems">Database Systems</option>
+            {uniqueCourses.map((course) => (
+              <option key={course} value={course}>
+                {course}
+              </option>
+            ))}
           </select>
 
           {/* All Batches */}
@@ -652,13 +720,11 @@ export const Classes: React.FC = () => {
             className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
           >
             <option value="ALL">All Batches</option>
-            <option value="JFS-B01">JFS-B01</option>
-            <option value="PY-B02">PY-B02</option>
-            <option value="DM-B01">DM-B01</option>
-            <option value="EX-B01">EX-B01</option>
-            <option value="PBI-B01">PBI-B01</option>
-            <option value="WD-B02">WD-B02</option>
-            <option value="DB-B01">DB-B01</option>
+            {uniqueBatches.map((batchCode) => (
+              <option key={batchCode} value={batchCode}>
+                {batchCode}
+              </option>
+            ))}
           </select>
 
           {/* All Modes */}

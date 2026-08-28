@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   HelpCircle,
@@ -51,6 +51,19 @@ export const QuestionBank: React.FC = () => {
   const [difficultyFilter, setDifficultyFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");
   const [bankFilter, setBankFilter] = useState("ALL");
+  const [activeTab, setActiveTab] = useState("questions");
+
+  useEffect(() => {
+    const state = location.state as { bankId?: string } | null;
+    if (state?.bankId) {
+      setBankFilter(state.bankId);
+      setActiveTab("questions");
+      navigate(location.pathname, { replace: true, state: null });
+    }
+  }, [location.pathname, location.state, navigate]);
+
+  const { data: allQuestionsResponse } = useQuestions();
+  const allQuestions = allQuestionsResponse?.data || [];
 
   const { data: questionsResponse, isLoading: questionsLoading } = useQuestions({
     search: searchTerm || undefined,
@@ -65,6 +78,7 @@ export const QuestionBank: React.FC = () => {
     courseId: courseFilter !== "ALL" ? courseFilter : undefined,
   });
   const questionBanks = banksResponse?.data || [];
+  const selectedBank = questionBanks.find((b: any) => b.id === bankFilter);
 
   const { courses } = useCourses();
 
@@ -91,14 +105,25 @@ export const QuestionBank: React.FC = () => {
       setBankName("");
       setBankDesc("");
       setBankCourseId("");
+      setActiveTab("banks");
     } catch {
       // Error handled in hook
     }
   };
 
-  const easyCount = questions.filter((q: any) => q.difficulty === "EASY").length;
-  const mediumCount = questions.filter((q: any) => q.difficulty === "MEDIUM").length;
-  const hardCount = questions.filter((q: any) => q.difficulty === "HARD").length;
+  const handleViewBankQuestions = (bankId: string) => {
+    setBankFilter(bankId);
+    setActiveTab("questions");
+  };
+
+  const handleCreateQuestionForBank = (bankId?: string) => {
+    const query = bankId ? `?bankId=${bankId}` : "";
+    navigate(`${basePath}/questions/create${query}`);
+  };
+
+  const easyCount = allQuestions.filter((q: any) => q.difficulty === "EASY").length;
+  const mediumCount = allQuestions.filter((q: any) => q.difficulty === "MEDIUM").length;
+  const hardCount = allQuestions.filter((q: any) => q.difficulty === "HARD").length;
 
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
@@ -126,7 +151,7 @@ export const QuestionBank: React.FC = () => {
 
           <Button
             className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
-            onClick={() => navigate(`${basePath}/questions/create`)}
+            onClick={() => handleCreateQuestionForBank()}
           >
             <Plus className="h-4 w-4" />
             Create Question
@@ -140,7 +165,7 @@ export const QuestionBank: React.FC = () => {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Total Questions</p>
-              <p className="text-2xl font-bold mt-1">{questions.length}</p>
+              <p className="text-2xl font-bold mt-1">{allQuestions.length}</p>
             </div>
             <HelpCircle className="h-7 w-7 text-purple-500/40" />
           </CardContent>
@@ -193,14 +218,45 @@ export const QuestionBank: React.FC = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="questions" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full sm:w-[350px] grid grid-cols-2">
-          <TabsTrigger value="questions">Questions ({questions.length})</TabsTrigger>
+          <TabsTrigger value="questions">
+            Questions ({bankFilter !== "ALL" ? questions.length : allQuestions.length})
+          </TabsTrigger>
           <TabsTrigger value="banks">Question Banks ({questionBanks.length})</TabsTrigger>
         </TabsList>
 
         {/* Tab 1: Questions Catalog */}
         <TabsContent value="questions" className="space-y-4">
+          {bankFilter !== "ALL" && selectedBank && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-purple-200 bg-purple-500/5 px-4 py-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Folder className="h-4 w-4 text-purple-600" />
+                <span>
+                  Showing questions in <strong>{selectedBank.name}</strong>
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs"
+                  onClick={() => handleCreateQuestionForBank(bankFilter)}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Add to Bank
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="text-xs"
+                  onClick={() => setBankFilter("ALL")}
+                >
+                  Clear Filter
+                </Button>
+              </div>
+            </div>
+          )}
           {/* Filter Bar */}
           <Card className="border-border/60 shadow-sm">
             <CardContent className="p-4">
@@ -259,11 +315,11 @@ export const QuestionBank: React.FC = () => {
                       className="text-xs rounded-md border border-input bg-background px-3 py-1.5 font-medium shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                     >
                       <option value="ALL">All Banks</option>
-                      {questionBanks.map((b: any) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
-                        </option>
-                      ))}
+                  {questionBanks.map((b: any) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name || "Unnamed Bank"}
+                    </option>
+                  ))}
                     </select>
                   </div>
 
@@ -297,14 +353,22 @@ export const QuestionBank: React.FC = () => {
             <Card className="border-border/60">
               <CardContent className="py-16 text-center space-y-3">
                 <HelpCircle className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                <p className="font-semibold text-foreground">No questions found</p>
+                <p className="font-semibold text-foreground">
+                  {bankFilter !== "ALL" && selectedBank
+                    ? `No questions in "${selectedBank.name}" yet`
+                    : "No questions found"}
+                </p>
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                  Create your first assessment question to populate the institute question catalog.
+                  {bankFilter !== "ALL"
+                    ? "Add assessment questions to this bank to build a reusable question repository."
+                    : "Create your first assessment question to populate the institute question catalog."}
                 </p>
                 <Button
                   size="sm"
                   className="gap-2 mt-2"
-                  onClick={() => navigate(`${basePath}/questions/create`)}
+                  onClick={() =>
+                    handleCreateQuestionForBank(bankFilter !== "ALL" ? bankFilter : undefined)
+                  }
                 >
                   <Plus className="h-4 w-4" /> Create Question
                 </Button>
@@ -433,7 +497,11 @@ export const QuestionBank: React.FC = () => {
               </div>
             ) : (
               questionBanks.map((bank: any) => (
-                <Card key={bank.id} className="border-border/60 shadow-xs hover:shadow-md transition-shadow">
+                <Card
+                  key={bank.id}
+                  className="border-border/60 shadow-xs hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => handleViewBankQuestions(bank.id)}
+                >
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -452,7 +520,8 @@ export const QuestionBank: React.FC = () => {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (window.confirm(`Delete question bank "${bank.name}"?`)) {
                             deleteBankMutation.mutate(bank.id);
                           }
@@ -471,16 +540,30 @@ export const QuestionBank: React.FC = () => {
 
                     <div className="flex items-center justify-between pt-2 border-t text-[11px] text-muted-foreground">
                       <span>Questions: <strong className="text-foreground">{bank._count?.questions ?? 0}</strong></span>
-                      <Button
-                        variant="link"
-                        size="sm"
-                        className="h-auto p-0 text-primary text-xs"
-                        onClick={() => {
-                          setBankFilter(bank.id);
-                        }}
-                      >
-                        Filter Questions →
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-primary text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCreateQuestionForBank(bank.id);
+                          }}
+                        >
+                          Add Question
+                        </Button>
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="h-auto p-0 text-primary text-xs"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleViewBankQuestions(bank.id);
+                          }}
+                        >
+                          View Questions →
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

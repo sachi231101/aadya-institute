@@ -6,6 +6,7 @@ import type {
   CreateDirectChatPayload,
 } from "../types/chat.types";
 import { useAuthStore } from "../store/auth.store";
+import { useChatStore } from "../store/chat.store";
 
 export const CHAT_QUERY_KEYS = {
   conversations: ["chat", "conversations"] as const,
@@ -18,6 +19,7 @@ const ALLOWED_STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY",
 
 export const useGetConversations = () => {
   const { user, token } = useAuthStore();
+  const isSocketConnected = useChatStore((s) => s.isSocketConnected);
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
   const isAllowed = Boolean(
     token && userRoles.some((r) => ALLOWED_STAFF_ROLES.includes(r)) && !userRoles.includes("STUDENT")
@@ -27,7 +29,7 @@ export const useGetConversations = () => {
     queryKey: CHAT_QUERY_KEYS.conversations,
     queryFn: () => chatApi.getConversations(),
     enabled: isAllowed,
-    refetchInterval: 1000 * 20, // Background sync every 20 seconds
+    refetchInterval: isSocketConnected ? false : 1000 * 20,
     staleTime: 1000 * 10,
   });
 };
@@ -44,12 +46,13 @@ export const useGetConversation = (conversationId: string | null) => {
 
 export const useGetMessages = (conversationId: string | null, page = 1, limit = 50) => {
   const { token } = useAuthStore();
+  const isSocketConnected = useChatStore((s) => s.isSocketConnected);
 
   return useQuery<MessagesResponse>({
     queryKey: conversationId ? CHAT_QUERY_KEYS.messages(conversationId, page) : ["chat", "messages", "none", page],
     queryFn: () => chatApi.getMessages(conversationId!, page, limit),
     enabled: Boolean(token && conversationId),
-    refetchInterval: 1000 * 10, // Poll fallback if websocket drops
+    refetchInterval: isSocketConnected ? false : 1000 * 10,
     staleTime: 1000 * 5,
   });
 };

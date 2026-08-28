@@ -345,12 +345,6 @@ export const StudentSchedule: React.FC = () => {
   const studentName = user?.name || "Rahul Verma";
   const [apiSessions, setApiSessions] = useState<StudentClassSession[] | null>(null);
 
-  // #region agent log
-  useEffect(() => {
-    fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A,D',location:'student/Schedule.tsx:mount',message:'Student schedule mounting',data:{dataSource:'api-preferred',studentIdUsed:studentId,hasAuthStudentId:!!user?.studentId,feedbackStoreLocal:true},timestamp:Date.now()})}).catch(()=>{});
-  }, []);
-  // #endregion
-
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -359,15 +353,9 @@ export const StudentSchedule: React.FC = () => {
         const mapped = (res.data || []).map(mapApiSessionToStudentSession);
         if (mounted) {
           setApiSessions(mapped);
-          // #region agent log
-          fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Schedule.tsx:api',message:'Schedule sessions from API',data:{count:mapped.length},timestamp:Date.now()})}).catch(()=>{});
-          // #endregion
         }
-      } catch (err) {
+      } catch {
         if (mounted) setApiSessions([]);
-        // #region agent log
-        fetch('http://127.0.0.1:7718/ingest/08e84414-f55c-4158-b0fe-c889777883d7',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'c11d90'},body:JSON.stringify({sessionId:'c11d90',runId:'post-fix',hypothesisId:'A',location:'student/Schedule.tsx:api-err',message:'Schedule API failed',data:{err:String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       }
     };
     load();

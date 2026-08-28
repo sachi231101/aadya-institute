@@ -9,6 +9,7 @@ export const createCourseSchema = z.object({
   mode: z.string().optional(),
   level: z.string().optional(),
   totalHours: z.number().int().positive().optional(),
+  fee: z.number().nonnegative().optional(),
 });
 
 export const updateCourseSchema = z.object({
@@ -20,6 +21,7 @@ export const updateCourseSchema = z.object({
   mode: z.string().optional(),
   level: z.string().optional(),
   totalHours: z.number().int().positive().optional(),
+  fee: z.number().nonnegative().optional(),
   status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
 });
 

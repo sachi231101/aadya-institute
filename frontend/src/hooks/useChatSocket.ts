@@ -8,12 +8,31 @@ import { chatApi } from "../services/chat.api";
 
 const ALLOWED_STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STAFF"];
 
+const buildChatWebSocketUrl = (token: string): string => {
+  const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
+
+  // Prefer same-origin WebSocket when API is proxied through Vite (e.g. /api/v1)
+  if (apiUrl.startsWith("/")) {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(token)}`;
+  }
+
+  try {
+    const parsed = new URL(apiUrl, window.location.href);
+    const protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${parsed.host}/ws/chat?token=${encodeURIComponent(token)}`;
+  } catch {
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    return `${protocol}//${window.location.host}/ws/chat?token=${encodeURIComponent(token)}`;
+  }
+};
+
 export const useChatSocket = () => {
   const socketRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
   const { token, user } = useAuthStore();
-  const { isOpen, activeConversationId } = useChatStore();
+  const { isOpen, activeConversationId, setSocketConnected } = useChatStore();
 
   // Keep references to active state for event handler callbacks
   const activeStateRef = useRef({ isOpen, activeConversationId, currentUserId: user?.id });
@@ -31,8 +50,9 @@ export const useChatSocket = () => {
       if (socketRef.current) {
         socketRef.current.close();
         socketRef.current = null;
-        setIsConnected(false);
       }
+      setIsConnected(false);
+      setSocketConnected(false);
       return;
     }
 
@@ -44,18 +64,17 @@ export const useChatSocket = () => {
       if (isUnmounted) return;
 
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1";
-        // Parse host to build WS URL
-        const parsed = new URL(apiUrl, window.location.href);
-        const protocol = parsed.protocol === "https:" ? "wss:" : "ws:";
-        const wsUrl = `${protocol}//${parsed.host}/ws/chat?token=${encodeURIComponent(token)}`;
+        const wsUrl = buildChatWebSocketUrl(token);
 
         const socket = new WebSocket(wsUrl);
         socketRef.current = socket;
 
         socket.onopen = () => {
           reconnectDelay = 2000; // Reset backoff on success
-          if (!isUnmounted) setIsConnected(true);
+          if (!isUnmounted) {
+            setIsConnected(true);
+            setSocketConnected(true);
+          }
         };
 
         socket.onmessage = (event) => {
@@ -145,7 +164,10 @@ export const useChatSocket = () => {
 
         socket.onclose = (e) => {
           socketRef.current = null;
-          if (!isUnmounted) setIsConnected(false);
+          if (!isUnmounted) {
+            setIsConnected(false);
+            setSocketConnected(false);
+          }
           // Normal closures or unauthorized codes (e.g. 4003) do not reconnect
           if (!isUnmounted && e.code !== 4003 && e.code !== 1000) {
             reconnectTimeout = setTimeout(() => {
@@ -177,7 +199,7 @@ export const useChatSocket = () => {
         socketRef.current = null;
       }
     };
-  }, [token, user?.id, user?.roles, user?.role, queryClient]);
+  }, [token, user?.id, user?.roles, user?.role, queryClient, setSocketConnected]);
 
   return { isConnected };
 };

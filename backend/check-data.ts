@@ -7,23 +7,27 @@ const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  const branches = await prisma.branch.findMany({ select: { id: true, name: true, code: true } });
-  console.log("ALL BRANCHES IN DB:", JSON.stringify(branches, null, 2));
-
-  const studentCount = await prisma.student.count();
-  console.log("TOTAL STUDENTS IN DB:", studentCount);
-
-  const studentsByBranch = await prisma.student.groupBy({
-    by: ['branchId'],
-    _count: { id: true }
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      userRoles: { include: { role: true } },
+    },
   });
-  console.log("STUDENTS BY BRANCH:", JSON.stringify(studentsByBranch, null, 2));
+  console.log("USERS IN DB:", JSON.stringify(users.map(u => ({ id: u.id, email: u.email, name: u.name, roles: u.userRoles.map(r => r.role.name) })), null, 2));
 
-  const facultyCount = await prisma.faculty.count();
-  console.log("TOTAL FACULTY IN DB:", facultyCount);
-
-  const batches = await prisma.batch.findMany({ select: { id: true, name: true, code: true, branchId: true } });
-  console.log("ALL BATCHES IN DB:", JSON.stringify(batches, null, 2));
+  const counts: Record<string, number> = {};
+  for (const key of Object.keys(prisma)) {
+    if (!key.startsWith("$") && !key.startsWith("_") && typeof (prisma as any)[key]?.count === "function") {
+      try {
+        counts[key] = await (prisma as any)[key].count();
+      } catch (err: any) {
+        counts[key] = -1;
+      }
+    }
+  }
+  console.log("ALL TABLE COUNTS:", JSON.stringify(counts, null, 2));
 }
 
 main().finally(() => prisma.$disconnect());

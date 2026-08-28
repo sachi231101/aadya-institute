@@ -742,20 +742,20 @@ export const CounselorDashboard: React.FC = () => {
       </div>
 
       {/* ─── TARGETS & LIVE INCENTIVE TRACKER ─── */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 border border-slate-800 rounded-2xl p-5 shadow-xl text-white">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+      <div className="bg-card border border-border rounded-2xl p-5 shadow-xs text-foreground">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-amber-500/20 border border-amber-500/30 rounded-xl">
-              <Award className="w-5 h-5 text-amber-400" />
+            <div className="p-2.5 bg-amber-500/10 dark:bg-amber-500/20 border border-amber-500/20 dark:border-amber-500/30 rounded-xl">
+              <Award className="w-5 h-5 text-amber-500 dark:text-amber-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-foreground flex items-center gap-2">
                 My Active Targets & Potential Incentives
-                <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/40 text-[10px]">
+                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[10px]">
                   Live Calculation
                 </Badge>
               </h2>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-muted-foreground">
                 System calculated performance from admissions, payments, and lead calls.
               </p>
             </div>
@@ -763,7 +763,7 @@ export const CounselorDashboard: React.FC = () => {
 
           <Button
             onClick={() => navigate("/counselor/performance")}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-md gap-1.5 h-9"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs rounded-xl shadow-xs gap-1.5 h-9"
           >
             View Performance & Rewards <ArrowRight className="w-3.5 h-3.5" />
           </Button>
@@ -778,38 +778,38 @@ export const CounselorDashboard: React.FC = () => {
               const isRevenue = t.metric === "ADMISSION_REVENUE" || t.metric === "FEE_COLLECTION";
 
               return (
-                <div key={t.id} className="bg-slate-950/60 border border-slate-800 rounded-xl p-4 space-y-2">
+                <div key={t.id} className="bg-muted/30 dark:bg-slate-950/60 border border-border rounded-xl p-4 space-y-2">
                   <div className="flex justify-between items-start">
                     <div>
-                      <h3 className="font-bold text-sm text-white">{t.title}</h3>
-                      <p className="text-[11px] text-slate-400">
+                      <h3 className="font-bold text-sm text-foreground">{t.title}</h3>
+                      <p className="text-[11px] text-muted-foreground">
                         Goal: {isRevenue ? `₹${Number(t.targetValue).toLocaleString()}` : `${t.targetValue} units`}
                       </p>
                     </div>
                     <span
                       className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                         achievement >= 100
-                          ? "bg-emerald-500/20 text-emerald-400"
-                          : "bg-amber-500/20 text-amber-400"
+                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30"
                       }`}
                     >
                       {achievement}%
                     </span>
                   </div>
 
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                  <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                     <div
                       className="bg-emerald-500 h-full rounded-full transition-all"
                       style={{ width: `${Math.min(achievement, 100)}%` }}
                     />
                   </div>
 
-                  <div className="flex justify-between text-[11px] font-medium text-slate-400 pt-1">
+                  <div className="flex justify-between text-[11px] font-medium text-muted-foreground pt-1">
                     <span>
-                      Achieved: <strong className="text-emerald-400">{isRevenue ? `₹${Number(achieved).toLocaleString()}` : achieved}</strong>
+                      Achieved: <strong className="text-emerald-600 dark:text-emerald-400">{isRevenue ? `₹${Number(achieved).toLocaleString()}` : achieved}</strong>
                     </span>
                     <span>
-                      Est. Reward: <strong className="text-amber-400">₹{incentive.toLocaleString()}</strong>
+                      Est. Reward: <strong className="text-amber-600 dark:text-amber-400">₹{incentive.toLocaleString()}</strong>
                     </span>
                   </div>
                 </div>
@@ -817,7 +817,7 @@ export const CounselorDashboard: React.FC = () => {
             })}
           </div>
         ) : (
-          <div className="py-4 text-center text-xs text-slate-400">
+          <div className="py-4 text-center text-xs text-muted-foreground">
             No active targets assigned for current period. Contact your branch administrator.
           </div>
         )}
