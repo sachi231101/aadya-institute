@@ -20,6 +20,7 @@ export interface CreateExamDto {
   proctoringEnabled?: boolean;
   fullscreenRequired?: boolean;
   maxWarnings?: number;
+  examTermMasterId?: string;
 }
 
 export interface UpdateExamDto {
@@ -40,6 +41,7 @@ export interface UpdateExamDto {
   proctoringEnabled?: boolean;
   fullscreenRequired?: boolean;
   maxWarnings?: number;
+  examTermMasterId?: string;
 }
 
 export interface ScheduleExamDto {

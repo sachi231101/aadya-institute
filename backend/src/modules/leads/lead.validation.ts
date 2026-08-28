@@ -106,7 +106,10 @@ export const createLeadSchema = z.object({
       (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
       z.string().optional()
     ),
-  source: LeadSourceEnum.default("WALK_IN"),
+  sourceMasterId: z.string().optional(),
+  source: z.string().optional(),
+  leadTypeMasterId: z.string().optional(),
+  stageMasterId: z.string().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().default("MEDIUM"),
   notes: z
     .preprocess(
@@ -137,6 +140,8 @@ export const updateLeadSchema = z.object({
   ),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
   notes: z.string().optional(),
+  sourceMasterId: z.string().optional(),
+  leadTypeMasterId: z.string().optional(),
 });
 
 export const assignLeadSchema = z.object({
@@ -145,8 +150,11 @@ export const assignLeadSchema = z.object({
 });
 
 export const changeLeadStageSchema = z.object({
-  stage: LeadStageEnum,
+  stage: z.string().optional(),
+  stageMasterId: z.string().optional(),
   notes: z.string().optional(),
+}).refine((d) => d.stageMasterId || d.stage, {
+  message: "stageMasterId or stage is required",
 });
 
 export const markLeadLostSchema = z.object({
@@ -185,9 +193,11 @@ export const queryLeadsSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),
   search: z.string().trim().optional(),
-  stage: LeadStageEnum.optional(),
+  stage: z.string().optional(),
+  stageMasterId: z.string().optional(),
   status: LeadStatusEnum.optional(),
-  source: LeadSourceEnum.optional(),
+  source: z.string().optional(),
+  sourceMasterId: z.string().optional(),
   assignedCounsellorId: z.string().optional(),
   courseId: z.string().optional(),
   branchId: z.string().optional(),

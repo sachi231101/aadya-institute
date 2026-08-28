@@ -104,6 +104,11 @@ export interface CreateAdmissionPayload {
   transactionRef?: string;
   admissionDate?: string;
   installments?: AdmissionInstallmentPayload[];
+  sourceMasterId?: string;
+  statusMasterId?: string;
+  paymentModeMasterId?: string;
+  areaMasterId?: string;
+  concessionHeadMasterId?: string;
 }
 
 export interface ConvertEnquiryPayload {

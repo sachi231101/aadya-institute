@@ -1,7 +1,6 @@
 import { prisma } from "../../config/database";
 import type {
   Prisma,
-  PaymentMethod,
   PaymentStatus,
   OverdueStatus,
   PendingFee,
@@ -20,7 +19,7 @@ export const FeeRepository = {
 
     const where: Prisma.PaymentWhereInput = {
       instituteId,
-      ...(method && method !== "ALL" ? { method: method as PaymentMethod } : {}),
+      ...(method && method !== "ALL" ? { method } : {}),
       ...(status && status !== "ALL" ? { status: status as PaymentStatus } : {}),
       ...(search
         ? {
@@ -71,9 +70,13 @@ export const FeeRepository = {
         courseName: dto.courseName,
         amount: dto.amount,
         date: dto.date ? new Date(dto.date) : new Date(),
-        method: dto.method,
+        method: dto.method || "UPI",
+        paymentModeMasterId: dto.paymentModeMasterId || null,
+        bankAccountMasterId: dto.bankAccountMasterId || null,
+        feeHeadMasterId: dto.feeHeadMasterId || null,
+        feeHead: dto.feeHead || null,
         transactionRef: dto.transactionRef || null,
-        status: dto.status || "SUCCESS",
+        status: (dto.status as PaymentStatus) || "SUCCESS",
         notes: dto.notes || null,
         studentId: dto.studentId || null,
         admissionId: dto.admissionId || null,
@@ -149,7 +152,10 @@ export const FeeRepository = {
           courseName: pendingItem.courseName,
           amount: dto.amountPaidNow,
           date: new Date(),
-          method: dto.method,
+          method: dto.method || "UPI",
+          paymentModeMasterId: dto.paymentModeMasterId || null,
+          feeHeadMasterId: dto.feeHeadMasterId || pendingItem.feeHeadMasterId || null,
+          feeHead: dto.feeHead || pendingItem.feeHead || null,
           transactionRef: dto.transactionRef || null,
           status: "SUCCESS",
           notes: dto.notes || `Collected for Installment #${pendingItem.installmentNo}`,

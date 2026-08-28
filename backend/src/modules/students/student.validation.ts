@@ -8,6 +8,8 @@ export const createStudentSchema = z.object({
   studentCode: z.string().min(1, "Student code is required").max(30).toUpperCase(),
   dateOfBirth: z.string().optional().or(z.literal("")),
   qualification: z.string().optional().or(z.literal("")),
+  qualificationMasterId: z.string().optional(),
+  areaMasterId: z.string().optional(),
   branchId: z.string().min(1, "Branch ID is required"),
   courseId: z.string().optional().or(z.literal("")),
   batchId: z.string().optional().or(z.literal("")),
@@ -28,6 +30,8 @@ export const updateStudentSchema = z.object({
   phone: z.string().min(10).optional(),
   dateOfBirth: z.string().optional(),
   qualification: z.string().optional(),
+  qualificationMasterId: z.string().optional(),
+  areaMasterId: z.string().optional(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]).optional(),
   branchId: z.string().min(1).optional(),
 });

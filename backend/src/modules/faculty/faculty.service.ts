@@ -1,5 +1,6 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
+import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
 import { prisma } from "../../config/database";
@@ -66,6 +67,19 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
   // Hash password for the new User
   const passwordHash = await hashPassword(dto.password);
 
+  let designation: string | undefined;
+  let designationMasterId: string | undefined;
+  if (dto.designationMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "designation",
+      masterRecordId: dto.designationMasterId,
+      branchId: dto.branchId,
+    });
+    designationMasterId = resolved?.masterId;
+    designation = resolved?.label ?? dto.designation;
+  }
+
   return repo.createFacultyWithUser({
     instituteId,
     branchId: dto.branchId,
@@ -75,6 +89,8 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
     passwordHash,
     employeeCode: dto.employeeCode,
     specialization: dto.specialization,
+    designation,
+    designationMasterId,
   });
 };
 

@@ -1,9 +1,7 @@
-import type { PaymentMethod, PaymentStatus, OverdueStatus } from "@prisma/client";
-
 export interface QueryPaymentsDTO {
   search?: string;
-  method?: PaymentMethod | "ALL";
-  status?: PaymentStatus | "ALL";
+  method?: string | "ALL";
+  status?: string | "ALL";
   page?: number;
   limit?: number;
 }
@@ -14,9 +12,14 @@ export interface CreatePaymentDTO {
   courseName: string;
   amount: number;
   date?: string;
-  method: PaymentMethod;
+  /** @deprecated use paymentModeMasterId */
+  method?: string;
+  paymentModeMasterId?: string;
+  bankAccountMasterId?: string;
+  feeHeadMasterId?: string;
+  feeHead?: string;
   transactionRef?: string;
-  status?: PaymentStatus;
+  status?: string;
   notes?: string;
   studentId?: string;
   admissionId?: string;
@@ -25,14 +28,18 @@ export interface CreatePaymentDTO {
 
 export interface QueryPendingFeesDTO {
   search?: string;
-  status?: OverdueStatus | "ALL";
+  status?: string | "ALL";
   page?: number;
   limit?: number;
 }
 
 export interface CollectPendingFeeDTO {
   amountPaidNow: number;
-  method: PaymentMethod;
+  /** @deprecated use paymentModeMasterId */
+  method?: string;
+  paymentModeMasterId?: string;
+  feeHeadMasterId?: string;
+  feeHead?: string;
   transactionRef?: string;
   notes?: string;
 }

@@ -350,7 +350,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="placement" element={<PlacementExport />} />
         </Route>
 
-        {/* Settings & Notifications */}
+        {/* Settings, Notifications & Masters */}
+        <Route path="masters" element={<MasterSetup />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />

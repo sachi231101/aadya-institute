@@ -1,35 +1,28 @@
 import React from "react";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { getMasterTypeMeta } from "@/constants/master-types";
 import { Loader2 } from "lucide-react";
 
 interface MasterSelectProps {
-  /** The entityType key in MasterRecord (e.g. "lead_source", "designation", "area") */
+  /** Master entityType key (e.g. "leadsource", "designation", "area") */
   entityType: string;
-  /** Current selected value (matched against option.label for name-based matching) */
+  /** Selected master record ID */
   value: string;
-  /** Called with the selected option label */
-  onChange: (value: string) => void;
-  /** Placeholder text for the empty option */
+  /** Called with the selected master record ID */
+  onChange: (masterId: string) => void;
   placeholder?: string;
-  /** Additional CSS classes */
   className?: string;
-  /** Whether to include an empty placeholder option (default: true) */
   includeEmpty?: boolean;
-  /** Label for the master entity type (used in loading/empty messages) */
   entityLabel?: string;
+  branchId?: string;
+  disabled?: boolean;
 }
 
 /**
- * Generic master-data select component.
- * Fetches ACTIVE records for the given entityType from the Master Module API.
- * 
- * Usage examples:
- * ```tsx
- * <MasterSelect entityType="lead_source" value={source} onChange={setSource} placeholder="Select Lead Source" />
- * <MasterSelect entityType="designation" value={designation} onChange={setDesignation} placeholder="Select Designation" />
- * <MasterSelect entityType="area" value={area} onChange={setArea} placeholder="Select Area" />
- * <MasterSelect entityType="payment_mode" value={mode} onChange={setMode} placeholder="Select Payment Mode" />
- * ```
+ * Generic master-data select. Fetches ACTIVE records from Master Module API.
+ *
+ * @example
+ * <MasterSelect entityType="leadsource" value={sourceMasterId} onChange={setSourceMasterId} />
  */
 export const MasterSelect: React.FC<MasterSelectProps> = ({
   entityType,
@@ -39,15 +32,30 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
   className = "",
   includeEmpty = true,
   entityLabel,
+  branchId,
+  disabled = false,
 }) => {
-  const { options, isLoading } = useMasterDropdown(entityType);
-  const label = entityLabel || entityType.replace(/_/g, " ");
+  const { options, isLoading, isError } = useMasterDropdown(entityType, branchId);
+  const meta = getMasterTypeMeta(entityType);
+  const label = entityLabel || meta?.name || entityType.replace(/_/g, " ");
 
   if (isLoading) {
     return (
-      <div className={`flex items-center gap-2 h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400 ${className}`}>
+      <div
+        className={`flex items-center gap-2 h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-400 ${className}`}
+      >
         <Loader2 className="h-3 w-3 animate-spin" />
         Loading {label}...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div
+        className={`flex items-center h-9 px-3 mt-1 bg-red-50 border border-red-200 rounded-xl text-xs text-red-500 ${className}`}
+      >
+        Failed to load {label}
       </div>
     );
   }
@@ -56,12 +64,14 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={`w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-xs ${className}`}
+      disabled={disabled}
+      className={`w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none text-xs disabled:opacity-50 ${className}`}
     >
       {includeEmpty && <option value="">{placeholder}</option>}
       {options.map((opt) => (
-        <option key={opt.value} value={opt.label}>
-          {opt.label}{opt.code ? ` (${opt.code})` : ""}
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
+          {opt.code ? ` (${opt.code})` : ""}
         </option>
       ))}
       {options.length === 0 && (

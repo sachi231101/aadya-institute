@@ -23,8 +23,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { PaymentMethod, PendingFee } from "../../../types/fee.types";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import type { PendingFee } from "../../../types/fee.types";
+import { MasterSelect } from "@/components/common/MasterSelect";
 
 export const PendingFees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -39,12 +39,12 @@ export const PendingFees: React.FC = () => {
   const { data: statsData } = useFeeStats();
   const collectFeeMutation = useCollectPendingFee();
   const sendReminderMutation = useSendFeeReminder();
-  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
 
   // Modal State for Fee Collection
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
   const [collectAmount, setCollectAmount] = useState<number>(0);
-  const [collectMethod, setCollectMethod] = useState<PaymentMethod>("UPI");
+  const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
+  const [feeHeadMasterId, setFeeHeadMasterId] = useState("");
   const [collectRef, setCollectRef] = useState("");
   const [collectNotes, setCollectNotes] = useState("");
 
@@ -59,19 +59,22 @@ export const PendingFees: React.FC = () => {
   const handleOpenCollectModal = (item: PendingFee) => {
     setCollectItem(item);
     setCollectAmount(item.dueAmount);
+    setPaymentModeMasterId("");
+    setFeeHeadMasterId("");
     setCollectNotes(`Collection for Installment #${item.installmentNo}`);
   };
 
   const handleCollectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!collectItem || collectAmount <= 0) return;
+    if (!collectItem || collectAmount <= 0 || !paymentModeMasterId) return;
 
     try {
       await collectFeeMutation.mutateAsync({
         id: collectItem.id,
         payload: {
           amountPaidNow: collectAmount,
-          method: collectMethod,
+          paymentModeMasterId,
+          feeHeadMasterId: feeHeadMasterId || undefined,
           transactionRef: collectRef,
           notes: collectNotes,
         },
@@ -349,20 +352,25 @@ export const PendingFees: React.FC = () => {
               </div>
 
               <div>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head</label>
+                <MasterSelect
+                  entityType="feeheads"
+                  value={feeHeadMasterId}
+                  onChange={setFeeHeadMasterId}
+                  placeholder="Select Fee Head"
+                  className="mt-0 rounded-md"
+                />
+              </div>
+
+              <div>
                 <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method *</label>
-                <select
-                  value={collectMethod}
-                  onChange={(e) => setCollectMethod(e.target.value as PaymentMethod)}
-                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
-                >
-                  <option value="">Select Payment Mode</option>
-                  {paymentModeOptions.map((opt) => (
-                    <option key={opt.value} value={opt.label}>{opt.label}</option>
-                  ))}
-                  {paymentModeOptions.length === 0 && (
-                    <option value="" disabled>No modes — add in Master Setup</option>
-                  )}
-                </select>
+                <MasterSelect
+                  entityType="paymentmodes"
+                  value={paymentModeMasterId}
+                  onChange={setPaymentModeMasterId}
+                  placeholder="Select Payment Mode"
+                  className="mt-0 rounded-md"
+                />
               </div>
 
               <div>

@@ -6,7 +6,7 @@ import * as z from "zod";
 import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
 
 import {
   Form,
@@ -32,12 +32,12 @@ const facultySchema = z.object({
   // ZenoxERP-aligned additional fields
   dateOfBirth: z.string().optional().or(z.literal("")),
   gender: z.string().optional().or(z.literal("")),
-  designation: z.string().optional().or(z.literal("")),
+  designationMasterId: z.string().optional().or(z.literal("")),
   department: z.string().optional().or(z.literal("")),
   dateOfJoining: z.string().optional().or(z.literal("")),
   employmentType: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
-  qualification: z.string().optional().or(z.literal("")),
+  qualificationMasterId: z.string().optional().or(z.literal("")),
 });
 
 type FacultyFormValues = z.infer<typeof facultySchema>;
@@ -49,7 +49,6 @@ export const AddFaculty: React.FC = () => {
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
-  const { options: designationOptions } = useMasterDropdown("designation");
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -71,12 +70,12 @@ export const AddFaculty: React.FC = () => {
       branchId: isCenterManager && user?.branchId ? user.branchId : "",
       dateOfBirth: "",
       gender: "Male",
-      designation: "",
+      designationMasterId: "",
       department: "",
       dateOfJoining: new Date().toISOString().split("T")[0],
       employmentType: "Full-Time",
       address: "",
-      qualification: "",
+      qualificationMasterId: "",
     },
   });
 
@@ -90,6 +89,8 @@ export const AddFaculty: React.FC = () => {
         employeeCode: data.employeeCode,
         specialization: data.specialization || undefined,
         branchId: data.branchId,
+        designationMasterId: data.designationMasterId || undefined,
+        qualificationMasterId: data.qualificationMasterId || undefined,
       });
       navigate(`${basePath}/faculty/all`);
     } catch (error: any) {
@@ -314,25 +315,18 @@ export const AddFaculty: React.FC = () => {
                   {/* Designation */}
                   <FormField
                     control={form.control}
-                    name="designation"
+                    name="designationMasterId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Designation</FormLabel>
                         <FormControl>
-                          <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
-                            {...field}
-                          >
-                            <option value="">Select Designation</option>
-                            {designationOptions.map((opt) => (
-                              <option key={opt.value} value={opt.label}>
-                                {opt.label}{opt.code ? ` (${opt.code})` : ""}
-                              </option>
-                            ))}
-                            {designationOptions.length === 0 && (
-                              <option value="" disabled>No designations — add in Master Setup</option>
-                            )}
-                          </select>
+                          <MasterSelect
+                            entityType="designation"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Select Designation"
+                            className="mt-0 rounded-md h-10"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -395,12 +389,18 @@ export const AddFaculty: React.FC = () => {
                   {/* Qualification */}
                   <FormField
                     control={form.control}
-                    name="qualification"
+                    name="qualificationMasterId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Qualification</FormLabel>
                         <FormControl>
-                          <Input placeholder="e.g. M.Tech, MBA, MCA" {...field} />
+                          <MasterSelect
+                            entityType="education"
+                            value={field.value || ""}
+                            onChange={field.onChange}
+                            placeholder="Select qualification"
+                            className="mt-0 rounded-md h-10"
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

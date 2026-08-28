@@ -7,10 +7,12 @@ export interface CreateClassSessionDto {
   batchModuleId?: string;
   facultyId: string;
   branchId?: string;
-  scheduledDate: string; // ISO date string e.g. YYYY-MM-DD
-  startTime: string; // e.g. "10:00 AM" or "10:00"
-  endTime: string; // e.g. "12:00 PM" or "12:00"
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
   roomNo?: string;
+  classroomMasterId?: string;
+  timeslotMasterId?: string;
   mode?: ClassMode;
   meetingUrl?: string;
   notes?: string;
@@ -25,6 +27,8 @@ export interface UpdateClassSessionDto {
   startTime?: string;
   endTime?: string;
   roomNo?: string;
+  classroomMasterId?: string;
+  timeslotMasterId?: string;
   mode?: ClassMode;
   meetingUrl?: string;
   notes?: string;

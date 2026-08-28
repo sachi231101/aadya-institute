@@ -261,14 +261,14 @@ describe("Lead Management Module Tests", () => {
       );
     });
 
-    test("createLeadSchema rejects invalid source enum", () => {
+    test("createLeadSchema accepts sourceMasterId", () => {
       const result = createLeadSchema.safeParse({
         name: "John",
         phoneNumber: "9876543210",
         interestedIn: "Web",
-        source: "NEWSPAPER",
+        sourceMasterId: "cuid123",
       });
-      assert.strictEqual(result.success, false);
+      assert.strictEqual(result.success, true);
     });
 
     test("markLeadLostSchema requires supported reason", () => {

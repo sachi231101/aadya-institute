@@ -227,6 +227,8 @@ export interface CreateStudentPayload {
   studentCode: string;
   dateOfBirth?: string;
   qualification?: string;
+  qualificationMasterId?: string;
+  areaMasterId?: string;
   branchId: string;
 
   // Extended UI fields for progressive enhancement
@@ -248,6 +250,8 @@ export interface UpdateStudentPayload {
   phone?: string;
   dateOfBirth?: string;
   qualification?: string;
+  qualificationMasterId?: string;
+  areaMasterId?: string;
   status?: StudentStatus;
 
   // Extended UI fields

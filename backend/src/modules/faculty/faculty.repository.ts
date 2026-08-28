@@ -99,6 +99,8 @@ export const createFacultyWithUser = async (data: {
   passwordHash: string;
   employeeCode: string;
   specialization?: string;
+  designation?: string;
+  designationMasterId?: string;
 }) => {
   return prisma.$transaction(async (tx) => {
     // 1. Create the User record
@@ -121,6 +123,8 @@ export const createFacultyWithUser = async (data: {
         branchId: data.branchId,
         employeeCode: data.employeeCode,
         specialization: data.specialization,
+        designation: data.designation || null,
+        designationMasterId: data.designationMasterId || null,
       },
       include: facultyInclude,
     });

@@ -1,6 +1,4 @@
 import type { 
-  LeadSource, 
-  LeadStage, 
   LeadStatus, 
   LeadLostReason, 
   FollowUpType, 
@@ -16,7 +14,11 @@ export interface CreateLeadDTO {
   courseId?: string;
   branchId?: string;
   assignedCounsellorId?: string;
-  source: LeadSource;
+  /** @deprecated use sourceMasterId */
+  source?: string;
+  sourceMasterId?: string;
+  stageMasterId?: string;
+  leadTypeMasterId?: string;
   priority?: string;
   notes?: string;
 }
@@ -28,6 +30,8 @@ export interface UpdateLeadDTO {
   interestedIn?: string;
   priority?: string;
   notes?: string;
+  sourceMasterId?: string;
+  leadTypeMasterId?: string;
 }
 
 export interface AssignLeadDTO {
@@ -36,7 +40,9 @@ export interface AssignLeadDTO {
 }
 
 export interface ChangeLeadStageDTO {
-  stage: LeadStage;
+  /** @deprecated use stageMasterId */
+  stage?: string;
+  stageMasterId?: string;
   notes?: string;
 }
 
@@ -76,9 +82,11 @@ export interface QueryLeadsDTO {
   page?: number;
   limit?: number;
   search?: string;
-  stage?: LeadStage;
+  stage?: string;
+  stageMasterId?: string;
   status?: LeadStatus;
-  source?: LeadSource;
+  source?: string;
+  sourceMasterId?: string;
   assignedCounsellorId?: string;
   courseId?: string;
   branchId?: string;

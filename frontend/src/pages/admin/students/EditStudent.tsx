@@ -4,7 +4,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
-import { useBranches } from "../../../hooks/useBranches";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
 
 import {
   Form,
@@ -34,7 +36,8 @@ const studentSchema = z.object({
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
-  qualification: z.string().optional().or(z.literal("")),
+  qualificationMasterId: z.string().optional().or(z.literal("")),
+  areaMasterId: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]),
   branchId: z.string().min(1, "Branch is required"),
@@ -66,6 +69,8 @@ export const EditStudent: React.FC = () => {
   const { data: branchResponse } = useBranches();
   const branches = branchResponse?.data ?? [];
   const updateMutation = useUpdateStudent();
+  const { options: educationOptions } = useMasterDropdown("education");
+  const { options: areaOptions } = useMasterDropdown("area");
 
   const student = response?.data;
 
@@ -75,7 +80,8 @@ export const EditStudent: React.FC = () => {
       name: "",
       email: "",
       phone: "",
-      qualification: "",
+      qualificationMasterId: "",
+      areaMasterId: "",
       dateOfBirth: "",
       status: "ACTIVE",
       branchId: "",
@@ -91,11 +97,19 @@ export const EditStudent: React.FC = () => {
 
   useEffect(() => {
     if (student) {
+      const qualificationMasterId =
+        (student as { qualificationMasterId?: string }).qualificationMasterId ||
+        findMasterIdByLabel(educationOptions, student.qualification);
+      const areaMasterId =
+        (student as { areaMasterId?: string }).areaMasterId ||
+        findMasterIdByLabel(areaOptions, (student as { area?: string }).area);
+
       form.reset({
         name: student.user?.name || "",
         email: student.user?.email || "",
         phone: student.user?.phone || "",
-        qualification: student.qualification || "",
+        qualificationMasterId,
+        areaMasterId,
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
         status: student.status,
         branchId: student.branchId || student.branch?.id || "",
@@ -108,7 +122,7 @@ export const EditStudent: React.FC = () => {
         pincode: student.address?.pincode || "",
       });
     }
-  }, [student, form]);
+  }, [student, form, educationOptions, areaOptions]);
 
   const onSubmit = async (data: StudentFormValues) => {
     if (!id) return;
@@ -119,7 +133,11 @@ export const EditStudent: React.FC = () => {
           name: data.name.trim(),
           email: data.email ? data.email.trim() : undefined,
           phone: data.phone ? data.phone.trim() : undefined,
-          qualification: data.qualification ? data.qualification.trim() : undefined,
+          qualification: data.qualificationMasterId
+            ? getMasterLabel(educationOptions, data.qualificationMasterId) || undefined
+            : undefined,
+          qualificationMasterId: data.qualificationMasterId || undefined,
+          areaMasterId: data.areaMasterId || undefined,
           dateOfBirth: data.dateOfBirth || undefined,
           status: data.status,
           branchId: data.branchId,
@@ -416,14 +434,42 @@ export const EditStudent: React.FC = () => {
 
                 <FormField
                   control={form.control}
-                  name="qualification"
+                  name="qualificationMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Highest Qualification
                       </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. B.Tech Computer Science" {...field} />
+                        <MasterSelect
+                          entityType="education"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select qualification"
+                          className="mt-0 rounded-md h-10"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="areaMasterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Area / Locality
+                      </FormLabel>
+                      <FormControl>
+                        <MasterSelect
+                          entityType="area"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select area"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

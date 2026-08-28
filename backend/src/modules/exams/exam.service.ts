@@ -2,6 +2,7 @@ import * as repository from './exam.repository';
 import { CreateExamDto, UpdateExamDto, ScheduleExamDto, AddQuestionToExamDto, ReorderQuestionsDto } from './exam.types';
 import { AppError } from '../../middlewares/error.middleware';
 import { prisma } from '../../config/database';
+import { resolveOptionalMasterFields } from '../masters/master-resolve.service';
 import { logger } from '../../config/logger';
 
 // ─── Valid status transitions ─────────────────────────────────────────────────
@@ -63,7 +64,17 @@ export const createExam = async (
   userId: string,
   data: CreateExamDto
 ) => {
-  const exam = await repository.createExam(instituteId, branchId, userId, data);
+  let payload = { ...data };
+  if (data.examTermMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "examterm",
+      masterRecordId: data.examTermMasterId,
+      branchId: data.branchId || branchId,
+    });
+    payload = { ...payload, examTermMasterId: resolved?.masterId };
+  }
+  const exam = await repository.createExam(instituteId, branchId, userId, payload);
   await logActivity(userId, instituteId, 'EXAM_CREATED', exam.id, null, { name: exam.name, status: exam.status });
   return exam;
 };
@@ -80,7 +91,18 @@ export const updateExam = async (
     throw new AppError(`Cannot update an exam in ${existing.status} status`, 400);
   }
 
-  const updated = await repository.updateExam(id, instituteId, data);
+  let payload = { ...data };
+  if (data.examTermMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "examterm",
+      masterRecordId: data.examTermMasterId,
+      branchId: data.branchId || existing.branchId,
+    });
+    payload = { ...payload, examTermMasterId: resolved?.masterId };
+  }
+
+  const updated = await repository.updateExam(id, instituteId, payload);
   await logActivity(userId, instituteId, 'EXAM_UPDATED', id, existing, updated);
   return updated;
 };
