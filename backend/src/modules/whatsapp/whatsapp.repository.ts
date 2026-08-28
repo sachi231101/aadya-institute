@@ -437,7 +437,7 @@ export class NotificationRepository {
       },
       {
         title: "AI Voice Call Completed",
-        message: "Lead Ananya Roy indicated high admission intent during Sarvam AI automated call.",
+        message: "Lead Ananya Roy indicated high admission intent during automated AI voice call.",
         type: "AI_CALL" as NotificationType,
         link: "/admin/admissions/enquiries",
         createdAt: new Date(now.getTime() - 1000 * 60 * 360),

@@ -835,7 +835,7 @@ export const Settings: React.FC = () => {
             <div className="pt-3 flex items-center justify-between">
               <div>
                 <p className="font-bold text-slate-900">AI Voice Calling Updates</p>
-                <p className="text-[11px] text-slate-500">Receive summaries when Sarvam AI calls finish lead qualification.</p>
+                <p className="text-[11px] text-slate-500">Receive summaries when AI voice calls finish lead qualification.</p>
               </div>
               <input
                 type="checkbox"

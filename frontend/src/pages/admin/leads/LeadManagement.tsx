@@ -322,7 +322,7 @@ export const LeadManagement: React.FC = () => {
 
     showToast(
       formTriggerAi
-        ? `✓ New lead ${created.name} added & Sarvam AI voice call initiated!`
+        ? `✓ New lead ${created.name} added & AI voice call initiated!`
         : `✓ Lead ${created.name} added successfully!`
     );
 
@@ -1224,7 +1224,7 @@ export const LeadManagement: React.FC = () => {
               />
               <span className="text-[11.5px] font-bold text-foreground flex items-center gap-1.5">
                 <Bot className="w-4 h-4 text-primary" />
-                Trigger automated Sarvam AI voice qualification call immediately
+                Trigger automated AI voice qualification call immediately
               </span>
             </label>
 
@@ -1371,7 +1371,7 @@ export const LeadManagement: React.FC = () => {
                       <Sparkles className="w-3.5 h-3.5 text-primary" /> AI Generated Summary
                     </Label>
                     <div className="p-4 bg-muted/30 rounded-2xl border border-border text-foreground font-medium leading-relaxed shadow-2xs">
-                      {activeLead.aiDetailedSummary || activeLead.aiSummaryShort || "Candidate was contacted via automated Sarvam AI voice agent."}
+                      {activeLead.aiDetailedSummary || activeLead.aiSummaryShort || "Candidate was contacted via automated AI voice agent."}
                     </div>
                   </div>
 
@@ -1429,7 +1429,7 @@ export const LeadManagement: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-extrabold text-xs text-slate-200">Sarvam AI Call Audio</span>
+                        <span className="font-extrabold text-xs text-slate-200">AI Voice Call Audio</span>
                       </div>
                       <span className="text-[11px] font-mono text-slate-400">{activeLead.callDuration || "02:15"}</span>
                     </div>

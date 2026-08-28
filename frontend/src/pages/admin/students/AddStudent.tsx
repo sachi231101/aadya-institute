@@ -8,6 +8,7 @@ import { useBranches } from "../../../hooks/useBranches";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 import {
@@ -100,6 +101,7 @@ export const AddStudent: React.FC = () => {
   const location = useLocation();
   const createMutation = useCreateStudent();
   const { user } = useAuthStore();
+  const { selectedBranchId } = useBranchStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const [showPassword, setShowPassword] = useState(false);
 
@@ -163,10 +165,23 @@ export const AddStudent: React.FC = () => {
   });
 
   React.useEffect(() => {
-    if (branches.length > 0 && !form.getValues("branchId")) {
-      form.setValue("branchId", user?.branchId || branches[0].id);
+    if (branches.length === 0) return;
+    const current = form.getValues("branchId");
+    if (current) return;
+
+    if (
+      selectedBranchId &&
+      selectedBranchId !== "ALL" &&
+      branches.some((b) => b.id === selectedBranchId)
+    ) {
+      form.setValue("branchId", selectedBranchId);
+      return;
     }
-  }, [branches, user, form]);
+
+    if (user?.branchId && branches.some((b) => b.id === user.branchId)) {
+      form.setValue("branchId", user.branchId);
+    }
+  }, [branches, user, form, selectedBranchId]);
 
   const selectedCourseId = form.watch("courseId");
   const filteredBatches = React.useMemo(() => {

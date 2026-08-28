@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useStudent } from "../../../hooks/useStudents";
-import {
+import { aiCallingApi } from "../../../services/ai-calling.api";import {
   ArrowLeft,
   GraduationCap,
   Mail,
@@ -49,6 +50,12 @@ export const StudentDetails: React.FC = () => {
   const { data: response, isLoading, isError } = useStudent(id);
   const student = response?.data;
 
+  const { data: aiCallsResponse } = useQuery({
+    queryKey: ["ai-calls", id],
+    queryFn: () => aiCallingApi.getCallLogs({ studentId: id!, limit: 10 }),
+    enabled: !!id,
+  });
+  const aiCallLogs = aiCallsResponse?.data ?? [];
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ACTIVE":
@@ -66,7 +73,7 @@ export const StudentDetails: React.FC = () => {
     }
   };
 
-  const handleSarvamAICall = () => {
+  const handleAICall = () => {
     setCallInitiated(true);
     setTimeout(() => setCallInitiated(false), 4000);
   };
@@ -100,45 +107,57 @@ export const StudentDetails: React.FC = () => {
     );
   }
 
-  // Enriched attributes with graceful fallbacks
+  const notProvided = "Not provided";
+
   const studentName = student.user?.name || student.studentCode;
-  const studentEmail = student.user?.email || "Not Provided";
-  const studentPhone = student.user?.phone || "Not Provided";
-  const branchName = student.branch?.name || "Bengaluru Central";
-  const gender = student.gender || "Male";
-  const qualification = student.qualification || "Graduate (Computer Science)";
-  const dob = student.dateOfBirth ? new Date(student.dateOfBirth).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "12 Aug 2003";
-  const bloodGroup = student.bloodGroup || "O+";
-  
-  // Guardian info
-  const guardianName = student.guardian?.name || "Suresh Sharma";
-  const guardianRelation = student.guardian?.relation || "Father";
-  const guardianPhone = student.guardian?.phone || "9845012345";
-  const addressStr = student.address?.street || "#42, 2nd Cross, Indiranagar";
-  const cityStr = student.address?.city || "Bengaluru";
-  const pincodeStr = student.address?.pincode || "560038";
+  const studentEmail = student.user?.email || notProvided;
+  const studentPhone = student.user?.phone || notProvided;
+  const branchName = student.branch?.name || notProvided;
+  const gender = student.gender || notProvided;
+  const qualification = student.qualification || notProvided;
+  const dob = student.dateOfBirth
+    ? new Date(student.dateOfBirth).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : notProvided;
+  const bloodGroup = student.bloodGroup || notProvided;
 
-  // Academic & Batch info
+  const guardianName = student.guardian?.name || notProvided;
+  const guardianRelation = student.guardian?.relation || notProvided;
+  const guardianPhone = student.guardian?.phone || notProvided;
+  const addressStr = student.address?.street || notProvided;
+  const cityStr = student.address?.city || "";
+  const pincodeStr = student.address?.pincode || "";
+
   const activeBatch = student.batchEnrollments?.[0]?.batch;
-  const courseName = activeBatch?.course?.name || student.courseName || "Full Stack Web Development";
-  const courseCode = activeBatch?.course?.code || "FSWD-01";
-  const batchName = activeBatch?.name || student.batchName || "FSWD Morning Batch (MWF)";
-  const batchTimeSlot = activeBatch?.timeSlot || "10:00 AM - 12:00 PM";
-  const facultyName = activeBatch?.faculty?.user?.name || student.facultyName || "Prof. Rajesh Kumar";
+  const admission = student.admissions?.[0];
+  const courseName = activeBatch?.course?.name || student.courseName || admission?.course?.name || notProvided;
+  const courseCode = activeBatch?.course?.code || admission?.course?.code || "—";
+  const batchName = activeBatch?.name || student.batchName || notProvided;
+  const batchTimeSlot = activeBatch?.timeSlot || student.batchTiming || notProvided;
+  const facultyName = activeBatch?.faculty?.user?.name || student.facultyName || notProvided;
+  const schedulePattern = activeBatch?.schedulePattern || "—";
 
-  // Attendance & Risk metrics
-  const attendanceRate = student.attendance?.overallPercentage ?? 92;
-  const totalClasses = student.attendance?.totalClasses ?? 24;
-  const presentClasses = student.attendance?.presentCount ?? 22;
-  const absentClasses = student.attendance?.absentCount ?? 2;
-  const consecutiveAbsences = student.attendance?.consecutiveAbsences ?? (attendanceRate < 70 ? 3 : 0);
-  const isDiscontinuationRisk = consecutiveAbsences >= 2 || attendanceRate < 65;
+  const attendanceRate = student.attendance?.overallPercentage ?? 0;
+  const totalClasses = student.attendance?.totalClasses ?? 0;
+  const presentClasses = student.attendance?.presentCount ?? 0;
+  const absentClasses = student.attendance?.absentCount ?? 0;
+  const leaveClasses = student.attendance?.leaveCount ?? 0;
+  const consecutiveAbsences = student.attendance?.consecutiveAbsences ?? 0;
+  const isDiscontinuationRisk = consecutiveAbsences >= 2;
 
-  // Fee info
-  const totalFee = student.fees?.totalFee || 45000;
-  const amountPaid = student.fees?.amountPaid || 35000;
-  const dueAmount = totalFee - amountPaid;
+  const totalFee = student.fees?.totalFee ?? 0;
+  const amountPaid = student.fees?.amountPaid ?? 0;
+  const dueAmount = student.fees?.dueAmount ?? 0;
+  const feePlan = student.fees?.feePlan || "—";
+  const nextDueDate = student.fees?.nextDueDate
+    ? new Date(student.fees.nextDueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+    : null;
 
+  const attendanceRecords = student.attendanceRecords ?? [];
+  const courseModules = student.courseModules ?? [];
+  const assignments = student.assignments ?? [];
+  const payments = student.payments ?? [];
+  const pendingFees = student.pendingFees ?? [];
+  const paidPercent = totalFee > 0 ? Math.min(100, Math.round((amountPaid / totalFee) * 100)) : 0;
   return (
     <div className="space-y-6 max-w-[1500px] mx-auto pb-12">
       {/* ─── 1. TOP BREADCRUMB & ACTION BAR ──────────────────────────────── */}
@@ -168,9 +187,9 @@ export const StudentDetails: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
-          {/* Sarvam AI Trigger */}
+          {/* AI Voice Call Trigger */}
           <Button
-            onClick={handleSarvamAICall}
+            onClick={handleAICall}
             disabled={callInitiated}
             className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs px-3 py-1.5 shadow-sm flex items-center gap-1.5"
           >
@@ -182,7 +201,7 @@ export const StudentDetails: React.FC = () => {
             ) : (
               <>
                 <Bot className="h-3.5 w-3.5" />
-                <span>Trigger Sarvam AI Call</span>
+                <span>Trigger AI Voice Call</span>
               </>
             )}
           </Button>
@@ -228,13 +247,17 @@ export const StudentDetails: React.FC = () => {
                 Aadya Discontinuation Rule Alert ({consecutiveAbsences} Consecutive Theory Absences)
               </h4>
               <p className="text-xs text-red-700 mt-1">
-                Student has missed {consecutiveAbsences} consecutive scheduled theory classes. The auto-discontinuation workflow is primed. Please contact student via Sarvam AI Voice or WhatsApp immediately.
+                Student has missed {consecutiveAbsences} consecutive scheduled theory class{consecutiveAbsences === 1 ? "" : "es"}.
+                {consecutiveAbsences >= 3
+                  ? " The auto-discontinuation workflow is triggered."
+                  : " One more absence will trigger the discontinuation workflow."}
+                {" "}Please contact the student via AI Voice Call or WhatsApp.
               </p>
             </div>
           </div>
           <Button
             size="sm"
-            onClick={handleSarvamAICall}
+            onClick={handleAICall}
             className="bg-red-600 hover:bg-red-700 text-white font-semibold text-xs px-3 py-1 shadow-sm shrink-0"
           >
             Initiate Urgent AI Call
@@ -301,7 +324,7 @@ export const StudentDetails: React.FC = () => {
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">Attendance Rate</span>
-                <div className={`p-1.5 rounded-lg ${attendanceRate >= 85 ? "bg-emerald-50 text-emerald-600" : attendanceRate >= 70 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"}`}>
+                <div className={`p-1.5 rounded-lg ${totalClasses === 0 ? "bg-slate-50 text-slate-500" : attendanceRate >= 85 ? "bg-emerald-50 text-emerald-600" : attendanceRate >= 70 ? "bg-amber-50 text-amber-600" : "bg-red-50 text-red-600"}`}>
                   <Calendar className="h-4 w-4" />
                 </div>
               </div>
@@ -311,14 +334,16 @@ export const StudentDetails: React.FC = () => {
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
                 <div
-                  className={`h-full rounded-full ${attendanceRate >= 85 ? "bg-emerald-500" : attendanceRate >= 70 ? "bg-amber-500" : "bg-red-500"}`}
-                  style={{ width: `${attendanceRate}%` }}
-                />
-              </div>
+                  className={`h-full rounded-full ${totalClasses === 0 ? "bg-slate-300" : attendanceRate >= 85 ? "bg-emerald-500" : attendanceRate >= 70 ? "bg-amber-500" : "bg-red-500"}`}
+                  style={{ width: `${totalClasses === 0 ? 0 : attendanceRate}%` }}
+                />              </div>
               <p className="text-[11px] text-slate-400 mt-2">
-                {absentClasses === 0 ? "Perfect attendance record" : `${absentClasses} classes missed this term`}
-              </p>
-            </CardContent>
+                {totalClasses === 0
+                  ? "No attendance records yet"
+                  : absentClasses === 0
+                  ? "Perfect attendance record"
+                  : `${absentClasses} classes missed`}
+              </p>            </CardContent>
           </Card>
 
           {/* Fees KPI */}
@@ -337,16 +362,15 @@ export const StudentDetails: React.FC = () => {
               <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
                 <div
                   className="h-full rounded-full bg-[#1769AA]"
-                  style={{ width: `${Math.min(100, Math.round((amountPaid / totalFee) * 100))}%` }}
+                  style={{ width: `${paidPercent}%` }}
                 />
               </div>
               <div className="flex items-center justify-between text-[11px] mt-2">
                 <span className="text-slate-500">Balance: <strong className={dueAmount > 0 ? "text-amber-600 font-bold" : "text-emerald-600 font-bold"}>₹{dueAmount.toLocaleString()}</strong></span>
-                <Badge variant={dueAmount === 0 ? "default" : "destructive"} className="text-[10px] px-1.5 py-0">
-                  {dueAmount === 0 ? "Paid in Full" : "Installment Due"}
+                <Badge variant={dueAmount === 0 && totalFee > 0 ? "default" : dueAmount > 0 ? "destructive" : "secondary"} className="text-[10px] px-1.5 py-0">
+                  {totalFee === 0 ? "Not set" : dueAmount === 0 ? "Paid in Full" : "Installment Due"}
                 </Badge>
-              </div>
-            </CardContent>
+              </div>            </CardContent>
           </Card>
 
           {/* Academic & Batch KPI */}
@@ -362,9 +386,8 @@ export const StudentDetails: React.FC = () => {
               <p className="text-xs text-slate-500 font-medium mt-0.5">Faculty: <strong className="text-slate-700">{facultyName}</strong></p>
               <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-100 text-[11px] flex items-center justify-between text-slate-600">
                 <span className="flex items-center gap-1 font-medium"><Clock className="h-3 w-3 text-[#1769AA]" /> {batchTimeSlot}</span>
-                <span className="font-semibold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">Ongoing</span>
-              </div>
-            </CardContent>
+                <span className="font-semibold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">{activeBatch?.status || student.status}</span>
+              </div>            </CardContent>
           </Card>
         </div>
       </div>
@@ -388,7 +411,7 @@ export const StudentDetails: React.FC = () => {
             <Award className="h-3.5 w-3.5 mr-1.5" /> Assignments & Grades
           </TabsTrigger>
           <TabsTrigger value="ai_communications" className="text-xs font-semibold py-2 px-4 data-[state=active]:bg-white data-[state=active]:text-[#1769AA] data-[state=active]:shadow-sm">
-            <Bot className="h-3.5 w-3.5 mr-1.5" /> Sarvam AI & WhatsApp Logs
+            <Bot className="h-3.5 w-3.5 mr-1.5" /> AI Voice & WhatsApp Logs
           </TabsTrigger>
         </TabsList>
 
@@ -442,17 +465,22 @@ export const StudentDetails: React.FC = () => {
               <CardContent className="p-6 grid grid-cols-2 gap-4 text-xs">
                 <div>
                   <p className="text-slate-400 font-semibold uppercase">Parent / Guardian</p>
-                  <p className="text-slate-900 font-bold text-sm mt-0.5">{guardianName} ({guardianRelation})</p>
-                </div>
+                  <p className="text-slate-900 font-bold text-sm mt-0.5">
+                    {guardianName}
+                    {guardianRelation !== notProvided ? ` (${guardianRelation})` : ""}
+                  </p>                </div>
                 <div>
                   <p className="text-slate-400 font-semibold uppercase">Guardian Mobile</p>
                   <p className="text-slate-800 font-bold text-sm mt-0.5">{guardianPhone}</p>
                 </div>
                 <div className="col-span-2">
                   <p className="text-slate-400 font-semibold uppercase">Residential Street Address</p>
-                  <p className="text-slate-800 font-medium mt-0.5">{addressStr}, {cityStr} - {pincodeStr}</p>
-                </div>
-                <div>
+                  <p className="text-slate-800 font-medium mt-0.5">
+                    {addressStr === notProvided
+                      ? notProvided
+                      : [addressStr, cityStr, pincodeStr].filter(Boolean).join(", ")}
+                  </p>
+                </div>                <div>
                   <p className="text-slate-400 font-semibold uppercase">Center / Branch</p>
                   <p className="text-slate-800 font-medium mt-0.5">📍 {branchName}</p>
                 </div>
@@ -486,40 +514,41 @@ export const StudentDetails: React.FC = () => {
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge className="bg-[#1769AA] text-white">MWF Schedule</Badge>
-                  <Badge variant="outline" className="text-slate-700 bg-white font-medium">{batchTimeSlot}</Badge>
+                  {schedulePattern !== "—" && (
+                    <Badge className="bg-[#1769AA] text-white">{schedulePattern}</Badge>
+                  )}
+                  {batchTimeSlot !== notProvided && (
+                    <Badge variant="outline" className="text-slate-700 bg-white font-medium">{batchTimeSlot}</Badge>
+                  )}
                 </div>
               </div>
 
-              {/* Module Progression Checklist */}
               <div>
                 <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">
                   Course Modules & Completion Status
                 </h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {[
-                    { name: "1. Web Architecture & Frontend Fundamentals", status: "Completed", score: "94%" },
-                    { name: "2. Modern React & State Management", status: "Completed", score: "88%" },
-                    { name: "3. Backend API Development with Node & Express", status: "Completed", score: "91%" },
-                    { name: "4. PostgreSQL Database Design & Prisma ORM", status: "In Progress", score: "Current" },
-                    { name: "5. Redis Caching & Background BullMQ Queues", status: "Upcoming", score: "—" },
-                    { name: "6. AI Agents Integration (Sarvam Voice AI)", status: "Upcoming", score: "—" },
-                  ].map((mod, i) => (
-                    <div key={i} className="p-3.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className={`p-1 rounded-full ${mod.status === "Completed" ? "bg-emerald-100 text-emerald-600" : mod.status === "In Progress" ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"}`}>
-                          {mod.status === "Completed" ? <Check className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
+                {courseModules.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                    No modules assigned to this student's batch yet.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {courseModules.map((mod, i) => (
+                      <div key={i} className="p-3.5 rounded-lg border border-slate-200 bg-white flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <div className={`p-1 rounded-full ${mod.status === "Completed" ? "bg-emerald-100 text-emerald-600" : mod.status === "In Progress" ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"}`}>
+                            {mod.status === "Completed" ? <Check className="h-3.5 w-3.5" /> : <CircleDot className="h-3.5 w-3.5" />}
+                          </div>
+                          <span className="text-xs font-semibold text-slate-800">{mod.name}</span>
                         </div>
-                        <span className="text-xs font-semibold text-slate-800">{mod.name}</span>
+                        <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${mod.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mod.status === "In Progress" ? "bg-blue-50 text-[#1769AA]" : "bg-slate-100 text-slate-500"}`}>
+                          {mod.status}
+                        </span>
                       </div>
-                      <span className={`text-[11px] font-bold px-2 py-0.5 rounded ${mod.status === "Completed" ? "bg-emerald-50 text-emerald-700" : mod.status === "In Progress" ? "bg-blue-50 text-[#1769AA]" : "bg-slate-100 text-slate-500"}`}>
-                        {mod.status}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
+                    ))}
+                  </div>
+                )}
+              </div>            </CardContent>
           </Card>
         </TabsContent>
 
@@ -549,11 +578,15 @@ export const StudentDetails: React.FC = () => {
                 </div>
                 <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
                   <p className="text-[10px] font-bold uppercase text-amber-700">Approved Leave</p>
-                  <h4 className="text-xl font-bold text-amber-800 mt-1">0</h4>
+                  <h4 className="text-xl font-bold text-amber-800 mt-1">{leaveClasses}</h4>
                 </div>
               </div>
 
-              {/* Attendance Table */}
+              {attendanceRecords.length === 0 ? (
+                <p className="text-sm text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                  No class attendance has been marked for this student yet.
+                </p>
+              ) : (
               <div className="border border-slate-200 rounded-lg overflow-hidden">
                 <table className="w-full text-left text-xs">
                   <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
@@ -566,31 +599,29 @@ export const StudentDetails: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium">
-                    {[
-                      { date: "16 Aug 2026", topic: "Prisma Relations & Transactions", time: "10:00 - 12:00", status: "PRESENT", remark: "Active participation" },
-                      { date: "14 Aug 2026", topic: "PostgreSQL Queries & Aggregations", time: "10:00 - 12:00", status: "PRESENT", remark: "On time" },
-                      { date: "12 Aug 2026", topic: "Database Schema Migrations", time: "10:00 - 12:00", status: "PRESENT", remark: "Completed in-class task" },
-                      { date: "09 Aug 2026", topic: "REST API Architecture & Services", time: "10:00 - 12:00", status: "ABSENT", remark: "Automated WhatsApp alert sent" },
-                      { date: "07 Aug 2026", topic: "Express Middleware & JWT Auth", time: "10:00 - 12:00", status: "PRESENT", remark: "On time" },
-                    ].map((row, i) => (
-                      <tr key={i} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-semibold text-slate-800">{row.date}</td>
-                        <td className="p-3 text-slate-700">{row.topic}</td>
-                        <td className="p-3 text-slate-500 font-mono text-[11px]">{row.time}</td>
+                    {attendanceRecords.map((row) => (
+                      <tr key={row.id} className="hover:bg-slate-50/50">
+                        <td className="p-3 font-semibold text-slate-800">
+                          {new Date(row.classSession.scheduledDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                        </td>
+                        <td className="p-3 text-slate-700">{row.classSession.title || "Class Session"}</td>
+                        <td className="p-3 text-slate-500 font-mono text-[11px]">{row.classSession.startTime} - {row.classSession.endTime}</td>
                         <td className="p-3">
                           {row.status === "PRESENT" ? (
                             <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">PRESENT</span>
+                          ) : row.status === "LEAVE" ? (
+                            <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px]">LEAVE</span>
                           ) : (
                             <span className="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px]">ABSENT</span>
                           )}
                         </td>
-                        <td className="p-3 text-slate-500">{row.remark}</td>
+                        <td className="p-3 text-slate-500">{row.remarks || "—"}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-            </CardContent>
+              )}            </CardContent>
           </Card>
         </TabsContent>
 
@@ -612,25 +643,29 @@ export const StudentDetails: React.FC = () => {
                 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                   <p className="text-xs font-semibold text-slate-500 uppercase">Total Agreed Fee</p>
                   <h3 className="text-2xl font-black text-slate-900 mt-1">₹{totalFee.toLocaleString()}</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">Plan: 3 Installments</p>
+                  <p className="text-[11px] text-slate-400 mt-1">Plan: {feePlan}</p>
                 </div>
                 <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30">
                   <p className="text-xs font-semibold text-emerald-700 uppercase">Total Paid</p>
                   <h3 className="text-2xl font-black text-emerald-800 mt-1">₹{amountPaid.toLocaleString()}</h3>
-                  <p className="text-[11px] text-emerald-600 mt-1">78% of Total Paid</p>
+                  <p className="text-[11px] text-emerald-600 mt-1">{totalFee > 0 ? `${paidPercent}% of Total Paid` : "—"}</p>
                 </div>
                 <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/30">
                   <p className="text-xs font-semibold text-amber-700 uppercase">Remaining Due</p>
                   <h3 className="text-2xl font-black text-amber-800 mt-1">₹{dueAmount.toLocaleString()}</h3>
-                  <p className="text-[11px] text-amber-600 mt-1">Next Due: 28 Aug 2026</p>
+                  <p className="text-[11px] text-amber-600 mt-1">{nextDueDate ? `Next Due: ${nextDueDate}` : "No pending due date"}</p>
                 </div>
               </div>
 
-              {/* Installment Breakdown */}
               <div>
                 <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">
                   Installment Schedule
                 </h4>
+                {pendingFees.length === 0 && payments.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                    No fee records found for this student.
+                  </p>
+                ) : (
                 <div className="border border-slate-200 rounded-lg overflow-hidden">
                   <table className="w-full text-left text-xs">
                     <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
@@ -643,30 +678,44 @@ export const StudentDetails: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 font-medium">
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800">1st Installment (Down Payment)</td>
-                        <td className="p-3 text-slate-600">10 June 2026</td>
-                        <td className="p-3 font-bold text-slate-900">₹20,000</td>
-                        <td className="p-3"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">PAID</span></td>
-                        <td className="p-3"><button className="text-[#1769AA] hover:underline font-semibold flex items-center gap-1"><Download className="h-3 w-3" /> RCP-2026-081</button></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800">2nd Installment</td>
-                        <td className="p-3 text-slate-600">10 July 2026</td>
-                        <td className="p-3 font-bold text-slate-900">₹15,000</td>
-                        <td className="p-3"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">PAID</span></td>
-                        <td className="p-3"><button className="text-[#1769AA] hover:underline font-semibold flex items-center gap-1"><Download className="h-3 w-3" /> RCP-2026-145</button></td>
-                      </tr>
-                      <tr>
-                        <td className="p-3 font-bold text-slate-800">3rd Installment (Final Balance)</td>
-                        <td className="p-3 text-slate-600">28 Aug 2026</td>
-                        <td className="p-3 font-bold text-slate-900">₹10,000</td>
-                        <td className="p-3"><span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px]">DUE SOON</span></td>
-                        <td className="p-3"><button className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 font-semibold hover:bg-emerald-100">Send WhatsApp Reminder</button></td>
-                      </tr>
+                      {pendingFees.map((fee) => {
+                        const matchingPayment = payments.find((p) => p.status === "SUCCESS" && Math.abs(p.amount - (fee.totalFee / pendingFees.length)) < 1);
+                        const isPaid = fee.dueAmount <= 0;
+                        return (
+                          <tr key={fee.id}>
+                            <td className="p-3 font-bold text-slate-800">{fee.installmentNo}{fee.installmentNo === 1 ? "st" : fee.installmentNo === 2 ? "nd" : fee.installmentNo === 3 ? "rd" : "th"} Installment</td>
+                            <td className="p-3 text-slate-600">{new Date(fee.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                            <td className="p-3 font-bold text-slate-900">₹{fee.dueAmount.toLocaleString()}</td>
+                            <td className="p-3">
+                              <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isPaid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                                {isPaid ? "PAID" : fee.status.replace("_", " ")}
+                              </span>
+                            </td>
+                            <td className="p-3">
+                              {matchingPayment ? (
+                                <span className="text-[#1769AA] font-semibold flex items-center gap-1"><Download className="h-3 w-3" /> {matchingPayment.receiptNo}</span>
+                              ) : isPaid ? (
+                                <span className="text-slate-400">—</span>
+                              ) : (
+                                <span className="text-amber-700 text-[11px]">Due</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {pendingFees.length === 0 && payments.map((p) => (
+                        <tr key={p.id}>
+                          <td className="p-3 font-bold text-slate-800">Payment</td>
+                          <td className="p-3 text-slate-600">{new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                          <td className="p-3 font-bold text-slate-900">₹{p.amount.toLocaleString()}</td>
+                          <td className="p-3"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">{p.status}</span></td>
+                          <td className="p-3"><span className="text-[#1769AA] font-semibold">{p.receiptNo}</span></td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -682,62 +731,57 @@ export const StudentDetails: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-4">
+              {assignments.length === 0 ? (
+                <p className="text-sm text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                  No assignments submitted or assigned yet.
+                </p>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {[
-                  { title: "React Component Hierarchy & State", marks: "95 / 100", grade: "A+", feedback: "Clean component structure and clean hooks usage." },
-                  { title: "Node.js REST API with Validation", marks: "88 / 100", grade: "A", feedback: "Well structured Zod schemas and error middleware." },
-                  { title: "Database Schema & Query Optimization", marks: "Pending Grading", grade: "Submitted", feedback: "Submitted on time. Review in progress." },
-                ].map((item, i) => (
-                  <div key={i} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                {assignments.map((item) => (
+                  <div key={item.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
                     <div className="flex items-start justify-between gap-2">
                       <h4 className="font-bold text-slate-800 text-xs">{item.title}</h4>
-                      <Badge variant="default" className="text-[10px] shrink-0">{item.grade}</Badge>
+                      <Badge variant="default" className="text-[10px] shrink-0">{item.status}</Badge>
                     </div>
-                    <p className="text-xs font-mono font-bold text-[#1769AA]">{item.marks}</p>
-                    <p className="text-[11px] text-slate-500">{item.feedback}</p>
+                    <p className="text-xs font-mono font-bold text-[#1769AA]">
+                      {item.marks !== null ? `${item.marks} / 100` : item.submittedAt ? "Pending Grading" : "Not submitted"}
+                    </p>
+                    <p className="text-[11px] text-slate-500">{item.feedback || "—"}</p>
                   </div>
                 ))}
               </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ─── TAB 6: SARVAM AI & WHATSAPP LOGS ───────────────────────── */}
+        {/* ─── TAB 6: AI VOICE & WHATSAPP LOGS ───────────────────────── */}
         <TabsContent value="ai_communications" className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Sarvam AI Calling Logs */}
+            {/* AI Voice Calling Logs */}
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
                 <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
                   <Bot className="h-4 w-4 text-indigo-600" />
-                  Sarvam AI Voice Agent Calls
+                  AI Voice Agent Calls
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
-                {[
-                  {
-                    date: "10 Aug 2026, 04:30 PM",
-                    duration: "1m 45s",
-                    status: "ANSWERED",
-                    intent: "High Interest",
-                    summary: "AI Voice Agent checked on student after missed class. Student confirmed attendance for next session.",
-                  },
-                  {
-                    date: "05 July 2026, 11:15 AM",
-                    duration: "2m 12s",
-                    status: "ANSWERED",
-                    intent: "High Interest",
-                    summary: "Pre-admission counseling call. Inquired about full stack web development syllabus and timing.",
-                  },
-                ].map((call, i) => (
-                  <div key={i} className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-1.5 text-xs">
-                    <div className="flex items-center justify-between font-semibold">
-                      <span className="text-slate-800">{call.date}</span>
-                      <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">{call.status} ({call.duration})</Badge>
+                {aiCallLogs.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                    No AI voice call logs for this student yet.
+                  </p>
+                ) : (
+                  aiCallLogs.map((call: { id: string; createdAt: string; duration: number; status: string; aiSummary?: string }) => (
+                    <div key={call.id} className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/50 space-y-1.5 text-xs">
+                      <div className="flex items-center justify-between font-semibold">
+                        <span className="text-slate-800">{new Date(call.createdAt).toLocaleString("en-IN")}</span>
+                        <Badge className="bg-emerald-100 text-emerald-800 text-[10px]">{call.status} ({Math.floor(call.duration / 60)}m {call.duration % 60}s)</Badge>
+                      </div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">{call.aiSummary || "No summary available."}</p>
                     </div>
-                    <p className="text-slate-600 text-[11px] leading-relaxed">{call.summary}</p>
-                  </div>
-                ))}
+                  ))
+                )}
               </CardContent>
             </Card>
 
@@ -750,35 +794,9 @@ export const StudentDetails: React.FC = () => {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-6 space-y-3">
-                {[
-                  {
-                    time: "16 Aug 2026, 08:00 AM",
-                    type: "Class Reminder",
-                    msg: "Reminder: Your class 'Prisma ORM & PostgreSQL' begins at 10:00 AM at Bengaluru Central.",
-                    status: "Delivered & Read",
-                  },
-                  {
-                    time: "09 Aug 2026, 12:30 PM",
-                    type: "Absence Notice",
-                    msg: "Hi Rahul, we missed you in today's class. Please review the recording in your portal.",
-                    status: "Delivered & Read",
-                  },
-                  {
-                    time: "10 July 2026, 02:15 PM",
-                    type: "Fee Receipt",
-                    msg: "Receipt #RCP-2026-145 for ₹15,000 has been generated. Thank you for your payment.",
-                    status: "Delivered & Read",
-                  },
-                ].map((wa, i) => (
-                  <div key={i} className="p-3.5 rounded-lg border border-slate-200 bg-white space-y-1 text-xs">
-                    <div className="flex items-center justify-between font-semibold text-slate-700">
-                      <span className="text-emerald-700 font-bold">{wa.type}</span>
-                      <span className="text-[10px] text-slate-400 font-normal">{wa.time}</span>
-                    </div>
-                    <p className="text-slate-600 text-[11px]">{wa.msg}</p>
-                    <p className="text-[10px] text-emerald-600 font-medium pt-1">✓✓ {wa.status}</p>
-                  </div>
-                ))}
+                <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
+                  WhatsApp notification logs will appear here once messages are sent to this student.
+                </p>
               </CardContent>
             </Card>
           </div>

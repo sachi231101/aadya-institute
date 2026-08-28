@@ -335,23 +335,30 @@ export const DirectAdmissionEntry: React.FC = () => {
   }, [counselorsRes, user]);
 
   const selectedBranch = useMemo(
-    () => branches.find((b) => b.id === branchId) || branches[0],
+    () => branches.find((b) => b.id === branchId),
     [branches, branchId]
   );
   const branchName = selectedBranch?.name || "";
 
+  // Sync with global admin branch filter or auto-select default branch
   useEffect(() => {
-    if (branchId || branches.length === 0) return;
-    if (selectedBranchId && selectedBranchId !== "ALL" && branches.some((b) => b.id === selectedBranchId)) {
-      setBranchId(selectedBranchId);
-      return;
+    if (branches.length === 0) return;
+    if (
+      selectedBranchId &&
+      selectedBranchId !== "ALL" &&
+      branches.some((b) => b.id === selectedBranchId)
+    ) {
+      if (branchId !== selectedBranchId) {
+        setBranchId(selectedBranchId);
+      }
+    } else if (user?.branchId && branches.some((b) => b.id === user.branchId)) {
+      if (branchId !== user.branchId) {
+        setBranchId(user.branchId);
+      }
+    } else if (!branchId && branches.length > 0) {
+      setBranchId(branches[0].id);
     }
-    if (user?.branchId && branches.some((b) => b.id === user.branchId)) {
-      setBranchId(user.branchId);
-      return;
-    }
-    setBranchId(branches[0].id);
-  }, [branches, branchId, selectedBranchId, user?.branchId]);
+  }, [branches, selectedBranchId, user?.branchId, branchId]);
 
   useEffect(() => {
     if (counsellorName) return;
@@ -720,7 +727,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please enter a valid email address.");
       return false;
     }
-    if (!branchId && !user?.branchId) {
+    if (!branchId) {
       notifyError("Please select a branch / center.");
       return false;
     }
@@ -827,7 +834,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           courseId: course.courseId,
           batchId: allDbBatches.some((b) => b.id === course.batchId) ? course.batchId : undefined,
           studentId: createdStudentId,
-          branchId: branchId || undefined,
+          branchId,
           feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
           status,
           notes: buildAdmissionNotes(),
@@ -1230,8 +1237,9 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setBranchId(e.target.value)}
                       className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
                     >
-                      {branchesLoading && <option value="">Loading branches...</option>}
-                      {!branchesLoading && branches.length === 0 && <option value="">No branches found</option>}
+                      <option value="">Select Branch / Center</option>
+                      {branchesLoading && <option value="" disabled>Loading branches...</option>}
+                      {!branchesLoading && branches.length === 0 && <option value="" disabled>No branches found</option>}
                       {branches.map((branch) => (
                         <option key={branch.id} value={branch.id}>
                           {branch.name}

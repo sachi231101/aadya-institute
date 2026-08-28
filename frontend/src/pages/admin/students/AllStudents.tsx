@@ -18,6 +18,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useStudentList } from "@/hooks/useStudents";
+import { useStudentReport } from "@/hooks/useReports";
 import { useCourses } from "@/hooks/useCourses";
 
 const getFeeDetails = (fees?: any) => {
@@ -65,24 +66,30 @@ export const AllStudents: React.FC = () => {
     limit: 200,
     branchId: activeBranchId,
   });
+  const { data: studentReport } = useStudentReport(activeBranchId);
   const liveStudents = liveStudentsResponse?.data || [];
 
   const combinedStudents = useMemo(() => {
     return liveStudents.map((s) => {
-      const isRisk = s.status === "DISCONTINUED" || (s.attendance && s.attendance.overallPercentage < 65) || (s.attendance && s.attendance.consecutiveAbsences >= 2);
+      const hasAttendance = (s.attendance?.totalClasses ?? 0) > 0;
+      const isRisk =
+        s.status === "DISCONTINUED" ||
+        (s.attendance?.consecutiveAbsences ?? 0) >= 2 ||
+        (hasAttendance && (s.attendance?.overallPercentage ?? 0) < 65);
       return {
         id: s.id,
         studentCode: s.studentCode,
         name: s.user?.name || s.studentCode,
         email: s.user?.email || "—",
         phone: s.user?.phone || "—",
-        course: s.courseName || "Full Stack Web Development",
-        batch: s.batchName || "Regular Batch",
-        faculty: s.facultyName || "Assigned Faculty",
-        branch: s.branch?.name || "Aadya Branch",
+        course: s.courseName || "Not assigned",
+        batch: s.batchName || "Not assigned",
+        faculty: s.facultyName || "—",
+        branch: s.branch?.name || "—",
         branchId: s.branchId,
-        attendance: s.attendance?.overallPercentage ?? 92,
-        consecutiveAbsences: s.attendance?.consecutiveAbsences ?? (isRisk ? 3 : 0),
+        attendance: s.attendance?.overallPercentage ?? 0,
+        totalClasses: s.attendance?.totalClasses ?? 0,
+        consecutiveAbsences: s.attendance?.consecutiveAbsences ?? 0,
         progress: s.status === "COMPLETED" ? 100 : 75,
         gender: s.gender || "Male",
         dob: s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : "—",
@@ -140,13 +147,19 @@ export const AllStudents: React.FC = () => {
     );
   }, [combinedStudents, selectedBranchId, branches]);
 
+  const studentsWithAttendance = branchStudents.filter((s) => s.totalClasses > 0);
+  const calculatedAvgAttendance = studentsWithAttendance.length
+    ? Math.round(
+        studentsWithAttendance.reduce((acc, s) => acc + s.attendance, 0) / studentsWithAttendance.length
+      )
+    : 0;
+
   const kpis = {
     total: branchStudents.length,
     active: branchStudents.filter((s) => s.status === "Active").length,
     atRisk: branchStudents.filter((s) => s.status === "At Risk").length,
-    avgAttendance: branchStudents.length
-      ? Math.round(branchStudents.reduce((acc, s) => acc + s.attendance, 0) / branchStudents.length)
-      : 86,
+    avgAttendance: studentReport?.summary?.avgAttendanceRate ?? calculatedAvgAttendance,
+    studentsWithAttendance: studentsWithAttendance.length,
     pendingFees: branchStudents.reduce((acc, s) => acc + getFeeDetails(s.fees).pending, 0),
   };
 
@@ -206,7 +219,10 @@ export const AllStudents: React.FC = () => {
           {
             label: "Average Attendance",
             value: `${kpis.avgAttendance}%`,
-            sub: "Overall Institute Rate",
+            sub:
+              kpis.studentsWithAttendance > 0
+                ? `${kpis.studentsWithAttendance} students with marked attendance`
+                : "No attendance records yet",
             icon: CalendarDays,
             color: "text-[#1769AA]",
             bg: "bg-blue-50",

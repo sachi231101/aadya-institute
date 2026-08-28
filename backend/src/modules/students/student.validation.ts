@@ -29,6 +29,7 @@ export const updateStudentSchema = z.object({
   dateOfBirth: z.string().optional(),
   qualification: z.string().optional(),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]).optional(),
+  branchId: z.string().min(1).optional(),
 });
 
 export const listStudentQuerySchema = z.object({

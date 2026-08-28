@@ -26,6 +26,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranch } from "@/hooks/useBranches";
+import { resolveAiHomeRole, useAiHomeStats } from "@/hooks/useAiHomeStats";
 
 export const AiHome: React.FC = () => {
   const navigate = useNavigate();
@@ -36,15 +37,19 @@ export const AiHome: React.FC = () => {
 
   const { data: branchResponse } = useBranch(user?.branchId || undefined);
   const branchName = branchResponse?.data?.name || "Aadya Central Branch";
+  const roleKey = useMemo(
+    () => resolveAiHomeRole(location.pathname, user),
+    [location.pathname, user]
+  );
+  const { stats: liveStats, isLoading: statsLoading, refetch: refetchStats } = useAiHomeStats(
+    roleKey,
+    user,
+    branchName
+  );
 
   // Determine current active role context & base path from current route and user
   const roleContext = useMemo(() => {
-    const path = location.pathname;
-    if (
-      path.startsWith("/center") ||
-      user?.roles?.includes("CENTER_MANAGER") ||
-      user?.role === "CENTER_MANAGER"
-    ) {
+    if (roleKey === "center") {
       return {
         roleKey: "center",
         basePath: "/center",
@@ -52,51 +57,6 @@ export const AiHome: React.FC = () => {
         greeting: `How can I help you today, ${user?.name ? user.name.split(" ")[0] : "Center Manager"}?`,
         subtitle: `Ask anything about ${branchName} operations, students, batches, faculty, and fees.`,
         placeholder: `Ask anything about ${branchName}...`,
-        stats: [
-          {
-            icon: Building2,
-            color: "text-blue-500",
-            value: branchName.replace("Aadya ", ""),
-            label: "Branch",
-            sub: "Assigned Center",
-            isText: true,
-          },
-          {
-            icon: Users,
-            color: "text-emerald-500",
-            value: "145",
-            label: "Active Students",
-            sub: "Currently Enrolled",
-          },
-          {
-            icon: GraduationCap,
-            color: "text-purple-500",
-            value: "32",
-            label: "Admissions",
-            sub: "↑ 22.8% conversion",
-          },
-          {
-            icon: UserCheck,
-            color: "text-orange-500",
-            value: "12",
-            label: "Total Faculty",
-            sub: "10 Active today",
-          },
-          {
-            icon: IndianRupee,
-            color: "text-emerald-500",
-            value: "₹4.50L",
-            label: "Revenue",
-            sub: "This month total",
-          },
-          {
-            icon: Wallet,
-            color: "text-amber-500",
-            value: "₹1.20L",
-            label: "Pending Fees",
-            sub: "Outstanding balance",
-          },
-        ],
         quickActions: [
           {
             id: "cm-1",
@@ -150,11 +110,7 @@ export const AiHome: React.FC = () => {
       };
     }
 
-    if (
-      path.startsWith("/faculty") ||
-      user?.roles?.includes("FACULTY") ||
-      user?.role === "FACULTY"
-    ) {
+    if (roleKey === "faculty") {
       return {
         roleKey: "faculty",
         basePath: "/faculty",
@@ -164,50 +120,6 @@ export const AiHome: React.FC = () => {
           "Ask about your class schedules, student attendance, module progress, and doubt resolution.",
         placeholder:
           "Ask about your classes, attendance, or student progress...",
-        stats: [
-          {
-            icon: BookOpen,
-            color: "text-blue-500",
-            value: "4",
-            label: "Active Batches",
-            sub: "Assigned Courses",
-          },
-          {
-            icon: Users,
-            color: "text-emerald-500",
-            value: "86",
-            label: "Total Students",
-            sub: "Across all batches",
-          },
-          {
-            icon: Calendar,
-            color: "text-purple-500",
-            value: "3",
-            label: "Classes Today",
-            sub: "Next at 02:00 PM",
-          },
-          {
-            icon: CheckCircle,
-            color: "text-orange-500",
-            value: "88%",
-            label: "Avg Attendance",
-            sub: "Last 30 days",
-          },
-          {
-            icon: ClipboardList,
-            color: "text-emerald-500",
-            value: "14",
-            label: "Pending Reviews",
-            sub: "Module assignments",
-          },
-          {
-            icon: TrendingUp,
-            color: "text-amber-500",
-            value: "4.8 ★",
-            label: "Student Rating",
-            sub: "Excellent standing",
-          },
-        ],
         quickActions: [
           {
             id: "fa-1",
@@ -267,11 +179,7 @@ export const AiHome: React.FC = () => {
       };
     }
 
-    if (
-      path.startsWith("/counselor") ||
-      user?.roles?.includes("COUNSELLOR") ||
-      user?.role === "COUNSELLOR"
-    ) {
+    if (roleKey === "counselor") {
       return {
         roleKey: "counselor",
         basePath: "/counselor",
@@ -280,50 +188,6 @@ export const AiHome: React.FC = () => {
         subtitle:
           "Ask about your student leads, walk-in enquiries, follow-up queues, and conversion metrics.",
         placeholder: "Ask about leads, follow-ups, or admissions...",
-        stats: [
-          {
-            icon: Users,
-            color: "text-blue-500",
-            value: "68",
-            label: "Assigned Leads",
-            sub: "Active pipeline",
-          },
-          {
-            icon: GraduationCap,
-            color: "text-emerald-500",
-            value: "16",
-            label: "Converted",
-            sub: "Admissions closed",
-          },
-          {
-            icon: TrendingUp,
-            color: "text-purple-500",
-            value: "23.5%",
-            label: "Conversion Rate",
-            sub: "Top quartile",
-          },
-          {
-            icon: Calendar,
-            color: "text-orange-500",
-            value: "8",
-            label: "Follow-ups Today",
-            sub: "4 High priority",
-          },
-          {
-            icon: MessageSquareQuote,
-            color: "text-emerald-500",
-            value: "34",
-            label: "AI Calls Placed",
-            sub: "Sarvam AI voice agent",
-          },
-          {
-            icon: Wallet,
-            color: "text-amber-500",
-            value: "₹2.40L",
-            label: "Fee Realized",
-            sub: "From admissions",
-          },
-        ],
         quickActions: [
           {
             id: "co-1",
@@ -383,11 +247,7 @@ export const AiHome: React.FC = () => {
       };
     }
 
-    if (
-      path.startsWith("/student") ||
-      user?.roles?.includes("STUDENT") ||
-      user?.role === "STUDENT"
-    ) {
+    if (roleKey === "student") {
       return {
         roleKey: "student",
         basePath: "/student",
@@ -397,51 +257,6 @@ export const AiHome: React.FC = () => {
           "Ask about your class schedule, attendance, assignments, recordings, or academic doubts.",
         placeholder:
           "Ask about your timetable, assignments, recordings, or doubts...",
-        stats: [
-          {
-            icon: BookOpen,
-            color: "text-blue-500",
-            value: "Full Stack",
-            label: "Enrolled Course",
-            sub: "MERN Program",
-            isText: true,
-          },
-          {
-            icon: CheckCircle,
-            color: "text-emerald-500",
-            value: "92%",
-            label: "My Attendance",
-            sub: "Good standing",
-          },
-          {
-            icon: Calendar,
-            color: "text-purple-500",
-            value: "10:00 AM",
-            label: "Next Class",
-            sub: "Mon, Wed, Fri",
-          },
-          {
-            icon: Video,
-            color: "text-orange-500",
-            value: "24",
-            label: "Recordings",
-            sub: "Available to watch",
-          },
-          {
-            icon: ClipboardList,
-            color: "text-emerald-500",
-            value: "2 Pending",
-            label: "Assignments",
-            sub: "Due Friday",
-          },
-          {
-            icon: TrendingUp,
-            color: "text-amber-500",
-            value: "85%",
-            label: "Course Progress",
-            sub: "Module 4 of 6",
-          },
-        ],
         quickActions: [
           {
             id: "st-1",
@@ -510,50 +325,6 @@ export const AiHome: React.FC = () => {
       subtitle:
         "Ask anything about your institute. Get insights, reports and smart recommendations instantly.",
       placeholder: "Ask anything about your institute...",
-      stats: [
-        {
-          icon: Building2,
-          color: "text-blue-500",
-          value: "12",
-          label: "Total Branches",
-          sub: "Across all locations",
-        },
-        {
-          icon: Users,
-          color: "text-emerald-500",
-          value: "1,248",
-          label: "Total Students",
-          sub: "↑ 18% this month",
-        },
-        {
-          icon: GraduationCap,
-          color: "text-purple-500",
-          value: "237",
-          label: "Total Admissions",
-          sub: "↑ 15% this month",
-        },
-        {
-          icon: UserCheck,
-          color: "text-orange-500",
-          value: "86",
-          label: "Total Faculty",
-          sub: "↑ 8% this month",
-        },
-        {
-          icon: IndianRupee,
-          color: "text-emerald-500",
-          value: "₹12.86L",
-          label: "Total Revenue",
-          sub: "↑ 16% this month",
-        },
-        {
-          icon: Wallet,
-          color: "text-amber-500",
-          value: "₹2.10L",
-          label: "Pending Fees",
-          sub: "↑ 6% this month",
-        },
-      ],
       quickActions: [
         {
           id: "perf",
@@ -608,7 +379,7 @@ export const AiHome: React.FC = () => {
         },
       ],
     };
-  }, [location.pathname, user, branchName]);
+  }, [roleKey, user, branchName]);
 
   const handleSend = (queryText?: string) => {
     const q = (queryText || inputValue).trim();
@@ -654,11 +425,14 @@ export const AiHome: React.FC = () => {
 
           {/* Refresh Action */}
           <button
-            onClick={() => setInputValue("")}
-            title="Reset"
+            onClick={() => {
+              setInputValue("");
+              refetchStats();
+            }}
+            title="Refresh live stats"
             className="p-2.5 bg-white border border-slate-200/80 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
           >
-            <RotateCw className="h-4 w-4" />
+            <RotateCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
           </button>
         </div>
       </div>
@@ -791,7 +565,7 @@ export const AiHome: React.FC = () => {
           <Card className="border border-slate-200/80 shadow-sm bg-white rounded-2xl overflow-hidden">
             <CardContent className="p-6">
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 text-center gap-y-4 sm:gap-y-0">
-                {roleContext.stats.map((stat, idx) => {
+                {liveStats.map((stat, idx) => {
                   const Icon = stat.icon;
                   return (
                     <div

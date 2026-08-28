@@ -174,6 +174,16 @@ export interface StudentDetail extends Student {
   attendanceRecords?: StudentAttendanceRecord[];
   assignments?: StudentAssignmentItem[];
   payments?: StudentPaymentRecord[];
+  pendingFees?: Array<{
+    id: string;
+    totalFee: number;
+    amountPaid: number;
+    dueAmount: number;
+    dueDate: string;
+    installmentNo: number;
+    status: string;
+  }>;
+  courseModules?: Array<{ name: string; status: string }>;
 }
 
 // ─── Student Performance Metrics ────────────────────────────────────────
@@ -247,6 +257,7 @@ export interface UpdateStudentPayload {
   address?: string;
   city?: string;
   pincode?: string;
+  branchId?: string;
 }
 
 export interface StudentListParams {
