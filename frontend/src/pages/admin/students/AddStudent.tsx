@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,6 +10,7 @@ import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { getMasterLabel } from "@/utils/master.utils";
 
 import {
@@ -43,7 +44,7 @@ import {
 
 const studentSchema = z.object({
   // Core Required
-  studentCode: z.string().min(3, "Student Code is required"),
+  studentCode: z.string().optional().or(z.literal("")),
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
@@ -121,11 +122,14 @@ export const AddStudent: React.FC = () => {
   const { courses } = useCourses();
   const { batches } = useBatches();
   const { options: educationOptions } = useMasterDropdown("education");
+  const { data: studentSeriesData, refetch: refetchStudentPreview, isLoading: isStudentPreviewLoading } =
+    useNumberingSeriesPreview("STUDENT");
+  const [studentCodeManuallyEdited, setStudentCodeManuallyEdited] = useState(false);
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema) as any,
     defaultValues: {
-      studentCode: `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+      studentCode: "",
       name: "",
       email: "",
       phone: "",
@@ -192,9 +196,15 @@ export const AddStudent: React.FC = () => {
 
   const onSubmit = async (data: StudentFormValues) => {
     try {
-      // Backend expects standard payload attributes safely
+      const trimmedCode = data.studentCode?.trim();
+      const previewCode = studentSeriesData?.data?.preview;
+      const shouldAutoAssign =
+        !trimmedCode ||
+        !studentCodeManuallyEdited ||
+        (previewCode && trimmedCode.toUpperCase() === previewCode.toUpperCase());
+
       await createMutation.mutateAsync({
-        studentCode: data.studentCode.trim().toUpperCase(),
+        studentCode: shouldAutoAssign ? undefined : trimmedCode.toUpperCase(),
         name: data.name.trim(),
         email: data.email ? data.email.trim() : undefined,
         phone: data.phone ? data.phone.trim() : undefined,
@@ -225,11 +235,20 @@ export const AddStudent: React.FC = () => {
     }
   };
 
-  const generateNewCode = () => {
-    form.setValue(
-      "studentCode",
-      `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`
-    );
+  useEffect(() => {
+    if (studentCodeManuallyEdited) return;
+    if (studentSeriesData?.data?.preview) {
+      form.setValue("studentCode", studentSeriesData.data.preview);
+    }
+  }, [studentSeriesData, form, studentCodeManuallyEdited]);
+
+  const generateNewCode = async () => {
+    setStudentCodeManuallyEdited(false);
+    const result = await refetchStudentPreview();
+    const preview = result.data?.data?.preview;
+    if (preview) {
+      form.setValue("studentCode", preview);
+    }
   };
 
   return (
@@ -320,23 +339,39 @@ export const AddStudent: React.FC = () => {
                     <FormItem>
                       <div className="flex items-center justify-between">
                         <FormLabel className="text-xs font-semibold uppercase text-slate-600">
-                          Student ID / Roll No *
+                          Student ID / Roll No
                         </FormLabel>
                         <button
                           type="button"
                           onClick={generateNewCode}
-                          className="text-[11px] text-[#1769AA] hover:underline flex items-center gap-1 font-medium"
+                          disabled={isStudentPreviewLoading}
+                          className="text-[11px] text-[#1769AA] hover:underline flex items-center gap-1 font-medium disabled:opacity-50"
                         >
-                          <Sparkles className="h-3 w-3" /> Auto-generate
+                          <Sparkles className="h-3 w-3" /> {isStudentPreviewLoading ? "Loading..." : "Auto-generate"}
                         </button>
                       </div>
                       <FormControl>
                         <Input
-                          placeholder="e.g. AAD-2026-102"
+                          placeholder={
+                            isStudentPreviewLoading
+                              ? "Loading next number from Master..."
+                              : studentSeriesData?.data?.preview || "Configure Numbering Series in Master Setup"
+                          }
                           {...field}
+                          onChange={(e) => {
+                            setStudentCodeManuallyEdited(true);
+                            field.onChange(e);
+                          }}
                           className="font-mono font-medium text-slate-800 uppercase"
                         />
                       </FormControl>
+                      {studentSeriesData?.data?.preview && (
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          Next from Master:{" "}
+                          <span className="font-mono text-[#1769AA]">{studentSeriesData.data.preview}</span>
+                          {" "}(counter #{studentSeriesData.data.currentSequence} → #{studentSeriesData.data.nextSequence})
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}

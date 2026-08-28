@@ -8,6 +8,7 @@ import {
   toggleMasterStatus,
   getEntityCounts,
   getActiveMasters,
+  previewNumberingSeries,
 } from "./master.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/permission.middleware";
@@ -22,6 +23,12 @@ router.get(
   "/counts",
   requirePermission("master.read"),
   getEntityCounts
+);
+
+// Preview next sequential number for numbering series — must be before /:entityType
+router.get(
+  "/numbering-series/preview",
+  previewNumberingSeries
 );
 
 // Get active-only records for dropdown consumption — must be before /:entityType/:id

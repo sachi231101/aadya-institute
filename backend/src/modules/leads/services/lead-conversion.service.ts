@@ -7,6 +7,7 @@ import { NotificationEvent, buildIdempotencyKey } from "../../whatsapp/whatsapp.
 import { logger } from "../../../config/logger";
 import type { AuthUser } from "../../auth/auth.types";
 import type { ConvertLeadDTO } from "../lead.types";
+import { SequenceService } from "../../masters/sequence.service";
 
 export const LeadConversionService = {
   async convertLead(
@@ -71,11 +72,8 @@ export const LeadConversionService = {
       throw new AppError("Selected course does not exist", 400);
     }
 
-    // Generate codes
-    const randomDigits = Math.floor(1000 + Math.random() * 9000);
-    const timestamp = Date.now().toString().slice(-4);
-    const studentCode = `STU-2026-${randomDigits}${timestamp.slice(-2)}`;
-    const admissionNo = `ADM-2026-${randomDigits}${timestamp.slice(-2)}`;
+    const studentCode = await SequenceService.getNextNumber(lead.instituteId, "STUDENT");
+    const admissionNo = await SequenceService.getNextNumber(lead.instituteId, "ADMISSION");
 
     // Execute atomic conversion transaction
     const conversionResult = await prisma.$transaction(async (tx) => {

@@ -6,6 +6,7 @@ import type {
   CollectPendingFeeDTO,
 } from "./fee.types";
 import { prisma } from "../../config/database";
+import { SequenceService } from "../masters/sequence.service";
 import {
   resolveOptionalMasterFields,
   resolveRequiredMasterFields,
@@ -74,8 +75,7 @@ export const FeeService = {
     recordedById?: string
   ) {
     const masters = await resolvePaymentMasters(instituteId, dto, branchId);
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const receiptNo = `RCP-2026-${randomSuffix}`;
+    const receiptNo = await SequenceService.getNextNumber(instituteId, "RECEIPT");
     return FeeRepository.createPayment(instituteId, branchId, receiptNo, {
       ...dto,
       method: masters.method,
@@ -113,8 +113,7 @@ export const FeeService = {
       throw new Error(`Amount paid (₹${dto.amountPaidNow}) exceeds due amount (₹${pendingItem.dueAmount})`);
     }
 
-    const randomSuffix = Math.floor(100 + Math.random() * 900);
-    const receiptNo = `RCP-2026-${randomSuffix}`;
+    const receiptNo = await SequenceService.getNextNumber(instituteId, "RECEIPT");
 
     const masters = await resolvePaymentMasters(instituteId, dto, pendingItem.branchId);
 

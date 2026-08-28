@@ -70,6 +70,7 @@ import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
@@ -225,7 +226,6 @@ export const DirectAdmissionEntry: React.FC = () => {
   // ─── 2. ADMISSION DETAILS STATE ─────────────────────────────────────────
   const [admissionType, setAdmissionType] = useState("Regular Admission");
   const [branchId, setBranchId] = useState("");
-  const [admissionNo] = useState(`ADM-${currentYear}-PREVIEW`);
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10));
   const [academicYear, setAcademicYear] = useState(ACADEMIC_YEAR_OPTIONS[0]);
   const [counsellorName, setCounsellorName] = useState(user?.name || "");
@@ -346,6 +346,10 @@ export const DirectAdmissionEntry: React.FC = () => {
     [branches, branchId]
   );
   const branchName = selectedBranch?.name || "";
+  const branchCode = selectedBranch?.code;
+  const { data: admissionSeriesData, isLoading: isAdmissionPreviewLoading, refetch: refetchAdmissionPreview } =
+    useNumberingSeriesPreview("ADMISSION", branchCode ? { branchCode } : undefined);
+  const admissionNo = admissionSeriesData?.data?.preview ?? (isAdmissionPreviewLoading ? "Loading..." : "—");
 
   // Sync with global admin branch filter or auto-select default branch
   useEffect(() => {
@@ -882,6 +886,8 @@ export const DirectAdmissionEntry: React.FC = () => {
       await queryClient.invalidateQueries({ queryKey: ["batches"] });
       await queryClient.invalidateQueries({ queryKey: ["pending-fees"] });
       await queryClient.invalidateQueries({ queryKey: ["payments"] });
+      await queryClient.invalidateQueries({ queryKey: ["masters", "preview"] });
+      void refetchAdmissionPreview();
 
       setCreatedAdmissionSummary((prev: any) => ({
         ...(prev || {}),
@@ -1281,7 +1287,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                       readOnly
                       className="font-mono text-foreground font-bold bg-muted/50 border-border"
                     />
-                    <p className="text-[10px] text-muted-foreground mt-1">Final number is assigned when you confirm.</p>
+                    <p className="text-[10px] text-muted-foreground mt-1">Auto-assigned from Master Numbering Series upon confirmation.</p>
                   </div>
 
                   <div>

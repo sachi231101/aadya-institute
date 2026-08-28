@@ -12,6 +12,7 @@ import type {
   UpdateAdmissionDTO,
   QueryAdmissionsDTO
 } from "./admissions.types";
+import { SequenceService } from "../masters/sequence.service";
 
 export const AdmissionsRepository = {
   // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
@@ -278,7 +279,7 @@ export const AdmissionsRepository = {
           finalStudentId = existingUser.student.id;
           // Keep student branch aligned with the branch selected for this admission
           await tx.student.update({
-            where: { id: finalStudentId },
+            where: { id: existingUser.student.id },
             data: { branchId },
           });
           if (existingUser.id) {
@@ -290,7 +291,7 @@ export const AdmissionsRepository = {
         } else {
           // Create User + Student + Role
           const passwordHash = await hashPassword("Student@123");
-          const studentCode = `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+          const studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT");
 
           let userId = existingUser?.id;
           if (!userId) {

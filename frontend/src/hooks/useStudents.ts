@@ -45,6 +45,7 @@ export const useCreateStudent = () => {
     mutationFn: (data: CreateStudentPayload) => studentsApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [STUDENTS_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "preview"] });
     },
   });
 };

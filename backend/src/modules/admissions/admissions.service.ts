@@ -17,6 +17,7 @@ import type {
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { logger } from "../../config/logger";
+import { SequenceService } from "../masters/sequence.service";
 
 const triggerAdmissionNotification = async (admissionId: string) => {
   try {
@@ -54,7 +55,7 @@ const triggerAdmissionNotification = async (admissionId: string) => {
 };
 
 export const AdmissionsService = {
-  // Helper for generating sequential numbers
+  // Helper for generating sequential numbers (backward compatible helper)
   async generateNo(prefix: string): Promise<string> {
     const randomDigits = Math.floor(100 + Math.random() * 900);
     const timestamp = Date.now().toString().slice(-4);
@@ -75,7 +76,7 @@ export const AdmissionsService = {
   },
 
   async createEnquiry(instituteId: string, branchId: string | undefined, dto: CreateEnquiryDTO) {
-    const enquiryNo = await this.generateNo("ENQ");
+    const enquiryNo = await SequenceService.getNextNumber(instituteId, "ENQUIRY");
     return AdmissionsRepository.createEnquiry(instituteId, branchId, enquiryNo, dto);
   },
 
@@ -103,7 +104,7 @@ export const AdmissionsService = {
       throw new Error("Enquiry not found");
     }
 
-    const applicationNo = await this.generateNo("APP");
+    const applicationNo = await SequenceService.getNextNumber(instituteId, "APPLICATION");
 
     // Perform atomic transaction
     const application = await prisma.$transaction(async (tx) => {
@@ -151,7 +152,7 @@ export const AdmissionsService = {
   },
 
   async createApplication(instituteId: string, branchId: string | undefined, dto: CreateApplicationDTO) {
-    const applicationNo = await this.generateNo("APP");
+    const applicationNo = await SequenceService.getNextNumber(instituteId, "APPLICATION");
     return AdmissionsRepository.createApplication(instituteId, branchId, applicationNo, dto);
   },
 
@@ -179,7 +180,7 @@ export const AdmissionsService = {
       throw new Error("Application not found");
     }
 
-    const admissionNo = await this.generateNo("ADM");
+    const admissionNo = await SequenceService.getNextNumber(instituteId, "ADMISSION");
 
     // Perform atomic transaction
     const admission = await prisma.$transaction(async (tx) => {
@@ -209,7 +210,7 @@ export const AdmissionsService = {
         studentId = existingUser.student.id;
       } else {
         const passwordHash = await hashPassword("Student@123");
-        const studentCode = `AAD-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const studentCode = await SequenceService.getNextNumber(app.instituteId, "STUDENT");
         const branchId = app.branchId || (await tx.branch.findFirst({ where: { instituteId: app.instituteId } }))?.id || "";
 
         let userId = existingUser?.id;
@@ -343,7 +344,14 @@ export const AdmissionsService = {
       branchId = defaultBranch.id;
     }
 
-    const admissionNo = await this.generateNo("ADM");
+    const branch = await prisma.branch.findFirst({
+      where: { id: branchId, instituteId },
+      select: { code: true },
+    });
+
+    const admissionNo = await SequenceService.getNextNumber(instituteId, "ADMISSION", {
+      branchCode: branch?.code,
+    });
     const admission = await AdmissionsRepository.createAdmission(instituteId, branchId, admissionNo, dto);
 
     setImmediate(() => {

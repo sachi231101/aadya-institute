@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database";
+import { SequenceService } from "../masters/sequence.service";
 
 export interface FindAllStudentsParams {
   instituteId: string;
@@ -247,7 +248,7 @@ export const createStudentWithUser = async (data: {
     // 4. Optional Admission & Course Mapping
     let admissionId: string | null = null;
     let courseName = "General Course";
-    const admissionNo = `ADM-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+    const admissionNo = await SequenceService.getNextNumber(data.instituteId, "ADMISSION");
 
     if (data.courseId) {
       const course = await tx.course.findUnique({ where: { id: data.courseId } });
@@ -290,7 +291,7 @@ export const createStudentWithUser = async (data: {
 
       // Record initial payment receipt if down payment was made
       if (downPay > 0) {
-        const receiptNo = `RCP-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+        const receiptNo = await SequenceService.getNextNumber(data.instituteId, "RECEIPT");
         await tx.payment.create({
           data: {
             receiptNo,
@@ -406,7 +407,7 @@ export const updateStudent = async (
     branchId?: string;
   }
 ) => {
-  const { name, email, phone, dateOfBirth, qualification, qualificationMasterId, areaMasterId, status } = data;
+  const { name, email, phone, dateOfBirth, qualification, qualificationMasterId, areaMasterId, status, branchId } = data;
 
   const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined || branchId !== undefined;
 
