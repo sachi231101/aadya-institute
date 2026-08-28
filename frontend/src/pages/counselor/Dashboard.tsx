@@ -1764,7 +1764,7 @@ export const CounselorDashboard: React.FC = () => {
               />
               <span className="text-[11.5px] font-bold text-slate-800 flex items-center gap-1.5">
                 <Bot className="w-4 h-4 text-[#1769AA]" />
-                Trigger automated Sarvam AI voice qualification call immediately
+                Trigger automated AI voice qualification call immediately
               </span>
             </label>
 
@@ -2649,7 +2649,7 @@ export const CounselorDashboard: React.FC = () => {
                       <Sparkles className="w-3.5 h-3.5 text-[#1769AA]" /> AI Generated Summary
                     </Label>
                     <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
-                      {activeAiLead.aiSummaryDetailed || activeAiLead.aiSummaryShort || "Candidate was contacted via automated Sarvam AI voice agent."}
+                      {activeAiLead.aiSummaryDetailed || activeAiLead.aiSummaryShort || "Candidate was contacted via automated AI voice agent."}
                     </div>
                   </div>
 
@@ -2707,7 +2707,7 @@ export const CounselorDashboard: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-extrabold text-xs text-slate-200">Sarvam AI Call Audio</span>
+                        <span className="font-extrabold text-xs text-slate-200">AI Voice Call Audio</span>
                       </div>
                       <span className="text-[11px] font-mono text-slate-400">{activeAiLead.callDuration || "02:15"}</span>
                     </div>

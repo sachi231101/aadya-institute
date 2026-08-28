@@ -1217,7 +1217,7 @@ export const AiCallingQualification: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-                        <span className="font-extrabold text-xs text-slate-200">Sarvam AI Call Audio</span>
+                        <span className="font-extrabold text-xs text-slate-200">AI Voice Call Audio</span>
                       </div>
                       <span className="text-[11px] font-mono text-slate-400">{activeLead.callDuration}</span>
                     </div>
@@ -1733,7 +1733,7 @@ export const AiCallingQualification: React.FC = () => {
               />
               <span className="text-[11.5px] font-bold text-foreground flex items-center gap-1">
                 <Bot className="w-3.5 h-3.5 text-primary" />
-                Trigger automated Sarvam AI voice call immediately
+                Trigger automated AI voice call immediately
               </span>
             </label>
 

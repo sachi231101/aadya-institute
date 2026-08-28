@@ -30,5 +30,6 @@ export const ROUTES = {
     SCHEDULE: "/student/schedule",
     RECORDINGS: "/student/recordings",
     ASSIGNMENTS: "/student/assignments",
+    CERTIFICATES: "/student/certificates",
   },
 };

@@ -61,6 +61,8 @@ const studentInclude = {
       status: true,
       receiptNo: true,
       date: true,
+      method: true,
+      transactionRef: true,
     },
     orderBy: { createdAt: "desc" as const },
   },
@@ -162,6 +164,7 @@ export const findStudentById = (id: string) =>
               code: true,
               status: true,
               timeSlot: true,
+              schedulePattern: true,
               course: { select: { id: true, name: true, code: true } },
               faculty: { select: { id: true, user: { select: { name: true } } } },
             },
@@ -400,11 +403,12 @@ export const updateStudent = async (
     qualificationMasterId?: string;
     areaMasterId?: string;
     status?: "ACTIVE" | "ON_LEAVE" | "COMPLETED" | "DISCONTINUED" | "CANCELLED";
+    branchId?: string;
   }
 ) => {
   const { name, email, phone, dateOfBirth, qualification, qualificationMasterId, areaMasterId, status } = data;
 
-  const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined;
+  const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined || branchId !== undefined;
 
   // Build student-only update data
   const studentUpdate: Record<string, unknown> = {};
@@ -413,6 +417,7 @@ export const updateStudent = async (
   if (areaMasterId !== undefined) studentUpdate.areaMasterId = areaMasterId;
   if (status !== undefined) studentUpdate.status = status;
   if (dateOfBirth !== undefined) studentUpdate.dateOfBirth = new Date(dateOfBirth);
+  if (branchId !== undefined) studentUpdate.branchId = branchId;
 
   if (hasUserUpdates) {
     const existing = await prisma.student.findUnique({ where: { id } });
@@ -423,11 +428,14 @@ export const updateStudent = async (
       if (name !== undefined) userUpdate.name = name;
       if (email !== undefined) userUpdate.email = email;
       if (phone !== undefined) userUpdate.phone = phone;
+      if (branchId !== undefined) userUpdate.branchId = branchId;
 
-      await tx.user.update({
-        where: { id: existing.userId! },
-        data: userUpdate,
-      });
+      if (Object.keys(userUpdate).length > 0) {
+        await tx.user.update({
+          where: { id: existing.userId! },
+          data: userUpdate,
+        });
+      }
 
       return tx.student.update({
         where: { id },
@@ -479,11 +487,17 @@ export const findStudentAttendanceRecords = (studentId: string) =>
       classSession: {
         select: {
           id: true,
+          title: true,
           scheduledDate: true,
           startTime: true,
           endTime: true,
           batchId: true,
           batchModuleId: true,
+          batchModule: {
+            select: {
+              courseModule: { select: { name: true } },
+            },
+          },
         },
       },
     },

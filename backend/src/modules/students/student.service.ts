@@ -11,6 +11,103 @@ import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
 import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
 
+type AttendanceLike = {
+  status: string;
+  markedAt?: Date;
+  classSession?: { scheduledDate?: Date };
+};
+
+/** Current consecutive theory absences from most recent sessions (LEAVE/PRESENT reset streak). */
+const computeCurrentConsecutiveAbsences = (records: AttendanceLike[]): number => {
+  const sorted = [...records].sort((a, b) => {
+    const da = a.classSession?.scheduledDate ?? a.markedAt ?? new Date(0);
+    const db = b.classSession?.scheduledDate ?? b.markedAt ?? new Date(0);
+    return new Date(db).getTime() - new Date(da).getTime();
+  });
+
+  let streak = 0;
+  for (const record of sorted) {
+    if (record.status === "ABSENT") streak++;
+    else break;
+  }
+  return streak;
+};
+
+const computeAttendanceSummary = (records: AttendanceLike[]) => {
+  const totalClasses = records.length;
+  const presentCount = records.filter((r) => r.status === "PRESENT" || r.status === "LATE").length;
+  const absentCount = records.filter((r) => r.status === "ABSENT").length;
+  const leaveCount = records.filter((r) => r.status === "LEAVE").length;
+  const consecutiveAbsences = computeCurrentConsecutiveAbsences(records);
+  const overallPercentage = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 0;
+
+  return {
+    overallPercentage,
+    totalClasses,
+    presentCount,
+    absentCount,
+    leaveCount,
+    consecutiveAbsences,
+    isDiscontinuationRisk: consecutiveAbsences >= 2,
+  };
+};
+
+const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any) => {
+  const totalPaidFromPayments = payments
+    .filter((p) => p.status === "SUCCESS")
+    .reduce((sum: number, p) => sum + (p.amount || 0), 0);
+  const totalPendingDue = pendingFees.reduce((sum: number, f) => sum + (f.dueAmount || 0), 0);
+  const calculatedTotalFee =
+    pendingFees[0]?.totalFee ||
+    (totalPaidFromPayments + totalPendingDue > 0 ? totalPaidFromPayments + totalPendingDue : 0);
+  const finalAmountPaid =
+    totalPaidFromPayments > 0 ? totalPaidFromPayments : Math.max(0, calculatedTotalFee - totalPendingDue);
+  const finalDueAmount =
+    totalPendingDue > 0 ? totalPendingDue : Math.max(0, calculatedTotalFee - finalAmountPaid);
+  const nextDue = pendingFees.find((f) => f.dueAmount > 0);
+
+  return {
+    totalFee: calculatedTotalFee,
+    discount: 0,
+    finalFee: calculatedTotalFee,
+    amountPaid: finalAmountPaid,
+    dueAmount: finalDueAmount,
+    feePlan: admission?.feePlan || "INSTALLMENT",
+    status: finalDueAmount === 0 && calculatedTotalFee > 0 ? "Paid" : calculatedTotalFee === 0 ? "Pending" : "Pending",
+    nextDueDate: nextDue?.dueDate ?? undefined,
+  };
+};
+
+const mapStudentSummary = (s: any) => {
+  const admission = s.admissions?.[0];
+  const enrollment = s.batchEnrollments?.[0];
+  const batch = enrollment?.batch;
+  const course = batch?.course || admission?.course;
+  const faculty = batch?.faculty?.user?.name;
+  const attendances = s.studentAttendances || [];
+
+  return {
+    id: s.id,
+    userId: s.userId,
+    instituteId: s.instituteId,
+    branchId: s.branchId,
+    studentCode: s.studentCode,
+    dateOfBirth: s.dateOfBirth,
+    qualification: s.qualification,
+    status: s.status,
+    createdAt: s.createdAt,
+    updatedAt: s.updatedAt,
+    user: s.user,
+    branch: s.branch,
+    courseName: course?.name ?? null,
+    batchName: batch?.name ?? null,
+    facultyName: faculty ?? null,
+    batchTiming: batch?.timeSlot ?? null,
+    attendance: computeAttendanceSummary(attendances),
+    fees: computeFeeSummary(s.payments || [], s.pendingFees || [], admission),
+  };
+};
+
 /**
  * List students with pagination, search, and optional branch isolation.
  * Pure FACULTY users only see students enrolled in their assigned batches.
@@ -47,77 +144,7 @@ export const getAllStudents = async (
     }),
   ]);
 
-  const data = rawStudents.map((s: any) => {
-    const admission = s.admissions?.[0];
-    const enrollment = s.batchEnrollments?.[0];
-    const batch = enrollment?.batch;
-    const course = batch?.course || admission?.course;
-    const faculty = batch?.faculty?.user?.name;
-
-    const attendances = s.studentAttendances || [];
-    const totalClasses = attendances.length;
-    const presentCount = attendances.filter((a: any) => a.status === "PRESENT").length;
-    const absentCount = attendances.filter((a: any) => a.status === "ABSENT").length;
-    const leaveCount = attendances.filter((a: any) => a.status === "LEAVE").length;
-
-    let consecutiveAbsences = 0;
-    for (const a of attendances) {
-      if (a.status === "ABSENT") consecutiveAbsences++;
-      else if (a.status === "PRESENT") break;
-    }
-
-    const overallPercentage = totalClasses > 0 ? Math.round((presentCount / totalClasses) * 100) : 92;
-
-    const payments = s.payments || [];
-    const pendingFees = s.pendingFees || [];
-    const totalPaidFromPayments = payments
-      .filter((p: any) => p.status === "SUCCESS")
-      .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
-    const totalPendingDue = pendingFees.reduce((sum: number, f: any) => sum + (f.dueAmount || 0), 0);
-    const calculatedTotalFee =
-      pendingFees[0]?.totalFee || (totalPaidFromPayments + totalPendingDue > 0 ? totalPaidFromPayments + totalPendingDue : 45000);
-    const finalAmountPaid =
-      totalPaidFromPayments > 0 ? totalPaidFromPayments : Math.max(0, calculatedTotalFee - totalPendingDue);
-    const finalDueAmount =
-      totalPendingDue > 0 ? totalPendingDue : Math.max(0, calculatedTotalFee - finalAmountPaid);
-    const feeStatus = finalDueAmount === 0 ? "Paid" : "Pending";
-
-    return {
-      id: s.id,
-      userId: s.userId,
-      instituteId: s.instituteId,
-      branchId: s.branchId,
-      studentCode: s.studentCode,
-      dateOfBirth: s.dateOfBirth,
-      qualification: s.qualification,
-      status: s.status,
-      createdAt: s.createdAt,
-      updatedAt: s.updatedAt,
-      user: s.user,
-      branch: s.branch,
-      courseName: course?.name || "Full Stack Web Development",
-      batchName: batch?.name || "Batch 01",
-      facultyName: faculty || "Prof. Assigned Faculty",
-      attendance: {
-        overallPercentage,
-        totalClasses,
-        presentCount,
-        absentCount,
-        leaveCount,
-        consecutiveAbsences,
-        isDiscontinuationRisk: consecutiveAbsences >= 2,
-      },
-      fees: {
-        totalFee: calculatedTotalFee,
-        discount: 0,
-        finalFee: calculatedTotalFee,
-        amountPaid: finalAmountPaid,
-        dueAmount: finalDueAmount,
-        feePlan: admission?.feePlan || "INSTALLMENT",
-        status: feeStatus,
-      },
-    };
-  });
+  const data = rawStudents.map(mapStudentSummary);
 
   const meta = buildMeta(total, page, limit);
   return { data, meta };
@@ -133,7 +160,68 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
     throw new AppError("Student not found", 404);
   }
   await assertFacultyCanAccessStudent(currentUser, id);
-  return student;
+
+  const [attendanceRecords, assignmentSubmissions, enrollments] = await Promise.all([
+    repo.findStudentAttendanceRecords(id),
+    repo.findStudentAssignmentSubmissions(id),
+    repo.findStudentEnrollments(id),
+  ]);
+
+  const summary = mapStudentSummary({
+    ...student,
+    studentAttendances: attendanceRecords,
+  });
+
+  const courseModules =
+    enrollments[0]?.batch?.batchModules?.map((mod: any, index: number) => {
+      const label = mod.courseModule?.name || `Module ${index + 1}`;
+      let moduleStatus = "Upcoming";
+      if (mod.status === "INACTIVE") moduleStatus = "Completed";
+      else if (mod.status === "ACTIVE") moduleStatus = "In Progress";
+      return { name: label, status: moduleStatus };
+    }) ?? [];
+
+  return {
+    ...summary,
+    admissions: student.admissions,
+    batchEnrollments: student.batchEnrollments,
+    courseModules,
+    attendanceRecords: attendanceRecords.map((record: any) => ({
+      id: record.id,
+      status: record.status,
+      markedAt: record.markedAt,
+      remarks: record.remarks,
+      classSession: {
+        id: record.classSession.id,
+        scheduledDate: record.classSession.scheduledDate,
+        startTime: record.classSession.startTime,
+        endTime: record.classSession.endTime,
+        title:
+          record.classSession.title ||
+          record.classSession.batchModule?.courseModule?.name ||
+          "Class Session",
+      },
+    })),
+    assignments: assignmentSubmissions.map((sub: any) => ({
+      id: sub.id,
+      title: sub.assignment.title,
+      dueDate: sub.assignment.dueDate,
+      submittedAt: sub.submittedAt,
+      marks: sub.marks,
+      feedback: sub.feedback,
+      status: sub.marks !== null ? "GRADED" : sub.submittedAt ? "SUBMITTED" : "PENDING",
+    })),
+    payments: (student.payments || []).map((p: any) => ({
+      id: p.id,
+      receiptNo: p.receiptNo,
+      amount: p.amount,
+      date: p.date,
+      method: p.method,
+      status: p.status,
+      transactionRef: p.transactionRef,
+    })),
+    pendingFees: student.pendingFees || [],
+  };
 };
 
 import { prisma } from "../../config/database";

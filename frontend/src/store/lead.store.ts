@@ -182,7 +182,7 @@ export const useLeadStore = create<LeadStoreState>()(
           attempt: 1,
           aiOutcome: "INTERESTED",
           aiSummaryShort: `${payload.name} enquired for ${effectiveCourse} via ${effectiveSource}.`,
-          aiDetailedSummary: `Candidate ${payload.name} was contacted via automated Sarvam AI voice agent. Candidate confirmed strong interest in ${effectiveCourse} and requested batch timings and fee structure on WhatsApp.`,
+          aiDetailedSummary: `Candidate ${payload.name} was contacted via automated AI voice agent. Candidate confirmed strong interest in ${effectiveCourse} and requested batch timings and fee structure on WhatsApp.`,
           keyHighlights: [
             `Target Course: ${effectiveCourse}`,
             `Lead Source: ${effectiveSource}`,

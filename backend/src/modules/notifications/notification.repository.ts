@@ -718,7 +718,7 @@ export class NotificationRepository {
         },
         {
           title: "AI Voice Call Summary Ready",
-          message: "Sarvam AI voice call completed with High Interest status for lead Ananya Roy.",
+          message: "AI voice call completed with High Interest status for lead Ananya Roy.",
           type: "AI_CALL",
           module: "admissions",
           link: "/counselor/admissions/enquiries",
@@ -769,7 +769,7 @@ export class NotificationRepository {
         },
         {
           title: "AI Voice Call Completed",
-          message: "Lead Ananya Roy indicated high admission intent during Sarvam AI automated call.",
+          message: "Lead Ananya Roy indicated high admission intent during automated AI voice call.",
           type: "AI_CALL",
           module: "admissions",
           link: "/admin/admissions/enquiries",

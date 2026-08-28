@@ -28,6 +28,7 @@ import {
   Phone,
   Mail,
   Calendar,
+  MapPin,
   HeartHandshake,
 } from "lucide-react";
 
@@ -39,6 +40,7 @@ const studentSchema = z.object({
   areaMasterId: z.string().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   status: z.enum(["ACTIVE", "ON_LEAVE", "COMPLETED", "DISCONTINUED", "CANCELLED"]),
+  branchId: z.string().min(1, "Branch is required"),
   gender: z.string().optional().or(z.literal("")),
   bloodGroup: z.string().optional().or(z.literal("")),
   guardianName: z.string().optional().or(z.literal("")),
@@ -64,6 +66,8 @@ export const EditStudent: React.FC = () => {
     : "/admin";
 
   const { data: response, isLoading, isError } = useStudent(id);
+  const { data: branchResponse } = useBranches();
+  const branches = branchResponse?.data ?? [];
   const updateMutation = useUpdateStudent();
   const { options: educationOptions } = useMasterDropdown("education");
   const { options: areaOptions } = useMasterDropdown("area");
@@ -80,6 +84,7 @@ export const EditStudent: React.FC = () => {
       areaMasterId: "",
       dateOfBirth: "",
       status: "ACTIVE",
+      branchId: "",
       gender: "Male",
       bloodGroup: "",
       guardianName: "",
@@ -107,6 +112,7 @@ export const EditStudent: React.FC = () => {
         areaMasterId,
         dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split("T")[0] : "",
         status: student.status,
+        branchId: student.branchId || student.branch?.id || "",
         gender: student.gender || "Male",
         bloodGroup: student.bloodGroup || "",
         guardianName: student.guardian?.name || "",
@@ -134,6 +140,7 @@ export const EditStudent: React.FC = () => {
           areaMasterId: data.areaMasterId || undefined,
           dateOfBirth: data.dateOfBirth || undefined,
           status: data.status,
+          branchId: data.branchId,
           gender: data.gender || undefined,
           guardianName: data.guardianName || undefined,
           guardianPhone: data.guardianPhone || undefined,
@@ -281,6 +288,35 @@ export const EditStudent: React.FC = () => {
                           <option value="DISCONTINUED">🔴 Discontinued</option>
                           <option value="CANCELLED">⚪ Admission Cancelled</option>
                         </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Branch / Center *
+                      </FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
+                          <select
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                            {...field}
+                          >
+                            <option value="">Select branch...</option>
+                            {branches.map((b) => (
+                              <option key={b.id} value={b.id}>
+                                {b.name}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </FormControl>
                       <FormMessage />
                     </FormItem>

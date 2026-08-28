@@ -317,20 +317,26 @@ export const AdmissionsService = {
     dto: CreateAdmissionDTO,
     options?: { roles?: string[] }
   ) {
-    const isAdmin = (options?.roles || []).includes("ADMIN");
-    let branchId = userBranchId;
+    let branchId: string | undefined;
 
-    if (isAdmin && dto.branchId) {
+    // Priority 1: branch explicitly selected in the admission form
+    if (dto.branchId) {
       const requestedBranch = await prisma.branch.findFirst({
         where: { id: dto.branchId, instituteId },
       });
-      if (requestedBranch) {
-        branchId = requestedBranch.id;
+      if (!requestedBranch) {
+        throw new Error("Selected branch not found for this institute");
       }
-    }
-
-    if (!branchId) {
-      const defaultBranch = await prisma.branch.findFirst({ where: { instituteId } });
+      branchId = requestedBranch.id;
+    } else if (userBranchId) {
+      // Priority 2: center manager / staff assigned branch
+      branchId = userBranchId;
+    } else {
+      // Last resort only when no branch was specified
+      const defaultBranch = await prisma.branch.findFirst({
+        where: { instituteId },
+        orderBy: { createdAt: "asc" },
+      });
       if (!defaultBranch) {
         throw new Error("No branch available for this institute");
       }
