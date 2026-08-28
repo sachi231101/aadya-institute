@@ -53,8 +53,10 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.store";
+import { useLeadStore, type UnifiedLead } from "@/store/lead.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { getMasterLabel } from "@/utils/master.utils";
 
 interface AiTranscriptMessage {
   speaker: "AI" | "LEAD";
@@ -151,7 +153,7 @@ export const AiCallingQualification: React.FC = () => {
   const [newLeadName, setNewLeadName] = useState("");
   const [newLeadPhone, setNewLeadPhone] = useState("");
   const [newLeadCourse, setNewLeadCourse] = useState("Digital Marketing");
-  const [newLeadSource, setNewLeadSource] = useState<LeadSource>("Website");
+  const [newLeadSourceMasterId, setNewLeadSourceMasterId] = useState("");
   const [triggerImmediateCall, setTriggerImmediateCall] = useState(true);
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
@@ -201,8 +203,11 @@ export const AiCallingQualification: React.FC = () => {
         if (!matches) return false;
       }
       // Source Filter
-      if (sourceFilter !== "ALL" && lead.source !== sourceFilter) {
-        return false;
+      if (sourceFilter !== "ALL") {
+        const sourceLabel = getMasterLabel(leadSourceOptions, sourceFilter);
+        if (lead.source !== sourceLabel && sourceFilter !== lead.source) {
+          return false;
+        }
       }
       // Course Filter
       if (courseFilter !== "ALL" && lead.course !== courseFilter) {
@@ -328,18 +333,20 @@ export const AiCallingQualification: React.FC = () => {
     e.preventDefault();
     if (!newLeadName.trim() || !newLeadPhone.trim()) return;
 
+    const sourceLabel = getMasterLabel(leadSourceOptions, newLeadSourceMasterId) || "Website";
+
     addLead({
       name: newLeadName.trim(),
       phone: newLeadPhone.trim(),
       email: `${newLeadName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      source: newLeadSource,
+      source: sourceLabel,
       course: newLeadCourse,
       triggerImmediateCall,
-      notes: `Registered via AI Calling portal. Source: ${newLeadSource}`
+      notes: `Registered via AI Calling portal. Source: ${sourceLabel}`
     });
 
     setShowAddLeadModal(false);
-    showToast(`✓ New lead ${newLeadName} created from ${newLeadSource} & AI calling queued!`);
+    showToast(`✓ New lead ${newLeadName} created from ${sourceLabel} & AI calling queued!`);
 
     // Reset
     setNewLeadName("");
@@ -542,19 +549,13 @@ export const AiCallingQualification: React.FC = () => {
             {/* Filter Dropdowns & Reset */}
             <div className="flex flex-wrap items-center gap-1.5 shrink-0">
               {/* Lead Source Dropdown */}
-              <select
-                value={sourceFilter}
-                onChange={(e) => setSourceFilter(e.target.value)}
-                className="h-8 text-[11px] bg-muted/30 border border-border rounded-xl px-2 font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Lead Sources</option>
-                {leadSourceOptions.map((opt) => (
-                  <option key={opt.value} value={opt.label}>{opt.label}</option>
-                ))}
-                {leadSourceOptions.length === 0 && (
-                  <option value="" disabled>No sources — add in Master Setup</option>
-                )}
-              </select>
+              <MasterSelect
+                entityType="leadsource"
+                value={sourceFilter === "ALL" ? "" : sourceFilter}
+                onChange={(id) => setSourceFilter(id || "ALL")}
+                placeholder="All Lead Sources"
+                className="h-8 min-w-[130px] mt-0 rounded-xl text-[11px]"
+              />
 
               {/* Course Dropdown */}
               <select
@@ -1713,19 +1714,13 @@ export const AiCallingQualification: React.FC = () => {
 
               <div className="space-y-1">
                 <Label className="text-foreground font-bold text-xs">Enquiry Source *</Label>
-                <select
-                  value={newLeadSource}
-                  onChange={(e) => setNewLeadSource(e.target.value as LeadSource)}
-                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
-                >
-                  <option value="">Select Lead Source</option>
-                  {leadSourceOptions.map((opt) => (
-                    <option key={opt.value} value={opt.label}>{opt.label}</option>
-                  ))}
-                  {leadSourceOptions.length === 0 && (
-                    <option value="" disabled>No sources — add in Master Setup</option>
-                  )}
-                </select>
+                <MasterSelect
+                  entityType="leadsource"
+                  value={newLeadSourceMasterId}
+                  onChange={setNewLeadSourceMasterId}
+                  placeholder="Select Lead Source"
+                  className="mt-0 rounded-xl h-10"
+                />
               </div>
             </div>
 

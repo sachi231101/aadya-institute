@@ -48,7 +48,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
@@ -240,7 +239,8 @@ export const Classes: React.FC = () => {
   const [formStartTime, setFormStartTime] = useState("10:00 AM");
   const [formEndTime, setFormEndTime] = useState("11:30 AM");
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
-  const [formLocation, setFormLocation] = useState("");
+  const [formClassroomMasterId, setFormClassroomMasterId] = useState("");
+  const [formMeetingUrl, setFormMeetingUrl] = useState("");
   const [formStudentsCount, setFormStudentsCount] = useState(25);
 
   // Assign Faculty Target
@@ -412,9 +412,9 @@ export const Classes: React.FC = () => {
         scheduledDate: formDate,
         startTime: formStartTime,
         endTime: formEndTime,
-        roomNo: formMode !== "ONLINE" ? formLocation : undefined,
+        classroomMasterId: formMode !== "ONLINE" ? formClassroomMasterId || undefined : undefined,
         mode: formMode,
-        meetingUrl: formMode === "ONLINE" ? formLocation : undefined,
+        meetingUrl: formMode === "ONLINE" ? formMeetingUrl : undefined,
       });
       setIsScheduleModalOpen(false);
       setNotificationMsg(`✓ Successfully scheduled new class: ${formTopic} (${formBatch}).`);
@@ -968,7 +968,8 @@ export const Classes: React.FC = () => {
                               setFormStartTime(item.startTime);
                               setFormEndTime(item.endTime);
                               setFormMode(item.mode);
-                              setFormLocation(item.locationOrLink);
+                              setFormClassroomMasterId("");
+                              setFormMeetingUrl(item.mode === "ONLINE" ? item.locationOrLink : "");
                               setIsScheduleModalOpen(true);
                             }}
                             className="gap-2 cursor-pointer font-medium"
@@ -1255,14 +1256,23 @@ export const Classes: React.FC = () => {
 
               <div>
                 <Label className="text-[11px] font-bold text-foreground">
-                  {formMode === "ONLINE" ? "Meeting URL Link" : "Room / Lab No"}
+                  {formMode === "ONLINE" ? "Meeting URL Link" : "Classroom / Lab"}
                 </Label>
-                <Input
-                  value={formLocation}
-                  onChange={(e) => setFormLocation(e.target.value)}
-                  placeholder={formMode === "ONLINE" ? "https://meet.google.com/..." : "e.g. Room 201"}
-                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                />
+                {formMode === "ONLINE" ? (
+                  <Input
+                    value={formMeetingUrl}
+                    onChange={(e) => setFormMeetingUrl(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                    className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
+                  />
+                ) : (
+                  <ClassroomDropdown
+                    value={formClassroomMasterId}
+                    onChange={setFormClassroomMasterId}
+                    branchId={formBranch !== "ALL" ? formBranch : undefined}
+                    className="mt-0"
+                  />
+                )}
               </div>
             </div>
 

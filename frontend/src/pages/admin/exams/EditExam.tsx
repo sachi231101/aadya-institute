@@ -28,6 +28,9 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { findMasterIdByLabel } from "@/utils/master.utils";
 
 const editExamSchema = z.object({
   name: z.string().min(2, "Exam name must be at least 2 characters").max(200),
@@ -66,6 +69,8 @@ export const EditExam: React.FC = () => {
   const branches = branchesResponse?.data ?? [];
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [examTermMasterId, setExamTermMasterId] = useState("");
+  const { options: examTermOptions } = useMasterDropdown("examterm");
 
   const form = useForm<EditExamFormValues>({
     resolver: zodResolver(editExamSchema) as any,
@@ -93,6 +98,10 @@ export const EditExam: React.FC = () => {
   useEffect(() => {
     if (exam) {
       setSelectedCourseId(exam.courseId || "");
+      const termId =
+        (exam as { examTermMasterId?: string }).examTermMasterId ||
+        findMasterIdByLabel(examTermOptions, (exam as { examTerm?: string }).examTerm);
+      setExamTermMasterId(termId);
       form.reset({
         name: exam.name || "",
         description: exam.description || "",
@@ -113,7 +122,7 @@ export const EditExam: React.FC = () => {
         maxWarnings: exam.maxWarnings ?? 3,
       });
     }
-  }, [exam, form]);
+  }, [exam, form, examTermOptions]);
 
   const selectedCourse = courses.find((c) => c.id === selectedCourseId);
   const availableModules = selectedCourse?.modules || [];
@@ -125,6 +134,7 @@ export const EditExam: React.FC = () => {
         courseId: values.courseId || undefined,
         moduleId: values.moduleId || undefined,
         branchId: values.branchId || undefined,
+        examTermMasterId: examTermMasterId || undefined,
       };
       await updateExamMutation.mutateAsync(payload);
       navigate(`${basePath}/${id}`);
@@ -190,6 +200,17 @@ export const EditExam: React.FC = () => {
                   </FormItem>
                 )}
               />
+
+              <div>
+                <label className="text-xs font-semibold">Exam Term</label>
+                <MasterSelect
+                  entityType="examterm"
+                  value={examTermMasterId}
+                  onChange={setExamTermMasterId}
+                  placeholder="Select exam term"
+                  className="mt-1 rounded-md"
+                />
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField

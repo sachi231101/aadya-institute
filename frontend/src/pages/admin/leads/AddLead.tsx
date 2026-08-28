@@ -13,7 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
 
 const addLeadSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").trim(),
@@ -24,15 +24,13 @@ const addLeadSchema = z.object({
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   interestedIn: z.string().min(1, "Interest or course name is required").trim(),
   courseId: z.string().optional().or(z.literal("")),
-  source: z.string().default("WALK_IN"),
+  sourceMasterId: z.string().optional().or(z.literal("")),
   priority: z.string().default("MEDIUM"),
   branchId: z.string().min(1, "Branch is required"),
   notes: z.string().optional().or(z.literal("")),
 });
 
 type AddLeadFormValues = z.infer<typeof addLeadSchema>;
-
-// SOURCE_OPTIONS now fetched dynamically from Master Module via useMasterDropdown("leadsource")
 
 export const AddLead: React.FC = () => {
   const navigate = useNavigate();
@@ -42,8 +40,6 @@ export const AddLead: React.FC = () => {
   const createLeadMutation = useCreateLead();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const { courses } = useCourses();
-  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
-
   const branches = branchesResponse?.data || [];
 
   const basePath = location.pathname.startsWith("/counselor")
@@ -65,7 +61,7 @@ export const AddLead: React.FC = () => {
       email: "",
       interestedIn: "",
       courseId: "",
-      source: "WALK_IN",
+      sourceMasterId: "",
       priority: "MEDIUM",
       branchId: defaultBranch,
       notes: "",
@@ -87,7 +83,7 @@ export const AddLead: React.FC = () => {
         email: data.email || undefined,
         interestedIn: data.interestedIn,
         courseId: data.courseId || undefined,
-        source: data.source,
+        sourceMasterId: data.sourceMasterId || undefined,
         priority: data.priority,
         branchId: data.branchId,
         notes: data.notes || undefined,
@@ -215,19 +211,17 @@ export const AddLead: React.FC = () => {
                   </FormItem>
                 )} />
 
-                <FormField control={form.control} name="source" render={({ field }) => (
+                <FormField control={form.control} name="sourceMasterId" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Lead Source</FormLabel>
                     <FormControl>
-                      <select {...field} className="w-full h-9 px-3 rounded-md border border-border text-sm bg-background">
-                        <option value="">Select Lead Source</option>
-                        {leadSourceOptions.map(s => (
-                          <option key={s.value} value={s.label}>{s.label}</option>
-                        ))}
-                        {leadSourceOptions.length === 0 && (
-                          <option value="" disabled>No sources — add in Master Setup</option>
-                        )}
-                      </select>
+                      <MasterSelect
+                        entityType="leadsource"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        placeholder="Select Lead Source"
+                        className="mt-0 rounded-md"
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

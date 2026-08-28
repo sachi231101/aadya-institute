@@ -1,5 +1,6 @@
 import { prisma } from "../config/database";
 import { hashPassword } from "../utils/password";
+import { seedMastersForInstitute } from "./seed-masters";
 
 async function main() {
   console.log("🌱 Seeding 5 Dashboard Login Accounts...");
@@ -258,37 +259,9 @@ async function main() {
     }
   }
 
-  // 6. Seed Classrooms & Masters
-  const masters = [
-    { entityType: "classroom", name: "Lab 101 (Frontend Studio)", code: "LAB-101", data: { capacity: 35 } },
-    { entityType: "classroom", name: "Lab 102 (Backend & AI Lab)", code: "LAB-102", data: { capacity: 30 } },
-    { entityType: "leadsource", name: "Walk-in Inquiry", code: "WALK-IN", data: {} },
-    { entityType: "leadsource", name: "WhatsApp Inquiry", code: "WHATSAPP", data: {} },
-    { entityType: "leadsource", name: "Google Search", code: "GOOGLE", data: {} },
-    { entityType: "paymentmodes", name: "UPI / QR Code", code: "UPI", data: {} },
-    { entityType: "paymentmodes", name: "Credit/Debit Card", code: "CARD", data: {} },
-    { entityType: "paymentmodes", name: "Net Banking", code: "NET_BANKING", data: {} },
-    { entityType: "paymentmodes", name: "Cash", code: "CASH", data: {} },
-  ];
-
-  for (const m of masters) {
-    const existingMaster = await prisma.masterRecord.findFirst({
-      where: { instituteId: institute.id, entityType: m.entityType, code: m.code },
-    });
-    if (!existingMaster) {
-      await prisma.masterRecord.create({
-        data: {
-          instituteId: institute.id,
-          branchId: hsrBranch.id,
-          entityType: m.entityType,
-          name: m.name,
-          code: m.code,
-          data: m.data,
-          status: "ACTIVE",
-        },
-      });
-    }
-  }
+  // 6. Seed all Tier 1 master records
+  const mastersCreated = await seedMastersForInstitute(institute.id, hsrBranch.id);
+  console.log(`✓ Seeded ${mastersCreated} master records`);
 
   console.log("✨ All 5 Dashboard Direct Login accounts seeded and ready!");
 }

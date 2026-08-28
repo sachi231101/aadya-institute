@@ -2,7 +2,7 @@ import { z } from "zod";
 
 export const queryPaymentsSchema = z.object({
   search: z.string().optional(),
-  method: z.enum(["ALL", "UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]).optional(),
+  method: z.string().optional(),
   status: z.enum(["ALL", "SUCCESS", "PENDING", "FAILED"]).optional(),
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().optional().default(50),
@@ -14,13 +14,18 @@ export const createPaymentSchema = z.object({
   courseName: z.string().min(1, "Course name is required"),
   amount: z.number().positive("Amount must be greater than 0"),
   date: z.string().optional(),
-  method: z.enum(["UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]),
+  method: z.string().optional(),
+  paymentModeMasterId: z.string().optional(),
+  bankAccountMasterId: z.string().optional(),
+  feeHeadMasterId: z.string().optional(),
   transactionRef: z.string().optional(),
   status: z.enum(["SUCCESS", "PENDING", "FAILED"]).optional().default("SUCCESS"),
   notes: z.string().optional(),
   studentId: z.string().optional(),
   admissionId: z.string().optional(),
   pendingFeeId: z.string().optional(),
+}).refine((d) => d.paymentModeMasterId || d.method, {
+  message: "paymentModeMasterId or method is required",
 });
 
 export const queryPendingFeesSchema = z.object({
@@ -32,7 +37,11 @@ export const queryPendingFeesSchema = z.object({
 
 export const collectPendingFeeSchema = z.object({
   amountPaidNow: z.number().positive("Amount paid now must be positive"),
-  method: z.enum(["UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]),
+  method: z.string().optional(),
+  paymentModeMasterId: z.string().optional(),
+  feeHeadMasterId: z.string().optional(),
   transactionRef: z.string().optional(),
   notes: z.string().optional(),
+}).refine((d) => d.paymentModeMasterId || d.method, {
+  message: "paymentModeMasterId or method is required",
 });

@@ -38,6 +38,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useUIStore } from "@/store/ui.store";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
 import {
   Dialog,
   DialogContent,
@@ -68,6 +71,7 @@ export const Settings: React.FC = () => {
   const [mobileNumber, setMobileNumber] = useState("+91 98765 43210");
   const [alternateEmail, setAlternateEmail] = useState("admin@aadyainstitute.com");
   const [designation, setDesignation] = useState("System Administrator");
+  const [designationMasterId, setDesignationMasterId] = useState("");
   const [department, setDepartment] = useState("Administration");
   const [branch, setBranch] = useState("Aadya Central Branch");
   const [employeeId, setEmployeeId] = useState("ADM001");
@@ -98,6 +102,7 @@ export const Settings: React.FC = () => {
 
   // Notifications Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const { options: designationOptions } = useMasterDropdown("designation");
 
   // Synchronize state when data loads
   useEffect(() => {
@@ -105,7 +110,10 @@ export const Settings: React.FC = () => {
       setFullName(data.user.name || authUser?.name || "Aadya Admin");
       setEmail(data.user.email || authUser?.email || "admin@aadya.in");
       setMobileNumber(data.user.phone || authUser?.phone || "+91 98765 43210");
-      if (data.settings?.designation) setDesignation(data.settings.designation);
+      if (data.settings?.designation) {
+        setDesignation(data.settings.designation);
+        setDesignationMasterId(findMasterIdByLabel(designationOptions, data.settings.designation));
+      }
       if (data.settings?.department) setDepartment(data.settings.department);
       if (data.settings?.emailAdmissions !== undefined) setEmailAdmissions(data.settings.emailAdmissions);
       if (data.settings?.emailFeeAlerts !== undefined) setEmailFeeAlerts(data.settings.emailFeeAlerts);
@@ -113,7 +121,7 @@ export const Settings: React.FC = () => {
       if (data.settings?.whatsappReminders !== undefined) setWhatsappReminders(data.settings.whatsappReminders);
       if (data.settings?.aiCallAlerts !== undefined) setAiCallAlerts(data.settings.aiCallAlerts);
     }
-  }, [data, authUser]);
+  }, [data, authUser, designationOptions]);
 
   // Handle Save
   const handleSavePersonal = () => {
@@ -122,7 +130,10 @@ export const Settings: React.FC = () => {
         name: fullName,
         email,
         phone: mobileNumber,
-        designation,
+        designation: designationMasterId
+          ? getMasterLabel(designationOptions, designationMasterId) || designation
+          : designation,
+        designationMasterId: designationMasterId || undefined,
         department,
         language,
         timezone,
@@ -472,20 +483,17 @@ export const Settings: React.FC = () => {
                   Designation <span className="text-rose-500">*</span>
                 </Label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                  <select
-                    value={designation}
-                    onChange={(e) => setDesignation(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
-                  >
-                    <option value="System Administrator">System Administrator</option>
-                    <option value="Center Manager">Center Manager</option>
-                    <option value="Academy Director">Academy Director</option>
-                    <option value="Senior Academic Coordinator">Senior Academic Coordinator</option>
-                  </select>
-                  <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                    ▼
-                  </div>
+                  <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none z-10" />
+                  <MasterSelect
+                    entityType="designation"
+                    value={designationMasterId}
+                    onChange={(id) => {
+                      setDesignationMasterId(id);
+                      setDesignation(getMasterLabel(designationOptions, id) || designation);
+                    }}
+                    placeholder="Select designation"
+                    className="mt-0 pl-9 rounded-xl h-10 text-xs font-semibold"
+                  />
                 </div>
               </div>
 

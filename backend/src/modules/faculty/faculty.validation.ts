@@ -7,6 +7,9 @@ export const createFacultySchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
   employeeCode: z.string().min(1, "Employee code is required").max(20).toUpperCase(),
   specialization: z.string().optional(),
+  designation: z.string().optional(),
+  designationMasterId: z.string().optional(),
+  qualificationMasterId: z.string().optional(),
   branchId: z.string().min(1, "Branch ID is required"),
 });
 

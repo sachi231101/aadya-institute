@@ -1,5 +1,6 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
+import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
 import {
@@ -180,6 +181,31 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
   // Hash password for the new User
   const passwordHash = await hashPassword(dto.password);
 
+  let qualification = dto.qualification || undefined;
+  let qualificationMasterId: string | undefined;
+  let areaMasterId: string | undefined;
+
+  if (dto.qualificationMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "education",
+      masterRecordId: dto.qualificationMasterId,
+      branchId: dto.branchId,
+    });
+    qualificationMasterId = resolved?.masterId;
+    qualification = resolved?.label ?? qualification;
+  }
+
+  if (dto.areaMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "area",
+      masterRecordId: dto.areaMasterId,
+      branchId: dto.branchId,
+    });
+    areaMasterId = resolved?.masterId;
+  }
+
   const student = await repo.createStudentWithUser({
     instituteId,
     branchId: dto.branchId,
@@ -189,7 +215,9 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     passwordHash,
     studentCode: dto.studentCode,
     dateOfBirth: dto.dateOfBirth || undefined,
-    qualification: dto.qualification || undefined,
+    qualification,
+    qualificationMasterId,
+    areaMasterId,
     courseId: dto.courseId || undefined,
     batchId: dto.batchId || undefined,
     totalFee: dto.totalFee,
@@ -230,7 +258,38 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
 export const updateStudent = async (id: string, dto: UpdateStudentDto) => {
   const student = await repo.findStudentById(id);
   if (!student) throw new AppError("Student not found", 404);
-  return repo.updateStudent(id, dto);
+
+  let qualification = dto.qualification;
+  let qualificationMasterId = dto.qualificationMasterId;
+  let areaMasterId = dto.areaMasterId;
+
+  if (dto.qualificationMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId: student.instituteId,
+      entityType: "education",
+      masterRecordId: dto.qualificationMasterId,
+      branchId: student.branchId,
+    });
+    qualificationMasterId = resolved?.masterId;
+    qualification = resolved?.label ?? qualification;
+  }
+
+  if (dto.areaMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId: student.instituteId,
+      entityType: "area",
+      masterRecordId: dto.areaMasterId,
+      branchId: student.branchId,
+    });
+    areaMasterId = resolved?.masterId;
+  }
+
+  return repo.updateStudent(id, {
+    ...dto,
+    qualification,
+    qualificationMasterId,
+    areaMasterId,
+  });
 };
 
 /**

@@ -60,7 +60,11 @@ export interface CreatePaymentPayload {
   courseName: string;
   amount: number;
   date?: string;
-  method: PaymentMethod;
+  /** @deprecated use paymentModeMasterId */
+  method?: PaymentMethod;
+  paymentModeMasterId?: string;
+  bankAccountMasterId?: string;
+  feeHeadMasterId?: string;
   transactionRef?: string;
   status?: PaymentStatus;
   notes?: string;
@@ -68,7 +72,10 @@ export interface CreatePaymentPayload {
 
 export interface CollectPendingFeePayload {
   amountPaidNow: number;
-  method: PaymentMethod;
+  /** @deprecated use paymentModeMasterId */
+  method?: PaymentMethod;
+  paymentModeMasterId?: string;
+  feeHeadMasterId?: string;
   transactionRef?: string;
   notes?: string;
 }

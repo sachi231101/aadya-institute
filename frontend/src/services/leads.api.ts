@@ -79,8 +79,10 @@ export interface LeadQueryParams {
   limit?: number;
   search?: string;
   stage?: string;
+  stageMasterId?: string;
   status?: string;
   source?: string;
+  sourceMasterId?: string;
   priority?: string;
   branchId?: string;
   assignedCounsellorId?: string;
@@ -106,7 +108,9 @@ export const leadsApi = {
     email?: string;
     interestedIn: string;
     courseId?: string;
+    /** @deprecated use sourceMasterId */
     source?: string;
+    sourceMasterId?: string;
     priority?: string;
     branchId: string;
     notes?: string;

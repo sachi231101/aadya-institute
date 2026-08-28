@@ -89,6 +89,8 @@ export interface CreateFacultyPayload {
   employeeCode: string;
   specialization?: string;
   branchId: string;
+  designationMasterId?: string;
+  qualificationMasterId?: string;
 }
 
 export interface UpdateFacultyPayload {

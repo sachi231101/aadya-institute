@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, Phone, PhoneCall, Bot, UserCheck, CheckCircle2, Clock,
@@ -19,8 +19,9 @@ import {
   useCreateFollowUp, useUpdateFollowUp, useTriggerLeadCall, useChangeLeadStage,
   useAssignLead, useMarkLeadLost
 } from "@/hooks/useLeads";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
-const STAGE_PIPELINE = ["NEW", "ASSIGNED", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED"];
+const DEFAULT_STAGE_PIPELINE = ["NEW", "ASSIGNED", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED"];
 
 const STAGE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
   NEW: { label: "New", color: "text-blue-700", bg: "bg-blue-500" },
@@ -48,6 +49,29 @@ export const LeadDetails: React.FC = () => {
     : "/admin";
 
   const { data: leadResponse, isLoading } = useLeadById(id || "");
+  const { options: leadStageOptions } = useMasterDropdown("leadstage");
+
+  const stagePipeline = useMemo(() => {
+    if (leadStageOptions.length === 0) return DEFAULT_STAGE_PIPELINE;
+    return leadStageOptions
+      .filter((opt) => opt.code !== "LOST")
+      .map((opt) => opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"));
+  }, [leadStageOptions]);
+
+  const getStageConfig = (stage: string) => {
+    const masterOpt = leadStageOptions.find(
+      (opt) => opt.code === stage || opt.label === stage
+    );
+    const fallback = STAGE_CONFIG[stage] ?? {
+      label: masterOpt?.label || stage,
+      color: "text-slate-700",
+      bg: "bg-slate-500",
+    };
+    return {
+      ...fallback,
+      label: masterOpt?.label || fallback.label,
+    };
+  };
   const { data: followUpsResponse } = useLeadFollowUps(id || "");
   const { data: historyResponse } = useLeadHistory(id || "");
 
@@ -92,7 +116,7 @@ export const LeadDetails: React.FC = () => {
     );
   }
 
-  const currentStageIndex = STAGE_PIPELINE.indexOf(lead.stage);
+  const currentStageIndex = stagePipeline.indexOf(lead.stage);
   const latestCall = lead.callLogs?.[0];
 
   const handleConvert = () => {
@@ -214,8 +238,8 @@ export const LeadDetails: React.FC = () => {
 
         {/* Stage Pipeline */}
         <div className="mt-6 flex items-center gap-1 overflow-x-auto pb-1">
-          {STAGE_PIPELINE.map((stage, idx) => {
-            const config = STAGE_CONFIG[stage];
+          {stagePipeline.map((stage, idx) => {
+            const config = getStageConfig(stage);
             const isCompleted = idx <= currentStageIndex;
             const isCurrent = stage === lead.stage;
             return (
@@ -234,7 +258,7 @@ export const LeadDetails: React.FC = () => {
                 >
                   {config.label}
                 </button>
-                {idx < STAGE_PIPELINE.length - 1 && (
+                {idx < stagePipeline.length - 1 && (
                   <div className={`w-6 h-0.5 ${isCompleted ? "bg-white/50" : "bg-white/15"}`} />
                 )}
               </div>

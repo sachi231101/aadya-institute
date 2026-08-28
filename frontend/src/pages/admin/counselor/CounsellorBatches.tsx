@@ -37,6 +37,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
 import {
   Table,
   TableBody,
@@ -179,8 +183,10 @@ export const CounsellorBatches: React.FC = () => {
   const [editFacultyId, setEditFacultyId] = useState<string>("");
   const [editStartDate, setEditStartDate] = useState<string>("");
   const [editCapacity, setEditCapacity] = useState<number>(30);
-  const [editTimeSlot, setEditTimeSlot] = useState<string>("");
+  const [editTimeSlotMasterId, setEditTimeSlotMasterId] = useState<string>("");
+  const [editClassroomMasterId, setEditClassroomMasterId] = useState<string>("");
   const [editEnrolledStudentIds, setEditEnrolledStudentIds] = useState<string[]>([]);
+  const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [selectedNewStudentIdToAdd, setSelectedNewStudentIdToAdd] = useState<string>("");
 
   const handleOpenEditModal = (batch: BatchData) => {
@@ -189,7 +195,8 @@ export const CounsellorBatches: React.FC = () => {
     setEditFacultyId(batch.facultyId || batch.faculty?.id || "");
     setEditStartDate(batch.startDate ? batch.startDate.split("T")[0] : "");
     setEditCapacity(batch.capacity || 30);
-    setEditTimeSlot(batch.timeSlot || "");
+    setEditTimeSlotMasterId(findMasterIdByLabel(timeslotOptions, batch.timeSlot));
+    setEditClassroomMasterId("");
     setEditEnrolledStudentIds(getBatchEnrolledStudentIds(batch));
     setSelectedNewStudentIdToAdd("");
   };
@@ -212,7 +219,8 @@ export const CounsellorBatches: React.FC = () => {
   const [newCourseName, setNewCourseName] = useState<string>("Full Stack Web Development");
   const [newStartDate, setNewStartDate] = useState<string>("2026-08-10");
   const [newScheduleDays, setNewScheduleDays] = useState<string>("Monday, Wednesday, Friday");
-  const [newTimeSlot, setNewTimeSlot] = useState<string>("10:00 AM – 12:00 PM");
+  const [newTimeSlotMasterId, setNewTimeSlotMasterId] = useState<string>("");
+  const [newClassroomMasterId, setNewClassroomMasterId] = useState<string>("");
   const [newCapacity, setNewCapacity] = useState<number>(35);
 
   // Queries for real batches, students, courses, faculty
@@ -1093,11 +1101,21 @@ export const CounsellorBatches: React.FC = () => {
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-700">Preferred Time Slot</label>
-              <Input
-                value={newTimeSlot}
-                onChange={(e) => setNewTimeSlot(e.target.value)}
-                placeholder="e.g. 10:00 AM – 12:00 PM"
-                className="h-9 text-xs rounded-xl font-mono"
+              <MasterSelect
+                entityType="timeslot"
+                value={newTimeSlotMasterId}
+                onChange={setNewTimeSlotMasterId}
+                placeholder="Select time slot"
+                className="mt-0 rounded-xl h-9"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[11px] font-bold text-slate-700">Classroom</label>
+              <ClassroomDropdown
+                value={newClassroomMasterId}
+                onChange={setNewClassroomMasterId}
+                className="mt-0 rounded-xl h-9"
               />
             </div>
           </div>
@@ -1131,7 +1149,7 @@ export const CounsellorBatches: React.FC = () => {
                   branchId: targetBranchId,
                   capacity: newCapacity,
                   startDate: newStartDate,
-                  timeSlot: newTimeSlot,
+                  timeSlot: getMasterLabel(timeslotOptions, newTimeSlotMasterId) || undefined,
                 });
               }}
               className="w-full sm:flex-1 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
@@ -1217,14 +1235,25 @@ export const CounsellorBatches: React.FC = () => {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="font-bold text-slate-700">Time Slot</label>
-                <Input
-                  value={editTimeSlot}
-                  onChange={(e) => setEditTimeSlot(e.target.value)}
-                  placeholder="e.g. 10:00 AM – 12:00 PM"
-                  className="h-9 rounded-xl text-xs font-mono"
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Time Slot</label>
+                  <MasterSelect
+                    entityType="timeslot"
+                    value={editTimeSlotMasterId}
+                    onChange={setEditTimeSlotMasterId}
+                    placeholder="Select time slot"
+                    className="mt-0 rounded-xl h-9"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-700">Classroom</label>
+                  <ClassroomDropdown
+                    value={editClassroomMasterId}
+                    onChange={setEditClassroomMasterId}
+                    className="mt-0 rounded-xl h-9"
+                  />
+                </div>
               </div>
 
               {/* ─── ENROLLED STUDENTS & ADD NEW STUDENTS SECTION ─── */}

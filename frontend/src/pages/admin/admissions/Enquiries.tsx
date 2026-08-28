@@ -84,6 +84,8 @@ export interface EnrichedLead {
 
 import { useLeads, useCreateLead, useUpdateLead } from "../../../hooks/useLeads";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { getMasterLabel } from "@/utils/master.utils";
 
 export const Enquiries: React.FC = () => {
   const navigate = useNavigate();
@@ -101,6 +103,8 @@ export const Enquiries: React.FC = () => {
   const createLeadMutation = useCreateLead();
   const updateLeadMutation = useUpdateLead();
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
+  const { options: educationOptions } = useMasterDropdown("education");
+  const { options: timeslotOptions } = useMasterDropdown("timeslot");
 
   const apiLeads = useMemo(() => {
     const rawList = leadsResponse?.data ?? [];
@@ -177,10 +181,10 @@ export const Enquiries: React.FC = () => {
   const [newFormPhone, setNewFormPhone] = useState("");
   const [newFormEmail, setNewFormEmail] = useState("");
   const [newFormCourse, setNewFormCourse] = useState("Digital Marketing");
-  const [newFormSource, setNewFormSource] = useState<EnrichedLead["source"]>("Google Ads");
+  const [newFormSourceMasterId, setNewFormSourceMasterId] = useState("");
   const [newFormPriority, setNewFormPriority] = useState<LeadPriority>("Hot");
   const [newFormLocation, setNewFormLocation] = useState("Bangalore, Karnataka");
-  const [newFormQualification, setNewFormQualification] = useState("BBA");
+  const [newFormQualificationMasterId, setNewFormQualificationMasterId] = useState("");
   const [newFormNotes, setNewFormNotes] = useState("");
   const [duplicateWarning, setDuplicateWarning] = useState<EnrichedLead | null>(null);
 
@@ -194,7 +198,7 @@ export const Enquiries: React.FC = () => {
   const [newFormLeadStage, setNewFormLeadStage] = useState<LeadStatus>("New");
   const [newFormCounsellor, setNewFormCounsellor] = useState(user?.name || "Priya Singh");
   const [newFormNextFollowupDate, setNewFormNextFollowupDate] = useState("");
-  const [newFormFollowupSlot, setNewFormFollowupSlot] = useState("Morning (9 AM - 12 PM)");
+  const [newFormFollowupSlotMasterId, setNewFormFollowupSlotMasterId] = useState("");
   const [newFormWhatsappWelcome, setNewFormWhatsappWelcome] = useState(true);
 
   // Follow-up Interaction Modal
@@ -205,7 +209,7 @@ export const Enquiries: React.FC = () => {
   const [fuStageProgression, setFuStageProgression] = useState<LeadStatus>("Follow-up");
   const [fuLostReason, setFuLostReason] = useState("Fee too high");
   const [fuNextDate, setFuNextDate] = useState("");
-  const [fuTimeSlot, setFuTimeSlot] = useState("09:00 AM - 12:00 PM");
+  const [fuTimeSlotMasterId, setFuTimeSlotMasterId] = useState("");
   const [fuNotes, setFuNotes] = useState("");
   const [fuWhatsappReminder, setFuWhatsappReminder] = useState(false);
 
@@ -256,7 +260,12 @@ export const Enquiries: React.FC = () => {
       }
 
       // Dropdown filters
-      if (sourceFilter !== "All Sources" && lead.source !== sourceFilter) return false;
+      if (sourceFilter !== "All Sources") {
+        const label = getMasterLabel(leadSourceOptions, sourceFilter);
+        if (lead.source !== label && (lead as { sourceMasterId?: string }).sourceMasterId !== sourceFilter) {
+          return false;
+        }
+      }
       if (statusFilter !== "All Statuses" && lead.status !== statusFilter) return false;
       if (courseFilter !== "All Courses" && lead.course !== courseFilter) return false;
       if (counselorFilter !== "All Counsellors" && lead.assignedCounselor !== counselorFilter) return false;
@@ -303,7 +312,8 @@ export const Enquiries: React.FC = () => {
       phone: newFormPhone,
       email: newFormEmail || `${newFormName.toLowerCase().replace(/\s+/g, "")}@gmail.com`,
       course: newFormCourse,
-      source: newFormSource,
+      source: getMasterLabel(leadSourceOptions, newFormSourceMasterId) || "Website",
+      sourceMasterId: newFormSourceMasterId || undefined,
       status: "New",
       priority: newFormPriority,
       nextFollowUp: "Tomorrow, 10:00 AM",
@@ -313,7 +323,8 @@ export const Enquiries: React.FC = () => {
       assignedCounselor: user?.name || "Priya Singh",
       leadScore: newFormPriority === "Hot" ? 85 : newFormPriority === "Warm" ? 65 : 45,
       location: newFormLocation,
-      qualification: newFormQualification,
+      qualification: getMasterLabel(educationOptions, newFormQualificationMasterId) || "Graduate",
+      qualificationMasterId: newFormQualificationMasterId || undefined,
       passingYear: "2024",
       preferredMode: "Offline",
       preferredTime: "Morning",
@@ -333,7 +344,7 @@ export const Enquiries: React.FC = () => {
           id: `tl-${Date.now()}`,
           date: "Today",
           time: "Just now",
-          text: `Enquiry logged from ${newFormSource}.`,
+          text: `Enquiry logged from ${getMasterLabel(leadSourceOptions, newFormSourceMasterId) || "source"}.`,
           mode: "Enquiry",
         },
       ],
@@ -350,13 +361,14 @@ export const Enquiries: React.FC = () => {
     setNewFormAltPhone("");
     setNewFormGender("Male");
     setNewFormDob("");
-    setNewFormQualification("BBA");
+    setNewFormQualificationMasterId("");
+    setNewFormSourceMasterId("");
     setNewFormParentName("");
     setNewFormParentPhone("");
     setNewFormLeadStage("New");
     setNewFormCounsellor(user?.name || "Priya Singh");
     setNewFormNextFollowupDate("");
-    setNewFormFollowupSlot("Morning (9 AM - 12 PM)");
+    setNewFormFollowupSlotMasterId("");
     setNewFormWhatsappWelcome(true);
     setNewFormEnquiryDate(new Date().toISOString().split("T")[0]);
     setDuplicateWarning(null);
@@ -658,19 +670,13 @@ export const Enquiries: React.FC = () => {
           {/* Compact Dropdown Filters Row */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
             {/* All Sources */}
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
-            >
-              <option value="All Sources">All Sources</option>
-              {leadSourceOptions.map((opt) => (
-                <option key={opt.value} value={opt.label}>{opt.label}</option>
-              ))}
-              {leadSourceOptions.length === 0 && (
-                <option value="" disabled>No sources — add in Master Setup</option>
-              )}
-            </select>
+            <MasterSelect
+              entityType="leadsource"
+              value={sourceFilter === "All Sources" ? "" : sourceFilter}
+              onChange={(id) => setSourceFilter(id || "All Sources")}
+              placeholder="All Sources"
+              className="h-8 min-w-[140px] mt-0 rounded-lg text-xs"
+            />
 
             {/* All Statuses */}
             <select
@@ -1459,19 +1465,13 @@ export const Enquiries: React.FC = () => {
               </div>
               <div>
                 <Label className="text-slate-700 font-semibold">Education / Qualification</Label>
-                <select
-                  value={newFormQualification}
-                  onChange={(e) => setNewFormQualification(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="10th Standard">10th Standard</option>
-                  <option value="12th / PUC">12th / PUC</option>
-                  <option value="Diploma">Diploma</option>
-                  <option value="BBA">Graduate (BA/B.Sc/B.Com/BBA)</option>
-                  <option value="B.E/B.Tech">Engineering (B.E/B.Tech)</option>
-                  <option value="MBA/MCA">Post Graduate (MBA/MCA)</option>
-                  <option value="Other">Other</option>
-                </select>
+                <MasterSelect
+                  entityType="education"
+                  value={newFormQualificationMasterId}
+                  onChange={setNewFormQualificationMasterId}
+                  placeholder="Select qualification"
+                  className="mt-1 rounded-lg"
+                />
               </div>
             </div>
 
@@ -1526,19 +1526,13 @@ export const Enquiries: React.FC = () => {
               </div>
               <div>
                 <Label className="text-slate-700 font-semibold">Lead Source *</Label>
-                <select
-                  value={newFormSource}
-                  onChange={(e: any) => setNewFormSource(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="">Select Lead Source</option>
-                  {leadSourceOptions.map((opt) => (
-                    <option key={opt.value} value={opt.label}>{opt.label}</option>
-                  ))}
-                  {leadSourceOptions.length === 0 && (
-                    <option value="" disabled>No sources — add in Master Setup</option>
-                  )}
-                </select>
+                <MasterSelect
+                  entityType="leadsource"
+                  value={newFormSourceMasterId}
+                  onChange={setNewFormSourceMasterId}
+                  placeholder="Select Lead Source"
+                  className="mt-1 rounded-lg"
+                />
               </div>
             </div>
 
@@ -1598,15 +1592,13 @@ export const Enquiries: React.FC = () => {
               </div>
               <div>
                 <Label className="text-slate-700 font-semibold">Follow-up Time Slot</Label>
-                <select
-                  value={newFormFollowupSlot}
-                  onChange={(e) => setNewFormFollowupSlot(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="Morning (9 AM - 12 PM)">Morning (9 AM - 12 PM)</option>
-                  <option value="Afternoon (12 PM - 3 PM)">Afternoon (12 PM - 3 PM)</option>
-                  <option value="Evening (3 PM - 7 PM)">Evening (3 PM - 7 PM)</option>
-                </select>
+                <MasterSelect
+                  entityType="timeslot"
+                  value={newFormFollowupSlotMasterId}
+                  onChange={setNewFormFollowupSlotMasterId}
+                  placeholder="Select time slot"
+                  className="mt-1 rounded-lg"
+                />
               </div>
             </div>
 
@@ -1722,11 +1714,13 @@ export const Enquiries: React.FC = () => {
                 </div>
                 <div>
                   <Label className="text-slate-700 font-semibold">Follow-up Time Slot</Label>
-                  <select value={fuTimeSlot} onChange={(e) => setFuTimeSlot(e.target.value)} className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white">
-                    <option value="09:00 AM - 12:00 PM">09:00 AM - 12:00 PM</option>
-                    <option value="12:00 PM - 03:00 PM">12:00 PM - 03:00 PM</option>
-                    <option value="03:00 PM - 06:00 PM">03:00 PM - 06:00 PM</option>
-                  </select>
+                  <MasterSelect
+                    entityType="timeslot"
+                    value={fuTimeSlotMasterId}
+                    onChange={setFuTimeSlotMasterId}
+                    placeholder="Select time slot"
+                    className="mt-1 rounded-lg"
+                  />
                 </div>
               </div>
             )}

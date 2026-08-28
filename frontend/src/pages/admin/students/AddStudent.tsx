@@ -8,7 +8,9 @@ import { useBranches } from "../../../hooks/useBranches";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
+import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { getMasterLabel } from "@/utils/master.utils";
 
 import {
   Form,
@@ -54,11 +56,11 @@ const studentSchema = z.object({
   bloodGroup: z.string().optional().or(z.literal("")),
 
   // Academic
-  qualification: z.string().optional().or(z.literal("")),
+  qualificationMasterId: z.string().optional().or(z.literal("")),
   previousInstitute: z.string().optional().or(z.literal("")),
   courseId: z.string().optional().or(z.literal("")),
   batchId: z.string().optional().or(z.literal("")),
-  leadSource: z.string().optional().or(z.literal("")),
+  sourceMasterId: z.string().optional().or(z.literal("")),
 
   // Contact (ZenoxERP-aligned)
   alternativePhone: z.string().optional().or(z.literal("")),
@@ -66,7 +68,7 @@ const studentSchema = z.object({
 
   // Guardian / Emergency
   guardianName: z.string().optional().or(z.literal("")),
-  guardianRelation: z.string().optional().or(z.literal("")),
+  guardianRelationMasterId: z.string().optional().or(z.literal("")),
   guardianPhone: z.string().optional().or(z.literal("")),
   emergencyContact: z.string().optional().or(z.literal("")),
 
@@ -81,14 +83,15 @@ const studentSchema = z.object({
   city: z.string().optional().or(z.literal("")),
   state: z.string().optional().or(z.literal("")),
   pincode: z.string().optional().or(z.literal("")),
+  areaMasterId: z.string().optional().or(z.literal("")),
 
   // Financial & Alerts
   totalFee: z.coerce.number().min(0).optional(),
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
   downPayment: z.coerce.number().min(0).optional(),
   concession: z.coerce.number().min(0).optional(),
-  discountReason: z.string().optional().or(z.literal("")),
-  paymentMode: z.string().optional().or(z.literal("")),
+  concessionHeadMasterId: z.string().optional().or(z.literal("")),
+  paymentModeMasterId: z.string().optional().or(z.literal("")),
   transactionRef: z.string().optional().or(z.literal("")),
   whatsappEnabled: z.boolean().default(true),
 });
@@ -116,9 +119,7 @@ export const AddStudent: React.FC = () => {
 
   const { courses } = useCourses();
   const { batches } = useBatches();
-  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
-  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
-  const { options: concessionOptions } = useMasterDropdown("concessionheads");
+  const { options: educationOptions } = useMasterDropdown("education");
 
   const form = useForm<StudentFormValues>({
     resolver: zodResolver(studentSchema) as any,
@@ -132,15 +133,15 @@ export const AddStudent: React.FC = () => {
       dateOfBirth: "",
       gender: "Male",
       bloodGroup: "",
-      qualification: "",
+      qualificationMasterId: "",
       previousInstitute: "",
       courseId: "",
       batchId: "",
-      leadSource: "Walk-in",
+      sourceMasterId: "",
       alternativePhone: "",
       whatsappNumber: "",
       guardianName: "",
-      guardianRelation: "Father",
+      guardianRelationMasterId: "",
       guardianPhone: "",
       emergencyContact: "",
       fatherName: "",
@@ -151,12 +152,13 @@ export const AddStudent: React.FC = () => {
       city: "Bengaluru",
       state: "Karnataka",
       pincode: "",
+      areaMasterId: "",
       totalFee: 35000,
       feePlan: "INSTALLMENT",
       downPayment: 10000,
       concession: 0,
-      discountReason: "",
-      paymentMode: "UPI",
+      concessionHeadMasterId: "",
+      paymentModeMasterId: "",
       transactionRef: "",
       whatsappEnabled: true,
     },
@@ -183,7 +185,11 @@ export const AddStudent: React.FC = () => {
         email: data.email ? data.email.trim() : undefined,
         phone: data.phone ? data.phone.trim() : undefined,
         password: data.password,
-        qualification: data.qualification ? data.qualification.trim() : undefined,
+        qualification: data.qualificationMasterId
+          ? getMasterLabel(educationOptions, data.qualificationMasterId) || undefined
+          : undefined,
+        qualificationMasterId: data.qualificationMasterId || undefined,
+        areaMasterId: data.areaMasterId || undefined,
         dateOfBirth: data.dateOfBirth ? data.dateOfBirth : undefined,
         branchId: data.branchId,
         gender: data.gender || undefined,
@@ -582,16 +588,19 @@ export const AddStudent: React.FC = () => {
                 {/* Qualification */}
                 <FormField
                   control={form.control}
-                  name="qualification"
+                  name="qualificationMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Highest Qualification
                       </FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="e.g. B.Tech CS / BCA / 12th Grade"
-                          {...field}
+                        <MasterSelect
+                          entityType="education"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select qualification"
+                          className="mt-0 rounded-md h-10"
                         />
                       </FormControl>
                       <FormMessage />
@@ -622,25 +631,20 @@ export const AddStudent: React.FC = () => {
                 {/* Lead Source */}
                 <FormField
                   control={form.control}
-                  name="leadSource"
+                  name="sourceMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Lead Source
                       </FormLabel>
                       <FormControl>
-                        <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
-                          {...field}
-                        >
-                          <option value="">Select Lead Source</option>
-                          {leadSourceOptions.map((opt) => (
-                            <option key={opt.value} value={opt.label}>{opt.label}</option>
-                          ))}
-                          {leadSourceOptions.length === 0 && (
-                            <option value="" disabled>No sources — add in Master Setup</option>
-                          )}
-                        </select>
+                        <MasterSelect
+                          entityType="leadsource"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select Lead Source"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -734,22 +738,20 @@ export const AddStudent: React.FC = () => {
                 {/* Relationship */}
                 <FormField
                   control={form.control}
-                  name="guardianRelation"
+                  name="guardianRelationMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Relationship
                       </FormLabel>
                       <FormControl>
-                        <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
-                          {...field}
-                        >
-                          <option value="Father">Father</option>
-                          <option value="Mother">Mother</option>
-                          <option value="Guardian">Guardian</option>
-                          <option value="Spouse">Spouse</option>
-                        </select>
+                        <MasterSelect
+                          entityType="parentinfo"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select relationship"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -910,6 +912,28 @@ export const AddStudent: React.FC = () => {
 
                 <FormField
                   control={form.control}
+                  name="areaMasterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Area / Locality
+                      </FormLabel>
+                      <FormControl>
+                        <MasterSelect
+                          entityType="area"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select area"
+                          className="mt-0 rounded-md h-10"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="pincode"
                   render={({ field }) => (
                     <FormItem>
@@ -1011,25 +1035,20 @@ export const AddStudent: React.FC = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="discountReason"
+                  name="concessionHeadMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Discount Reason
                       </FormLabel>
                       <FormControl>
-                        <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
-                          {...field}
-                        >
-                          <option value="">None</option>
-                          {concessionOptions.map((opt) => (
-                            <option key={opt.value} value={opt.label}>{opt.label}</option>
-                          ))}
-                          {concessionOptions.length === 0 && (
-                            <option value="" disabled>No concessions — add in Master Setup</option>
-                          )}
-                        </select>
+                        <MasterSelect
+                          entityType="concessionheads"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="None"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -1037,25 +1056,20 @@ export const AddStudent: React.FC = () => {
                 />
                 <FormField
                   control={form.control}
-                  name="paymentMode"
+                  name="paymentModeMasterId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel className="text-xs font-semibold uppercase text-slate-600">
                         Payment Mode
                       </FormLabel>
                       <FormControl>
-                        <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
-                          {...field}
-                        >
-                          <option value="">Select Payment Mode</option>
-                          {paymentModeOptions.map((opt) => (
-                            <option key={opt.value} value={opt.label}>{opt.label}</option>
-                          ))}
-                          {paymentModeOptions.length === 0 && (
-                            <option value="" disabled>No payment modes — add in Master Setup</option>
-                          )}
-                        </select>
+                        <MasterSelect
+                          entityType="paymentmodes"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select Payment Mode"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

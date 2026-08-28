@@ -18,6 +18,7 @@ export interface CreateExamPayload {
   courseId?: string;
   moduleId?: string;
   branchId?: string;
+  examTermMasterId?: string;
   durationMinutes: number;
   passingMarks?: number;
   attemptsAllowed?: number;

@@ -28,6 +28,7 @@ import {
   Search,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
   Plus,
   Edit2,
   Trash2,
@@ -51,6 +52,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -67,14 +69,16 @@ import {
   useMasterEntityCounts,
   useToggleMasterStatus,
 } from "@/hooks/useMasters";
+import {
+  MASTER_ENTITY_TYPES,
+  MASTER_CATEGORY_LABELS,
+} from "@/constants/master-types";
 
-// ─── MASTER ENTITY CATEGORY DEFINITIONS ──────────────────────────────────────
+// ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
 export type MasterCategoryGroup =
   | "ACADEMIC_ORG"
   | "ADMISSIONS_LEADS"
-  | "COMMUNICATION_SYSTEM"
-  | "INVENTORY"
   | "ACCOUNTING_FEES";
 
 export interface MasterEntity {
@@ -82,6 +86,7 @@ export interface MasterEntity {
   name: string;
   category: MasterCategoryGroup;
   categoryName: string;
+  usedInPages?: string[];
   icon: React.ElementType;
   iconBgColor: string;
   iconColor: string;
@@ -89,13 +94,13 @@ export interface MasterEntity {
   columns: { key: string; label: string; required?: boolean }[];
 }
 
-export const ALL_25_MASTERS: MasterEntity[] = [
-  // ─── CATEGORY 1: ACADEMIC & ORGANIZATION (10) ─────────────────────────────
-  {
-    id: "area",
-    name: "Area",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+type MasterUiConfig = Pick<
+  MasterEntity,
+  "icon" | "iconBgColor" | "iconColor" | "description" | "columns"
+>;
+
+const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
+  area: {
     icon: MapPin,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
@@ -107,11 +112,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "pincode", label: "PIN Code" },
     ],
   },
-  {
-    id: "classroom",
-    name: "Class Room",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  classroom: {
     icon: School,
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
@@ -123,11 +124,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "type", label: "Room Type" },
     ],
   },
-  {
-    id: "designation",
-    name: "Designation",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  designation: {
     icon: Briefcase,
     iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
     iconColor: "text-purple-600",
@@ -139,11 +136,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "department", label: "Department" },
     ],
   },
-  {
-    id: "education",
-    name: "Education",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  education: {
     icon: GraduationCap,
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
@@ -154,11 +147,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "stream", label: "Stream / Field" },
     ],
   },
-  {
-    id: "parentinfo",
-    name: "Parent Info",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  parentinfo: {
     icon: Users,
     iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
     iconColor: "text-teal-600",
@@ -169,43 +158,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "incomeBracket", label: "Income Bracket" },
     ],
   },
-  {
-    id: "employee",
-    name: "Employee",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
-    icon: UserCheck,
-    iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
-    iconColor: "text-orange-600",
-    description: "Manage employees and staff",
-    columns: [
-      { key: "code", label: "Emp Code" },
-      { key: "name", label: "Staff Name", required: true },
-      { key: "role", label: "Role" },
-      { key: "branch", label: "Branch" },
-    ],
-  },
-  {
-    id: "holiday",
-    name: "Holiday",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
-    icon: Calendar,
-    iconBgColor: "bg-rose-50 text-rose-600 border-rose-100",
-    iconColor: "text-rose-600",
-    description: "Manage institute holidays",
-    columns: [
-      { key: "name", label: "Holiday Title", required: true },
-      { key: "date", label: "Date" },
-      { key: "type", label: "Holiday Type" },
-      { key: "description", label: "Details" },
-    ],
-  },
-  {
-    id: "timeslot",
-    name: "Time Slot",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  timeslot: {
     icon: Clock,
     iconBgColor: "bg-indigo-50 text-indigo-600 border-indigo-100",
     iconColor: "text-indigo-600",
@@ -218,27 +171,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "period", label: "Period" },
     ],
   },
-  {
-    id: "events",
-    name: "Events",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
-    icon: CalendarCheck,
-    iconBgColor: "bg-violet-50 text-violet-600 border-violet-100",
-    iconColor: "text-violet-600",
-    description: "Manage events and important days",
-    columns: [
-      { key: "name", label: "Event Name", required: true },
-      { key: "date", label: "Event Date" },
-      { key: "venue", label: "Venue / Branch" },
-      { key: "category", label: "Event Type" },
-    ],
-  },
-  {
-    id: "examterm",
-    name: "Exam Term",
-    category: "ACADEMIC_ORG",
-    categoryName: "Academic & Organization",
+  examterm: {
     icon: FileCheck,
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
@@ -249,13 +182,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "academicYear", label: "Academic Year" },
     ],
   },
-
-  // ─── CATEGORY 2: ADMISSIONS & LEADS (6) ───────────────────────────────────
-  {
-    id: "leadsource",
-    name: "Lead Source",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
+  leadsource: {
     icon: PhoneCall,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
@@ -266,11 +193,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "channelType", label: "Channel Type" },
     ],
   },
-  {
-    id: "leadstage",
-    name: "Lead Stage",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
+  leadstage: {
     icon: Flag,
     iconBgColor: "bg-green-50 text-green-600 border-green-100",
     iconColor: "text-green-600",
@@ -282,26 +205,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "color", label: "Badge Color" },
     ],
   },
-  {
-    id: "leadtype",
-    name: "Lead Type",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
-    icon: UserCircle,
-    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
-    iconColor: "text-purple-600",
-    description: "Manage types of leads",
-    columns: [
-      { key: "code", label: "Type Code" },
-      { key: "name", label: "Lead Category", required: true },
-      { key: "slaHours", label: "Follow-up SLA" },
-    ],
-  },
-  {
-    id: "admissionstatus",
-    name: "Admission Status",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
+  admissionstatus: {
     icon: ClipboardList,
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
@@ -312,109 +216,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "step", label: "Enrollment Step" },
     ],
   },
-  {
-    id: "admissionbatch",
-    name: "Admission Batch",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
-    icon: UsersRound,
-    iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
-    iconColor: "text-teal-600",
-    description: "Manage admission batches",
-    columns: [
-      { key: "code", label: "Batch Code" },
-      { key: "name", label: "Batch Name", required: true },
-      { key: "capacity", label: "Seat Capacity" },
-      { key: "targetIntake", label: "Target Intake" },
-    ],
-  },
-  {
-    id: "coursereview",
-    name: "Course Review",
-    category: "ADMISSIONS_LEADS",
-    categoryName: "Admissions & Leads",
-    icon: Star,
-    iconBgColor: "bg-pink-50 text-pink-600 border-pink-100",
-    iconColor: "text-pink-600",
-    description: "Manage course reviews",
-    columns: [
-      { key: "name", label: "Feedback Type", required: true },
-      { key: "frequency", label: "Frequency" },
-      { key: "ratingScale", label: "Rating Scale" },
-    ],
-  },
-
-  // ─── CATEGORY 3: COMMUNICATION & SYSTEM (2) ───────────────────────────────
-  {
-    id: "notificationtemplate",
-    name: "Notification Template",
-    category: "COMMUNICATION_SYSTEM",
-    categoryName: "Communication & System",
-    icon: Bell,
-    iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
-    iconColor: "text-blue-600",
-    description: "Manage notification templates",
-    columns: [
-      { key: "code", label: "Template Code" },
-      { key: "name", label: "Template Name", required: true },
-      { key: "channel", label: "Channel" },
-      { key: "trigger", label: "System Trigger" },
-    ],
-  },
-  {
-    id: "assignmenttype",
-    name: "Assignment Type",
-    category: "COMMUNICATION_SYSTEM",
-    categoryName: "Communication & System",
-    icon: FileText,
-    iconBgColor: "bg-green-50 text-green-600 border-green-100",
-    iconColor: "text-green-600",
-    description: "Manage assignment types",
-    columns: [
-      { key: "code", label: "Type Code" },
-      { key: "name", label: "Assignment Type", required: true },
-      { key: "maxMarks", label: "Standard Max Marks" },
-    ],
-  },
-
-  // ─── CATEGORY 4: INVENTORY (2) ────────────────────────────────────────────
-  {
-    id: "inventorycategory",
-    name: "Inventory Category",
-    category: "INVENTORY",
-    categoryName: "Inventory",
-    icon: Box,
-    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
-    iconColor: "text-purple-600",
-    description: "Manage inventory categories",
-    columns: [
-      { key: "code", label: "Category Code" },
-      { key: "name", label: "Category Name", required: true },
-      { key: "department", label: "Custodian Dept" },
-    ],
-  },
-  {
-    id: "inventorysubcategory",
-    name: "Inventory Sub Category",
-    category: "INVENTORY",
-    categoryName: "Inventory",
-    icon: Boxes,
-    iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
-    iconColor: "text-orange-600",
-    description: "Manage inventory subcategories",
-    columns: [
-      { key: "name", label: "Sub Category Name", required: true },
-      { key: "code", label: "Sub Category Code" },
-      { key: "parentCategory", label: "Parent Category" },
-    ],
-  },
-
-  // ─── CATEGORY 5: ACCOUNTING & FEES (5) ────────────────────────────────────
-  {
-    id: "bankaccounts",
-    name: "Bank Accounts",
-    category: "ACCOUNTING_FEES",
-    categoryName: "Accounting & Fees",
+  bankaccounts: {
     icon: Landmark,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
     iconColor: "text-blue-600",
@@ -426,11 +228,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "branch", label: "Bank Branch" },
     ],
   },
-  {
-    id: "feeheads",
-    name: "Fee Heads",
-    category: "ACCOUNTING_FEES",
-    categoryName: "Accounting & Fees",
+  feeheads: {
     icon: IndianRupee,
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
@@ -442,27 +240,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "gstApplicable", label: "GST Rate" },
     ],
   },
-  {
-    id: "ledgers",
-    name: "Ledgers",
-    category: "ACCOUNTING_FEES",
-    categoryName: "Accounting & Fees",
-    icon: BookMarked,
-    iconBgColor: "bg-purple-50 text-purple-600 border-purple-100",
-    iconColor: "text-purple-600",
-    description: "Manage financial ledgers",
-    columns: [
-      { key: "code", label: "Ledger Code" },
-      { key: "name", label: "Ledger Name", required: true },
-      { key: "group", label: "Account Group" },
-      { key: "openingBalance", label: "Opening Balance" },
-    ],
-  },
-  {
-    id: "paymentmodes",
-    name: "Payment Modes",
-    category: "ACCOUNTING_FEES",
-    categoryName: "Accounting & Fees",
+  paymentmodes: {
     icon: CreditCard,
     iconBgColor: "bg-amber-50 text-amber-600 border-amber-100",
     iconColor: "text-amber-600",
@@ -473,11 +251,7 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "processingFee", label: "Gateway Charge" },
     ],
   },
-  {
-    id: "concessionheads",
-    name: "Concession Heads",
-    category: "ACCOUNTING_FEES",
-    categoryName: "Accounting & Fees",
+  concessionheads: {
     icon: Percent,
     iconBgColor: "bg-teal-50 text-teal-600 border-teal-100",
     iconColor: "text-teal-600",
@@ -489,7 +263,30 @@ export const ALL_25_MASTERS: MasterEntity[] = [
       { key: "approvalLevel", label: "Approval Required" },
     ],
   },
-];
+};
+
+const buildMasterEntities = (): MasterEntity[] =>
+  MASTER_ENTITY_TYPES.map((meta) => {
+    const ui = MASTER_UI_CONFIG[meta.id];
+    if (!ui) {
+      throw new Error(`Missing UI config for master entity: ${meta.id}`);
+    }
+    return {
+      ...meta,
+      category: meta.category as MasterCategoryGroup,
+      ...ui,
+    };
+  });
+
+const ALL_MASTERS = buildMasterEntities();
+
+const CATEGORY_COUNTS = MASTER_ENTITY_TYPES.reduce(
+  (acc, m) => {
+    acc[m.category] = (acc[m.category] ?? 0) + 1;
+    return acc;
+  },
+  {} as Record<string, number>
+);
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -578,7 +375,7 @@ export const MasterSetup: React.FC = () => {
 
   // Filtered Master Entities
   const filteredMasters = useMemo(() => {
-    return ALL_25_MASTERS.filter((entity) => {
+    return ALL_MASTERS.filter((entity) => {
       if (selectedModuleFilter !== "ALL" && entity.category !== selectedModuleFilter) {
         return false;
       }
@@ -587,7 +384,10 @@ export const MasterSetup: React.FC = () => {
         const matchName = entity.name.toLowerCase().includes(q);
         const matchDesc = entity.description.toLowerCase().includes(q);
         const matchCat = entity.categoryName.toLowerCase().includes(q);
-        if (!matchName && !matchDesc && !matchCat) {
+        const matchUsage = entity.usedInPages?.some((page) =>
+          page.toLowerCase().includes(q)
+        );
+        if (!matchName && !matchDesc && !matchCat && !matchUsage) {
           return false;
         }
       }
@@ -595,11 +395,9 @@ export const MasterSetup: React.FC = () => {
     });
   }, [searchQuery, selectedModuleFilter]);
 
-  // Grouped filtered entities by Category
+  // Grouped entities by category (grid default view)
   const academicMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACADEMIC_ORG"), [filteredMasters]);
   const admissionsMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ADMISSIONS_LEADS"), [filteredMasters]);
-  const communicationMasters = useMemo(() => filteredMasters.filter((m) => m.category === "COMMUNICATION_SYSTEM"), [filteredMasters]);
-  const inventoryMasters = useMemo(() => filteredMasters.filter((m) => m.category === "INVENTORY"), [filteredMasters]);
   const accountingMasters = useMemo(() => filteredMasters.filter((m) => m.category === "ACCOUNTING_FEES"), [filteredMasters]);
 
   // ─── TOAST HELPER ───────────────────────────────────────────────────────────
@@ -803,6 +601,7 @@ export const MasterSetup: React.FC = () => {
     const countInfo = countsMap[entity.id];
     const currentCount = countInfo?.count ?? 0;
     const IconComp = entity.icon;
+    const usageCount = entity.usedInPages?.length ?? 0;
 
     return (
       <div
@@ -814,6 +613,17 @@ export const MasterSetup: React.FC = () => {
           <div className="flex items-start justify-between gap-2">
             <div className={`p-2.5 rounded-xl border ${entity.iconBgColor} shrink-0 transition-transform group-hover:scale-105`}>
               <IconComp className="h-5 w-5 stroke-[2.2]" />
+            </div>
+            <div className="flex flex-col items-end gap-1">
+              {usageCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="text-[10px] font-bold bg-blue-50 text-[#1769AA] border-blue-100"
+                  title={entity.usedInPages?.join(", ")}
+                >
+                  Used in {usageCount} {usageCount === 1 ? "page" : "pages"}
+                </Badge>
+              )}
             </div>
           </div>
           <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#1769AA] transition-colors">
@@ -841,11 +651,10 @@ export const MasterSetup: React.FC = () => {
   const StatusBadge = ({ status }: { status: string }) => {
     const isActive = status === "ACTIVE";
     return (
-      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${
-        isActive
+      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold inline-flex items-center gap-1 ${isActive
           ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
           : "bg-slate-100 text-slate-500 border border-slate-200"
-      }`}>
+        }`}>
         <span className={`h-1.5 w-1.5 rounded-full ${isActive ? "bg-emerald-500" : "bg-slate-400"}`} />
         {isActive ? "Active" : "Inactive"}
       </span>
@@ -880,7 +689,7 @@ export const MasterSetup: React.FC = () => {
           </button>
         </div>
         <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 ${gridCols} gap-3.5`}>
-          {masters.map(renderEntityCard)}
+          {masters.map((entity) => renderEntityCard(entity))}
         </div>
       </Card>
     );
@@ -899,7 +708,7 @@ export const MasterSetup: React.FC = () => {
               Master Setup
             </h1>
             <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-[#1769AA] border border-blue-200">
-              25 Entities
+              {MASTER_ENTITY_TYPES.length} Modules
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium mt-1">
@@ -912,11 +721,10 @@ export const MasterSetup: React.FC = () => {
           <button
             type="button"
             onClick={() => setViewMode("GRID")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              viewMode === "GRID"
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "GRID"
                 ? "bg-[#1769AA] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <LayoutGrid className="h-4 w-4" />
             <span>Grid View</span>
@@ -924,11 +732,10 @@ export const MasterSetup: React.FC = () => {
           <button
             type="button"
             onClick={() => setViewMode("CRUD")}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              viewMode === "CRUD"
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "CRUD"
                 ? "bg-[#1769AA] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
-            }`}
+              }`}
           >
             <List className="h-4 w-4" />
             <span>CRUD View</span>
@@ -938,11 +745,10 @@ export const MasterSetup: React.FC = () => {
 
       {/* Toast Notification */}
       {toastMessage && (
-        <div className={`p-3.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs ${
-          toastMessage.type === "success"
+        <div className={`p-3.5 rounded-xl border flex items-center gap-2 text-xs font-bold shadow-2xs ${toastMessage.type === "success"
             ? "bg-emerald-50 border-emerald-200 text-emerald-800"
             : "bg-rose-50 border-rose-200 text-rose-800"
-        }`}>
+          }`}>
           {toastMessage.type === "success" ? (
             <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
           ) : (
@@ -970,12 +776,10 @@ export const MasterSetup: React.FC = () => {
             onChange={(e) => setSelectedModuleFilter(e.target.value)}
             className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
           >
-            <option value="ALL">All Modules (25)</option>
-            <option value="ACADEMIC_ORG">Academic & Organization (10)</option>
-            <option value="ADMISSIONS_LEADS">Admissions & Leads (6)</option>
-            <option value="COMMUNICATION_SYSTEM">Communication & System (2)</option>
-            <option value="INVENTORY">Inventory (2)</option>
-            <option value="ACCOUNTING_FEES">Accounting & Fees (5)</option>
+            <option value="ALL">All Modules ({MASTER_ENTITY_TYPES.length})</option>
+            <option value="ACADEMIC_ORG">{MASTER_CATEGORY_LABELS.ACADEMIC_ORG} ({CATEGORY_COUNTS.ACADEMIC_ORG ?? 0})</option>
+            <option value="ADMISSIONS_LEADS">{MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS} ({CATEGORY_COUNTS.ADMISSIONS_LEADS ?? 0})</option>
+            <option value="ACCOUNTING_FEES">{MASTER_CATEGORY_LABELS.ACCOUNTING_FEES} ({CATEGORY_COUNTS.ACCOUNTING_FEES ?? 0})</option>
           </select>
           <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
         </div>
@@ -988,15 +792,7 @@ export const MasterSetup: React.FC = () => {
             renderCategorySection("Academic & Organization", "Manage academic structure, staff, classrooms and institutional setup.", academicMasters, "ACADEMIC_ORG")}
 
           {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ADMISSIONS_LEADS") &&
-            renderCategorySection("Admissions & Leads", "Configure lead management and admission related masters.", admissionsMasters, "ADMISSIONS_LEADS", "lg:grid-cols-6")}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "COMMUNICATION_SYSTEM") &&
-              communicationMasters.length > 0 && renderCategorySection("Communication & System", "Templates and system-level configurations.", communicationMasters, "COMMUNICATION_SYSTEM", "sm:grid-cols-2 lg:grid-cols-2")}
-
-            {(selectedModuleFilter === "ALL" || selectedModuleFilter === "INVENTORY") &&
-              inventoryMasters.length > 0 && renderCategorySection("Inventory", "Manage inventory and stock related masters.", inventoryMasters, "INVENTORY", "sm:grid-cols-2 lg:grid-cols-2")}
-          </div>
+            renderCategorySection("Admissions & Leads", "Configure lead management and admission related masters.", admissionsMasters, "ADMISSIONS_LEADS", "lg:grid-cols-3")}
 
           {(selectedModuleFilter === "ALL" || selectedModuleFilter === "ACCOUNTING_FEES") &&
             renderCategorySection("Accounting & Fees", "Financial and accounting master configurations.", accountingMasters, "ACCOUNTING_FEES")}
@@ -1013,6 +809,7 @@ export const MasterSetup: React.FC = () => {
                   <th className="py-3.5 px-4 pl-5">ENTITY NAME</th>
                   <th className="py-3.5 px-4">CATEGORY</th>
                   <th className="py-3.5 px-4">DESCRIPTION</th>
+                  <th className="py-3.5 px-4">USAGE</th>
                   <th className="py-3.5 px-3 text-center">RECORDS</th>
                   <th className="py-3.5 px-3">LAST UPDATED</th>
                   <th className="py-3.5 px-3 text-center">STATUS</th>
@@ -1025,6 +822,7 @@ export const MasterSetup: React.FC = () => {
                   const currentCount = countInfo?.count ?? 0;
                   const lastUpdated = countInfo?.lastUpdated;
                   const IconComp = item.icon;
+                  const usageCount = item.usedInPages?.length ?? 0;
 
                   return (
                     <tr key={item.id} className="hover:bg-slate-50/60 transition-colors">
@@ -1043,6 +841,19 @@ export const MasterSetup: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4 text-slate-500 font-medium align-middle max-w-xs truncate">
                         {item.description}
+                      </td>
+                      <td className="py-3.5 px-4 align-middle">
+                        {usageCount > 0 ? (
+                          <Badge
+                            variant="secondary"
+                            className="text-[10px] font-bold bg-blue-50 text-[#1769AA] border-blue-100"
+                            title={item.usedInPages?.join(", ")}
+                          >
+                            {usageCount} {usageCount === 1 ? "page" : "pages"}
+                          </Badge>
+                        ) : (
+                          <span className="text-slate-400 text-[11px]">—</span>
+                        )}
                       </td>
                       <td className="py-3.5 px-3 text-center font-bold text-slate-800 align-middle">
                         {isCountsLoading ? <Loader2 className="h-3 w-3 animate-spin mx-auto" /> : currentCount}
@@ -1249,11 +1060,10 @@ export const MasterSetup: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleToggleStatus(selectedMasterEntity.id, rec.id, rec.name)}
-                                  className={`p-1 rounded-lg cursor-pointer ${
-                                    rec.status === "ACTIVE"
+                                  className={`p-1 rounded-lg cursor-pointer ${rec.status === "ACTIVE"
                                       ? "hover:bg-amber-50 text-amber-600"
                                       : "hover:bg-emerald-50 text-emerald-600"
-                                  }`}
+                                    }`}
                                   title={rec.status === "ACTIVE" ? "Deactivate" : "Activate"}
                                 >
                                   {rec.status === "ACTIVE" ? (
@@ -1363,9 +1173,8 @@ export const MasterSetup: React.FC = () => {
                         }
                       }}
                       placeholder={`Enter ${col.label.toLowerCase()}...`}
-                      className={`h-9 text-xs rounded-xl bg-slate-50 ${
-                        formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
-                      }`}
+                      className={`h-9 text-xs rounded-xl bg-slate-50 ${formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
+                        }`}
                     />
                     {formErrors[col.key] && (
                       <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>

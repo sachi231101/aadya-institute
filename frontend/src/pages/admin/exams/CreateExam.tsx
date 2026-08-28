@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/form";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { MasterSelect } from "@/components/common/MasterSelect";
 
 const createExamSchema = z.object({
   name: z.string().min(2, "Exam name must be at least 2 characters").max(200),
@@ -69,6 +70,7 @@ export const CreateExam: React.FC = () => {
   const branches = branchesResponse?.data ?? [];
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [examTermMasterId, setExamTermMasterId] = useState("");
 
   const form = useForm<CreateExamFormValues>({
     resolver: zodResolver(createExamSchema) as any,
@@ -103,6 +105,7 @@ export const CreateExam: React.FC = () => {
         courseId: values.courseId || undefined,
         moduleId: values.moduleId || undefined,
         branchId: values.branchId || undefined,
+        examTermMasterId: examTermMasterId || undefined,
       };
       const response = await createExamMutation.mutateAsync(payload);
       if (response?.data?.id) {
@@ -170,6 +173,19 @@ export const CreateExam: React.FC = () => {
                   </FormItem>
                 )}
               />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <Label className="text-xs font-semibold">Exam Term</Label>
+                  <MasterSelect
+                    entityType="examterm"
+                    value={examTermMasterId}
+                    onChange={setExamTermMasterId}
+                    placeholder="Select exam term"
+                    className="mt-1 rounded-md"
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <FormField
