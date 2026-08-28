@@ -158,8 +158,8 @@ export const AllAdmissions: React.FC = () => {
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
-    ? "/center"
-    : "/admin";
+      ? "/center"
+      : "/admin";
 
   const { fetchCourses, fetchBatches } = useCourseStore();
 
@@ -403,10 +403,10 @@ export const AllAdmissions: React.FC = () => {
       setSelectedAdmission((prev) =>
         prev
           ? {
-              ...prev,
-              status: newStatus,
-              workflowStep: newStatus === "Confirmed" ? 4 : newStatus === "Provisional" ? 3 : newStatus === "Admission Pending" ? 2 : 1,
-            }
+            ...prev,
+            status: newStatus,
+            workflowStep: newStatus === "Confirmed" ? 4 : newStatus === "Provisional" ? 3 : newStatus === "Admission Pending" ? 2 : 1,
+          }
           : null
       );
     }
@@ -557,7 +557,7 @@ export const AllAdmissions: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
-      
+
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -603,9 +603,9 @@ export const AllAdmissions: React.FC = () => {
 
       {/* ─── 2. KPI SUMMARY CARDS ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        
+
         {/* Card 1: Total Admissions */}
-        <Card 
+        <Card
           onClick={() => { setStatusFilter("ALL"); setCourseFilter("ALL"); }}
           className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
@@ -630,9 +630,9 @@ export const AllAdmissions: React.FC = () => {
         </Card>
 
         {/* Card 2: Confirmed Seats */}
-        <Card 
+        <Card
           onClick={() => setStatusFilter("Confirmed")}
-          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
+          className="border border-border bg-card rounded-3xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
           <CardContent className="p-5 flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -655,7 +655,7 @@ export const AllAdmissions: React.FC = () => {
         </Card>
 
         {/* Card 3: Provisional Seats */}
-        <Card 
+        <Card
           onClick={() => setStatusFilter("Provisional")}
           className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
@@ -680,7 +680,7 @@ export const AllAdmissions: React.FC = () => {
         </Card>
 
         {/* Card 4: Active Batches Assigned */}
-        <Card 
+        <Card
           onClick={() => { setStatusFilter("ALL"); setShowAdvancedFilters(true); }}
           className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
         >
@@ -787,11 +787,10 @@ export const AllAdmissions: React.FC = () => {
           <Button
             variant="outline"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`h-10.5 px-3.5 border-border text-foreground bg-card hover:bg-muted/50 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs transition-all cursor-pointer ${
-              showAdvancedFilters || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL"
+            className={`h-10.5 px-3.5 border-border text-foreground bg-card hover:bg-muted/50 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs transition-all cursor-pointer ${showAdvancedFilters || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL"
                 ? "border-primary text-primary bg-primary/10"
                 : ""
-            }`}
+              }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Filters</span>
@@ -1066,7 +1065,7 @@ export const AllAdmissions: React.FC = () => {
                             <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
                               Admission Actions
                             </DropdownMenuLabel>
-                            
+
                             <DropdownMenuItem
                               onClick={() => handleOpenDetails(adm)}
                               className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
@@ -1184,33 +1183,30 @@ export const AllAdmissions: React.FC = () => {
           <div className="flex items-center gap-1.5">
             <button
               onClick={() => setCurrentPage(1)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentPage === 1
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 1
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-card text-foreground hover:bg-muted/50 border border-border"
-              }`}
+                }`}
             >
               1
             </button>
 
             <button
               onClick={() => setCurrentPage(2)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentPage === 2
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 2
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-card text-foreground hover:bg-muted/50 border border-border"
-              }`}
+                }`}
             >
               2
             </button>
 
             <button
               onClick={() => setCurrentPage(3)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentPage === 3
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 3
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-card text-foreground hover:bg-muted/50 border border-border"
-              }`}
+                }`}
             >
               3
             </button>
@@ -1219,11 +1215,10 @@ export const AllAdmissions: React.FC = () => {
 
             <button
               onClick={() => setCurrentPage(18)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                currentPage === 18
+              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 18
                   ? "bg-primary text-primary-foreground shadow-xs"
                   : "bg-card text-foreground hover:bg-muted/50 border border-border"
-              }`}
+                }`}
             >
               18
             </button>
@@ -1244,7 +1239,7 @@ export const AllAdmissions: React.FC = () => {
         <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-card text-foreground border-l border-border">
           {selectedAdmission && (
             <div className="flex flex-col h-full">
-              
+
               {/* Drawer Header */}
               <div className="p-6 border-b border-border bg-muted/30 sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex items-start justify-between gap-4">
@@ -1303,13 +1298,11 @@ export const AllAdmissions: React.FC = () => {
                     ].map((st) => (
                       <div key={st.step} className="flex flex-col items-center gap-1">
                         <div
-                          className={`h-2.5 w-full rounded-full transition-colors ${
-                            st.done ? "bg-emerald-500" : "bg-muted"
-                          }`}
+                          className={`h-2.5 w-full rounded-full transition-colors ${st.done ? "bg-emerald-500" : "bg-muted"
+                            }`}
                         />
-                        <span className={`text-[10px] font-semibold truncate ${
-                          st.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-                        }`}>
+                        <span className={`text-[10px] font-semibold truncate ${st.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
+                          }`}>
                           {st.title}
                         </span>
                       </div>
@@ -1321,41 +1314,37 @@ export const AllAdmissions: React.FC = () => {
                 <div className="flex items-center gap-2 mt-4 pt-2 border-t border-border overflow-x-auto">
                   <button
                     onClick={() => setActiveTab("overview")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
-                      activeTab === "overview"
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "overview"
                         ? "bg-primary text-primary-foreground shadow-2xs"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     Student & Admission
                   </button>
                   <button
                     onClick={() => setActiveTab("batch")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
-                      activeTab === "batch"
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "batch"
                         ? "bg-primary text-primary-foreground shadow-2xs"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     Batch Details
                   </button>
                   <button
                     onClick={() => setActiveTab("fee")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
-                      activeTab === "fee"
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "fee"
                         ? "bg-primary text-primary-foreground shadow-2xs"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     Fee Structure & Receipts
                   </button>
                   <button
                     onClick={() => setActiveTab("docs")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
-                      activeTab === "docs"
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${activeTab === "docs"
                         ? "bg-primary text-primary-foreground shadow-2xs"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <span>Documents</span>
                     <span className="bg-muted text-foreground text-[10px] px-1.5 py-0.2 rounded-full">
@@ -1364,11 +1353,10 @@ export const AllAdmissions: React.FC = () => {
                   </button>
                   <button
                     onClick={() => setActiveTab("notes")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${
-                      activeTab === "notes"
+                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "notes"
                         ? "bg-primary text-primary-foreground shadow-2xs"
                         : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     Counsellor Notes
                   </button>
@@ -1377,11 +1365,11 @@ export const AllAdmissions: React.FC = () => {
 
               {/* Drawer Body */}
               <div className="p-6 space-y-6 flex-1 bg-card">
-                
+
                 {/* ─── TAB 1: STUDENT & ADMISSION OVERVIEW ─── */}
                 {activeTab === "overview" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
+
                     {/* Student Information */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -1518,7 +1506,7 @@ export const AllAdmissions: React.FC = () => {
                 {/* ─── TAB 3: FEE & RECEIPTS ─── */}
                 {activeTab === "fee" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
+
                     {/* Fee Summary Card */}
                     <div className="p-5 rounded-2xl border border-border bg-muted/20 space-y-4">
                       <div className="flex items-center justify-between">
@@ -1644,11 +1632,10 @@ export const AllAdmissions: React.FC = () => {
                               <Button
                                 size="sm"
                                 onClick={() => handleToggleDocVerification(doc.id)}
-                                className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${
-                                  doc.verified
+                                className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${doc.verified
                                     ? "bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50"
                                     : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                                }`}
+                                  }`}
                               >
                                 {doc.verified ? "Verified ✓" : "Verify Doc"}
                               </Button>
@@ -1667,7 +1654,7 @@ export const AllAdmissions: React.FC = () => {
                 {/* ─── TAB 5: COUNSELLOR NOTES ─── */}
                 {activeTab === "notes" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
+
                     {/* Add Counsellor Note */}
                     <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2.5">
                       <label className="block text-xs font-bold text-foreground">Add Internal Counsellor Note</label>
@@ -1755,7 +1742,7 @@ export const AllAdmissions: React.FC = () => {
       {isDirectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
-            
+
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center">
@@ -1775,7 +1762,7 @@ export const AllAdmissions: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              
+
               {/* Section A: Student Details */}
               <div className="space-y-3">
                 <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">1. Student Details</h4>
