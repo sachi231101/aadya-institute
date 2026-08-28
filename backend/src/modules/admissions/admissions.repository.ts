@@ -276,6 +276,17 @@ export const AdmissionsRepository = {
 
         if (existingUser?.student) {
           finalStudentId = existingUser.student.id;
+          // Keep student branch aligned with the branch selected for this admission
+          await tx.student.update({
+            where: { id: finalStudentId },
+            data: { branchId },
+          });
+          if (existingUser.id) {
+            await tx.user.update({
+              where: { id: existingUser.id },
+              data: { branchId },
+            });
+          }
         } else {
           // Create User + Student + Role
           const passwordHash = await hashPassword("Student@123");
