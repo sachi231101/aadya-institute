@@ -636,16 +636,14 @@ export const AllCounsellors: React.FC = () => {
                       <div
                         key={mod.key}
                         onClick={() => toggleCreateModule(mod.key)}
-                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${
-                          isChecked
-                            ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
-                            : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
-                        }`}
+                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked
+                          ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
+                          : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
+                          }`}
                       >
                         <div
-                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                            isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
-                          }`}
+                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
+                            }`}
                         >
                           {isChecked && (
                             <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -654,9 +652,8 @@ export const AllCounsellors: React.FC = () => {
                           )}
                         </div>
                         <div
-                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
-                          }`}
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
+                            }`}
                         >
                           <Icon className="h-3.5 w-3.5" />
                         </div>
@@ -823,16 +820,14 @@ export const AllCounsellors: React.FC = () => {
                       <div
                         key={mod.key}
                         onClick={() => toggleEditModule(mod.key)}
-                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${
-                          isChecked
-                            ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
-                            : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
-                        }`}
+                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked
+                          ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
+                          : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
+                          }`}
                       >
                         <div
-                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${
-                            isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
-                          }`}
+                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
+                            }`}
                         >
                           {isChecked && (
                             <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -841,9 +836,8 @@ export const AllCounsellors: React.FC = () => {
                           )}
                         </div>
                         <div
-                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${
-                            isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
-                          }`}
+                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
+                            }`}
                         >
                           <Icon className="h-3.5 w-3.5" />
                         </div>
