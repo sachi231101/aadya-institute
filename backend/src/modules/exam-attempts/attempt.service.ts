@@ -359,7 +359,7 @@ const attachSanitizedExamQuestions = async (attempt: any, instituteId: string) =
   const sanitized = formatSanitizedQuestions(examWithQuestions, attempt.id);
   attempt.exam = {
     ...attempt.exam,
-    examQuestions: sanitized.map((q, index) => ({
+    examQuestions: sanitized.map((q: (typeof sanitized)[number], index: number) => ({
       questionId: q.id,
       displayOrder: q.displayOrder ?? index,
       marksOverride: q.marks,

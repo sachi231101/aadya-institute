@@ -17,6 +17,7 @@ import {
   findActiveMasterRecords,
 } from "./master.repository";
 import type { Status } from "@prisma/client";
+import { isAllowedMasterEntityType } from "./master.entity-types";
 
 export interface MasterAuthUser {
   userId: string;
@@ -81,6 +82,10 @@ export const createMasterService = async (
   input: CreateMasterRecordInput
 ) => {
   const instituteId = currentUser.instituteId;
+
+  if (!isAllowedMasterEntityType(input.entityType)) {
+    throw new AppError(`Invalid master entity type: ${input.entityType}`, 400);
+  }
 
   const branchId = currentUser.roles.includes("CENTER_MANAGER")
     ? (currentUser.branchId || input.branchId || undefined)

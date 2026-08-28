@@ -38,6 +38,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
+import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 export const Payments: React.FC = () => {
@@ -45,9 +46,16 @@ export const Payments: React.FC = () => {
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
 
+  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
+
+  const resolvedMethodFilter =
+    methodFilter === "ALL"
+      ? "ALL"
+      : paymentModeOptions.find((opt) => opt.value === methodFilter)?.label || methodFilter;
+
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments({
     search: searchTerm,
-    method: methodFilter,
+    method: resolvedMethodFilter,
     status: statusFilter,
   });
 
@@ -56,8 +64,6 @@ export const Payments: React.FC = () => {
   const deletePaymentMutation = useDeletePayment();
 
   const { courses } = useCourseStore();
-  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
-  const { options: bankAccountOptions } = useMasterDropdown("bankaccounts");
 
   // Receipt Modal State
   const [viewReceiptItem, setViewReceiptItem] = useState<Payment | null>(null);
@@ -69,15 +75,17 @@ export const Payments: React.FC = () => {
   const [courseName, setCourseName] = useState(courses[0]?.name || "");
   const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
-  const [method, setMethod] = useState<PaymentMethod>("UPI");
+  const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
   const [transactionRef, setTransactionRef] = useState("");
   const [notes, setNotes] = useState("");
-  // ZenoxERP-aligned additional fee fields
-  const [feeHead, setFeeHead] = useState("Tuition Fee");
+  const [feeHeadMasterId, setFeeHeadMasterId] = useState("");
   const [lateFee, setLateFee] = useState<number>(0);
-  const [bankAccount, setBankAccount] = useState("");
+  const [bankAccountMasterId, setBankAccountMasterId] = useState("");
   const [chequeDate, setChequeDate] = useState("");
   const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
+
+  const selectedPaymentMode = paymentModeOptions.find((opt) => opt.value === paymentModeMasterId);
+  const isChequePayment = selectedPaymentMode?.code === "CHEQUE" || selectedPaymentMode?.label?.toLowerCase().includes("cheque");
 
   const payments = paymentsData?.data?.data || [];
   const stats = statsData?.data || {
@@ -89,7 +97,7 @@ export const Payments: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentName || !amount || !courseName) return;
+    if (!studentName || !amount || !courseName || !paymentModeMasterId) return;
 
     try {
       await createPaymentMutation.mutateAsync({
@@ -98,7 +106,9 @@ export const Payments: React.FC = () => {
         courseName,
         amount,
         date,
-        method,
+        paymentModeMasterId,
+        bankAccountMasterId: bankAccountMasterId || undefined,
+        feeHeadMasterId: feeHeadMasterId || undefined,
         transactionRef,
         status: "SUCCESS",
         notes,
@@ -239,19 +249,13 @@ export const Payments: React.FC = () => {
 
             {/* Filter Selectors */}
             <div className="flex flex-wrap items-center gap-3">
-              <select
-                value={methodFilter}
-                onChange={(e) => setMethodFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
-              >
-                <option value="ALL">All Payment Methods</option>
-                {paymentModeOptions.map((opt) => (
-                  <option key={opt.value} value={opt.label}>{opt.label}</option>
-                ))}
-                {paymentModeOptions.length === 0 && (
-                  <option value="" disabled>No modes — add in Master Setup</option>
-                )}
-              </select>
+              <MasterSelect
+                entityType="paymentmodes"
+                value={methodFilter === "ALL" ? "" : methodFilter}
+                onChange={(id) => setMethodFilter(id || "ALL")}
+                placeholder="All Payment Methods"
+                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm mt-0"
+              />
 
               <select
                 value={statusFilter}
@@ -486,17 +490,13 @@ export const Payments: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head *</label>
-                  <select
-                    value={feeHead}
-                    onChange={(e) => setFeeHead(e.target.value)}
-                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="Tuition Fee">Tuition Fee</option>
-                    <option value="Exam Fee">Exam Fee</option>
-                    <option value="Registration Fee">Registration Fee</option>
-                    <option value="Lab / Kit Fee">Lab / Kit Fee</option>
-                    <option value="Certification Fee">Certification Fee</option>
-                  </select>
+                  <MasterSelect
+                    entityType="feeheads"
+                    value={feeHeadMasterId}
+                    onChange={setFeeHeadMasterId}
+                    placeholder="Select Fee Head"
+                    className="mt-0 rounded-md"
+                  />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Late Fee / Fine (₹)</label>
@@ -512,20 +512,14 @@ export const Payments: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method</label>
-                  <select
-                    value={method}
-                    onChange={(e) => setMethod(e.target.value as PaymentMethod)}
-                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="">Select Payment Mode</option>
-                    {paymentModeOptions.map((opt) => (
-                      <option key={opt.value} value={opt.label}>{opt.label}</option>
-                    ))}
-                    {paymentModeOptions.length === 0 && (
-                      <option value="" disabled>No modes — add in Master Setup</option>
-                    )}
-                  </select>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method *</label>
+                  <MasterSelect
+                    entityType="paymentmodes"
+                    value={paymentModeMasterId}
+                    onChange={setPaymentModeMasterId}
+                    placeholder="Select Payment Mode"
+                    className="mt-0 rounded-md"
+                  />
                 </div>
 
                 <div>
@@ -542,21 +536,15 @@ export const Payments: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Bank / Deposit Account</label>
-                  <select
-                    value={bankAccount}
-                    onChange={(e) => setBankAccount(e.target.value)}
-                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
-                  >
-                    <option value="">Select Bank Account</option>
-                    {bankAccountOptions.map((opt) => (
-                      <option key={opt.value} value={opt.label}>{opt.label}{opt.code ? ` (${opt.code})` : ""}</option>
-                    ))}
-                    {bankAccountOptions.length === 0 && (
-                      <option value="" disabled>No bank accounts — add in Master Setup</option>
-                    )}
-                  </select>
+                  <MasterSelect
+                    entityType="bankaccounts"
+                    value={bankAccountMasterId}
+                    onChange={setBankAccountMasterId}
+                    placeholder="Select Bank Account"
+                    className="mt-0 rounded-md"
+                  />
                 </div>
-                {method === "CHEQUE" && (
+                {isChequePayment && (
                   <div>
                     <label className="text-xs font-semibold text-slate-700 block mb-1">Cheque Date</label>
                     <Input

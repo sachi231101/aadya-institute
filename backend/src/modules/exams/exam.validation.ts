@@ -18,6 +18,7 @@ export const createExamSchema = z.object({
   proctoringEnabled: z.boolean().optional(),
   fullscreenRequired: z.boolean().optional(),
   maxWarnings: z.coerce.number().int().min(0).optional(),
+  examTermMasterId: z.string().optional(),
 });
 
 export const updateExamSchema = z.object({
@@ -38,6 +39,7 @@ export const updateExamSchema = z.object({
   proctoringEnabled: z.boolean().optional(),
   fullscreenRequired: z.boolean().optional(),
   maxWarnings: z.coerce.number().int().min(0).optional(),
+  examTermMasterId: z.string().optional(),
 });
 
 export const scheduleExamSchema = z.object({

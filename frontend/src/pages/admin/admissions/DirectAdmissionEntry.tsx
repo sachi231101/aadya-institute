@@ -70,6 +70,8 @@ import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
 
 export interface CourseCatalogItem {
@@ -218,6 +220,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [city, setCity] = useState("Bengaluru");
   const [state, setState] = useState("Karnataka");
   const [pincode, setPincode] = useState("");
+  const [areaMasterId, setAreaMasterId] = useState("");
 
   // ─── 2. ADMISSION DETAILS STATE ─────────────────────────────────────────
   const [admissionType, setAdmissionType] = useState("Regular Admission");
@@ -226,10 +229,12 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10));
   const [academicYear, setAcademicYear] = useState(ACADEMIC_YEAR_OPTIONS[0]);
   const [counsellorName, setCounsellorName] = useState(user?.name || "");
-  const [leadSource, setLeadSource] = useState("");
+  const [sourceMasterId, setSourceMasterId] = useState("");
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
-  const [referralSource, setReferralSource] = useState("");
+  const { options: admissionStatusOptions } = useMasterDropdown("admissionstatus");
+  const [referralSourceMasterId, setReferralSourceMasterId] = useState("");
+  const [statusMasterId, setStatusMasterId] = useState("");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
@@ -256,7 +261,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   // Amount Paid at Admission & Mode
   const [amountPaidAtAdmission, setAmountPaidAtAdmission] = useState<number>(0);
-  const [initialPaymentMethod, setInitialPaymentMethod] = useState("UPI / QR Code");
+  const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
   const [transactionRef, setTransactionRef] = useState("");
 
   // ─── 5. INSTALLMENT DETAILS STATE ───────────────────────────────────────
@@ -283,10 +288,12 @@ export const DirectAdmissionEntry: React.FC = () => {
       setLastName(parts.slice(1).join(" ") || "");
       if (lead.phone) setPhone(lead.phone.replace(/[^0-9+]/g, ""));
       if (lead.email) setEmail(lead.email);
-      if (lead.source) setLeadSource(lead.source);
+      if (lead.source) {
+        setSourceMasterId(findMasterIdByLabel(leadSourceOptions, lead.source));
+      }
       if (lead.notes) setRemarks(lead.notes);
     }
-  }, [location.state]);
+  }, [location.state, leadSourceOptions]);
 
   // ─── QUERIES ─────────────────────────────────────────────────────────────
   const { data: dbCoursesRes, isLoading: coursesLoading } = useQuery({
@@ -368,10 +375,10 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   useEffect(() => {
     if (paymentModeOptions.length === 0) return;
-    if (!paymentModeOptions.some((opt) => opt.label === initialPaymentMethod)) {
-      setInitialPaymentMethod(paymentModeOptions[0].label);
+    if (!paymentModeMasterId) {
+      setPaymentModeMasterId(paymentModeOptions[0].value);
     }
-  }, [paymentModeOptions, initialPaymentMethod]);
+  }, [paymentModeOptions, paymentModeMasterId]);
 
   const allAvailableCourses = useMemo(() => {
     return (dbCoursesRes?.data || [])
@@ -767,8 +774,12 @@ export const DirectAdmissionEntry: React.FC = () => {
       `Admission type: ${admissionType}`,
       `Academic year: ${academicYear}`,
       counsellorName ? `Counsellor: ${counsellorName}` : null,
-      leadSource ? `Lead source: ${leadSource}` : null,
-      referralSource ? `Referral: ${referralSource}` : null,
+      sourceMasterId
+        ? `Lead source: ${getMasterLabel(leadSourceOptions, sourceMasterId)}`
+        : null,
+      referralSourceMasterId
+        ? `Referral: ${getMasterLabel(leadSourceOptions, referralSourceMasterId)}`
+        : null,
       altPhone ? `Alternate mobile: ${altPhone}` : null,
       address ? `Address: ${address}` : null,
     ]
@@ -796,7 +807,7 @@ export const DirectAdmissionEntry: React.FC = () => {
       finalPayable: finalPayableAmount,
       amountPaid: Number(amountPaidAtAdmission) || 0,
       balanceToPay: balanceToBePaid,
-      paymentMethod: initialPaymentMethod || "UPI / Online",
+      paymentMethod: getMasterLabel(paymentModeOptions, paymentModeMasterId) || "UPI / Online",
       transactionRef: transactionRef || "",
       status: statusOverride === "Draft" ? "Draft Saved" : "Confirmed",
       date: admissionDate || new Date().toISOString().slice(0, 10),
@@ -839,7 +850,11 @@ export const DirectAdmissionEntry: React.FC = () => {
           status,
           notes: buildAdmissionNotes(),
           admissionDate,
-          paymentMethod: mapPaymentMethod(initialPaymentMethod),
+          sourceMasterId: sourceMasterId || undefined,
+          statusMasterId: statusMasterId || undefined,
+          paymentModeMasterId: paymentModeMasterId || undefined,
+          areaMasterId: areaMasterId || undefined,
+          paymentMethod: mapPaymentMethod(getMasterLabel(paymentModeOptions, paymentModeMasterId)),
           transactionRef: transactionRef || undefined,
           totalFee: isPrimary ? finalPayableAmount : undefined,
           amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
@@ -1195,6 +1210,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <label className="text-xs font-semibold text-foreground block mb-1">Residential Address</label>
                     <Input value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Street address" className="bg-background border-border text-foreground" />
                   </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Area / Locality</label>
+                    <MasterSelect
+                      entityType="area"
+                      value={areaMasterId}
+                      onChange={setAreaMasterId}
+                      placeholder="Select area"
+                      className="mt-0 rounded-md"
+                    />
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1307,46 +1333,42 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Lead Source</label>
-                    <select
-                      value={leadSource}
-                      onChange={(e) => setLeadSource(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                    >
-                      <option value="">Select Lead Source</option>
-                      {leadSourceOptions.map((opt) => (
-                        <option key={opt.value} value={opt.label}>{opt.label}</option>
-                      ))}
-                      {leadSourceOptions.length === 0 && (
-                        <option value="" disabled>No sources — add in Master Setup</option>
-                      )}
-                    </select>
+                    <MasterSelect
+                      entityType="leadsource"
+                      value={sourceMasterId}
+                      onChange={setSourceMasterId}
+                      placeholder="Select Lead Source"
+                      className="mt-0 rounded-md"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Referral Source</label>
-                    <select
-                      value={referralSource}
-                      onChange={(e) => setReferralSource(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                    >
-                      <option value="">Select Referral Source</option>
-                      {leadSourceOptions.map((opt) => (
-                        <option key={opt.value} value={opt.label}>{opt.label}</option>
-                      ))}
-                    </select>
+                    <MasterSelect
+                      entityType="leadsource"
+                      value={referralSourceMasterId}
+                      onChange={setReferralSourceMasterId}
+                      placeholder="Select Referral Source"
+                      className="mt-0 rounded-md"
+                    />
                   </div>
 
                   <div>
                     <label className="text-xs font-semibold text-foreground block mb-1">Admission Status</label>
-                    <select
-                      value={admissionStatus}
-                      onChange={(e) => setAdmissionStatus(e.target.value as any)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                    >
-                      <option value="Draft">Draft</option>
-                      <option value="Provisional">Provisional</option>
-                      <option value="Confirmed">Confirmed</option>
-                    </select>
+                    <MasterSelect
+                      entityType="admissionstatus"
+                      value={statusMasterId}
+                      onChange={(id) => {
+                        setStatusMasterId(id);
+                        const statusLabel = getMasterLabel(admissionStatusOptions, id);
+                        if (/draft/i.test(statusLabel)) setAdmissionStatus("Draft");
+                        else if (/provisional/i.test(statusLabel)) setAdmissionStatus("Provisional");
+                        else if (/cancel/i.test(statusLabel)) setAdmissionStatus("Cancelled");
+                        else setAdmissionStatus("Confirmed");
+                      }}
+                      placeholder="Select status"
+                      className="mt-0 rounded-md"
+                    />
                   </div>
                 </div>
               </CardContent>
@@ -1862,17 +1884,13 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                     <div>
                       <label className="text-xs font-semibold text-foreground block mb-1">Payment Method</label>
-                      <select
-                        value={initialPaymentMethod}
-                        onChange={(e) => setInitialPaymentMethod(e.target.value)}
-                        className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground font-medium"
-                      >
-                        {paymentModeOptions.map((opt) => (
-                          <option key={opt.value} value={opt.label}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                      <MasterSelect
+                        entityType="paymentmodes"
+                        value={paymentModeMasterId}
+                        onChange={setPaymentModeMasterId}
+                        placeholder="Select payment mode"
+                        className="mt-0 rounded-md"
+                      />
                     </div>
 
                     <div>
@@ -2390,7 +2408,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 <div className="p-3 bg-emerald-500/10 rounded-xl border border-emerald-500/30 flex items-center justify-between">
                   <div>
                     <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Paid at Admission</span>
-                    <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{initialPaymentMethod}</span>
+                    <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80">{getMasterLabel(paymentModeOptions, paymentModeMasterId)}</span>
                   </div>
                   <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">₹{amountPaidAtAdmission.toLocaleString()}</span>
                 </div>
@@ -2519,7 +2537,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               <div>
                 <span className="font-bold text-emerald-600 dark:text-emerald-400 block text-xs">Amount Paid at Admission:</span>
                 <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-medium">
-                  via {createdAdmissionSummary?.paymentMethod || initialPaymentMethod}
+                  via {createdAdmissionSummary?.paymentMethod || getMasterLabel(paymentModeOptions, paymentModeMasterId)}
                 </span>
               </div>
               <span className="font-black text-emerald-600 dark:text-emerald-400 text-base">

@@ -40,6 +40,7 @@ export interface UpdatePersonalPayload {
   email: string;
   phone: string;
   designation?: string;
+  designationMasterId?: string;
   department?: string;
   language?: string;
   timezone?: string;

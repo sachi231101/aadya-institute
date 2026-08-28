@@ -34,6 +34,7 @@ export interface CreateClassSessionPayload {
   startTime: string;
   endTime: string;
   roomNo?: string;
+  classroomMasterId?: string;
   mode?: ClassMode;
   meetingUrl?: string;
   notes?: string;
@@ -47,6 +48,7 @@ export interface UpdateClassSessionPayload {
   startTime?: string;
   endTime?: string;
   roomNo?: string;
+  classroomMasterId?: string;
   mode?: ClassMode;
   meetingUrl?: string;
   notes?: string;

@@ -41,9 +41,8 @@ export const useCreateMasterRecord = () => {
       entityType: string;
       payload: CreateMasterPayload;
     }) => mastersApi.createMaster(entityType, payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
     },
   });
 };
@@ -60,9 +59,8 @@ export const useUpdateMasterRecord = () => {
       id: string;
       payload: UpdateMasterPayload;
     }) => mastersApi.updateMaster(entityType, id, payload),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
     },
   });
 };
@@ -77,9 +75,8 @@ export const useDeleteMasterRecord = () => {
       entityType: string;
       id: string;
     }) => mastersApi.deleteMaster(entityType, id),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
     },
   });
 };
@@ -123,10 +120,8 @@ export const useToggleMasterStatus = () => {
       entityType: string;
       id: string;
     }) => mastersApi.toggleMasterStatus(entityType, id),
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, variables.entityType] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "counts"] });
-      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY, "active", variables.entityType] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [MASTERS_KEY] });
     },
   });
 };

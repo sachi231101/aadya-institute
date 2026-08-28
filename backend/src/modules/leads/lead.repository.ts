@@ -1,5 +1,5 @@
 import { prisma } from "../../config/database";
-import type { Prisma, LeadSource, LeadStage, LeadStatus, LeadLostReason } from "@prisma/client";
+import type { Prisma, LeadStatus, LeadLostReason } from "@prisma/client";
 import { LeadActivityService } from "./services/lead-activity.service";
 
 export interface LeadFindManyParams {
@@ -7,9 +7,11 @@ export interface LeadFindManyParams {
   branchId?: string;
   assignedCounsellorId?: string;
   courseId?: string;
-  stage?: LeadStage;
+  stage?: string;
+  stageMasterId?: string;
   status?: LeadStatus;
-  source?: LeadSource;
+  source?: string;
+  sourceMasterId?: string;
   search?: string;
   priority?: string;
   dateFrom?: string;
@@ -70,7 +72,11 @@ export const LeadRepository = {
     email?: string;
     interestedIn: string;
     courseId?: string;
-    source: LeadSource;
+    source: string;
+    sourceMasterId?: string;
+    stage: string;
+    stageMasterId?: string;
+    leadTypeMasterId?: string;
     priority?: string;
     notes?: string;
     createdById: string;
@@ -85,13 +91,15 @@ export const LeadRepository = {
       interestedIn,
       courseId,
       source,
+      sourceMasterId,
+      stage: initialStage,
+      stageMasterId,
+      leadTypeMasterId,
       priority,
       notes,
       createdById,
       assignedCounsellorId,
     } = params;
-
-    const initialStage: LeadStage = assignedCounsellorId ? "ASSIGNED" : "NEW";
 
     return prisma.$transaction(async (tx) => {
       // 1. Create Lead
@@ -105,7 +113,10 @@ export const LeadRepository = {
           interestedIn,
           courseId: courseId ?? null,
           source,
+          sourceMasterId: sourceMasterId ?? null,
           stage: initialStage,
+          stageMasterId: stageMasterId ?? null,
+          leadTypeMasterId: leadTypeMasterId ?? null,
           status: "ACTIVE",
           priority: priority ?? "MEDIUM",
           notes: notes ?? null,
@@ -242,8 +253,10 @@ export const LeadRepository = {
       ...(assignedCounsellorId ? { assignedCounsellorId } : {}),
       ...(courseId ? { courseId } : {}),
       ...(stage ? { stage } : {}),
+      ...(params.stageMasterId ? { stageMasterId: params.stageMasterId } : {}),
       ...(status ? { status } : {}),
       ...(source ? { source } : {}),
+      ...(params.sourceMasterId ? { sourceMasterId: params.sourceMasterId } : {}),
       ...(priority ? { priority } : {}),
     };
 
@@ -294,9 +307,10 @@ export const LeadRepository = {
 
   async changeStage(
     leadId: string,
-    newStage: LeadStage,
+    newStage: string,
     changedById: string,
-    notes?: string
+    notes?: string,
+    stageMasterId?: string
   ) {
     const lead = await prisma.lead.findUnique({ where: { id: leadId } });
     if (!lead) return null;
@@ -308,6 +322,7 @@ export const LeadRepository = {
         where: { id: leadId },
         data: {
           stage: newStage,
+          ...(stageMasterId ? { stageMasterId } : {}),
           ...(newStage === "CONTACTED" && !lead.lastContactedAt
             ? { lastContactedAt: new Date() }
             : {}),

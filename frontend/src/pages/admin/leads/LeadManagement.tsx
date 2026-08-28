@@ -30,6 +30,7 @@ import {
   type LeadSource,
   type PipelineStage,
 } from "@/store/lead.store";
+import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 // Visual source badge helpers
@@ -106,6 +107,7 @@ export const LeadManagement: React.FC = () => {
   const [stageFilter, setStageFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
+  const { options: leadStageOptions } = useMasterDropdown("leadstage");
   const [counsellorFilter, setCounsellorFilter] = useState("ALL");
   const [followUpStatusFilter, setFollowUpStatusFilter] = useState("ALL");
 
@@ -146,7 +148,7 @@ export const LeadManagement: React.FC = () => {
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formCourse, setFormCourse] = useState("Digital Marketing");
-  const [formSource, setFormSource] = useState<LeadSource>("Website");
+  const [formSourceMasterId, setFormSourceMasterId] = useState("");
   const [formNotes, setFormNotes] = useState("");
   const [formTriggerAi, setFormTriggerAi] = useState(true);
 
@@ -186,9 +188,12 @@ export const LeadManagement: React.FC = () => {
         if (!matchesName && !matchesPhone && !matchesEmail && !matchesCourse) return false;
       }
 
-      // 2. Source filter
+      // 2. Source filter (match by master record label against mock store source)
       if (sourceFilter !== "ALL") {
-        if (lead.source !== sourceFilter) return false;
+        const sourceOpt = leadSourceOptions.find((opt) => opt.value === sourceFilter);
+        const sourceLabel = sourceOpt?.label;
+        if (sourceLabel && lead.source !== sourceLabel) return false;
+        if (!sourceLabel && lead.source !== sourceFilter) return false;
       }
 
       // 3. Stage filter
@@ -196,7 +201,10 @@ export const LeadManagement: React.FC = () => {
         if (stageFilter === "AI_CALLING") {
           if (lead.callStatus !== "IN_PROGRESS" && lead.aiOutcome !== "PENDING_CALL") return false;
         } else {
-          if (lead.stage !== stageFilter) return false;
+          const stageOpt = leadStageOptions.find((opt) => opt.value === stageFilter);
+          const stageCode = stageOpt?.code || stageOpt?.label?.toUpperCase().replace(/\s+/g, "_");
+          if (stageCode && lead.stage !== stageCode) return false;
+          if (!stageCode && lead.stage !== stageFilter) return false;
         }
       }
 
@@ -220,7 +228,7 @@ export const LeadManagement: React.FC = () => {
 
       return true;
     });
-  }, [leads, searchTerm, sourceFilter, stageFilter, courseFilter, counsellorFilter, followUpStatusFilter]);
+  }, [leads, searchTerm, sourceFilter, stageFilter, courseFilter, counsellorFilter, followUpStatusFilter, leadSourceOptions, leadStageOptions]);
 
   // Reset Filters Handler
   const handleResetFilters = () => {
@@ -310,12 +318,15 @@ export const LeadManagement: React.FC = () => {
     e.preventDefault();
     if (!formName.trim() || !formPhone.trim()) return;
 
+    const sourceOpt = leadSourceOptions.find((opt) => opt.value === formSourceMasterId);
+    const sourceLabel = (sourceOpt?.label || "Website") as LeadSource;
+
     const created = addLead({
       name: formName.trim(),
       phone: formPhone.trim(),
       email: formEmail.trim() || undefined,
       course: formCourse,
-      source: formSource || "Website",
+      source: sourceLabel,
       notes: formNotes.trim(),
       triggerImmediateCall: formTriggerAi,
     });
@@ -331,7 +342,7 @@ export const LeadManagement: React.FC = () => {
     setFormPhone("");
     setFormEmail("");
     setFormCourse("Digital Marketing");
-    setFormSource("Website");
+    setFormSourceMasterId("");
     setFormNotes("");
     setFormTriggerAi(true);
     handleResetFilters();
@@ -501,35 +512,40 @@ export const LeadManagement: React.FC = () => {
           {/* Filter Dropdowns */}
           <div className="flex items-center gap-2 flex-wrap">
             {/* 1. All Sources Dropdown */}
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-            >
-              <option value="ALL">🌐 All Sources</option>
-              {leadSourceOptions.map((opt) => (
-                <option key={opt.value} value={opt.label}>{opt.label}</option>
-              ))}
-              {leadSourceOptions.length === 0 && (
-                <option value="" disabled>No sources — add in Master Setup</option>
-              )}
-            </select>
+            <div className="flex items-center gap-1">
+              <MasterSelect
+                entityType="leadsource"
+                value={sourceFilter === "ALL" ? "" : sourceFilter}
+                onChange={(id) => setSourceFilter(id || "ALL")}
+                placeholder="🌐 All Sources"
+                includeEmpty
+                className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold min-w-[140px] mt-0"
+              />
+            </div>
 
-            {/* 2. All Stages Dropdown */}
-            <select
-              value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value)}
-              className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
-            >
-              <option value="ALL">📊 All Pipeline Stages</option>
-              <option value="NEW">New Lead</option>
-              <option value="AI_CALLING">AI Calling Active</option>
-              <option value="CONTACTED">Contacted</option>
-              <option value="INTERESTED">Interested</option>
-              <option value="FOLLOW_UP">Follow-up</option>
-              <option value="CONVERTED">Converted</option>
-              <option value="LOST">Lost</option>
-            </select>
+            {/* 2. Pipeline Stage Dropdown */}
+            <div className="flex items-center gap-1.5">
+              <select
+                value={stageFilter === "AI_CALLING" ? "AI_CALLING" : "STAGE"}
+                onChange={(e) => {
+                  if (e.target.value === "AI_CALLING") setStageFilter("AI_CALLING");
+                  else if (stageFilter === "AI_CALLING") setStageFilter("ALL");
+                }}
+                className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold text-foreground focus:bg-background outline-none focus:ring-1 focus:ring-primary cursor-pointer shadow-2xs"
+              >
+                <option value="STAGE">Pipeline Stage</option>
+                <option value="AI_CALLING">AI Calling Active</option>
+              </select>
+              {stageFilter !== "AI_CALLING" && (
+                <MasterSelect
+                  entityType="leadstage"
+                  value={stageFilter === "ALL" ? "" : stageFilter}
+                  onChange={(id) => setStageFilter(id || "ALL")}
+                  placeholder="All Pipeline Stages"
+                  className="h-9.5 text-xs bg-muted/30 border border-border rounded-xl px-2.5 font-bold min-w-[140px] mt-0"
+                />
+              )}
+            </div>
 
             {/* 3. All Courses Dropdown */}
             <select
@@ -1199,19 +1215,13 @@ export const LeadManagement: React.FC = () => {
 
               <div className="space-y-1">
                 <Label className="text-foreground font-bold text-xs">Lead Source *</Label>
-                <select
-                  value={formSource}
-                  onChange={(e) => setFormSource(e.target.value as LeadSource)}
-                  className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-semibold text-foreground focus:bg-background"
-                >
-                  <option value="">Select Lead Source</option>
-                  {leadSourceOptions.map((opt) => (
-                    <option key={opt.value} value={opt.label}>{opt.label}</option>
-                  ))}
-                  {leadSourceOptions.length === 0 && (
-                    <option value="" disabled>No sources — add in Master Setup</option>
-                  )}
-                </select>
+                <MasterSelect
+                  entityType="leadsource"
+                  value={formSourceMasterId}
+                  onChange={setFormSourceMasterId}
+                  placeholder="Select Lead Source"
+                  className="mt-0 h-10 rounded-xl"
+                />
               </div>
             </div>
 

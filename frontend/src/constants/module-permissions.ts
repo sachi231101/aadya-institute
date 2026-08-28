@@ -91,7 +91,7 @@ export const MODULE_OPTIONS: FrontendModuleDef[] = [
   {
     key: "masters",
     label: "Master Setup",
-    description: "Configure classrooms, time slots, holidays, lead stages, fee heads, and institute reference data",
+    description: "Configure classrooms, time slots, lead stages, fee heads, and institute reference data",
     icon: Layers,
     category: "Operations",
   },

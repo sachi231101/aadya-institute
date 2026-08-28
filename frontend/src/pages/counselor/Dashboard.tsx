@@ -54,9 +54,11 @@ import { useCounselorStore } from "@/store/counselor.store";
 import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useTimetableStore } from "@/store/timetable.store";
-import { useLeadStore, type UnifiedLead, type LeadSource } from "@/store/lead.store";
+import { useLeadStore, type UnifiedLead } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
-import { useMasterRecords } from "@/hooks/useMasters";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { getMasterLabel } from "@/utils/master.utils";
 import { useLeads, useCreateLead } from "@/hooks/useLeads";
 import { useMyCurrentTargets } from "@/hooks/useTargets";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -147,25 +149,8 @@ export const CounselorDashboard: React.FC = () => {
     retryAiCall: storeRetryAiCall,
   } = useLeadStore();
 
-  // Dynamic Master Setup Data (Stages & Sources) from PostgreSQL Database
-  const { data: masterLeadStages } = useMasterRecords("leadstage");
-  const { data: masterLeadSources } = useMasterRecords("leadsource");
-
-  // Dynamic pipeline stages from PostgreSQL Master Setup + Standard Stages
-  const dynamicStages = useMemo(() => {
-    const defaultList = ["NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED", "LOST"];
-    if (!masterLeadStages?.data) return defaultList;
-    const fromMaster = masterLeadStages.data.map((m) => m.name);
-    return Array.from(new Set([...defaultList, ...fromMaster]));
-  }, [masterLeadStages]);
-
-  // Dynamic sources from PostgreSQL Master Setup + Standard Sources
-  const dynamicSources = useMemo(() => {
-    const defaultList = ["Website", "Google Ads", "Meta Ads", "Instagram", "Referral", "Walk-in", "Direct Call", "AI Voice Outreach"];
-    if (!masterLeadSources?.data) return defaultList;
-    const fromMaster = masterLeadSources.data.map((m) => m.name);
-    return Array.from(new Set([...defaultList, ...fromMaster]));
-  }, [masterLeadSources]);
+  const { options: leadSourceOptions } = useMasterDropdown("leadsource");
+  const { options: leadStageOptions } = useMasterDropdown("leadstage");
 
   // AI Drawer state for Dashboard
   const [activeAiLead, setActiveAiLead] = useState<UnifiedLead | null>(null);
@@ -247,14 +232,25 @@ export const CounselorDashboard: React.FC = () => {
         const matchAi = (lead.aiSummaryShort || "").toLowerCase().includes(q);
         if (!matchName && !matchPhone && !matchCourse && !matchResponse && !matchAi) return false;
       }
-      if (leadSourceFilter !== "ALL" && lead.source !== leadSourceFilter) {
-        return false;
+      if (leadSourceFilter !== "ALL") {
+        const sourceLabel = getMasterLabel(leadSourceOptions, leadSourceFilter);
+        if (lead.source !== sourceLabel && (lead as { sourceMasterId?: string }).sourceMasterId !== leadSourceFilter) {
+          return false;
+        }
       }
       if (leadCourseFilter !== "ALL" && lead.course !== leadCourseFilter) {
         return false;
       }
-      if (leadStageFilter !== "ALL" && lead.stage !== leadStageFilter && lead.pipelineStage !== leadStageFilter) {
-        return false;
+      if (leadStageFilter !== "ALL") {
+        const stageLabel = getMasterLabel(leadStageOptions, leadStageFilter);
+        if (
+          lead.stage !== leadStageFilter &&
+          lead.stage !== stageLabel &&
+          lead.pipelineStage !== leadStageFilter &&
+          lead.pipelineStage !== stageLabel
+        ) {
+          return false;
+        }
       }
       if (leadPriorityFilter !== "ALL" && lead.priority !== leadPriorityFilter) {
         return false;
@@ -268,7 +264,7 @@ export const CounselorDashboard: React.FC = () => {
       }
       return true;
     });
-  }, [combinedLeadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter]);
+  }, [combinedLeadsList, leadSearchText, leadSourceFilter, leadCourseFilter, leadStageFilter, leadPriorityFilter, leadAttentionFilter, leadSourceOptions, leadStageOptions]);
 
   // Summary Metrics for Leads Section
   const leadSummaryCounts = useMemo(() => {
@@ -305,7 +301,7 @@ export const CounselorDashboard: React.FC = () => {
   const [formPhone, setFormPhone] = useState("");
   const [formEmail, setFormEmail] = useState("");
   const [formCourse, setFormCourse] = useState("Digital Marketing");
-  const [formSource, setFormSource] = useState<LeadSource>("Website");
+  const [formSourceMasterId, setFormSourceMasterId] = useState("");
   const [formTriggerAi, setFormTriggerAi] = useState(true);
   const [formNotes, setFormNotes] = useState("");
 
@@ -505,12 +501,14 @@ export const CounselorDashboard: React.FC = () => {
     e.preventDefault();
     if (!formName || !formPhone) return;
 
+    const sourceLabel = getMasterLabel(leadSourceOptions, formSourceMasterId) || "Website";
+
     addLead({
       name: formName.trim(),
       phone: formPhone.trim(),
       email: formEmail.trim() || `${formName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
       course: formCourse,
-      source: formSource,
+      source: sourceLabel,
       notes: formNotes,
       triggerImmediateCall: formTriggerAi,
     });
@@ -521,14 +519,14 @@ export const CounselorDashboard: React.FC = () => {
         phoneNumber: formPhone.trim(),
         email: formEmail.trim() || undefined,
         interestedIn: formCourse,
-        source: formSource,
+        sourceMasterId: formSourceMasterId || undefined,
         priority: "HIGH",
         branchId: user.branchId,
         notes: formNotes,
       });
     }
 
-    setFollowUpSuccessMsg(`✓ New lead ${formName} added from ${formSource} & AI voice qualification queued!`);
+    setFollowUpSuccessMsg(`✓ New lead ${formName} added from ${sourceLabel} & AI voice qualification queued!`);
     setTimeout(() => setFollowUpSuccessMsg(null), 5000);
     setShowAddModal(false);
 
@@ -573,26 +571,78 @@ export const CounselorDashboard: React.FC = () => {
     setShowAiDrawer(true);
   };
 
-  // 5. ADMISSION FUNNEL DATA
-  const admissionFunnelData = [
-    { label: "Total Leads", count: 128, percentage: "", color: "bg-blue-600", width: "100%" },
-    { label: "Contacted", count: 54, percentage: "42%", color: "bg-sky-500", width: "85%" },
-    { label: "Interested", count: 34, percentage: "26%", color: "bg-indigo-500", width: "70%" },
-    { label: "Counseling", count: 18, percentage: "14%", color: "bg-purple-600", width: "55%" },
-    { label: "Demo", count: 9, percentage: "7%", color: "bg-amber-500", width: "42%" },
-    { label: "Admission", count: 8, percentage: "6%", color: "bg-orange-500", width: "32%" },
-    { label: "Converted", count: 5, percentage: "4%", color: "bg-emerald-600", width: "22%" },
-  ];
+  // Pipeline steps from lead stage masters
+  const stageSteps = useMemo(
+    () =>
+      leadStageOptions
+        .filter((opt) => opt.code && !["LOST", "ASSIGNED"].includes(opt.code))
+        .map((opt) => ({ key: opt.code!, label: opt.label })),
+    [leadStageOptions]
+  );
 
-  // 6. LEAD SOURCES DATA
-  const leadSourcesData = [
-    { name: "Website", count: 48, percentage: "37%", color: LEAD_SOURCE_COLORS[0] },
-    { name: "Google Ads", count: 28, percentage: "21%", color: LEAD_SOURCE_COLORS[1] },
-    { name: "Meta Ads", count: 20, percentage: "16%", color: LEAD_SOURCE_COLORS[2] },
-    { name: "Instagram", count: 12, percentage: "9%", color: LEAD_SOURCE_COLORS[3] },
-    { name: "Referral", count: 10, percentage: "8%", color: LEAD_SOURCE_COLORS[4] },
-    { name: "Others", count: 10, percentage: "8%", color: LEAD_SOURCE_COLORS[5] },
-  ];
+  // Admission funnel derived from live lead data
+  const admissionFunnelData = useMemo(() => {
+    const total = leads.length;
+    if (total === 0) return [];
+
+    const funnelStages = stageSteps.length > 0
+      ? stageSteps.map((s) => s.key)
+      : ["NEW", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED"];
+
+    const colors = [
+      "bg-blue-600",
+      "bg-sky-500",
+      "bg-indigo-500",
+      "bg-purple-600",
+      "bg-amber-500",
+      "bg-orange-500",
+      "bg-emerald-600",
+    ];
+
+    return [
+      {
+        label: "Total Leads",
+        count: total,
+        percentage: "",
+        color: colors[0],
+        width: "100%",
+      },
+      ...funnelStages.slice(1).map((stageKey, i) => {
+        const count = leads.filter(
+          (l) => l.stage === stageKey || l.pipelineStage === stageKey
+        ).length;
+        const step = stageSteps.find((s) => s.key === stageKey);
+        return {
+          label: step?.label || stageKey.replace(/_/g, " "),
+          count,
+          percentage: total > 0 ? `${Math.round((count / total) * 100)}%` : "",
+          color: colors[(i + 1) % colors.length],
+          width: `${Math.max(22, Math.round((count / total) * 100))}%`,
+        };
+      }),
+    ];
+  }, [leads, stageSteps]);
+
+  // Lead source breakdown from live lead data + master labels
+  const leadSourcesData = useMemo(() => {
+    const total = leads.length;
+    if (total === 0) return [];
+
+    const counts = new Map<string, number>();
+    for (const lead of leads) {
+      const sourceName = lead.source || "Unknown";
+      counts.set(sourceName, (counts.get(sourceName) ?? 0) + 1);
+    }
+
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count], i) => ({
+        name,
+        count,
+        percentage: `${Math.round((count / total) * 100)}%`,
+        color: LEAD_SOURCE_COLORS[i % LEAD_SOURCE_COLORS.length],
+      }));
+  }, [leads]);
 
   const handleCall = (lead: UnifiedLead) => {
     setActiveLead(lead);
@@ -994,33 +1044,21 @@ export const CounselorDashboard: React.FC = () => {
                 <option value="Java Full Stack">Java Full Stack</option>
               </select>
 
-              {/* Lead Source Filter (Omnichannel Collection) */}
-              <select
-                value={leadSourceFilter}
-                onChange={(e) => setLeadSourceFilter(e.target.value)}
-                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Lead Sources</option>
-                {dynamicSources.map((src) => (
-                  <option key={src} value={src}>
-                    {src}
-                  </option>
-                ))}
-              </select>
+              <MasterSelect
+                entityType="leadsource"
+                value={leadSourceFilter === "ALL" ? "" : leadSourceFilter}
+                onChange={(id) => setLeadSourceFilter(id || "ALL")}
+                placeholder="All Lead Sources"
+                className="text-xs bg-white border border-slate-200 rounded-xl min-w-[140px] mt-0 h-auto py-2"
+              />
 
-              {/* Pipeline Stages Filter */}
-              <select
-                value={leadStageFilter}
-                onChange={(e) => setLeadStageFilter(e.target.value)}
-                className="text-xs bg-white border border-slate-200 hover:border-slate-300 rounded-xl px-3 py-2 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#1769AA] transition-all cursor-pointer shadow-2xs"
-              >
-                <option value="ALL">All Pipeline Stages</option>
-                {dynamicStages.map((stg) => (
-                  <option key={stg} value={stg}>
-                    {stg}
-                  </option>
-                ))}
-              </select>
+              <MasterSelect
+                entityType="leadstage"
+                value={leadStageFilter === "ALL" ? "" : leadStageFilter}
+                onChange={(id) => setLeadStageFilter(id || "ALL")}
+                placeholder="All Pipeline Stages"
+                className="text-xs bg-white border border-slate-200 rounded-xl min-w-[140px] mt-0 h-auto py-2"
+              />
 
               {/* Priority Filter */}
               <select
@@ -1094,7 +1132,7 @@ export const CounselorDashboard: React.FC = () => {
                   const isLost = lead.stage === "LOST" || lead.pipelineStage === "LOST";
                   const isConverted = lead.stage === "CONVERTED" || lead.pipelineStage === "CONVERTED";
 
-                  const STAGE_STEPS: { key: string; label: string }[] = [
+                  const STAGE_STEPS = stageSteps.length > 0 ? stageSteps : [
                     { key: "NEW", label: "AI Calling" },
                     { key: "CONTACTED", label: "Counsellor Contacting" },
                     { key: "INTERESTED", label: "Interested" },
@@ -1428,14 +1466,14 @@ export const CounselorDashboard: React.FC = () => {
                               <div className="px-2 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
                                 Set Master Pipeline Stage
                               </div>
-                              {dynamicStages.map((stg) => (
+                              {leadStageOptions.map((opt) => (
                                 <DropdownMenuItem
-                                  key={stg}
-                                  onClick={() => handleToggleStageCheckbox(lead.id, stg)}
+                                  key={opt.value}
+                                  onClick={() => handleToggleStageCheckbox(lead.id, opt.code || opt.label)}
                                   className="text-xs font-semibold py-1.5 cursor-pointer flex items-center justify-between"
                                 >
-                                  <span>{stg}</span>
-                                  {(lead.pipelineStage === stg || lead.stage === stg) && (
+                                  <span>{opt.label}</span>
+                                  {(lead.pipelineStage === (opt.code || opt.label) || lead.stage === (opt.code || opt.label)) && (
                                     <Check className="h-3 w-3 text-emerald-600" />
                                   )}
                                 </DropdownMenuItem>
@@ -1706,17 +1744,13 @@ export const CounselorDashboard: React.FC = () => {
               </div>
               <div>
                 <Label className="text-slate-600 text-xs font-medium">Omnichannel Lead Source *</Label>
-                <select
-                  value={formSource}
-                  onChange={(e) => setFormSource(e.target.value as any)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-semibold text-slate-800"
-                >
-                  {dynamicSources.map((src) => (
-                    <option key={src} value={src}>
-                      {src}
-                    </option>
-                  ))}
-                </select>
+                <MasterSelect
+                  entityType="leadsource"
+                  value={formSourceMasterId}
+                  onChange={setFormSourceMasterId}
+                  placeholder="Select lead source"
+                  className="mt-1 rounded-lg"
+                />
               </div>
             </div>
 

@@ -116,6 +116,7 @@ export const createExam = async (
       proctoringEnabled: data.proctoringEnabled ?? false,
       fullscreenRequired: data.fullscreenRequired ?? false,
       maxWarnings: data.maxWarnings ?? 3,
+      examTermMasterId: data.examTermMasterId || null,
     },
     include: examInclude,
   });
@@ -142,6 +143,9 @@ export const updateExam = async (id: string, instituteId: string, data: UpdateEx
       ...(data.proctoringEnabled !== undefined && { proctoringEnabled: data.proctoringEnabled }),
       ...(data.fullscreenRequired !== undefined && { fullscreenRequired: data.fullscreenRequired }),
       ...(data.maxWarnings !== undefined && { maxWarnings: data.maxWarnings }),
+      ...(data.examTermMasterId !== undefined && {
+        examTermMasterId: data.examTermMasterId || null,
+      }),
     },
     include: examInclude,
   });

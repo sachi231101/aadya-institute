@@ -6,6 +6,61 @@ import type {
   CollectPendingFeeDTO,
 } from "./fee.types";
 import { prisma } from "../../config/database";
+import {
+  resolveOptionalMasterFields,
+  resolveRequiredMasterFields,
+} from "../masters/master-resolve.service";
+
+async function resolvePaymentMasters(
+  instituteId: string,
+  dto: {
+    paymentModeMasterId?: string;
+    method?: string;
+    bankAccountMasterId?: string;
+    feeHeadMasterId?: string;
+  },
+  branchId?: string | null
+) {
+  let method = dto.method || "UPI";
+  let paymentModeMasterId: string | undefined;
+  let bankAccountMasterId: string | undefined;
+  let feeHead: string | undefined;
+  let feeHeadMasterId: string | undefined;
+
+  if (dto.paymentModeMasterId) {
+    const resolved = await resolveRequiredMasterFields({
+      instituteId,
+      entityType: "paymentmodes",
+      masterRecordId: dto.paymentModeMasterId,
+      branchId,
+    });
+    paymentModeMasterId = resolved.masterId;
+    method = resolved.code || resolved.label;
+  }
+
+  if (dto.bankAccountMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "bankaccounts",
+      masterRecordId: dto.bankAccountMasterId,
+      branchId,
+    });
+    bankAccountMasterId = resolved?.masterId;
+  }
+
+  if (dto.feeHeadMasterId) {
+    const resolved = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "feeheads",
+      masterRecordId: dto.feeHeadMasterId,
+      branchId,
+    });
+    feeHeadMasterId = resolved?.masterId;
+    feeHead = resolved?.label;
+  }
+
+  return { method, paymentModeMasterId, bankAccountMasterId, feeHead, feeHeadMasterId };
+}
 
 export const FeeService = {
   async getPayments(instituteId: string, query: QueryPaymentsDTO) {
@@ -18,9 +73,17 @@ export const FeeService = {
     dto: CreatePaymentDTO,
     recordedById?: string
   ) {
+    const masters = await resolvePaymentMasters(instituteId, dto, branchId);
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     const receiptNo = `RCP-2026-${randomSuffix}`;
-    return FeeRepository.createPayment(instituteId, branchId, receiptNo, dto, recordedById);
+    return FeeRepository.createPayment(instituteId, branchId, receiptNo, {
+      ...dto,
+      method: masters.method,
+      paymentModeMasterId: masters.paymentModeMasterId,
+      bankAccountMasterId: masters.bankAccountMasterId,
+      feeHeadMasterId: masters.feeHeadMasterId,
+      feeHead: masters.feeHead,
+    }, recordedById);
   },
 
   async deletePayment(id: string, instituteId: string) {
@@ -53,7 +116,20 @@ export const FeeService = {
     const randomSuffix = Math.floor(100 + Math.random() * 900);
     const receiptNo = `RCP-2026-${randomSuffix}`;
 
-    return FeeRepository.recordPendingFeePayment(pendingItem, receiptNo, dto, recordedById);
+    const masters = await resolvePaymentMasters(instituteId, dto, pendingItem.branchId);
+
+    return FeeRepository.recordPendingFeePayment(
+      pendingItem,
+      receiptNo,
+      {
+        ...dto,
+        method: masters.method,
+        paymentModeMasterId: masters.paymentModeMasterId,
+        feeHeadMasterId: masters.feeHeadMasterId ?? pendingItem.feeHeadMasterId ?? undefined,
+        feeHead: masters.feeHead ?? pendingItem.feeHead ?? undefined,
+      },
+      recordedById
+    );
   },
 
   async sendFeeReminder(pendingFeeId: string, instituteId: string) {

@@ -19,6 +19,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { getMasterLabel } from "@/utils/master.utils";
 import {
   Table,
   TableBody,
@@ -58,7 +62,9 @@ export const Batches: React.FC = () => {
   const [facultyId, setFacultyId] = useState("");
   const [startDate, setStartDate] = useState("2026-04-01");
   const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
-  const [timeSlot, setTimeSlot] = useState("10:00 AM - 12:00 PM");
+  const [timeSlotMasterId, setTimeSlotMasterId] = useState("");
+  const [classroomMasterId, setClassroomMasterId] = useState("");
+  const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [capacity, setCapacity] = useState<number>(35);
   const [submitting, setSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
@@ -106,7 +112,7 @@ export const Batches: React.FC = () => {
         facultyId: facultyId || undefined,
         startDate,
         schedulePattern,
-        timeSlot,
+        timeSlot: getMasterLabel(timeslotOptions, timeSlotMasterId) || undefined,
         capacity,
       });
 
@@ -512,14 +518,25 @@ export const Batches: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Time Slot</label>
-                  <Input
-                    type="text"
-                    value={timeSlot}
-                    onChange={(e) => setTimeSlot(e.target.value)}
-                    placeholder="10:00 AM - 12:00 PM"
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  <MasterSelect
+                    entityType="timeslot"
+                    value={timeSlotMasterId}
+                    onChange={setTimeSlotMasterId}
+                    placeholder="Select time slot"
+                    className="mt-0 rounded-xl"
                   />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1">Classroom</label>
+                  <ClassroomDropdown
+                    value={classroomMasterId}
+                    onChange={setClassroomMasterId}
+                    className="mt-0 rounded-xl"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">Start Date</label>
                   <Input

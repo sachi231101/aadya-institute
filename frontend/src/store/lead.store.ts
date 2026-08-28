@@ -1,22 +1,10 @@
 import { create } from "zustand";
 
-export type LeadSource =
-  | "Website"
-  | "Google Ads"
-  | "Meta Ads"
-  | "Instagram"
-  | "Referral"
-  | "Walk-in"
-  | "Direct Call"
-  | "Campaign";
+/** Lead source label from Master Module (leadsource). */
+export type LeadSource = string;
 
-export type PipelineStage =
-  | "NEW"
-  | "CONTACTED"
-  | "INTERESTED"
-  | "FOLLOW_UP"
-  | "CONVERTED"
-  | "LOST";
+/** Pipeline stage code/label from Master Module (leadstage). */
+export type PipelineStage = string;
 
 export type AiCallOutcome =
   | "INTERESTED"

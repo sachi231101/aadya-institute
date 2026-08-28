@@ -8,6 +8,10 @@ import { LeadFollowupService } from "./services/lead-followup.service";
 import { LeadConversionService } from "./services/lead-conversion.service";
 import { LeadActivityService } from "./services/lead-activity.service";
 import { logger } from "../../config/logger";
+import {
+  resolveOptionalMasterFields,
+  resolveRequiredMasterFields,
+} from "../masters/master-resolve.service";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   CreateLeadDTO,
@@ -75,6 +79,34 @@ export const LeadService = {
       assignedCounsellorId = isCounsellor ? (currentUser.userId || currentUser.id) : undefined;
     }
 
+    // 4. Resolve master references for source / stage / lead type
+    let sourceCode = dto.source || "WALK_IN";
+    let sourceMasterId: string | undefined;
+    let stageCode = assignedCounsellorId ? "ASSIGNED" : "NEW";
+    let stageMasterId: string | undefined;
+
+    if (dto.sourceMasterId) {
+      const resolved = await resolveRequiredMasterFields({
+        instituteId,
+        entityType: "leadsource",
+        masterRecordId: dto.sourceMasterId,
+        branchId,
+      });
+      sourceMasterId = resolved.masterId;
+      sourceCode = resolved.code || resolved.label;
+    }
+
+    if (dto.stageMasterId) {
+      const resolved = await resolveRequiredMasterFields({
+        instituteId,
+        entityType: "leadstage",
+        masterRecordId: dto.stageMasterId,
+        branchId,
+      });
+      stageMasterId = resolved.masterId;
+      stageCode = resolved.code || resolved.label;
+    }
+
     const lead = await LeadRepository.createLead({
       instituteId,
       branchId,
@@ -83,7 +115,10 @@ export const LeadService = {
       email: dto.email,
       interestedIn: dto.interestedIn,
       courseId,
-      source: dto.source,
+      source: sourceCode,
+      sourceMasterId,
+      stage: stageCode,
+      stageMasterId,
       priority: dto.priority ?? "MEDIUM",
       notes: dto.notes,
       createdById: currentUser.userId || currentUser.id,
@@ -184,8 +219,28 @@ export const LeadService = {
 
   // ─── Change Stage ───────────────────────────────────────────────────────────
   async changeStage(leadId: string, currentUser: AuthUser, dto: ChangeLeadStageDTO) {
-    await this.getLeadById(leadId, currentUser);
-    const updated = await LeadRepository.changeStage(leadId, dto.stage, currentUser.userId || currentUser.id, dto.notes);
+    const lead = await this.getLeadById(leadId, currentUser);
+    let stageCode = dto.stage || lead.stage;
+    let stageMasterId = dto.stageMasterId;
+
+    if (dto.stageMasterId) {
+      const resolved = await resolveRequiredMasterFields({
+        instituteId: currentUser.instituteId,
+        entityType: "leadstage",
+        masterRecordId: dto.stageMasterId,
+        branchId: lead.branchId,
+      });
+      stageMasterId = resolved.masterId;
+      stageCode = resolved.code || resolved.label;
+    }
+
+    const updated = await LeadRepository.changeStage(
+      leadId,
+      stageCode,
+      currentUser.userId || currentUser.id,
+      dto.notes,
+      stageMasterId
+    );
     if (!updated) throw new AppError("Lead not found", 404);
     return updated;
   },

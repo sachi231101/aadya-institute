@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useCourseStore } from "../../../store/course.store";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { useScheduleStore } from "../../../store/schedule.store";
+import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import type { ClassSession, ClassMode, ClassStatus } from "../../../types/schedule.types";
 
 interface EditClassModalProps {
@@ -25,7 +26,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
   const [date, setDate] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [roomNo, setRoomNo] = useState("");
+  const [classroomMasterId, setClassroomMasterId] = useState("");
   const [mode, setMode] = useState<ClassMode>("OFFLINE");
   const [status, setStatus] = useState<ClassStatus>("UPCOMING");
 
@@ -37,7 +38,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       setDate(session.date || "");
       setStartTime(session.startTime || "09:00");
       setEndTime(session.endTime || "17:00");
-      setRoomNo(session.roomNo || "Room 101");
+      setClassroomMasterId("");
       setMode(session.mode || "OFFLINE");
       setStatus(session.status || "UPCOMING");
     }
@@ -60,7 +61,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       date,
       startTime,
       endTime,
-      roomNo,
+      roomNo: session.roomNo,
       mode,
       status,
     };
@@ -72,7 +73,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       scheduledDate: date,
       startTime,
       endTime,
-      roomNo,
+      classroomMasterId: classroomMasterId || undefined,
       mode,
       status,
     });
@@ -208,14 +209,12 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Location / Room
+                Classroom / Lab
               </label>
-              <Input
-                type="text"
-                value={roomNo}
-                onChange={(e) => setRoomNo(e.target.value)}
-                placeholder="Room 101 / Lab 1"
-                className="rounded-xl border-slate-200 text-xs"
+              <ClassroomDropdown
+                value={classroomMasterId}
+                onChange={setClassroomMasterId}
+                className="mt-0"
               />
             </div>
             <div>

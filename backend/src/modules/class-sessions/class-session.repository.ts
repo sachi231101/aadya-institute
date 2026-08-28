@@ -142,6 +142,8 @@ export const classSessionRepository = {
         startTime: data.startTime,
         endTime: data.endTime,
         roomNo: data.roomNo || undefined,
+        classroomMasterId: data.classroomMasterId || undefined,
+        timeslotMasterId: data.timeslotMasterId || undefined,
         mode: data.mode || "OFFLINE",
         meetingUrl: data.meetingUrl || undefined,
         notes: data.notes || undefined,
@@ -180,6 +182,16 @@ export const classSessionRepository = {
     if (data.startTime !== undefined) updateData.startTime = data.startTime;
     if (data.endTime !== undefined) updateData.endTime = data.endTime;
     if (data.roomNo !== undefined) updateData.roomNo = data.roomNo;
+    if (data.classroomMasterId !== undefined) {
+      updateData.classroomMaster = data.classroomMasterId
+        ? { connect: { id: data.classroomMasterId } }
+        : { disconnect: true };
+    }
+    if (data.timeslotMasterId !== undefined) {
+      updateData.timeslotMaster = data.timeslotMasterId
+        ? { connect: { id: data.timeslotMasterId } }
+        : { disconnect: true };
+    }
     if (data.mode !== undefined) updateData.mode = data.mode;
     if (data.meetingUrl !== undefined) updateData.meetingUrl = data.meetingUrl;
     if (data.notes !== undefined) updateData.notes = data.notes;

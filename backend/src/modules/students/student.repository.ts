@@ -195,6 +195,8 @@ export const createStudentWithUser = async (data: {
   studentCode: string;
   dateOfBirth?: string;
   qualification?: string;
+  qualificationMasterId?: string;
+  areaMasterId?: string;
   courseId?: string;
   batchId?: string;
   totalFee?: number;
@@ -223,6 +225,8 @@ export const createStudentWithUser = async (data: {
         studentCode: data.studentCode,
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
         qualification: data.qualification || null,
+        qualificationMasterId: data.qualificationMasterId || null,
+        areaMasterId: data.areaMasterId || null,
       },
     });
 
@@ -396,17 +400,21 @@ export const updateStudent = async (
     phone?: string;
     dateOfBirth?: string;
     qualification?: string;
+    qualificationMasterId?: string;
+    areaMasterId?: string;
     status?: "ACTIVE" | "ON_LEAVE" | "COMPLETED" | "DISCONTINUED" | "CANCELLED";
     branchId?: string;
   }
 ) => {
-  const { name, email, phone, dateOfBirth, qualification, status, branchId } = data;
+  const { name, email, phone, dateOfBirth, qualification, qualificationMasterId, areaMasterId, status } = data;
 
   const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined || branchId !== undefined;
 
   // Build student-only update data
   const studentUpdate: Record<string, unknown> = {};
   if (qualification !== undefined) studentUpdate.qualification = qualification;
+  if (qualificationMasterId !== undefined) studentUpdate.qualificationMasterId = qualificationMasterId;
+  if (areaMasterId !== undefined) studentUpdate.areaMasterId = areaMasterId;
   if (status !== undefined) studentUpdate.status = status;
   if (dateOfBirth !== undefined) studentUpdate.dateOfBirth = new Date(dateOfBirth);
   if (branchId !== undefined) studentUpdate.branchId = branchId;

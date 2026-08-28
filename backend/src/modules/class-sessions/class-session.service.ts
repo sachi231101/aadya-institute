@@ -2,6 +2,42 @@ import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { classSessionRepository } from "./class-session.repository";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
+import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
+
+async function applyClassSessionMasters(
+  instituteId: string,
+  data: CreateClassSessionDto | UpdateClassSessionDto,
+  branchId?: string
+) {
+  const result = { ...data } as CreateClassSessionDto & UpdateClassSessionDto;
+
+  if (data.classroomMasterId) {
+    const classroom = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "classroom",
+      masterRecordId: data.classroomMasterId,
+      branchId,
+    });
+    if (classroom) {
+      result.roomNo = classroom.label;
+      result.classroomMasterId = classroom.masterId;
+    }
+  }
+
+  if (data.timeslotMasterId) {
+    const timeslot = await resolveOptionalMasterFields({
+      instituteId,
+      entityType: "timeslot",
+      masterRecordId: data.timeslotMasterId,
+      branchId,
+    });
+    if (timeslot) {
+      result.timeslotMasterId = timeslot.masterId;
+    }
+  }
+
+  return result;
+}
 
 export const classSessionService = {
   getSessions: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
@@ -17,7 +53,8 @@ export const classSessionService = {
   },
 
   createSession: async (instituteId: string, data: CreateClassSessionDto) => {
-    return classSessionRepository.create(instituteId, data);
+    const enriched = await applyClassSessionMasters(instituteId, data, data.branchId);
+    return classSessionRepository.create(instituteId, enriched);
   },
 
   updateSession: async (id: string, instituteId: string, data: UpdateClassSessionDto) => {
@@ -25,7 +62,8 @@ export const classSessionService = {
     if (!existing) {
       throw new Error("Class session not found");
     }
-    return classSessionRepository.update(id, instituteId, data);
+    const enriched = await applyClassSessionMasters(instituteId, data, existing.branchId);
+    return classSessionRepository.update(id, instituteId, enriched);
   },
 
   startLiveClass: async (id: string, instituteId: string, meetingUrl?: string) => {
