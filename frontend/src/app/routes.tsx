@@ -129,6 +129,7 @@ import { StudentSchedule } from "../pages/student/Schedule";
 import { StudentProfile } from "../pages/student/Profile";
 import { StudentStudyMaterials } from "../pages/student/StudyMaterials";
 import { StudentAnnouncements } from "../pages/student/Announcements";
+import { StudentCertificates } from "../pages/student/Certificates";
 
 
 // Other roles dashboards
@@ -511,6 +512,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="study-materials" element={<StudentStudyMaterials />} />
         <Route path="recordings" element={<StudentRecordings />} />
         <Route path="assignments" element={<StudentAssignments />} />
+        <Route path="certificates" element={<StudentCertificates />} />
         <Route path="feedback" element={<StudentFeedback />} />
         <Route path="profile" element={<StudentProfile />} />
         <Route path="exams" element={<MyExams />} />

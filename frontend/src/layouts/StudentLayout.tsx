@@ -18,6 +18,7 @@ import {
   Megaphone,
   MessageSquareQuote,
   Briefcase,
+  Award,
   ExternalLink,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
@@ -108,6 +109,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
     { label: "Study Materials", icon: BookOpen, path: "/student/study-materials" },
     { label: "Video Recordings", icon: Video, path: "/student/recordings" },
+    { label: "My Certificates", icon: Award, path: "https://verify.aadyainstitution.com/", isExternal: true },
     { label: "Placement Portal", icon: Briefcase, path: "https://placement.aadyainstitution.com/", isExternal: true, badge: "NEW" },
     { label: "My Profile", icon: User, path: "/student/profile" },
   ];
@@ -244,13 +246,13 @@ export const StudentLayout: React.FC = () => {
             <InstallAppButton variant="sidebar" />
           </div>
 
-          {/* Exit Button Directly Below My Profile */}
+          {/* Logout Button */}
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors cursor-pointer text-left mt-1"
           >
-            <LogOut className="w-4 h-4 text-rose-500 stroke-[1.8]" />
-            <span>Exit</span>
+            <LogOut className="w-4 h-4 text-rose-500 stroke-[2]" />
+            <span>Logout</span>
           </button>
         </nav>
       </div>
@@ -283,8 +285,8 @@ export const StudentLayout: React.FC = () => {
   return (
     <div className="flex h-screen w-full bg-background font-sans antialiased text-foreground overflow-hidden">
       <InstallLoginPopup />
-      {/* ── Desktop Fixed Left Sidebar (Locked & Non-scrollable) ─────────────── */}
-      <aside className="hidden lg:flex w-64 shrink-0 bg-bg-secondary border-r border-border/50 flex-col justify-between p-4 h-screen sticky top-0 z-30 shadow-2xs overflow-hidden select-none">
+      {/* ── Desktop Fixed Left Sidebar (Scrollable) ─────────────── */}
+      <aside className="hidden lg:flex w-64 shrink-0 bg-bg-secondary border-r border-border/50 flex-col justify-between p-4 h-screen sticky top-0 z-30 shadow-2xs overflow-y-auto select-none">
         {renderSidebarContent()}
       </aside>
 
