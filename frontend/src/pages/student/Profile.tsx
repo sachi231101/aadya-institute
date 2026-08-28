@@ -1,6 +1,6 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { User, GraduationCap, Calendar, CheckCircle2, ExternalLink, BookOpen, FileText, Star, ArrowLeft } from "lucide-react";
+import { User, GraduationCap, Calendar, CheckCircle2, ExternalLink, BookOpen, FileText, Star, ArrowLeft, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,16 @@ const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
 
 export const StudentProfile: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-500">
-      {/* Back Button */}
+      {/* Top Bar with Back and Logout */}
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -24,6 +29,15 @@ export const StudentProfile: React.FC = () => {
         >
           <ArrowLeft className="w-4 h-4 text-slate-500" />
           <span>Back</span>
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleLogout}
+          className="rounded-xl border-rose-200 dark:border-rose-900/60 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-bold gap-1.5 shadow-2xs cursor-pointer"
+        >
+          <LogOut className="w-3.5 h-3.5 text-rose-500" />
+          <span>Logout Account</span>
         </Button>
       </div>
       {/* Header */}
