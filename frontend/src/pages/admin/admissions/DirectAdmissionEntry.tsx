@@ -223,6 +223,15 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [pincode, setPincode] = useState("");
   const [areaMasterId, setAreaMasterId] = useState("");
 
+  // Government ID & Guardian details (Optional)
+  const [fatherName, setFatherName] = useState("");
+  const [motherName, setMotherName] = useState("");
+  const [guardianPhone, setGuardianPhone] = useState("");
+  const [govtIdType, setGovtIdType] = useState("Aadhaar Card");
+  const [govtIdNumber, setGovtIdNumber] = useState("");
+  const [govtIdFileName, setGovtIdFileName] = useState("");
+  const [govtIdVerified, setGovtIdVerified] = useState(false);
+
   // ─── 2. ADMISSION DETAILS STATE ─────────────────────────────────────────
   const [admissionType, setAdmissionType] = useState("Regular Admission");
   const [branchId, setBranchId] = useState("");
@@ -279,19 +288,51 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdAdmissionSummary, setCreatedAdmissionSummary] = useState<any>(null);
 
-  // Auto-fill student details when converted directly from a Lead
+  // Auto-fill student details when converted directly from a Lead or Enquiry
   useEffect(() => {
-    if (location.state?.lead) {
-      const { lead } = location.state;
-      const parts = (lead.name || "").trim().split(" ");
+    const rawData = location.state?.lead || location.state;
+    if (!rawData) return;
+
+    if (rawData.name) {
+      const parts = String(rawData.name).trim().split(" ");
       setFirstName(parts[0] || "");
       setLastName(parts.slice(1).join(" ") || "");
-      if (lead.phone) setPhone(lead.phone.replace(/[^0-9+]/g, ""));
-      if (lead.email) setEmail(lead.email);
-      if (lead.source) {
-        setSourceMasterId(findMasterIdByLabel(leadSourceOptions, lead.source));
-      }
-      if (lead.notes) setRemarks(lead.notes);
+    }
+    if (rawData.phone) {
+      setPhone(String(rawData.phone).replace(/[^0-9+]/g, ""));
+    }
+    if (rawData.email) {
+      setEmail(String(rawData.email));
+    }
+    if (rawData.counsellor || rawData.assignedCounselor) {
+      setCounsellorName(rawData.counsellor || rawData.assignedCounselor);
+    }
+    if (rawData.source) {
+      setSourceMasterId(findMasterIdByLabel(leadSourceOptions, rawData.source));
+    }
+    if (rawData.location) {
+      setCity(rawData.location);
+    }
+    if (rawData.notes) {
+      setRemarks(rawData.notes);
+    }
+    if (rawData.parentName) {
+      setFatherName(rawData.parentName);
+    }
+    if (rawData.parentPhone) {
+      setEmergencyContact(rawData.parentPhone);
+    }
+    if (rawData.gender) {
+      setGender(rawData.gender);
+    }
+    if (rawData.dob) {
+      setDob(rawData.dob);
+    }
+    if (rawData.govtIdType) {
+      setGovtIdType(rawData.govtIdType);
+    }
+    if (rawData.govtIdNumber) {
+      setGovtIdNumber(rawData.govtIdNumber);
     }
   }, [location.state, leadSourceOptions]);
 
@@ -519,6 +560,27 @@ export const DirectAdmissionEntry: React.FC = () => {
       fee: resolveCourseFee(cObj),
     };
   };
+
+  // Auto-select course from Enquiry/Lead when available courses are ready
+  useEffect(() => {
+    const rawData = location.state?.lead || location.state;
+    const courseTarget = rawData?.course || rawData?.courseName;
+    if (!courseTarget || allAvailableCourses.length === 0) return;
+
+    if (selectedCoursesList.length === 0) {
+      const targetLower = String(courseTarget).toLowerCase().trim();
+      const matched = allAvailableCourses.find(
+        (c) =>
+          c.name.toLowerCase().includes(targetLower) ||
+          targetLower.includes(c.name.toLowerCase()) ||
+          c.code.toLowerCase() === targetLower
+      ) || allAvailableCourses[0];
+
+      if (matched && !selectedCoursesList.some((item) => item.courseId === matched.id)) {
+        setSelectedCoursesList([buildSelectedCourseItem(matched)]);
+      }
+    }
+  }, [location.state, allAvailableCourses]);
 
   // Available courses list (excluding already selected courses)
   const filteredAvailableCourses = useMemo(() => {
@@ -750,6 +812,10 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please select at least one course.");
       return false;
     }
+    if (statusOverride !== "Draft" && !govtIdNumber.trim()) {
+      notifyError("Please enter the student's Government ID number (e.g. Aadhaar / PAN Card).");
+      return false;
+    }
     if (paymentMode === "INSTALLMENT" && balanceToBePaid > 0 && installments.length === 0) {
       notifyError("Please add at least one installment for the remaining balance.");
       return false;
@@ -785,6 +851,10 @@ export const DirectAdmissionEntry: React.FC = () => {
         ? `Referral: ${getMasterLabel(leadSourceOptions, referralSourceMasterId)}`
         : null,
       altPhone ? `Alternate mobile: ${altPhone}` : null,
+      fatherName ? `Father's Name: ${fatherName}` : null,
+      motherName ? `Mother's Name: ${motherName}` : null,
+      guardianPhone ? `Guardian Phone: ${guardianPhone}` : null,
+      govtIdNumber ? `Govt ID (${govtIdType}): ${govtIdNumber}` : null,
       address ? `Address: ${address}` : null,
     ]
       .filter(Boolean)
@@ -1227,6 +1297,91 @@ export const DirectAdmissionEntry: React.FC = () => {
                       className="mt-0 rounded-md"
                     />
                   </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Father's / Guardian's Name</label>
+                    <Input
+                      value={fatherName}
+                      onChange={(e) => setFatherName(e.target.value)}
+                      placeholder="Father / Guardian Name"
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Mother's Name</label>
+                    <Input
+                      value={motherName}
+                      onChange={(e) => setMotherName(e.target.value)}
+                      placeholder="Mother Name"
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Emergency / Guardian Mobile</label>
+                    <Input
+                      value={guardianPhone}
+                      onChange={(e) => setGuardianPhone(e.target.value)}
+                      placeholder="Emergency contact number"
+                      className="bg-background border-border text-foreground"
+                    />
+                  </div>
+                </div>
+
+                {/* ──── GOVERNMENT IDENTITY (MANDATORY — NO UPLOAD REQUIRED) ──── */}
+                <div className="pt-4 border-t border-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="h-4 w-4 text-primary" />
+                      <span className="text-xs font-bold text-foreground">Government Identity</span>
+                    </div>
+                    <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-semibold">
+                      Mandatory
+                    </Badge>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/20 p-4 rounded-xl border border-border">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">
+                        Government ID Type <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={govtIdType}
+                        onChange={(e) => setGovtIdType(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-md border border-border bg-background text-foreground focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="Aadhaar Card">Aadhaar Card</option>
+                        <option value="PAN Card">PAN Card</option>
+                        <option value="Driving Licence">Driving Licence</option>
+                        <option value="Passport">Passport</option>
+                        <option value="Voter ID">Voter ID</option>
+                        <option value="Other Government ID">Other Government ID</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs font-semibold text-foreground block mb-1">
+                        {govtIdType} Number <span className="text-red-500">*</span>
+                      </label>
+                      <Input
+                        value={govtIdNumber}
+                        onChange={(e) => setGovtIdNumber(e.target.value)}
+                        placeholder={
+                          govtIdType === "Aadhaar Card"
+                            ? "XXXX XXXX XXXX (12 digits)"
+                            : govtIdType === "PAN Card"
+                            ? "ABCDE1234F (10 characters)"
+                            : `Enter ${govtIdType} number`
+                        }
+                        required
+                        className="bg-background border-border text-foreground text-xs"
+                      />
+                    </div>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground italic">
+                    Government ID number is mandatory for student registration. Document file upload is not required.
+                  </p>
                 </div>
               </CardContent>
             </Card>

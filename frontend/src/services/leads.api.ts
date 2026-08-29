@@ -146,6 +146,11 @@ export const leadsApi = {
     return response.data;
   },
 
+  createApplicationFromLead: async (id: string, data?: { feeStatus?: string; notes?: string; branchId?: string; courseId?: string }) => {
+    const response = await api.post(`/leads/${id}/create-application`, data || {});
+    return response.data;
+  },
+
   triggerAiCall: async (id: string) => {
     const response = await api.post(`/leads/${id}/ai-call`);
     return response.data;

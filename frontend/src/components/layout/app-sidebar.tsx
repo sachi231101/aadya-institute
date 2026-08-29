@@ -113,6 +113,7 @@ const data = {
       items: [
         { title: "All Admissions", url: "/admin/admissions/all" },
         { title: "Applications", url: "/admin/admissions/applications" },
+        { title: "Enquiries", url: "/admin/admissions/enquiries" },
       ],
     },
     {

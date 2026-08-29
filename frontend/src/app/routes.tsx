@@ -198,7 +198,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
         {/* Counsellor */}
@@ -329,7 +329,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
         {/* Courses */}
@@ -398,7 +398,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
         {/* Students */}

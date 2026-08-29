@@ -19,6 +19,10 @@ export interface CreateEnquiryDTO {
   status?: EnquiryStatus;
   counselorNotes?: string;
   assignedToId?: string;
+  aiCallStatus?: string;
+  aiCallResult?: string;
+  aiSummary?: string;
+  nextFollowUpAt?: string;
 }
 
 export interface UpdateEnquiryDTO {
@@ -30,6 +34,10 @@ export interface UpdateEnquiryDTO {
   status?: EnquiryStatus;
   counselorNotes?: string;
   assignedToId?: string;
+  aiCallStatus?: string;
+  aiCallResult?: string;
+  aiSummary?: string;
+  nextFollowUpAt?: string;
 }
 
 export interface QueryEnquiriesDTO {

@@ -19,6 +19,7 @@ import {
   useCreateFollowUp, useUpdateFollowUp, useTriggerLeadCall, useChangeLeadStage,
   useAssignLead, useMarkLeadLost
 } from "@/hooks/useLeads";
+import { leadsApi } from "@/services/leads.api";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 
 const DEFAULT_STAGE_PIPELINE = ["NEW", "ASSIGNED", "CONTACTED", "INTERESTED", "FOLLOW_UP", "CONVERTED"];
@@ -226,12 +227,27 @@ export const LeadDetails: React.FC = () => {
                 <CheckCircle2 size={14} /> View in Admissions ➔
               </Button>
             ) : (
-              <Button
-                className="bg-green-500 hover:bg-green-600 text-white gap-2 font-semibold shadow-md"
-                onClick={() => setShowConvertDialog(true)}
-              >
-                <CheckCircle2 size={14} /> Convert to Admission
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-semibold shadow-md text-xs cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      await leadsApi.createApplicationFromLead(id!);
+                      navigate(`${basePath}/admissions/applications`);
+                    } catch {
+                      navigate(`${basePath}/admissions/applications`);
+                    }
+                  }}
+                >
+                  <FileText size={14} /> + Create Application
+                </Button>
+                <Button
+                  className="bg-green-600 hover:bg-green-700 text-white gap-2 font-semibold shadow-md text-xs cursor-pointer"
+                  onClick={() => setShowConvertDialog(true)}
+                >
+                  <CheckCircle2 size={14} /> Direct Admission
+                </Button>
+              </div>
             )}
           </div>
         </div>

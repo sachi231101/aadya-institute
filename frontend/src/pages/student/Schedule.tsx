@@ -571,11 +571,10 @@ export const StudentSchedule: React.FC = () => {
           <button
             type="button"
             onClick={() => setUseStrictClock((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
-              useStrictClock
-                ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50"
-                : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-[#0D1527] dark:text-slate-300 dark:border-slate-800"
-            }`}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${useStrictClock
+              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50"
+              : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-[#0D1527] dark:text-slate-300 dark:border-slate-800"
+              }`}
             title="Toggle between Live Clock & State Showcase"
           >
             <Radio className={`w-3.5 h-3.5 ${useStrictClock ? "text-emerald-600 animate-pulse" : "text-slate-400"}`} />
@@ -631,11 +630,10 @@ export const StudentSchedule: React.FC = () => {
                 key={day.fullDate}
                 type="button"
                 onClick={() => setSelectedDay(day)}
-                className={`py-3 sm:py-3.5 px-2 rounded-2xl flex flex-col items-center justify-between text-center transition-all cursor-pointer ${
-                  isSelected
-                    ? "bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white shadow-md shadow-indigo-500/20 dark:shadow-indigo-900/40 scale-[1.02] border border-indigo-400/30"
-                    : "bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-[#152342] shadow-2xs"
-                }`}
+                className={`py-3 sm:py-3.5 px-2 rounded-2xl flex flex-col items-center justify-between text-center transition-all cursor-pointer ${isSelected
+                  ? "bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white shadow-md shadow-indigo-500/20 dark:shadow-indigo-900/40 scale-[1.02] border border-indigo-400/30"
+                  : "bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-[#152342] shadow-2xs"
+                  }`}
               >
                 <span className={`text-[10px] font-black tracking-wider ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
                   {day.dayName}
@@ -647,11 +645,10 @@ export const StudentSchedule: React.FC = () => {
 
                 {day.isToday ? (
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                      isSelected
-                        ? "bg-white/20 text-white backdrop-blur-xs"
-                        : "bg-blue-100 text-[#1D4ED8] dark:bg-blue-950/60 dark:text-sky-400 border border-blue-200/60 dark:border-sky-800/40"
-                    }`}
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${isSelected
+                      ? "bg-white/20 text-white backdrop-blur-xs"
+                      : "bg-blue-100 text-[#1D4ED8] dark:bg-blue-950/60 dark:text-sky-400 border border-blue-200/60 dark:border-sky-800/40"
+                      }`}
                   >
                     TODAY
                   </span>
@@ -713,10 +710,10 @@ export const StudentSchedule: React.FC = () => {
                 lifecycle.stage === "UPCOMING"
                   ? "border-l-4 border-l-amber-500"
                   : lifecycle.stage === "LIVE_NOW"
-                  ? "border-l-4 border-l-emerald-500"
-                  : lifecycle.stage === "FEEDBACK_REQUIRED"
-                  ? "border-l-4 border-l-purple-500"
-                  : "border-l-4 border-l-emerald-500";
+                    ? "border-l-4 border-l-emerald-500"
+                    : lifecycle.stage === "FEEDBACK_REQUIRED"
+                      ? "border-l-4 border-l-purple-500"
+                      : "border-l-4 border-l-emerald-500";
 
               return (
                 <div
@@ -1079,11 +1076,10 @@ export const StudentSchedule: React.FC = () => {
                           aria-label={`Rate teaching ${st} stars`}
                         >
                           <Star
-                            className={`w-6 h-6 transition-colors ${
-                              isFilled
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
-                            }`}
+                            className={`w-6 h-6 transition-colors ${isFilled
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
+                              }`}
                           />
                         </button>
                       );
@@ -1114,11 +1110,10 @@ export const StudentSchedule: React.FC = () => {
                           aria-label={`Rate understanding ${st} stars`}
                         >
                           <Star
-                            className={`w-6 h-6 transition-colors ${
-                              isFilled
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
-                            }`}
+                            className={`w-6 h-6 transition-colors ${isFilled
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
+                              }`}
                           />
                         </button>
                       );
@@ -1149,11 +1144,10 @@ export const StudentSchedule: React.FC = () => {
                           aria-label={`Rate overall experience ${st} stars`}
                         >
                           <Star
-                            className={`w-6 h-6 transition-colors ${
-                              isFilled
-                                ? "fill-amber-400 text-amber-400"
-                                : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
-                            }`}
+                            className={`w-6 h-6 transition-colors ${isFilled
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-300 dark:text-slate-700 hover:text-amber-300"
+                              }`}
                           />
                         </button>
                       );

@@ -582,7 +582,7 @@ export const CounselorDashboard: React.FC = () => {
 
   // Admission funnel derived from live lead data
   const admissionFunnelData = useMemo(() => {
-    const total = leads.length;
+    const total = combinedLeadsList.length;
     if (total === 0) return [];
 
     const funnelStages = stageSteps.length > 0
@@ -608,7 +608,7 @@ export const CounselorDashboard: React.FC = () => {
         width: "100%",
       },
       ...funnelStages.slice(1).map((stageKey, i) => {
-        const count = leads.filter(
+        const count = combinedLeadsList.filter(
           (l) => l.stage === stageKey || l.pipelineStage === stageKey
         ).length;
         const step = stageSteps.find((s) => s.key === stageKey);
@@ -621,15 +621,15 @@ export const CounselorDashboard: React.FC = () => {
         };
       }),
     ];
-  }, [leads, stageSteps]);
+  }, [combinedLeadsList, stageSteps]);
 
   // Lead source breakdown from live lead data + master labels
   const leadSourcesData = useMemo(() => {
-    const total = leads.length;
+    const total = combinedLeadsList.length;
     if (total === 0) return [];
 
     const counts = new Map<string, number>();
-    for (const lead of leads) {
+    for (const lead of combinedLeadsList) {
       const sourceName = lead.source || "Unknown";
       counts.set(sourceName, (counts.get(sourceName) ?? 0) + 1);
     }
@@ -642,7 +642,7 @@ export const CounselorDashboard: React.FC = () => {
         percentage: `${Math.round((count / total) * 100)}%`,
         color: LEAD_SOURCE_COLORS[i % LEAD_SOURCE_COLORS.length],
       }));
-  }, [leads]);
+  }, [combinedLeadsList]);
 
   const handleCall = (lead: UnifiedLead) => {
     setActiveLead(lead);

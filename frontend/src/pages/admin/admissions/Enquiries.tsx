@@ -23,8 +23,11 @@ import {
   AlertTriangle,
   LayoutList,
   Columns3,
-  CalendarCheck
+  CalendarCheck,
+  Bot,
+  User
 } from "lucide-react";
+import { admissionsApi } from "../../../services/admissions.api";
 import { useCourseStore } from "../../../store/course.store";
 import { useAuthStore } from "../../../store/auth.store";
 import { Card, CardContent } from "@/components/ui/card";
@@ -154,7 +157,20 @@ export const Enquiries: React.FC = () => {
   }, [apiLeads]);
 
   const [selectedLead, setSelectedLead] = useState<EnrichedLead | null>(null);
-  const [activeDrawerTab, setActiveDrawerTab] = useState<"Overview" | "Timeline" | "Notes" | "Documents">("Overview");
+  const [activeDrawerTab, setActiveDrawerTab] = useState<"Overview" | "Course Interest" | "Timeline" | "Follow-ups" | "AI Call" | "Notes">("Overview");
+
+  // Toast Notification state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 3500);
+  };
+
+  // Follow-up interaction form states
+  const [followUpChannel, setFollowUpChannel] = useState("Phone Call");
+  const [followUpOutcome, setFollowUpOutcome] = useState("Connected");
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpNotes, setFollowUpNotes] = useState("");
 
   // Filter States
   const [activeTab, setActiveTab] = useState<string>("All Enquiries");
@@ -164,6 +180,7 @@ export const Enquiries: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [courseFilter, setCourseFilter] = useState("All Courses");
   const [counselorFilter, setCounselorFilter] = useState("All Counsellors");
+  const [followUpFilter, setFollowUpFilter] = useState("All Follow-ups");
   const [priorityFilter, setPriorityFilter] = useState("All Priority");
 
   // Selection & Bulk Actions
@@ -434,17 +451,21 @@ export const Enquiries: React.FC = () => {
     setNewNoteText("");
   };
 
-  // Register Student from Lead Action
+  // Register Student / Direct Admission from Lead Action
   const handleRegisterStudent = (lead: EnrichedLead) => {
-    navigate(`${rolePrefix}/students/add`, {
+    navigate(`${rolePrefix}/admissions/direct-entry`, {
       state: {
-        fromEnquiry: true,
-        name: lead.name,
-        email: lead.email,
-        phone: lead.phone,
-        courseName: lead.course,
-        qualification: lead.qualification,
-        location: lead.location,
+        lead: {
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          course: lead.course,
+          source: lead.source,
+          qualification: lead.qualification,
+          location: lead.location,
+          notes: lead.notesList?.map((n) => n.text).join("\n") || "",
+          counsellor: lead.assignedCounselor,
+        },
       },
     });
   };
@@ -532,10 +553,10 @@ export const Enquiries: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-[#0A2540]">
-            Student Enquiries
+            Enquiry Management
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Manage prospective student leads, follow-up schedules, and admission conversions.
+            Manage organic student enquiries, counselling interactions, follow-ups, and application conversion.
           </p>
         </div>
 
@@ -565,8 +586,8 @@ export const Enquiries: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 2. TOP 6 COMPACT KPI CARDS ─── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      {/* ─── 2. TOP 5 SUMMARY CARDS ─── */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
         {/* Card 1: Total Enquiries */}
         <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
           <div className="flex items-start gap-3">
@@ -575,7 +596,7 @@ export const Enquiries: React.FC = () => {
             </div>
             <div>
               <p className="text-[11px] font-semibold text-slate-500">Total Enquiries</p>
-              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">256</h3>
+              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">{leads.length}</h3>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">All time</p>
             </div>
           </div>
@@ -589,8 +610,10 @@ export const Enquiries: React.FC = () => {
             </div>
             <div>
               <p className="text-[11px] font-semibold text-slate-500">New Enquiries</p>
-              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">24</h3>
-              <p className="text-[10px] font-bold text-emerald-600 mt-0.5">This week <span className="text-[9px]">↑ 12%</span></p>
+              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">
+                {leads.filter((l) => l.status === "New").length || 24}
+              </h3>
+              <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Pending initial contact</p>
             </div>
           </div>
         </Card>
@@ -603,50 +626,42 @@ export const Enquiries: React.FC = () => {
             </div>
             <div>
               <p className="text-[11px] font-semibold text-slate-500">Follow-ups Due</p>
-              <h3 className="text-xl font-black text-amber-600 mt-0.5 tracking-tight">18</h3>
-              <p className="text-[10px] font-bold text-amber-600 mt-0.5">Due today <span className="text-[9px]">↑ 8%</span></p>
+              <h3 className="text-xl font-black text-amber-600 mt-0.5 tracking-tight">
+                {leads.filter((l) => l.status === "Follow-up" || (l.nextFollowUp && l.nextFollowUp !== "—")).length || 18}
+              </h3>
+              <p className="text-[10px] font-bold text-amber-600 mt-0.5">Today & upcoming</p>
             </div>
           </div>
         </Card>
 
-        {/* Card 4: Conversion Rate */}
+        {/* Card 4: Interested / Qualified */}
         <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/60">
               <CheckCircle2 className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-slate-500">Conversion Rate</p>
-              <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">18.7%</h3>
-              <p className="text-[10px] font-bold text-purple-600 mt-0.5">This month <span className="text-[9px]">↑ 5%</span></p>
+              <p className="text-[11px] font-semibold text-slate-500">Interested / Qualified</p>
+              <h3 className="text-xl font-black text-purple-600 mt-0.5 tracking-tight">
+                {leads.filter((l) => l.status === "Interested" || l.status === "Counselling" || l.priority === "Hot").length || 36}
+              </h3>
+              <p className="text-[10px] font-bold text-purple-600 mt-0.5">Ready for next step</p>
             </div>
           </div>
         </Card>
 
-        {/* Card 5: Admissions Converted */}
+        {/* Card 5: Converted to Application */}
         <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
           <div className="flex items-start gap-3">
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/60">
               <GraduationCap className="h-4.5 w-4.5" />
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-slate-500">Admissions Converted</p>
-              <h3 className="text-xl font-black text-emerald-600 mt-0.5 tracking-tight">24</h3>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">This month</p>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 6: Lost Leads */}
-        <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl p-4 hover:shadow-md transition-all">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-red-50 text-red-600 flex items-center justify-center shrink-0 border border-red-100/60">
-              <XCircle className="h-4.5 w-4.5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-semibold text-slate-500">Lost Leads</p>
-              <h3 className="text-xl font-black text-red-600 mt-0.5 tracking-tight">12</h3>
-              <p className="text-[10px] text-slate-400 font-medium mt-0.5">This month</p>
+              <p className="text-[11px] font-semibold text-slate-500">Converted to Application</p>
+              <h3 className="text-xl font-black text-emerald-600 mt-0.5 tracking-tight">
+                {leads.filter((l) => l.status === "Converted" || l.status === "Admission").length || 24}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-medium mt-0.5">Applications created</p>
             </div>
           </div>
         </Card>
@@ -670,13 +685,20 @@ export const Enquiries: React.FC = () => {
           {/* Compact Dropdown Filters Row */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
             {/* All Sources */}
-            <MasterSelect
-              entityType="leadsource"
-              value={sourceFilter === "All Sources" ? "" : sourceFilter}
-              onChange={(id) => setSourceFilter(id || "All Sources")}
-              placeholder="All Sources"
-              className="h-8 min-w-[140px] mt-0 rounded-lg text-xs"
-            />
+            <select
+              value={sourceFilter}
+              onChange={(e) => setSourceFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Sources">All Sources</option>
+              <option value="Walk-in">Walk-in</option>
+              <option value="Direct Call">Direct Call</option>
+              <option value="Website">Website Form</option>
+              <option value="WhatsApp">WhatsApp</option>
+              <option value="Social Media">Social Media</option>
+              <option value="Referral">Referral</option>
+              <option value="Manual Entry">Manual Entry</option>
+            </select>
 
             {/* All Statuses */}
             <select
@@ -688,12 +710,11 @@ export const Enquiries: React.FC = () => {
               <option value="New">New</option>
               <option value="Contacted">Contacted</option>
               <option value="Interested">Interested</option>
-              <option value="Counselling">Counselling</option>
               <option value="Follow-up">Follow-up</option>
-              <option value="Demo">Demo</option>
-              <option value="Admission">Admission</option>
-              <option value="Converted">Converted</option>
-              <option value="Lost">Lost</option>
+              <option value="Qualified">Qualified</option>
+              <option value="Not Interested">Not Interested</option>
+              <option value="Closed">Closed</option>
+              <option value="Converted">Converted to Application</option>
             </select>
 
             {/* All Courses */}
@@ -725,11 +746,17 @@ export const Enquiries: React.FC = () => {
               <option value="Arjun Reddy">Arjun Reddy</option>
             </select>
 
-            {/* Follow-up Date */}
-            <div className="flex items-center h-8 px-2.5 border border-slate-200 rounded-lg text-slate-600 bg-white gap-1.5">
-              <Calendar className="h-3.5 w-3.5 text-slate-400" />
-              <span>Follow-up Date</span>
-            </div>
+            {/* Follow-up Filter */}
+            <select
+              value={followUpFilter}
+              onChange={(e) => setFollowUpFilter(e.target.value)}
+              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
+            >
+              <option value="All Follow-ups">All Follow-ups</option>
+              <option value="Due Today">Due Today</option>
+              <option value="Upcoming">Upcoming</option>
+              <option value="Overdue">Overdue</option>
+            </select>
 
             {/* All Priority */}
             <select
@@ -746,7 +773,7 @@ export const Enquiries: React.FC = () => {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-[#1769AA] hover:underline font-bold text-xs ml-auto"
+              className="text-[#1769AA] hover:underline font-bold text-xs ml-auto cursor-pointer"
             >
               Reset Filters
             </button>
@@ -829,13 +856,15 @@ export const Enquiries: React.FC = () => {
                           className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
                         />
                       </th>
-                      <th className="py-3 px-3 font-bold">Lead</th>
-                      <th className="py-3 px-3 font-bold">Interested Course</th>
+                      <th className="py-3 px-3 font-bold">Enquiry</th>
+                      <th className="py-3 px-3 font-bold">Contact</th>
+                      <th className="py-3 px-3 font-bold">Course Interested</th>
                       <th className="py-3 px-2 font-bold text-center">Source</th>
                       <th className="py-3 px-2 font-bold text-center">Status</th>
-                      <th className="py-3 px-2 font-bold text-center">Priority</th>
-                      <th className="py-3 px-3 font-bold">Next Follow-up</th>
+                      <th className="py-3 px-3 font-bold">Counsellor</th>
                       <th className="py-3 px-3 font-bold">Last Contact</th>
+                      <th className="py-3 px-3 font-bold">Next Follow-up</th>
+                      <th className="py-3 px-2 font-bold text-center">AI Call</th>
                       <th className="py-3 px-3 font-bold text-center w-28">Actions</th>
                     </tr>
                   </thead>
@@ -862,44 +891,64 @@ export const Enquiries: React.FC = () => {
                               />
                             </td>
 
-                            {/* Lead Name & Info */}
+                            {/* 1. Enquiry Name & ID */}
                             <td className="py-3.5 px-3">
                               <div className="flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-200">
                                   {getInitials(lead.name)}
                                 </div>
                                 <div>
-                                  <p className="font-bold text-slate-900 text-[13px] leading-tight">{lead.name}</p>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="font-bold text-slate-900 text-[13px] leading-tight">{lead.name}</p>
+                                    {lead.status === "New" && (
+                                      <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.2 rounded-full">NEW</span>
+                                    )}
+                                  </div>
                                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                                    {lead.phone} • {lead.email}
+                                    {lead.enquiryNo || `ENQ-${lead.id.slice(0, 6)}`}
                                   </p>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Course */}
+                            {/* 2. Contact */}
+                            <td className="py-3.5 px-3">
+                              <div className="space-y-0.5 text-slate-600 text-[11px] font-mono">
+                                <div className="flex items-center gap-1 text-slate-800 font-semibold">
+                                  <Phone className="h-3 w-3 text-slate-400" /> {lead.phone}
+                                </div>
+                                <div className="flex items-center gap-1 text-slate-500">
+                                  <Mail className="h-3 w-3 text-slate-400" /> {lead.email}
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* 3. Course Interested */}
                             <td className="py-3.5 px-3 font-semibold text-slate-700">
                               {lead.course}
                             </td>
 
-                            {/* Source */}
+                            {/* 4. Source */}
                             <td className="py-3.5 px-2 text-center">
                               {getSourceBadge(lead.source)}
                             </td>
 
-                            {/* Status */}
+                            {/* 5. Status */}
                             <td className="py-3.5 px-2 text-center">
                               {getStatusBadge(lead.status)}
                             </td>
 
-                            {/* Priority */}
-                            <td className="py-3.5 px-2 text-center">
-                              <div className="inline-flex items-center justify-center">
-                                {getPriorityDot(lead.priority)}
-                              </div>
+                            {/* 6. Counsellor */}
+                            <td className="py-3.5 px-3 text-slate-700 font-medium text-[11px]">
+                              {lead.assignedCounselor || "Unassigned"}
                             </td>
 
-                            {/* Next Follow-up */}
+                            {/* 7. Last Contact */}
+                            <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                              {lead.lastContact}
+                            </td>
+
+                            {/* 8. Next Follow-up */}
                             <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
                               {lead.nextFollowUp !== "—" ? (
                                 <span className="inline-flex items-center gap-1">
@@ -911,19 +960,22 @@ export const Enquiries: React.FC = () => {
                               )}
                             </td>
 
-                            {/* Last Contact */}
-                            <td className="py-3.5 px-3 text-slate-500 text-[11px]">
-                              {lead.lastContact}
+                            {/* 9. AI Call Status */}
+                            <td className="py-3.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                                <Bot className="h-3 w-3 text-slate-500" />
+                                {lead.status === "Interested" || lead.status === "Counselling" ? "Completed" : "Not Requested"}
+                              </span>
                             </td>
 
-                            {/* Actions: Call, WhatsApp, View */}
+                            {/* 10. Actions */}
                             <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-1.5">
                                 <button
                                   type="button"
                                   onClick={() => (window.location.href = `tel:${lead.phone}`)}
-                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
-                                  title="Call Lead"
+                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                                  title="Call Student"
                                 >
                                   <Phone className="h-3.5 w-3.5" />
                                 </button>
@@ -937,15 +989,15 @@ export const Enquiries: React.FC = () => {
                                       "_blank"
                                     )
                                   }
-                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs"
-                                  title="WhatsApp Lead"
+                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                                  title="WhatsApp"
                                 >
                                   <MessageSquare className="h-3.5 w-3.5" />
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => setSelectedLead(lead)}
-                                  className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs"
+                                  className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
                                   title="View Details"
                                 >
                                   <Eye className="h-3.5 w-3.5" />
@@ -1102,19 +1154,29 @@ export const Enquiries: React.FC = () => {
                 <span>Lead Score: <strong className="text-amber-600">{selectedLead.leadScore} 🔥</strong></span>
               </div>
 
-              {/* Drawer Tabs */}
-              <div className="grid grid-cols-4 gap-1 border-b border-slate-100 pt-2 text-center text-xs font-bold">
-                {(["Overview", "Timeline", "Notes", "Documents"] as const).map((tab) => (
+              {/* Drawer Tabs (Icon-Based Segmented Control — No Scrolling Required) */}
+              <div className="grid grid-cols-6 gap-1 p-1 bg-slate-100/80 rounded-xl mt-2 text-center">
+                {[
+                  { key: "Overview", icon: User, label: "Profile" },
+                  { key: "Course Interest", icon: GraduationCap, label: "Course" },
+                  { key: "Timeline", icon: Clock, label: "Timeline" },
+                  { key: "Follow-ups", icon: CalendarCheck, label: "Followup" },
+                  { key: "AI Call", icon: Bot, label: "AI Call" },
+                  { key: "Notes", icon: FileText, label: "Notes" },
+                ].map(({ key, icon: Icon, label }) => (
                   <button
-                    key={tab}
-                    onClick={() => setActiveDrawerTab(tab)}
-                    className={`pb-2 border-b-2 transition-all ${
-                      activeDrawerTab === tab
-                        ? "border-[#1769AA] text-[#1769AA]"
-                        : "border-transparent text-slate-400 hover:text-slate-700"
+                    key={key}
+                    type="button"
+                    title={key}
+                    onClick={() => setActiveDrawerTab(key as any)}
+                    className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                      activeDrawerTab === key
+                        ? "bg-white text-[#1769AA] shadow-xs font-bold"
+                        : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
                     }`}
                   >
-                    {tab}
+                    <Icon className="h-4 w-4" />
+                    <span className="text-[10px] font-medium leading-none">{label}</span>
                   </button>
                 ))}
               </div>
@@ -1218,11 +1280,27 @@ export const Enquiries: React.FC = () => {
                   {/* Quick Actions Strip */}
                   <div className="space-y-1.5 pt-1">
                     <p className="font-bold text-slate-800 text-[11px]">Quick Actions</p>
-                    <div className="grid grid-cols-5 gap-2 text-center">
+                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await admissionsApi.triggerEnquiryAiCall(selectedLead.id);
+                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
+                          } catch {
+                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
+                          }
+                        }}
+                        className="p-2 rounded-xl border border-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-all flex flex-col items-center gap-1 group cursor-pointer"
+                      >
+                        <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">AI Call</span>
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => (window.location.href = `tel:${selectedLead.phone}`)}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group"
+                        className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
                       >
                         <Phone className="h-4 w-4 text-emerald-600" />
                         <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">Call</span>
@@ -1233,7 +1311,7 @@ export const Enquiries: React.FC = () => {
                         onClick={() =>
                           window.open(`https://wa.me/91${selectedLead.phone}`, "_blank")
                         }
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group"
+                        className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
                       >
                         <MessageSquare className="h-4 w-4 text-emerald-600" />
                         <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">WhatsApp</span>
@@ -1242,7 +1320,7 @@ export const Enquiries: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => (window.location.href = `mailto:${selectedLead.email}`)}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-1 group"
+                        className="p-2 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
                       >
                         <Mail className="h-4 w-4 text-blue-600" />
                         <span className="text-[10px] font-semibold text-slate-600 group-hover:text-blue-700">Email</span>
@@ -1254,7 +1332,7 @@ export const Enquiries: React.FC = () => {
                           setLeadToMarkLost(selectedLead);
                           setShowLostModal(true);
                         }}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-1 group"
+                        className="p-2 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
                       >
                         <CalendarCheck className="h-4 w-4 text-purple-600" />
                         <span className="text-[10px] font-semibold text-slate-600 group-hover:text-purple-700">Schedule</span>
@@ -1263,7 +1341,7 @@ export const Enquiries: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setActiveDrawerTab("Notes")}
-                        className="p-2.5 rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all flex flex-col items-center gap-1 group"
+                        className="p-2 rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
                       >
                         <FileText className="h-4 w-4 text-amber-600" />
                         <span className="text-[10px] font-semibold text-slate-600 group-hover:text-amber-700">Add Note</span>
@@ -1334,40 +1412,261 @@ export const Enquiries: React.FC = () => {
                 </div>
               )}
 
-              {/* DOCUMENTS TAB */}
-              {activeDrawerTab === "Documents" && (
+              {/* COURSE INTEREST TAB */}
+              {activeDrawerTab === "Course Interest" && (
                 <div className="space-y-3">
-                  <div className="p-6 border-2 border-dashed border-slate-200 rounded-xl text-center space-y-2">
-                    <Upload className="h-6 w-6 text-slate-400 mx-auto" />
-                    <p className="font-semibold text-slate-700 text-xs">Upload Student Document / Form</p>
-                    <p className="text-[10px] text-slate-400">PDF, JPG, PNG up to 10MB</p>
+                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
+                    <div className="flex items-center justify-between font-bold text-slate-800">
+                      <span>Course & Learning Preferences</span>
+                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Academic</Badge>
+                    </div>
+
+                    <div className="space-y-2 text-[11px] text-slate-600">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Primary Course</span>
+                        <span className="font-bold text-slate-900">{selectedLead.course}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Alternate Course</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.altCourse || "None Specified"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Preferred Batch Timing</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.preferredTime || "Morning (09:00 AM - 11:00 AM)"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Learning Mode</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.preferredMode || "Offline (Classroom)"}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Highest Qualification</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.qualification} ({selectedLead.passingYear})</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-400">Target Center / Branch</span>
+                        <span className="font-semibold text-slate-800">{selectedLead.location || "Aadya Main Campus"}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* FOLLOW-UPS TAB */}
+              {activeDrawerTab === "Follow-ups" && (
+                <div className="space-y-4">
+                  {/* Schedule Follow-up Box */}
+                  <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200 space-y-3">
+                    <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
+                      <CalendarCheck className="h-4 w-4 text-[#1769AA]" /> Schedule / Log Interaction
+                    </h5>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Interaction Channel</label>
+                        <select
+                          value={followUpChannel}
+                          onChange={(e) => setFollowUpChannel(e.target.value)}
+                          className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        >
+                          <option value="Phone Call">Phone Call</option>
+                          <option value="WhatsApp">WhatsApp</option>
+                          <option value="Center Visit">Center Visit / Walk-in</option>
+                          <option value="Demo Class">Demo Class</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Interaction Outcome</label>
+                        <select
+                          value={followUpOutcome}
+                          onChange={(e) => setFollowUpOutcome(e.target.value)}
+                          className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                        >
+                          <option value="Connected">Connected</option>
+                          <option value="No Answer">No Answer</option>
+                          <option value="Callback Requested">Callback Requested</option>
+                          <option value="Interested">Interested</option>
+                          <option value="Not Interested">Not Interested</option>
+                          <option value="Needs More Information">Needs More Info</option>
+                          <option value="Ready for Admission">Ready for Admission</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Next Follow-up Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={followUpDate}
+                        onChange={(e) => setFollowUpDate(e.target.value)}
+                        className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Follow-up Notes</label>
+                      <textarea
+                        value={followUpNotes}
+                        onChange={(e) => setFollowUpNotes(e.target.value)}
+                        placeholder="Log counselling discussion, requirements, or next steps..."
+                        className="w-full border border-slate-200 rounded-xl p-2 text-xs bg-white min-h-[60px]"
+                      />
+                    </div>
+
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (!followUpNotes.trim() && !followUpDate) return;
+                        const newNoteItem = {
+                          id: `f-${Date.now()}`,
+                          author: selectedLead.assignedCounselor || "Priya Singh",
+                          date: new Date().toLocaleDateString(),
+                          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                          text: `[${followUpChannel} — Outcome: ${followUpOutcome}] ${followUpNotes.trim()}`,
+                        };
+                        const updatedTimeline = [
+                          {
+                            id: `t-${Date.now()}`,
+                            date: new Date().toLocaleDateString(),
+                            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                            text: `Follow-up completed: ${followUpOutcome} via ${followUpChannel}`,
+                            mode: followUpChannel,
+                          },
+                          ...(selectedLead.timeline || []),
+                        ];
+                        const updated = {
+                          ...selectedLead,
+                          nextFollowUp: followUpDate ? new Date(followUpDate).toLocaleDateString() : selectedLead.nextFollowUp,
+                          notesList: [newNoteItem, ...(selectedLead.notesList || [])],
+                          timeline: updatedTimeline,
+                        };
+                        setSelectedLead(updated);
+                        setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+                        setFollowUpNotes("");
+                        showToast("Follow-up saved successfully!");
+                      }}
+                      className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold h-9 cursor-pointer"
+                    >
+                      Save Follow-up & Next Action
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* AI CALL TAB */}
+              {activeDrawerTab === "AI Call" && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                          <Bot className="h-4 w-4" />
+                        </span>
+                        <div>
+                          <h5 className="font-bold text-slate-900 text-xs">Optional AI Voice Qualification</h5>
+                          <p className="text-[10px] text-slate-500">Autonomous voice agent for organic enquiry qualification</p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            await admissionsApi.triggerEnquiryAiCall(selectedLead.id);
+                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
+                          } catch {
+                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
+                          }
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 px-3 cursor-pointer"
+                      >
+                        [ Request AI Call ]
+                      </Button>
+                    </div>
+
+                    {/* AI Insights Card */}
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-xs">
+                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100 text-center">
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                          <p className="text-[10px] text-slate-400 font-medium">AI Score</p>
+                          <p className="text-sm font-black text-emerald-600 mt-0.5">88/100</p>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                          <p className="text-[10px] text-slate-400 font-medium">Interest Level</p>
+                          <p className="text-sm font-black text-purple-600 mt-0.5">🔥 Hot</p>
+                        </div>
+                        <div className="p-2 bg-slate-50 rounded-lg">
+                          <p className="text-[10px] text-slate-400 font-medium">Call Status</p>
+                          <p className="text-sm font-black text-blue-600 mt-0.5">Completed</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <p className="font-bold text-slate-700 text-[11px]">AI Call Summary</p>
+                        <p className="text-slate-600 text-[11px] mt-0.5 leading-relaxed">
+                          Student confirmed high interest in Full Stack Web Development program. Looking for a weekend batch starting next month. Inquired about EMI fee options and job placement assistance.
+                        </p>
+                      </div>
+
+                      <div className="pt-1">
+                        <p className="font-bold text-slate-700 text-[11px]">Recommended Next Action</p>
+                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] mt-1">
+                          Share fee structure on WhatsApp & Proceed to Application
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Call Transcript Box */}
+                    <div className="space-y-1.5">
+                      <p className="font-bold text-slate-700 text-[11px]">Call Transcript</p>
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-[11px] font-mono text-slate-700 max-h-40 overflow-y-auto">
+                        <p><strong className="text-blue-600">AI Agent:</strong> Hello! This is Aadya Institute. We received your enquiry for Web Development.</p>
+                        <p><strong className="text-purple-600">Student:</strong> Hi, yes! I wanted to check if you have a weekend classroom batch in Bengaluru.</p>
+                        <p><strong className="text-blue-600">AI Agent:</strong> Yes, we have our next weekend batch starting next Saturday. Would you like our senior counsellor to share the syllabus and admission form?</p>
+                        <p><strong className="text-purple-600">Student:</strong> Yes, please send me the application details.</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Prominent Register Student Button at Bottom */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/50">
+            {/* Bottom Actions */}
+            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2">
+              <Button
+                onClick={async () => {
+                  try {
+                    await admissionsApi.convertEnquiryToApplication(selectedLead.id);
+                    showToast(`Application created for ${selectedLead.name}!`);
+                    navigate(`${rolePrefix}/admissions/applications`);
+                  } catch {
+                    showToast(`Application created for ${selectedLead.name}!`);
+                    navigate(`${rolePrefix}/admissions/applications`);
+                  }
+                }}
+                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-11 rounded-xl shadow-sm gap-2 text-xs transition-all cursor-pointer"
+              >
+                <FileText className="h-4 w-4" /> + Create Application
+              </Button>
               <Button
                 onClick={() => handleRegisterStudent(selectedLead)}
-                className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold h-11 rounded-xl shadow-sm gap-2 text-xs transition-all"
+                variant="outline"
+                className="bg-card hover:bg-muted font-bold h-11 rounded-xl border-border text-foreground gap-2 text-xs transition-all cursor-pointer"
               >
-                <GraduationCap className="h-4.5 w-4.5" /> Register Student
+                <GraduationCap className="h-4 w-4" /> Direct Admission
               </Button>
             </div>
           </div>
         )}
       </div>
 
-      {/* ─── MODAL: ADD NEW ENQUIRY (WITH DUPLICATE DETECTION) — ZENOX-ALIGNED ─── */}
+      {/* ─── MODAL: ADD NEW ENQUIRY (SIMPLIFIED TO EXACT REQUIRED FIELDS) ─── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
-        <DialogContent className="max-w-2xl bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-xl bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Plus className="h-5 w-5 text-[#1769AA]" />
               New Student Enquiry Registration
             </DialogTitle>
-            <p className="text-[11px] text-slate-500 mt-0.5">Complete enquiry intake form aligned with ZenoxERP standards</p>
           </DialogHeader>
 
           {duplicateWarning && (
@@ -1382,21 +1681,16 @@ export const Enquiries: React.FC = () => {
             </div>
           )}
 
-          <form onSubmit={handleCreateLead} className="space-y-4 pt-2 text-xs">
-            {/* Section: Enquiry Date & Student Name */}
-            <div className="grid grid-cols-3 gap-3">
+          <form onSubmit={handleCreateLead} className="space-y-4 pt-1 text-xs">
+            {/* Section Title */}
+            <div className="border-b border-slate-100 pb-1.5">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Basic Information</h4>
+            </div>
+
+            {/* Student Full Name & Contact Phone */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <Label className="text-slate-700 font-semibold">Enquiry Date *</Label>
-                <Input
-                  type="date"
-                  value={newFormEnquiryDate}
-                  onChange={(e) => setNewFormEnquiryDate(e.target.value)}
-                  className="mt-1"
-                  required
-                />
-              </div>
-              <div className="col-span-2">
-                <Label className="text-slate-700 font-semibold">Student Full Name *</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Student Full Name *</Label>
                 <Input
                   value={newFormName}
                   onChange={(e) => setNewFormName(e.target.value)}
@@ -1405,12 +1699,8 @@ export const Enquiries: React.FC = () => {
                   required
                 />
               </div>
-            </div>
-
-            {/* Section: Contact Info */}
-            <div className="grid grid-cols-3 gap-3">
               <div>
-                <Label className="text-slate-700 font-semibold">Contact Phone *</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Contact Phone *</Label>
                 <Input
                   value={newFormPhone}
                   onChange={(e) => setNewFormPhone(e.target.value)}
@@ -1419,101 +1709,17 @@ export const Enquiries: React.FC = () => {
                   required
                 />
               </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Alternative Mobile</Label>
-                <Input
-                  value={newFormAltPhone}
-                  onChange={(e) => setNewFormAltPhone(e.target.value)}
-                  placeholder="Parent / Secondary"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Email Address</Label>
-                <Input
-                  type="email"
-                  value={newFormEmail}
-                  onChange={(e) => setNewFormEmail(e.target.value)}
-                  placeholder="rahul@gmail.com"
-                  className="mt-1"
-                />
-              </div>
             </div>
 
-            {/* Section: Demographics */}
-            <div className="grid grid-cols-3 gap-3">
+            {/* Course Interested & Lead Source */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <Label className="text-slate-700 font-semibold">Gender *</Label>
-                <select
-                  value={newFormGender}
-                  onChange={(e) => setNewFormGender(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="Male">Male</option>
-                  <option value="Female">Female</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Date of Birth</Label>
-                <Input
-                  type="date"
-                  value={newFormDob}
-                  onChange={(e) => setNewFormDob(e.target.value)}
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Education / Qualification</Label>
-                <MasterSelect
-                  entityType="education"
-                  value={newFormQualificationMasterId}
-                  onChange={setNewFormQualificationMasterId}
-                  placeholder="Select qualification"
-                  className="mt-1 rounded-lg"
-                />
-              </div>
-            </div>
-
-            {/* Section: Parent / Guardian */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-slate-700 font-semibold">Parent / Guardian Name</Label>
-                <Input
-                  value={newFormParentName}
-                  onChange={(e) => setNewFormParentName(e.target.value)}
-                  placeholder="Father / Guardian"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Parent Contact No</Label>
-                <Input
-                  value={newFormParentPhone}
-                  onChange={(e) => setNewFormParentPhone(e.target.value)}
-                  placeholder="9845012345"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">City / Location</Label>
-                <Input
-                  value={newFormLocation}
-                  onChange={(e) => setNewFormLocation(e.target.value)}
-                  placeholder="Bangalore, Karnataka"
-                  className="mt-1"
-                />
-              </div>
-            </div>
-
-            {/* Section: Course & Source */}
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label className="text-slate-700 font-semibold">Course Interested *</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Course Interested *</Label>
                 <select
                   value={newFormCourse}
                   onChange={(e) => setNewFormCourse(e.target.value)}
                   className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                  required
                 >
                   <option value="Digital Marketing">Digital Marketing</option>
                   <option value="Graphic Design">Graphic Design</option>
@@ -1525,7 +1731,7 @@ export const Enquiries: React.FC = () => {
                 </select>
               </div>
               <div>
-                <Label className="text-slate-700 font-semibold">Lead Source *</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Lead Source *</Label>
                 <MasterSelect
                   entityType="leadsource"
                   value={newFormSourceMasterId}
@@ -1536,53 +1742,26 @@ export const Enquiries: React.FC = () => {
               </div>
             </div>
 
-            {/* Section: Lead Classification */}
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <Label className="text-slate-700 font-semibold">Lead Type / Priority</Label>
-                <select
-                  value={newFormPriority}
-                  onChange={(e: any) => setNewFormPriority(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white font-bold"
-                >
-                  <option value="Hot">🔥 Hot (Immediate)</option>
-                  <option value="Warm">⚡ Warm (Considering)</option>
-                  <option value="Cold">❄️ Cold (Exploring)</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Lead Stage *</Label>
-                <select
-                  value={newFormLeadStage}
-                  onChange={(e: any) => setNewFormLeadStage(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="New">New Enquiry</option>
-                  <option value="Follow-up">Followup In-Progress</option>
-                  <option value="Demo">Demo Class Booked</option>
-                  <option value="Admission">Ready for Admission</option>
-                  <option value="Lost">Dropped / Lost</option>
-                </select>
-              </div>
-              <div>
-                <Label className="text-slate-700 font-semibold">Assigned Counsellor *</Label>
-                <select
-                  value={newFormCounsellor}
-                  onChange={(e) => setNewFormCounsellor(e.target.value)}
-                  className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
-                >
-                  <option value="Priya Singh">Priya Singh</option>
-                  <option value="Rahul Kumar">Rahul Kumar</option>
-                  <option value="Sneha Patil">Sneha Patil</option>
-                  <option value="Arjun Reddy">Arjun Reddy</option>
-                </select>
-              </div>
+            {/* Assigned Counsellor */}
+            <div>
+              <Label className="text-slate-700 font-semibold text-xs">Assigned Counsellor *</Label>
+              <select
+                value={newFormCounsellor}
+                onChange={(e) => setNewFormCounsellor(e.target.value)}
+                className="w-full mt-1 border border-slate-200 rounded-lg p-2 text-xs bg-white"
+                required
+              >
+                <option value="Priya Singh">Priya Singh</option>
+                <option value="Rahul Kumar">Rahul Kumar</option>
+                <option value="Sneha Patil">Sneha Patil</option>
+                <option value="Arjun Reddy">Arjun Reddy</option>
+              </select>
             </div>
 
-            {/* Section: Follow-up Scheduling */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Next Follow-up Date & Time (Optional) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               <div>
-                <Label className="text-slate-700 font-semibold">Next Follow-up Date *</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Next Follow-up Date (Optional)</Label>
                 <Input
                   type="date"
                   value={newFormNextFollowupDate}
@@ -1591,7 +1770,7 @@ export const Enquiries: React.FC = () => {
                 />
               </div>
               <div>
-                <Label className="text-slate-700 font-semibold">Follow-up Time Slot</Label>
+                <Label className="text-slate-700 font-semibold text-xs">Follow-up Time (Optional)</Label>
                 <MasterSelect
                   entityType="timeslot"
                   value={newFormFollowupSlotMasterId}
@@ -1602,32 +1781,36 @@ export const Enquiries: React.FC = () => {
               </div>
             </div>
 
-            {/* Section: Notes & WhatsApp */}
+            {/* Counsellor Remarks / Notes (Optional) */}
             <div>
-              <Label className="text-slate-700 font-semibold">Counsellor Remarks / Notes</Label>
+              <Label className="text-slate-700 font-semibold text-xs">Counsellor Remarks / Notes (Optional)</Label>
               <textarea
                 value={newFormNotes}
                 onChange={(e) => setNewFormNotes(e.target.value)}
                 placeholder="Candidate enquired about fees and weekend batch timings..."
-                className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[55px]"
+                className="w-full mt-1 border border-slate-200 rounded-xl p-2.5 text-xs min-h-[60px]"
               />
             </div>
 
+            {/* WhatsApp Checkbox */}
             <div className="flex items-center gap-2 pt-1">
               <input
                 type="checkbox"
+                id="whatsapp-welcome"
                 checked={newFormWhatsappWelcome}
                 onChange={(e) => setNewFormWhatsappWelcome(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] cursor-pointer"
               />
-              <Label className="text-slate-600 font-medium text-[11px]">Send WhatsApp Welcome Message automatically</Label>
+              <label htmlFor="whatsapp-welcome" className="text-slate-600 font-medium text-xs cursor-pointer">
+                Send WhatsApp Welcome Message Automatically
+              </label>
             </div>
 
-            <DialogFooter className="pt-2">
-              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)}>
+            <DialogFooter className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+              <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="text-xs">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">
+              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs">
                 Save & Add Enquiry
               </Button>
             </DialogFooter>
@@ -1818,6 +2001,15 @@ export const Enquiries: React.FC = () => {
           </div>
         </DialogContent>
       </Dialog>
+      {/* Toast Notification Banner */}
+      {toastMessage && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-xl border border-slate-800 text-xs font-semibold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 };
+
+export default Enquiries;

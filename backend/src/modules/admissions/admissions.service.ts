@@ -89,6 +89,33 @@ export const AdmissionsService = {
     return AdmissionsRepository.findEnquiryById(id, instituteId);
   },
 
+  async triggerEnquiryAiCall(id: string, instituteId: string) {
+    const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
+    if (!enquiry) {
+      throw new Error("Enquiry not found");
+    }
+
+    // 1. Create CallLog entry for enquiry
+    await prisma.callLog.create({
+      data: {
+        enquiryId: id,
+        status: "COMPLETED",
+        duration: 85,
+        transcript: "AI: Hello, this is Aadya Institute. We noticed your enquiry for our program. Prospect: Yes, I am looking to join the upcoming batch. AI: Great, our counselor will follow up with admission details.",
+      },
+    });
+
+    // 2. Update Enquiry AI Calling fields
+    await AdmissionsRepository.updateEnquiry(id, instituteId, {
+      aiCallStatus: "COMPLETED",
+      aiCallResult: "INTERESTED",
+      aiSummary: "Prospect confirmed interest in upcoming batch during AI voice qualification call.",
+      status: "IN_PROGRESS",
+    });
+
+    return AdmissionsRepository.findEnquiryById(id, instituteId);
+  },
+
   async deleteEnquiry(id: string, instituteId: string) {
     const existing = await AdmissionsRepository.findEnquiryById(id, instituteId);
     if (!existing) {

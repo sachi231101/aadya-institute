@@ -11,6 +11,7 @@ import {
   changeLeadStage,
   markLeadLost,
   convertLead,
+  createApplicationFromLead,
   createFollowUp,
   updateFollowUp,
   getLeadFollowUps,
@@ -113,6 +114,12 @@ router.post(
   requirePermission("lead.convert"),
   validate(convertLeadSchema),
   convertLead
+);
+
+router.post(
+  "/:id/create-application",
+  requirePermission("lead.update"),
+  createApplicationFromLead
 );
 
 router.post(

@@ -59,6 +59,11 @@ export const admissionsApi = {
     return response.data;
   },
 
+  triggerEnquiryAiCall: async (id: string): Promise<ApiResponse<Enquiry>> => {
+    const response = await api.post<ApiResponse<Enquiry>>(`/admissions/enquiries/${id}/ai-call`);
+    return response.data;
+  },
+
   // ─── APPLICATIONS API ──────────────────────────────────────────────────────
   getApplications: async (params?: {
     search?: string;

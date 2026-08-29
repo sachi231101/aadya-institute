@@ -12,6 +12,7 @@ import {
   resolveOptionalMasterFields,
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
+import { SequenceService } from "../masters/sequence.service";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   CreateLeadDTO,
@@ -256,6 +257,101 @@ export const LeadService = {
   // ─── Convert Lead ───────────────────────────────────────────────────────────
   async convertLead(leadId: string, currentUser: AuthUser, dto: ConvertLeadDTO) {
     return LeadConversionService.convertLead(leadId, currentUser, dto);
+  },
+
+  // ─── Create Application from Lead ───────────────────────────────────────────
+  async createApplicationFromLead(
+    leadId: string,
+    currentUser: AuthUser,
+    dto?: { feeStatus?: string; notes?: string; branchId?: string; courseId?: string }
+  ) {
+    const lead = await prisma.lead.findUnique({
+      where: { id: leadId },
+      include: { branch: true, course: true },
+    });
+
+    if (!lead) {
+      throw new AppError("Lead not found", 404);
+    }
+
+    // Branch check for CENTER_MANAGER
+    if (
+      currentUser.roles.includes("CENTER_MANAGER") &&
+      !currentUser.roles.includes("ADMIN") &&
+      currentUser.branchId &&
+      lead.branchId !== currentUser.branchId
+    ) {
+      throw new AppError("Lead not found", 404);
+    }
+
+    // Determine course
+    let courseId = dto?.courseId || lead.courseId;
+    if (!courseId) {
+      const matched = await prisma.course.findFirst({
+        where: { instituteId: lead.instituteId, name: { contains: lead.interestedIn, mode: "insensitive" } },
+      });
+      if (matched) {
+        courseId = matched.id;
+      } else {
+        const fallback = await prisma.course.findFirst({
+          where: { instituteId: lead.instituteId, status: "ACTIVE" },
+        });
+        if (!fallback) throw new AppError("No course found in institute", 400);
+        courseId = fallback.id;
+      }
+    }
+
+    const applicationNo = await SequenceService.getNextNumber(lead.instituteId, "APPLICATION");
+
+    const application = await prisma.$transaction(async (tx) => {
+      // 1. Create Application preserving lead data
+      const newApp = await tx.application.create({
+        data: {
+          instituteId: lead.instituteId,
+          branchId: dto?.branchId || lead.branchId,
+          applicationNo,
+          leadId: lead.id,
+          applicantName: lead.name,
+          email: lead.email,
+          phone: lead.phoneNumber,
+          courseId,
+          source: lead.source || "Google Ads",
+          counsellorId: lead.assignedCounsellorId || (currentUser.userId || currentUser.id),
+          feeStatus: (dto?.feeStatus === "PAID" ? "PAID" : "PENDING") as any,
+          status: "SUBMITTED",
+          notes: dto?.notes || `Created from Lead ${lead.name} (${lead.source})`,
+        },
+        include: {
+          course: { select: { id: true, name: true, code: true } },
+          lead: true,
+          counsellor: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // 2. Update Lead stage
+      await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          stage: "QUALIFIED",
+        },
+      });
+
+      // 3. Log lead activity
+      await tx.leadActivity.create({
+        data: {
+          leadId,
+          userId: currentUser.userId || currentUser.id,
+          type: "STAGE_CHANGED",
+          title: "Application Created",
+          description: `Application ${applicationNo} created from lead by ${currentUser.name || "Counsellor"}`,
+          metadata: { applicationId: newApp.id, applicationNo },
+        },
+      });
+
+      return newApp;
+    });
+
+    return application;
   },
 
   // ─── Follow-up Methods ──────────────────────────────────────────────────────
