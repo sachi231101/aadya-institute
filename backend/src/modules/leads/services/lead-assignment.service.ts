@@ -1,6 +1,7 @@
 import { prisma } from "../../../config/database";
 import { AppError } from "../../../middlewares/error.middleware";
 import { LeadActivityService } from "./lead-activity.service";
+import { syncEnquiryAssigneeFromLead } from "./lead-enquiry-sync.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { AssignLeadDTO } from "../lead.types";
 
@@ -106,6 +107,14 @@ export const LeadAssignmentService = {
             select: { id: true, name: true, code: true },
           },
         },
+      });
+
+      // Mirror onto matching Enquiries (admissions funnel)
+      await syncEnquiryAssigneeFromLead({
+        instituteId: lead.instituteId,
+        phoneNumber: lead.phoneNumber,
+        counsellorId,
+        tx: tx as any,
       });
 
       // Log Activity

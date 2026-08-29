@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -32,7 +32,6 @@ import { batchesApi, type BatchData, type CreateBatchPayload } from "../../../se
 import { coursesApi } from "../../../services/courses.api";
 import { facultyApi } from "../../../services/faculty.api";
 import { studentsApi } from "../../../services/students.api";
-import { useTimetableStore } from "@/store/timetable.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -150,10 +149,26 @@ const getBatchEnrolledStudentIds = (batch: BatchData): string[] => {
     .filter((id): id is string => Boolean(id));
 };
 
+const inferSchedulePattern = (
+  daysText: string
+): "MWF" | "TTS" | "WEEKEND" | "CUSTOM" => {
+  const lower = daysText.toLowerCase();
+  const hasMon = lower.includes("mon");
+  const hasWed = lower.includes("wed");
+  const hasFri = lower.includes("fri");
+  const hasTue = lower.includes("tue");
+  const hasThu = lower.includes("thu");
+  const hasSat = lower.includes("sat");
+  const hasSun = lower.includes("sun");
+  if (hasMon && hasWed && hasFri && !hasTue && !hasThu) return "MWF";
+  if (hasTue && hasThu && !hasMon && !hasWed && !hasFri) return "TTS";
+  if ((hasSat || hasSun) && !hasMon && !hasTue && !hasWed && !hasThu && !hasFri) return "WEEKEND";
+  return "CUSTOM";
+};
+
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { addClass } = useTimetableStore();
 
   // Search & Filter State
   const [studentSearch, setStudentSearch] = useState<string>("");
@@ -171,7 +186,7 @@ export const CounsellorBatches: React.FC = () => {
   const [detailsModalBatch, setDetailsModalBatch] = useState<BatchData | null>(null);
   const [deleteModalBatch, setDeleteModalBatch] = useState<BatchData | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [batchEnrollmentsMap, setBatchEnrollmentsMap] = useState<Record<string, string[]>>({});
+  const [editSaving, setEditSaving] = useState(false);
 
   // New Student Registration Form
   const [regStudentName, setRegStudentName] = useState<string>("");
@@ -214,10 +229,12 @@ export const CounsellorBatches: React.FC = () => {
   };
 
   // Form State for Create / Assign Batch
-  const [newBatchName, setNewBatchName] = useState<string>("Full Stack Morning Batch");
-  const [newBatchCode, setNewBatchCode] = useState<string>("FS-2026-M01");
-  const [newCourseName, setNewCourseName] = useState<string>("Full Stack Web Development");
-  const [newStartDate, setNewStartDate] = useState<string>("2026-08-10");
+  const [newBatchName, setNewBatchName] = useState<string>("");
+  const [newBatchCode, setNewBatchCode] = useState<string>("");
+  const [newCourseId, setNewCourseId] = useState<string>("");
+  const [newStartDate, setNewStartDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
   const [newScheduleDays, setNewScheduleDays] = useState<string>("Monday, Wednesday, Friday");
   const [newTimeSlotMasterId, setNewTimeSlotMasterId] = useState<string>("");
   const [newClassroomMasterId, setNewClassroomMasterId] = useState<string>("");
@@ -235,6 +252,12 @@ export const CounsellorBatches: React.FC = () => {
     queryFn: () => coursesApi.getAll(),
   });
   const courses = coursesRes?.data || [];
+
+  useEffect(() => {
+    if (!newCourseId && courses.length > 0) {
+      setNewCourseId(courses[0].id);
+    }
+  }, [courses, newCourseId]);
 
   const { data: facultyRes } = useQuery({
     queryKey: ["faculty"],
@@ -315,6 +338,46 @@ export const CounsellorBatches: React.FC = () => {
       setTimeout(() => setSuccessMsg(null), 4000);
     },
   });
+
+  const handleSaveEditBatch = async () => {
+    if (!editModalBatch) return;
+    if (!editBatchName.trim() || !editFacultyId) {
+      setSuccessMsg("Batch name and faculty are required.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const previousIds = getBatchEnrolledStudentIds(editModalBatch);
+      const nextIds = editEnrolledStudentIds;
+      const toAdd = nextIds.filter((id) => !previousIds.includes(id));
+      const toRemove = previousIds.filter((id) => !nextIds.includes(id));
+
+      await batchesApi.update(editModalBatch.id, {
+        name: editBatchName.trim(),
+        facultyId: editFacultyId,
+        startDate: editStartDate || undefined,
+        capacity: editCapacity,
+        timeSlot: getMasterLabel(timeslotOptions, editTimeSlotMasterId) || undefined,
+      });
+
+      await Promise.all([
+        ...toAdd.map((studentId) => batchesApi.enrollStudent(editModalBatch.id, studentId)),
+        ...toRemove.map((studentId) => batchesApi.removeStudent(editModalBatch.id, studentId)),
+      ]);
+
+      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      setSuccessMsg(
+        `Batch updated. ${nextIds.length} students enrolled (${toAdd.length} added, ${toRemove.length} removed).`
+      );
+      setEditModalBatch(null);
+    } catch (err: any) {
+      setSuccessMsg(err?.response?.data?.message || "Failed to update batch.");
+    } finally {
+      setEditSaving(false);
+      setTimeout(() => setSuccessMsg(null), 4000);
+    }
+  };
 
   // Filtered Students (Using dynamic allStudentsList)
   const filteredStudents = useMemo(() => {
@@ -1059,12 +1122,18 @@ export const CounsellorBatches: React.FC = () => {
 
             <div className="space-y-1">
               <label className="text-[11px] font-bold text-slate-700">Course *</label>
-              <Input
-                value={newCourseName}
-                onChange={(e) => setNewCourseName(e.target.value)}
-                placeholder="Course Name"
-                className="h-9 text-xs rounded-xl"
-              />
+              <select
+                value={newCourseId}
+                onChange={(e) => setNewCourseId(e.target.value)}
+                className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
+              >
+                <option value="">Select course…</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} ({c.code})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1131,24 +1200,30 @@ export const CounsellorBatches: React.FC = () => {
             <Button
               disabled={createBatchMutation.isPending}
               onClick={() => {
-                const targetCourseId = courses[0]?.id;
+                const targetCourseId = newCourseId || courses[0]?.id;
                 const targetFacultyId = selectedFaculty?.id || facultyList[0]?.id;
                 const targetBranchId =
                   facultyList.find((f) => f.id === targetFacultyId)?.branchId ||
                   liveStudents[0]?.branchId;
+                if (!newBatchName.trim() || !newBatchCode.trim()) {
+                  setSuccessMsg("Batch name and code are required.");
+                  setTimeout(() => setSuccessMsg(null), 3500);
+                  return;
+                }
                 if (!targetCourseId || !targetFacultyId || !targetBranchId) {
-                  setSuccessMsg("Select a faculty member and ensure at least one course exists.");
+                  setSuccessMsg("Select a course, faculty member, and ensure a branch exists.");
                   setTimeout(() => setSuccessMsg(null), 3500);
                   return;
                 }
                 createBatchMutation.mutate({
-                  name: newBatchName,
-                  code: newBatchCode,
+                  name: newBatchName.trim(),
+                  code: newBatchCode.trim(),
                   courseId: targetCourseId,
                   facultyId: targetFacultyId,
                   branchId: targetBranchId,
                   capacity: newCapacity,
                   startDate: newStartDate,
+                  schedulePattern: inferSchedulePattern(newScheduleDays),
                   timeSlot: getMasterLabel(timeslotOptions, newTimeSlotMasterId) || undefined,
                 });
               }}
@@ -1370,21 +1445,11 @@ export const CounsellorBatches: React.FC = () => {
               Cancel
             </Button>
             <Button
-              onClick={() => {
-                if (editModalBatch) {
-                  setBatchEnrollmentsMap((prev) => ({
-                    ...prev,
-                    [editModalBatch.id]: editEnrolledStudentIds,
-                  }));
-                }
-                setSuccessMsg(
-                  `Batch updated successfully! ${editEnrolledStudentIds.length} students enrolled.`
-                );
-                setEditModalBatch(null);
-                setTimeout(() => setSuccessMsg(null), 3500);
-              }}
+              disabled={editSaving}
+              onClick={handleSaveEditBatch}
               className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 flex-1 cursor-pointer"
             >
+              {editSaving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : null}
               Save Changes
             </Button>
           </DialogFooter>

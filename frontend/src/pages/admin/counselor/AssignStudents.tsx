@@ -589,7 +589,7 @@ export const AssignStudents: React.FC = () => {
                     const name = student.user?.name || "Student";
                     const email = student.user?.email || "—";
                     const phone = student.user?.phone || "—";
-                    const courseDisplay = enrolledBatch?.courseName || student.qualification || student.courseName || "B.Tech CS";
+                    const courseDisplay = enrolledBatch?.courseName || student.qualification || student.courseName || "—";
 
                     return (
                       <TableRow
@@ -661,7 +661,7 @@ export const AssignStudents: React.FC = () => {
                                       name,
                                       code: student.studentCode,
                                       currentBatchId: enrolledBatch?.batchId || "",
-                                      currentBatchCode: enrolledBatch?.batchCode || "WD-2026-A",
+                                      currentBatchCode: enrolledBatch?.batchCode || "—",
                                     });
                                     setTransferTargetBatchId(batches.find((b) => b.id !== enrolledBatch?.batchId)?.id || "");
                                   }}
@@ -675,7 +675,7 @@ export const AssignStudents: React.FC = () => {
                                       id: student.id,
                                       name,
                                       batchId: enrolledBatch?.batchId || "",
-                                      batchCode: enrolledBatch?.batchCode || "WD-2026-A",
+                                      batchCode: enrolledBatch?.batchCode || "—",
                                     });
                                   }}
                                   className="cursor-pointer text-rose-600 focus:text-rose-700"
@@ -829,7 +829,7 @@ export const AssignStudents: React.FC = () => {
                     const name = stu.user?.name || "Student";
                     const phone = stu.user?.phone || "—";
                     const email = stu.user?.email || "—";
-                    const qualification = stu.qualification || "B.Tech CS";
+                    const qualification = stu.qualification || "—";
 
                     return (
                       <div

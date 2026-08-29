@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   Users,
   Plus,
@@ -23,6 +23,8 @@ import { useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useUpdateUserPermissions } from "@/hooks/useUsers";
+import { useLeads } from "@/hooks/useLeads";
+import type { Lead } from "@/services/leads.api";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
 import {
   COUNSELLOR_MODULE_OPTIONS,
@@ -58,7 +60,14 @@ import {
 } from "@/components/ui/dialog";
 
 export const AllCounsellors: React.FC = () => {
-  const { counselors, isLoading, fetchCounselors, addCounselor, updateCounselor, deleteCounselor } = useCounselorStore();
+  const {
+    counselors,
+    isLoading,
+    fetchCounselors,
+    addCounselor,
+    updateCounselor,
+    deleteCounselor,
+  } = useCounselorStore();
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
@@ -67,13 +76,35 @@ export const AllCounsellors: React.FC = () => {
   const branches = branchesResponse?.data || [];
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
 
+  const leadsBranchId = isCenterManager
+    ? userBranchId || undefined
+    : selectedBranchId === "ALL" || !selectedBranchId
+      ? undefined
+      : selectedBranchId;
+
+  const { data: leadsResponse } = useLeads({ limit: 500, branchId: leadsBranchId });
+  const allLeads: Lead[] = (leadsResponse?.data as Lead[]) || [];
+
   useEffect(() => {
     if (isCenterManager) {
       fetchCounselors(userBranchId || undefined);
     } else {
       fetchCounselors(selectedBranchId === "ALL" ? undefined : selectedBranchId);
     }
-  }, [isCenterManager, userBranchId, selectedBranchId]);
+  }, [isCenterManager, userBranchId, selectedBranchId, fetchCounselors]);
+
+  const counselorsWithCounts = useMemo(() => {
+    return counselors.map((c) => {
+      const mine = allLeads.filter(
+        (l) => l.assignedCounsellorId === c.id || l.assignedCounsellor?.id === c.id
+      );
+      return {
+        ...c,
+        assignedLeadsCount: mine.length,
+        convertedLeadsCount: mine.filter((l) => l.stage === "CONVERTED").length,
+      };
+    });
+  }, [counselors, allLeads]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
@@ -81,7 +112,6 @@ export const AllCounsellors: React.FC = () => {
   // Create Modal State
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [name, setName] = useState("");
-  const [employeeCode, setEmployeeCode] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
@@ -98,7 +128,6 @@ export const AllCounsellors: React.FC = () => {
   // Edit Modal State
   const [editCounselor, setEditCounselor] = useState<Counselor | null>(null);
   const [editName, setEditName] = useState("");
-  const [editCode, setEditCode] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editBranchId, setEditBranchId] = useState("");
@@ -112,7 +141,7 @@ export const AllCounsellors: React.FC = () => {
   const [deleteCounselorId, setDeleteCounselorId] = useState<string | null>(null);
 
   // Branch-filtered Counselors
-  const branchCounselors = counselors.filter((c) => {
+  const branchCounselors = counselorsWithCounts.filter((c) => {
     if (isCenterManager) return true;
     return (
       selectedBranchId === "ALL" ||
@@ -138,7 +167,7 @@ export const AllCounsellors: React.FC = () => {
   const totalCount = branchCounselors.length;
   const activeCount = branchCounselors.filter((c) => c.status === "ACTIVE").length;
   const totalLeads = branchCounselors.reduce((acc, c) => acc + c.assignedLeadsCount, 0);
-  const totalEnrolled = branchCounselors.reduce((acc, c) => acc + c.activeStudentsCount, 0);
+  const totalConverted = branchCounselors.reduce((acc, c) => acc + c.convertedLeadsCount, 0);
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -150,12 +179,11 @@ export const AllCounsellors: React.FC = () => {
 
     const created = await addCounselor({
       name,
-      employeeCode: employeeCode || `CNS-${Math.floor(100 + Math.random() * 900)}`,
       email,
       password: password || undefined,
       phone,
       branchId: branchId || (branches[0]?.id || ""),
-      branchName: selectedBranch?.name || "Bengaluru Central Branch",
+      branchName: selectedBranch?.name || branches[0]?.name || "—",
       status,
       modulePermissions: selectedModules,
     });
@@ -173,7 +201,6 @@ export const AllCounsellors: React.FC = () => {
 
   const resetCreateForm = () => {
     setName("");
-    setEmployeeCode("");
     setEmail("");
     setPassword("");
     setPhone("");
@@ -186,11 +213,10 @@ export const AllCounsellors: React.FC = () => {
   const handleOpenEditModal = async (c: Counselor) => {
     setEditCounselor(c);
     setEditName(c.name);
-    setEditCode(c.employeeCode);
     setEditEmail(c.email);
     setEditPhone(c.phone);
     setEditBranchId(c.branchId);
-    setEditStatus(c.status);
+    setEditStatus(c.status === "BLOCKED" ? "INACTIVE" : c.status);
 
     // Fetch the user's current module permissions from the API
     try {
@@ -212,10 +238,10 @@ export const AllCounsellors: React.FC = () => {
 
     await updateCounselor(editCounselor.id, {
       name: editName,
-      employeeCode: editCode,
       email: editEmail,
       phone: editPhone,
       branchId: editBranchId,
+      branchName: branches.find((b) => b.id === editBranchId)?.name,
       status: editStatus,
     });
 
@@ -243,8 +269,8 @@ export const AllCounsellors: React.FC = () => {
     switch (st) {
       case "ACTIVE":
         return <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20">Active</Badge>;
-      case "ON_LEAVE":
-        return <Badge className="bg-amber-500/10 text-amber-600 border-amber-500/20">On Leave</Badge>;
+      case "BLOCKED":
+        return <Badge className="bg-slate-500/10 text-slate-600 border-slate-500/20">Blocked</Badge>;
       case "INACTIVE":
         return <Badge className="bg-rose-500/10 text-rose-600 border-rose-500/20">Inactive</Badge>;
       default:
@@ -324,8 +350,8 @@ export const AllCounsellors: React.FC = () => {
           <CardContent className="p-6 flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Converted Enrolments</p>
-              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalEnrolled}</h3>
-              <p className="text-xs text-muted-foreground mt-1">Active Students</p>
+              <h3 className="text-2xl font-bold text-text-primary mt-1">{totalConverted}</h3>
+              <p className="text-xs text-muted-foreground mt-1">Converted Leads</p>
             </div>
             <div className="p-3 bg-amber-500/10 rounded-xl text-amber-600">
               <UserCheck className="h-6 w-6" />
@@ -376,8 +402,8 @@ export const AllCounsellors: React.FC = () => {
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
-            <option value="ON_LEAVE">On Leave</option>
             <option value="INACTIVE">Inactive</option>
+            <option value="BLOCKED">Blocked</option>
           </select>
         </div>
       </div>
@@ -391,7 +417,7 @@ export const AllCounsellors: React.FC = () => {
               <TableHead className="font-semibold text-text-primary">Contact Info</TableHead>
               <TableHead className="font-semibold text-text-primary">Branch</TableHead>
               <TableHead className="font-semibold text-text-primary">Assigned Leads</TableHead>
-              <TableHead className="font-semibold text-text-primary">Active Students</TableHead>
+              <TableHead className="font-semibold text-text-primary">Converted</TableHead>
               <TableHead className="font-semibold text-text-primary">Status</TableHead>
               <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
             </TableRow>
@@ -442,7 +468,7 @@ export const AllCounsellors: React.FC = () => {
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
-                      {c.activeStudentsCount} Students
+                      {c.convertedLeadsCount} Converted
                     </Badge>
                   </TableCell>
                   <TableCell>{getStatusBadge(c.status)}</TableCell>
@@ -513,17 +539,6 @@ export const AllCounsellors: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Employee Code</label>
-                  <Input
-                    placeholder="e.g. CNS-104"
-                    value={employeeCode}
-                    onChange={(e) => setEmployeeCode(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Email Address *</label>
                   <Input
                     type="email"
@@ -533,6 +548,9 @@ export const AllCounsellors: React.FC = () => {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Phone Number *</label>
                   <Input
@@ -543,9 +561,6 @@ export const AllCounsellors: React.FC = () => {
                     required
                   />
                 </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Account Password</label>
                   <Input
@@ -555,6 +570,9 @@ export const AllCounsellors: React.FC = () => {
                     onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1">Operating Status</label>
                   <select
@@ -563,7 +581,6 @@ export const AllCounsellors: React.FC = () => {
                     className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   >
                     <option value="ACTIVE">Active</option>
-                    <option value="ON_LEAVE">On Leave</option>
                     <option value="INACTIVE">Inactive</option>
                   </select>
                 </div>
@@ -713,10 +730,11 @@ export const AllCounsellors: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Employee Code</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Display Code</label>
                   <Input
-                    value={editCode}
-                    onChange={(e) => setEditCode(e.target.value)}
+                    value={editCounselor?.employeeCode || ""}
+                    disabled
+                    className="bg-slate-100 font-mono"
                   />
                 </div>
               </div>
@@ -751,7 +769,6 @@ export const AllCounsellors: React.FC = () => {
                     className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
                   >
                     <option value="ACTIVE">Active</option>
-                    <option value="ON_LEAVE">On Leave</option>
                     <option value="INACTIVE">Inactive</option>
                   </select>
                 </div>
