@@ -17,7 +17,7 @@ export const saveAnswerSchema = z.object({
 });
 
 export const batchSaveAnswersSchema = z.object({
-  answers: z.array(saveAnswerSchema).min(1, 'At least one answer is required'),
+  answers: z.array(saveAnswerSchema).min(1, 'At least one answer is required').max(50),
 });
 
 export const proctoringEventSchema = z.object({

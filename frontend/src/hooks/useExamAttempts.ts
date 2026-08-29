@@ -51,37 +51,35 @@ export const useStartExam = () => {
   });
 };
 
-export const useAttemptDetails = (attemptId: string) => {
+export const useAttemptDetails = (attemptId: string, options?: { pollWhileEvaluating?: boolean }) => {
   return useQuery({
     queryKey: attemptKeys.detail(attemptId),
     queryFn: () => examAttemptsApi.getAttempt(attemptId),
     enabled: !!attemptId,
-    refetchInterval: false,
+    refetchInterval: (query) => {
+      if (!options?.pollWhileEvaluating) return false;
+      const status = (query.state.data as any)?.data?.status;
+      if (status === 'EVALUATING' || status === 'SUBMITTED' || status === 'AUTO_SUBMITTED') {
+        return 2000;
+      }
+      return false;
+    },
   });
 };
 
+/** Autosave — do NOT invalidate attempt detail (avoids POST+GET amplification under load). */
 export const useSaveAnswers = (attemptId: string) => {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (answers: SaveAnswerPayload[]) =>
       examAttemptsApi.saveAnswers(attemptId, answers),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: attemptKeys.detail(attemptId) });
-    },
   });
 };
 
+/** Proctoring — trust mutation response for counts; no full attempt refetch. */
 export const useRecordProctoringEvent = (attemptId: string) => {
-  const queryClient = useQueryClient();
-
   return useMutation({
     mutationFn: (payload: ProctoringEventPayload) =>
       examAttemptsApi.recordProctoringEvent(attemptId, payload),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: attemptKeys.detail(attemptId) });
-      return data;
-    },
   });
 };
 
@@ -111,7 +109,7 @@ export const useStaffExamAttempts = (
     queryKey: attemptKeys.staffList(examId, params),
     queryFn: () => examAttemptsApi.getExamAttemptsStaff(examId, params),
     enabled: !!examId,
-    refetchInterval: 5000,
+    refetchInterval: 20_000,
   });
 };
 

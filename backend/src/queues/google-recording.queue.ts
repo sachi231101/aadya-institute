@@ -32,5 +32,5 @@ export const googleRecordingWorker = createWorker<GoogleRecordingSyncJobData>(
       throw err;
     }
   },
-  { concurrency: 3 }
+  { concurrency: 3, peakConcurrency: 1, pauseInPeakMode: true }
 );

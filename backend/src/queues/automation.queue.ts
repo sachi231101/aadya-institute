@@ -12,5 +12,6 @@ export const automationWorker = createWorker<AutomationJob>(
   async (job) => {
     console.info("[automation] Processing trigger:", job.data.trigger);
     // TODO: route to automation engine
-  }
+  },
+  { concurrency: 2, peakConcurrency: 1, pauseInPeakMode: true }
 );

@@ -101,11 +101,114 @@ export const findExamForStudent = async (examId: string, instituteId: string, ba
   });
 };
 
+/** Metadata only for instructions/consent (no question payloads). */
+export const findExamMetaForStudent = async (
+  examId: string,
+  instituteId: string,
+  batchIds: string[] | null
+) => {
+  return prisma.exam.findFirst({
+    where: {
+      id: examId,
+      instituteId,
+      status: batchIds
+        ? { in: ['PUBLISHED', 'SCHEDULED', 'LIVE'] }
+        : { in: ['PUBLISHED', 'SCHEDULED', 'LIVE', 'DRAFT'] },
+      ...(batchIds
+        ? {
+            batchAssignments: {
+              some: { batchId: { in: batchIds } },
+            },
+          }
+        : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      instructions: true,
+      durationMinutes: true,
+      totalMarks: true,
+      passingMarks: true,
+      attemptsAllowed: true,
+      examType: true,
+      negativeMarkingEnabled: true,
+      proctoringEnabled: true,
+      fullscreenRequired: true,
+      maxWarnings: true,
+      tabSwitchDetection: true,
+      windowBlurDetection: true,
+      fullscreenExitDetection: true,
+      keyboardShortcutDetection: true,
+      copyPasteDetection: true,
+      rightClickDetection: true,
+      networkGracePeriodSeconds: true,
+      autoTerminateOnMaxViolations: true,
+      course: { select: { id: true, name: true } },
+      module: { select: { id: true, name: true } },
+      _count: { select: { examQuestions: true } },
+    },
+  });
+};
+
 export const findAttemptById = async (attemptId: string, instituteId: string) => {
   return prisma.examAttempt.findFirst({
     where: { id: attemptId, instituteId },
     include: attemptInclude,
   });
+};
+
+/** Lightweight ownership / timer check for autosave & proctoring (no answers/timeline). */
+export const findAttemptLean = async (attemptId: string, instituteId: string) => {
+  return prisma.examAttempt.findFirst({
+    where: { id: attemptId, instituteId },
+    select: {
+      id: true,
+      userId: true,
+      examId: true,
+      status: true,
+      expiresAt: true,
+      violationCount: true,
+      warningCount: true,
+      maxViolations: true,
+      terminationReason: true,
+      exam: {
+        select: {
+          autoTerminateOnMaxViolations: true,
+        },
+      },
+    },
+  });
+};
+
+export const upsertExamAnswersBatch = async (attemptId: string, answers: SaveAnswerDto[]) => {
+  await prisma.$transaction(
+    answers.map((answer) =>
+      prisma.examAnswer.upsert({
+        where: {
+          attemptId_questionId: {
+            attemptId,
+            questionId: answer.questionId,
+          },
+        },
+        update: {
+          selectedOptionIds: answer.selectedOptionIds ? (answer.selectedOptionIds as any) : undefined,
+          textAnswer: answer.textAnswer ?? undefined,
+          numericalAnswer: answer.numericalAnswer ?? undefined,
+          isFlagged: answer.isFlagged ?? false,
+          savedAt: new Date(),
+        },
+        create: {
+          attemptId,
+          questionId: answer.questionId,
+          selectedOptionIds: answer.selectedOptionIds ? (answer.selectedOptionIds as any) : undefined,
+          textAnswer: answer.textAnswer ?? null,
+          numericalAnswer: answer.numericalAnswer ?? null,
+          isFlagged: answer.isFlagged ?? false,
+        },
+      })
+    )
+  );
 };
 
 export const findActiveAttempt = async (examId: string, studentId: string) => {
