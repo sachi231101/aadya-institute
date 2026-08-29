@@ -32,6 +32,12 @@ router.patch(
   AdmissionsController.updateEnquiry
 );
 
+router.post(
+  "/enquiries/:id/ai-call",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  AdmissionsController.triggerEnquiryAiCall
+);
+
 router.delete(
   "/enquiries/:id",
   requireRole("ADMIN", "CENTER_MANAGER"),
@@ -40,6 +46,12 @@ router.delete(
 
 router.post(
   "/enquiries/:id/convert",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  AdmissionsController.convertEnquiryToApplication
+);
+
+router.post(
+  "/enquiries/:id/create-application",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   AdmissionsController.convertEnquiryToApplication
 );

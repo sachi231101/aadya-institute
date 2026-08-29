@@ -108,6 +108,23 @@ export const convertLead = async (
   }
 };
 
+export const createApplicationFromLead = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const application = await LeadService.createApplicationFromLead(
+      req.params.id as string,
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, application, 201, "Application created from lead successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const createFollowUp = async (
   req: AuthenticatedRequest,
   res: Response,

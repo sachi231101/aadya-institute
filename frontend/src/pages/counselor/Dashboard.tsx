@@ -609,7 +609,7 @@ export const CounselorDashboard: React.FC = () => {
       },
       ...funnelStages.slice(1).map((stageKey, i) => {
         const count = combinedLeadsList.filter(
-          (l: UnifiedLead) => l.stage === stageKey || l.pipelineStage === stageKey
+          (l) => l.stage === stageKey || l.pipelineStage === stageKey
         ).length;
         const step = stageSteps.find((s) => s.key === stageKey);
         return {

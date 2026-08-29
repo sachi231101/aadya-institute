@@ -90,6 +90,21 @@ export const AdmissionsController = {
     }
   },
 
+  async triggerEnquiryAiCall(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+    try {
+      const instituteId = req.user!.instituteId;
+      const id = req.params.id as string;
+      const data = await AdmissionsService.triggerEnquiryAiCall(id, instituteId);
+      res.json({
+        success: true,
+        message: "AI calling initiated for enquiry",
+        data,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
   async deleteEnquiry(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const instituteId = req.user!.instituteId;

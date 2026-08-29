@@ -122,6 +122,7 @@ const rawCenterNavItems: NavItem[] = [
     items: [
       { title: "All Admissions", url: "/center/admissions/all" },
       { title: "Applications", url: "/center/admissions/applications" },
+      { title: "Enquiries", url: "/center/admissions/enquiries" },
     ],
   },
   {

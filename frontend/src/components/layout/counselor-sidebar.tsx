@@ -80,6 +80,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     items: [
       { title: "All Admissions", url: "/counselor/admissions/all" },
       { title: "Applications", url: "/counselor/admissions/applications" },
+      { title: "Enquiries", url: "/counselor/admissions/enquiries" },
     ],
   },
   {
