@@ -50,7 +50,7 @@ export const getCourses = async (req: AuthenticatedRequest, res: Response, next:
 export const assignCourse = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { batchId, facultyId } = req.body;
-    const data = await service.assignFacultyToBatch(batchId, facultyId);
+    const data = await service.assignFacultyToBatch(toAuthUser(req), batchId, facultyId);
     sendSuccess(res, data, 200, "Faculty assigned to batch successfully");
   } catch (err) { next(err); }
 };

@@ -69,6 +69,13 @@ export const modulesApi = {
     return response.data;
   },
 
+  deleteTopic: async (moduleId: string, topicId: string) => {
+    const response = await api.delete<{ success: boolean; data: ModuleData }>(
+      `/modules/${moduleId}/topics/${topicId}`
+    );
+    return response.data;
+  },
+
   delete: async (id: string) => {
     const response = await api.delete<{ success: boolean }>(`/modules/${id}`);
     return response.data;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   GraduationCap, BookOpen, Search, Plus,
   Calendar, AlertCircle, UserMinus, Loader2
@@ -29,6 +29,8 @@ const getStatusBadgeClass = (status: string) => {
 
 export const AllFaculty: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
   const [selectedFilterTab, setSelectedFilterTab] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -130,11 +132,11 @@ export const AllFaculty: React.FC = () => {
             <Button 
               variant="outline" 
               className="text-primary border-border hover:bg-muted/40 font-bold bg-card shadow-2xs rounded-xl cursor-pointer"
-              onClick={() => navigate("/admin/faculty/timetable")}
+              onClick={() => navigate(`${basePath}/faculty/timetable`)}
             >
               <Calendar className="h-4 w-4 mr-2 text-primary" /> Faculty Timetable
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md rounded-xl cursor-pointer" onClick={() => navigate("../add")}>
+            <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md rounded-xl cursor-pointer" onClick={() => navigate(`${basePath}/faculty/add`)}>
               <Plus className="h-4 w-4 mr-2" /> Add Faculty
             </Button>
           </div>
@@ -235,7 +237,7 @@ export const AllFaculty: React.FC = () => {
                   filteredFaculty.map((fac: any) => (
                     <tr 
                       key={fac.id} 
-                      onClick={() => navigate(`/admin/faculty/${fac.id}`)}
+                      onClick={() => navigate(`${basePath}/faculty/${fac.id}`)}
                       className="transition-colors cursor-pointer group hover:bg-muted/30"
                     >
                       <td className="px-4 py-3.5">
@@ -282,7 +284,7 @@ export const AllFaculty: React.FC = () => {
                           className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white transition-all font-bold shadow-2xs rounded-xl cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/faculty/${fac.id}`);
+                            navigate(`${basePath}/faculty/${fac.id}`);
                           }}
                         >
                           View Details
