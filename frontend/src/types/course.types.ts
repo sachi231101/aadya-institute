@@ -6,15 +6,6 @@ export interface Topic {
   isCompleted?: boolean;
 }
 
-export interface CourseModule {
-  id: string;
-  courseId: string;
-  title: string;
-  code: string;
-  order: number;
-  topics: Topic[];
-}
-
 export interface Course {
   id: string;
   name: string;
@@ -23,6 +14,7 @@ export interface Course {
   category: string;
   mode: "OFFLINE" | "ONLINE" | "HYBRID";
   level: "BEGINNER" | "INTERMEDIATE" | "ADVANCED";
+  /** Duration in months — maps to backend `duration` */
   durationMonths: number;
   totalHours: number;
   fee: number;
@@ -30,4 +22,15 @@ export interface Course {
   enrolledStudents: number;
   status: "ACTIVE" | "INACTIVE";
   createdAt: string;
+}
+
+export interface CourseModule {
+  id: string;
+  courseId: string;
+  /** Display title — maps to backend `name` */
+  title: string;
+  code: string;
+  /** Display order — maps to backend `sequence` */
+  order: number;
+  topics: Topic[];
 }

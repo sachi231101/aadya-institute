@@ -47,6 +47,7 @@ export interface SessionHistoryItem {
 
 export interface ActiveLiveClass {
   id: string;
+  sessionId?: string;
   courseName: string;
   batchCode: string;
   batchName: string;

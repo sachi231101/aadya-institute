@@ -73,6 +73,8 @@ export interface EnrichedLead {
   leadScore: number;
   location: string;
   qualification: string;
+  sourceMasterId?: string;
+  qualificationMasterId?: string;
   passingYear: string;
   preferredMode: "Offline" | "Online" | "Hybrid";
   preferredTime: "Morning" | "Evening" | "Weekend";
@@ -312,7 +314,7 @@ export const Enquiries: React.FC = () => {
       phone: newFormPhone,
       email: newFormEmail || `${newFormName.toLowerCase().replace(/\s+/g, "")}@gmail.com`,
       course: newFormCourse,
-      source: getMasterLabel(leadSourceOptions, newFormSourceMasterId) || "Website",
+      source: (getMasterLabel(leadSourceOptions, newFormSourceMasterId) as any) || "Website",
       sourceMasterId: newFormSourceMasterId || undefined,
       status: "New",
       priority: newFormPriority,

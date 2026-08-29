@@ -89,6 +89,7 @@ export const findFacultyRatings = async (params: {
   instituteId: string;
   facultyId?: string;
   batchId?: string;
+  branchId?: string;
 }) => {
   const where: Record<string, unknown> = {
     student: { instituteId: params.instituteId },
@@ -96,6 +97,13 @@ export const findFacultyRatings = async (params: {
   if (params.facultyId) where.facultyId = params.facultyId;
   if (params.batchId) {
     where.classSession = { batchId: params.batchId };
+  }
+  if (params.branchId) {
+    where.faculty = {
+      ...(typeof where.faculty === "object" && where.faculty ? (where.faculty as object) : {}),
+      branchId: params.branchId,
+      instituteId: params.instituteId,
+    };
   }
 
   const rows = await prisma.feedback.groupBy({
@@ -106,20 +114,34 @@ export const findFacultyRatings = async (params: {
 
   const facultyIds = [...new Set(rows.map((r) => r.facultyId))];
   const faculties = await prisma.faculty.findMany({
-    where: { id: { in: facultyIds }, instituteId: params.instituteId },
-    include: { user: { select: { name: true } } },
+    where: {
+      id: { in: facultyIds },
+      instituteId: params.instituteId,
+      ...(params.branchId ? { branchId: params.branchId } : {}),
+    },
+    include: { user: { select: { name: true } }, branch: { select: { id: true, name: true } } },
   });
   const nameById = new Map(faculties.map((f) => [f.id, f.user?.name ?? f.employeeCode]));
+  const branchById = new Map(faculties.map((f) => [f.id, f.branch?.name ?? null]));
 
   const byFaculty = new Map<
     string,
-    { facultyId: string; facultyName: string; total: number; sum: number; ratings: Record<number, number> }
+    {
+      facultyId: string;
+      facultyName: string;
+      branchName: string | null;
+      total: number;
+      sum: number;
+      ratings: Record<number, number>;
+    }
   >();
 
   for (const row of rows) {
+    if (!nameById.has(row.facultyId)) continue;
     const current = byFaculty.get(row.facultyId) ?? {
       facultyId: row.facultyId,
       facultyName: nameById.get(row.facultyId) ?? "Faculty",
+      branchName: branchById.get(row.facultyId) ?? null,
       total: 0,
       sum: 0,
       ratings: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 },
@@ -134,6 +156,7 @@ export const findFacultyRatings = async (params: {
   return Array.from(byFaculty.values()).map((f) => ({
     facultyId: f.facultyId,
     facultyName: f.facultyName,
+    branchName: f.branchName,
     averageRating: f.total > 0 ? Math.round((f.sum / f.total) * 100) / 100 : 0,
     totalFeedbacks: f.total,
     ratings: [1, 2, 3, 4, 5].map((rating) => ({

@@ -91,6 +91,7 @@ const data = {
       isActive: false,
       items: [
         { title: "All Courses", url: "/admin/courses/all" },
+        { title: "Curriculum", url: "/admin/courses/curriculum" },
         { title: "Batches", url: "/admin/courses/batches" },
       ],
     },

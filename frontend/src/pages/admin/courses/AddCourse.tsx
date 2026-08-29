@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 
 export const AddCourse: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const coursesListPath = location.pathname.startsWith("/center")
+    ? "/center/courses/all"
+    : "/admin/courses/all";
   const { createCourse } = useCourses();
 
   const [name, setName] = useState("");
@@ -45,7 +49,7 @@ export const AddCourse: React.FC = () => {
 
       setIsSaved(true);
       setTimeout(() => {
-        navigate("/admin/courses/all");
+        navigate(coursesListPath);
       }, 1000);
     } catch (err: any) {
       setError(err.response?.data?.message || err.message || "Failed to create course");
@@ -61,7 +65,7 @@ export const AddCourse: React.FC = () => {
         <Button 
           variant="outline" 
           size="sm"
-          onClick={() => navigate("/admin/courses/all")}
+          onClick={() => navigate(coursesListPath)}
           className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -243,7 +247,7 @@ export const AddCourse: React.FC = () => {
               <Button 
                 type="button" 
                 variant="outline" 
-                onClick={() => navigate("/admin/courses/all")}
+                onClick={() => navigate(coursesListPath)}
                 className="rounded-xl border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold cursor-pointer"
                 disabled={submitting}
               >

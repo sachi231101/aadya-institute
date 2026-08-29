@@ -10,8 +10,9 @@ export const getAll = async (
   try {
     const instituteId = req.user!.instituteId;
     const filters = {
-      search: req.query.search as string,
-      status: req.query.status as string,
+      search: req.query.search as string | undefined,
+      status: req.query.status as string | undefined,
+      category: req.query.category as string | undefined,
     };
     const courses = await service.getCourses(instituteId, filters);
     res.json({
@@ -67,10 +68,11 @@ export const update = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    await service.updateCourse(req.params.id as string, instituteId, req.body);
+    const course = await service.updateCourse(req.params.id as string, instituteId, req.body);
     res.json({
       success: true,
       message: "Course updated successfully",
+      data: course,
     });
   } catch (error) {
     next(error);

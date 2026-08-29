@@ -56,6 +56,7 @@ export const useCourseStore = create<CourseState>((set) => ({
           level: (c.level as any) || "BEGINNER",
           status: c.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
           createdAt: c.createdAt ? new Date(c.createdAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+          fee: c.fee ?? 0,
           modulesCount: c.modules?.length || c._count?.batches || 0,
           enrolledStudents: c._count?.admissions || 0,
         }));

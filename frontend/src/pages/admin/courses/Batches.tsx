@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   GraduationCap, 
   Plus, 
@@ -41,9 +42,28 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const Batches: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const courseIdFromUrl = searchParams.get("courseId") || "";
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [courseFilter, setCourseFilter] = useState("ALL");
+  const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+
+  useEffect(() => {
+    if (courseIdFromUrl && courseIdFromUrl !== courseFilter) {
+      setCourseFilter(courseIdFromUrl);
+    }
+  }, [courseIdFromUrl]);
+
+  const handleCourseFilterChange = (value: string) => {
+    setCourseFilter(value);
+    if (value === "ALL") {
+      searchParams.delete("courseId");
+      setSearchParams(searchParams);
+    } else {
+      setSearchParams({ courseId: value });
+    }
+  };
 
   const { courses } = useCourses();
   const { batches, loading, createBatch, deleteBatch } = useBatches({
@@ -272,7 +292,7 @@ export const Batches: React.FC = () => {
             <div className="flex flex-wrap items-center gap-3">
               <select
                 value={courseFilter}
-                onChange={(e) => setCourseFilter(e.target.value)}
+                onChange={(e) => handleCourseFilterChange(e.target.value)}
                 className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
               >
                 <option value="ALL">All Courses</option>

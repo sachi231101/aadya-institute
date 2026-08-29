@@ -146,7 +146,7 @@ export const chatApi = {
     const rawData = response.data?.data;
     if (Array.isArray(rawData)) {
       return {
-        data: rawData.map((item) => normalizeMessage(item as Record<string, unknown>)),
+        data: rawData.map((item) => normalizeMessage(item as unknown as Record<string, unknown>)),
         pagination: response.data?.pagination || {
           total: rawData.length,
           page,
@@ -157,7 +157,7 @@ export const chatApi = {
     }
 
     if (rawData && typeof rawData === "object" && Array.isArray((rawData as { data?: Message[] }).data)) {
-      const nested = rawData as { data: Record<string, unknown>[]; pagination?: MessagesResponse["pagination"] };
+      const nested = rawData as unknown as { data: Record<string, unknown>[]; pagination?: MessagesResponse["pagination"] };
       return {
         data: nested.data.map((item) => normalizeMessage(item)),
         pagination: nested.pagination || {

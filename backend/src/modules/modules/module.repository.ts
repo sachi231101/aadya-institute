@@ -3,7 +3,7 @@ import { CreateModuleDto, UpdateModuleDto, AddTopicDto, TopicItem } from "./modu
 
 export const findModulesByCourseId = (courseId: string) => {
   return prisma.courseModule.findMany({
-    where: { courseId },
+    where: { courseId, status: { not: "DELETED" } },
     orderBy: { sequence: "asc" },
   });
 };
@@ -80,6 +80,27 @@ export const toggleTopicCompletion = async (moduleId: string, topicId: string) =
     data: {
       topics: updatedTopics as any,
     },
+  });
+};
+
+export const removeTopicFromModule = async (moduleId: string, topicId: string) => {
+  const moduleItem = await prisma.courseModule.findUnique({ where: { id: moduleId } });
+  if (!moduleItem) throw new Error("Module not found");
+
+  const existingTopics = (moduleItem.topics as unknown as TopicItem[]) || [];
+  const updatedTopics = existingTopics.filter((t) => t.id !== topicId);
+
+  return prisma.courseModule.update({
+    where: { id: moduleId },
+    data: {
+      topics: updatedTopics as any,
+    },
+  });
+};
+
+export const countBatchModuleUsage = (courseModuleId: string) => {
+  return prisma.batchModule.count({
+    where: { courseModuleId },
   });
 };
 

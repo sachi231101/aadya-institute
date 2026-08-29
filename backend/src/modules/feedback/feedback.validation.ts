@@ -19,6 +19,7 @@ export const listFeedbackQuerySchema = z.object({
 export const facultyRatingsQuerySchema = z.object({
   facultyId: z.string().optional(),
   batchId: z.string().optional(),
+  branchId: z.string().optional(),
 });
 
 export type SubmitFeedbackDto = z.infer<typeof submitFeedbackSchema>;

@@ -101,6 +101,8 @@ export const admissionsApi = {
     courseId?: string;
     status?: string;
     batchId?: string;
+    page?: number;
+    limit?: number;
   }): Promise<ApiResponse<Admission[]>> => {
     const response = await api.get<ApiResponse<Admission[]>>("/admissions", { params });
     return response.data;
