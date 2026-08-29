@@ -45,6 +45,12 @@ export const useModules = (courseId?: string) => {
     return response.data;
   };
 
+  const deleteTopic = async (moduleId: string, topicId: string) => {
+    const response = await modulesApi.deleteTopic(moduleId, topicId);
+    await fetchModules();
+    return response.data;
+  };
+
   const deleteModule = async (id: string) => {
     await modulesApi.delete(id);
     await fetchModules();
@@ -58,6 +64,7 @@ export const useModules = (courseId?: string) => {
     createModule,
     addTopic,
     toggleTopic,
+    deleteTopic,
     deleteModule,
   };
 };

@@ -33,6 +33,9 @@ const facultyInclude = {
   qualificationMaster: {
     select: { id: true, name: true, code: true },
   },
+  _count: {
+    select: { batches: true },
+  },
 };
 
 /**
@@ -328,8 +331,15 @@ export const assignFacultyToBatch = (batchId: string, facultyId: string) =>
           user: { select: { id: true, name: true, email: true } },
         },
       },
+      branch: { select: { id: true, name: true, code: true } },
       _count: { select: { enrollments: true } },
     },
+  });
+
+export const findBatchForAssign = (batchId: string, instituteId: string) =>
+  prisma.batch.findFirst({
+    where: { id: batchId, instituteId },
+    select: { id: true, branchId: true, instituteId: true, facultyId: true },
   });
 
 // ─── Faculty Attendance ─────────────────────────────────────────────────
@@ -371,6 +381,7 @@ export const findFacultyAttendance = (params: FindFacultyAttendanceParams) => {
       faculty: {
         include: {
           user: { select: { id: true, name: true, email: true } },
+          branch: { select: { id: true, name: true, code: true } },
         },
       },
       classSession: {
@@ -379,7 +390,16 @@ export const findFacultyAttendance = (params: FindFacultyAttendanceParams) => {
           scheduledDate: true,
           startTime: true,
           endTime: true,
-          batch: { select: { id: true, name: true, code: true } },
+          roomNo: true,
+          sessionStatus: true,
+          batch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              course: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       },
     },

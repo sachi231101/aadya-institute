@@ -1,18 +1,20 @@
 import React, { useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
 import {
   Clock,
   Calendar,
   CheckCircle2,
   AlertCircle,
-  UserCheck,
   Building2,
-  Users,
   Search,
   Eye,
   ChevronLeft,
   ChevronRight,
-  BookOpen
+  BookOpen,
+  Loader2,
+  UserCheck,
+  PlusCircle,
+  Layers,
+  MapPin
 } from "lucide-react";
 import {
   Table,
@@ -25,6 +27,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -34,1214 +37,650 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { useBranches } from "@/hooks/useBranches";
-import { useFacultyList } from "@/hooks/useFaculty";
-import { useBatches } from "@/hooks/useBatches";
+import { useFacultyList, useFacultyAttendance, useMarkFacultyAttendance } from "@/hooks/useFaculty";
 import { useBranchStore } from "@/store/branch.store";
-
-// ─── BRANCHES MASTER ────────────────────────────────────────────────────────
-export interface BranchItem {
-  id: string;
-  name: string;
-  code: string;
-  colorBg: string;
-  colorText: string;
-  colorBorder: string;
-}
-
-export const BRANCH_LIST: BranchItem[] = [
-  {
-    id: "b-central",
-    name: "Aadya Central Branch",
-    code: "Central Branch",
-    colorBg: "bg-emerald-50",
-    colorText: "text-emerald-700",
-    colorBorder: "border-emerald-200",
-  },
-  {
-    id: "b-hsr",
-    name: "Aadya HSR Layout",
-    code: "HSR Layout",
-    colorBg: "bg-blue-50",
-    colorText: "text-[#1769AA]",
-    colorBorder: "border-blue-200",
-  },
-  {
-    id: "b-jayanagar",
-    name: "Aadya Jayanagar",
-    code: "Jayanagar",
-    colorBg: "bg-purple-50",
-    colorText: "text-purple-700",
-    colorBorder: "border-purple-200",
-  },
-  {
-    id: "b-marathahalli",
-    name: "Aadya Marathahalli",
-    code: "Marathahalli",
-    colorBg: "bg-amber-50",
-    colorText: "text-amber-700",
-    colorBorder: "border-amber-200",
-  },
-  {
-    id: "b-btm",
-    name: "Aadya BTM Layout",
-    code: "BTM Layout",
-    colorBg: "bg-pink-50",
-    colorText: "text-pink-700",
-    colorBorder: "border-pink-200",
-  },
-  {
-    id: "b-rajajinagar",
-    name: "Aadya Rajajinagar",
-    code: "Rajajinagar",
-    colorBg: "bg-indigo-50",
-    colorText: "text-indigo-700",
-    colorBorder: "border-indigo-200",
-  },
-];
-
-// ─── FACULTY DIRECTORY (BRANCH CONNECTED) ──────────────────────────────────
-export interface FacultyMemberItem {
-  id: string;
-  employeeCode: string;
-  name: string;
-  email: string;
-  phone: string;
-  branchId: string;
-  branchName: string;
-  specialization: string;
-  avatar: string;
-}
-
-export const FACULTY_DIRECTORY: FacultyMemberItem[] = [
-  {
-    id: "fac-101",
-    employeeCode: "FAC-001",
-    name: "Ramesh Kumar",
-    email: "ramesh.kumar@aadya.in",
-    phone: "9888888881",
-    branchId: "b-hsr",
-    branchName: "Aadya HSR Layout",
-    specialization: "Full Stack Web Development",
-    avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-102",
-    employeeCode: "FAC-002",
-    name: "Anjali Sharma",
-    email: "anjali.sharma@aadya.in",
-    phone: "9888888882",
-    branchId: "b-jayanagar",
-    branchName: "Aadya Jayanagar",
-    specialization: "Data Science & AI",
-    avatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-103",
-    employeeCode: "FAC-003",
-    name: "Vikram Singh",
-    email: "vikram.singh@aadya.in",
-    phone: "9888888883",
-    branchId: "b-marathahalli",
-    branchName: "Aadya Marathahalli",
-    specialization: "Cloud & DevOps",
-    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-104",
-    employeeCode: "FAC-004",
-    name: "Pooja Nair",
-    email: "pooja.nair@aadya.in",
-    phone: "9888888884",
-    branchId: "b-hsr",
-    branchName: "Aadya HSR Layout",
-    specialization: "MERN Stack Development",
-    avatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-105",
-    employeeCode: "FAC-005",
-    name: "Suresh Babu",
-    email: "suresh.babu@aadya.in",
-    phone: "9888888885",
-    branchId: "b-btm",
-    branchName: "Aadya BTM Layout",
-    specialization: "Python & Machine Learning",
-    avatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-106",
-    employeeCode: "FAC-006",
-    name: "HM Adithya",
-    email: "adithyahm0@gmail.com",
-    phone: "8217312051",
-    branchId: "b-central",
-    branchName: "Aadya Central Branch",
-    specialization: "MERN Full Stack Architecture",
-    avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-107",
-    employeeCode: "FAC-007",
-    name: "Sneha Reddy",
-    email: "sneha.reddy@aadya.in",
-    phone: "9123456780",
-    branchId: "b-rajajinagar",
-    branchName: "Aadya Rajajinagar",
-    specialization: "UI/UX Product Design",
-    avatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
-  },
-  {
-    id: "fac-108",
-    employeeCode: "FAC-008",
-    name: "Megha Prasad",
-    email: "megha.prasad@aadya.in",
-    phone: "9876501234",
-    branchId: "b-central",
-    branchName: "Aadya Central Branch",
-    specialization: "Advanced Excel & Financial Modeling",
-    avatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-  },
-];
-
-// ─── BATCHES & SESSIONS PER FACULTY / BRANCH ──────────────────────────────
-export interface BatchSessionOption {
-  id: string;
-  batchName: string;
-  batchCode: string;
-  branchId: string;
-  facultyId: string;
-  timeSlot: string;
-  courseName: string;
-}
-
-export const BATCH_SESSIONS: BatchSessionOption[] = [
-  {
-    id: "cs-101",
-    batchName: "Web Dev Batch A",
-    batchCode: "WD-2026-A",
-    branchId: "b-hsr",
-    facultyId: "fac-101",
-    timeSlot: "09:00 AM – 11:00 AM",
-    courseName: "Full Stack Web Development",
-  },
-  {
-    id: "cs-102",
-    batchName: "Data Science Weekend",
-    batchCode: "DS-2026-W",
-    branchId: "b-jayanagar",
-    facultyId: "fac-102",
-    timeSlot: "02:00 PM – 04:00 PM",
-    courseName: "Data Science with Python",
-  },
-  {
-    id: "cs-103",
-    batchName: "Cloud Computing Basics",
-    batchCode: "CC-2026-B",
-    branchId: "b-marathahalli",
-    facultyId: "fac-103",
-    timeSlot: "10:00 AM – 12:00 PM",
-    courseName: "Cloud & DevOps",
-  },
-  {
-    id: "cs-104",
-    batchName: "Full Stack Development",
-    batchCode: "FS-2026-A",
-    branchId: "b-hsr",
-    facultyId: "fac-104",
-    timeSlot: "09:00 AM – 12:00 PM",
-    courseName: "MERN Stack Development",
-  },
-  {
-    id: "cs-105",
-    batchName: "Python Programming",
-    batchCode: "PY-2026-A",
-    branchId: "b-btm",
-    facultyId: "fac-105",
-    timeSlot: "02:00 PM – 04:00 PM",
-    courseName: "Python Programming",
-  },
-  {
-    id: "cs-106",
-    batchName: "MERN Enterprise Suite",
-    batchCode: "MERN-2026-E",
-    branchId: "b-central",
-    facultyId: "fac-106",
-    timeSlot: "10:00 AM – 01:00 PM",
-    courseName: "MERN Architecture",
-  },
-  {
-    id: "cs-107",
-    batchName: "Product UI/UX Sprint",
-    batchCode: "UX-2026-S",
-    branchId: "b-rajajinagar",
-    facultyId: "fac-107",
-    timeSlot: "11:00 AM – 01:00 PM",
-    courseName: "UI/UX Product Design",
-  },
-  {
-    id: "cs-108",
-    batchName: "Financial Modeling & Excel",
-    batchCode: "FM-2026-M",
-    branchId: "b-central",
-    facultyId: "fac-108",
-    timeSlot: "02:30 PM – 04:30 PM",
-    courseName: "Advanced Excel",
-  },
-];
-
-// ─── ATTENDANCE RECORD MODEL ───────────────────────────────────────────────
-export interface AttendanceLogRecord {
-  id: string;
-  facultyId: string;
-  facultyName: string;
-  facultyCode: string;
-  facultyAvatar: string;
-  branchId: string;
-  branchName: string;
-  branchCode: string;
-  date: string;
-  batchName: string;
-  batchCode: string;
-  courseName: string;
-  loginTime: string | null;
-  logoutTime: string | null;
-  sessionTime: string;
-  status: "Present" | "Late" | "Absent" | "Half Day" | "On Leave";
-  remarks?: string;
-  roomNo?: string;
-}
-
-export const INITIAL_ATTENDANCE_RECORDS: AttendanceLogRecord[] = [
-  {
-    id: "att-001",
-    facultyId: "fac-101",
-    facultyName: "Ramesh Kumar",
-    facultyCode: "F001",
-    facultyAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-hsr",
-    branchName: "Aadya HSR Layout",
-    branchCode: "HSR Layout",
-    date: "2026-08-22",
-    batchName: "Web Dev Batch A",
-    batchCode: "WD-2026-A",
-    courseName: "Full Stack Web Development",
-    loginTime: "08:50 am",
-    logoutTime: "11:10 am",
-    sessionTime: "09:00 AM – 11:00 AM",
-    status: "Present",
-    remarks: "Regular session conducted on React Hooks and State Management.",
-    roomNo: "Lab 2",
-  },
-  {
-    id: "att-002",
-    facultyId: "fac-102",
-    facultyName: "Anjali Sharma",
-    facultyCode: "F002",
-    facultyAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-jayanagar",
-    branchName: "Aadya Jayanagar",
-    branchCode: "Jayanagar",
-    date: "2026-08-22",
-    batchName: "Data Science Weekend",
-    batchCode: "DS-2026-W",
-    courseName: "Data Science with Python",
-    loginTime: "01:55 pm",
-    logoutTime: null,
-    sessionTime: "02:00 PM – 04:00 PM",
-    status: "Present",
-    remarks: "Session in progress: Pandas DataFrame manipulation and data cleaning.",
-    roomNo: "Hall A",
-  },
-  {
-    id: "att-003",
-    facultyId: "fac-103",
-    facultyName: "Vikram Singh",
-    facultyCode: "F003",
-    facultyAvatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-marathahalli",
-    branchName: "Aadya Marathahalli",
-    branchCode: "Marathahalli",
-    date: "2026-08-22",
-    batchName: "Cloud Computing Basics",
-    batchCode: "CC-2026-B",
-    courseName: "Cloud & DevOps",
-    loginTime: null,
-    logoutTime: null,
-    sessionTime: "10:00 AM – 12:00 PM",
-    status: "Absent",
-    remarks: "Uninformed absence. Substitute session arranged.",
-    roomNo: "Lab 4",
-  },
-  {
-    id: "att-004",
-    facultyId: "fac-104",
-    facultyName: "Pooja Nair",
-    facultyCode: "F004",
-    facultyAvatar: "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-hsr",
-    branchName: "Aadya HSR Layout",
-    branchCode: "HSR Layout",
-    date: "2026-08-22",
-    batchName: "Full Stack Development",
-    batchCode: "FS-2026-A",
-    courseName: "MERN Stack Development",
-    loginTime: "09:15 am",
-    logoutTime: "11:45 am",
-    sessionTime: "09:00 AM – 12:00 PM",
-    status: "Present",
-    remarks: "Backend REST API with Express and PostgreSQL.",
-    roomNo: "Lab 1",
-  },
-  {
-    id: "att-005",
-    facultyId: "fac-105",
-    facultyName: "Suresh Babu",
-    facultyCode: "F005",
-    facultyAvatar: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-btm",
-    branchName: "Aadya BTM Layout",
-    branchCode: "BTM Layout",
-    date: "2026-08-22",
-    batchName: "Python Programming",
-    batchCode: "PY-2026-A",
-    courseName: "Python Programming",
-    loginTime: null,
-    logoutTime: null,
-    sessionTime: "02:00 PM – 04:00 PM",
-    status: "On Leave",
-    remarks: "Approved medical leave until Monday.",
-    roomNo: "Room 102",
-  },
-  {
-    id: "att-006",
-    facultyId: "fac-106",
-    facultyName: "HM Adithya",
-    facultyCode: "F006",
-    facultyAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-central",
-    branchName: "Aadya Central Branch",
-    branchCode: "Central Branch",
-    date: "2026-08-22",
-    batchName: "MERN Enterprise Suite",
-    batchCode: "MERN-2026-E",
-    courseName: "MERN Architecture",
-    loginTime: "09:45 am",
-    logoutTime: "01:05 pm",
-    sessionTime: "10:00 AM – 01:00 PM",
-    status: "Present",
-    remarks: "Full-stack project review and code architecture walkthrough.",
-    roomNo: "Auditorium",
-  },
-  {
-    id: "att-007",
-    facultyId: "fac-107",
-    facultyName: "Sneha Reddy",
-    facultyCode: "F007",
-    facultyAvatar: "https://images.unsplash.com/photo-1580489944761-15a19d654956?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-rajajinagar",
-    branchName: "Aadya Rajajinagar",
-    branchCode: "Rajajinagar",
-    date: "2026-08-22",
-    batchName: "Product UI/UX Sprint",
-    batchCode: "UX-2026-S",
-    courseName: "UI/UX Product Design",
-    loginTime: "11:02 am",
-    logoutTime: "01:30 pm",
-    sessionTime: "11:00 AM – 01:00 PM",
-    status: "Present",
-    remarks: "Design system tokens and responsive UI mockups in Figma.",
-    roomNo: "Design Studio",
-  },
-  {
-    id: "att-008",
-    facultyId: "fac-108",
-    facultyName: "Megha Prasad",
-    facultyCode: "F008",
-    facultyAvatar: "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150&auto=format&fit=crop&q=80",
-    branchId: "b-central",
-    branchName: "Aadya Central Branch",
-    branchCode: "Central Branch",
-    date: "2026-08-22",
-    batchName: "Financial Modeling & Excel",
-    batchCode: "FM-2026-M",
-    courseName: "Advanced Excel",
-    loginTime: "02:30 pm",
-    logoutTime: null,
-    sessionTime: "02:30 PM – 04:30 PM",
-    status: "Present",
-    remarks: "DCF modeling & sensitivity analysis formulas.",
-    roomNo: "Lab 3",
-  },
-];
+import type { FacultyAttendanceRecord } from "@/types/faculty.types";
 
 export const FacultyAttendance: React.FC = () => {
-  const [searchParams] = useSearchParams();
-  const initialFacultyId = searchParams.get("facultyId") || "ALL";
+  const { selectedBranchId, setSelectedBranchId } = useBranchStore();
+  const [selectedFacultyId, setSelectedFacultyId] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const today = new Date();
+    return today.toISOString().split("T")[0];
+  });
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const itemsPerPage = 10;
 
-  const { selectedBranchId: globalBranchId, setSelectedBranchId: setGlobalBranchId } = useBranchStore();
+  // Modals state
+  const [selectedRecordForView, setSelectedRecordForView] = useState<FacultyAttendanceRecord | null>(null);
+  const [isLogModalOpen, setIsLogModalOpen] = useState<boolean>(false);
+  const [logFacultyId, setLogFacultyId] = useState<string>("");
+  const [logClassSessionId, setLogClassSessionId] = useState<string>("");
+  const [logLoginAt, setLogLoginAt] = useState<string>("");
+  const [logLogoutAt, setLogLogoutAt] = useState<string>("");
+  const [logError, setLogError] = useState<string | null>(null);
+
+  // Queries
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+
+  const { data: facultyResponse } = useFacultyList({
+    branchId: selectedBranchId !== "ALL" ? selectedBranchId : undefined,
+    limit: 100,
+  });
   const facultyMembers = facultyResponse?.data || [];
-  const { batches } = useBatches();
 
-  // ─── 1. BRANCH-WISE FILTER STATE ──────────────────────────────────────────
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split("T")[0]);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>(globalBranchId || "ALL");
-  const [selectedFacultyId, setSelectedFacultyId] = useState<string>(initialFacultyId);
-
-  // In-table search and secondary filters
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("ALL");
-
-  // Build live attendance records from database faculty and batches
-  const recordsList: AttendanceLogRecord[] = useMemo(() => {
-    return facultyMembers.map((f: any, idx: number) => {
-      const assignedBatches = batches.filter((b: any) => b.facultyId === f.id || b.courseId === f.id);
-      const batch = assignedBatches[0];
-      const branchName = f.branch?.name || branches.find((b: any) => b.id === f.branchId)?.name || "Aadya Central Branch";
-      const branchCode = f.branch?.code || branches.find((b: any) => b.id === f.branchId)?.code || "MAIN";
-
-      const status = idx % 5 === 0 ? "On Leave" : idx % 7 === 0 ? "Late" : "Present";
-      const loginTime = status === "On Leave" ? null : "09:45 am";
-      const logoutTime = status === "On Leave" ? null : "04:30 pm";
-
-      return {
-        id: `att-live-${f.id}`,
-        facultyId: f.id,
-        facultyName: f.user?.name || `Faculty ${f.employeeCode}`,
-        facultyCode: f.employeeCode || `FA-00${idx + 1}`,
-        facultyAvatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-        branchId: f.branchId || branches[0]?.id || "",
-        branchName,
-        branchCode,
-        date: selectedDate,
-        batchName: batch?.name || "Full Stack Batch 01",
-        batchCode: batch?.code || "FSWD-01",
-        courseName: batch?.course?.name || "Full Stack Web Development",
-        loginTime,
-        logoutTime,
-        sessionTime: "10:00 AM – 12:00 PM",
-        status,
-        remarks: status === "On Leave" ? "Approved personal leave" : "Completed scheduled sessions on time",
-        roomNo: `Room 10${(idx % 4) + 1}`,
-      };
-    });
-  }, [facultyMembers, batches, branches, selectedDate]);
-
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 5;
-
-  // View Details Modal
-  const [selectedRecordForView, setSelectedRecordForView] = useState<AttendanceLogRecord | null>(null);
-
-  // ─── 3. DYNAMIC FACULTY FILTER BASED ON SELECTED BRANCH ─────────────────
-  const availableFacultyForBranch = useMemo(() => {
-    if (selectedBranchId === "ALL") {
-      return facultyMembers;
-    }
-    return facultyMembers.filter((f: any) => f.branchId === selectedBranchId);
-  }, [selectedBranchId, facultyMembers]);
-
-  // Handle Branch Change
-  const handleBranchChange = (newBranchId: string) => {
-    setSelectedBranchId(newBranchId);
-    setGlobalBranchId(newBranchId);
-    setCurrentPage(1);
-    if (newBranchId !== "ALL" && selectedFacultyId !== "ALL") {
-      const isFacultyInNewBranch = facultyMembers.some(
-        (f: any) => f.id === selectedFacultyId && f.branchId === newBranchId
-      );
-      if (!isFacultyInNewBranch) {
-        setSelectedFacultyId("ALL");
-      }
-    }
+  const attendanceQueryParams = {
+    branchId: selectedBranchId !== "ALL" ? selectedBranchId : undefined,
+    facultyId: selectedFacultyId !== "ALL" ? selectedFacultyId : undefined,
+    date: selectedDate || undefined,
+    page: currentPage,
+    limit: itemsPerPage,
   };
 
-  // ─── 4. FILTERED ATTENDANCE RECORDS ──────────────────────────────────────
+  const {
+    data: attendanceResponse,
+    isLoading,
+    isError,
+    refetch,
+  } = useFacultyAttendance(attendanceQueryParams);
+
+  const markAttendanceMutation = useMarkFacultyAttendance();
+
+  const attendanceRecords = attendanceResponse?.data || [];
+  const totalRecords = attendanceResponse?.meta?.total || attendanceRecords.length;
+  const totalPages = Math.ceil(totalRecords / itemsPerPage) || 1;
+
+  // Filter records locally by search query if present
   const filteredRecords = useMemo(() => {
-    return recordsList.filter((record) => {
-      // 1. Date filter (if selected)
-      if (selectedDate && record.date !== selectedDate) {
-        return false;
-      }
-
-      // 2. Branch filter
-      if (selectedBranchId !== "ALL" && record.branchId !== selectedBranchId) {
-        return false;
-      }
-
-      // 3. Faculty filter
-      if (selectedFacultyId !== "ALL" && record.facultyId !== selectedFacultyId) {
-        return false;
-      }
-
-      // 4. Course filter
-      if (selectedCourseFilter !== "ALL" && record.courseName !== selectedCourseFilter) {
-        return false;
-      }
-
-      // 5. Search query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchName = record.facultyName.toLowerCase().includes(q);
-        const matchBatch = record.batchName.toLowerCase().includes(q) || record.batchCode.toLowerCase().includes(q);
-        const matchBranch = record.branchName.toLowerCase().includes(q);
-        const matchCode = record.facultyCode.toLowerCase().includes(q);
-        if (!matchName && !matchBatch && !matchBranch && !matchCode) {
-          return false;
-        }
-      }
-
-      return true;
+    if (!searchQuery.trim()) return attendanceRecords;
+    const q = searchQuery.toLowerCase();
+    return attendanceRecords.filter((rec) => {
+      const name = rec.faculty?.user?.name?.toLowerCase() || "";
+      const code = rec.faculty?.employeeCode?.toLowerCase() || "";
+      const batchName = rec.classSession?.batch?.name?.toLowerCase() || "";
+      const batchCode = rec.classSession?.batch?.code?.toLowerCase() || "";
+      const courseName = rec.classSession?.batch?.course?.name?.toLowerCase() || "";
+      return (
+        name.includes(q) ||
+        code.includes(q) ||
+        batchName.includes(q) ||
+        batchCode.includes(q) ||
+        courseName.includes(q)
+      );
     });
-  }, [recordsList, selectedDate, selectedBranchId, selectedFacultyId, selectedCourseFilter, searchQuery]);
+  }, [attendanceRecords, searchQuery]);
 
-  // ─── 5. SUMMARY KPI CALCULATIONS (BRANCH-AWARE) ──────────────────────────
+  // Summary Metrics
   const kpis = useMemo(() => {
-    const branchDateRecords = recordsList.filter((r) => {
-      const dateMatch = !selectedDate || r.date === selectedDate;
-      const branchMatch = selectedBranchId === "ALL" || r.branchId === selectedBranchId;
-      return dateMatch && branchMatch;
-    });
-
-    const totalRecords = branchDateRecords.length;
-    const loggedIn = branchDateRecords.filter((r) => r.loginTime !== null).length;
-    const loggedOut = branchDateRecords.filter((r) => r.logoutTime !== null).length;
-
-    const branchFacultyCount =
-      selectedBranchId === "ALL"
-        ? facultyMembers.length
-        : facultyMembers.filter((f: any) => f.branchId === selectedBranchId).length;
-
-    const loggedInPct = totalRecords > 0 ? Math.round((loggedIn / totalRecords) * 100) : 0;
-    const loggedOutPct = totalRecords > 0 ? Math.round((loggedOut / totalRecords) * 100) : 0;
+    const total = attendanceRecords.length;
+    const loggedIn = attendanceRecords.filter((r) => r.loginAt !== null).length;
+    const completed = attendanceRecords.filter((r) => r.loginAt !== null && r.logoutAt !== null).length;
+    const compliancePct = total > 0 ? Math.round((loggedIn / total) * 100) : 100;
 
     return {
-      totalRecords,
+      total,
       loggedIn,
-      loggedInPct,
-      loggedOut,
-      loggedOutPct,
-      facultyCount: branchFacultyCount,
+      completed,
+      compliancePct,
     };
-  }, [recordsList, selectedDate, selectedBranchId, facultyMembers]);
+  }, [attendanceRecords]);
 
-  // ─── 6. PAGINATION SLICE ─────────────────────────────────────────────────
-  const totalPages = Math.ceil(filteredRecords.length / itemsPerPage) || 1;
-  const paginatedRecords = useMemo(() => {
-    const start = (currentPage - 1) * itemsPerPage;
-    return filteredRecords.slice(start, start + itemsPerPage);
-  }, [filteredRecords, currentPage]);
-
-  // Distinct courses for table filter
-  const distinctCourses = useMemo(() => {
-    const set = new Set<string>();
-    BATCH_SESSIONS.forEach((s) => set.add(s.courseName));
-    return Array.from(set);
-  }, []);
-
-  const getBranchBadge = (branchId: string, branchCode: string) => {
-    const branchObj = BRANCH_LIST.find((b) => b.id === branchId);
-    const bg = branchObj?.colorBg || "bg-slate-100";
-    const text = branchObj?.colorText || "text-slate-700";
-    const border = branchObj?.colorBorder || "border-slate-200";
-
-    return (
-      <span
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${bg} ${text} ${border}`}
-      >
-        <Building2 className="h-3 w-3 shrink-0" />
-        <span>{branchCode}</span>
-      </span>
-    );
+  const handleBranchChange = (newBranchId: string) => {
+    setSelectedBranchId(newBranchId);
+    setSelectedFacultyId("ALL");
+    setCurrentPage(1);
   };
 
-  const getStatusBadge = (status: string) => {
-    switch (status) {
-      case "Present":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Present</span>;
-      case "Absent":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">Absent</span>;
-      case "On Leave":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200">On Leave</span>;
-      case "Late":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200">Late</span>;
-      case "Half Day":
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">Half Day</span>;
-      default:
-        return <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">{status}</span>;
+  const handleLogAttendanceSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!logFacultyId || !logClassSessionId) {
+      setLogError("Please provide both Faculty ID and Class Session ID.");
+      return;
+    }
+
+    try {
+      setLogError(null);
+      await markAttendanceMutation.mutateAsync({
+        facultyId: logFacultyId,
+        classSessionId: logClassSessionId,
+        loginAt: logLoginAt ? new Date(logLoginAt).toISOString() : undefined,
+        logoutAt: logLogoutAt ? new Date(logLogoutAt).toISOString() : undefined,
+      });
+      setIsLogModalOpen(false);
+      setLogFacultyId("");
+      setLogClassSessionId("");
+      setLogLoginAt("");
+      setLogLogoutAt("");
+      refetch();
+    } catch (err: any) {
+      setLogError(err?.response?.data?.message || "Failed to log faculty attendance.");
+    }
+  };
+
+  const formatTimeDisplay = (isoStr: string | null) => {
+    if (!isoStr) return "—";
+    try {
+      const d = new Date(isoStr);
+      return d.toLocaleTimeString("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
+    } catch {
+      return isoStr;
     }
   };
 
   const formatDateDisplay = (dateStr: string) => {
     if (!dateStr) return "—";
-    const parts = dateStr.split("-");
-    if (parts.length === 3) {
-      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-      return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    try {
+      const d = new Date(dateStr);
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return dateStr;
     }
-    return dateStr;
   };
 
   return (
-    <div className="space-y-6 pb-12 animate-in fade-in duration-300">
-      {/* ─── BREADCRUMB & HEADER (VIEW-ONLY AUDIT & MONITORING) ─────────────── */}
-      <div className="space-y-1">
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
-          <Building2 className="h-3.5 w-3.5 text-muted-foreground" />
-          <span>Faculty</span>
-          <span>›</span>
-          <span className="text-foreground font-semibold">Attendance</span>
+    <div className="p-6 md:p-8 max-w-[1680px] mx-auto space-y-6 min-h-screen relative overflow-x-hidden animate-in fade-in duration-300">
+      {/* ─── HEADER & BREADCRUMB ─── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground mb-1">
+            <span>Faculty</span>
+            <ChevronRight className="h-3.5 w-3.5" />
+            <span className="text-primary font-bold">Attendance & Session Auditing</span>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground flex items-center gap-2">
+            <Clock className="h-6 w-6 text-primary" />
+            Faculty Attendance Log
+          </h1>
+          <p className="text-xs md:text-sm text-muted-foreground font-medium mt-0.5">
+            Real-time audit log of faculty session logins, logouts, classroom presence, and teaching hours.
+          </p>
         </div>
 
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-1">
-          <div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground">Faculty Attendance</h1>
-            <p className="text-xs text-muted-foreground font-medium mt-0.5">
-              Monitor daily check-ins, check-outs, and attendance history for faculty across institute branches and class sessions.
-            </p>
-          </div>
+        <div className="flex items-center gap-3">
+          <Button
+            onClick={() => {
+              setLogError(null);
+              setIsLogModalOpen(true);
+            }}
+            className="bg-primary hover:bg-primary/90 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-md gap-1.5 cursor-pointer"
+          >
+            <PlusCircle className="h-4 w-4" />
+            Log Session Presence
+          </Button>
         </div>
       </div>
 
-      {/* ─── TOP PRIMARY FILTER CARDS: DATE | BRANCH / CENTER | FACULTY ───── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Date Picker */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
-              <Calendar className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">
-                Date
-              </label>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="h-9 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border-border rounded-xl p-2 focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 2: Branch / Center Selector */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
-              <Building2 className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block mb-0.5">
-                Branch / Center
-              </label>
-              <select
-                value={selectedBranchId}
-                onChange={(e) => handleBranchChange(e.target.value)}
-                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
-              >
-                <option value="ALL">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    📍 {b.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </Card>
-
-        {/* Card 3: Faculty Selector (Dynamic by Branch) */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:border-primary/50 transition-colors">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0 border border-blue-100/80 dark:border-sky-900/40">
-              <Users className="h-5 w-5" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center justify-between mb-0.5">
-                <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
-                  Faculty
-                </label>
-                {selectedBranchId !== "ALL" && (
-                  <span className="text-[10px] text-primary dark:text-sky-400 font-bold">
-                    {availableFacultyForBranch.length} in Branch
-                  </span>
-                )}
-              </div>
-              <select
-                value={selectedFacultyId}
-                onChange={(e) => {
-                  setSelectedFacultyId(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-9 px-3 text-xs sm:text-sm font-semibold text-foreground bg-muted/30 border border-border rounded-xl focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background cursor-pointer"
-              >
-                <option value="ALL">All Faculty</option>
-                {availableFacultyForBranch.map((f: any) => (
-                  <option key={f.id} value={f.id}>
-                    {f.user?.name || f.name || f.employeeCode} ({f.employeeCode || "FA"})
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-        </Card>
-      </div>
-
-      {/* ─── SUMMARY KPI CARDS (BRANCH-AWARE) ───────────────────────────────── */}
+      {/* ─── SUMMARY KPI CARDS ─── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Records */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
-          <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-2xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100/80 dark:border-sky-900/40">
-              <UserCheck className="h-5 w-5" />
-            </div>
+        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Records</p>
-              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.totalRecords}</h3>
-              <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Today's Attendance</p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Scheduled</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{kpis.total}</h3>
+              <p className="text-[10px] text-muted-foreground font-medium">Class sessions on date</p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 flex items-center justify-center text-primary dark:text-sky-400">
+              <BookOpen className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Logged In */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
-          <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100/80 dark:border-emerald-900/40">
-              <CheckCircle2 className="h-5 w-5" />
-            </div>
+        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Logged In</p>
-              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.loggedIn}</h3>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">{kpis.loggedInPct}% Attendance</p>
+              <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{kpis.loggedIn}</h3>
+              <p className="text-[10px] text-muted-foreground font-medium">Faculty verified in class</p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+              <UserCheck className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Logged Out */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
-          <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-100/80 dark:border-amber-900/40">
-              <AlertCircle className="h-5 w-5" />
-            </div>
+        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Logged Out</p>
-              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.loggedOut}</h3>
-              <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold mt-0.5">
-                {kpis.totalRecords - kpis.loggedOut} Still In Session
-              </p>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Sessions Completed</p>
+              <h3 className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-0.5">{kpis.completed}</h3>
+              <p className="text-[10px] text-muted-foreground font-medium">Logout recorded</p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+              <CheckCircle2 className="h-5 w-5" />
             </div>
           </CardContent>
         </Card>
 
-        {/* Faculty Count */}
-        <Card className="border border-border shadow-xs bg-card rounded-2xl p-4 hover:shadow-xs transition-all">
-          <CardContent className="p-0 flex items-center gap-3.5">
-            <div className="p-3 rounded-2xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100/80 dark:border-purple-900/40">
+        <Card className="border border-border shadow-xs bg-card rounded-2xl">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Session Compliance</p>
+              <h3 className="text-2xl font-black text-foreground mt-0.5">{kpis.compliancePct}%</h3>
+              <p className="text-[10px] text-muted-foreground font-medium">Attendance verification</p>
+            </div>
+            <div className="w-11 h-11 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <Clock className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Faculty Count</p>
-              <h3 className="text-2xl font-black text-foreground tracking-tight mt-0.5">{kpis.facultyCount}</h3>
-              <p className="text-[11px] text-purple-600 dark:text-purple-400 font-bold mt-0.5">Active Faculty</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* ─── MAIN ATTENDANCE LOG TABLE CARD ─────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
-        {/* Search & In-Table Filters Header */}
-        <div className="p-4 border-b border-border bg-card flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="relative w-full md:w-80">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+      {/* ─── FILTERS & SEARCH TOOLBAR ─── */}
+      <Card className="border border-border shadow-xs bg-card rounded-2xl p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {/* Search Input */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search by faculty name, batch, or session..."
+              type="text"
+              placeholder="Search faculty, code, batch..."
               value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="pl-9 h-9 text-xs sm:text-sm bg-muted/30 border-border text-foreground rounded-xl placeholder:text-muted-foreground focus:bg-background"
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 text-xs rounded-xl bg-muted/30 border-border"
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
-            {/* Quick In-Table Branch Filter */}
-            <div className="flex items-center gap-1.5 bg-muted/30 border border-border rounded-xl px-2.5 py-1 text-xs font-semibold text-foreground shadow-2xs">
-              <Building2 className="h-3.5 w-3.5 text-primary" />
-              <select
-                value={selectedBranchId}
-                onChange={(e) => handleBranchChange(e.target.value)}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="ALL">All Branches</option>
-                {BRANCH_LIST.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.code}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Date Picker */}
+          <div className="relative">
+            <Input
+              type="date"
+              value={selectedDate}
+              onChange={(e) => {
+                setSelectedDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 text-xs rounded-xl bg-muted/30 border-border font-medium cursor-pointer"
+            />
+          </div>
 
-            {/* Quick In-Table Course Filter */}
-            <div className="flex items-center gap-1.5 bg-muted/30 border border-border rounded-xl px-2.5 py-1 text-xs font-semibold text-foreground shadow-2xs">
-              <BookOpen className="h-3.5 w-3.5 text-muted-foreground" />
-              <select
-                value={selectedCourseFilter}
-                onChange={(e) => {
-                  setSelectedCourseFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent text-xs font-bold text-foreground focus:outline-none cursor-pointer pr-1"
-              >
-                <option value="ALL">All Courses</option>
-                {distinctCourses.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Branch Filter */}
+          <div>
+            <select
+              value={selectedBranchId}
+              onChange={(e) => handleBranchChange(e.target.value)}
+              className="w-full h-9 px-3 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
+            >
+              <option value="ALL">🌐 All Branches ({branches.length})</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  📍 {b.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            {(selectedBranchId !== "ALL" || selectedFacultyId !== "ALL" || selectedCourseFilter !== "ALL" || searchQuery) && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSelectedBranchId("ALL");
-                  setSelectedFacultyId("ALL");
-                  setSelectedCourseFilter("ALL");
-                  setSearchQuery("");
-                  setCurrentPage(1);
-                }}
-                className="h-8 text-xs text-muted-foreground hover:text-foreground px-2 cursor-pointer"
-              >
-                Reset
-              </Button>
-            )}
+          {/* Faculty Filter */}
+          <div>
+            <select
+              value={selectedFacultyId}
+              onChange={(e) => {
+                setSelectedFacultyId(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full h-9 px-3 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
+            >
+              <option value="ALL">All Instructors ({facultyMembers.length})</option>
+              {facultyMembers.map((f: any) => (
+                <option key={f.id} value={f.id}>
+                  👨‍🏫 {f.user?.name || f.name} ({f.employeeCode || "FA"})
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+      </Card>
 
-        {/* Attendance Table */}
+      {/* ─── ATTENDANCE RECORDS TABLE ─── */}
+      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-muted/50 border-b border-border">
-              <TableRow className="text-xs">
-                <TableHead className="font-bold text-foreground pl-6">Faculty Name</TableHead>
-                {/* CONDITIONAL BRANCH COLUMN: ONLY SHOWN WHEN "ALL BRANCHES" IS SELECTED */}
-                {selectedBranchId === "ALL" && (
-                  <TableHead className="font-bold text-foreground">Branch</TableHead>
-                )}
-                <TableHead className="font-bold text-foreground">Date</TableHead>
-                <TableHead className="font-bold text-foreground">Batch / Session</TableHead>
-                <TableHead className="font-bold text-foreground text-center">Login</TableHead>
-                <TableHead className="font-bold text-foreground text-center">Logout</TableHead>
-                <TableHead className="font-bold text-foreground">Session Time</TableHead>
-                <TableHead className="font-bold text-foreground">Status</TableHead>
-                <TableHead className="font-bold text-foreground text-right pr-6">Actions</TableHead>
+            <TableHeader>
+              <TableRow className="bg-muted/50 border-b border-border">
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider pl-6">Faculty</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Branch & Location</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Batch & Course</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Scheduled Timing</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Login / Logout</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Status</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider pr-6 text-center">Audit</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginatedRecords.length === 0 ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell
-                    colSpan={selectedBranchId === "ALL" ? 9 : 8}
-                    className="h-48 text-center py-10"
-                  >
-                    <div className="flex flex-col items-center justify-center space-y-2">
-                      <Clock className="h-8 w-8 text-muted-foreground/40" />
-                      <p className="text-sm font-bold text-foreground">No attendance logs found</p>
-                      <p className="text-xs text-muted-foreground max-w-sm">
-                        No faculty attendance logs match your active date, branch, or faculty filters.
-                      </p>
+                  <TableCell colSpan={7} className="text-center py-16 text-muted-foreground text-xs font-medium">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+                    Loading real-time faculty attendance records...
+                  </TableCell>
+                </TableRow>
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-16 text-rose-500 text-xs font-medium">
+                    <AlertCircle className="h-6 w-6 mx-auto mb-2 text-rose-500" />
+                    Failed to fetch attendance logs from database.
+                  </TableCell>
+                </TableRow>
+              ) : filteredRecords.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-16 px-4">
+                    <div className="h-14 w-14 rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 flex items-center justify-center mx-auto mb-3 text-primary dark:text-sky-400 shadow-2xs">
+                      <Clock className="h-7 w-7" />
                     </div>
+                    <h4 className="text-base font-black text-foreground">No Attendance Records Found</h4>
+                    <p className="text-xs text-muted-foreground font-medium mt-1">
+                      No session attendance has been logged for {selectedDate ? formatDateDisplay(selectedDate) : "the selected filters"}.
+                    </p>
                   </TableCell>
                 </TableRow>
               ) : (
-                paginatedRecords.map((record) => (
-                  <TableRow
-                    key={record.id}
-                    className="hover:bg-muted/30 transition-colors text-xs border-b border-border/70"
-                  >
-                    {/* Faculty Name + Avatar + ID */}
-                    <TableCell className="py-3.5 pl-6">
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={record.facultyAvatar}
-                          alt={record.facultyName}
-                          className="h-9 w-9 rounded-full object-cover border border-border shrink-0 shadow-2xs"
-                          onError={(e) => {
-                            (e.target as any).src = "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80";
-                          }}
-                        />
-                        <div>
-                          <span className="font-bold text-foreground text-sm block">
-                            {record.facultyName}
-                          </span>
-                          <span className="text-[11px] font-mono text-muted-foreground block">
-                            Faculty ID: {record.facultyCode}
-                          </span>
+                filteredRecords.map((rec) => {
+                  const facultyName = rec.faculty?.user?.name || "Faculty Member";
+                  const facultyCode = rec.faculty?.employeeCode || "FA";
+                  const branchName = rec.faculty?.branch?.name || "Aadya Branch";
+                  const batchName = rec.classSession?.batch?.name || "Cohort";
+                  const batchCode = rec.classSession?.batch?.code || "";
+                  const courseName = rec.classSession?.batch?.course?.name || "Curriculum";
+                  const room = rec.classSession?.roomNo || "Room 101";
+
+                  const isLoggedIn = rec.loginAt !== null;
+                  const isLoggedOut = rec.logoutAt !== null;
+
+                  let statusBadge = (
+                    <Badge variant="outline" className="bg-slate-500/10 text-muted-foreground border-border text-[11px] font-bold">
+                      Not Logged
+                    </Badge>
+                  );
+
+                  if (isLoggedIn && isLoggedOut) {
+                    statusBadge = (
+                      <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 text-[11px] font-bold">
+                        Completed
+                      </Badge>
+                    );
+                  } else if (isLoggedIn) {
+                    statusBadge = (
+                      <Badge variant="outline" className="bg-blue-500/10 text-primary dark:text-sky-400 border-blue-500/20 text-[11px] font-bold">
+                        Active (In Class)
+                      </Badge>
+                    );
+                  }
+
+                  return (
+                    <TableRow key={rec.id} className="border-b border-border/70 hover:bg-muted/30 transition-colors text-xs">
+                      <TableCell className="pl-6 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs border border-primary/20">
+                            {facultyName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground">{facultyName}</p>
+                            <p className="text-[10px] font-mono text-muted-foreground">{facultyCode}</p>
+                          </div>
                         </div>
-                      </div>
-                    </TableCell>
-
-                    {/* Branch Column (Conditional) */}
-                    {selectedBranchId === "ALL" && (
-                      <TableCell className="py-3.5">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-muted/50 border border-border text-foreground">
-                          <Building2 className="h-3 w-3 text-primary" />
-                          <span>{record.branchCode}</span>
-                        </span>
                       </TableCell>
-                    )}
 
-                    {/* Date */}
-                    <TableCell className="py-3.5 font-medium text-foreground">
-                      {formatDateDisplay(record.date)}
-                    </TableCell>
+                      <TableCell className="py-3.5">
+                        <p className="font-semibold text-foreground">{branchName}</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <MapPin className="h-3 w-3" /> {room}
+                        </p>
+                      </TableCell>
 
-                    {/* Batch / Session */}
-                    <TableCell className="py-3.5">
-                      <div>
-                        <span className="font-bold text-foreground block">{record.batchName}</span>
-                        <span className="text-[10px] font-mono text-primary block">
-                          {record.batchCode}
-                        </span>
-                      </div>
-                    </TableCell>
+                      <TableCell className="py-3.5">
+                        <p className="font-bold text-foreground">{batchName}</p>
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[160px]">{courseName}</p>
+                      </TableCell>
 
-                    {/* Login Time */}
-                    <TableCell className="py-3.5 text-center">
-                      {record.loginTime ? (
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono font-bold text-[11px] border border-emerald-500/20">
-                          {record.loginTime}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground font-mono text-xs">—</span>
-                      )}
-                    </TableCell>
+                      <TableCell className="py-3.5">
+                        <div className="font-medium text-foreground">
+                          {rec.classSession?.startTime} – {rec.classSession?.endTime}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground font-mono">
+                          {formatDateDisplay(rec.classSession?.scheduledDate)}
+                        </div>
+                      </TableCell>
 
-                    {/* Logout Time */}
-                    <TableCell className="py-3.5 text-center">
-                      {record.logoutTime ? (
-                        <span className="inline-block px-2 py-0.5 rounded-md bg-blue-500/10 text-primary dark:text-sky-400 font-mono font-bold text-[11px] border border-blue-500/20">
-                          {record.logoutTime}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground font-mono text-xs">—</span>
-                      )}
-                    </TableCell>
+                      <TableCell className="py-3.5">
+                        <div className="text-xs font-mono font-medium text-foreground">
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">In:</span> {formatTimeDisplay(rec.loginAt)}
+                        </div>
+                        <div className="text-xs font-mono font-medium text-muted-foreground">
+                          <span className="text-indigo-600 dark:text-indigo-400 font-bold">Out:</span> {formatTimeDisplay(rec.logoutAt)}
+                        </div>
+                      </TableCell>
 
-                    {/* Session Time */}
-                    <TableCell className="py-3.5 text-muted-foreground font-medium">
-                      {record.sessionTime}
-                    </TableCell>
+                      <TableCell className="py-3.5">{statusBadge}</TableCell>
 
-                    {/* Status */}
-                    <TableCell className="py-3.5">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                        record.status === "Present"
-                          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
-                          : record.status === "On Leave"
-                          ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                          : "bg-muted text-muted-foreground border border-border"
-                      }`}>
-                        {record.status}
-                      </span>
-                    </TableCell>
-
-                    {/* Actions */}
-                    <TableCell className="py-3.5 text-right pr-6">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedRecordForView(record)}
-                        className="h-8 text-xs font-bold text-primary hover:bg-primary/10 gap-1.5 px-2.5 rounded-xl cursor-pointer"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        <span>View Details</span>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
+                      <TableCell className="pr-6 py-3.5 text-center">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setSelectedRecordForView(rec)}
+                          className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white font-bold rounded-xl shadow-2xs cursor-pointer"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          View Log
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
         </div>
 
-        {/* Pagination & Footer */}
-        <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground">
-          <div>
-            Showing{" "}
-            <strong className="text-foreground">
-              {filteredRecords.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}
-            </strong>{" "}
-            to{" "}
-            <strong className="text-foreground">
-              {Math.min(currentPage * itemsPerPage, filteredRecords.length)}
-            </strong>{" "}
-            of <strong className="text-foreground">{filteredRecords.length}</strong> records
-          </div>
-
-          <div className="flex items-center gap-1.5">
+        {/* Pagination Bar */}
+        <div className="px-6 py-3.5 bg-muted/20 border-t border-border flex items-center justify-between">
+          <span className="text-xs text-muted-foreground font-medium">
+            Showing {filteredRecords.length} of {totalRecords} records
+          </span>
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={currentPage === 1}
+              disabled={currentPage <= 1}
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="h-8 w-8 p-0 bg-card border-border text-foreground hover:bg-muted/40 disabled:opacity-40 rounded-xl cursor-pointer"
+              className="h-7 text-xs border-border"
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Prev
             </Button>
-
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <Button
-                key={page}
-                variant={currentPage === page ? "default" : "outline"}
-                size="sm"
-                onClick={() => setCurrentPage(page)}
-                className={`h-8 w-8 p-0 text-xs font-bold rounded-xl cursor-pointer ${
-                  currentPage === page
-                    ? "bg-primary text-white"
-                    : "bg-card border-border text-foreground hover:bg-muted/40"
-                }`}
-              >
-                {page}
-              </Button>
-            ))}
-
+            <span className="text-xs font-bold text-foreground px-2">
+              Page {currentPage} of {totalPages}
+            </span>
             <Button
               variant="outline"
               size="sm"
-              disabled={currentPage === totalPages || totalPages === 0}
+              disabled={currentPage >= totalPages}
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="h-8 w-8 p-0 bg-card border-border text-foreground hover:bg-muted/40 disabled:opacity-40 rounded-xl cursor-pointer"
+              className="h-7 text-xs border-border"
             >
-              <ChevronRight className="h-4 w-4" />
+              Next <ChevronRight className="h-3.5 w-3.5 ml-1" />
             </Button>
           </div>
         </div>
       </Card>
 
-      {/* ─── MODAL: VIEW ATTENDANCE DETAILS ────────────────────────────────── */}
-      <Dialog open={!!selectedRecordForView} onOpenChange={() => setSelectedRecordForView(null)}>
-        <DialogContent className="sm:max-w-md bg-white p-6 rounded-2xl">
+      {/* ─── VIEW DETAILS DIALOG ─── */}
+      <Dialog open={!!selectedRecordForView} onOpenChange={(open) => !open && setSelectedRecordForView(null)}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" />
+              Faculty Attendance Audit Record
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Detailed breakdown of session presence and system verification.
+            </DialogDescription>
+          </DialogHeader>
+
           {selectedRecordForView && (
-            <div className="space-y-4">
-              <DialogHeader className="border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-3">
-                  <img
-                    src={selectedRecordForView.facultyAvatar}
-                    alt={selectedRecordForView.facultyName}
-                    className="h-12 w-12 rounded-full object-cover border border-slate-200"
-                  />
-                  <div>
-                    <DialogTitle className="text-base font-bold text-slate-900">
-                      {selectedRecordForView.facultyName}
-                    </DialogTitle>
-                    <DialogDescription className="text-xs text-slate-500 font-mono">
-                      Faculty Code: {selectedRecordForView.facultyCode} • {selectedRecordForView.branchName}
-                    </DialogDescription>
-                  </div>
+            <div className="space-y-4 py-2 text-xs">
+              <div className="bg-muted/30 p-3 rounded-xl border border-border space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Faculty Name:</span>
+                  <span className="font-bold text-foreground">{selectedRecordForView.faculty?.user?.name}</span>
                 </div>
-              </DialogHeader>
-
-              <div className="space-y-3 text-xs">
-                <div className="grid grid-cols-2 gap-3 p-3 bg-slate-50 rounded-xl">
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Branch / Center
-                    </span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecordForView.branchName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Date
-                    </span>
-                    <span className="font-semibold text-slate-800">
-                      {formatDateDisplay(selectedRecordForView.date)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Batch
-                    </span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecordForView.batchName} ({selectedRecordForView.batchCode})
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Course
-                    </span>
-                    <span className="font-semibold text-slate-800">
-                      {selectedRecordForView.courseName}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Check-in Login
-                    </span>
-                    <span className="font-mono font-bold text-emerald-700">
-                      {selectedRecordForView.loginTime || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Check-out Logout
-                    </span>
-                    <span className="font-mono font-bold text-[#1769AA]">
-                      {selectedRecordForView.logoutTime || "—"}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Session Schedule
-                    </span>
-                    <span className="font-medium text-slate-700">
-                      {selectedRecordForView.sessionTime}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                      Attendance Status
-                    </span>
-                    {getStatusBadge(selectedRecordForView.status)}
-                  </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Employee Code:</span>
+                  <span className="font-mono text-foreground font-bold">{selectedRecordForView.faculty?.employeeCode}</span>
                 </div>
-
-                {selectedRecordForView.remarks && (
-                  <div className="p-3 border border-slate-200 rounded-xl bg-white">
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Faculty / Session Remarks
-                    </span>
-                    <p className="text-slate-700 text-xs italic">
-                      "{selectedRecordForView.remarks}"
-                    </p>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Branch:</span>
+                  <span className="text-foreground font-medium">{selectedRecordForView.faculty?.branch?.name || "Main Branch"}</span>
+                </div>
               </div>
 
-              <DialogFooter className="pt-2">
-                <Button
-                  type="button"
-                  onClick={() => setSelectedRecordForView(null)}
-                  className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold"
-                >
-                  Close Details
-                </Button>
-              </DialogFooter>
+              <div className="bg-muted/30 p-3 rounded-xl border border-border space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Batch:</span>
+                  <span className="font-bold text-foreground">{selectedRecordForView.classSession?.batch?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Course:</span>
+                  <span className="text-foreground">{selectedRecordForView.classSession?.batch?.course?.name || "Curriculum"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Scheduled Date:</span>
+                  <span className="font-mono text-foreground">{formatDateDisplay(selectedRecordForView.classSession?.scheduledDate)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground font-bold">Scheduled Hours:</span>
+                  <span className="font-mono text-foreground">
+                    {selectedRecordForView.classSession?.startTime} – {selectedRecordForView.classSession?.endTime}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/20 space-y-1.5">
+                <div className="flex justify-between">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">Login Timestamp:</span>
+                  <span className="font-mono text-foreground font-bold">
+                    {selectedRecordForView.loginAt ? new Date(selectedRecordForView.loginAt).toLocaleString("en-IN") : "Not Logged"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">Logout Timestamp:</span>
+                  <span className="font-mono text-foreground font-bold">
+                    {selectedRecordForView.logoutAt ? new Date(selectedRecordForView.logoutAt).toLocaleString("en-IN") : "In Progress / Not Logged"}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSelectedRecordForView(null)}
+              className="text-xs font-bold border-border"
+            >
+              Close Record
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── MANUAL LOG PRESENCE DIALOG ─── */}
+      <Dialog open={isLogModalOpen} onOpenChange={setIsLogModalOpen}>
+        <DialogContent className="max-w-md bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-base font-black text-foreground flex items-center gap-2">
+              <PlusCircle className="h-5 w-5 text-primary" />
+              Log Faculty Presence for Session
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Manually record or correct faculty login and logout timestamps.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleLogAttendanceSubmit} className="space-y-4 py-2">
+            {logError && (
+              <div className="p-3 rounded-xl bg-destructive/10 text-destructive text-xs font-bold border border-destructive/20">
+                {logError}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-foreground">Select Faculty Member *</label>
+              <select
+                value={logFacultyId}
+                onChange={(e) => setLogFacultyId(e.target.value)}
+                required
+                className="w-full h-9 px-3 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+              >
+                <option value="">Choose Instructor...</option>
+                {facultyMembers.map((f: any) => (
+                  <option key={f.id} value={f.id}>
+                    {f.user?.name || f.name} ({f.employeeCode})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-foreground">Class Session ID *</label>
+              <Input
+                type="text"
+                placeholder="Paste class session cuid..."
+                value={logClassSessionId}
+                onChange={(e) => setLogClassSessionId(e.target.value)}
+                required
+                className="h-9 text-xs rounded-xl bg-muted/30 border-border"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Login Time</label>
+                <Input
+                  type="datetime-local"
+                  value={logLoginAt}
+                  onChange={(e) => setLogLoginAt(e.target.value)}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-foreground">Logout Time</label>
+                <Input
+                  type="datetime-local"
+                  value={logLogoutAt}
+                  onChange={(e) => setLogLogoutAt(e.target.value)}
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsLogModalOpen(false)}
+                className="text-xs font-bold border-border"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={markAttendanceMutation.isPending}
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold"
+              >
+                {markAttendanceMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Save Presence
+              </Button>
+            </DialogFooter>
+          </form>
         </DialogContent>
       </Dialog>
     </div>

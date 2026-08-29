@@ -13,7 +13,7 @@ export const getByCourse = async (
       res.status(400).json({ success: false, message: "courseId parameter is required" });
       return;
     }
-    const modules = await service.getModulesByCourse(courseId);
+    const modules = await service.getModulesByCourse(courseId, req.user!.instituteId);
     res.json({
       success: true,
       message: "Modules retrieved successfully",
@@ -30,7 +30,7 @@ export const create = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const moduleItem = await service.createModule(req.body);
+    const moduleItem = await service.createModule(req.user!.instituteId, req.body);
     res.status(201).json({
       success: true,
       message: "Module created successfully",
@@ -47,7 +47,11 @@ export const update = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const updated = await service.updateModule(req.params.id as string, req.body);
+    const updated = await service.updateModule(
+      req.params.id as string,
+      req.user!.instituteId,
+      req.body
+    );
     res.json({
       success: true,
       message: "Module updated successfully",
@@ -64,7 +68,11 @@ export const addTopic = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const updated = await service.addTopic(req.params.id as string, req.body);
+    const updated = await service.addTopic(
+      req.params.id as string,
+      req.user!.instituteId,
+      req.body
+    );
     res.json({
       success: true,
       message: "Topic added successfully",
@@ -83,11 +91,33 @@ export const toggleTopic = async (
   try {
     const updated = await service.toggleTopic(
       req.params.id as string,
+      req.user!.instituteId,
       req.params.topicId as string
     );
     res.json({
       success: true,
       message: "Topic completion toggled",
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeTopic = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const updated = await service.deleteTopic(
+      req.params.id as string,
+      req.user!.instituteId,
+      req.params.topicId as string
+    );
+    res.json({
+      success: true,
+      message: "Topic removed successfully",
       data: updated,
     });
   } catch (error) {
@@ -101,7 +131,7 @@ export const remove = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    await service.deleteModule(req.params.id as string);
+    await service.deleteModule(req.params.id as string, req.user!.instituteId);
     res.json({
       success: true,
       message: "Module deleted successfully",

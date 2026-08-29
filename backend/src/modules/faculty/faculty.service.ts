@@ -215,7 +215,7 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
     email: dto.email,
     phone: dto.phone,
     passwordHash,
-    employeeCode,
+    employeeCode: employeeCode!,
     specialization: dto.specialization,
     designation,
     designationMasterId,
@@ -327,10 +327,40 @@ export const getAllFacultyCourses = async (
   return { data, meta: buildMeta(total, page, limit) };
 };
 
-export const assignFacultyToBatch = async (batchId: string, facultyId: string) => {
-  await repo.findFacultyById(facultyId).then((f) => {
-    if (!f) throw new AppError("Faculty not found", 404);
-  });
+export const assignFacultyToBatch = async (
+  currentUser: AuthUser,
+  batchId: string,
+  facultyId: string
+) => {
+  const faculty = await repo.findFacultyById(facultyId);
+  if (!faculty || faculty.instituteId !== currentUser.instituteId) {
+    throw new AppError("Faculty not found", 404);
+  }
+  if (faculty.status !== "ACTIVE") {
+    throw new AppError("Only ACTIVE faculty can be assigned to a batch", 400);
+  }
+
+  if (
+    !currentUser.roles.includes("ADMIN") &&
+    currentUser.branchId &&
+    faculty.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("Faculty not found", 404);
+  }
+
+  const batch = await repo.findBatchForAssign(batchId, currentUser.instituteId);
+  if (!batch) {
+    throw new AppError("Batch not found", 404);
+  }
+
+  if (
+    !currentUser.roles.includes("ADMIN") &&
+    currentUser.branchId &&
+    batch.branchId !== currentUser.branchId
+  ) {
+    throw new AppError("Batch not found", 404);
+  }
+
   return repo.assignFacultyToBatch(batchId, facultyId);
 };
 
@@ -385,7 +415,20 @@ export const logFacultyAttendance = async (
   }
 
   const faculty = await repo.findFacultyById(facultyId);
-  if (!faculty) throw new AppError("Faculty not found", 404);
+  if (!faculty || faculty.instituteId !== currentUser.instituteId) {
+    throw new AppError("Faculty not found", 404);
+  }
+
+  const session = await prisma.classSession.findFirst({
+    where: {
+      id: data.classSessionId,
+      batch: { instituteId: currentUser.instituteId },
+    },
+    select: { id: true, facultyId: true, batchId: true, branchId: true },
+  });
+  if (!session) {
+    throw new AppError("Class session not found", 404);
+  }
 
   return repo.upsertFacultyAttendance({
     facultyId,

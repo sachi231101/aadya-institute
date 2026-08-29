@@ -81,13 +81,21 @@ export interface FacultyAttendanceRecord {
     id: string;
     employeeCode: string;
     user: { id: string; name: string; email: string | null };
+    branch?: { id: string; name: string; code: string } | null;
   };
   classSession: {
     id: string;
     scheduledDate: string;
     startTime: string;
     endTime: string;
-    batch: { id: string; name: string; code: string };
+    roomNo?: string | null;
+    sessionStatus?: string | null;
+    batch: {
+      id: string;
+      name: string;
+      code: string;
+      course?: { id: string; name: string; code: string } | null;
+    };
   };
 }
 

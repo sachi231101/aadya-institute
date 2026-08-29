@@ -27,7 +27,7 @@ export const useFeedbackByFaculty = (facultyId?: string) => {
   });
 };
 
-export const useFacultyRatings = (params?: { facultyId?: string; batchId?: string }) => {
+export const useFacultyRatings = (params?: { facultyId?: string; batchId?: string; branchId?: string }) => {
   return useQuery({
     queryKey: ["feedback", "ratings", params],
     queryFn: () => feedbackApi.getFacultyRatings(params),
