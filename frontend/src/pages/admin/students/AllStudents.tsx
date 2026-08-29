@@ -9,7 +9,8 @@ import {
   Search,
   Download,
   Plus,
-  Eye,
+  Pencil,
+  Sparkles,
   ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -76,6 +77,14 @@ export const AllStudents: React.FC = () => {
         s.status === "DISCONTINUED" ||
         (s.attendance?.consecutiveAbsences ?? 0) >= 2 ||
         (hasAttendance && (s.attendance?.overallPercentage ?? 0) < 65);
+      const isDraft = (s.status as string) === "DRAFT" || (s as any).isDraft || (s as any).admissionStatus === "PENDING" || (s as any).admissions?.[0]?.status === "PENDING";
+      const computedStatus = isDraft
+        ? "Draft"
+        : s.status === "ACTIVE"
+        ? (isRisk ? "At Risk" : "Active")
+        : s.status === "COMPLETED"
+        ? "Completed"
+        : "Dropped";
       return {
         id: s.id,
         studentCode: s.studentCode,
@@ -97,7 +106,7 @@ export const AllStudents: React.FC = () => {
         guardianName: s.guardian?.name || "Parent/Guardian",
         guardianPhone: s.guardian?.phone || "—",
         fees: s.fees || { total: 0, paid: 0, pending: 0, status: "Pending" },
-        status: s.status === "ACTIVE" ? (isRisk ? "At Risk" : "Active") : s.status === "COMPLETED" ? "Completed" : "Dropped",
+        status: computedStatus,
         joinDate: new Date(s.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
         counsellor: s.counsellorName || "Admissions Desk",
       };
@@ -129,6 +138,7 @@ export const AllStudents: React.FC = () => {
       const matchesTab =
         selectedTab === "All Students" ||
         (selectedTab === "Active" && student.status === "Active") ||
+        (selectedTab === "Draft" && student.status === "Draft") ||
         (selectedTab === "At Risk" && student.status === "At Risk") ||
         (selectedTab === "Completed" && student.status === "Completed") ||
         (selectedTab === "Dropped" && student.status === "Dropped");
@@ -157,6 +167,7 @@ export const AllStudents: React.FC = () => {
   const kpis = {
     total: branchStudents.length,
     active: branchStudents.filter((s) => s.status === "Active").length,
+    draft: branchStudents.filter((s) => s.status === "Draft").length,
     atRisk: branchStudents.filter((s) => s.status === "At Risk").length,
     avgAttendance: studentReport?.summary?.avgAttendanceRate ?? calculatedAvgAttendance,
     studentsWithAttendance: studentsWithAttendance.length,
@@ -166,6 +177,7 @@ export const AllStudents: React.FC = () => {
   const tabs = [
     { name: "All Students", count: branchStudents.length, color: "text-[#1769AA]" },
     { name: "Active", count: branchStudents.filter((s) => s.status === "Active").length, color: "text-emerald-600" },
+    { name: "Draft", count: branchStudents.filter((s) => s.status === "Draft").length, color: "text-amber-600" },
     { name: "At Risk", count: branchStudents.filter((s) => s.status === "At Risk").length, color: "text-red-500" },
     { name: "Completed", count: branchStudents.filter((s) => s.status === "Completed").length, color: "text-purple-600" },
     { name: "Dropped", count: branchStudents.filter((s) => s.status === "Dropped").length, color: "text-slate-500" },
@@ -444,7 +456,11 @@ export const AllStudents: React.FC = () => {
 
                     {/* Status Badge */}
                     <td className="p-3.5">
-                      {s.status === "Active" ? (
+                      {s.status === "Draft" ? (
+                        <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
+                          Draft
+                        </span>
+                      ) : s.status === "Active" ? (
                         <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
                           Active
                         </span>
@@ -461,15 +477,30 @@ export const AllStudents: React.FC = () => {
 
                     {/* Actions */}
                     <td className="p-3.5 text-right pr-5" onClick={(e) => e.stopPropagation()}>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`${basePath}/students/${s.id}`)}
-                        className="h-7 px-3 text-xs font-semibold text-[#1769AA] border-[#1769AA]/30 hover:bg-[#1769AA] hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
-                      >
-                        <Eye className="h-3.5 w-3.5" />
-                        View Details
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {s.status === "Draft" ? (
+                          <Button
+                            variant="default"
+                            size="sm"
+                            onClick={() => navigate(`${basePath}/students/${s.id}?action=activate`)}
+                            className="h-7 px-2.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
+                            title="Open Dossier and activate student admission"
+                          >
+                            <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
+                            Complete in Dossier
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`${basePath}/students/${s.id}`)}
+                            className="h-7 px-2.5 text-xs font-semibold text-[#1769AA] border-[#1769AA]/30 hover:bg-[#1769AA] hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
+                            title="Open Student Profile & Dossier"
+                          >
+                            View Dossier
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))

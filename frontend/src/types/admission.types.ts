@@ -94,6 +94,7 @@ export interface CreateAdmissionPayload {
   courseId: string;
   batchId?: string;
   studentId?: string;
+  applicationId?: string;
   branchId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;

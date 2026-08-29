@@ -386,6 +386,14 @@ export const AdmissionsRepository = {
         },
       });
 
+      // Update linked application status to ADMITTED
+      if (dto.applicationId) {
+        await tx.application.updateMany({
+          where: { id: dto.applicationId, instituteId },
+          data: { status: "ADMITTED" },
+        });
+      }
+
       // 3. If batchId is provided and valid, enroll student into batch
       if (validBatchId && finalStudentId) {
         await tx.batchEnrollment.upsert({

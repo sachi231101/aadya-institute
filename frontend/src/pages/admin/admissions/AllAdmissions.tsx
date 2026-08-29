@@ -173,66 +173,66 @@ export const AllAdmissions: React.FC = () => {
 
   useEffect(() => {
     const rawList = dbAdmissionsRes?.data || [];
-    if (rawList.length > 0) {
-      const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => ({
-        id: adm.id,
-        admissionNo: adm.admissionNo || `ADM-${adm.id.slice(-6).toUpperCase()}`,
-        studentName: adm.studentName || adm.student?.user?.name || "Admitted Student",
-        avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250",
-        email: adm.email || adm.student?.user?.email || "student@aadya.in",
-        phone: adm.phone || adm.student?.user?.phone || "",
-        dob: "2003-05-15",
-        gender: "Female",
-        address: "Aadya Campus",
-        city: "Bengaluru",
-        state: "Karnataka",
-        pincode: "560001",
-        guardianName: "Guardian",
-        counselorName: "Priya Singh",
-        admissionSource: "Enquiry Conversion",
-        courseId: adm.courseId || "c-wd",
-        courseName: adm.course?.name || "Full Stack Web Development",
-        programDuration: "(6 Months Program)",
-        batchId: adm.batchId || "b-wd-jun",
-        batchCode: adm.batch?.code || adm.batch?.name || "Pending Batch Assignment",
-        batchType: "Weekend Batch",
-        batchTiming: "10:00 AM – 1:00 PM",
-        batchStartDate: "Upcoming",
-        assignedFaculty: "Faculty Mentor",
-        batchCapacity: 30,
-        enrolledCount: 1,
-        feePlan: adm.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
-        feePaymentStatus: adm.status === "CONFIRMED" ? "Paid" : "Due",
-        totalCourseFee: 25000,
-        discountAmount: 0,
-        finalFee: 25000,
-        amountPaid: adm.status === "CONFIRMED" ? 25000 : 5000,
-        amountDue: adm.status === "CONFIRMED" ? 0 : 20000,
-        paymentHistory: [
-          {
-            id: `p-${adm.id}`,
-            receiptNo: `REC-${adm.id.slice(-6).toUpperCase()}`,
-            amount: adm.status === "CONFIRMED" ? 25000 : 5000,
-            paymentMode: "UPI / QR",
-            transactionId: `TXN/${adm.id.slice(-8)}`,
-            date: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-            status: "Completed",
-          }
-        ],
-        status: adm.status === "CONFIRMED" ? "Confirmed" : "Provisional",
-        workflowStep: 3,
-        admissionDate: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
-        admissionTime: "10:00 AM",
-        documents: [],
-        counsellorNotes: adm.notes ? [{ id: `n-${adm.id}`, author: "Counsellor", role: "Senior Counsellor", date: "Today", time: "Now", text: adm.notes }] : [],
-      }));
+    const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => ({
+      id: adm.id,
+      admissionNo: adm.admissionNo || `ADM-${adm.id.slice(-6).toUpperCase()}`,
+      studentName: adm.studentName || adm.student?.user?.name || "Admitted Student",
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(adm.studentName || adm.student?.user?.name || "AD")}`,
+      email: adm.email || adm.student?.user?.email || "—",
+      phone: adm.phone || adm.student?.user?.phone || "",
+      dob: adm.dob ? String(adm.dob).slice(0, 10) : "—",
+      gender: (adm.gender as any) || "Female",
+      address: adm.address || "—",
+      city: adm.city || "—",
+      state: adm.state || "—",
+      pincode: adm.pincode || "—",
+      guardianName: adm.guardianName || "—",
+      counselorName: adm.counselorName || adm.user?.name || "—",
+      admissionSource: adm.admissionSource || "Direct Walk-in",
+      courseId: adm.courseId || "",
+      courseName: adm.course?.name || "—",
+      programDuration: adm.course?.duration ? `(${adm.course.duration} Months)` : "—",
+      batchId: adm.batchId || "",
+      batchCode: adm.batch?.code || adm.batch?.name || "Pending Batch Assignment",
+      batchType: "Morning Batch",
+      batchTiming: adm.batch?.timeSlot || "—",
+      batchStartDate: adm.batch?.startDate ? new Date(adm.batch.startDate).toLocaleDateString() : "Upcoming",
+      assignedFaculty: adm.batch?.faculty?.user?.name || "Faculty Mentor",
+      batchCapacity: adm.batch?.capacity || 30,
+      enrolledCount: adm.batch?._count?.enrollments || 1,
+      feePlan: adm.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
+      feePaymentStatus: adm.status === "CONFIRMED" ? "Paid" : "Due",
+      totalCourseFee: Number(adm.feeAmount || adm.course?.fee || 0),
+      discountAmount: Number(adm.discount || 0),
+      finalFee: Number(adm.feeAmount || adm.course?.fee || 0),
+      amountPaid: adm.status === "CONFIRMED" ? Number(adm.feeAmount || 0) : Number(adm.paidAmount || 0),
+      amountDue: Math.max(0, Number(adm.feeAmount || 0) - Number(adm.paidAmount || 0)),
+      paymentHistory: (adm.payments || []).map((p: any) => ({
+        id: p.id,
+        receiptNo: p.receiptNo || `REC-${p.id.slice(-6).toUpperCase()}`,
+        amount: Number(p.amount || 0),
+        paymentMode: p.mode || "UPI / QR",
+        transactionId: p.transactionId || `TXN/${p.id.slice(-8)}`,
+        date: new Date(p.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        status: p.status === "SUCCESS" ? "Completed" : "Pending",
+      })),
+      status: adm.status === "CONFIRMED" ? "Confirmed" : "Provisional",
+      workflowStep: adm.status === "CONFIRMED" ? 4 : 3,
+      admissionDate: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+      admissionTime: new Date(adm.admissionDate || adm.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      documents: (adm.documents || []).map((d: any) => ({
+        id: d.id,
+        title: d.title || d.name,
+        category: d.category || "Identity Proof",
+        fileName: d.fileName || "document.pdf",
+        fileSize: d.fileSize || "1.2 MB",
+        uploadDate: new Date(d.createdAt).toLocaleDateString(),
+        verified: !!d.verified,
+      })),
+      counsellorNotes: adm.notes ? [{ id: `n-${adm.id}`, author: adm.counselorName || "Counsellor", role: "Counsellor", date: "Today", time: "Now", text: adm.notes }] : [],
+    }));
 
-      setAdmissionsList((prev) => {
-        const existingIds = new Set(mappedDbAdmissions.map((d) => d.id));
-        const filteredPrev = prev.filter((p) => !existingIds.has(p.id));
-        return [...mappedDbAdmissions, ...filteredPrev];
-      });
-    }
+    setAdmissionsList(mappedDbAdmissions);
   }, [dbAdmissionsRes]);
 
   // Search & Filter state
@@ -306,8 +306,8 @@ export const AllAdmissions: React.FC = () => {
 
   // KPI Calculations strictly from real data
   const totalAdmissionsCount = admissionsList.length;
-  const confirmedCount = admissionsList.filter((a) => (a.status as string) === "CONFIRMED" || (a.status as string) === "Active").length;
-  const provisionalCount = admissionsList.filter((a) => (a.status as string) === "PROVISIONAL" || (a.status as string) === "Pending").length;
+  const confirmedCount = admissionsList.filter((a) => a.status === "Confirmed" || (a.status as string) === "CONFIRMED").length;
+  const provisionalCount = admissionsList.filter((a) => a.status === "Provisional" || (a.status as string) === "PROVISIONAL").length;
   const activeBatchesCount = new Set(admissionsList.map((a) => a.batchCode).filter(Boolean)).size;
 
   // Filter Logic
