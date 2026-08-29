@@ -47,6 +47,12 @@ router.patch(
 );
 
 router.delete(
+  "/:id/topics/:topicId",
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  controller.removeTopic
+);
+
+router.delete(
   "/:id",
   requireRole("ADMIN", "CENTER_MANAGER"),
   controller.remove

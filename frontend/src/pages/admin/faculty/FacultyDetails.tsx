@@ -101,6 +101,8 @@ export const FacultyDetails: React.FC = () => {
     email: backendFaculty.user?.email || "N/A",
     phone: backendFaculty.user?.phone || "N/A",
     specialization: backendFaculty.specialization || "Technical Instructor",
+    designation: backendFaculty.designation || backendFaculty.designationMaster?.name || "—",
+    qualification: backendFaculty.qualification || backendFaculty.qualificationMaster?.name || "—",
     employeeCode: backendFaculty.employeeCode || "EMP-001",
     branch: backendFaculty.branch?.name || "Aadya Branch",
     status: backendFaculty.status || "Active",
@@ -177,6 +179,13 @@ export const FacultyDetails: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
+            onClick={() => navigate(`/admin/faculty/${faculty.id}/edit`)}
+            className="border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold h-9 rounded-xl cursor-pointer shadow-2xs"
+          >
+            Edit Profile
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => navigate(`/admin/faculty/courses?facultyId=${faculty.id}`)}
             className="border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold h-9 rounded-xl cursor-pointer shadow-2xs"
           >
@@ -224,6 +233,10 @@ export const FacultyDetails: React.FC = () => {
                   <span className="font-mono font-bold text-foreground">{faculty.employeeCode}</span>
                   <span>•</span>
                   <span className="text-primary font-bold">{faculty.specialization}</span>
+                  <span>•</span>
+                  <span>{faculty.designation}</span>
+                  <span>•</span>
+                  <span>{faculty.qualification}</span>
                   <span>•</span>
                   <span className="flex items-center gap-1 text-foreground">
                     <MapPin className="h-3 w-3 text-muted-foreground" /> {faculty.branch}

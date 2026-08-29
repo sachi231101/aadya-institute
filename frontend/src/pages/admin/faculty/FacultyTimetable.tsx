@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Download,
@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { useClassSessions } from "@/hooks/useClassSessions";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
@@ -225,12 +226,98 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
   const isFacultyUser = readOnly || !user?.roles?.includes("ADMIN");
   const facultyCenterName = (user as any)?.branchName || "Bangalore Center";
 
+  const weekRange = useMemo(() => {
+    const now = new Date();
+    const day = (now.getDay() + 6) % 7; // Mon=0
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - day);
+    monday.setHours(0, 0, 0, 0);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    sunday.setHours(23, 59, 59, 999);
+    return {
+      from: monday.toISOString().split("T")[0],
+      to: sunday.toISOString().split("T")[0],
+      monday,
+    };
+  }, []);
+
+  const { data: sessionsRes } = useClassSessions({
+    startDate: weekRange.from,
+    endDate: weekRange.to,
+    limit: 100,
+  });
+
   // State
   const [scheduleData, setScheduleData] = useState<FacultyDaySchedule[]>(INITIAL_FACULTY_WEEK);
   const [selectedBranch, setSelectedBranch] = useState<string>("Bangalore Center");
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  const periodFromStartTime = (startTime: string): number | null => {
+    const hour = parseInt(String(startTime).slice(0, 2), 10);
+    if (Number.isNaN(hour)) return null;
+    const map: Record<number, number> = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 7, 16: 8 };
+    return map[hour] ?? null;
+  };
+
+  useEffect(() => {
+    const sessions = sessionsRes?.data ?? [];
+    if (!sessions.length && !isFacultyUser) return;
+
+    const dayKeys: FacultyDaySchedule["dayKey"][] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+    const built: FacultyDaySchedule[] = dayKeys.map((dayKey, idx) => {
+      const date = new Date(weekRange.monday);
+      date.setDate(weekRange.monday.getDate() + idx);
+      const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+      const dayName = date.toLocaleDateString("en-IN", { weekday: "long" });
+      const dayShort = date.toLocaleDateString("en-IN", { weekday: "short" });
+      const isSunday = dayKey === "SUN";
+      const slots = createDefaultDaySlots();
+
+      sessions.forEach((raw: any) => {
+        const sched = new Date(raw.scheduledDate);
+        if (
+          sched.getFullYear() !== date.getFullYear() ||
+          sched.getMonth() !== date.getMonth() ||
+          sched.getDate() !== date.getDate()
+        ) {
+          return;
+        }
+        const period = periodFromStartTime(raw.startTime);
+        if (!period || slots[period]?.type === "BREAK" || slots[period]?.type === "LUNCH") return;
+        slots[period] = {
+          id: raw.id,
+          period,
+          timeRange: `${raw.startTime} – ${raw.endTime}`,
+          type: "CLASS",
+          courseName: raw.batch?.course?.name || raw.title || "Class",
+          batchCode: raw.batch?.code || raw.batch?.name || "",
+          roomNo: raw.roomNo || "TBD",
+          studentCount: raw.batch?._count?.enrollments,
+          attendanceStatus:
+            raw.sessionStatus === "COMPLETED"
+              ? "COMPLETED"
+              : raw.sessionStatus === "LIVE" || raw.sessionStatus === "ONGOING"
+              ? "IN_PROGRESS"
+              : "PENDING",
+        };
+      });
+
+      return {
+        dayKey,
+        dayName,
+        dayShort,
+        dateStr,
+        isHoliday: isSunday,
+        holidayTitle: isSunday ? "HOLIDAY" : undefined,
+        slots,
+      };
+    });
+
+    setScheduleData(built);
+  }, [sessionsRes, weekRange.monday, isFacultyUser]);
 
   // Modals
   const [selectedSlot, setSelectedSlot] = useState<{ day: FacultyDaySchedule; slot: FacultyTimetableSlot } | null>(null);
@@ -297,15 +384,15 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
     if (slot.type === "CLASS") {
       navigate(
-        `/faculty/class-session?course=${encodeURIComponent(
-          slot.courseName || "Java Programming"
+        `/faculty/class-session?sessionId=${encodeURIComponent(slot.id)}&course=${encodeURIComponent(
+          slot.courseName || "Class"
         )}&batch=${encodeURIComponent(
-          slot.batchCode || "Batch C"
+          slot.batchCode || ""
         )}&room=${encodeURIComponent(
-          slot.roomNo || "Room 301"
+          slot.roomNo || ""
         )}&time=${encodeURIComponent(
-          slot.timeRange || "09:00 AM - 10:00 AM"
-        )}&students=${slot.studentCount || 28}`
+          slot.timeRange || ""
+        )}&students=${slot.studentCount || 0}`
       );
     } else {
       // Open add / configure slot

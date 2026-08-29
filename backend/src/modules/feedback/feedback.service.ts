@@ -36,6 +36,27 @@ export const listFeedback = async (currentUser: AuthUser, query: ListFeedbackQue
     studentId = ownId;
   }
 
+  if (
+    currentUser.roles.includes("FACULTY") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("COUNSELLOR")
+  ) {
+    const faculty =
+      currentUser.facultyId ||
+      (
+        await prisma.faculty.findFirst({
+          where: { userId: currentUser.id },
+          select: { id: true },
+        })
+      )?.id;
+    if (!faculty) throw new AppError("Faculty profile not found", 403);
+    if (facultyId && facultyId !== faculty) {
+      throw new AppError("Forbidden — you can only view your own feedback", 403);
+    }
+    facultyId = faculty;
+  }
+
   const { records, total } = await repo.findFeedbackList({
     instituteId: currentUser.instituteId,
     classSessionId,
@@ -97,9 +118,30 @@ export const getFacultyRatings = async (currentUser: AuthUser, query: FacultyRat
   if (currentUser.roles.includes("STUDENT") && !currentUser.roles.includes("ADMIN")) {
     throw new AppError("Forbidden", 403);
   }
+
+  let facultyId = query.facultyId;
+  if (
+    currentUser.roles.includes("FACULTY") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("CENTER_MANAGER") &&
+    !currentUser.roles.includes("COUNSELLOR")
+  ) {
+    const own =
+      currentUser.facultyId ||
+      (
+        await prisma.faculty.findFirst({
+          where: { userId: currentUser.id },
+          select: { id: true },
+        })
+      )?.id;
+    if (!own) throw new AppError("Faculty profile not found", 403);
+    facultyId = own;
+  }
+
   return repo.findFacultyRatings({
     instituteId: currentUser.instituteId,
-    facultyId: query.facultyId,
+    facultyId,
     batchId: query.batchId,
+    branchId: query.branchId,
   });
 };

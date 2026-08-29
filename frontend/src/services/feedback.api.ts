@@ -20,6 +20,7 @@ export interface Feedback {
 export interface FacultyRating {
   facultyId: string;
   facultyName: string;
+  branchName?: string | null;
   averageRating: number;
   totalFeedbacks: number;
   ratings: { rating: number; count: number }[];
@@ -47,7 +48,17 @@ export const feedbackApi = {
     return response.data;
   },
 
-  getFacultyRatings: async (params?: { facultyId?: string; batchId?: string }) => {
+  getFeedbackByFaculty: async (facultyId: string) => {
+    const response = await api.get(`/feedback`, { params: { facultyId, limit: 50 } });
+    return response.data;
+  },
+
+  getFeedbackByFacultyMe: async () => {
+    const response = await api.get(`/feedback`, { params: { limit: 50 } });
+    return response.data;
+  },
+
+  getFacultyRatings: async (params?: { facultyId?: string; batchId?: string; branchId?: string }) => {
     const response = await api.get("/feedback/ratings", { params });
     return response.data;
   },

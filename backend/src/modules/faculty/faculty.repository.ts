@@ -27,6 +27,15 @@ const facultyInclude = {
       code: true,
     },
   },
+  designationMaster: {
+    select: { id: true, name: true, code: true },
+  },
+  qualificationMaster: {
+    select: { id: true, name: true, code: true },
+  },
+  _count: {
+    select: { batches: true },
+  },
 };
 
 /**
@@ -101,6 +110,8 @@ export const createFacultyWithUser = async (data: {
   specialization?: string;
   designation?: string;
   designationMasterId?: string;
+  qualification?: string;
+  qualificationMasterId?: string;
 }) => {
   return prisma.$transaction(async (tx) => {
     // 1. Create the User record
@@ -125,23 +136,39 @@ export const createFacultyWithUser = async (data: {
         specialization: data.specialization,
         designation: data.designation || null,
         designationMasterId: data.designationMasterId || null,
+        qualification: data.qualification || null,
+        qualificationMasterId: data.qualificationMasterId || null,
       },
       include: facultyInclude,
     });
 
-    // 3. Find the FACULTY role and assign it
-    const facultyRole = await tx.role.findUnique({
+    // 4. Ensure FACULTY role exists and assign it
+    let facultyRole = await tx.role.findUnique({
       where: { name: "FACULTY" },
     });
 
-    if (facultyRole) {
-      await tx.userRole.create({
+    if (!facultyRole) {
+      facultyRole = await tx.role.create({
         data: {
-          userId: user.id,
-          roleId: facultyRole.id,
+          name: "FACULTY",
+          description: "FACULTY role for Aadya platform",
         },
       });
     }
+
+    await tx.userRole.upsert({
+      where: {
+        userId_roleId: {
+          userId: user.id,
+          roleId: facultyRole.id,
+        },
+      },
+      update: {},
+      create: {
+        userId: user.id,
+        roleId: facultyRole.id,
+      },
+    });
 
     return faculty;
   });
@@ -157,26 +184,40 @@ export const updateFaculty = async (
     email?: string;
     phone?: string;
     specialization?: string;
+    designation?: string | null;
+    designationMasterId?: string | null;
+    qualification?: string | null;
+    qualificationMasterId?: string | null;
     status?: "ACTIVE" | "INACTIVE" | "ON_LEAVE";
   }
 ) => {
-  const { name, email, phone, specialization, status } = data;
+  const {
+    name,
+    email,
+    phone,
+    specialization,
+    designation,
+    designationMasterId,
+    qualification,
+    qualificationMasterId,
+    status,
+  } = data;
 
-  // If user-level fields are provided, update both User and Faculty
   const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined;
 
-  // Build faculty-only update data
-  const facultyUpdate: { specialization?: string; status?: "ACTIVE" | "INACTIVE" | "ON_LEAVE" } = {};
+  const facultyUpdate: Record<string, unknown> = {};
   if (specialization !== undefined) facultyUpdate.specialization = specialization;
+  if (designation !== undefined) facultyUpdate.designation = designation;
+  if (designationMasterId !== undefined) facultyUpdate.designationMasterId = designationMasterId;
+  if (qualification !== undefined) facultyUpdate.qualification = qualification;
+  if (qualificationMasterId !== undefined) facultyUpdate.qualificationMasterId = qualificationMasterId;
   if (status !== undefined) facultyUpdate.status = status;
 
   if (hasUserUpdates) {
-    // Get Faculty to find the userId
     const existing = await prisma.faculty.findUnique({ where: { id } });
     if (!existing) return null;
 
     return prisma.$transaction(async (tx) => {
-      // Update User fields
       const userUpdate: Record<string, unknown> = {};
       if (name !== undefined) userUpdate.name = name;
       if (email !== undefined) userUpdate.email = email;
@@ -187,7 +228,6 @@ export const updateFaculty = async (
         data: userUpdate,
       });
 
-      // Update Faculty fields
       return tx.faculty.update({
         where: { id },
         data: facultyUpdate,
@@ -196,7 +236,6 @@ export const updateFaculty = async (
     });
   }
 
-  // Only Faculty-level fields
   return prisma.faculty.update({
     where: { id },
     data: facultyUpdate,
@@ -292,8 +331,15 @@ export const assignFacultyToBatch = (batchId: string, facultyId: string) =>
           user: { select: { id: true, name: true, email: true } },
         },
       },
+      branch: { select: { id: true, name: true, code: true } },
       _count: { select: { enrollments: true } },
     },
+  });
+
+export const findBatchForAssign = (batchId: string, instituteId: string) =>
+  prisma.batch.findFirst({
+    where: { id: batchId, instituteId },
+    select: { id: true, branchId: true, instituteId: true, facultyId: true },
   });
 
 // ─── Faculty Attendance ─────────────────────────────────────────────────
@@ -335,6 +381,7 @@ export const findFacultyAttendance = (params: FindFacultyAttendanceParams) => {
       faculty: {
         include: {
           user: { select: { id: true, name: true, email: true } },
+          branch: { select: { id: true, name: true, code: true } },
         },
       },
       classSession: {
@@ -343,7 +390,16 @@ export const findFacultyAttendance = (params: FindFacultyAttendanceParams) => {
           scheduledDate: true,
           startTime: true,
           endTime: true,
-          batch: { select: { id: true, name: true, code: true } },
+          roomNo: true,
+          sessionStatus: true,
+          batch: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+              course: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       },
     },
@@ -414,3 +470,271 @@ export const upsertFacultyAttendance = (data: {
       },
     },
   });
+
+// ─── Faculty Dashboard / My Students ────────────────────────────────────
+
+const sessionCardSelect = {
+  id: true,
+  title: true,
+  scheduledDate: true,
+  startTime: true,
+  endTime: true,
+  roomNo: true,
+  mode: true,
+  meetingUrl: true,
+  sessionStatus: true,
+  status: true,
+  actualEndTime: true,
+  batch: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      course: { select: { id: true, name: true, code: true } },
+      _count: { select: { enrollments: true } },
+    },
+  },
+  batchModule: {
+    select: {
+      courseModule: { select: { id: true, name: true } },
+    },
+  },
+  classroomMaster: { select: { id: true, name: true } },
+} as const;
+
+export const findFacultySessionsInRange = (facultyId: string, from: Date, to: Date) =>
+  prisma.classSession.findMany({
+    where: {
+      facultyId,
+      scheduledDate: { gte: from, lte: to },
+      status: "ACTIVE",
+    },
+    select: sessionCardSelect,
+    orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
+  });
+
+export const countFacultySessionsByStatus = async (facultyId: string, weekStart: Date, weekEnd: Date) => {
+  const [live, completedThisWeek] = await Promise.all([
+    prisma.classSession.count({
+      where: {
+        facultyId,
+        sessionStatus: "LIVE",
+        status: "ACTIVE",
+      },
+    }),
+    prisma.classSession.count({
+      where: {
+        facultyId,
+        status: "ACTIVE",
+        scheduledDate: { gte: weekStart, lte: weekEnd },
+        OR: [
+          { sessionStatus: "COMPLETED" },
+          { actualEndTime: { not: null } },
+        ],
+      },
+    }),
+  ]);
+  return { live, completedThisWeek };
+};
+
+export const findFacultyBatchesSummary = (facultyId: string) =>
+  prisma.batch.findMany({
+    where: { facultyId, status: { in: ["ACTIVE", "UPCOMING"] } },
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      status: true,
+      course: { select: { id: true, name: true, code: true } },
+      _count: { select: { enrollments: true } },
+    },
+    orderBy: { name: "asc" },
+  });
+
+export const findRecentFacultyFeedback = (facultyId: string, take = 5) =>
+  prisma.feedback.findMany({
+    where: { facultyId },
+    select: {
+      id: true,
+      rating: true,
+      comment: true,
+      submittedAt: true,
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { name: true } },
+        },
+      },
+      classSession: {
+        select: {
+          id: true,
+          title: true,
+          scheduledDate: true,
+          batch: { select: { id: true, name: true } },
+        },
+      },
+    },
+    orderBy: { submittedAt: "desc" },
+    take,
+  });
+
+export const getFacultyAvgRating = async (facultyId: string) => {
+  const agg = await prisma.feedback.aggregate({
+    where: { facultyId },
+    _avg: { rating: true },
+    _count: { rating: true },
+  });
+  return {
+    avgRating: agg._avg.rating ? Math.round(agg._avg.rating * 10) / 10 : null,
+    totalRatings: agg._count.rating,
+  };
+};
+
+export const findPendingGrading = async (facultyId: string, take = 10) => {
+  const assignments = await prisma.assignment.findMany({
+    where: {
+      facultyId,
+      status: "ACTIVE",
+      submissions: {
+        some: {
+          submittedAt: { not: null },
+          marks: null,
+        },
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      dueDate: true,
+      batchId: true,
+      classSession: {
+        select: {
+          batch: { select: { id: true, name: true, code: true } },
+        },
+      },
+      submissions: {
+        where: { submittedAt: { not: null }, marks: null },
+        select: { id: true },
+      },
+    },
+    orderBy: { dueDate: "asc" },
+    take,
+  });
+
+  return assignments.map((a) => ({
+    id: a.id,
+    title: a.title,
+    dueDate: a.dueDate,
+    batchId: a.batchId,
+    batchName: a.classSession?.batch?.name ?? null,
+    batchCode: a.classSession?.batch?.code ?? null,
+    pendingCount: a.submissions.length,
+  }));
+};
+
+export const countPendingSubmissions = (facultyId: string) =>
+  prisma.assignmentSubmission.count({
+    where: {
+      submittedAt: { not: null },
+      marks: null,
+      assignment: { facultyId, status: "ACTIVE" },
+    },
+  });
+
+export const findMyStudents = async (params: {
+  facultyId: string;
+  instituteId: string;
+  batchId?: string;
+  search?: string;
+  skip: number;
+  take: number;
+}) => {
+  const enrollmentWhere = {
+    status: "ACTIVE" as const,
+    batch: {
+      facultyId: params.facultyId,
+      instituteId: params.instituteId,
+      ...(params.batchId ? { id: params.batchId } : {}),
+    },
+    ...(params.search
+      ? {
+          student: {
+            OR: [
+              { studentCode: { contains: params.search, mode: "insensitive" as const } },
+              { user: { name: { contains: params.search, mode: "insensitive" as const } } },
+              { user: { email: { contains: params.search, mode: "insensitive" as const } } },
+              { user: { phone: { contains: params.search, mode: "insensitive" as const } } },
+            ],
+          },
+        }
+      : {}),
+  };
+
+  const enrollments = await prisma.batchEnrollment.findMany({
+    where: enrollmentWhere,
+    select: {
+      studentId: true,
+      joinedAt: true,
+      batch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          course: { select: { id: true, name: true, code: true } },
+        },
+      },
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          status: true,
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          branch: { select: { id: true, name: true, code: true } },
+        },
+      },
+    },
+    orderBy: { joinedAt: "desc" },
+  });
+  // Deduplicate students (may be in multiple faculty batches)
+  const byStudent = new Map<
+    string,
+    {
+      id: string;
+      studentCode: string;
+      status: string;
+      user: { id: string; name: string; email: string | null; phone: string | null } | null;
+      branch: { id: string; name: string; code: string } | null;
+      batches: { id: string; name: string; code: string; courseName: string | null }[];
+    }
+  >();
+
+  for (const e of enrollments) {
+    const existing = byStudent.get(e.studentId);
+    const batchInfo = {
+      id: e.batch.id,
+      name: e.batch.name,
+      code: e.batch.code,
+      courseName: e.batch.course?.name ?? null,
+    };
+    if (existing) {
+      if (!existing.batches.some((b) => b.id === batchInfo.id)) {
+        existing.batches.push(batchInfo);
+      }
+    } else {
+      byStudent.set(e.studentId, {
+        id: e.student.id,
+        studentCode: e.student.studentCode,
+        status: e.student.status,
+        user: e.student.user,
+        branch: e.student.branch,
+        batches: [batchInfo],
+      });
+    }
+  }
+
+  const all = Array.from(byStudent.values());
+  const total = all.length;
+  const data = all.slice(params.skip, params.skip + params.take);
+  return { data, total };
+};

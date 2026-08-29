@@ -18,5 +18,6 @@ const startServer = async () => {
   });
 };
 
-// Server started with PostgreSQL connection on port 5432
+// Server initialized with updated PostgreSQL Prisma schema
 startServer();
+

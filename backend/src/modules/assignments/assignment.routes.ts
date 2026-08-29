@@ -6,6 +6,7 @@ import {
   createAssignmentSchema,
   updateAssignmentSchema,
   queryAssignmentSchema,
+  gradeSubmissionSchema,
 } from "./assignment.validation";
 import {
   getAssignments,
@@ -13,6 +14,7 @@ import {
   createAssignment,
   updateAssignment,
   deleteAssignment,
+  gradeSubmission,
 } from "./assignment.controller";
 
 const router = Router();
@@ -20,6 +22,12 @@ const router = Router();
 router.use(authMiddleware);
 
 router.get("/", requirePermission("assignment.read"), validate(queryAssignmentSchema, "query"), getAssignments);
+router.patch(
+  "/submissions/:submissionId/grade",
+  requirePermission("assignment.grade"),
+  validate(gradeSubmissionSchema),
+  gradeSubmission
+);
 router.get("/:id", requirePermission("assignment.read"), getAssignmentById);
 router.post("/", requirePermission("assignment.create"), validate(createAssignmentSchema), createAssignment);
 router.patch("/:id", requirePermission("assignment.update"), validate(updateAssignmentSchema), updateAssignment);

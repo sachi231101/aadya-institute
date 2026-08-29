@@ -26,6 +26,7 @@ import { StudentPerformance } from "../pages/admin/students/StudentPerformance";
 // Faculty
 import { AllFaculty } from "../pages/admin/faculty/AllFaculty";
 import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
+import { EditFaculty } from "../pages/admin/faculty/EditFaculty";
 import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
 import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
 import { FacultyCourses } from "../pages/admin/faculty/FacultyCourses";
@@ -120,6 +121,8 @@ import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 import { FacultyClassSession } from "../pages/faculty/ClassSession";
 import { FacultyRecordings } from "../pages/faculty/FacultyRecordings";
 import { FacultyAnnouncements } from "../pages/faculty/Announcements";
+import { FacultyMyStudents } from "../pages/faculty/MyStudents";
+import { FacultyFeedback } from "../pages/faculty/Feedback";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -178,6 +181,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllFaculty />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
+          <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
@@ -303,6 +307,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllFaculty />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
+          <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
@@ -415,6 +420,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
           <Route path="add" element={<AddFaculty />} />
+          <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<FacultyCourses />} />
           <Route path="attendance" element={<FacultyAttendance />} />
@@ -478,11 +484,9 @@ export const AppRoutes: React.FC = () => {
         <Route path="students">
           <Route path="attendance" element={<FacultyMarkAttendance />} />
           <Route path="attendance-records" element={<FacultyMarkAttendance />} />
-          <Route path="all" element={<AllStudents />} />
-          <Route path="add" element={<AddStudent />} />
-          <Route path=":id" element={<StudentDetails />} />
-          <Route path=":id/edit" element={<EditStudent />} />
+          <Route path="all" element={<FacultyMyStudents />} />
         </Route>
+        <Route path="feedback" element={<FacultyFeedback />} />
         <Route path="timetable" element={<FacultyTimetable />} />
         <Route path="classes" element={<FacultyTimetable />} />
         <Route path="recordings" element={<FacultyRecordings />} />

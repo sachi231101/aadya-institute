@@ -647,7 +647,7 @@ export const CounselorDashboard: React.FC = () => {
   const handleCall = (lead: UnifiedLead) => {
     setActiveLead(lead);
     setAttemptMode("PHONE");
-    setAttemptNewStage(lead.stage || "CONTACTED");
+    setAttemptNewStage((lead.stage as any) || "CONTACTED");
     setShowLogAttemptModal(true);
     window.location.href = `tel:${lead.phone}`;
   };
@@ -655,7 +655,7 @@ export const CounselorDashboard: React.FC = () => {
   const handleWhatsApp = (lead: UnifiedLead) => {
     setActiveLead(lead);
     setAttemptMode("WHATSAPP");
-    setAttemptNewStage(lead.stage || "CONTACTED");
+    setAttemptNewStage((lead.stage as any) || "CONTACTED");
     setShowLogAttemptModal(true);
     const text = encodeURIComponent(`Hello ${lead.name}, greetings from Aadya Institute!`);
     window.open(`https://wa.me/91${lead.phone}?text=${text}`, "_blank");

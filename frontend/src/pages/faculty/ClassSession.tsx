@@ -22,7 +22,7 @@ import { useNotificationStore } from "@/store/notification.store";
 import { useQuery } from "@tanstack/react-query";
 import { studentsApi } from "@/services/students.api";
 
-type AttendanceStatus = "PRESENT" | "ABSENT";
+type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE";
 type SessionWorkflowStep = "ATTENDANCE" | "CONFIRM_LIVE" | "LIVE_IN_PROGRESS" | "COMPLETED";
 
 interface EnrolledStudent {
@@ -95,7 +95,9 @@ export const FacultyClassSession: React.FC = () => {
             name,
             initials: name.slice(0, 2).toUpperCase(),
             avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-            status: (s.status === "ABSENT" ? "ABSENT" : "PRESENT") as AttendanceStatus,
+            status: (
+              s.status === "ABSENT" ? "ABSENT" : s.status === "LEAVE" || s.status === "EXCUSED" ? "LEAVE" : "PRESENT"
+            ) as AttendanceStatus,
           };
         })
       );
@@ -175,7 +177,8 @@ export const FacultyClassSession: React.FC = () => {
   const attendanceCounts = useMemo(() => {
     const present = students.filter((s) => s.status === "PRESENT").length;
     const absent = students.filter((s) => s.status === "ABSENT").length;
-    return { present, absent, total: students.length };
+    const leave = students.filter((s) => s.status === "LEAVE").length;
+    return { present, absent, leave, total: students.length };
   }, [students]);
 
   const filteredStudents = useMemo(() => {
@@ -633,6 +636,18 @@ export const FacultyClassSession: React.FC = () => {
                             >
                               <X className="w-3.5 h-3.5" /> Absent
                             </button>
+                            <button
+                              type="button"
+                              disabled={workflowStep === "LIVE_IN_PROGRESS" || workflowStep === "COMPLETED"}
+                              onClick={() => handleToggleAttendance(st.id, "LEAVE")}
+                              className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                                st.status === "LEAVE"
+                                  ? "bg-amber-500 text-white shadow-xs"
+                                  : "text-slate-600 hover:text-slate-900"
+                              }`}
+                            >
+                              <Clock className="w-3.5 h-3.5" /> Leave
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -648,7 +663,10 @@ export const FacultyClassSession: React.FC = () => {
                     <Check className="w-3.5 h-3.5 text-emerald-600" /> {attendanceCounts.present} Present
                   </span>
                   <span className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-rose-50 text-rose-700 border border-rose-200">
-                    <X className="w-3.5 h-3.5 text-rose-600" /> {attendanceCounts.absent} Absent
+                    <X className="w-3.5 h-3.5" /> {attendanceCounts.absent} Absent
+                  </span>
+                  <span className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-amber-50 text-amber-700 border border-amber-200">
+                    <Clock className="w-3.5 h-3.5" /> {attendanceCounts.leave} Leave
                   </span>
                   <span className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 text-slate-700 border border-slate-200">
                     <Users className="w-3.5 h-3.5 text-slate-500" /> {attendanceCounts.total} Enrolled

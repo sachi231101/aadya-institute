@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
   GraduationCap, BookOpen, Search, Plus,
   Calendar, AlertCircle, UserMinus, Loader2
@@ -29,6 +29,8 @@ const getStatusBadgeClass = (status: string) => {
 
 export const AllFaculty: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = location.pathname.startsWith("/center") ? "/center" : "/admin";
   const [selectedFilterTab, setSelectedFilterTab] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -47,20 +49,33 @@ export const AllFaculty: React.FC = () => {
       ? selectedBranchId
       : undefined;
   const { data: facultyReport, isLoading: isReportLoading } = useFacultyReport(activeBranchId);
-  const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({ branchId: activeBranchId });
+  const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({
+    branchId: activeBranchId,
+    limit: 100,
+  });
 
-  const rawFacultyList = facultyReport?.faculty || (facultyListResponse?.data || []).map((f: any) => ({
-    id: f.id,
-    name: f.user?.name || "Faculty Member",
-    employeeCode: f.employeeCode || f.id,
-    branchName: f.branch?.name || "Aadya Branch",
-    specialization: f.specialization || "Instructor",
-    assignedBatchesCount: f._count?.batches || f.batches?.length || 0,
-    totalStudents: 0,
-    avgStudentAttendancePct: 0,
-    workloadHoursPerWeek: 0,
-    status: f.status || "ACTIVE",
-  }));
+  // Faculty Directory uses the live faculty list as source of truth so newly created
+  // members appear immediately; report metrics enrich matching rows when available.
+  const reportById = new Map(
+    (facultyReport?.faculty || []).map((f: any) => [f.id, f])
+  );
+
+  const rawFacultyList = (facultyListResponse?.data || []).map((f: any) => {
+    const report = reportById.get(f.id);
+    return {
+      id: f.id,
+      name: f.user?.name || report?.name || "Faculty Member",
+      employeeCode: f.employeeCode || report?.employeeCode || f.id,
+      branchName: f.branch?.name || report?.branchName || "Aadya Branch",
+      specialization: f.specialization || report?.specialization || "Instructor",
+      assignedBatchesCount:
+        report?.assignedBatchesCount ?? f._count?.batches ?? f.batches?.length ?? 0,
+      totalStudents: report?.totalStudents ?? 0,
+      avgStudentAttendancePct: report?.avgStudentAttendancePct ?? 0,
+      workloadHoursPerWeek: report?.workloadHoursPerWeek ?? 0,
+      status: f.status || report?.status || "ACTIVE",
+    };
+  });
 
   // Filter faculty by search, status tabs
   const filteredFaculty = rawFacultyList.filter((fac: any) => {
@@ -95,7 +110,7 @@ export const AllFaculty: React.FC = () => {
     { name: "Needs Attention", count: rawFacultyList.filter((f: any) => f.status?.toUpperCase() === "INACTIVE" || f.avgStudentAttendancePct < 70).length },
   ];
 
-  const isLoading = isReportLoading || isListLoading;
+  const isLoading = isListLoading;
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto min-h-screen relative overflow-x-hidden space-y-6 animate-in fade-in duration-300">
@@ -117,11 +132,11 @@ export const AllFaculty: React.FC = () => {
             <Button 
               variant="outline" 
               className="text-primary border-border hover:bg-muted/40 font-bold bg-card shadow-2xs rounded-xl cursor-pointer"
-              onClick={() => navigate("/admin/faculty/timetable")}
+              onClick={() => navigate(`${basePath}/faculty/timetable`)}
             >
               <Calendar className="h-4 w-4 mr-2 text-primary" /> Faculty Timetable
             </Button>
-            <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md rounded-xl cursor-pointer" onClick={() => navigate("../add")}>
+            <Button className="bg-primary hover:bg-primary/90 text-white font-bold shadow-md rounded-xl cursor-pointer" onClick={() => navigate(`${basePath}/faculty/add`)}>
               <Plus className="h-4 w-4 mr-2" /> Add Faculty
             </Button>
           </div>
@@ -222,7 +237,7 @@ export const AllFaculty: React.FC = () => {
                   filteredFaculty.map((fac: any) => (
                     <tr 
                       key={fac.id} 
-                      onClick={() => navigate(`/admin/faculty/${fac.id}`)}
+                      onClick={() => navigate(`${basePath}/faculty/${fac.id}`)}
                       className="transition-colors cursor-pointer group hover:bg-muted/30"
                     >
                       <td className="px-4 py-3.5">
@@ -269,7 +284,7 @@ export const AllFaculty: React.FC = () => {
                           className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white transition-all font-bold shadow-2xs rounded-xl cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate(`/admin/faculty/${fac.id}`);
+                            navigate(`${basePath}/faculty/${fac.id}`);
                           }}
                         >
                           View Details

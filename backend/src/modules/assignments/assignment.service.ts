@@ -78,14 +78,21 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
-  // Non-admin roles are locked to their branch via the batch relation
   const branchId = currentUser.roles.includes("ADMIN") ? undefined : (currentUser.branchId ?? undefined);
+
+  let facultyId = query.facultyId;
+  if (currentUser.roles.includes("FACULTY") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
+    const ownFacultyId = await getFacultyIdForUser(currentUser.id);
+    if (!ownFacultyId) throw new AppError("Faculty profile not found for this user", 403);
+    facultyId = ownFacultyId;
+  }
 
   const { assignments, total } = await repo.findAssignments({
     instituteId: currentUser.instituteId,
     branchId,
     batchId: query.batchId,
     classSessionId: query.classSessionId,
+    facultyId,
     status: query.status,
     search: query.search,
     skip,
@@ -112,13 +119,27 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
 };
 
 export const createAssignment = async (currentUser: AuthUser, dto: CreateAssignmentDTO) => {
-  const session = await prisma.classSession.findUnique({
-    where: { id: dto.classSessionId },
-    include: { batch: true },
-  });
+  let session = dto.classSessionId
+    ? await prisma.classSession.findUnique({
+        where: { id: dto.classSessionId },
+        include: { batch: true },
+      })
+    : null;
+
+  if (!session && dto.batchId) {
+    session = await prisma.classSession.findFirst({
+      where: {
+        batchId: dto.batchId,
+        batch: { instituteId: currentUser.instituteId },
+        status: "ACTIVE",
+      },
+      include: { batch: true },
+      orderBy: { scheduledDate: "desc" },
+    });
+  }
 
   if (!session || session.batch.instituteId !== currentUser.instituteId) {
-    throw new AppError("Class session not found", 404);
+    throw new AppError("Class session not found. Schedule a class for this batch first.", 404);
   }
 
   // Faculty may only create assignments for sessions they teach
@@ -176,3 +197,35 @@ export const deleteAssignment = async (currentUser: AuthUser, id: string) => {
   await repo.deleteAssignment(id);
   return { id, deleted: true };
 };
+
+export const gradeSubmission = async (
+  currentUser: AuthUser,
+  submissionId: string,
+  dto: { marks: number; feedback?: string }
+) => {
+  const submission = await repo.findSubmissionById(submissionId);
+  if (!submission) throw new AppError("Submission not found", 404);
+
+  const batch = submission.assignment.classSession?.batch;
+  if (!batch || batch.instituteId !== currentUser.instituteId) {
+    throw new AppError("Submission not found", 404);
+  }
+
+  if (currentUser.roles.includes("FACULTY")) {
+    const facultyId = await getFacultyIdForUser(currentUser.id);
+    if (!facultyId || facultyId !== submission.assignment.facultyId) {
+      throw new AppError("You can only grade submissions for your own assignments", 403);
+    }
+  }
+
+  if (!submission.submittedAt) {
+    throw new AppError("Cannot grade a submission that has not been submitted", 400);
+  }
+
+  return repo.gradeSubmission(submissionId, {
+    marks: dto.marks,
+    feedback: dto.feedback || undefined,
+    evaluatedBy: currentUser.id,
+  });
+};
+

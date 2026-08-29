@@ -30,7 +30,7 @@ import {
   RefreshCw,
   User,
   MapPin,
-  Award
+  Award,
 } from "lucide-react";
 import { useAdmissionStore } from "../../../store/admission.store";
 import { useCourseStore } from "../../../store/course.store";
@@ -54,20 +54,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // ─── EXTENDED APPLICATION TYPES FOR COUNSELLOR WORKFLOW ───────────────────────
 
-export type DetailedStatus = "UNDER_REVIEW_BLUE" | "UNDER_REVIEW_ORANGE" | "NEW_APPLICATION" | "APPROVED" | "ADMITTED" | "REJECTED";
+export type DetailedStatus =
+  | "UNDER_REVIEW_BLUE"
+  | "UNDER_REVIEW_ORANGE"
+  | "NEW_APPLICATION"
+  | "APPROVED"
+  | "ADMITTED"
+  | "REJECTED";
 
 export interface StudentDocument {
   id: string;
   title: string;
-  category: "Identity Proof" | "Academic Marksheet" | "Degree Certificate" | "Photograph" | "Other";
+  category:
+    | "Identity Proof"
+    | "Academic Marksheet"
+    | "Degree Certificate"
+    | "Photograph"
+    | "Other";
   fileName: string;
   fileSize: string;
   uploadDate: string;
@@ -111,7 +119,7 @@ export interface EnrichedApplication {
   city: string;
   state: string;
   pincode: string;
-  
+
   // Course Information
   courseId: string;
   courseName: string;
@@ -129,7 +137,11 @@ export interface EnrichedApplication {
   // Fee Details
   feeStatus: "PAID" | "NOT_PAID";
   feeAmount: number;
-  paymentMethod?: "UPI / QR" | "Net Banking" | "Credit/Debit Card" | "Cash Counter";
+  paymentMethod?:
+    | "UPI / QR"
+    | "Net Banking"
+    | "Credit/Debit Card"
+    | "Cash Counter";
   transactionId?: string;
   paidAt?: string;
 
@@ -158,48 +170,57 @@ export const Applications: React.FC = () => {
   });
 
   // Local state for enriched application items initialized from database
-  const [applicationsList, setApplicationsList] = useState<EnrichedApplication[]>([]);
+  const [applicationsList, setApplicationsList] = useState<
+    EnrichedApplication[]
+  >([]);
 
   useEffect(() => {
     const rawList = dbApplicationsRes?.data || [];
     if (rawList.length > 0) {
       setApplicationsList(
-        rawList.map((app: any): EnrichedApplication => ({
-          id: app.id,
-          applicationNo: app.applicationNo || `APP-${app.id.slice(0, 6)}`,
-          applicantName: app.applicantName || "Applicant",
-          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(app.applicantName || "AP")}`,
-          email: app.email || "—",
-          phone: app.phone || "—",
-          gender: "Male",
-          dob: "2004-01-01",
-          category: "General",
-          fatherName: "—",
-          motherName: "—",
-          address: "Bengaluru",
-          city: "Bengaluru",
-          state: "Karnataka",
-          pincode: "560102",
-          courseId: app.courseId,
-          courseName: app.course?.name || "Program",
-          courseDuration: "(6 Months)",
-          courseCode: app.course?.code || "CRS",
-          preferredBatchTiming: "Morning (10:00 AM - 12:00 PM)",
-          preferredMode: "Offline (Classroom)",
-          highestQualification: "Graduate",
-          collegeOrSchool: "University",
-          passingYear: "2024",
-          gradePercentage: "80%",
-          feeStatus: app.feeStatus || "PAID",
-          feeAmount: 500,
-          status: app.status === "ADMITTED" ? "APPROVED" : "UNDER_REVIEW_BLUE",
-          submittedDate: new Date(app.createdAt || Date.now()).toLocaleDateString(),
-          submittedTime: new Date(app.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          currentWorkflowStep: app.status === "ADMITTED" ? 5 : 2,
-          documents: [],
-          counselorNotes: [],
-          timeline: [],
-        }))
+        rawList.map(
+          (app: any): EnrichedApplication => ({
+            id: app.id,
+            applicationNo: app.applicationNo || `APP-${app.id.slice(0, 6)}`,
+            applicantName: app.applicantName || "Applicant",
+            avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(app.applicantName || "AP")}`,
+            email: app.email || "—",
+            phone: app.phone || "—",
+            gender: "Male",
+            dob: "2004-01-01",
+            category: "General",
+            fatherName: "—",
+            motherName: "—",
+            address: "Bengaluru",
+            city: "Bengaluru",
+            state: "Karnataka",
+            pincode: "560102",
+            courseId: app.courseId,
+            courseName: app.course?.name || "Program",
+            courseDuration: "(6 Months)",
+            courseCode: app.course?.code || "CRS",
+            preferredBatchTiming: "Morning (10:00 AM - 12:00 PM)",
+            preferredMode: "Offline (Classroom)",
+            highestQualification: "Graduate",
+            collegeOrSchool: "University",
+            passingYear: "2024",
+            gradePercentage: "80%",
+            feeStatus: app.feeStatus || "PAID",
+            feeAmount: 500,
+            status:
+              app.status === "ADMITTED" ? "APPROVED" : "UNDER_REVIEW_BLUE",
+            submittedDate: new Date(
+              app.createdAt || Date.now(),
+            ).toLocaleDateString(),
+            submittedTime: new Date(
+              app.createdAt || Date.now(),
+            ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            currentWorkflowStep: app.status === "ADMITTED" ? 5 : 2,
+            documents: [],
+            counselorNotes: [],
+            timeline: [],
+          }),
+        ),
       );
     } else {
       setApplicationsList([]);
@@ -215,8 +236,10 @@ export const Applications: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [feeFilter, setFeeFilter] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState<boolean>(false);
-  const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("ALL");
+  const [showAdvancedFilters, setShowAdvancedFilters] =
+    useState<boolean>(false);
+  const [selectedCourseFilter, setSelectedCourseFilter] =
+    useState<string>("ALL");
   const [selectedModeFilter, setSelectedModeFilter] = useState<string>("ALL");
 
   // Pagination State
@@ -224,7 +247,8 @@ export const Applications: React.FC = () => {
   const pageSize = 5;
 
   // Selected Application for Details Sheet / Drawer
-  const [selectedApplication, setSelectedApplication] = useState<EnrichedApplication | null>(null);
+  const [selectedApplication, setSelectedApplication] =
+    useState<EnrichedApplication | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState<boolean>(false);
   const [activeDetailsTab, setActiveDetailsTab] = useState<"overview" | "course" | "source" | "documents" | "fees" | "timeline">("overview");
 
@@ -238,14 +262,19 @@ export const Applications: React.FC = () => {
   const [createPhone, setCreatePhone] = useState("");
   const [createCourse, setCreateCourse] = useState("Digital Marketing");
   const [createDuration, setCreateDuration] = useState("(1 Year Program)");
-  const [createFeeStatus, setCreateFeeStatus] = useState<"PAID" | "NOT_PAID">("PAID");
+  const [createFeeStatus, setCreateFeeStatus] = useState<"PAID" | "NOT_PAID">(
+    "PAID",
+  );
   const [createFeeAmount] = useState<number>(500);
-  const [createStatus, setCreateStatus] = useState<DetailedStatus>("UNDER_REVIEW_BLUE");
+  const [createStatus, setCreateStatus] =
+    useState<DetailedStatus>("UNDER_REVIEW_BLUE");
   const [createNotes, setCreateNotes] = useState("");
 
   // Convert to Full Admission Modal State
   const [convertModalOpen, setConvertModalOpen] = useState<boolean>(false);
-  const [appToConvert, setAppToConvert] = useState<EnrichedApplication | null>(null);
+  const [appToConvert, setAppToConvert] = useState<EnrichedApplication | null>(
+    null,
+  );
   const [selectedBatchId, setSelectedBatchId] = useState<string>("");
   const [admissionFeePlan, setAdmissionFeePlan] = useState<"INSTALLMENT" | "ONE_TIME">("INSTALLMENT");
   const [isConverting, setIsConverting] = useState<boolean>(false);
@@ -302,20 +331,40 @@ export const Applications: React.FC = () => {
 
       const matchesStatus =
         statusFilter === "ALL" ||
-        (statusFilter === "UNDER_REVIEW" && (app.status === "UNDER_REVIEW_BLUE" || app.status === "UNDER_REVIEW_ORANGE")) ||
-        (statusFilter === "NEW_APPLICATION" && app.status === "NEW_APPLICATION") ||
+        (statusFilter === "UNDER_REVIEW" &&
+          (app.status === "UNDER_REVIEW_BLUE" ||
+            app.status === "UNDER_REVIEW_ORANGE")) ||
+        (statusFilter === "NEW_APPLICATION" &&
+          app.status === "NEW_APPLICATION") ||
         (statusFilter === "APPROVED" && app.status === "APPROVED") ||
         (statusFilter === "ADMITTED" && app.status === "ADMITTED");
 
       const matchesCourse =
-        selectedCourseFilter === "ALL" || app.courseName.toLowerCase() === selectedCourseFilter.toLowerCase();
+        selectedCourseFilter === "ALL" ||
+        app.courseName.toLowerCase() === selectedCourseFilter.toLowerCase();
 
       const matchesMode =
-        selectedModeFilter === "ALL" || app.preferredMode.toLowerCase().includes(selectedModeFilter.toLowerCase());
+        selectedModeFilter === "ALL" ||
+        app.preferredMode
+          .toLowerCase()
+          .includes(selectedModeFilter.toLowerCase());
 
-      return matchesSearch && matchesFee && matchesStatus && matchesCourse && matchesMode;
+      return (
+        matchesSearch &&
+        matchesFee &&
+        matchesStatus &&
+        matchesCourse &&
+        matchesMode
+      );
     });
-  }, [applicationsList, searchTerm, feeFilter, statusFilter, selectedCourseFilter, selectedModeFilter]);
+  }, [
+    applicationsList,
+    searchTerm,
+    feeFilter,
+    statusFilter,
+    selectedCourseFilter,
+    selectedModeFilter,
+  ]);
 
   // Paginated Rows
   const currentRows = useMemo(() => {
@@ -343,7 +392,9 @@ export const Applications: React.FC = () => {
       counselorNotes: [newNote, ...(selectedApplication.counselorNotes || [])],
     };
     setSelectedApplication(updated);
-    setApplicationsList((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setApplicationsList((prev) =>
+      prev.map((a) => (a.id === updated.id ? updated : a)),
+    );
     setNewNoteInput("");
     showToast("Counsellor note added successfully!");
   };
@@ -363,7 +414,9 @@ export const Applications: React.FC = () => {
     });
     const updated = { ...selectedApplication, documents: updatedDocs };
     setSelectedApplication(updated);
-    setApplicationsList((prev) => prev.map((a) => (a.id === updated.id ? updated : a)));
+    setApplicationsList((prev) =>
+      prev.map((a) => (a.id === updated.id ? updated : a)),
+    );
     showToast("Document verification status updated!");
   };
 
@@ -371,11 +424,16 @@ export const Applications: React.FC = () => {
     setApplicationsList((prev) =>
       prev.map((a) => {
         if (a.id === appId) {
-          const step = newStatus === "APPROVED" || newStatus === "ADMITTED" ? 5 : newStatus === "NEW_APPLICATION" ? 1 : 4;
+          const step =
+            newStatus === "APPROVED" || newStatus === "ADMITTED"
+              ? 5
+              : newStatus === "NEW_APPLICATION"
+                ? 1
+                : 4;
           return { ...a, status: newStatus, currentWorkflowStep: step };
         }
         return a;
-      })
+      }),
     );
     if (selectedApplication && selectedApplication.id === appId) {
       setSelectedApplication((prev) =>
@@ -383,9 +441,14 @@ export const Applications: React.FC = () => {
           ? {
               ...prev,
               status: newStatus,
-              currentWorkflowStep: newStatus === "APPROVED" || newStatus === "ADMITTED" ? 5 : newStatus === "NEW_APPLICATION" ? 1 : 4,
+              currentWorkflowStep:
+                newStatus === "APPROVED" || newStatus === "ADMITTED"
+                  ? 5
+                  : newStatus === "NEW_APPLICATION"
+                    ? 1
+                    : 4,
             }
-          : null
+          : null,
       );
     }
     showToast(`Application status updated to ${newStatus.replace(/_/g, " ")}`);
@@ -405,7 +468,7 @@ export const Applications: React.FC = () => {
           };
         }
         return a;
-      })
+      }),
     );
     if (selectedApplication && selectedApplication.id === appId) {
       const isPaid = selectedApplication.feeStatus === "PAID";
@@ -418,7 +481,7 @@ export const Applications: React.FC = () => {
               paymentMethod: isPaid ? undefined : "UPI / QR",
               paidAt: isPaid ? undefined : "Just now",
             }
-          : null
+          : null,
       );
     }
     showToast("Application fee status updated!");
@@ -434,7 +497,9 @@ export const Applications: React.FC = () => {
       applicationNo: newAppNo,
       applicantName: createName,
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(createName)}`,
-      email: createEmail || `${createName.toLowerCase().replace(/\s+/g, "")}@email.com`,
+      email:
+        createEmail ||
+        `${createName.toLowerCase().replace(/\s+/g, "")}@email.com`,
       phone: createPhone,
       gender: "Female",
       dob: "10 Jun 2002",
@@ -462,16 +527,53 @@ export const Applications: React.FC = () => {
       status: createStatus,
       submittedDate: "16 May 2025",
       submittedTime: "10:30 AM",
-      currentWorkflowStep: createStatus === "APPROVED" ? 5 : createStatus === "NEW_APPLICATION" ? 1 : 4,
+      currentWorkflowStep:
+        createStatus === "APPROVED"
+          ? 5
+          : createStatus === "NEW_APPLICATION"
+            ? 1
+            : 4,
       documents: [
-        { id: `d-${Date.now()}-1`, title: "10th Marksheet", category: "Academic Marksheet", fileName: "10th_Marksheet.pdf", fileSize: "1.2 MB", uploadDate: "Today", verified: true },
-        { id: `d-${Date.now()}-2`, title: "Aadhaar Card", category: "Identity Proof", fileName: "Aadhaar.pdf", fileSize: "800 KB", uploadDate: "Today", verified: true },
+        {
+          id: `d-${Date.now()}-1`,
+          title: "10th Marksheet",
+          category: "Academic Marksheet",
+          fileName: "10th_Marksheet.pdf",
+          fileSize: "1.2 MB",
+          uploadDate: "Today",
+          verified: true,
+        },
+        {
+          id: `d-${Date.now()}-2`,
+          title: "Aadhaar Card",
+          category: "Identity Proof",
+          fileName: "Aadhaar.pdf",
+          fileSize: "800 KB",
+          uploadDate: "Today",
+          verified: true,
+        },
       ],
       counselorNotes: createNotes
-        ? [{ id: `n-${Date.now()}`, author: "Priya Singh", role: "Senior Counsellor", date: "Today", time: "Just now", text: createNotes }]
+        ? [
+            {
+              id: `n-${Date.now()}`,
+              author: "Priya Singh",
+              role: "Senior Counsellor",
+              date: "Today",
+              time: "Just now",
+              text: createNotes,
+            },
+          ]
         : [],
       timeline: [
-        { id: `t-${Date.now()}`, title: "Application Form Created", description: "Created manually by counsellor desk.", timestamp: "Just now", iconType: "submit", completed: true },
+        {
+          id: `t-${Date.now()}`,
+          title: "Application Form Created",
+          description: "Created manually by counsellor desk.",
+          timestamp: "Just now",
+          iconType: "submit",
+          completed: true,
+        },
       ],
     };
 
@@ -560,7 +662,6 @@ export const Applications: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
-      
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -580,7 +681,9 @@ export const Applications: React.FC = () => {
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
           <span className="text-muted-foreground">Admissions</span>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <span className="text-foreground font-semibold">Admission Applications</span>
+          <span className="text-foreground font-semibold">
+            Admission Applications
+          </span>
         </div>
 
         {/* Title and Top Action */}
@@ -590,7 +693,8 @@ export const Applications: React.FC = () => {
               Admission Applications
             </h1>
             <p className="text-sm text-muted-foreground font-normal mt-0.5">
-              Track submitted student application forms, document verification, and final admission approvals.
+              Track submitted student application forms, document verification,
+              and final admission approvals.
             </p>
           </div>
 
@@ -714,7 +818,6 @@ export const Applications: React.FC = () => {
             </div>
           </div>
         </Card>
-
       </div>
 
       {/* ─── 3. SEARCH & FILTERS TOOLBAR ─── */}
@@ -753,9 +856,18 @@ export const Applications: React.FC = () => {
               }}
               className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
             >
-              <option value="ALL" className="bg-card text-foreground py-1.5">All Fee Status</option>
-              <option value="PAID" className="bg-card text-foreground py-1.5">Paid</option>
-              <option value="NOT_PAID" className="bg-card text-foreground py-1.5">Not Paid</option>
+              <option value="ALL" className="bg-card text-foreground py-1.5">
+                All Fee Status
+              </option>
+              <option value="PAID" className="bg-card text-foreground py-1.5">
+                Paid
+              </option>
+              <option
+                value="NOT_PAID"
+                className="bg-card text-foreground py-1.5"
+              >
+                Not Paid
+              </option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
               <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
@@ -774,11 +886,33 @@ export const Applications: React.FC = () => {
               }}
               className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
             >
-              <option value="ALL" className="bg-card text-foreground py-1.5">All Statuses</option>
-              <option value="UNDER_REVIEW" className="bg-card text-foreground py-1.5">Under Review</option>
-              <option value="NEW_APPLICATION" className="bg-card text-foreground py-1.5">New Application</option>
-              <option value="APPROVED" className="bg-card text-foreground py-1.5">Approved</option>
-              <option value="ADMITTED" className="bg-card text-foreground py-1.5">Admitted</option>
+              <option value="ALL" className="bg-card text-foreground py-1.5">
+                All Statuses
+              </option>
+              <option
+                value="UNDER_REVIEW"
+                className="bg-card text-foreground py-1.5"
+              >
+                Under Review
+              </option>
+              <option
+                value="NEW_APPLICATION"
+                className="bg-card text-foreground py-1.5"
+              >
+                New Application
+              </option>
+              <option
+                value="APPROVED"
+                className="bg-card text-foreground py-1.5"
+              >
+                Approved
+              </option>
+              <option
+                value="ADMITTED"
+                className="bg-card text-foreground py-1.5"
+              >
+                Admitted
+              </option>
             </select>
             <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
               <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
@@ -792,20 +926,27 @@ export const Applications: React.FC = () => {
             variant="outline"
             onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
             className={`h-10.5 px-3.5 border-border text-foreground bg-card hover:bg-muted/50 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs transition-all cursor-pointer ${
-              showAdvancedFilters || selectedCourseFilter !== "ALL" || selectedModeFilter !== "ALL"
+              showAdvancedFilters ||
+              selectedCourseFilter !== "ALL" ||
+              selectedModeFilter !== "ALL"
                 ? "border-primary text-primary bg-primary/10"
                 : ""
             }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
             <span>Filters</span>
-            {(selectedCourseFilter !== "ALL" || selectedModeFilter !== "ALL") && (
+            {(selectedCourseFilter !== "ALL" ||
+              selectedModeFilter !== "ALL") && (
               <span className="h-2 w-2 rounded-full bg-primary" />
             )}
           </Button>
 
           {/* Reset Filters button if any filter active */}
-          {(searchTerm || feeFilter !== "ALL" || statusFilter !== "ALL" || selectedCourseFilter !== "ALL" || selectedModeFilter !== "ALL") && (
+          {(searchTerm ||
+            feeFilter !== "ALL" ||
+            statusFilter !== "ALL" ||
+            selectedCourseFilter !== "ALL" ||
+            selectedModeFilter !== "ALL") && (
             <Button
               variant="ghost"
               size="sm"
@@ -830,7 +971,8 @@ export const Applications: React.FC = () => {
         <Card className="border border-border bg-muted/30 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2 duration-150 shadow-2xs">
           <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
             <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <Filter className="h-3.5 w-3.5 text-primary" /> Extended Filter Options
+              <Filter className="h-3.5 w-3.5 text-primary" /> Extended Filter
+              Options
             </span>
             <button
               onClick={() => setShowAdvancedFilters(false)}
@@ -841,7 +983,9 @@ export const Applications: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Target Course</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Target Course
+              </label>
               <select
                 value={selectedCourseFilter}
                 onChange={(e) => {
@@ -850,21 +994,70 @@ export const Applications: React.FC = () => {
                 }}
                 className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
               >
-                <option value="ALL" className="bg-card text-foreground py-1.5">All Courses</option>
-                <option value="Full Stack Web Development" className="bg-card text-foreground py-1.5">Full Stack Web Development</option>
-                <option value="Data Science & Analytics" className="bg-card text-foreground py-1.5">Data Science & Analytics</option>
-                <option value="UI/UX Product Design" className="bg-card text-foreground py-1.5">UI/UX Product Design</option>
-                <option value="Artificial Intelligence & Python" className="bg-card text-foreground py-1.5">Artificial Intelligence & Python</option>
-                <option value="Digital Marketing" className="bg-card text-foreground py-1.5">Digital Marketing</option>
-                <option value="Advanced Excel" className="bg-card text-foreground py-1.5">Advanced Excel</option>
-                <option value="Tally Prime with GST" className="bg-card text-foreground py-1.5">Tally Prime with GST</option>
-                <option value="Web Designing" className="bg-card text-foreground py-1.5">Web Designing</option>
-                <option value="Python Programming" className="bg-card text-foreground py-1.5">Python Programming</option>
+                <option value="ALL" className="bg-card text-foreground py-1.5">
+                  All Courses
+                </option>
+                <option
+                  value="Full Stack Web Development"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Full Stack Web Development
+                </option>
+                <option
+                  value="Data Science & Analytics"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Data Science & Analytics
+                </option>
+                <option
+                  value="UI/UX Product Design"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  UI/UX Product Design
+                </option>
+                <option
+                  value="Artificial Intelligence & Python"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Artificial Intelligence & Python
+                </option>
+                <option
+                  value="Digital Marketing"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Digital Marketing
+                </option>
+                <option
+                  value="Advanced Excel"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Advanced Excel
+                </option>
+                <option
+                  value="Tally Prime with GST"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Tally Prime with GST
+                </option>
+                <option
+                  value="Web Designing"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Web Designing
+                </option>
+                <option
+                  value="Python Programming"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Python Programming
+                </option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Program Mode</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Program Mode
+              </label>
               <select
                 value={selectedModeFilter}
                 onChange={(e) => {
@@ -873,15 +1066,34 @@ export const Applications: React.FC = () => {
                 }}
                 className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
               >
-                <option value="ALL" className="bg-card text-foreground py-1.5">All Delivery Modes</option>
-                <option value="Offline" className="bg-card text-foreground py-1.5">Offline (Classroom)</option>
-                <option value="Online" className="bg-card text-foreground py-1.5">Online Live</option>
-                <option value="Hybrid" className="bg-card text-foreground py-1.5">Hybrid</option>
+                <option value="ALL" className="bg-card text-foreground py-1.5">
+                  All Delivery Modes
+                </option>
+                <option
+                  value="Offline"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Offline (Classroom)
+                </option>
+                <option
+                  value="Online"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Online Live
+                </option>
+                <option
+                  value="Hybrid"
+                  className="bg-card text-foreground py-1.5"
+                >
+                  Hybrid
+                </option>
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Quick Action</label>
+              <label className="block text-xs font-semibold text-muted-foreground mb-1">
+                Quick Action
+              </label>
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -967,7 +1179,11 @@ export const Applications: React.FC = () => {
                     <TableCell className="py-4 px-4 align-middle">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 border border-border shadow-2xs">
-                          <AvatarImage src={app.avatar} alt={app.applicantName} className="object-cover" />
+                          <AvatarImage
+                            src={app.avatar}
+                            alt={app.applicantName}
+                            className="object-cover"
+                          />
                           <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
                             {app.applicantName.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
@@ -1050,7 +1266,10 @@ export const Applications: React.FC = () => {
                     </TableCell>
 
                     {/* 7. Actions */}
-                    <TableCell className="py-4 px-4 pr-6 align-middle text-right" onClick={(e) => e.stopPropagation()}>
+                    <TableCell
+                      className="py-4 px-4 pr-6 align-middle text-right"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <div className="flex items-center justify-end gap-1.5">
                         {app.feeStatus === "PAID" && app.status !== "ADMITTED" && app.status !== "APPROVED" ? (
                           <Button
@@ -1079,18 +1298,21 @@ export const Applications: React.FC = () => {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 cursor-pointer"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 cursor-pointer"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
                           </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-52 bg-popover border border-border text-popover-foreground shadow-lg rounded-xl p-1.5 text-xs">
+                          <DropdownMenuContent
+                            align="end"
+                            className="w-52 bg-popover border border-border text-popover-foreground shadow-lg rounded-xl p-1.5 text-xs"
+                          >
                             <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
                               Counsellor Actions
                             </DropdownMenuLabel>
-                            
+
                             <DropdownMenuItem
                               onClick={() => handleOpenDetails(app)}
                               className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
@@ -1104,11 +1326,15 @@ export const Applications: React.FC = () => {
                               className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
                             >
                               <CreditCard className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                              {app.feeStatus === "PAID" ? "Mark Fee Pending" : "Mark Fee Paid (₹500)"}
+                              {app.feeStatus === "PAID"
+                                ? "Mark Fee Pending"
+                                : "Mark Fee Paid (₹500)"}
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
-                              onClick={() => handleUpdateStatus(app.id, "APPROVED")}
+                              onClick={() =>
+                                handleUpdateStatus(app.id, "APPROVED")
+                              }
                               className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
                             >
                               <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
@@ -1137,7 +1363,9 @@ export const Applications: React.FC = () => {
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
-                              onClick={() => handleUpdateStatus(app.id, "REJECTED")}
+                              onClick={() =>
+                                handleUpdateStatus(app.id, "REJECTED")
+                              }
                               className="cursor-pointer font-medium py-2 rounded-lg text-rose-500 hover:bg-rose-500/10"
                             >
                               <XCircle className="h-3.5 w-3.5 mr-2 text-rose-500" />
@@ -1154,8 +1382,12 @@ export const Applications: React.FC = () => {
                   <TableCell colSpan={7} className="h-44 text-center">
                     <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
                       <FileCheck2 className="h-8 w-8 text-muted-foreground/60 stroke-[1.5]" />
-                      <p className="text-sm font-semibold text-foreground">No applications match your filters</p>
-                      <p className="text-xs text-muted-foreground">Try changing your search terms or fee/status filter.</p>
+                      <p className="text-sm font-semibold text-foreground">
+                        No applications match your filters
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Try changing your search terms or fee/status filter.
+                      </p>
                       <Button
                         variant="outline"
                         size="sm"
@@ -1179,9 +1411,19 @@ export const Applications: React.FC = () => {
         {/* ─── 5. PAGINATION FOOTER ─── */}
         <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 bg-card text-muted-foreground">
           <p className="text-xs font-medium">
-            Showing <span className="font-semibold text-foreground">{filteredList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
-            <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, filteredList.length)}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalAppsCount}</span> applications
+            Showing{" "}
+            <span className="font-semibold text-foreground">
+              {filteredList.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}
+            </span>{" "}
+            to{" "}
+            <span className="font-semibold text-foreground">
+              {Math.min(currentPage * pageSize, filteredList.length)}
+            </span>{" "}
+            of{" "}
+            <span className="font-semibold text-foreground">
+              {totalAppsCount}
+            </span>{" "}
+            applications
           </p>
 
           {/* Pagination Buttons */}
@@ -1245,10 +1487,12 @@ export const Applications: React.FC = () => {
 
       {/* ─── 6. DETAILED APPLICATION VIEW (SLIDE-OUT SHEET / DRAWER) ─── */}
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-card text-foreground border-l border-border">
+        <SheetContent
+          side="right"
+          className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-card text-foreground border-l border-border"
+        >
           {selectedApplication && (
             <div className="flex flex-col h-full">
-              
               {/* Drawer Top Header */}
               <div className="p-6 border-b border-border bg-muted/30 sticky top-0 z-10 backdrop-blur-md">
                 <div className="flex items-start justify-between gap-4">
@@ -1268,7 +1512,12 @@ export const Applications: React.FC = () => {
                       {selectedApplication.applicantName}
                     </h2>
                     <p className="text-xs text-muted-foreground">
-                      Applied for <strong className="text-foreground">{selectedApplication.courseName}</strong> on {selectedApplication.submittedDate} at {selectedApplication.submittedTime}
+                      Applied for{" "}
+                      <strong className="text-foreground">
+                        {selectedApplication.courseName}
+                      </strong>{" "}
+                      on {selectedApplication.submittedDate} at{" "}
+                      {selectedApplication.submittedTime}
                     </p>
                   </div>
 
@@ -1276,7 +1525,9 @@ export const Applications: React.FC = () => {
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => handleCopyAppNo(selectedApplication.applicationNo)}
+                      onClick={() =>
+                        handleCopyAppNo(selectedApplication.applicationNo)
+                      }
                       className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer"
                     >
                       <Copy className="h-3.5 w-3.5" />
@@ -1302,21 +1553,50 @@ export const Applications: React.FC = () => {
                   </p>
                   <div className="grid grid-cols-5 gap-1 text-center">
                     {[
-                      { step: 1, title: "1. New App", done: selectedApplication.currentWorkflowStep >= 1 },
-                      { step: 2, title: "2. Doc Verify", done: selectedApplication.currentWorkflowStep >= 2 },
-                      { step: 3, title: "3. Fee Payment", done: selectedApplication.feeStatus === "PAID" },
-                      { step: 4, title: "4. Under Review", done: selectedApplication.currentWorkflowStep >= 4 },
-                      { step: 5, title: "5. Approved", done: selectedApplication.status === "APPROVED" || selectedApplication.status === "ADMITTED" },
+                      {
+                        step: 1,
+                        title: "1. New App",
+                        done: selectedApplication.currentWorkflowStep >= 1,
+                      },
+                      {
+                        step: 2,
+                        title: "2. Doc Verify",
+                        done: selectedApplication.currentWorkflowStep >= 2,
+                      },
+                      {
+                        step: 3,
+                        title: "3. Fee Payment",
+                        done: selectedApplication.feeStatus === "PAID",
+                      },
+                      {
+                        step: 4,
+                        title: "4. Under Review",
+                        done: selectedApplication.currentWorkflowStep >= 4,
+                      },
+                      {
+                        step: 5,
+                        title: "5. Approved",
+                        done:
+                          selectedApplication.status === "APPROVED" ||
+                          selectedApplication.status === "ADMITTED",
+                      },
                     ].map((st) => (
-                      <div key={st.step} className="flex flex-col items-center gap-1">
+                      <div
+                        key={st.step}
+                        className="flex flex-col items-center gap-1"
+                      >
                         <div
                           className={`h-2.5 w-full rounded-full transition-colors ${
                             st.done ? "bg-emerald-500" : "bg-muted"
                           }`}
                         />
-                        <span className={`text-[10px] font-semibold truncate ${
-                          st.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-                        }`}>
+                        <span
+                          className={`text-[10px] font-semibold truncate ${
+                            st.done
+                              ? "text-emerald-600 dark:text-emerald-400"
+                              : "text-muted-foreground"
+                          }`}
+                        >
                           {st.title}
                         </span>
                       </div>
@@ -1395,50 +1675,79 @@ export const Applications: React.FC = () => {
 
               {/* Drawer Main Body */}
               <div className="p-6 space-y-6 flex-1 bg-card">
-                
                 {/* ─── TAB 1: OVERVIEW & PROFILE ─── */}
                 {activeDetailsTab === "overview" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
                     {/* Personal Information */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="h-4 w-4 text-primary" /> Personal & Contact Details
+                        <User className="h-4 w-4 text-primary" /> Personal &
+                        Contact Details
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Full Name</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.applicantName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Date of Birth & Gender</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.dob} ({selectedApplication.gender})</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Mobile Phone</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-emerald-500" /> {selectedApplication.phone}
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Full Name
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.applicantName}
                           </p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Email Address</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
-                            <Mail className="h-3 w-3 text-primary" /> {selectedApplication.email}
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Date of Birth & Gender
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.dob} (
+                            {selectedApplication.gender})
                           </p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Father's Name</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.fatherName}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Mobile Phone
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
+                            <Phone className="h-3 w-3 text-emerald-500" />{" "}
+                            {selectedApplication.phone}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Mother's Name</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.motherName}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Email Address
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
+                            <Mail className="h-3 w-3 text-primary" />{" "}
+                            {selectedApplication.email}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Father's Name
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.fatherName}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Mother's Name
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.motherName}
+                          </p>
                         </div>
                         <div className="sm:col-span-2">
-                          <p className="text-[11px] font-medium text-muted-foreground">Address</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Address
+                          </p>
                           <p className="text-xs font-bold text-foreground mt-0.5 flex items-start gap-1">
                             <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                            <span>{selectedApplication.address}, {selectedApplication.city}, {selectedApplication.state} - {selectedApplication.pincode}</span>
+                            <span>
+                              {selectedApplication.address},{" "}
+                              {selectedApplication.city},{" "}
+                              {selectedApplication.state} -{" "}
+                              {selectedApplication.pincode}
+                            </span>
                           </p>
                         </div>
                       </div>
@@ -1447,31 +1756,54 @@ export const Applications: React.FC = () => {
                     {/* Target Program & Academics */}
                     <div className="space-y-3">
                       <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-primary" /> Applied Program & Academic Records
+                        <GraduationCap className="h-4 w-4 text-primary" />{" "}
+                        Applied Program & Academic Records
                       </h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Applied Course</p>
-                          <p className="text-xs font-bold text-primary mt-0.5">{selectedApplication.courseName}</p>
-                          <span className="text-[11px] text-muted-foreground">{selectedApplication.courseDuration}</span>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Applied Course
+                          </p>
+                          <p className="text-xs font-bold text-primary mt-0.5">
+                            {selectedApplication.courseName}
+                          </p>
+                          <span className="text-[11px] text-muted-foreground">
+                            {selectedApplication.courseDuration}
+                          </span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Preferred Mode</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.preferredMode}</p>
-                          <span className="text-[11px] text-muted-foreground">{selectedApplication.preferredBatchTiming}</span>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Preferred Mode
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.preferredMode}
+                          </p>
+                          <span className="text-[11px] text-muted-foreground">
+                            {selectedApplication.preferredBatchTiming}
+                          </span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Highest Qualification</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.highestQualification}</p>
-                          <span className="text-[11px] text-muted-foreground">{selectedApplication.collegeOrSchool}</span>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Highest Qualification
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.highestQualification}
+                          </p>
+                          <span className="text-[11px] text-muted-foreground">
+                            {selectedApplication.collegeOrSchool}
+                          </span>
                         </div>
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Passing Year & Score</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedApplication.passingYear} • {selectedApplication.gradePercentage}</p>
+                          <p className="text-[11px] font-medium text-muted-foreground">
+                            Passing Year & Score
+                          </p>
+                          <p className="text-xs font-bold text-foreground mt-0.5">
+                            {selectedApplication.passingYear} •{" "}
+                            {selectedApplication.gradePercentage}
+                          </p>
                         </div>
                       </div>
                     </div>
-
                   </div>
                 )}
 
@@ -1651,14 +1983,16 @@ export const Applications: React.FC = () => {
                 {/* ─── TAB 3: FEES ─── */}
                 {activeDetailsTab === "fees" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
                     {/* Fee Summary Card */}
                     <div className="p-5 rounded-2xl border border-border bg-muted/20 space-y-4">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-xs font-medium text-muted-foreground">Application Fee Receipt</p>
+                          <p className="text-xs font-medium text-muted-foreground">
+                            Application Fee Receipt
+                          </p>
                           <h3 className="text-xl font-black text-foreground mt-0.5">
-                            ₹{selectedApplication.feeAmount} Standard Application Fee
+                            ₹{selectedApplication.feeAmount} Standard
+                            Application Fee
                           </h3>
                         </div>
                         {selectedApplication.feeStatus === "PAID" ? (
@@ -1674,30 +2008,45 @@ export const Applications: React.FC = () => {
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-3 border-t border-border text-xs">
                         <div>
-                          <span className="text-muted-foreground block text-[11px]">Payment Mode</span>
-                          <span className="font-bold text-foreground">{selectedApplication.paymentMethod || "UPI / QR Online"}</span>
+                          <span className="text-muted-foreground block text-[11px]">
+                            Payment Mode
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {selectedApplication.paymentMethod ||
+                              "UPI / QR Online"}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground block text-[11px]">Transaction ID</span>
-                          <span className="font-bold text-foreground font-mono">{selectedApplication.transactionId || "UPI/20250516/982341908"}</span>
+                          <span className="text-muted-foreground block text-[11px]">
+                            Transaction ID
+                          </span>
+                          <span className="font-bold text-foreground font-mono">
+                            {selectedApplication.transactionId ||
+                              "UPI/20250516/982341908"}
+                          </span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground block text-[11px]">Paid At Timestamp</span>
-                          <span className="font-bold text-foreground">{selectedApplication.paidAt || "16 May 2025, 10:25 AM"}</span>
+                          <span className="text-muted-foreground block text-[11px]">
+                            Paid At Timestamp
+                          </span>
+                          <span className="font-bold text-foreground">
+                            {selectedApplication.paidAt ||
+                              "16 May 2025, 10:25 AM"}
+                          </span>
                         </div>
                       </div>
                     </div>
-
                   </div>
                 )}
 
                 {/* ─── TAB 4: TIMELINE & NOTES ─── */}
                 {activeDetailsTab === "timeline" && (
                   <div className="space-y-6 animate-in fade-in duration-150">
-                    
                     {/* Add Note */}
                     <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2.5">
-                      <label className="block text-xs font-bold text-foreground">Add Counsellor Remark / Note</label>
+                      <label className="block text-xs font-bold text-foreground">
+                        Add Counsellor Remark / Note
+                      </label>
                       <div className="flex gap-2">
                         <Input
                           placeholder="Type internal remarks, academic eligibility feedback..."
@@ -1717,42 +2066,66 @@ export const Applications: React.FC = () => {
 
                     {/* Notes List */}
                     <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Counsellor Remarks</h4>
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        Counsellor Remarks
+                      </h4>
                       {selectedApplication.counselorNotes?.length > 0 ? (
                         selectedApplication.counselorNotes.map((n) => (
-                          <div key={n.id} className="p-3.5 rounded-xl border border-border bg-card text-xs space-y-1 shadow-2xs">
+                          <div
+                            key={n.id}
+                            className="p-3.5 rounded-xl border border-border bg-card text-xs space-y-1 shadow-2xs"
+                          >
                             <div className="flex items-center justify-between text-muted-foreground">
-                              <span className="font-bold text-foreground">{n.author} <span className="font-normal text-muted-foreground">({n.role})</span></span>
-                              <span className="text-[11px]">{n.date}, {n.time}</span>
+                              <span className="font-bold text-foreground">
+                                {n.author}{" "}
+                                <span className="font-normal text-muted-foreground">
+                                  ({n.role})
+                                </span>
+                              </span>
+                              <span className="text-[11px]">
+                                {n.date}, {n.time}
+                              </span>
                             </div>
-                            <p className="text-foreground leading-relaxed font-normal">{n.text}</p>
+                            <p className="text-foreground leading-relaxed font-normal">
+                              {n.text}
+                            </p>
                           </div>
                         ))
                       ) : (
-                        <p className="text-xs text-muted-foreground italic">No counsellor notes recorded yet.</p>
+                        <p className="text-xs text-muted-foreground italic">
+                          No counsellor notes recorded yet.
+                        </p>
                       )}
                     </div>
 
                     {/* Timeline */}
                     <div className="space-y-3 pt-2">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Application Audit Trail</h4>
+                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        Application Audit Trail
+                      </h4>
                       <div className="space-y-3 border-l-2 border-border ml-2 pl-4">
                         {selectedApplication.timeline?.map((ev) => (
                           <div key={ev.id} className="relative space-y-0.5">
-                            <span className={`absolute -left-[23px] top-1 h-3.5 w-3.5 rounded-full border-2 border-background ${
-                              ev.completed ? "bg-emerald-500" : "bg-muted"
-                            }`} />
-                            <h5 className="text-xs font-bold text-foreground">{ev.title}</h5>
-                            <p className="text-[11px] text-muted-foreground">{ev.description}</p>
-                            <span className="text-[10px] text-muted-foreground block">{ev.timestamp}</span>
+                            <span
+                              className={`absolute -left-[23px] top-1 h-3.5 w-3.5 rounded-full border-2 border-background ${
+                                ev.completed ? "bg-emerald-500" : "bg-muted"
+                              }`}
+                            />
+                            <h5 className="text-xs font-bold text-foreground">
+                              {ev.title}
+                            </h5>
+                            <p className="text-[11px] text-muted-foreground">
+                              {ev.description}
+                            </p>
+                            <span className="text-[10px] text-muted-foreground block">
+                              {ev.timestamp}
+                            </span>
                           </div>
                         ))}
                       </div>
                     </div>
-
                   </div>
                 )}
-
               </div>
 
               {/* Drawer Bottom Actions Footer (Direct Convert — No Under Review Roadblock) */}
@@ -1761,7 +2134,9 @@ export const Applications: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleUpdateStatus(selectedApplication.id, "REJECTED")}
+                    onClick={() =>
+                      handleUpdateStatus(selectedApplication.id, "REJECTED")
+                    }
                     className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-border h-9 cursor-pointer"
                   >
                     Reject Application
@@ -1798,7 +2173,6 @@ export const Applications: React.FC = () => {
                   </Button>
                 </div>
               </div>
-
             </div>
           )}
         </SheetContent>
@@ -1808,15 +2182,18 @@ export const Applications: React.FC = () => {
       {isCreateModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
-            
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-2.5">
                 <div className="h-9 w-9 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center">
                   <Plus className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">New Admission Application</h3>
-                  <p className="text-xs text-muted-foreground">Log new applicant form into counsellor workflow</p>
+                  <h3 className="text-base font-extrabold text-foreground">
+                    New Admission Application
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    Log new applicant form into counsellor workflow
+                  </p>
                 </div>
               </div>
               <button
@@ -1828,9 +2205,10 @@ export const Applications: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateApplication} className="space-y-4">
-              
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Applicant Full Name *</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Applicant Full Name *
+                </label>
                 <Input
                   placeholder="e.g. Ananya Sharma"
                   value={createName}
@@ -1842,7 +2220,9 @@ export const Applications: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Mobile Number *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Mobile Number *
+                  </label>
                   <Input
                     placeholder="+91 98765 43210"
                     value={createPhone}
@@ -1852,7 +2232,9 @@ export const Applications: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Email Address</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Email Address
+                  </label>
                   <Input
                     type="email"
                     placeholder="applicant@email.com"
@@ -1865,66 +2247,170 @@ export const Applications: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Target Course *</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Target Course *
+                  </label>
                   <select
                     value={createCourse}
                     onChange={(e) => setCreateCourse(e.target.value)}
                     className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    <option value="Full Stack Web Development" className="bg-card text-foreground py-1.5">Full Stack Web Development</option>
-                    <option value="Data Science & Analytics" className="bg-card text-foreground py-1.5">Data Science & Analytics</option>
-                    <option value="UI/UX Product Design" className="bg-card text-foreground py-1.5">UI/UX Product Design</option>
-                    <option value="Artificial Intelligence & Python" className="bg-card text-foreground py-1.5">Artificial Intelligence & Python</option>
-                    <option value="Digital Marketing" className="bg-card text-foreground py-1.5">Digital Marketing</option>
-                    <option value="Advanced Excel" className="bg-card text-foreground py-1.5">Advanced Excel</option>
-                    <option value="Tally Prime with GST" className="bg-card text-foreground py-1.5">Tally Prime with GST</option>
-                    <option value="Web Designing" className="bg-card text-foreground py-1.5">Web Designing</option>
-                    <option value="Python Programming" className="bg-card text-foreground py-1.5">Python Programming</option>
+                    <option
+                      value="Full Stack Web Development"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Full Stack Web Development
+                    </option>
+                    <option
+                      value="Data Science & Analytics"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Data Science & Analytics
+                    </option>
+                    <option
+                      value="UI/UX Product Design"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      UI/UX Product Design
+                    </option>
+                    <option
+                      value="Artificial Intelligence & Python"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Artificial Intelligence & Python
+                    </option>
+                    <option
+                      value="Digital Marketing"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Digital Marketing
+                    </option>
+                    <option
+                      value="Advanced Excel"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Advanced Excel
+                    </option>
+                    <option
+                      value="Tally Prime with GST"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Tally Prime with GST
+                    </option>
+                    <option
+                      value="Web Designing"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Web Designing
+                    </option>
+                    <option
+                      value="Python Programming"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Python Programming
+                    </option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Program Duration</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Program Duration
+                  </label>
                   <select
                     value={createDuration}
                     onChange={(e) => setCreateDuration(e.target.value)}
                     className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
                   >
-                    <option value="(1 Year Program)" className="bg-card text-foreground py-1.5">(1 Year Program)</option>
-                    <option value="(6 Months Program)" className="bg-card text-foreground py-1.5">(6 Months Program)</option>
-                    <option value="(3 Months Program)" className="bg-card text-foreground py-1.5">(3 Months Program)</option>
-                    <option value="(2 Months Program)" className="bg-card text-foreground py-1.5">(2 Months Program)</option>
+                    <option
+                      value="(1 Year Program)"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      (1 Year Program)
+                    </option>
+                    <option
+                      value="(6 Months Program)"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      (6 Months Program)
+                    </option>
+                    <option
+                      value="(3 Months Program)"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      (3 Months Program)
+                    </option>
+                    <option
+                      value="(2 Months Program)"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      (2 Months Program)
+                    </option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Application Fee Status</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Application Fee Status
+                  </label>
                   <select
                     value={createFeeStatus}
-                    onChange={(e) => setCreateFeeStatus(e.target.value as "PAID" | "NOT_PAID")}
+                    onChange={(e) =>
+                      setCreateFeeStatus(e.target.value as "PAID" | "NOT_PAID")
+                    }
                     className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
                   >
-                    <option value="PAID" className="bg-card text-foreground py-1.5">Paid (₹500)</option>
-                    <option value="NOT_PAID" className="bg-card text-foreground py-1.5">Not Paid (Pending)</option>
+                    <option
+                      value="PAID"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Paid (₹500)
+                    </option>
+                    <option
+                      value="NOT_PAID"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Not Paid (Pending)
+                    </option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Initial Status</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    Initial Status
+                  </label>
                   <select
                     value={createStatus}
-                    onChange={(e) => setCreateStatus(e.target.value as DetailedStatus)}
+                    onChange={(e) =>
+                      setCreateStatus(e.target.value as DetailedStatus)
+                    }
                     className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
                   >
-                    <option value="UNDER_REVIEW_BLUE" className="bg-card text-foreground py-1.5">Under Review</option>
-                    <option value="NEW_APPLICATION" className="bg-card text-foreground py-1.5">New Application</option>
-                    <option value="APPROVED" className="bg-card text-foreground py-1.5">Approved</option>
+                    <option
+                      value="UNDER_REVIEW_BLUE"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Under Review
+                    </option>
+                    <option
+                      value="NEW_APPLICATION"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      New Application
+                    </option>
+                    <option
+                      value="APPROVED"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Approved
+                    </option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Counsellor Remarks / Initial Note</label>
+                <label className="block text-xs font-bold text-foreground mb-1">
+                  Counsellor Remarks / Initial Note
+                </label>
                 <Input
                   placeholder="e.g. Document verification initiated. Eligible for batch DM-01."
                   value={createNotes}
@@ -1949,9 +2435,7 @@ export const Applications: React.FC = () => {
                   Create Application
                 </Button>
               </div>
-
             </form>
-
           </div>
         </div>
       )}
@@ -2133,7 +2617,6 @@ export const Applications: React.FC = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

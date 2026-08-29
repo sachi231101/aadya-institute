@@ -35,7 +35,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useAssignments, useCreateAssignment } from "@/hooks/useAssignments";
+import { useAssignments, useCreateAssignment, useGradeSubmission } from "@/hooks/useAssignments";
 import { useAuthStore } from "@/store/auth.store";
 import { useAssignmentStore } from "@/store/assignment.store";
 import { useQuery } from "@tanstack/react-query";
@@ -49,42 +49,18 @@ interface FacultyBatchOption {
   studentCount: number;
 }
 
-const DEFAULT_FACULTY_BATCHES: FacultyBatchOption[] = [
-  {
-    id: "batch-fs-m01",
-    name: "Morning Batch M01",
-    code: "FS-2026-M01",
-    courseName: "Full Stack Web Development",
-    studentCount: 32,
-  },
-  {
-    id: "batch-be-201",
-    name: "Weekend Advanced Batch",
-    code: "BE-2026-W01",
-    courseName: "Node.js Backend Architecture",
-    studentCount: 24,
-  },
-  {
-    id: "batch-py-102",
-    name: "Data Science Cohort A",
-    code: "PY-2026-A01",
-    courseName: "Python Data Science & AI",
-    studentCount: 28,
-  },
-  {
-    id: "batch-re-104",
-    name: "React Masters Evening",
-    code: "RE-2026-E01",
-    courseName: "React & Modern Frontend",
-    studentCount: 30,
-  },
-];
-
 export const FacultyAssignments: React.FC = () => {
   const { user } = useAuthStore();
   const { addAssignment } = useAssignmentStore();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [gradeTarget, setGradeTarget] = useState<{
+    assignmentTitle: string;
+    submission: any;
+  } | null>(null);
+  const [gradeMarks, setGradeMarks] = useState("");
+  const [gradeFeedback, setGradeFeedback] = useState("");
+  const gradeMutation = useGradeSubmission();
 
   // Create Assignment Form State
   const [title, setTitle] = useState("");
@@ -111,7 +87,7 @@ export const FacultyAssignments: React.FC = () => {
     queryFn: () => batchesApi.getAll(),
   });
 
-  // Filter batches assigned to this faculty (or fallback to defaults)
+  // Filter batches assigned to this faculty
   const assignedBatches: FacultyBatchOption[] = useMemo(() => {
     const liveBatches = batchesRes?.data;
     if (Array.isArray(liveBatches) && liveBatches.length > 0) {
@@ -120,60 +96,31 @@ export const FacultyAssignments: React.FC = () => {
         name: b.name,
         code: b.code || "BATCH-01",
         courseName: b.course?.name || "Academy Course",
-        studentCount: b.enrollments?.length || b.capacity || 25,
+        studentCount: b._count?.enrollments || b.enrollments?.length || b.capacity || 0,
       }));
     }
-    return DEFAULT_FACULTY_BATCHES;
+    return [];
   }, [batchesRes]);
-
-  // Combined assignment list
+  // Combined assignment list — prefer live API, keep local optimistic creates
   const allAssignments = useMemo(() => {
-    const initial = [
-      {
-        id: "asg-01",
-        title: "React Component & Custom Hooks Exercise",
-        courseName: "React & Modern Frontend",
-        batchName: "React Masters Evening",
-        batchCode: "RE-2026-E01",
-        instructions: "Implement a customizable Modal dialog and useDebounce custom hook.",
-        dueDate: "2026-09-05T23:59:00",
-        submissionCount: 26,
-        totalStudents: 30,
-        status: "ACTIVE",
-        hasDocument: true,
-        documentName: "React_Exercise_01.pdf",
-      },
-      {
-        id: "asg-02",
-        title: "RESTful API Design & Prisma Schema",
-        courseName: "Node.js Backend Architecture",
-        batchName: "Weekend Advanced Batch",
-        batchCode: "BE-2026-W01",
-        instructions: "Build endpoints for student batch enrollment with input validation.",
-        dueDate: "2026-09-10T23:59:00",
-        submissionCount: 18,
-        totalStudents: 24,
-        status: "ACTIVE",
-        hasDocument: true,
-        documentName: "Backend_API_Spec.pdf",
-      },
-      {
-        id: "asg-03",
-        title: "Database Indexing & Query Optimization",
-        courseName: "Full Stack Web Development",
-        batchName: "Morning Batch M01",
-        batchCode: "FS-2026-M01",
-        instructions: "Analyze query execution plans and create composite indexes.",
-        dueDate: "2026-08-20T23:59:00",
-        submissionCount: 32,
-        totalStudents: 32,
-        status: "COMPLETED",
-        hasDocument: false,
-      },
-    ];
-    return [...localAssignments, ...initial];
+    const fromApi = (apiAssignments || []).map((a: any) => ({
+      id: a.id,
+      title: a.title,
+      courseName: a.classSession?.batch?.course?.name || a.classSession?.title || "Course",
+      batchName: a.classSession?.batch?.name || "",
+      batchCode: a.classSession?.batch?.code || "",
+      instructions: a.description || "",
+      dueDate: a.dueDate,
+      submissionCount: (a.submissions || []).filter((s: any) => s.submittedAt).length,
+      totalStudents: (a.submissions || []).length,
+      pendingGrade: (a.submissions || []).filter((s: any) => s.submittedAt && s.marks == null).length,
+      status: a.status || "ACTIVE",
+      hasDocument: false,
+      submissions: a.submissions || [],
+      raw: a,
+    }));
+    return [...localAssignments, ...fromApi];
   }, [localAssignments, apiAssignments]);
-
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return allAssignments;
     const q = searchTerm.toLowerCase();
@@ -268,7 +215,6 @@ export const FacultyAssignments: React.FC = () => {
         title: title.trim(),
         description: instructions.trim(),
         batchId: selectedBatch.id,
-        facultyId: (user as any)?.facultyId || user?.id || "",
         dueDate: combinedDueDateTime,
       },
       {
@@ -505,6 +451,29 @@ export const FacultyAssignments: React.FC = () => {
                     </TableCell>
 
                     <TableCell className="text-right pr-6">
+                      <div className="flex items-center justify-end gap-2">
+                        {assignment.pendingGrade > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[10px] h-7"
+                            onClick={() => {
+                              const pending = (assignment.submissions || []).find(
+                                (s: any) => s.submittedAt && s.marks == null
+                              );
+                              if (pending) {
+                                setGradeTarget({
+                                  assignmentTitle: assignment.title,
+                                  submission: pending,
+                                });
+                                setGradeMarks("");
+                                setGradeFeedback("");
+                              }
+                            }}
+                          >
+                            Grade ({assignment.pendingGrade})
+                          </Button>
+                        )}
                       <Badge
                         className={`text-[10px] font-extrabold uppercase border ${
                           assignment.status === "ACTIVE"
@@ -514,6 +483,7 @@ export const FacultyAssignments: React.FC = () => {
                       >
                         {assignment.status}
                       </Badge>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -703,6 +673,72 @@ export const FacultyAssignments: React.FC = () => {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!gradeTarget} onOpenChange={(open) => !open && setGradeTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Grade submission</DialogTitle>
+          </DialogHeader>
+          {gradeTarget && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                {gradeTarget.assignmentTitle} ·{" "}
+                {gradeTarget.submission?.student?.user?.name ||
+                  gradeTarget.submission?.studentId ||
+                  "Student"}
+              </p>
+              <div>
+                <Label>Marks</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={gradeMarks}
+                  onChange={(e) => setGradeMarks(e.target.value)}
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label>Feedback</Label>
+                <Input
+                  value={gradeFeedback}
+                  onChange={(e) => setGradeFeedback(e.target.value)}
+                  className="mt-1"
+                  placeholder="Optional comments"
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setGradeTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  className="bg-[#1769AA] text-white"
+                  disabled={!gradeMarks || gradeMutation.isPending}
+                  onClick={() => {
+                    gradeMutation.mutate(
+                      {
+                        submissionId: gradeTarget.submission.id,
+                        data: {
+                          marks: Number(gradeMarks),
+                          feedback: gradeFeedback || undefined,
+                        },
+                      },
+                      {
+                        onSuccess: () => {
+                          setGradeTarget(null);
+                          setSuccessToast("Submission graded successfully");
+                          setTimeout(() => setSuccessToast(null), 3000);
+                        },
+                      }
+                    );
+                  }}
+                >
+                  {gradeMutation.isPending ? "Saving..." : "Save grade"}
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

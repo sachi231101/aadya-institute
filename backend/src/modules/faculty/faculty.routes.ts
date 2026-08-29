@@ -6,30 +6,43 @@ import { validate } from "../../middlewares/validation.middleware";
 import {
   createFacultySchema,
   updateFacultySchema,
+  listFacultyQuerySchema,
+  myStudentsQuerySchema,
   assignCourseSchema,
   markAttendanceSchema,
 } from "./faculty.validation";
 
 const router = Router();
 
-// All faculty routes require authentication
 router.use(authMiddleware);
 
-// GET /api/v1/faculty — List all faculty
+// Personal teaching desk — must be registered before /:id
+router.get(
+  "/me/dashboard",
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  controller.getMyDashboard
+);
+
+router.get(
+  "/me/students",
+  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  validate(myStudentsQuerySchema, "query"),
+  controller.getMyStudents
+);
+
 router.get(
   "/",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  validate(listFacultyQuerySchema, "query"),
   controller.getAll
 );
 
-// GET /api/v1/faculty/courses — List assigned courses/batches
 router.get(
   "/courses",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getCourses
 );
 
-// POST /api/v1/faculty/courses/assign — Assign faculty to a batch
 router.post(
   "/courses/assign",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
@@ -37,14 +50,12 @@ router.post(
   controller.assignCourse
 );
 
-// GET /api/v1/faculty/attendance — List faculty attendance records
 router.get(
   "/attendance",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getAttendance
 );
 
-// POST /api/v1/faculty/attendance — Mark/log faculty attendance
 router.post(
   "/attendance",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
@@ -52,14 +63,12 @@ router.post(
   controller.markAttendance
 );
 
-// GET /api/v1/faculty/:id — Get single faculty
 router.get(
   "/:id",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   controller.getById
 );
 
-// POST /api/v1/faculty — Create faculty
 router.post(
   "/",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
@@ -67,7 +76,6 @@ router.post(
   controller.create
 );
 
-// PATCH /api/v1/faculty/:id — Update faculty (not self-serve for FACULTY role)
 router.patch(
   "/:id",
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
@@ -75,7 +83,6 @@ router.patch(
   controller.update
 );
 
-// DELETE /api/v1/faculty/:id — Soft-delete faculty (ADMIN only)
 router.delete(
   "/:id",
   requireRole("ADMIN"),

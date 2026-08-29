@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { 
   BookOpen, 
   Users, 
@@ -14,7 +14,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
-import { useCourseStore } from "../../../store/course.store";
+import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "../../../store/auth.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
@@ -33,8 +33,15 @@ const formatSchedules = (schedules: { dayOfWeek: number; startTime: string; endT
 
 export const FacultyCourses: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const initialFacultyId = searchParams.get("facultyId") || "";
+
+  const basePath = location.pathname.startsWith("/center")
+    ? "/center"
+    : location.pathname.startsWith("/faculty")
+    ? "/faculty"
+    : "/admin";
 
   const { user } = useAuthStore();
   const userRoles = user?.roles || (user?.role ? [user.role] : []);
@@ -48,16 +55,28 @@ export const FacultyCourses: React.FC = () => {
   const [selectedCourseFilter, setSelectedCourseFilter] = useState<string>("ALL");
   const [selectedBranchFilter, setSelectedBranchFilter] = useState<string>("ALL");
   const [showAssignModal, setShowAssignModal] = useState<boolean>(false);
+  const [assignError, setAssignError] = useState<string | null>(null);
 
-  // Store batches
-  const { batches: storeBatches, fetchBatches } = useCourseStore();
+  const { batches: liveBatches } = useBatches();
   const { courses: allCoursesList } = useCourses();
   const { data: branchesResponse } = useBranches({ limit: 50 });
   const branches = branchesResponse?.data || [];
 
-  React.useEffect(() => {
-    fetchBatches();
-  }, [fetchBatches]);
+  useEffect(() => {
+    if (initialFacultyId && initialFacultyId !== selectedFacultyId) {
+      setSelectedFacultyId(initialFacultyId);
+    }
+  }, [initialFacultyId]);
+
+  const handleFacultyFilterChange = (value: string) => {
+    setSelectedFacultyId(value);
+    if (value === "ALL") {
+      searchParams.delete("facultyId");
+      setSearchParams(searchParams);
+    } else {
+      setSearchParams({ facultyId: value });
+    }
+  };
 
   // Modal Form state (Admin/Manager/Counsellor only)
   const [newFacultyId, setNewFacultyId] = useState<string>("");
@@ -70,45 +89,34 @@ export const FacultyCourses: React.FC = () => {
   };
 
   const { data: coursesResponse, isLoading, isError, refetch } = useFacultyCourses(coursesParams);
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
+  const { data: facultyResponse } = useFacultyList({ limit: 100, status: "ACTIVE" });
   const assignMutation = useAssignFacultyCourse();
 
   const actualAssignments = coursesResponse?.data ?? [];
-  const facultyList = facultyResponse?.data ?? [];
+  const facultyList = (facultyResponse?.data ?? []).filter((f) => f.status === "ACTIVE");
 
   // Filter assignments according to role and status
   const assignments = useMemo(() => {
     return actualAssignments.filter((a) => {
-      // 1. Status filter
       const matchesStatus = selectedStatusFilter === "ALL" || a.status === selectedStatusFilter;
-
-      // 2. Course filter
       const matchesCourse = selectedCourseFilter === "ALL" || 
         a.course?.id === selectedCourseFilter || 
         a.course?.name === selectedCourseFilter;
-
-      // 3. Branch filter
       const matchesBranch = selectedBranchFilter === "ALL" || 
         a.branchId === selectedBranchFilter || 
         a.branch?.id === selectedBranchFilter;
 
-      // 4. Faculty isolation: if faculty-only, backend already limits, but double-check locally
       if (isFacultyOnly && user) {
-        const userName = (user.name || "").trim().toLowerCase();
-        const facultyUserName = (a.faculty?.user?.name || "").trim().toLowerCase();
-        const matchesFacultyUser = a.faculty?.user?.id === user.id || 
-          (a.faculty as any)?.userId === user.id ||
-          facultyUserName === userName ||
-          (userName && facultyUserName.includes(userName));
-        
-        return matchesStatus && matchesCourse && matchesBranch && (matchesFacultyUser || !a.faculty);
+        const matchesFacultyUser =
+          a.faculty?.user?.id === user.id ||
+          (a.faculty as { userId?: string } | null)?.userId === user.id;
+        return matchesStatus && matchesCourse && matchesBranch && matchesFacultyUser;
       }
 
       return matchesStatus && matchesCourse && matchesBranch;
     });
   }, [actualAssignments, selectedStatusFilter, selectedCourseFilter, selectedBranchFilter, isFacultyOnly, user]);
 
-  // Key stats
   const totalCoursesCount = new Set(assignments.map((a) => a.course?.id || a.courseId)).size;
   const activeBatchesCount = assignments.filter((a) => a.status === "ACTIVE" || !a.status).length;
   const totalStudentsTaught = assignments.reduce((acc, curr) => acc + (curr._count?.enrollments ?? 0), 0);
@@ -118,6 +126,7 @@ export const FacultyCourses: React.FC = () => {
     if (!newFacultyId || !newBatchId) return;
 
     try {
+      setAssignError(null);
       await assignMutation.mutateAsync({
         batchId: newBatchId,
         facultyId: newFacultyId,
@@ -126,8 +135,8 @@ export const FacultyCourses: React.FC = () => {
       setNewBatchId("");
       setShowAssignModal(false);
       refetch();
-    } catch (error) {
-      console.error("Failed to assign faculty to batch:", error);
+    } catch (error: any) {
+      setAssignError(error?.response?.data?.message || "Failed to assign faculty to batch");
     }
   };
 
@@ -239,7 +248,7 @@ export const FacultyCourses: React.FC = () => {
             <div className="relative min-w-[200px]">
               <select
                 value={selectedFacultyId}
-                onChange={(e) => setSelectedFacultyId(e.target.value)}
+                onChange={(e) => handleFacultyFilterChange(e.target.value)}
                 className="w-full h-9 pl-3 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
               >
                 <option value="ALL">All Faculty Members</option>
@@ -395,14 +404,14 @@ export const FacultyCourses: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(isFacultyOnly ? `/faculty/batches` : `/admin/courses/batches`)}
+                    onClick={() => navigate(isFacultyOnly ? `/faculty/batches` : `${basePath}/courses/batches`)}
                     className="flex-1 text-xs font-bold h-8.5 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
                   >
                     View Batch
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => navigate(isFacultyOnly ? `/faculty/schedule/classes` : `/admin/schedule/classes`)}
+                    onClick={() => navigate(isFacultyOnly ? `/faculty/schedule/classes` : `${basePath}/schedule/classes`)}
                     className="flex-1 bg-primary hover:bg-primary/90 text-white text-xs font-bold h-8.5 rounded-xl shadow-2xs gap-1 cursor-pointer"
                   >
                     Mark Attendance
@@ -427,6 +436,11 @@ export const FacultyCourses: React.FC = () => {
             </div>
 
             <form onSubmit={handleAssignSubmit} className="space-y-4 text-xs">
+              {assignError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                  {assignError}
+                </div>
+              )}
               <div className="space-y-1.5">
                 <label className="font-bold text-foreground">Select Faculty Member *</label>
                 <select
@@ -436,9 +450,9 @@ export const FacultyCourses: React.FC = () => {
                   className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer"
                 >
                   <option value="">-- Choose Faculty --</option>
-                  {facultyList.map((f: any) => (
+                  {facultyList.map((f) => (
                     <option key={f.id} value={f.id}>
-                      {f.user?.name || f.name} ({f.employeeCode || "FA"})
+                      {f.user?.name || "Faculty"} ({f.employeeCode || "FA"})
                     </option>
                   ))}
                 </select>
@@ -453,9 +467,10 @@ export const FacultyCourses: React.FC = () => {
                   className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer"
                 >
                   <option value="">-- Choose Batch --</option>
-                  {storeBatches.map((b) => (
+                  {liveBatches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.code} – {b.name} ({b.courseName || "Course"})
+                      {b.code} – {b.name} ({b.course?.name || "Course"})
+                      {b.facultyId ? " · already assigned" : ""}
                     </option>
                   ))}
                 </select>

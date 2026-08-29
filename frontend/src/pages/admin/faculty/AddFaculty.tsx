@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -7,6 +7,7 @@ import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 
 import {
   Form,
@@ -19,24 +20,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, UserPlus, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, UserPlus, Save, Loader2, RefreshCw } from "lucide-react";
 
 const facultySchema = z.object({
-  employeeCode: z.string().min(1, "Employee Code is required").max(20),
+  employeeCode: z.string().max(20).optional().or(z.literal("")),
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
   password: z.string().min(8, "Password must be at least 8 characters"),
   specialization: z.string().optional().or(z.literal("")),
   branchId: z.string().min(1, "Branch is required"),
-  // ZenoxERP-aligned additional fields
-  dateOfBirth: z.string().optional().or(z.literal("")),
-  gender: z.string().optional().or(z.literal("")),
   designationMasterId: z.string().optional().or(z.literal("")),
-  department: z.string().optional().or(z.literal("")),
-  dateOfJoining: z.string().optional().or(z.literal("")),
-  employmentType: z.string().optional().or(z.literal("")),
-  address: z.string().optional().or(z.literal("")),
   qualificationMasterId: z.string().optional().or(z.literal("")),
 });
 
@@ -49,6 +43,10 @@ export const AddFaculty: React.FC = () => {
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
+
+  const { data: employeeSeriesData, refetch: refetchEmployeePreview, isLoading: isEmployeePreviewLoading } =
+    useNumberingSeriesPreview("EMPLOYEE");
+  const [employeeCodeManuallyEdited, setEmployeeCodeManuallyEdited] = useState(false);
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -68,25 +66,42 @@ export const AddFaculty: React.FC = () => {
       password: "",
       specialization: "",
       branchId: isCenterManager && user?.branchId ? user.branchId : "",
-      dateOfBirth: "",
-      gender: "Male",
       designationMasterId: "",
-      department: "",
-      dateOfJoining: new Date().toISOString().split("T")[0],
-      employmentType: "Full-Time",
-      address: "",
       qualificationMasterId: "",
     },
   });
 
+  useEffect(() => {
+    if (employeeCodeManuallyEdited) return;
+    if (employeeSeriesData?.data?.preview) {
+      form.setValue("employeeCode", employeeSeriesData.data.preview);
+    }
+  }, [employeeSeriesData, form, employeeCodeManuallyEdited]);
+
+  const generateNewCode = async () => {
+    setEmployeeCodeManuallyEdited(false);
+    const result = await refetchEmployeePreview();
+    const preview = result.data?.data?.preview;
+    if (preview) {
+      form.setValue("employeeCode", preview);
+    }
+  };
+
   const onSubmit = async (data: FacultyFormValues) => {
     try {
+      const trimmedCode = data.employeeCode?.trim();
+      const previewCode = employeeSeriesData?.data?.preview;
+      const shouldAutoAssign =
+        !trimmedCode ||
+        !employeeCodeManuallyEdited ||
+        (previewCode && trimmedCode.toUpperCase() === previewCode.toUpperCase());
+
       await createMutation.mutateAsync({
         name: data.name,
         email: data.email || undefined,
         phone: data.phone || undefined,
         password: data.password,
-        employeeCode: data.employeeCode,
+        employeeCode: shouldAutoAssign ? undefined : trimmedCode?.toUpperCase(),
         specialization: data.specialization || undefined,
         branchId: data.branchId,
         designationMasterId: data.designationMasterId || undefined,
@@ -101,10 +116,9 @@ export const AddFaculty: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      {/* Back Button & Title */}
       <div className="flex items-center gap-4">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           size="icon"
           onClick={() => navigate(`${basePath}/faculty/all`)}
         >
@@ -113,12 +127,11 @@ export const AddFaculty: React.FC = () => {
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">Add New Faculty</h2>
           <p className="text-sm text-text-secondary">
-            Register a new professor or technical instructor to the academy.
+            Register a new professor or technical instructor. Employee Code comes from Master Setup numbering series.
           </p>
         </div>
       </div>
 
-      {/* Main Card Form */}
       <Card className="border-border/50 shadow-sm bg-bg-primary">
         <CardHeader className="border-b border-border/50 pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -126,14 +139,13 @@ export const AddFaculty: React.FC = () => {
             Faculty Information
           </CardTitle>
           <CardDescription>
-            Enter personal details, credentials, specialization, and branch assignment.
+            Employee Code is auto-generated from the EMPLOYEE numbering series in Master Setup.
           </CardDescription>
         </CardHeader>
-        
+
         <CardContent className="pt-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Root-level error */}
               {form.formState.errors.root && (
                 <div className="p-3 rounded-md bg-destructive/10 text-destructive text-sm font-medium">
                   {form.formState.errors.root.message}
@@ -141,23 +153,54 @@ export const AddFaculty: React.FC = () => {
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Employee Code */}
                 <FormField
                   control={form.control}
                   name="employeeCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Employee Code *</FormLabel>
+                      <FormLabel className="flex items-center justify-between gap-2">
+                        <span>Employee Code</span>
+                        <button
+                          type="button"
+                          onClick={generateNewCode}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1769AA] hover:underline"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Refresh from Master
+                        </button>
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g. FAC-2026-01" {...field} />
+                        <Input
+                          placeholder={
+                            isEmployeePreviewLoading
+                              ? "Loading next number from Master..."
+                              : employeeSeriesData?.data?.preview ||
+                                "Configure EMPLOYEE series in Master Setup"
+                          }
+                          {...field}
+                          onChange={(e) => {
+                            setEmployeeCodeManuallyEdited(true);
+                            field.onChange(e);
+                          }}
+                          className="font-mono font-medium text-slate-800 uppercase"
+                        />
                       </FormControl>
+                      {employeeSeriesData?.data?.preview && (
+                        <p className="text-[10px] text-slate-500 font-medium">
+                          Next from Master:{" "}
+                          <span className="font-mono text-[#1769AA]">
+                            {employeeSeriesData.data.preview}
+                          </span>
+                          {" "}
+                          (counter #{employeeSeriesData.data.currentSequence} → #
+                          {employeeSeriesData.data.nextSequence})
+                        </p>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                {/* Full Name */}
                 <FormField
                   control={form.control}
                   name="name"
@@ -172,7 +215,6 @@ export const AddFaculty: React.FC = () => {
                   )}
                 />
 
-                {/* Email Address */}
                 <FormField
                   control={form.control}
                   name="email"
@@ -187,7 +229,6 @@ export const AddFaculty: React.FC = () => {
                   )}
                 />
 
-                {/* Phone Number */}
                 <FormField
                   control={form.control}
                   name="phone"
@@ -202,7 +243,6 @@ export const AddFaculty: React.FC = () => {
                   )}
                 />
 
-                {/* Password */}
                 <FormField
                   control={form.control}
                   name="password"
@@ -217,7 +257,6 @@ export const AddFaculty: React.FC = () => {
                   )}
                 />
 
-                {/* Branch */}
                 <FormField
                   control={form.control}
                   name="branchId"
@@ -226,13 +265,13 @@ export const AddFaculty: React.FC = () => {
                       <FormLabel>Branch *</FormLabel>
                       <FormControl>
                         {isCenterManager ? (
-                          <Input 
-                            value={branches.find(b => b.id === field.value)?.name || field.value} 
-                            disabled 
-                            className="bg-slate-100 text-slate-700 font-medium" 
+                          <Input
+                            value={branches.find((b) => b.id === field.value)?.name || field.value}
+                            disabled
+                            className="bg-slate-100 text-slate-700 font-medium"
                           />
                         ) : (
-                          <select 
+                          <select
                             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
                             {...field}
                             disabled={branchesLoading}
@@ -251,7 +290,6 @@ export const AddFaculty: React.FC = () => {
                   )}
                 />
 
-                {/* Specialization */}
                 <FormField
                   control={form.control}
                   name="specialization"
@@ -265,179 +303,61 @@ export const AddFaculty: React.FC = () => {
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="designationMasterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation</FormLabel>
+                      <FormControl>
+                        <MasterSelect
+                          entityType="designation"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select Designation"
+                          className="mt-0 rounded-md h-10"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="qualificationMasterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Qualification</FormLabel>
+                      <FormControl>
+                        <MasterSelect
+                          entityType="education"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select qualification"
+                          className="mt-0 rounded-md h-10"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
-              {/* ZenoxERP-aligned: Extended Faculty Details */}
-              <div className="pt-5 border-t border-border/50">
-                <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <UserPlus className="h-4 w-4 text-[#1769AA]" />
-                  Job & Academic Details
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-                  {/* Date of Birth */}
-                  <FormField
-                    control={form.control}
-                    name="dateOfBirth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Birth</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Gender */}
-                  <FormField
-                    control={form.control}
-                    name="gender"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Gender</FormLabel>
-                        <FormControl>
-                          <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
-                            {...field}
-                          >
-                            <option value="Male">Male</option>
-                            <option value="Female">Female</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Designation */}
-                  <FormField
-                    control={form.control}
-                    name="designationMasterId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Designation</FormLabel>
-                        <FormControl>
-                          <MasterSelect
-                            entityType="designation"
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            placeholder="Select Designation"
-                            className="mt-0 rounded-md h-10"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Department */}
-                  <FormField
-                    control={form.control}
-                    name="department"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Department</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g. Computer Science" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Date of Joining */}
-                  <FormField
-                    control={form.control}
-                    name="dateOfJoining"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Date of Joining *</FormLabel>
-                        <FormControl>
-                          <Input type="date" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Employment Type */}
-                  <FormField
-                    control={form.control}
-                    name="employmentType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Employment Type</FormLabel>
-                        <FormControl>
-                          <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
-                            {...field}
-                          >
-                            <option value="Full-Time">Full-Time</option>
-                            <option value="Part-Time">Part-Time</option>
-                            <option value="Visiting Faculty">Visiting Faculty</option>
-                            <option value="Contract">Contract</option>
-                          </select>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Qualification */}
-                  <FormField
-                    control={form.control}
-                    name="qualificationMasterId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Qualification</FormLabel>
-                        <FormControl>
-                          <MasterSelect
-                            entityType="education"
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            placeholder="Select qualification"
-                            className="mt-0 rounded-md h-10"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  {/* Address */}
-                  <FormField
-                    control={form.control}
-                    name="address"
-                    render={({ field }) => (
-                      <FormItem className="md:col-span-2">
-                        <FormLabel>Address</FormLabel>
-                        <FormControl>
-                          <Input placeholder="Full residential address" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-              </div>
-
-              {/* Bottom Action Footer */}
               <div className="flex items-center justify-end gap-3 pt-6 border-t border-border/50">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={() => navigate("/admin/faculty/all")}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate(`${basePath}/faculty/all`)}
                   disabled={createMutation.isPending}
                   className="px-5 font-medium transition-colors"
                 >
                   Cancel
                 </Button>
-                
-                <Button 
-                  type="submit" 
+
+                <Button
+                  type="submit"
                   disabled={createMutation.isPending}
                   className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
                 >

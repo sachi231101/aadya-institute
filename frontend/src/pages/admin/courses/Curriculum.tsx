@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { 
   Layers, 
   Plus, 
@@ -20,14 +21,25 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
 export const Curriculum: React.FC = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const courseIdFromUrl = searchParams.get("courseId") || "";
   const { courses, loading: coursesLoading } = useCourses();
-  const [selectedCourseId, setSelectedCourseId] = useState<string>("");
+  const [selectedCourseId, setSelectedCourseId] = useState<string>(courseIdFromUrl);
 
   useEffect(() => {
+    if (courseIdFromUrl && courseIdFromUrl !== selectedCourseId) {
+      setSelectedCourseId(courseIdFromUrl);
+      return;
+    }
     if (courses.length > 0 && !selectedCourseId) {
       setSelectedCourseId(courses[0].id);
     }
-  }, [courses, selectedCourseId]);
+  }, [courses, selectedCourseId, courseIdFromUrl]);
+
+  const handleSelectCourse = (courseId: string) => {
+    setSelectedCourseId(courseId);
+    setSearchParams(courseId ? { courseId } : {});
+  };
 
   const {
     modules,
@@ -35,6 +47,7 @@ export const Curriculum: React.FC = () => {
     createModule,
     addTopic,
     toggleTopic,
+    deleteTopic,
     deleteModule,
   } = useModules(selectedCourseId);
 
@@ -113,6 +126,16 @@ export const Curriculum: React.FC = () => {
     }
   };
 
+  const handleDeleteTopic = async (moduleId: string, topicId: string) => {
+    if (confirm("Are you sure you want to remove this topic?")) {
+      try {
+        await deleteTopic(moduleId, topicId);
+      } catch (err: any) {
+        alert(err.response?.data?.message || err.message || "Failed to delete topic");
+      }
+    }
+  };
+
   const handleDeleteModule = async (moduleId: string) => {
     if (confirm("Are you sure you want to delete this module?")) {
       await deleteModule(moduleId);
@@ -151,7 +174,7 @@ export const Curriculum: React.FC = () => {
                 ) : (
                   <select
                     value={selectedCourseId}
-                    onChange={(e) => setSelectedCourseId(e.target.value)}
+                    onChange={(e) => handleSelectCourse(e.target.value)}
                     className="h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-sm font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary min-w-[280px] cursor-pointer"
                   >
                     {courses.map((c) => (
@@ -290,9 +313,20 @@ export const Curriculum: React.FC = () => {
                               </div>
                             </div>
 
-                            <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold whitespace-nowrap">
-                              <Clock className="h-3.5 w-3.5" />
-                              <span>{topic.durationHours || 4} hrs</span>
+                            <div className="flex items-center gap-3 text-xs text-muted-foreground font-semibold whitespace-nowrap">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                <span>{topic.durationHours || 4} hrs</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-md cursor-pointer"
+                                onClick={() => handleDeleteTopic(module.id, topic.id)}
+                                title="Remove topic"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
                             </div>
                           </div>
                         ))}

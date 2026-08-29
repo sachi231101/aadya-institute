@@ -97,6 +97,7 @@ const rawCenterNavItems: NavItem[] = [
     requiredPermissions: ["course.read", "module.read", "batch.read"],
     items: [
       { title: "All Courses", url: "/center/courses/all" },
+      { title: "Curriculum", url: "/center/courses/curriculum" },
       { title: "Batches", url: "/center/courses/batches" },
     ],
   },

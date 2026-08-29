@@ -17,7 +17,17 @@ export const useFeedbackByStudent = (studentId: string) => {
   });
 };
 
-export const useFacultyRatings = (params?: { facultyId?: string; batchId?: string }) => {
+export const useFeedbackByFaculty = (facultyId?: string) => {
+  return useQuery({
+    queryKey: ["feedback", "faculty", facultyId || "me"],
+    queryFn: () =>
+      facultyId
+        ? feedbackApi.getFeedbackByFaculty(facultyId)
+        : feedbackApi.getFeedbackByFacultyMe(),
+  });
+};
+
+export const useFacultyRatings = (params?: { facultyId?: string; batchId?: string; branchId?: string }) => {
   return useQuery({
     queryKey: ["feedback", "ratings", params],
     queryFn: () => feedbackApi.getFacultyRatings(params),
