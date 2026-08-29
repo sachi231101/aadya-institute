@@ -14,7 +14,11 @@ import {
   UserCheck,
   PlusCircle,
   Layers,
-  MapPin
+  MapPin,
+  LogIn,
+  LogOut,
+  RotateCcw,
+  Sparkles
 } from "lucide-react";
 import {
   Table,
@@ -39,6 +43,8 @@ import {
 import { useBranches } from "@/hooks/useBranches";
 import { useFacultyList, useFacultyAttendance, useMarkFacultyAttendance } from "@/hooks/useFaculty";
 import { useBranchStore } from "@/store/branch.store";
+import { classSessionsApi } from "@/services/class-sessions.api";
+import { useQuery } from "@tanstack/react-query";
 import type { FacultyAttendanceRecord } from "@/types/faculty.types";
 
 export const FacultyAttendance: React.FC = () => {
@@ -88,6 +94,19 @@ export const FacultyAttendance: React.FC = () => {
 
   const markAttendanceMutation = useMarkFacultyAttendance();
 
+  // Query class sessions dynamically when a faculty is chosen in modal
+  const { data: facultySessionsRes, isLoading: isSessionsLoading } = useQuery({
+    queryKey: ["modal-faculty-sessions", logFacultyId, selectedBranchId],
+    queryFn: () =>
+      classSessionsApi.getAll({
+        facultyId: logFacultyId || undefined,
+        branchId: selectedBranchId !== "ALL" ? selectedBranchId : undefined,
+      }),
+    enabled: Boolean(logFacultyId),
+  });
+
+  const facultySessionsList = facultySessionsRes?.data || [];
+
   const attendanceRecords = attendanceResponse?.data || [];
   const totalRecords = attendanceResponse?.meta?.total || attendanceRecords.length;
   const totalPages = Math.ceil(totalRecords / itemsPerPage) || 1;
@@ -133,10 +152,28 @@ export const FacultyAttendance: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const openLogModalForSession = (rec: FacultyAttendanceRecord) => {
+    setLogFacultyId(rec.facultyId);
+    setLogClassSessionId(rec.classSessionId);
+    setLogLoginAt(rec.loginAt ? new Date(rec.loginAt).toISOString().slice(0, 16) : "");
+    setLogLogoutAt(rec.logoutAt ? new Date(rec.logoutAt).toISOString().slice(0, 16) : "");
+    setLogError(null);
+    setIsLogModalOpen(true);
+  };
+
+  const openNewLogModal = () => {
+    setLogFacultyId(facultyMembers[0]?.id || "");
+    setLogClassSessionId("");
+    setLogLoginAt(new Date().toISOString().slice(0, 16));
+    setLogLogoutAt("");
+    setLogError(null);
+    setIsLogModalOpen(true);
+  };
+
   const handleLogAttendanceSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!logFacultyId || !logClassSessionId) {
-      setLogError("Please provide both Faculty ID and Class Session ID.");
+      setLogError("Please select both a Faculty Member and a Class Session.");
       return;
     }
 
@@ -202,16 +239,13 @@ export const FacultyAttendance: React.FC = () => {
             Faculty Attendance Log
           </h1>
           <p className="text-xs md:text-sm text-muted-foreground font-medium mt-0.5">
-            Real-time audit log of faculty session logins, logouts, classroom presence, and teaching hours.
+            Real-time audit log of scheduled lectures, classroom check-ins, check-outs, and verified teaching hours.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           <Button
-            onClick={() => {
-              setLogError(null);
-              setIsLogModalOpen(true);
-            }}
+            onClick={openNewLogModal}
             className="bg-primary hover:bg-primary/90 text-white font-bold text-xs h-9 px-4 rounded-xl shadow-md gap-1.5 cursor-pointer"
           >
             <PlusCircle className="h-4 w-4" />
@@ -227,7 +261,7 @@ export const FacultyAttendance: React.FC = () => {
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Total Scheduled</p>
               <h3 className="text-2xl font-black text-foreground mt-0.5">{kpis.total}</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Class sessions on date</p>
+              <p className="text-[10px] text-muted-foreground font-medium">Lectures in view</p>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 flex items-center justify-center text-primary dark:text-sky-400">
               <BookOpen className="h-5 w-5" />
@@ -240,7 +274,7 @@ export const FacultyAttendance: React.FC = () => {
             <div>
               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Logged In</p>
               <h3 className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-0.5">{kpis.loggedIn}</h3>
-              <p className="text-[10px] text-muted-foreground font-medium">Faculty verified in class</p>
+              <p className="text-[10px] text-muted-foreground font-medium">Verified presence</p>
             </div>
             <div className="w-11 h-11 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <UserCheck className="h-5 w-5" />
@@ -290,8 +324,8 @@ export const FacultyAttendance: React.FC = () => {
             />
           </div>
 
-          {/* Date Picker */}
-          <div className="relative">
+          {/* Date Picker + Clear Date Button */}
+          <div className="flex items-center gap-1.5">
             <Input
               type="date"
               value={selectedDate}
@@ -301,6 +335,20 @@ export const FacultyAttendance: React.FC = () => {
               }}
               className="h-9 text-xs rounded-xl bg-muted/30 border-border font-medium cursor-pointer"
             />
+            {selectedDate && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setSelectedDate("");
+                  setCurrentPage(1);
+                }}
+                className="h-9 px-2 text-xs text-muted-foreground hover:text-foreground shrink-0"
+                title="Show all scheduled sessions"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </div>
 
           {/* Branch Filter */}
@@ -352,7 +400,7 @@ export const FacultyAttendance: React.FC = () => {
                 <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Scheduled Timing</TableHead>
                 <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Login / Logout</TableHead>
                 <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider">Status</TableHead>
-                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider pr-6 text-center">Audit</TableHead>
+                <TableHead className="font-bold text-xs text-foreground uppercase tracking-wider pr-6 text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -376,10 +424,22 @@ export const FacultyAttendance: React.FC = () => {
                     <div className="h-14 w-14 rounded-2xl bg-blue-50 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/40 flex items-center justify-center mx-auto mb-3 text-primary dark:text-sky-400 shadow-2xs">
                       <Clock className="h-7 w-7" />
                     </div>
-                    <h4 className="text-base font-black text-foreground">No Attendance Records Found</h4>
+                    <h4 className="text-base font-black text-foreground">No Sessions Found</h4>
                     <p className="text-xs text-muted-foreground font-medium mt-1">
-                      No session attendance has been logged for {selectedDate ? formatDateDisplay(selectedDate) : "the selected filters"}.
+                      {selectedDate
+                        ? `No scheduled class sessions found for ${formatDateDisplay(selectedDate)}.`
+                        : "No scheduled class sessions found for the selected filters."}
                     </p>
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelectedDate("")}
+                        className="text-xs font-bold border-border"
+                      >
+                        Show All Recent Sessions
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -388,7 +448,6 @@ export const FacultyAttendance: React.FC = () => {
                   const facultyCode = rec.faculty?.employeeCode || "FA";
                   const branchName = rec.faculty?.branch?.name || "Aadya Branch";
                   const batchName = rec.classSession?.batch?.name || "Cohort";
-                  const batchCode = rec.classSession?.batch?.code || "";
                   const courseName = rec.classSession?.batch?.course?.name || "Curriculum";
                   const room = rec.classSession?.roomNo || "Room 101";
 
@@ -396,8 +455,8 @@ export const FacultyAttendance: React.FC = () => {
                   const isLoggedOut = rec.logoutAt !== null;
 
                   let statusBadge = (
-                    <Badge variant="outline" className="bg-slate-500/10 text-muted-foreground border-border text-[11px] font-bold">
-                      Not Logged
+                    <Badge variant="outline" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 text-[11px] font-bold">
+                      Pending Presence
                     </Badge>
                   );
 
@@ -462,15 +521,25 @@ export const FacultyAttendance: React.FC = () => {
                       <TableCell className="py-3.5">{statusBadge}</TableCell>
 
                       <TableCell className="pr-6 py-3.5 text-center">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSelectedRecordForView(rec)}
-                          className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white font-bold rounded-xl shadow-2xs cursor-pointer"
-                        >
-                          <Eye className="h-3.5 w-3.5 mr-1" />
-                          View Log
-                        </Button>
+                        <div className="flex items-center justify-center gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openLogModalForSession(rec)}
+                            className="h-7 px-2.5 text-xs border-border bg-primary/10 text-primary hover:bg-primary hover:text-white font-bold rounded-xl shadow-2xs cursor-pointer"
+                          >
+                            {isLoggedIn ? "Edit Presence" : "Log Presence"}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedRecordForView(rec)}
+                            className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                            title="View audit details"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -600,7 +669,7 @@ export const FacultyAttendance: React.FC = () => {
               Log Faculty Presence for Session
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Manually record or correct faculty login and logout timestamps.
+              Select the faculty and session to record or update login and logout timestamps.
             </DialogDescription>
           </DialogHeader>
 
@@ -611,53 +680,109 @@ export const FacultyAttendance: React.FC = () => {
               </div>
             )}
 
+            {/* Select Faculty */}
             <div className="space-y-1">
               <label className="text-xs font-bold text-foreground">Select Faculty Member *</label>
               <select
                 value={logFacultyId}
-                onChange={(e) => setLogFacultyId(e.target.value)}
+                onChange={(e) => {
+                  setLogFacultyId(e.target.value);
+                  setLogClassSessionId("");
+                }}
                 required
-                className="w-full h-9 px-3 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none"
+                className="w-full h-9 px-3 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
               >
                 <option value="">Choose Instructor...</option>
                 {facultyMembers.map((f: any) => (
                   <option key={f.id} value={f.id}>
-                    {f.user?.name || f.name} ({f.employeeCode})
+                    {f.user?.name || f.name} ({f.employeeCode || "FA"})
                   </option>
                 ))}
               </select>
             </div>
 
+            {/* Select Class Session from Dropdown */}
             <div className="space-y-1">
-              <label className="text-xs font-bold text-foreground">Class Session ID *</label>
-              <Input
-                type="text"
-                placeholder="Paste class session cuid..."
-                value={logClassSessionId}
-                onChange={(e) => setLogClassSessionId(e.target.value)}
-                required
-                className="h-9 text-xs rounded-xl bg-muted/30 border-border"
-              />
+              <label className="text-xs font-bold text-foreground">Scheduled Class Session *</label>
+              {isSessionsLoading ? (
+                <div className="flex items-center gap-2 h-9 px-3 text-xs text-muted-foreground bg-muted/30 rounded-xl border border-border">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  Loading scheduled sessions...
+                </div>
+              ) : facultySessionsList.length > 0 ? (
+                <select
+                  value={logClassSessionId}
+                  onChange={(e) => setLogClassSessionId(e.target.value)}
+                  required
+                  className="w-full h-9 px-3 text-xs font-medium text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 outline-none cursor-pointer"
+                >
+                  <option value="">Select Scheduled Session...</option>
+                  {facultySessionsList.map((cs) => {
+                    const batchName = cs.batch?.name || "Cohort";
+                    const courseName = cs.batch?.course?.name || cs.title || "Lecture";
+                    const timeSlot = `${cs.startTime} - ${cs.endTime}`;
+                    const sessionDate = formatDateDisplay(cs.scheduledDate);
+                    return (
+                      <option key={cs.id} value={cs.id}>
+                        {batchName} • {courseName} ({timeSlot}, {sessionDate})
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <div className="space-y-2">
+                  <Input
+                    type="text"
+                    placeholder="Enter Class Session ID or select instructor with active sessions..."
+                    value={logClassSessionId}
+                    onChange={(e) => setLogClassSessionId(e.target.value)}
+                    required
+                    className="h-9 text-xs rounded-xl bg-muted/30 border-border font-mono"
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Tip: You can also click <strong>"Log Presence"</strong> directly on any row in the table below.
+                  </p>
+                </div>
+              )}
             </div>
 
+            {/* Login & Logout Timestamps */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-foreground">Login Time</label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">Login Time</label>
+                  <button
+                    type="button"
+                    onClick={() => setLogLoginAt(new Date().toISOString().slice(0, 16))}
+                    className="text-[10px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-0.5"
+                  >
+                    <LogIn className="h-3 w-3" /> Now
+                  </button>
+                </div>
                 <Input
                   type="datetime-local"
                   value={logLoginAt}
                   onChange={(e) => setLogLoginAt(e.target.value)}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border"
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border cursor-pointer"
                 />
               </div>
 
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-foreground">Logout Time</label>
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-foreground">Logout Time</label>
+                  <button
+                    type="button"
+                    onClick={() => setLogLogoutAt(new Date().toISOString().slice(0, 16))}
+                    className="text-[10px] font-bold text-primary hover:underline cursor-pointer flex items-center gap-0.5"
+                  >
+                    <LogOut className="h-3 w-3" /> Now
+                  </button>
+                </div>
                 <Input
                   type="datetime-local"
                   value={logLogoutAt}
                   onChange={(e) => setLogLogoutAt(e.target.value)}
-                  className="h-9 text-xs rounded-xl bg-muted/30 border-border"
+                  className="h-9 text-xs rounded-xl bg-muted/30 border-border cursor-pointer"
                 />
               </div>
             </div>
@@ -674,7 +799,7 @@ export const FacultyAttendance: React.FC = () => {
               <Button
                 type="submit"
                 disabled={markAttendanceMutation.isPending}
-                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold"
+                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold shadow-sm"
               >
                 {markAttendanceMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 Save Presence
