@@ -24,13 +24,15 @@ Do not run production peak load on 4 GB / 1 vCPU.
 2. Clone repo; copy `backend/.env.example` → `backend/.env` and set production values.
 3. Set `DATABASE_URL` with Prisma pool params, e.g.  
    `...?connection_limit=15&pool_timeout=20`
-4. Set `RUN_WORKERS=false` for the API process (PM2 ecosystem does this).
-5. Set `PEAK_MODE=false` normally; `true` during large live exams.
-6. Build backend + frontend; point Nginx `root` at `frontend/dist`.
-7. Copy [nginx/aadya.conf](nginx/aadya.conf), replace `YOUR_DOMAIN`, enable site, Certbot.
-8. Apply [redis/redis-aadya.conf](redis/redis-aadya.conf) snippets (or include).
-9. Start: `pm2 start deploy/pm2/ecosystem.config.cjs`
-10. `pm2 save` && `pm2 startup`
+4. Set `CORS_ORIGIN` to your public frontend URL(s), e.g. `https://app.yourdomain.com`  
+   (comma-separated if you have more than one)
+5. Set `RUN_WORKERS=false` for the API process (PM2 ecosystem does this).
+6. Set `PEAK_MODE=false` normally; `true` during large live exams.
+7. Build backend + frontend; point Nginx `root` at `frontend/dist`.
+8. Copy [nginx/aadya.conf](nginx/aadya.conf), replace `YOUR_DOMAIN`, enable site, Certbot.
+9. Apply [redis/redis-aadya.conf](redis/redis-aadya.conf) snippets (or include).
+10. Start: `pm2 start deploy/pm2/ecosystem.config.cjs`
+11. `pm2 save` && `pm2 startup`
 
 ## Firewall
 

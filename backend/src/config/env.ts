@@ -47,4 +47,9 @@ export const env = {
   PEAK_MODE: bool(process.env.PEAK_MODE, false),
   /** Prisma-friendly default pool hint documented in deploy/; URL may override. */
   PRISMA_CONNECTION_LIMIT: Number(process.env.PRISMA_CONNECTION_LIMIT) || 15,
+  /**
+   * Comma-separated allowed browser origins for CORS (e.g. https://app.aadya.example).
+   * Required in production. In development, localhost Vite ports are always allowed.
+   */
+  CORS_ORIGIN: process.env.CORS_ORIGIN || "",
 };

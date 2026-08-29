@@ -12,13 +12,47 @@ import { env } from "./config/env";
 
 const app = express();
 
+const DEV_ORIGINS = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "http://localhost:4173",
+  "http://127.0.0.1:4173",
+];
+
+const parseConfiguredOrigins = (): string[] =>
+  env.CORS_ORIGIN.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean);
+
+const allowedOrigins =
+  env.NODE_ENV === "production"
+    ? parseConfiguredOrigins()
+    : [...new Set([...DEV_ORIGINS, ...parseConfiguredOrigins()])];
+
+if (env.NODE_ENV === "production" && allowedOrigins.length === 0) {
+  logger.warn(
+    "CORS_ORIGIN is empty in production — browser cross-origin requests will be rejected. Set CORS_ORIGIN to your frontend URL(s)."
+  );
+}
+
 // Behind Nginx on Hostinger — required for correct client IP / rate limits
 app.set("trust proxy", 1);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: env.NODE_ENV === "production" ? true : true,
+    origin: (origin, callback) => {
+      // Non-browser clients (curl, Postman, same-origin server) often send no Origin
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error(`CORS blocked for origin: ${origin}`));
+    },
     credentials: true,
   })
 );
