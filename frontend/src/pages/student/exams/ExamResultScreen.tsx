@@ -21,7 +21,7 @@ export const ExamResultScreen: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
 
-  const { data, isLoading, error } = useAttemptDetails(attemptId || '');
+  const { data, isLoading, error } = useAttemptDetails(attemptId || '', { pollWhileEvaluating: true });
   const attempt = data?.data;
   const exam = attempt?.exam;
 
@@ -43,6 +43,16 @@ export const ExamResultScreen: React.FC = () => {
         <Button onClick={() => navigate('/student/exams')} variant="outline">
           Back to My Exams
         </Button>
+      </div>
+    );
+  }
+
+  if (['EVALUATING', 'SUBMITTED', 'AUTO_SUBMITTED'].includes(attempt.status)) {
+    return (
+      <div className="max-w-lg mx-auto py-16 text-center space-y-4">
+        <div className="h-10 w-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto" />
+        <h2 className="text-xl font-bold text-slate-900">Evaluating your answers…</h2>
+        <p className="text-sm text-slate-500">This usually takes a few seconds under load. Results will appear automatically.</p>
       </div>
     );
   }

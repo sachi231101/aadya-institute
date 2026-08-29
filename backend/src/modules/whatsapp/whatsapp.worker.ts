@@ -169,5 +169,8 @@ export const whatsappWorker = createWorker<WhatsappJobData>(
     logger.debug({ jobId: job.data.notificationId }, "[whatsapp.worker] Processing job");
     await processWhatsappJob(job as unknown as WhatsappJob);
   },
-  { concurrency: env.WHATSAPP_QUEUE_CONCURRENCY }
+  {
+    concurrency: env.WHATSAPP_QUEUE_CONCURRENCY,
+    peakConcurrency: Math.min(2, env.WHATSAPP_QUEUE_CONCURRENCY),
+  }
 );

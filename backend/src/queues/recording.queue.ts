@@ -13,5 +13,6 @@ export const recordingWorker = createWorker<RecordingJob>(
   async (job) => {
     await deleteFile(job.data.storageKey);
     console.info("[recording] Cleaned up:", job.data.recordingId);
-  }
+  },
+  { concurrency: 2, peakConcurrency: 1, pauseInPeakMode: true }
 );

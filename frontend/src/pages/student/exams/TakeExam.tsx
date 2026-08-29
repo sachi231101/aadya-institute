@@ -149,11 +149,11 @@ export const TakeExam: React.FC = () => {
     return 'text-emerald-700';
   }, [secondsRemaining]);
 
-  // Autosave Answer Pipeline (Debounced 800ms)
+  // Autosave Answer Pipeline (Debounced — longer under load; text uses longer delay)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const triggerAutosave = useCallback(
-    (questionId: string, newState: AnswerState) => {
+    (questionId: string, newState: AnswerState, debounceMs = 2500) => {
       if (proctoring.isTerminated || attempt?.status !== 'IN_PROGRESS') return;
 
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
@@ -172,7 +172,7 @@ export const TakeExam: React.FC = () => {
         } catch {
           // Handled silently
         }
-      }, 800);
+      }, debounceMs);
     },
     [proctoring.isTerminated, attempt?.status, saveAnswersMutation]
   );
@@ -217,7 +217,7 @@ export const TakeExam: React.FC = () => {
       textAnswer: val,
     };
     setAnswersMap((prev) => ({ ...prev, [currentQuestion.id]: updatedState }));
-    triggerAutosave(currentQuestion.id, updatedState);
+    triggerAutosave(currentQuestion.id, updatedState, 4000);
   };
 
   const handleNumericalAnswerChange = (val: string) => {
@@ -227,7 +227,7 @@ export const TakeExam: React.FC = () => {
       numericalAnswer: val,
     };
     setAnswersMap((prev) => ({ ...prev, [currentQuestion.id]: updatedState }));
-    triggerAutosave(currentQuestion.id, updatedState);
+    triggerAutosave(currentQuestion.id, updatedState, 4000);
   };
 
   const handleToggleFlag = () => {
@@ -289,9 +289,9 @@ export const TakeExam: React.FC = () => {
     return true;
   });
 
-  // Redirect if already completed
+  // Redirect if already completed / evaluating
   useEffect(() => {
-    if (attempt && ['COMPLETED', 'SUBMITTED'].includes(attempt.status)) {
+    if (attempt && ['COMPLETED', 'SUBMITTED', 'EVALUATING', 'AUTO_SUBMITTED'].includes(attempt.status)) {
       navigate(`/student/exams/${attemptId}/result`);
     }
   }, [attempt, attemptId, navigate]);
@@ -587,7 +587,12 @@ export const TakeExam: React.FC = () => {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                    onClick={() => {
+                      if (currentQuestion && currentAnswer) {
+                        triggerAutosave(currentQuestion.id, currentAnswer, 0);
+                      }
+                      setCurrentIndex((prev) => Math.max(0, prev - 1));
+                    }}
                     disabled={currentIndex === 0}
                     className="text-xs gap-1"
                   >
@@ -597,7 +602,12 @@ export const TakeExam: React.FC = () => {
                   {currentIndex < questions.length - 1 ? (
                     <Button
                       size="sm"
-                      onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                      onClick={() => {
+                        if (currentQuestion && currentAnswer) {
+                          triggerAutosave(currentQuestion.id, currentAnswer, 0);
+                        }
+                        setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1));
+                      }}
                       className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1"
                     >
                       Next <ChevronRight className="h-4 w-4" />

@@ -1,20 +1,10 @@
-import { Queue, Worker } from "bullmq";
+import { Queue, Worker, type JobsOptions } from "bullmq";
 import { env } from "../config/env";
 import { logger } from "../config/logger";
+import { getBullmqConnection } from "../config/redis";
 
-// node:test sets NODE_TEST_CONTEXT in the process environment. It is more
-// reliable than NODE_ENV here because dotenvx injects NODE_ENV from .env
-// (e.g. "development") which would otherwise defeat test-mode detection.
 const isTestMode = () => process.env.NODE_TEST_CONTEXT !== undefined;
 
-// -----------------------------------------------------------------------------
-// Test-mode stubs
-//
-// Importing queue/worker modules must not require a live Redis during tests, and
-// a dead Redis must not keep the test process alive (BullMQ schedules reconnect
-// timers even when retryStrategy returns null). These no-op stubs keep the unit
-// test suite hermetic. They are never used by the running application.
-// -----------------------------------------------------------------------------
 const queueStub = (name: string) =>
   ({
     name,
@@ -30,31 +20,8 @@ const workerStub = (name: string) =>
     close: () => Promise.resolve(),
   }) as unknown as Worker;
 
-const getRedisConnectionOptions = () => {
-  const buildOptions = (host: string, port: number) => ({
-    host,
-    port,
-    maxRetriesPerRequest: null,
-    enableOfflineQueue: false,
-    retryStrategy(times: number) {
-      // Slow backoff reconnect attempts when Redis is offline
-      return Math.min(times * 5000, 60_000);
-    },
-  });
+const connection = getBullmqConnection();
 
-  try {
-    const url = new URL(env.REDIS_URL || "redis://127.0.0.1:6379");
-    const host = url.hostname === "localhost" ? "127.0.0.1" : url.hostname;
-    const port = Number(url.port) || 6379;
-    return buildOptions(host, port);
-  } catch {
-    return buildOptions("127.0.0.1", 6379);
-  }
-};
-
-const connection = getRedisConnectionOptions();
-
-// Log ONLY ONCE per process run to keep terminal 100% clean
 const loggedKeys = new Set<string>();
 
 const logOfflineOnce = (key: string, name: string) => {
@@ -63,6 +30,14 @@ const logOfflineOnce = (key: string, name: string) => {
     logger.info(`ℹ Redis is offline for '${name}'. Background queue jobs will pause until Redis starts.`);
   }
 };
+
+/** Job priorities: lower number = higher priority in BullMQ. */
+export const QUEUE_PRIORITY = {
+  CRITICAL: 1,
+  USER_FACING: 5,
+  BULK: 10,
+  MAINTENANCE: 20,
+} as const;
 
 export const createQueue = (name: string) => {
   if (isTestMode()) return queueStub(name);
@@ -74,16 +49,47 @@ export const createQueue = (name: string) => {
   return queue;
 };
 
+export type WorkerCreateOptions = {
+  concurrency?: number;
+  /** When PEAK_MODE is on, use this concurrency instead (often lower). */
+  peakConcurrency?: number;
+  /** If true, worker is not started when PEAK_MODE=true. */
+  pauseInPeakMode?: boolean;
+};
+
 export const createWorker = <T>(
   name: string,
   processor: (job: { data: T }) => Promise<void>,
-  options: { concurrency?: number } = {}
+  options: WorkerCreateOptions = {}
 ) => {
   if (isTestMode()) return workerStub(name);
 
-  const worker = new Worker(name, processor as any, { connection, concurrency: options.concurrency ?? 1 });
+  // API processes set RUN_WORKERS=false so jobs are not double-consumed.
+  if (!env.RUN_WORKERS) {
+    return workerStub(name);
+  }
+
+  if (env.PEAK_MODE && options.pauseInPeakMode) {
+    logger.info(`[peak-mode] Worker '${name}' not started (paused during peak)`);
+    return workerStub(name);
+  }
+
+  const concurrency =
+    env.PEAK_MODE && options.peakConcurrency !== undefined
+      ? options.peakConcurrency
+      : options.concurrency ?? 1;
+
+  const worker = new Worker(name, processor as any, { connection, concurrency });
   worker.on("error", () => {
     logOfflineOnce(`worker:${name}`, name);
   });
   return worker;
 };
+
+export const defaultJobOptions = (priority: number): JobsOptions => ({
+  priority,
+  removeOnComplete: 1000,
+  removeOnFail: 5000,
+  attempts: 3,
+  backoff: { type: "exponential", delay: 2000 },
+});

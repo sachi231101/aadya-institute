@@ -2,6 +2,11 @@ import dotenv from "dotenv";
 
 dotenv.config({ override: true });
 
+const bool = (value: string | undefined, fallback: boolean) => {
+  if (value === undefined || value === "") return fallback;
+  return ["1", "true", "yes", "on"].includes(value.toLowerCase());
+};
+
 export const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
   PORT: Number(process.env.PORT) || 5000,
@@ -33,4 +38,13 @@ export const env = {
   GOOGLE_MEET_SCOPES: process.env.GOOGLE_MEET_SCOPES || "https://www.googleapis.com/auth/meetings.space.created https://www.googleapis.com/auth/meetings.space.readonly",
   GOOGLE_DRIVE_SCOPES: process.env.GOOGLE_DRIVE_SCOPES || "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly",
   GOOGLE_TOKEN_ENCRYPTION_KEY: process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || "aadya-google-token-encryption-secret-key-32",
+  /**
+   * When false, BullMQ workers are not started in this process (API-only).
+   * Defaults to true in development so `npm run dev` still processes jobs.
+   */
+  RUN_WORKERS: bool(process.env.RUN_WORKERS, (process.env.NODE_ENV || "development") !== "production"),
+  /** Throttle low-priority automation during large live exams / peak traffic. */
+  PEAK_MODE: bool(process.env.PEAK_MODE, false),
+  /** Prisma-friendly default pool hint documented in deploy/; URL may override. */
+  PRISMA_CONNECTION_LIMIT: Number(process.env.PRISMA_CONNECTION_LIMIT) || 15,
 };
