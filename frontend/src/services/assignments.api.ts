@@ -53,7 +53,6 @@ export const assignmentsApi = {
   createAssignment: async (data: {
     classSessionId?: string;
     batchId: string;
-    facultyId: string;
     title: string;
     description?: string;
     dueDate?: string;
@@ -69,6 +68,14 @@ export const assignmentsApi = {
 
   deleteAssignment: async (id: string) => {
     const response = await api.delete(`/assignments/${id}`);
+    return response.data;
+  },
+
+  gradeSubmission: async (
+    submissionId: string,
+    data: { marks: number; feedback?: string }
+  ) => {
+    const response = await api.patch(`/assignments/submissions/${submissionId}/grade`, data);
     return response.data;
   },
 };

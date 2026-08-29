@@ -47,20 +47,33 @@ export const AllFaculty: React.FC = () => {
       ? selectedBranchId
       : undefined;
   const { data: facultyReport, isLoading: isReportLoading } = useFacultyReport(activeBranchId);
-  const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({ branchId: activeBranchId });
+  const { data: facultyListResponse, isLoading: isListLoading } = useFacultyList({
+    branchId: activeBranchId,
+    limit: 100,
+  });
 
-  const rawFacultyList = facultyReport?.faculty || (facultyListResponse?.data || []).map((f: any) => ({
-    id: f.id,
-    name: f.user?.name || "Faculty Member",
-    employeeCode: f.employeeCode || f.id,
-    branchName: f.branch?.name || "Aadya Branch",
-    specialization: f.specialization || "Instructor",
-    assignedBatchesCount: f._count?.batches || f.batches?.length || 0,
-    totalStudents: 0,
-    avgStudentAttendancePct: 0,
-    workloadHoursPerWeek: 0,
-    status: f.status || "ACTIVE",
-  }));
+  // Faculty Directory uses the live faculty list as source of truth so newly created
+  // members appear immediately; report metrics enrich matching rows when available.
+  const reportById = new Map(
+    (facultyReport?.faculty || []).map((f: any) => [f.id, f])
+  );
+
+  const rawFacultyList = (facultyListResponse?.data || []).map((f: any) => {
+    const report = reportById.get(f.id);
+    return {
+      id: f.id,
+      name: f.user?.name || report?.name || "Faculty Member",
+      employeeCode: f.employeeCode || report?.employeeCode || f.id,
+      branchName: f.branch?.name || report?.branchName || "Aadya Branch",
+      specialization: f.specialization || report?.specialization || "Instructor",
+      assignedBatchesCount:
+        report?.assignedBatchesCount ?? f._count?.batches ?? f.batches?.length ?? 0,
+      totalStudents: report?.totalStudents ?? 0,
+      avgStudentAttendancePct: report?.avgStudentAttendancePct ?? 0,
+      workloadHoursPerWeek: report?.workloadHoursPerWeek ?? 0,
+      status: f.status || report?.status || "ACTIVE",
+    };
+  });
 
   // Filter faculty by search, status tabs
   const filteredFaculty = rawFacultyList.filter((fac: any) => {
@@ -95,7 +108,7 @@ export const AllFaculty: React.FC = () => {
     { name: "Needs Attention", count: rawFacultyList.filter((f: any) => f.status?.toUpperCase() === "INACTIVE" || f.avgStudentAttendancePct < 70).length },
   ];
 
-  const isLoading = isReportLoading || isListLoading;
+  const isLoading = isListLoading;
 
   return (
     <div className="p-6 max-w-[1600px] mx-auto min-h-screen relative overflow-x-hidden space-y-6 animate-in fade-in duration-300">

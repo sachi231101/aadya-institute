@@ -17,6 +17,7 @@ import {
   FileVideo,
   FileText,
   Clock,
+  Star,
 } from "lucide-react"
 
 import {
@@ -89,6 +90,11 @@ const facultyNavItems: NavItem[] = [
     title: "Students",
     url: "/faculty/students/all",
     icon: GraduationCap,
+  },
+  {
+    title: "Feedback",
+    url: "/faculty/feedback",
+    icon: Star,
   },
   {
     title: "Attendance",

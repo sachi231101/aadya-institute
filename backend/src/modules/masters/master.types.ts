@@ -61,7 +61,7 @@ export interface ToggleStatusInput {
  * Used by SequenceService to atomically generate sequential document numbers.
  */
 export interface NumberingSeriesData {
-  /** Target document: ADMISSION | RECEIPT | STUDENT | ENQUIRY | APPLICATION */
+  /** Target document: ADMISSION | RECEIPT | STUDENT | ENQUIRY | APPLICATION | EMPLOYEE */
   target: string;
   /** Pattern template e.g. "AADYA/{BRANCH}/{YEAR}/{SEQ:4}" */
   pattern: string;

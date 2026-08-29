@@ -73,3 +73,20 @@ export const deleteAssignment = async (
     next(error);
   }
 };
+
+export const gradeSubmission = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await service.gradeSubmission(
+      toAuthUser(req),
+      req.params.submissionId as string,
+      req.body
+    );
+    sendSuccess(res, result, 200, "Submission graded successfully");
+  } catch (error) {
+    next(error);
+  }
+};

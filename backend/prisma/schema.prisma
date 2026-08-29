@@ -366,26 +366,31 @@ model Student {
 }
 
 model Faculty {
-  id                   String        @id @default(cuid())
-  userId               String        @unique
-  instituteId          String
-  branchId             String
-  employeeCode         String
-  specialization       String?
-  designation          String?
-  designationMasterId  String?
-  status               FacultyStatus @default(ACTIVE)
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  id                     String        @id @default(cuid())
+  userId                 String        @unique
+  instituteId            String
+  branchId               String
+  employeeCode           String
+  specialization         String?
+  designation            String?
+  designationMasterId    String?
+  qualification          String?
+  qualificationMasterId  String?
+  status                 FacultyStatus @default(ACTIVE)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institute           Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch              Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  designationMaster   MasterRecord? @relation("FacultyDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
+  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute             Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch                Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  designationMaster     MasterRecord? @relation("FacultyDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
+  qualificationMaster   MasterRecord? @relation("FacultyQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
 
   batches           Batch[]
   classSessions     ClassSession[]
   facultyAttendance FacultyAttendance[]
+  assignments       Assignment[]
+  feedbacks         Feedback[]
 
   @@unique([instituteId, employeeCode])
   @@index([instituteId])
@@ -795,6 +800,7 @@ model Assignment {
   updatedAt            DateTime  @updatedAt
 
   classSession         ClassSession  @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  faculty              Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
   assignmentTypeMaster MasterRecord? @relation("AssignmentTypeMaster", fields: [assignmentTypeMasterId], references: [id], onDelete: SetNull)
   submissions          AssignmentSubmission[]
 
@@ -831,6 +837,7 @@ model Feedback {
 
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
   student      Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  faculty      Faculty      @relation(fields: [facultyId], references: [id], onDelete: Restrict)
 
   @@unique([classSessionId, studentId])
   @@index([facultyId])
@@ -1369,6 +1376,7 @@ model MasterRecord {
   studentsAsQualification    Student[]      @relation("StudentQualificationMaster")
   studentsAsArea             Student[]      @relation("StudentAreaMaster")
   facultyAsDesignation       Faculty[]      @relation("FacultyDesignationMaster")
+  facultyAsQualification     Faculty[]      @relation("FacultyQualificationMaster")
   classSessionsAsClassroom   ClassSession[] @relation("ClassSessionClassroomMaster")
   classSessionsAsTimeslot    ClassSession[] @relation("ClassSessionTimeslotMaster")
   paymentsAsMode             Payment[]      @relation("PaymentModeMaster")

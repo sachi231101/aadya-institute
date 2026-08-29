@@ -4,19 +4,19 @@ import type {
   FacultyListParams,
   FacultyCoursesParams,
   FacultyAttendanceParams,
+  MyStudentsParams,
   CreateFacultyPayload,
   UpdateFacultyPayload,
   AssignCoursePayload,
   MarkAttendancePayload,
 } from "@/types/faculty.types";
+import { useAuthStore } from "@/store/auth.store";
 
 const FACULTY_KEY = "faculty";
 const FACULTY_COURSES_KEY = "faculty-courses";
 const FACULTY_ATTENDANCE_KEY = "faculty-attendance";
-
-import { useAuthStore } from "@/store/auth.store";
-
-// ─── Faculty CRUD Hooks ─────────────────────────────────────────────────
+const FACULTY_DASHBOARD_KEY = "faculty-dashboard";
+const FACULTY_MY_STUDENTS_KEY = "faculty-my-students";
 
 export const useFacultyList = (params?: FacultyListParams) => {
   const { user } = useAuthStore();
@@ -37,12 +37,28 @@ export const useFacultyMember = (id: string | undefined) => {
   });
 };
 
+export const useFacultyDashboard = () => {
+  return useQuery({
+    queryKey: [FACULTY_DASHBOARD_KEY],
+    queryFn: () => facultyApi.getMyDashboard(),
+  });
+};
+
+export const useFacultyMyStudents = (params?: MyStudentsParams) => {
+  return useQuery({
+    queryKey: [FACULTY_MY_STUDENTS_KEY, params],
+    queryFn: () => facultyApi.getMyStudents(params),
+  });
+};
+
 export const useCreateFaculty = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (data: CreateFacultyPayload) => facultyApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
+      queryClient.invalidateQueries({ queryKey: ["masters", "preview"] });
     },
   });
 };
@@ -52,8 +68,9 @@ export const useUpdateFaculty = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateFacultyPayload }) =>
       facultyApi.update(id, data),
-    onSuccess: () => {
+    onSuccess: (_res, vars) => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY, vars.id] });
     },
   });
 };
@@ -67,8 +84,6 @@ export const useDeleteFaculty = () => {
     },
   });
 };
-
-// ─── Faculty Course Assignment Hooks ────────────────────────────────────
 
 export const useFacultyCourses = (params?: FacultyCoursesParams) => {
   return useQuery({
@@ -86,8 +101,6 @@ export const useAssignFacultyCourse = () => {
     },
   });
 };
-
-// ─── Faculty Attendance Hooks ───────────────────────────────────────────
 
 export const useFacultyAttendance = (params?: FacultyAttendanceParams) => {
   return useQuery({

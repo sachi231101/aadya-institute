@@ -1268,6 +1268,7 @@ export const MasterSetup: React.FC = () => {
                         >
                           <option value="ADMISSION">ADMISSION (Student Admission Number)</option>
                           <option value="STUDENT">STUDENT (Student Code / Roll No)</option>
+                          <option value="EMPLOYEE">EMPLOYEE (Faculty / Staff Employee Code)</option>
                           <option value="RECEIPT">RECEIPT (Fee Payment Receipt Number)</option>
                           <option value="ENQUIRY">ENQUIRY (Enquiry Number)</option>
                           <option value="APPLICATION">APPLICATION (Application Number)</option>

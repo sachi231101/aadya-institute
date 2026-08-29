@@ -47,6 +47,16 @@ export const feedbackApi = {
     return response.data;
   },
 
+  getFeedbackByFaculty: async (facultyId: string) => {
+    const response = await api.get(`/feedback`, { params: { facultyId, limit: 50 } });
+    return response.data;
+  },
+
+  getFeedbackByFacultyMe: async () => {
+    const response = await api.get(`/feedback`, { params: { limit: 50 } });
+    return response.data;
+  },
+
   getFacultyRatings: async (params?: { facultyId?: string; batchId?: string }) => {
     const response = await api.get("/feedback/ratings", { params });
     return response.data;

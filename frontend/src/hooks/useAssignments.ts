@@ -46,3 +46,19 @@ export const useDeleteAssignment = () => {
     },
   });
 };
+
+export const useGradeSubmission = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      submissionId,
+      data,
+    }: {
+      submissionId: string;
+      data: { marks: number; feedback?: string };
+    }) => assignmentsApi.gradeSubmission(submissionId, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["assignments"] });
+    },
+  });
+};
