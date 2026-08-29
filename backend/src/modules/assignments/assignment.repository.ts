@@ -11,7 +11,26 @@ const assignmentInclude = {
       batch: { select: { id: true, name: true, instituteId: true, branchId: true } },
     },
   },
-  submissions: { select: { id: true, studentId: true, status: true, marks: true, submittedAt: true } },
+  submissions: {
+    select: {
+      id: true,
+      studentId: true,
+      status: true,
+      marks: true,
+      feedback: true,
+      submittedAt: true,
+      evaluatedAt: true,
+      evaluatedBy: true,
+      fileKey: true,
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+    },
+  },
 } satisfies Prisma.AssignmentInclude;
 
 export const createAssignment = (data: {
@@ -40,12 +59,13 @@ export const findAssignments = async (params: {
   branchId?: string;
   batchId?: string;
   classSessionId?: string;
+  facultyId?: string;
   status?: string;
   search?: string;
   skip: number;
   take: number;
 }) => {
-  const { instituteId, branchId, batchId, classSessionId, status, search, skip, take } = params;
+  const { instituteId, branchId, batchId, classSessionId, facultyId, status, search, skip, take } = params;
 
   const where: Prisma.AssignmentWhereInput = {
     classSession: {
@@ -56,6 +76,7 @@ export const findAssignments = async (params: {
     },
     ...(batchId ? { batchId } : {}),
     ...(classSessionId ? { classSessionId } : {}),
+    ...(facultyId ? { facultyId } : {}),
     ...(status ? { status: status as any } : {}),
     ...(search
       ? { title: { contains: search, mode: "insensitive" as const } }
@@ -107,3 +128,56 @@ export const updateAssignment = async (
 export const deleteAssignment = (id: string) => {
   return prisma.assignment.delete({ where: { id } });
 };
+
+export const findSubmissionById = (id: string) =>
+  prisma.assignmentSubmission.findUnique({
+    where: { id },
+    include: {
+      assignment: {
+        select: {
+          id: true,
+          facultyId: true,
+          title: true,
+          batchId: true,
+          classSession: {
+            select: {
+              batch: { select: { instituteId: true, branchId: true } },
+            },
+          },
+        },
+      },
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
+    },
+  });
+
+export const gradeSubmission = (id: string, data: {
+  marks: number;
+  feedback?: string;
+  evaluatedBy: string;
+}) =>
+  prisma.assignmentSubmission.update({
+    where: { id },
+    data: {
+      marks: data.marks,
+      feedback: data.feedback,
+      evaluatedAt: new Date(),
+      evaluatedBy: data.evaluatedBy,
+    },
+    include: {
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
+      assignment: { select: { id: true, title: true, facultyId: true } },
+    },
+  });
+

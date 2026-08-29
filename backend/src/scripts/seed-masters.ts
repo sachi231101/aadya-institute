@@ -176,6 +176,20 @@ const TIER1_MASTERS: MasterSeed[] = [
     },
     sortOrder: 5,
   },
+  {
+    entityType: "numberingseries",
+    name: "Employee / Faculty Code Series",
+    code: "EMPLOYEE",
+    data: {
+      target: "EMPLOYEE",
+      pattern: "FAC-{YEAR}-{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 6,
+  },
 
 ];
 

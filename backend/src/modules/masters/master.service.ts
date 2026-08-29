@@ -28,6 +28,7 @@ const NUMBERING_SERIES_TARGETS = [
   "STUDENT",
   "ENQUIRY",
   "APPLICATION",
+  "EMPLOYEE",
 ] as const;
 
 const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
@@ -36,6 +37,7 @@ const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
+  EMPLOYEE: "FAC-{YEAR}-{SEQ:4}",
 };
 
 const normalizeNumberingSeriesData = (

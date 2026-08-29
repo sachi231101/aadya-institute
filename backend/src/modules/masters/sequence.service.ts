@@ -28,6 +28,7 @@ const DEFAULT_PATTERNS: Record<string, string> = {
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
+  EMPLOYEE: "FAC-{YEAR}-{SEQ:4}",
 };
 
 function applyPattern(

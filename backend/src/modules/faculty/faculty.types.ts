@@ -3,8 +3,11 @@ export interface CreateFacultyDto {
   email?: string;
   phone?: string;
   password: string;
-  employeeCode: string;
+  employeeCode?: string;
   specialization?: string;
+  designation?: string;
+  designationMasterId?: string;
+  qualificationMasterId?: string;
   branchId: string;
 }
 
@@ -13,6 +16,9 @@ export interface UpdateFacultyDto {
   email?: string;
   phone?: string;
   specialization?: string;
+  designation?: string;
+  designationMasterId?: string | null;
+  qualificationMasterId?: string | null;
   status?: "ACTIVE" | "INACTIVE" | "ON_LEAVE";
 }
 
