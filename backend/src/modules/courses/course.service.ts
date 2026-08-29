@@ -8,18 +8,30 @@ export const getCourses = async (instituteId: string, filters: CourseQueryFilter
 
 export const getCourseById = async (id: string, instituteId: string) => {
   const course = await repository.findCourseById(id, instituteId);
-  if (!course) {
+  if (!course || course.status === "DELETED") {
     throw new AppError("Course not found", 404);
   }
   return course;
 };
 
 export const createCourse = async (instituteId: string, data: CreateCourseDto) => {
+  const existing = await repository.findCourseByCode(instituteId, data.code);
+  if (existing) {
+    throw new AppError(`Course code "${data.code}" already exists`, 409);
+  }
   return repository.createCourse(instituteId, data);
 };
 
 export const updateCourse = async (id: string, instituteId: string, data: UpdateCourseDto) => {
   await getCourseById(id, instituteId);
+
+  if (data.code) {
+    const existing = await repository.findCourseByCode(instituteId, data.code, id);
+    if (existing) {
+      throw new AppError(`Course code "${data.code}" already exists`, 409);
+    }
+  }
+
   return repository.updateCourse(id, instituteId, data);
 };
 

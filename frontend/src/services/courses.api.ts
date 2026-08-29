@@ -35,7 +35,7 @@ export interface UpdateCoursePayload extends Partial<CreateCoursePayload> {
 }
 
 export const coursesApi = {
-  getAll: async (params?: { search?: string; status?: string }) => {
+  getAll: async (params?: { search?: string; status?: string; category?: string }) => {
     const response = await api.get<{ success: boolean; data: CourseData[] }>("/courses", { params });
     return response.data;
   },
@@ -51,7 +51,7 @@ export const coursesApi = {
   },
 
   update: async (id: string, data: UpdateCoursePayload) => {
-    const response = await api.patch<{ success: boolean }>(`/courses/${id}`, data);
+    const response = await api.patch<{ success: boolean; data: CourseData }>(`/courses/${id}`, data);
     return response.data;
   },
 

@@ -54,6 +54,13 @@ export const getBatchById = async (id: string, instituteId: string) => {
 };
 
 export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
+  const course = await prisma.course.findFirst({
+    where: { id: data.courseId, instituteId, status: "ACTIVE" },
+  });
+  if (!course) {
+    throw new AppError("Active course not found for this batch", 404);
+  }
+
   const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
   if (existing.some((b) => b.code.toLowerCase() === data.code.toLowerCase())) {
     throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);

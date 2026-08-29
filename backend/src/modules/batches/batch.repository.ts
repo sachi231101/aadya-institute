@@ -30,6 +30,20 @@ const batchInclude = {
       code: true,
     },
   },
+  batchModules: {
+    include: {
+      courseModule: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          sequence: true,
+          duration: true,
+        },
+      },
+    },
+    orderBy: { sequence: "asc" as const },
+  },
   schedules: true,
   enrollments: {
     where: { status: "ACTIVE" as any },
@@ -122,22 +136,46 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
     branchId = firstBranch.id;
   }
 
-  return prisma.batch.create({
-    data: {
-      instituteId,
-      branchId,
-      courseId: data.courseId,
-      facultyId: data.facultyId && data.facultyId.trim() !== "" ? data.facultyId : null,
-      name: data.name,
-      code: data.code,
-      startDate: new Date(data.startDate),
-      expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
-      schedulePattern: data.schedulePattern || "MWF",
-      timeSlot: data.timeSlot || "10:00 AM - 12:00 PM",
-      capacity: data.capacity || 35,
-      status: "UPCOMING",
-    },
-    include: batchInclude,
+  return prisma.$transaction(async (tx) => {
+    const batch = await tx.batch.create({
+      data: {
+        instituteId,
+        branchId,
+        courseId: data.courseId,
+        facultyId: data.facultyId && data.facultyId.trim() !== "" ? data.facultyId : null,
+        name: data.name,
+        code: data.code,
+        startDate: new Date(data.startDate),
+        expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
+        schedulePattern: data.schedulePattern || "MWF",
+        timeSlot: data.timeSlot || "10:00 AM - 12:00 PM",
+        capacity: data.capacity || 35,
+        status: "UPCOMING",
+      },
+    });
+
+    // Automatically clone active CourseModules into BatchModules
+    const courseModules = await tx.courseModule.findMany({
+      where: { courseId: data.courseId, status: "ACTIVE" },
+      orderBy: { sequence: "asc" },
+    });
+
+    if (courseModules.length > 0) {
+      await tx.batchModule.createMany({
+        data: courseModules.map((cm, idx) => ({
+          batchId: batch.id,
+          courseModuleId: cm.id,
+          sequence: cm.sequence || idx + 1,
+          status: "ACTIVE",
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return tx.batch.findUniqueOrThrow({
+      where: { id: batch.id },
+      include: batchInclude,
+    });
   });
 };
 

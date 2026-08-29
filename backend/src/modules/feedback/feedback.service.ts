@@ -142,5 +142,6 @@ export const getFacultyRatings = async (currentUser: AuthUser, query: FacultyRat
     instituteId: currentUser.instituteId,
     facultyId,
     batchId: query.batchId,
+    branchId: query.branchId,
   });
 };

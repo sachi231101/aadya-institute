@@ -6,8 +6,11 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
     instituteId,
   };
 
+  // Soft-deleted courses are hidden unless explicitly requested
   if (filters.status) {
     where.status = filters.status;
+  } else {
+    where.status = { not: "DELETED" };
   }
 
   if (filters.category && filters.category !== "ALL") {
@@ -27,6 +30,7 @@ export const findAllCourses = (instituteId: string, filters: CourseQueryFilters)
     where,
     include: {
       modules: {
+        where: { status: { not: "DELETED" } },
         select: {
           id: true,
           name: true,
@@ -53,6 +57,7 @@ export const findCourseById = (id: string, instituteId: string) => {
     where: { id, instituteId },
     include: {
       modules: {
+        where: { status: { not: "DELETED" } },
         orderBy: { sequence: "asc" },
       },
       batches: {
@@ -67,6 +72,17 @@ export const findCourseById = (id: string, instituteId: string) => {
           timeSlot: true,
         },
       },
+    },
+  });
+};
+
+export const findCourseByCode = (instituteId: string, code: string, excludeId?: string) => {
+  return prisma.course.findFirst({
+    where: {
+      instituteId,
+      code,
+      status: { not: "DELETED" },
+      ...(excludeId ? { id: { not: excludeId } } : {}),
     },
   });
 };
@@ -88,16 +104,25 @@ export const createCourse = (instituteId: string, data: CreateCourseDto) => {
   });
 };
 
-export const updateCourse = (id: string, instituteId: string, data: UpdateCourseDto) => {
-  return prisma.course.updateMany({
+export const updateCourse = async (id: string, instituteId: string, data: UpdateCourseDto) => {
+  await prisma.course.updateMany({
     where: { id, instituteId },
     data,
   });
+  return findCourseById(id, instituteId);
 };
 
-export const deleteCourse = (id: string, instituteId: string) => {
-  return prisma.course.deleteMany({
+/** Soft-delete — preserves admissions/batches FK integrity and frees the course code */
+export const deleteCourse = async (id: string, instituteId: string) => {
+  const course = await prisma.course.findFirst({ where: { id, instituteId } });
+  if (!course) return { count: 0 };
+
+  return prisma.course.updateMany({
     where: { id, instituteId },
+    data: {
+      status: "DELETED",
+      code: `${course.code}__deleted__${Date.now()}`,
+    },
   });
 };
 

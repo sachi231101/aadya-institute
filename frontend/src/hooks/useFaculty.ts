@@ -98,6 +98,8 @@ export const useAssignFacultyCourse = () => {
     mutationFn: (data: AssignCoursePayload) => facultyApi.assignCourse(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_COURSES_KEY] });
+      queryClient.invalidateQueries({ queryKey: [FACULTY_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["batches"] });
     },
   });
 };

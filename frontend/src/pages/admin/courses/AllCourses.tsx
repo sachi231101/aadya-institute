@@ -93,9 +93,25 @@ export const AllCourses: React.FC = () => {
     navigate(`${coursesBasePath}/${course.id}/edit`, { state: { course } });
   };
 
+  const handleOpenCurriculum = (courseId: string) => {
+    navigate(`${coursesBasePath}/curriculum?courseId=${courseId}`);
+  };
+
+  const handleOpenBatches = (courseId?: string) => {
+    navigate(
+      courseId
+        ? `${coursesBasePath}/batches?courseId=${courseId}`
+        : `${coursesBasePath}/batches`
+    );
+  };
+
   const handleDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this course?")) {
-      await deleteCourse(id);
+    if (confirm("Are you sure you want to delete this course? It will be deactivated and hidden from active lists.")) {
+      try {
+        await deleteCourse(id);
+      } catch (err: any) {
+        alert(err.response?.data?.message || err.message || "Failed to delete course");
+      }
     }
   };
 
@@ -270,10 +286,10 @@ export const AllCourses: React.FC = () => {
                               <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
                                 <Pencil className="mr-2 h-4 w-4" /> Edit Course
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
+                              <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> View Curriculum
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")} className="cursor-pointer text-xs font-bold">
+                              <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> View Batches
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-border" />
@@ -322,7 +338,7 @@ export const AllCourses: React.FC = () => {
                           variant="outline"
                           size="sm"
                           className="w-full text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer"
-                          onClick={() => navigate("/admin/courses/curriculum")}
+                          onClick={() => handleOpenCurriculum(course.id)}
                         >
                           <BookOpen className="mr-1.5 h-3.5 w-3.5 text-primary" />
                           Curriculum
@@ -331,7 +347,7 @@ export const AllCourses: React.FC = () => {
                           variant="default"
                           size="sm"
                           className="w-full text-xs font-bold rounded-xl bg-primary hover:bg-primary/90 text-white cursor-pointer"
-                          onClick={() => navigate("/admin/courses/batches")}
+                          onClick={() => handleOpenBatches(course.id)}
                         >
                           <GraduationCap className="mr-1.5 h-3.5 w-3.5" />
                           Batches
@@ -405,10 +421,10 @@ export const AllCourses: React.FC = () => {
                               <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
                                 <Pencil className="mr-2 h-4 w-4" /> Edit Course
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/curriculum")} className="cursor-pointer text-xs font-bold">
+                              <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> Curriculum
                               </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => navigate("/admin/courses/batches")} className="cursor-pointer text-xs font-bold">
+                              <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> Batches
                               </DropdownMenuItem>
                               <DropdownMenuSeparator className="bg-border" />

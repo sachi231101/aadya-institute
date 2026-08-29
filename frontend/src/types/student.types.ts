@@ -224,7 +224,7 @@ export interface CreateStudentPayload {
   email?: string;
   phone?: string;
   password: string;
-  studentCode: string;
+  studentCode?: string;
   dateOfBirth?: string;
   qualification?: string;
   qualificationMasterId?: string;
