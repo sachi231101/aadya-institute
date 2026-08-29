@@ -15,6 +15,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, Save, Loader2, Pencil } from "lucide-react";
@@ -147,11 +148,11 @@ export const EditFaculty: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <FormLabel>Employee Code</FormLabel>
+                  <Label>Employee Code</Label>
                   <Input value={faculty.employeeCode} disabled className="mt-2 bg-slate-50" />
                 </div>
                 <div>
-                  <FormLabel>Branch</FormLabel>
+                  <Label>Branch</Label>
                   <Input value={faculty.branch?.name || "—"} disabled className="mt-2 bg-slate-50" />
                 </div>
 
