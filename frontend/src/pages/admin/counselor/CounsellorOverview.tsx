@@ -16,10 +16,8 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranch } from "@/hooks/useBranches";
-import { useAdminUsers } from "@/hooks/useUsers";
-import { useLeads } from "@/hooks/useLeads";
+import { useLeads, useCounsellorPerformance } from "@/hooks/useLeads";
 import type { Lead } from "@/services/leads.api";
-import type { UserResponse } from "@/services/users.api";
 import {
   Dialog,
   DialogContent,
@@ -54,18 +52,13 @@ export const CounsellorOverview: React.FC = () => {
   const activeBranchId = isCenterScope
     ? user?.branchId || undefined
     : selectedBranchId === "ALL" || !selectedBranchId
-    ? undefined
-    : selectedBranchId;
+      ? undefined
+      : selectedBranchId;
 
   const { data: branchResponse } = useBranch(user?.branchId || undefined);
   const branchName = branchResponse?.data?.name || "Aadya Central Branch";
 
-  // Real Queries from PostgreSQL backend
-  const { data: usersResponse, isLoading: loadingUsers } = useAdminUsers({
-    role: "COUNSELLOR",
-    limit: 100,
-  });
-
+  const { data: performanceResponse, isLoading: loadingPerf } = useCounsellorPerformance(activeBranchId);
   const { data: leadsResponse, isLoading: loadingLeads } = useLeads({
     limit: 100,
     branchId: activeBranchId,
@@ -74,56 +67,44 @@ export const CounsellorOverview: React.FC = () => {
   const [selectedCounsellor, setSelectedCounsellor] = useState<CounsellorPerf | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const allCounsellorUsers: UserResponse[] = useMemo(() => {
-    const rawUsers = (usersResponse?.data as UserResponse[]) || [];
-    if (!activeBranchId) return rawUsers;
-    return rawUsers.filter((u: UserResponse) => !u.branchId || u.branchId === activeBranchId);
-  }, [usersResponse?.data, activeBranchId]);
-
   const allLeads: Lead[] = useMemo(() => {
     return (leadsResponse?.data as Lead[]) || [];
   }, [leadsResponse?.data]);
 
-  // Compute live performance metrics for each real counsellor
+  // Prefer server-side counsellor performance; fall back gracefully
   const counsellorPerformance: CounsellorPerf[] = useMemo(() => {
-    return allCounsellorUsers.map((c: UserResponse) => {
-      const counsellorLeads = allLeads.filter(
-        (l: Lead) => l.assignedCounsellorId === c.id || l.assignedCounsellor?.id === c.id
-      );
+    const rows = (performanceResponse?.data as Array<{
+      counsellorId: string;
+      name: string;
+      email?: string | null;
+      branch?: { name?: string } | null;
+      totalLeads: number;
+      contacted: number;
+      interested: number;
+      followUps: number;
+      converted: number;
+      lost: number;
+      conversionRate: string;
+    }>) || [];
 
-      const assigned = counsellorLeads.length;
-      const contacted = counsellorLeads.filter(
-        (l: Lead) => l.stage !== "NEW" && l.stage !== "ASSIGNED"
-      ).length;
-      const interested = counsellorLeads.filter((l: Lead) =>
-        ["INTERESTED", "FOLLOW_UP", "CONVERTED"].includes(l.stage)
-      ).length;
-      const followUps = counsellorLeads.filter((l: Lead) => l.stage === "FOLLOW_UP").length;
-      const converted = counsellorLeads.filter((l: Lead) => l.stage === "CONVERTED").length;
-      const lost = counsellorLeads.filter((l: Lead) => l.stage === "LOST").length;
-      const rate = assigned > 0 ? `${((converted / assigned) * 100).toFixed(1)}%` : "0.0%";
+    return rows.map((c) => ({
+      id: c.counsellorId,
+      name: c.name,
+      email: c.email || null,
+      phone: null,
+      branchName: c.branch?.name || branchName,
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(c.name)}`,
+      assigned: c.totalLeads,
+      contacted: c.contacted,
+      interested: c.interested,
+      followUps: c.followUps,
+      converted: c.converted,
+      lost: c.lost,
+      rate: c.conversionRate,
+    }));
+  }, [performanceResponse?.data, branchName]);
 
-      const avatar = `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(
-        c.name
-      )}`;
-
-      return {
-        id: c.id,
-        name: c.name,
-        email: c.email || null,
-        phone: c.phone || null,
-        branchName: c.branch?.name || branchName,
-        avatar,
-        assigned,
-        contacted,
-        interested,
-        followUps,
-        converted,
-        lost,
-        rate,
-      };
-    });
-  }, [allCounsellorUsers, allLeads, branchName]);
+  const isLoading = loadingPerf || loadingLeads;
 
   // Live Recent Lead Activities derived from real PostgreSQL leads
   const recentActivities = useMemo(() => {
@@ -167,7 +148,7 @@ export const CounsellorOverview: React.FC = () => {
       return {
         id: lead.id,
         lead: lead.name,
-        course: lead.course?.name || lead.interestedIn || "Full Stack Web Dev",
+        course: lead.course?.name || lead.interestedIn || "—",
         action,
         time: timeStr,
         icon,
@@ -200,7 +181,7 @@ export const CounsellorOverview: React.FC = () => {
       return {
         id: l.id,
         name: l.name,
-        course: l.course?.name || l.interestedIn || "General Course",
+        course: l.course?.name || l.interestedIn || "—",
         contact: l.phoneNumber,
         assignedTo: l.assignedCounsellor?.name || "Unassigned",
         assignedDate: new Date(l.createdAt).toLocaleDateString("en-GB", {
@@ -226,8 +207,6 @@ export const CounsellorOverview: React.FC = () => {
       };
     });
   }, [allLeads, searchTerm]);
-
-  const isLoading = loadingUsers || loadingLeads;
 
   return (
     <div className="p-6 md:p-8 max-w-[1600px] mx-auto space-y-6 bg-[#f8fafc] min-h-screen">

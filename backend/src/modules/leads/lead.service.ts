@@ -126,6 +126,18 @@ export const LeadService = {
       assignedCounsellorId,
     });
 
+    // Keep admissions Enquiry assignee in sync when a counsellor owns the lead
+    if (assignedCounsellorId) {
+      const { syncEnquiryAssigneeFromLead } = await import(
+        "./services/lead-enquiry-sync.service"
+      );
+      await syncEnquiryAssigneeFromLead({
+        instituteId,
+        phoneNumber: dto.phoneNumber,
+        counsellorId: assignedCounsellorId,
+      });
+    }
+
     return lead;
   },
 
@@ -150,11 +162,21 @@ export const LeadService = {
     const scope = getBranchScopeFilter(currentUser, query.branchId);
     const skip = (page - 1) * limit;
 
-    // If user is a COUNSELLOR, default to their branch and optionally filter by assigned if desired
+    const counsellorId = currentUser.userId || currentUser.id;
+    const isCounsellorOnly =
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER");
+
+    // COUNSELLOR may only see leads assigned to them (unless ADMIN/CM).
+    const effectiveAssignedId = isCounsellorOnly
+      ? counsellorId
+      : assignedCounsellorId;
+
     const { leads, total } = await LeadRepository.findLeads({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
-      assignedCounsellorId,
+      assignedCounsellorId: effectiveAssignedId,
       courseId,
       stage,
       status,
@@ -181,6 +203,20 @@ export const LeadService = {
     const lead = await LeadRepository.findLeadById(leadId, scope.instituteId, scope.branchId);
 
     if (!lead) {
+      throw new AppError("Lead not found", 404);
+    }
+
+    const isCounsellorOnly =
+      currentUser.roles.includes("COUNSELLOR") &&
+      !currentUser.roles.includes("ADMIN") &&
+      !currentUser.roles.includes("CENTER_MANAGER");
+    const counsellorId = currentUser.userId || currentUser.id;
+
+    if (
+      isCounsellorOnly &&
+      lead.assignedCounsellorId &&
+      lead.assignedCounsellorId !== counsellorId
+    ) {
       throw new AppError("Lead not found", 404);
     }
 
@@ -302,32 +338,46 @@ export const LeadService = {
     }
 
     const applicationNo = await SequenceService.getNextNumber(lead.instituteId, "APPLICATION");
+    const { normalizePhoneDigits } = await import("./services/lead-enquiry-sync.service");
+    const phone = normalizePhoneDigits(lead.phoneNumber);
+    const enquiries = await prisma.enquiry.findMany({
+      where: { instituteId: lead.instituteId },
+      select: { id: true, phone: true },
+    });
+    const matchedEnquiry = enquiries.find(
+      (e) => normalizePhoneDigits(e.phone) === phone
+    );
+    const counsellorId = lead.assignedCounsellorId || currentUser.userId || currentUser.id;
 
     const application = await prisma.$transaction(async (tx) => {
-      // 1. Create Application preserving lead data
+      // 1. Create Application preserving lead data (schema: no leadId/counsellorId columns)
       const newApp = await tx.application.create({
         data: {
           instituteId: lead.instituteId,
           branchId: dto?.branchId || lead.branchId,
           applicationNo,
+          enquiryId: matchedEnquiry?.id || null,
           applicantName: lead.name,
           email: lead.email,
           phone: lead.phoneNumber,
-          courseId,
+          courseId: courseId!,
           feeStatus: (dto?.feeStatus === "PAID" ? "PAID" : "PENDING") as any,
           status: "SUBMITTED",
-          notes: dto?.notes || `Created from Lead ${lead.name} (${lead.source})`,
+          notes:
+            dto?.notes ||
+            `Created from Lead ${lead.id} (${lead.name}, source=${lead.source || "—"}, counsellor=${counsellorId})`,
         },
         include: {
           course: { select: { id: true, name: true, code: true } },
+          enquiry: true,
         },
       });
 
-      // 2. Update Lead stage
+      // 2. Update Lead stage toward conversion pipeline
       await tx.lead.update({
         where: { id: leadId },
         data: {
-          stage: "QUALIFIED",
+          stage: "INTERESTED",
         },
       });
 
@@ -402,8 +452,8 @@ export const LeadService = {
     return LeadRepository.getDashboardSummary(scope.instituteId, scope.branchId);
   },
 
-  async getCounsellorPerformance(currentUser: AuthUser) {
-    const scope = getBranchScopeFilter(currentUser);
+  async getCounsellorPerformance(currentUser: AuthUser, branchId?: string) {
+    const scope = getBranchScopeFilter(currentUser, branchId);
     return LeadRepository.getCounsellorPerformance(scope.instituteId, scope.branchId);
   },
 
@@ -469,37 +519,87 @@ export const LeadService = {
   // ─── Trigger AI Call for Lead ───────────────────────────────────────────────
   async triggerLeadCall(leadId: string, currentUser: AuthUser) {
     const lead = await this.getLeadById(leadId, currentUser);
+    const userId = currentUser.userId || currentUser.id;
+    const telephonyConfigured = Boolean(
+      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
+    );
+
+    let externalCallId = `call_${Date.now()}`;
+    let status = "INITIATED";
+    let providerMessage =
+      "AI call queued locally. Configure TELEPHONY_BASE_URL + TELEPHONY_API_KEY to place live calls; Sarvam webhook will complete the CallLog.";
+
+    if (telephonyConfigured) {
+      try {
+        const { initiateCall } = await import(
+          "../../integrations/telephony/telephony.client"
+        );
+        const callbackBase =
+          process.env.PUBLIC_API_BASE_URL ||
+          `http://localhost:${process.env.PORT || 5000}`;
+        const response = await initiateCall({
+          to: lead.phoneNumber,
+          from: process.env.TELEPHONY_FROM_NUMBER || "",
+          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
+          metadata: {
+            leadId: lead.id,
+            instituteId: lead.instituteId,
+            triggeredBy: userId,
+          },
+        });
+        externalCallId = response.callId || externalCallId;
+        status = response.status || "INITIATED";
+        providerMessage = "AI voice call initiated via telephony provider";
+      } catch (err) {
+        status = "FAILED";
+        providerMessage =
+          err instanceof Error
+            ? `Telephony initiate failed: ${err.message}`
+            : "Telephony initiate failed";
+        logger.error({ err, leadId: lead.id }, "[LeadService] triggerLeadCall telephony error");
+      }
+    }
 
     const callLog = await prisma.callLog.create({
       data: {
         leadId: lead.id,
-        externalCallId: `call_${Date.now()}`,
-        status: "COMPLETED",
-        duration: 145,
-        transcript: `Voice Agent: "Hello! Am I speaking with ${lead.name}?"\nLead: "Yes, speaking."\nVoice Agent: "Great! I am calling from Aadya Institute regarding your inquiry for ${lead.interestedIn || "our career programs"}. Are you looking to upskill for a job transition?"\nLead: "Yes, looking for practical training with placement support. My budget is around 40k to 50k and I prefer weekend batches."\nVoice Agent: "Understood! We have dedicated weekend batches with live mentor guidance and placement eligibility. I will share the curriculum brochure and have our senior counsellor connect with you."\nLead: "Thank you, sounds good!"`,
+        externalCallId,
+        status,
+        duration: 0,
+        transcript: null,
       },
     });
 
-    // Update lead stage to CONTACTED if it was NEW or ASSIGNED
-    if (lead.stage === "NEW" || lead.stage === "ASSIGNED") {
-      await LeadRepository.changeStage(lead.id, "CONTACTED", currentUser.userId || currentUser.id, "Auto-updated via AI Voice Call qualification");
+    // Mark contacted once a call is placed (or queued for provider)
+    if (
+      status !== "FAILED" &&
+      (lead.stage === "NEW" || lead.stage === "ASSIGNED")
+    ) {
+      await LeadRepository.changeStage(
+        lead.id,
+        "CONTACTED",
+        userId,
+        "Updated when AI voice call was initiated"
+      );
     }
 
     await LeadActivityService.logActivity(
       lead.id,
-      "CALL_COMPLETED",
-      `AI Voice Qualification Call completed (Duration: 2m 25s)`,
+      status === "FAILED" ? "NOTE_ADDED" : "CALL_COMPLETED",
+      status === "FAILED"
+        ? "AI voice call failed to initiate"
+        : `AI voice call ${status.toLowerCase()}`,
       {
-        userId: currentUser.userId || currentUser.id,
-        description: "AI qualification call conducted successfully. Intent confirmed: High.",
-        metadata: { callId: callLog.id, status: "COMPLETED" },
+        userId,
+        description: providerMessage,
+        metadata: { callId: callLog.id, status, telephonyConfigured },
       }
     );
 
     return {
-      success: true,
+      success: status !== "FAILED",
       call: callLog,
-      message: "AI Voice Call triggered and processed successfully",
+      message: providerMessage,
     };
   },
 };

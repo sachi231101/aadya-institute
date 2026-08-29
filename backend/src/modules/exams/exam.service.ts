@@ -103,6 +103,8 @@ export const updateExam = async (
   }
 
   const updated = await repository.updateExam(id, instituteId, payload);
+  const { cacheDel } = await import('../../config/cache');
+  await cacheDel(`exam-paper:${id}`);
   await logActivity(userId, instituteId, 'EXAM_UPDATED', id, existing, updated);
   return updated;
 };
@@ -128,6 +130,8 @@ export const publishExam = async (id: string, instituteId: string, userId: strin
   }
 
   await repository.updateExamStatus(id, 'PUBLISHED');
+  const { cacheDel } = await import('../../config/cache');
+  await cacheDel(`exam-paper:${id}`);
   await logActivity(userId, instituteId, 'EXAM_PUBLISHED', id, { status: exam.status }, { status: 'PUBLISHED' });
   return repository.findExamById(id, instituteId);
 };

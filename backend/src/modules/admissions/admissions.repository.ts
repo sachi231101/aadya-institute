@@ -99,10 +99,6 @@ export const AdmissionsRepository = {
         ...(dto.status !== undefined ? { status: dto.status } : {}),
         ...(dto.counselorNotes !== undefined ? { counselorNotes: dto.counselorNotes } : {}),
         ...(dto.assignedToId !== undefined ? { assignedToId: dto.assignedToId } : {}),
-        ...(dto.aiCallStatus !== undefined ? { aiCallStatus: dto.aiCallStatus } : {}),
-        ...(dto.aiCallResult !== undefined ? { aiCallResult: dto.aiCallResult } : {}),
-        ...(dto.aiSummary !== undefined ? { aiSummary: dto.aiSummary } : {}),
-        ...(dto.nextFollowUpAt !== undefined ? { nextFollowUpAt: dto.nextFollowUpAt ? new Date(dto.nextFollowUpAt) : null } : {}),
       },
     });
   },

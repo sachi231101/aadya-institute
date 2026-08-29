@@ -64,35 +64,89 @@ ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "examTermMasterId" TEXT;
 -- UserSettings designation master
 ALTER TABLE "UserSettings" ADD COLUMN IF NOT EXISTS "designationMasterId" TEXT;
 
--- Foreign keys to MasterRecord
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_sourceMasterId_fkey" FOREIGN KEY ("sourceMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_stageMasterId_fkey" FOREIGN KEY ("stageMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_leadTypeMasterId_fkey" FOREIGN KEY ("leadTypeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+-- Foreign keys to MasterRecord (idempotent — partial applies may already have some FKs)
+DO $$ BEGIN
+  ALTER TABLE "Lead" ADD CONSTRAINT "Lead_sourceMasterId_fkey" FOREIGN KEY ("sourceMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Lead" ADD CONSTRAINT "Lead_stageMasterId_fkey" FOREIGN KEY ("stageMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Lead" ADD CONSTRAINT "Lead_leadTypeMasterId_fkey" FOREIGN KEY ("leadTypeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Enquiry" ADD CONSTRAINT "Enquiry_sourceMasterId_fkey" FOREIGN KEY ("sourceMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Enquiry" ADD CONSTRAINT "Enquiry_sourceMasterId_fkey" FOREIGN KEY ("sourceMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Admission" ADD CONSTRAINT "Admission_statusMasterId_fkey" FOREIGN KEY ("statusMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Admission" ADD CONSTRAINT "Admission_concessionHeadMasterId_fkey" FOREIGN KEY ("concessionHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Admission" ADD CONSTRAINT "Admission_statusMasterId_fkey" FOREIGN KEY ("statusMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Admission" ADD CONSTRAINT "Admission_concessionHeadMasterId_fkey" FOREIGN KEY ("concessionHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Student" ADD CONSTRAINT "Student_qualificationMasterId_fkey" FOREIGN KEY ("qualificationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Student" ADD CONSTRAINT "Student_areaMasterId_fkey" FOREIGN KEY ("areaMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Student" ADD CONSTRAINT "Student_qualificationMasterId_fkey" FOREIGN KEY ("qualificationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Student" ADD CONSTRAINT "Student_areaMasterId_fkey" FOREIGN KEY ("areaMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Faculty" ADD CONSTRAINT "Faculty_designationMasterId_fkey" FOREIGN KEY ("designationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Faculty" ADD CONSTRAINT "Faculty_designationMasterId_fkey" FOREIGN KEY ("designationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "ClassSession" ADD CONSTRAINT "ClassSession_classroomMasterId_fkey" FOREIGN KEY ("classroomMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "ClassSession" ADD CONSTRAINT "ClassSession_timeslotMasterId_fkey" FOREIGN KEY ("timeslotMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "ClassSession" ADD CONSTRAINT "ClassSession_classroomMasterId_fkey" FOREIGN KEY ("classroomMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "ClassSession" ADD CONSTRAINT "ClassSession_timeslotMasterId_fkey" FOREIGN KEY ("timeslotMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_assignmentTypeMasterId_fkey" FOREIGN KEY ("assignmentTypeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Assignment" ADD CONSTRAINT "Assignment_assignmentTypeMasterId_fkey" FOREIGN KEY ("assignmentTypeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_paymentModeMasterId_fkey" FOREIGN KEY ("paymentModeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_bankAccountMasterId_fkey" FOREIGN KEY ("bankAccountMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-ALTER TABLE "Payment" ADD CONSTRAINT "Payment_feeHeadMasterId_fkey" FOREIGN KEY ("feeHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_paymentModeMasterId_fkey" FOREIGN KEY ("paymentModeMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_bankAccountMasterId_fkey" FOREIGN KEY ("bankAccountMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_feeHeadMasterId_fkey" FOREIGN KEY ("feeHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "PendingFee" ADD CONSTRAINT "PendingFee_feeHeadMasterId_fkey" FOREIGN KEY ("feeHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "PendingFee" ADD CONSTRAINT "PendingFee_feeHeadMasterId_fkey" FOREIGN KEY ("feeHeadMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "Exam" ADD CONSTRAINT "Exam_examTermMasterId_fkey" FOREIGN KEY ("examTermMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Exam" ADD CONSTRAINT "Exam_examTermMasterId_fkey" FOREIGN KEY ("examTermMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-ALTER TABLE "UserSettings" ADD CONSTRAINT "UserSettings_designationMasterId_fkey" FOREIGN KEY ("designationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "UserSettings" ADD CONSTRAINT "UserSettings_designationMasterId_fkey" FOREIGN KEY ("designationMasterId") REFERENCES "MasterRecord"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Indexes for master FK lookups
 CREATE INDEX IF NOT EXISTS "Lead_sourceMasterId_idx" ON "Lead"("sourceMasterId");

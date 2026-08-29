@@ -23,6 +23,13 @@ export const useLeadDashboard = (branchId?: string) => {
   });
 };
 
+export const useCounsellorPerformance = (branchId?: string) => {
+  return useQuery({
+    queryKey: ["leads", "dashboard", "counsellors", branchId],
+    queryFn: () => leadsApi.getCounsellorPerformance({ branchId }),
+  });
+};
+
 export const useLeadFollowUps = (id: string) => {
   return useQuery({
     queryKey: ["leads", id, "follow-ups"],

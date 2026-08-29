@@ -209,7 +209,14 @@ export const getCounsellorPerformance = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const stats = await LeadService.getCounsellorPerformance(req.user as unknown as AuthUser);
+    const branchId =
+      typeof req.query.branchId === "string" && req.query.branchId.trim()
+        ? req.query.branchId.trim()
+        : undefined;
+    const stats = await LeadService.getCounsellorPerformance(
+      req.user as unknown as AuthUser,
+      branchId
+    );
     sendSuccess(res, stats, 200, "Counsellor performance retrieved successfully");
   } catch (err) {
     next(err);

@@ -1,7 +1,39 @@
 import { create } from "zustand";
 import { usersApi } from "../services/users.api";
 import { notifyPermissionChange } from "../hooks/useAuth";
-import type { Counselor, CreateCounselorPayload, UpdateCounselorPayload } from "../types/counselor.types";
+import type { Counselor, CreateCounselorPayload, UpdateCounselorPayload, CounselorStatus } from "../types/counselor.types";
+
+const mapUserStatus = (status: string): CounselorStatus => {
+  if (status === "INACTIVE") return "INACTIVE";
+  if (status === "BLOCKED") return "BLOCKED";
+  return "ACTIVE";
+};
+
+const toCounselor = (
+  u: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    branchId?: string | null;
+    branch?: { name?: string } | null;
+    status: string;
+    createdAt: string;
+  },
+  extras?: Partial<Pick<Counselor, "assignedLeadsCount" | "convertedLeadsCount" | "branchName">>
+): Counselor => ({
+  id: u.id,
+  name: u.name,
+  employeeCode: `CNS-${u.id.slice(-4).toUpperCase()}`,
+  email: u.email || "",
+  phone: u.phone || "",
+  branchId: u.branchId || "",
+  branchName: extras?.branchName || u.branch?.name || "—",
+  assignedLeadsCount: extras?.assignedLeadsCount ?? 0,
+  convertedLeadsCount: extras?.convertedLeadsCount ?? 0,
+  status: mapUserStatus(u.status),
+  createdAt: u.createdAt,
+});
 
 interface CounselorState {
   counselors: Counselor[];
@@ -24,23 +56,13 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       const res = await usersApi.getUsers({
         role: "COUNSELLOR",
         limit: 100,
-        ...(branchId ? { branchId } : {})
+        ...(branchId ? { branchId } : {}),
       });
       if (res.success && res.data) {
-        const mapped: Counselor[] = res.data.map((u) => ({
-          id: u.id,
-          name: u.name,
-          employeeCode: `CNS-${u.id.slice(-4).toUpperCase()}`,
-          email: u.email || "",
-          phone: u.phone || "",
-          branchId: u.branchId || "main",
-          branchName: u.branch?.name || "Aadya Central Branch",
-          assignedLeadsCount: 0,
-          activeStudentsCount: 0,
-          status: u.status === "ACTIVE" ? "ACTIVE" : u.status === "INACTIVE" ? "INACTIVE" : "ON_LEAVE",
-          createdAt: u.createdAt,
-        }));
-        set({ counselors: mapped, isLoading: false });
+        set({
+          counselors: res.data.map((u) => toCounselor(u)),
+          isLoading: false,
+        });
       } else {
         set({ isLoading: false });
       }
@@ -63,25 +85,10 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       });
 
       if (res.success && res.data) {
-        await get().fetchCounselors();
+        await get().fetchCounselors(payload.branchId);
         set({ isLoading: false });
-        const createdUser = res.data;
-        const newCounselor = {
-          id: createdUser.id,
-          name: createdUser.name,
-          employeeCode: payload.employeeCode || `CNS-${createdUser.id.slice(-4).toUpperCase()}`,
-          email: createdUser.email || "",
-          phone: createdUser.phone || "",
-          branchId: createdUser.branchId || payload.branchId || "main",
-          branchName: payload.branchName || "Aadya Central Branch",
-          assignedLeadsCount: 0,
-          activeStudentsCount: 0,
-          status: payload.status || "ACTIVE",
-          createdAt: createdUser.createdAt,
-        };
-        set((state) => ({ counselors: [...state.counselors, newCounselor] }));
         notifyPermissionChange();
-        return newCounselor;
+        return toCounselor(res.data, { branchName: payload.branchName });
       }
       set({ isLoading: false });
       return null;
@@ -106,7 +113,7 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
       });
       if (payload.status) {
         await usersApi.updateUserStatus(id, {
-          status: payload.status === "ACTIVE" ? "ACTIVE" : "INACTIVE",
+          status: payload.status === "ACTIVE" ? "ACTIVE" : payload.status === "BLOCKED" ? "BLOCKED" : "INACTIVE",
         });
       }
       if (res.success) {
@@ -114,13 +121,14 @@ export const useCounselorStore = create<CounselorState>((set, get) => ({
           counselors: state.counselors.map((c) =>
             c.id === id
               ? {
-                ...c,
-                name: payload.name || c.name,
-                email: payload.email || c.email,
-                phone: payload.phone || c.phone,
-                branchId: payload.branchId || c.branchId,
-                status: payload.status || c.status,
-              }
+                  ...c,
+                  name: payload.name || c.name,
+                  email: payload.email || c.email,
+                  phone: payload.phone || c.phone,
+                  branchId: payload.branchId ?? c.branchId,
+                  branchName: payload.branchName || c.branchName,
+                  status: payload.status || c.status,
+                }
               : c
           ),
         }));

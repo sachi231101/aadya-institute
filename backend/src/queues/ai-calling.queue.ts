@@ -18,5 +18,6 @@ export const aiCallingWorker = createWorker<AICallingJob>(
       from: job.data.from,
       callbackUrl: job.data.callbackUrl,
     });
-  }
+  },
+  { concurrency: 3, peakConcurrency: 1, pauseInPeakMode: true }
 );

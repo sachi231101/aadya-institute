@@ -78,6 +78,11 @@ export interface MasterAuthUser {
   roles: string[];
 }
 
+const bustMasterActiveCache = async (instituteId: string) => {
+  const { cacheDelByPrefix } = await import("../../config/cache");
+  await cacheDelByPrefix(`masters:active:${instituteId}:`);
+};
+
 /**
  * Determine effective branch filter based on user roles
  */
@@ -200,7 +205,9 @@ export const createMasterService = async (
       data: numberingData,
     };
 
-    return createMasterRecord(instituteId, payload);
+    const series = await createMasterRecord(instituteId, payload);
+    await bustMasterActiveCache(instituteId);
+    return series;
   }
 
   // Duplicate name check for other master entity types
@@ -216,7 +223,9 @@ export const createMasterService = async (
     );
   }
 
-  return createMasterRecord(instituteId, payload);
+  const created = await createMasterRecord(instituteId, payload);
+  await bustMasterActiveCache(instituteId);
+  return created;
 };
 
 export const updateMasterService = async (
@@ -298,7 +307,9 @@ export const updateMasterService = async (
     };
   }
 
-  return updateMasterRecord(id, instituteId, updatePayload);
+  const updated = await updateMasterRecord(id, instituteId, updatePayload);
+  await bustMasterActiveCache(instituteId);
+  return updated;
 };
 
 export const deleteMasterService = async (
@@ -323,6 +334,7 @@ export const deleteMasterService = async (
 
   // Soft delete: set status to INACTIVE
   const deactivated = await softDeleteMasterRecord(id, instituteId);
+  await bustMasterActiveCache(instituteId);
   return { id, deleted: true, status: deactivated.status };
 };
 
@@ -363,7 +375,9 @@ export const toggleMasterStatusService = async (
     });
   }
 
-  return toggleMasterRecordStatus(id, newStatus);
+  const toggled = await toggleMasterRecordStatus(id, newStatus);
+  await bustMasterActiveCache(instituteId);
+  return toggled;
 };
 
 /**
@@ -387,5 +401,11 @@ export const listActiveMastersByTypeService = async (
 ) => {
   const instituteId = currentUser.instituteId;
   const branchId = getBranchFilter(currentUser, requestedBranchId);
-  return findActiveMasterRecords(instituteId, entityType, branchId);
+  const { cacheGet, cacheSet } = await import("../../config/cache");
+  const cacheKey = `masters:active:${instituteId}:${entityType}:${branchId || "all"}`;
+  const cached = await cacheGet<unknown>(cacheKey);
+  if (cached) return cached;
+  const records = await findActiveMasterRecords(instituteId, entityType, branchId);
+  await cacheSet(cacheKey, records, 60);
+  return records;
 };

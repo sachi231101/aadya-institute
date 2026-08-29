@@ -77,7 +77,20 @@ export const AdmissionsService = {
 
   async createEnquiry(instituteId: string, branchId: string | undefined, dto: CreateEnquiryDTO) {
     const enquiryNo = await SequenceService.getNextNumber(instituteId, "ENQUIRY");
-    return AdmissionsRepository.createEnquiry(instituteId, branchId, enquiryNo, dto);
+    const enquiry = await AdmissionsRepository.createEnquiry(instituteId, branchId, enquiryNo, dto);
+
+    if (dto.assignedToId) {
+      const { syncLeadAssigneeFromEnquiry } = await import(
+        "../leads/services/lead-enquiry-sync.service"
+      );
+      await syncLeadAssigneeFromEnquiry({
+        instituteId,
+        phone: dto.phone,
+        counsellorId: dto.assignedToId,
+      });
+    }
+
+    return enquiry;
   },
 
   async updateEnquiry(id: string, instituteId: string, dto: UpdateEnquiryDTO) {
@@ -86,6 +99,19 @@ export const AdmissionsService = {
       throw new Error("Enquiry not found");
     }
     await AdmissionsRepository.updateEnquiry(id, instituteId, dto);
+
+    // Keep Lead.assignedCounsellorId in sync when enquiry assignee changes
+    if (dto.assignedToId !== undefined) {
+      const { syncLeadAssigneeFromEnquiry } = await import(
+        "../leads/services/lead-enquiry-sync.service"
+      );
+      await syncLeadAssigneeFromEnquiry({
+        instituteId,
+        phone: existing.phone,
+        counsellorId: dto.assignedToId || null,
+      });
+    }
+
     return AdmissionsRepository.findEnquiryById(id, instituteId);
   },
 
@@ -95,7 +121,44 @@ export const AdmissionsService = {
       throw new Error("Enquiry not found");
     }
 
-    // 1. Create CallLog entry for enquiry
+    // Prefer linking CallLog to a matching Lead (CallLog has no enquiryId column)
+    const { normalizePhoneDigits } = await import(
+      "../leads/services/lead-enquiry-sync.service"
+    );
+    const phone = normalizePhoneDigits(enquiry.phone);
+    const leads = await prisma.lead.findMany({
+      where: { instituteId },
+      select: { id: true, phoneNumber: true },
+    });
+    const matchedLead = leads.find((l) => normalizePhoneDigits(l.phoneNumber) === phone);
+
+    const telephonyConfigured = Boolean(
+      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
+    );
+    let status = "INITIATED";
+    let externalCallId = `enq_call_${Date.now()}`;
+
+    if (telephonyConfigured && matchedLead) {
+      try {
+        const { initiateCall } = await import(
+          "../../integrations/telephony/telephony.client"
+        );
+        const callbackBase =
+          process.env.PUBLIC_API_BASE_URL ||
+          `http://localhost:${process.env.PORT || 5000}`;
+        const response = await initiateCall({
+          to: enquiry.phone,
+          from: process.env.TELEPHONY_FROM_NUMBER || "",
+          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
+          metadata: { enquiryId: id, leadId: matchedLead.id, instituteId },
+        });
+        externalCallId = response.callId || externalCallId;
+        status = response.status || "INITIATED";
+      } catch {
+        status = "FAILED";
+      }
+    }
+
     await prisma.callLog.create({
       data: {
         externalCallId: `call-${Date.now()}`,
@@ -105,12 +168,15 @@ export const AdmissionsService = {
       },
     });
 
-    // 2. Update Enquiry AI Calling fields
+    // Persist AI call note on the enquiry (no dedicated AI columns in schema)
     await AdmissionsRepository.updateEnquiry(id, instituteId, {
-      aiCallStatus: "COMPLETED",
-      aiCallResult: "INTERESTED",
-      aiSummary: "Prospect confirmed interest in upcoming batch during AI voice qualification call.",
-      status: "IN_PROGRESS",
+      counselorNotes: [
+        enquiry.counselorNotes,
+        `[AI Call ${status}] Queued ${new Date().toISOString()}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      status: enquiry.status === "NEW" ? "IN_PROGRESS" : enquiry.status,
     });
 
     return AdmissionsRepository.findEnquiryById(id, instituteId);
