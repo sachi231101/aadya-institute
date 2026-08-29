@@ -238,8 +238,28 @@ export const updateUserStatus = async (
 };
 
 export const deleteUser = async (id: string, instituteId: string) => {
-  // Soft-delete: set status to BLOCKED and remove role assignments
+  // Soft-delete: block account, strip access, and release counsellor workload
   await prisma.$transaction([
+    // Unassign CRM work so Overview KPIs / queues don't keep a deleted counsellor
+    prisma.lead.updateMany({
+      where: { assignedCounsellorId: id, instituteId },
+      data: { assignedCounsellorId: null },
+    }),
+    prisma.leadAssignment.updateMany({
+      where: { counsellorId: id, isCurrent: true },
+      data: { isCurrent: false, unassignedAt: new Date() },
+    }),
+    prisma.enquiry.updateMany({
+      where: { assignedToId: id },
+      data: { assignedToId: null },
+    }),
+    prisma.leadFollowUp.updateMany({
+      where: {
+        counsellorId: id,
+        status: "PENDING",
+      },
+      data: { status: "CANCELLED" },
+    }),
     prisma.userRole.deleteMany({ where: { userId: id } }),
     prisma.userPermission.deleteMany({ where: { userId: id } }),
     prisma.refreshToken.deleteMany({ where: { userId: id } }),

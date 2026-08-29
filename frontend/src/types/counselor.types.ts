@@ -1,22 +1,24 @@
-export type CounselorStatus = "ACTIVE" | "INACTIVE" | "ON_LEAVE";
+/** Matches User.status from the users API (no ON_LEAVE in DB). */
+export type CounselorStatus = "ACTIVE" | "INACTIVE" | "BLOCKED";
 
 export interface Counselor {
   id: string;
   name: string;
+  /** Display-only code derived from user id — not persisted. */
   employeeCode: string;
   email: string;
   phone: string;
   branchId: string;
   branchName: string;
   assignedLeadsCount: number;
-  activeStudentsCount: number;
+  /** Count of leads in CONVERTED stage (admission pipeline), not batch enrollments. */
+  convertedLeadsCount: number;
   status: CounselorStatus;
   createdAt: string;
 }
 
 export interface CreateCounselorPayload {
   name: string;
-  employeeCode: string;
   email: string;
   phone: string;
   password?: string;
@@ -28,7 +30,6 @@ export interface CreateCounselorPayload {
 
 export interface UpdateCounselorPayload {
   name?: string;
-  employeeCode?: string;
   email?: string;
   phone?: string;
   branchId?: string;

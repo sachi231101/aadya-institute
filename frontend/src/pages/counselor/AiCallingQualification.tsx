@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Bot,
   Phone,
@@ -53,10 +53,21 @@ import {
   SheetContent,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { useLeadStore, type UnifiedLead } from "@/store/lead.store";
+import type { UnifiedLead } from "@/store/lead.store";
+import { useAuthStore } from "@/store/auth.store";
+import { useCounselorStore } from "@/store/counselor.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel } from "@/utils/master.utils";
+import {
+  useLeads,
+  useCreateLead,
+  useMarkLeadLost,
+  useCreateFollowUp,
+  useAssignLead,
+  useTriggerLeadCall,
+  useChangeLeadStage,
+} from "@/hooks/useLeads";
 
 interface AiTranscriptMessage {
   speaker: "AI" | "LEAD";
@@ -100,15 +111,103 @@ interface AiCallingLead {
 const _INITIAL_AI_CALLING_LEADS: AiCallingLead[] = [];
 
 export const AiCallingQualification: React.FC = () => {
-  // Centralized Leads from store
-  const {
-    leads,
-    addLead,
-    scheduleFollowUp: storeScheduleFollowUp,
-    markAsLost: storeMarkAsLost,
-    assignCounsellor: storeAssignCounsellor,
-    retryAiCall: storeRetryAiCall,
-  } = useLeadStore();
+  const { user } = useAuthStore();
+  const { counselors, fetchCounselors } = useCounselorStore();
+  const { data: leadsResponse } = useLeads({
+    limit: 100,
+    branchId: user?.branchId || undefined,
+  });
+  const createLeadMutation = useCreateLead();
+  const markLostMutation = useMarkLeadLost();
+  const createFollowUpMutation = useCreateFollowUp();
+  const assignLeadMutation = useAssignLead();
+  const triggerCallMutation = useTriggerLeadCall();
+  const changeStageMutation = useChangeLeadStage();
+
+  useEffect(() => {
+    fetchCounselors(user?.branchId || undefined);
+  }, [fetchCounselors, user?.branchId]);
+
+  const mapApiLead = (l: any): UnifiedLead => {
+    const call = l.callLogs?.[0];
+    const transcriptLines: AiTranscriptMessage[] = call?.transcript
+      ? String(call.transcript)
+          .split("\n")
+          .filter(Boolean)
+          .map((line: string, idx: number) => {
+            const isAi = line.toLowerCase().startsWith("ai") || line.toLowerCase().startsWith("assistant");
+            return {
+              speaker: (isAi ? "AI" : "LEAD") as "AI" | "LEAD",
+              speakerName: isAi ? "AI Agent" : l.name,
+              time: `${idx + 1}:00`,
+              text: line.replace(/^(AI|LEAD|assistant|user)\s*:?\s*/i, ""),
+            };
+          })
+      : [];
+
+    const status = (call?.status || "PENDING").toUpperCase();
+    const callStatus =
+      status === "COMPLETED" || status === "ANSWERED"
+        ? "COMPLETED"
+        : status === "NO_ANSWER" || status === "BUSY"
+          ? "NO_ANSWER"
+          : status === "FAILED"
+            ? "FAILED"
+            : status === "RINGING" || status === "INITIATED"
+              ? "IN_PROGRESS"
+              : "COMPLETED";
+
+    return {
+      id: l.id,
+      name: l.name,
+      phone: l.phoneNumber || "",
+      email: l.email || "",
+      course: l.course?.name || l.interestedIn || "—",
+      source: l.source || "Website",
+      sourceType: l.source || "Website",
+      stage: l.stage || "NEW",
+      pipelineStage: l.stage || "NEW",
+      stageColor: "bg-blue-50 text-blue-700 border-blue-200",
+      priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
+      priorityColor: "text-emerald-600 bg-emerald-500",
+      nextFollowUp: l.nextFollowUpAt ? new Date(l.nextFollowUpAt).toLocaleString() : "—",
+      attemptsCount: (l.callLogs || []).length,
+      latestResponse: call?.aiSummary || l.notes || "—",
+      assignedCounsellor: l.assignedCounsellor?.name || "—",
+      hotLead: l.priority === "HIGH",
+      campaign: "—",
+      callDate: call?.createdAt ? new Date(call.createdAt).toLocaleDateString() : "—",
+      callStatus: callStatus as any,
+      attempt: (l.callLogs || []).length,
+      aiOutcome:
+        l.stage === "LOST"
+          ? "NOT_INTERESTED"
+          : l.stage === "FOLLOW_UP"
+            ? "CALLBACK_REQUESTED"
+            : l.stage === "INTERESTED" || l.stage === "CONVERTED"
+              ? "INTERESTED"
+              : callStatus === "NO_ANSWER"
+                ? "NO_RESPONSE"
+                : "NEEDS_COUNSELLOR",
+      aiSummaryShort: call?.aiSummary || l.notes || "No AI summary yet",
+      aiDetailedSummary: call?.aiSummary || l.notes || "No AI summary yet",
+      keyHighlights: [`Stage: ${l.stage}`, `Source: ${l.source || "—"}`],
+      callDuration: call?.duration ? `${call.duration}s` : "—",
+      callTimestamp: call?.createdAt ? new Date(call.createdAt).toLocaleString() : "—",
+      aiScore: Number(call?.aiScore) || 0,
+      starRating: 0,
+      nextActionType: "CONTACT_NOW",
+      nextActionLabel: "Contact Now",
+      transcript: transcriptLines,
+      attemptsHistory: [],
+      audioRecordingUrl: call?.recordingUrl,
+    };
+  };
+
+  const leads = useMemo(() => {
+    const raw = (leadsResponse?.data as any[]) || [];
+    return raw.map(mapApiLead);
+  }, [leadsResponse?.data]);
 
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState("");
@@ -131,7 +230,11 @@ export const AiCallingQualification: React.FC = () => {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [followUpLead, setFollowUpLead] = useState<UnifiedLead | null>(null);
   const [followUpChannel, setFollowUpChannel] = useState<"PHONE" | "WHATSAPP" | "EMAIL">("PHONE");
-  const [followUpDate, setFollowUpDate] = useState("2026-08-25");
+  const [followUpDate, setFollowUpDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  });
   const [followUpTime, setFollowUpTime] = useState("11:00 AM");
   const [setReminderAlert, setSetReminderAlert] = useState(true);
   const [followUpNotes, setFollowUpNotes] = useState("");
@@ -145,7 +248,7 @@ export const AiCallingQualification: React.FC = () => {
   // Assign to Counsellor Modal State
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [assignLead, setAssignLead] = useState<UnifiedLead | null>(null);
-  const [selectedCounsellor, setSelectedCounsellor] = useState("Priya Singh");
+  const [selectedCounsellorId, setSelectedCounsellorId] = useState("");
   const [assignNotes, setAssignNotes] = useState("");
 
   // Add New Lead Modal State
@@ -163,6 +266,34 @@ export const AiCallingQualification: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4500);
+  };
+
+  const mapLostReasonToApi = (reason: string): string => {
+    const lower = reason.toLowerCase();
+    if (lower.includes("competitor") || lower.includes("joined")) return "JOINED_COMPETITOR";
+    if (lower.includes("price") || lower.includes("fee")) return "PRICE_HIGH";
+    if (lower.includes("not interested")) return "NOT_INTERESTED";
+    if (lower.includes("no response") || lower.includes("no answer")) return "NO_RESPONSE";
+    if (lower.includes("course")) return "COURSE_NOT_AVAILABLE";
+    if (lower.includes("location")) return "LOCATION_ISSUE";
+    if (lower.includes("timing") || lower.includes("time")) return "TIMING_ISSUE";
+    return "OTHER";
+  };
+
+  const parseFollowUpToIso = (dateStr: string, timeStr: string): string => {
+    const base = /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
+      ? new Date(`${dateStr}T12:00:00`)
+      : new Date();
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    if (match) {
+      let hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const ampm = match[3]?.toUpperCase();
+      if (ampm === "PM" && hours < 12) hours += 12;
+      if (ampm === "AM" && hours === 12) hours = 0;
+      base.setHours(hours, minutes, 0, 0);
+    }
+    return base.toISOString();
   };
 
   // Dynamic KPI Calculations from all omnichannel leads
@@ -237,7 +368,9 @@ export const AiCallingQualification: React.FC = () => {
   const handleOpenFollowUpModal = (lead: UnifiedLead) => {
     setFollowUpLead(lead);
     setFollowUpChannel("PHONE");
-    setFollowUpDate("2026-08-25");
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setFollowUpDate(tomorrow.toISOString().slice(0, 10));
     setFollowUpTime("11:00 AM");
     setSetReminderAlert(true);
     setFollowUpNotes(lead.aiSummaryShort || "");
@@ -246,46 +379,49 @@ export const AiCallingQualification: React.FC = () => {
 
   // Apply Follow-up Preset
   const handleApplyPreset = (preset: "today_4pm" | "tomorrow_10am" | "tomorrow_2pm" | "in_2days") => {
+    const d = new Date();
     if (preset === "today_4pm") {
-      setFollowUpDate("2026-08-24");
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("04:00 PM");
     } else if (preset === "tomorrow_10am") {
-      setFollowUpDate("2026-08-25");
+      d.setDate(d.getDate() + 1);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("10:30 AM");
     } else if (preset === "tomorrow_2pm") {
-      setFollowUpDate("2026-08-25");
+      d.setDate(d.getDate() + 1);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("02:30 PM");
     } else if (preset === "in_2days") {
-      setFollowUpDate("2026-08-26");
+      d.setDate(d.getDate() + 2);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("11:00 AM");
     }
   };
 
-  // Save Follow-up Modal
-  const handleSaveFollowUp = (e: React.FormEvent) => {
+  const handleSaveFollowUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!followUpLead) return;
-
-    storeScheduleFollowUp(
-      followUpLead.id,
-      followUpChannel,
-      followUpDate,
-      followUpTime,
-      followUpNotes
-    );
-
-    const formattedNext =
-      followUpDate === "2026-08-24"
-        ? `Today, ${followUpTime}`
-        : followUpDate === "2026-08-25"
-        ? `Tomorrow, ${followUpTime}`
-        : `${followUpDate}, ${followUpTime}`;
-
-    showToast(`✓ Follow-up scheduled for ${followUpLead.name} on ${formattedNext}!`);
-    setShowFollowUpModal(false);
+    if (!followUpLead || !user?.id) return;
+    try {
+      await createFollowUpMutation.mutateAsync({
+        id: followUpLead.id,
+        data: {
+          type: followUpChannel === "WHATSAPP" ? "WHATSAPP" : followUpChannel === "EMAIL" ? "REMINDER" : "CALL",
+          scheduledAt: parseFollowUpToIso(followUpDate, followUpTime),
+          notes: followUpNotes || undefined,
+          counsellorId: user.id,
+        },
+      });
+      await changeStageMutation.mutateAsync({
+        id: followUpLead.id,
+        data: { stage: "FOLLOW_UP", notes: followUpNotes || undefined },
+      });
+      showToast(`✓ Follow-up scheduled for ${followUpLead.name} on ${followUpDate}, ${followUpTime}`);
+      setShowFollowUpModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to schedule follow-up");
+    }
   };
 
-  // Open Mark as Lost Modal
   const handleOpenLostModal = (lead: UnifiedLead) => {
     setLostLead(lead);
     setLostReason("Joined Competitor Institute");
@@ -294,63 +430,81 @@ export const AiCallingQualification: React.FC = () => {
     setShowLostModal(true);
   };
 
-  // Confirm Mark as Lost
-  const handleConfirmLost = (e: React.FormEvent) => {
+  const handleConfirmLost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!lostLead) return;
-
-    storeMarkAsLost(lostLead.id, lostReason, lostNotes);
-    showToast(`✓ Lead ${lostLead.name} marked as Lost.`);
-    setShowLostModal(false);
+    try {
+      await markLostMutation.mutateAsync({
+        id: lostLead.id,
+        data: { reason: mapLostReasonToApi(lostReason), notes: lostNotes || undefined },
+      });
+      showToast(`✓ Lead ${lostLead.name} marked as Lost.`);
+      setShowLostModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to mark lead as lost");
+    }
   };
 
-  // Open Assign to Counsellor Modal
   const handleOpenAssignModal = (lead: UnifiedLead) => {
     setAssignLead(lead);
-    setSelectedCounsellor(lead.assignedCounsellor || "Priya Singh");
+    const match = counselors.find((c) => c.name === lead.assignedCounsellor);
+    setSelectedCounsellorId(match?.id || counselors[0]?.id || "");
     setAssignNotes("");
     setShowAssignModal(true);
   };
 
-  // Save Assignment
-  const handleSaveAssignment = (e: React.FormEvent) => {
+  const handleSaveAssignment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!assignLead) return;
-
-    storeAssignCounsellor(assignLead.id, selectedCounsellor, assignNotes);
-    showToast(`✓ Lead ${assignLead.name} assigned to ${selectedCounsellor}!`);
-    setShowAssignModal(false);
+    if (!assignLead || !selectedCounsellorId) return;
+    try {
+      await assignLeadMutation.mutateAsync({
+        id: assignLead.id,
+        data: { counsellorId: selectedCounsellorId, notes: assignNotes || undefined },
+      });
+      const name = counselors.find((c) => c.id === selectedCounsellorId)?.name || "counsellor";
+      showToast(`✓ Lead ${assignLead.name} assigned to ${name}`);
+      setShowAssignModal(false);
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to assign lead");
+    }
   };
 
-  // Retry AI Call
   const handleRetryAiCall = (lead: UnifiedLead) => {
-    storeRetryAiCall(lead.id);
-    showToast(`📞 Initiating automated AI voice calling to ${lead.name} (${lead.phone})...`);
+    triggerCallMutation.mutate(lead.id, {
+      onSuccess: () => showToast(`AI call queued for ${lead.name} (${lead.phone})`),
+      onError: (err: any) => showToast(err?.response?.data?.message || "Failed to trigger AI call"),
+    });
   };
 
-  // Add New Lead Submit
-  const handleCreateLeadSubmit = (e: React.FormEvent) => {
+  const handleCreateLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLeadName.trim() || !newLeadPhone.trim()) return;
-
+    if (!user?.branchId) {
+      showToast("Your account has no branch — cannot create lead");
+      return;
+    }
     const sourceLabel = getMasterLabel(leadSourceOptions, newLeadSourceMasterId) || "Website";
-
-    addLead({
-      name: newLeadName.trim(),
-      phone: newLeadPhone.trim(),
-      email: `${newLeadName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      source: sourceLabel,
-      course: newLeadCourse,
-      triggerImmediateCall,
-      notes: `Registered via AI Calling portal. Source: ${sourceLabel}`
-    });
-
-    setShowAddLeadModal(false);
-    showToast(`✓ New lead ${newLeadName} created from ${sourceLabel} & AI calling queued!`);
-
-    // Reset
-    setNewLeadName("");
-    setNewLeadPhone("");
+    try {
+      const created = await createLeadMutation.mutateAsync({
+        name: newLeadName.trim(),
+        phoneNumber: newLeadPhone.trim(),
+        interestedIn: newLeadCourse,
+        sourceMasterId: newLeadSourceMasterId || undefined,
+        priority: "HIGH",
+        branchId: user.branchId,
+        notes: `Registered via AI Calling portal. Source: ${sourceLabel}`,
+        assignedCounsellorId: user.id,
+      });
+      if (triggerImmediateCall && created?.data?.id) {
+        triggerCallMutation.mutate(created.data.id);
+      }
+      setShowAddLeadModal(false);
+      showToast(triggerImmediateCall ? `✓ Lead ${newLeadName} created & AI call queued` : `✓ Lead ${newLeadName} created from ${sourceLabel}`);
+      setNewLeadName("");
+      setNewLeadPhone("");
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || "Failed to create lead");
+    }
   };
 
   // Reset Filters
@@ -1612,15 +1766,20 @@ export const AiCallingQualification: React.FC = () => {
               <div className="space-y-1.5">
                 <Label className="text-foreground font-bold text-xs">Select Counsellor *</Label>
                 <select
-                  value={selectedCounsellor}
-                  onChange={(e) => setSelectedCounsellor(e.target.value)}
+                  value={selectedCounsellorId}
+                  onChange={(e) => setSelectedCounsellorId(e.target.value)}
                   className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-muted/30 font-bold text-foreground focus:outline-none focus:ring-1 focus:ring-primary focus:bg-background shadow-2xs"
                   required
                 >
-                  <option value="Priya Singh">Priya Singh (Digital Marketing & Design)</option>
-                  <option value="Ramesh Kumar">Ramesh Kumar (Full Stack & Python)</option>
-                  <option value="Deepak Joshi">Deepak Joshi (Data Science & AI)</option>
-                  <option value="Ananya Sharma">Ananya Sharma (General Admissions)</option>
+                  {counselors.length === 0 ? (
+                    <option value="">No counsellors available</option>
+                  ) : (
+                    counselors.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} ({c.branchName || "Branch"})
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 

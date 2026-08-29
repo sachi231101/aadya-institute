@@ -53,14 +53,24 @@ import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
 import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
-import { useTimetableStore } from "@/store/timetable.store";
-import { useLeadStore, type UnifiedLead } from "@/store/lead.store";
+import type { UnifiedLead } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel } from "@/utils/master.utils";
-import { useLeads, useCreateLead } from "@/hooks/useLeads";
+import {
+  useLeads,
+  useCreateLead,
+  useChangeLeadStage,
+  useMarkLeadLost,
+  useCreateFollowUp,
+  useTriggerLeadCall,
+} from "@/hooks/useLeads";
 import { useMyCurrentTargets } from "@/hooks/useTargets";
+import { batchesApi } from "@/services/batches.api";
+import { coursesApi } from "@/services/courses.api";
+import { facultyApi } from "@/services/faculty.api";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -132,22 +142,12 @@ const INITIAL_MANAGED_LEADS: ManagedLead[] = [];
 
 export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { students, fetchStudents } = useStudentStore();
-  const { fetchCounselors } = useCounselorStore();
+  const { counselors, fetchCounselors } = useCounselorStore();
   const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
   const { data: financialReport } = useFinancialReport(user?.branchId || undefined);
-
-  // Managed Leads from Centralized Zustand Store (Omnichannel & AI Telephony Synchronized)
-  const {
-    leads: leadsList,
-    addLead,
-    updateLeadStage,
-    scheduleFollowUp: storeScheduleFollowUp,
-    markAsLost: storeMarkAsLost,
-    logAttempt: storeLogAttempt,
-    retryAiCall: storeRetryAiCall,
-  } = useLeadStore();
 
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: leadStageOptions } = useMasterDropdown("leadstage");
@@ -167,58 +167,94 @@ export const CounselorDashboard: React.FC = () => {
   const [leadPriorityFilter, setLeadPriorityFilter] = useState("ALL");
   const [leadAttentionFilter, setLeadAttentionFilter] = useState("ALL");
 
-  // Real Database Leads Query from PostgreSQL
-  const { data: dbLeadsResponse } = useLeads();
+  // Real Database Leads + mutations (PostgreSQL source of truth)
+  const { data: dbLeadsResponse, isLoading: loadingLeads } = useLeads({
+    limit: 100,
+    branchId: user?.branchId || undefined,
+  });
   const createLeadMutation = useCreateLead();
+  const changeStageMutation = useChangeLeadStage();
+  const markLostMutation = useMarkLeadLost();
+  const createFollowUpMutation = useCreateFollowUp();
+  const triggerCallMutation = useTriggerLeadCall();
+
+  const { data: coursesRes } = useQuery({
+    queryKey: ["courses"],
+    queryFn: () => coursesApi.getAll(),
+  });
+  const courses = coursesRes?.data || [];
+
+  const { data: facultyRes } = useQuery({
+    queryKey: ["faculty"],
+    queryFn: () => facultyApi.getAll({ limit: 100 }),
+  });
+  const facultyList = facultyRes?.data || [];
 
   // Real Database Counselor Targets Query
   const { data: myTargetsData } = useMyCurrentTargets();
 
-  // Combine Real Database Leads with Local Store Leads
+  const mapApiLeadToUnified = (l: any): UnifiedLead => ({
+    id: l.id,
+    name: l.name,
+    phone: l.phoneNumber || l.phone || "",
+    email: l.email || "",
+    course: l.course?.name || l.interestedIn || "—",
+    source: (l.source === "WALK_IN"
+      ? "Walk-in"
+      : l.source === "GOOGLE"
+        ? "Google Ads"
+        : l.source === "INSTAGRAM"
+          ? "Instagram"
+          : l.source === "REFERRAL"
+            ? "Referral"
+            : l.source === "WHATSAPP"
+              ? "WhatsApp"
+              : l.source || "Website") as any,
+    sourceType: l.source || "Website",
+    stage: l.stage || "NEW",
+    stageColor:
+      l.stage === "CONVERTED"
+        ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+        : "bg-blue-50 text-blue-700 border-blue-200",
+    priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
+    priorityColor:
+      l.priority === "HIGH" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
+    nextFollowUp: l.nextFollowUpAt
+      ? new Date(l.nextFollowUpAt).toLocaleDateString()
+      : "—",
+    attemptsCount: (l.callLogs || []).length,
+    latestResponse: l.notes || "Inbound enquiry logged in database.",
+    assignedCounsellor: l.assignedCounsellor?.name || user?.name || "—",
+    assignedDate: l.createdAt
+      ? new Date(l.createdAt).toLocaleDateString()
+      : "—",
+    hotLead: l.priority === "HIGH",
+    campaign: "—",
+    callDate: l.callLogs?.[0]?.createdAt
+      ? new Date(l.callLogs[0].createdAt).toLocaleDateString()
+      : "—",
+    callStatus: (l.callLogs?.[0]?.status as any) || "PENDING",
+    attempt: (l.callLogs || []).length,
+    aiOutcome: "INTERESTED",
+    aiSummaryShort: l.callLogs?.[0]?.aiSummary || l.notes || "—",
+    aiDetailedSummary: l.notes || "Lead registered in academy pipeline.",
+    keyHighlights: [`Source: ${l.source || "—"}`],
+    callDuration: l.callLogs?.[0]?.duration ? `${l.callLogs[0].duration}s` : "—",
+    callTimestamp: "—",
+    aiScore: Number(l.callLogs?.[0]?.aiScore) || 0,
+    starRating: 0,
+    nextActionType: "CONTACT_NOW",
+    nextActionLabel: "Contact Now",
+    nextActionSubtext: "Active Enquiry",
+    transcript: [],
+    attemptsHistory: [],
+    pipelineStage: l.stage,
+  });
+
   const combinedLeadsList = useMemo(() => {
     const rawDbLeads: any[] = dbLeadsResponse?.data || [];
-    const mappedDbLeads: UnifiedLead[] = rawDbLeads.map((l: any) => ({
-      id: l.id,
-      name: l.name,
-      phone: l.phoneNumber || l.phone || "",
-      email: l.email || "",
-      course: l.course?.name || l.interestedIn || "Full Stack Web Development",
-      source: (l.source === "WALK_IN" ? "Walk-in" : l.source === "GOOGLE" ? "Google Ads" : l.source === "INSTAGRAM" ? "Instagram" : l.source === "REFERRAL" ? "Referral" : l.source === "WHATSAPP" ? "WhatsApp" : l.source || "Website") as any,
-      sourceType: l.source || "Website",
-      stage: l.stage || "NEW",
-      stageColor: l.stage === "CONVERTED" ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-blue-50 text-blue-700 border-blue-200",
-      priority: l.priority === "HIGH" ? "Urgent" : l.priority === "MEDIUM" ? "Due Today" : "Upcoming",
-      priorityColor: l.priority === "HIGH" ? "text-red-600 bg-red-500" : "text-emerald-600 bg-emerald-500",
-      nextFollowUp: l.nextFollowUpAt ? new Date(l.nextFollowUpAt).toLocaleDateString() : "Today, 12:00 PM",
-      attemptsCount: (l.callLogs || []).length,
-      latestResponse: l.notes || "Inbound enquiry logged in database.",
-      assignedCounsellor: l.assignedCounsellor?.name || "Priya Singh",
-      assignedDate: "Today",
-      hotLead: l.priority === "HIGH",
-      campaign: "August Admission Drive",
-      callDate: "Recent",
-      callStatus: (l.callLogs?.[0]?.status as any) || "PENDING",
-      attempt: (l.callLogs || []).length,
-      aiOutcome: "INTERESTED",
-      aiSummaryShort: l.callLogs?.[0]?.aiSummary || l.notes || "High intent prospect.",
-      aiDetailedSummary: l.notes || "Lead registered in academy pipeline.",
-      keyHighlights: ["PostgreSQL Live Record", `Source: ${l.source}`],
-      callDuration: l.callLogs?.[0]?.duration ? `${l.callLogs[0].duration}s` : "0m",
-      callTimestamp: "Today",
-      aiScore: 88,
-      starRating: 4,
-      nextActionType: "CONTACT_NOW",
-      nextActionLabel: "Contact Now",
-      nextActionSubtext: "Active Enquiry",
-      transcript: [],
-      attemptsHistory: [],
-    }));
-
-    // Merge without duplicating IDs
-    const dbIds = new Set(mappedDbLeads.map((l) => l.id));
-    const uniqueLocalLeads = leadsList.filter((l) => !dbIds.has(l.id));
-    return [...uniqueLocalLeads, ...mappedDbLeads];
-  }, [dbLeadsResponse, leadsList]);
+    return rawDbLeads.map(mapApiLeadToUnified);
+  }, [dbLeadsResponse, user?.name]);
 
   // Filtered Leads
   const filteredLeads = useMemo(() => {
@@ -316,12 +352,8 @@ export const CounselorDashboard: React.FC = () => {
   const [showCreateBatchModal, setShowCreateBatchModal] = useState(false);
   const [batchCode, setBatchCode] = useState("");
   const [batchName, setBatchName] = useState("");
-  const [batchCourse, setBatchCourse] = useState("Digital Marketing");
-  const [batchCategory, setBatchCategory] = useState<"Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Others">("Digital Marketing");
-  const [batchFacultyId, setBatchFacultyId] = useState("FA-RAMESH");
-  const [batchFacultyName, setBatchFacultyName] = useState("Ramesh Kumar");
-  const [batchBranchId] = useState("b-central");
-  const [batchBranchName, setBatchBranchName] = useState("Aadya Central Branch");
+  const [batchCourseId, setBatchCourseId] = useState("");
+  const [batchFacultyId, setBatchFacultyId] = useState("");
   const [batchCapacity] = useState<number>(40);
   const [selectedBatchStudentIds, setSelectedBatchStudentIds] = useState<string[]>([]);
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
@@ -329,47 +361,87 @@ export const CounselorDashboard: React.FC = () => {
   const [batchPeriod, setBatchPeriod] = useState<number>(1);
   const [batchStartTime, setBatchStartTime] = useState("09:00 AM");
   const [batchEndTime, setBatchEndTime] = useState("10:00 AM");
-  const [batchRoomNo, setBatchRoomNo] = useState("Room 201");
+  const [batchRoomNo, setBatchRoomNo] = useState("");
   const [batchSuccessMsg, setBatchSuccessMsg] = useState<string | null>(null);
+  const [batchSaving, setBatchSaving] = useState(false);
 
-  const handleCreateBatchSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!batchCourseId && courses.length > 0) setBatchCourseId(courses[0].id);
+  }, [courses, batchCourseId]);
+
+  useEffect(() => {
+    if (!batchFacultyId && facultyList.length > 0) setBatchFacultyId(facultyList[0].id);
+  }, [facultyList, batchFacultyId]);
+
+  const inferPatternFromDays = (
+    days: Array<"MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT">
+  ): "MWF" | "TTS" | "WEEKEND" | "CUSTOM" => {
+    const set = new Set(days);
+    if (set.has("MON") && set.has("WED") && set.has("FRI") && days.length === 3) return "MWF";
+    if (set.has("TUE") && set.has("THU") && days.length === 2) return "TTS";
+    if ([...set].every((d) => d === "SAT" || d === "FRI") && set.has("SAT")) return "WEEKEND";
+    return "CUSTOM";
+  };
+
+  const handleCreateBatchSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!batchCode.trim() || !batchName.trim()) {
       alert("Please provide both Batch Code and Batch Name.");
       return;
     }
+    const courseId = batchCourseId || courses[0]?.id;
+    const facultyId = batchFacultyId || facultyList[0]?.id;
+    const branchId =
+      user?.branchId ||
+      facultyList.find((f) => f.id === facultyId)?.branchId ||
+      students[0]?.branchId;
+    if (!courseId || !facultyId || !branchId) {
+      setBatchSuccessMsg("Need a course, faculty, and branch before creating a batch.");
+      setTimeout(() => setBatchSuccessMsg(null), 4000);
+      return;
+    }
 
-    useTimetableStore.getState().createBatchWithSchedule({
-      code: batchCode.trim(),
-      name: batchName.trim(),
-      courseId: `c-${batchCourse.toLowerCase().replace(/[^a-z0-9]/g, "")}`,
-      courseName: batchCourse,
-      category: batchCategory,
-      facultyId: batchFacultyId,
-      facultyName: batchFacultyName,
-      branchId: batchBranchId,
-      branchName: batchBranchName,
-      capacity: batchCapacity,
-      studentIds: selectedBatchStudentIds,
-      days: batchDays,
-      period: batchPeriod,
-      startTime: batchStartTime,
-      endTime: batchEndTime,
-      roomNo: batchRoomNo,
-    });
-
-    setBatchSuccessMsg(`✓ Batch ${batchCode} successfully created with ${selectedBatchStudentIds.length || batchCapacity} students and scheduled to ${batchFacultyName}'s timetable!`);
-    setTimeout(() => setBatchSuccessMsg(null), 5000);
-    setShowCreateBatchModal(false);
-
-    // Reset form
-    setBatchCode("");
-    setBatchName("");
-    setSelectedBatchStudentIds([]);
+    setBatchSaving(true);
+    try {
+      const created = await batchesApi.create({
+        name: batchName.trim(),
+        code: batchCode.trim(),
+        courseId,
+        facultyId,
+        branchId,
+        capacity: batchCapacity,
+        startDate: new Date().toISOString().slice(0, 10),
+        schedulePattern: inferPatternFromDays(batchDays),
+        timeSlot: `${batchStartTime} - ${batchEndTime}`,
+      });
+      if (created?.data?.id && selectedBatchStudentIds.length > 0) {
+        await Promise.all(
+          selectedBatchStudentIds.map((sid) =>
+            batchesApi.enrollStudent(created.data.id, sid).catch(() => null)
+          )
+        );
+      }
+      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      const facultyName =
+        facultyList.find((f) => f.id === facultyId)?.user?.name || "faculty";
+      setBatchSuccessMsg(
+        `✓ Batch ${batchCode} created with ${selectedBatchStudentIds.length} students · ${facultyName}`
+      );
+      setTimeout(() => setBatchSuccessMsg(null), 5000);
+      setShowCreateBatchModal(false);
+      setBatchCode("");
+      setBatchName("");
+      setSelectedBatchStudentIds([]);
+    } catch (err: any) {
+      setBatchSuccessMsg(err?.response?.data?.message || "Failed to create batch");
+      setTimeout(() => setBatchSuccessMsg(null), 4500);
+    } finally {
+      setBatchSaving(false);
+    }
   };
 
   useEffect(() => {
-    fetchCounselors();
+    fetchCounselors(user?.branchId || undefined);
     fetchEnquiries();
     fetchAdmissions();
     fetchStudents();
@@ -390,28 +462,70 @@ export const CounselorDashboard: React.FC = () => {
     return now.toLocaleString("en-US", { month: "long", year: "numeric" });
   }, []);
 
-  // Top KPI metrics
-  const newLeadsToday = 32;
-  const followupsDueCount = 14;
-  const counsellingSessionsCount = 18;
-  const confirmedAdmissionsCount = admissions.length > 5 ? admissions.length : 24;
-  const registeredStudentsCount = students.length > 5 ? students.length : 156;
+  // Top KPI metrics (from live leads + admissions/students)
+  const newLeadsToday = useMemo(() => {
+    const today = new Date().toDateString();
+    return combinedLeadsList.filter((l) => {
+      const raw = (dbLeadsResponse?.data as any[])?.find((d) => d.id === l.id);
+      return raw?.createdAt && new Date(raw.createdAt).toDateString() === today;
+    }).length;
+  }, [combinedLeadsList, dbLeadsResponse]);
+  const followupsDueCount = combinedLeadsList.filter((l) => l.stage === "FOLLOW_UP").length;
+  const counsellingSessionsCount = combinedLeadsList.filter((l) =>
+    ["CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(l.stage)
+  ).length;
+  const confirmedAdmissionsCount = admissions.length;
+  const registeredStudentsCount = students.length;
 
   // Revenue overview metrics
-  const pendingFeeAmount = financialReport?.summary?.totalPending && financialReport.summary.totalPending > 0
-    ? financialReport.summary.totalPending
-    : 120000;
+  const pendingFeeAmount = financialReport?.summary?.totalPending ?? 0;
+  const collectedThisMonthAmount = financialReport?.summary?.totalCollected ?? 0;
+  const prevMonthRevenueAmount = 0;
 
-  const collectedThisMonthAmount = financialReport?.summary?.totalCollected && financialReport.summary.totalCollected > 0
-    ? financialReport.summary.totalCollected
-    : 680000;
+  const mapLostReasonToApi = (reason: string): string => {
+    const lower = reason.toLowerCase();
+    if (lower.includes("competitor") || lower.includes("joined")) return "JOINED_COMPETITOR";
+    if (lower.includes("price") || lower.includes("fee")) return "PRICE_HIGH";
+    if (lower.includes("not interested")) return "NOT_INTERESTED";
+    if (lower.includes("no response") || lower.includes("no answer")) return "NO_RESPONSE";
+    if (lower.includes("course")) return "COURSE_NOT_AVAILABLE";
+    if (lower.includes("location")) return "LOCATION_ISSUE";
+    if (lower.includes("timing") || lower.includes("time")) return "TIMING_ISSUE";
+    return "OTHER";
+  };
 
-  const prevMonthRevenueAmount = 590000;
+  const parseFollowUpToIso = (dateStr: string, timeStr: string): string => {
+    const now = new Date();
+    let base = new Date(now);
+    if (dateStr === "today" || dateStr.toLowerCase().startsWith("today")) {
+      base = new Date(now);
+    } else if (dateStr.toLowerCase().startsWith("tomorrow")) {
+      base = new Date(now);
+      base.setDate(base.getDate() + 1);
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      base = new Date(`${dateStr}T12:00:00`);
+    } else {
+      const parsed = new Date(dateStr);
+      if (!Number.isNaN(parsed.getTime())) base = parsed;
+    }
+    const match = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    if (match) {
+      let hours = Number(match[1]);
+      const minutes = Number(match[2]);
+      const ampm = match[3]?.toUpperCase();
+      if (ampm === "PM" && hours < 12) hours += 12;
+      if (ampm === "AM" && hours === 12) hours = 0;
+      base.setHours(hours, minutes, 0, 0);
+    }
+    return base.toISOString();
+  };
 
   const handleOpenFollowUp = (lead: UnifiedLead) => {
     setActiveLead(lead);
     setFollowUpType("CALL");
-    setFollowUpDate("2026-08-25");
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setFollowUpDate(tomorrow.toISOString().slice(0, 10));
     setFollowUpTime("11:00 AM");
     setSetReminder(true);
     setFollowUpNotes(lead.latestResponse || lead.aiSummaryShort || "");
@@ -419,43 +533,55 @@ export const CounselorDashboard: React.FC = () => {
   };
 
   const handleApplyFollowUpPreset = (preset: "today_4pm" | "tomorrow_10am" | "tomorrow_2pm" | "in_2days") => {
+    const d = new Date();
     if (preset === "today_4pm") {
-      setFollowUpDate("2026-08-24");
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("04:00 PM");
     } else if (preset === "tomorrow_10am") {
-      setFollowUpDate("2026-08-25");
+      d.setDate(d.getDate() + 1);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("10:30 AM");
     } else if (preset === "tomorrow_2pm") {
-      setFollowUpDate("2026-08-25");
+      d.setDate(d.getDate() + 1);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("02:30 PM");
     } else if (preset === "in_2days") {
-      setFollowUpDate("2026-08-26");
+      d.setDate(d.getDate() + 2);
+      setFollowUpDate(d.toISOString().slice(0, 10));
       setFollowUpTime("11:00 AM");
     }
   };
 
-  const handleSaveFollowUpModal = (e: React.FormEvent) => {
+  const handleSaveFollowUpModal = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeLead) return;
+    if (!activeLead || !user?.id) return;
 
     const formattedNextDate =
-      followUpDate === "2026-08-24"
+      followUpDate === new Date().toISOString().slice(0, 10)
         ? `Today, ${followUpTime}`
-        : followUpDate === "2026-08-25"
-          ? `Tomorrow, ${followUpTime}`
-          : `${followUpDate}, ${followUpTime}`;
+        : `${followUpDate}, ${followUpTime}`;
 
-    storeScheduleFollowUp(activeLead.id, {
-      channel: followUpType === "CALL" ? "PHONE" : followUpType,
-      date: followUpDate,
-      time: followUpTime,
-      notes: followUpNotes,
-      setReminder,
-    });
-
-    setFollowUpSuccessMsg(`✓ Follow-up scheduled successfully for ${activeLead.name} on ${formattedNextDate}!`);
-    setTimeout(() => setFollowUpSuccessMsg(null), 4500);
-    setShowFollowUpModal(false);
+    try {
+      await createFollowUpMutation.mutateAsync({
+        id: activeLead.id,
+        data: {
+          type: followUpType === "WHATSAPP" ? "WHATSAPP" : followUpType === "EMAIL" ? "REMINDER" : "CALL",
+          scheduledAt: parseFollowUpToIso(followUpDate, followUpTime),
+          notes: followUpNotes || undefined,
+          counsellorId: user.id,
+        },
+      });
+      await changeStageMutation.mutateAsync({
+        id: activeLead.id,
+        data: { stage: "FOLLOW_UP", notes: followUpNotes || undefined },
+      });
+      setFollowUpSuccessMsg(`✓ Follow-up scheduled for ${activeLead.name} on ${formattedNextDate}`);
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+      setShowFollowUpModal(false);
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to schedule follow-up");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    }
   };
 
   const handleOpenLostModal = (lead: UnifiedLead) => {
@@ -466,21 +592,31 @@ export const CounselorDashboard: React.FC = () => {
     setShowLostModal(true);
   };
 
-  const handleConfirmMarkAsLost = (e: React.FormEvent) => {
+  const handleConfirmMarkAsLost = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeLead) return;
 
-    storeMarkAsLost(activeLead.id, lostReason, lostNotes);
-
-    setFollowUpSuccessMsg(`✓ Lead ${activeLead.name} marked as Lost.`);
-    setTimeout(() => setFollowUpSuccessMsg(null), 4500);
-    setShowLostModal(false);
-    setShowFollowUpModal(false);
+    try {
+      await markLostMutation.mutateAsync({
+        id: activeLead.id,
+        data: {
+          reason: mapLostReasonToApi(lostReason),
+          notes: lostNotes || undefined,
+        },
+      });
+      setFollowUpSuccessMsg(`✓ Lead ${activeLead.name} marked as Lost.`);
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+      setShowLostModal(false);
+      setShowFollowUpModal(false);
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to mark lead as lost");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    }
   };
 
   // Checkbox stage toggle helper
-  const handleToggleStageCheckbox = (leadId: string, targetStage: any) => {
-    const lead = leadsList.find((l) => l.id === leadId);
+  const handleToggleStageCheckbox = async (leadId: string, targetStage: any) => {
+    const lead = combinedLeadsList.find((l) => l.id === leadId);
     if (!lead) return;
 
     if (targetStage === "FOLLOW_UP") {
@@ -493,28 +629,31 @@ export const CounselorDashboard: React.FC = () => {
       return;
     }
 
-    updateLeadStage(leadId, targetStage);
+    try {
+      await changeStageMutation.mutateAsync({
+        id: leadId,
+        data: { stage: targetStage },
+      });
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to update stage");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    }
   };
 
   // Add New Lead handler
-  const handleCreateLead = (e: React.FormEvent) => {
+  const handleCreateLead = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName || !formPhone) return;
+    if (!user?.branchId) {
+      setFollowUpSuccessMsg("Your account has no branch assigned — cannot create lead.");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+      return;
+    }
 
     const sourceLabel = getMasterLabel(leadSourceOptions, formSourceMasterId) || "Website";
 
-    addLead({
-      name: formName.trim(),
-      phone: formPhone.trim(),
-      email: formEmail.trim() || `${formName.toLowerCase().replace(/\s+/g, ".")}@example.com`,
-      course: formCourse,
-      source: sourceLabel,
-      notes: formNotes,
-      triggerImmediateCall: formTriggerAi,
-    });
-
-    if (user?.branchId) {
-      createLeadMutation.mutate({
+    try {
+      const created = await createLeadMutation.mutateAsync({
         name: formName.trim(),
         phoneNumber: formPhone.trim(),
         email: formEmail.trim() || undefined,
@@ -523,43 +662,69 @@ export const CounselorDashboard: React.FC = () => {
         priority: "HIGH",
         branchId: user.branchId,
         notes: formNotes,
+        assignedCounsellorId: user.id,
       });
+
+      if (formTriggerAi && created?.data?.id) {
+        triggerCallMutation.mutate(created.data.id);
+      }
+
+      setFollowUpSuccessMsg(
+        formTriggerAi
+          ? `✓ Lead ${formName} created from ${sourceLabel} & AI call queued`
+          : `✓ Lead ${formName} created from ${sourceLabel}`
+      );
+      setTimeout(() => setFollowUpSuccessMsg(null), 5000);
+      setShowAddModal(false);
+      setFormName("");
+      setFormPhone("");
+      setFormEmail("");
+      setFormNotes("");
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to create lead");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
     }
-
-    setFollowUpSuccessMsg(`✓ New lead ${formName} added from ${sourceLabel} & AI voice qualification queued!`);
-    setTimeout(() => setFollowUpSuccessMsg(null), 5000);
-    setShowAddModal(false);
-
-    // Reset form
-    setFormName("");
-    setFormPhone("");
-    setFormEmail("");
-    setFormNotes("");
   };
 
-  // Log Attempt handler
-  const handleSaveAttempt = (e: React.FormEvent) => {
+  // Log Attempt handler — records note + optional stage bump via API
+  const handleSaveAttempt = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeLead) return;
 
-    storeLogAttempt(activeLead.id, {
-      mode: attemptMode,
-      response: attemptResponse,
-      notes: attemptNotes,
-      nextFollowUp: attemptNextDate,
-    });
-
-    setShowLogAttemptModal(false);
-    setActiveLead(null);
-    setAttemptNotes("");
+    try {
+      await changeStageMutation.mutateAsync({
+        id: activeLead.id,
+        data: {
+          stage: attemptNewStage,
+          notes: `[${attemptMode}] ${attemptResponse}${attemptNotes ? ` — ${attemptNotes}` : ""}${
+            attemptNextDate ? ` | Next: ${attemptNextDate}` : ""
+          }`,
+        },
+      });
+      setShowLogAttemptModal(false);
+      setActiveLead(null);
+      setAttemptNotes("");
+      setFollowUpSuccessMsg("✓ Contact attempt logged");
+      setTimeout(() => setFollowUpSuccessMsg(null), 3500);
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to log attempt");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
+    }
   };
 
-  // Delete Lead handler
-  const handleDeleteLead = (leadId: string) => {
-    if (window.confirm("Are you sure you want to delete this lead enquiry?")) {
-      useLeadStore.setState(state => ({
-        leads: state.leads.filter(l => l.id !== leadId)
-      }));
+  // Delete Lead — soft-archive via LOST OTHER (no hard delete API)
+  const handleDeleteLead = async (leadId: string) => {
+    if (!window.confirm("Mark this lead as lost / archived?")) return;
+    try {
+      await markLostMutation.mutateAsync({
+        id: leadId,
+        data: { reason: "OTHER", notes: "Archived from counsellor dashboard" },
+      });
+      setFollowUpSuccessMsg("✓ Lead archived");
+      setTimeout(() => setFollowUpSuccessMsg(null), 3500);
+    } catch (err: any) {
+      setFollowUpSuccessMsg(err?.response?.data?.message || "Failed to archive lead");
+      setTimeout(() => setFollowUpSuccessMsg(null), 4500);
     }
   };
 
@@ -2289,37 +2454,28 @@ export const CounselorDashboard: React.FC = () => {
                 <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-slate-700">Course *</Label>
                   <select
-                    value={batchCourse}
-                    onChange={(e) => {
-                      setBatchCourse(e.target.value);
-                      if (e.target.value.includes("Marketing") || e.target.value.includes("SEO")) setBatchCategory("Digital Marketing");
-                      else if (e.target.value.includes("Design") || e.target.value.includes("Photoshop")) setBatchCategory("Design");
-                      else if (e.target.value.includes("Analytics") || e.target.value.includes("Excel")) setBatchCategory("Data Analytics");
-                      else if (e.target.value.includes("MERN") || e.target.value.includes("Stack")) setBatchCategory("Programming");
-                    }}
+                    value={batchCourseId}
+                    onChange={(e) => setBatchCourseId(e.target.value)}
                     className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
                   >
-                    <option value="Digital Marketing">Digital Marketing</option>
-                    <option value="SEO Masterclass">SEO Masterclass</option>
-                    <option value="Google Ads (PPC)">Google Ads (PPC)</option>
-                    <option value="Full Stack MERN">Full Stack MERN</option>
-                    <option value="Graphic Design">Graphic Design & UI/UX</option>
-                    <option value="Data Analytics">Data Analytics & AI</option>
-                    <option value="Advanced Excel">Advanced Excel & SQL</option>
+                    {courses.length === 0 ? (
+                      <option value="">No courses available</option>
+                    ) : (
+                      courses.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name} ({c.code})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[11px] font-bold text-slate-700">Branch *</Label>
-                  <select
-                    value={batchBranchName}
-                    onChange={(e) => setBatchBranchName(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
-                  >
-                    <option value="Aadya Central Branch">Aadya Central Branch</option>
-                    <option value="Ramanagar Branch">Ramanagar Branch</option>
-                    <option value="Malleshwaram Branch">Malleshwaram Branch</option>
-                    <option value="Jayanagar Branch">Jayanagar Branch</option>
-                  </select>
+                  <Label className="text-[11px] font-bold text-slate-700">Branch</Label>
+                  <Input
+                    value={user?.branchId ? "Your assigned branch" : "—"}
+                    disabled
+                    className="h-9 text-xs bg-slate-100"
+                  />
                 </div>
               </div>
             </div>
@@ -2330,25 +2486,22 @@ export const CounselorDashboard: React.FC = () => {
                 <UserCheck className="h-4 w-4 text-emerald-600" /> 2. Assign Faculty Member
               </h5>
               <div className="space-y-1">
-                <Label className="text-[11px] font-bold text-slate-700">Select Instructor (Will appear in their timetable) *</Label>
+                <Label className="text-[11px] font-bold text-slate-700">Select Instructor *</Label>
                 <select
-                  value={batchFacultyName}
-                  onChange={(e) => {
-                    const name = e.target.value;
-                    setBatchFacultyName(name);
-                    if (name === "Ramesh Kumar") setBatchFacultyId("FA-RAMESH");
-                    else if (name === "Priya Sharma") setBatchFacultyId("FA002");
-                    else if (name === "Arjun Das") setBatchFacultyId("FA005");
-                    else if (name === "Neha Reddy") setBatchFacultyId("FA008");
-                    else if (name === "HM Adithya") setBatchFacultyId("FA001");
-                  }}
+                  value={batchFacultyId}
+                  onChange={(e) => setBatchFacultyId(e.target.value)}
                   className="w-full h-9 px-3 text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
                 >
-                  <option value="Ramesh Kumar">👨‍🏫 Ramesh Kumar (Digital Marketing & SEO Lead)</option>
-                  <option value="Priya Sharma">👩‍🏫 Priya Sharma (Digital Marketing)</option>
-                  <option value="Arjun Das">👨‍🎨 Arjun Das (Graphic Design & UI/UX)</option>
-                  <option value="Neha Reddy">👩‍💻 Neha Reddy (Data Analytics & AI)</option>
-                  <option value="HM Adithya">👨‍💻 HM Adithya (Full Stack MERN)</option>
+                  {facultyList.length === 0 ? (
+                    <option value="">No faculty available</option>
+                  ) : (
+                    facultyList.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.user?.name || f.employeeCode}
+                        {f.specialization ? ` — ${f.specialization}` : ""}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
@@ -2507,8 +2660,12 @@ export const CounselorDashboard: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowCreateBatchModal(false)} className="text-xs">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5 shadow-md">
-                <Check className="h-4 w-4" /> Create & Publish to Faculty Timetable
+              <Button
+                type="submit"
+                disabled={batchSaving}
+                className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5 shadow-md"
+              >
+                <Check className="h-4 w-4" /> {batchSaving ? "Creating…" : "Create Batch"}
               </Button>
             </DialogFooter>
           </form>
