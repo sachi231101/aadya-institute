@@ -252,16 +252,26 @@ export interface UpdateStudentPayload {
   qualification?: string;
   qualificationMasterId?: string;
   areaMasterId?: string;
-  status?: StudentStatus;
+  status?: StudentStatus | "DRAFT";
 
   // Extended UI fields
   gender?: string;
+  bloodGroup?: string;
   guardianName?: string;
   guardianPhone?: string;
   address?: string;
   city?: string;
   pincode?: string;
   branchId?: string;
+
+  // Admission & Batch fields
+  courseId?: string;
+  batchId?: string;
+  admissionStatus?: "CONFIRMED" | "PROVISIONAL" | "CANCELLED" | "PENDING" | "ACTIVE" | "COMPLETED";
+  feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
+  totalFee?: number;
+  downPayment?: number;
+  notes?: string;
 }
 
 export interface StudentListParams {

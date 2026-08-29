@@ -87,6 +87,8 @@ const mapStudentSummary = (s: any) => {
   const faculty = batch?.faculty?.user?.name;
   const attendances = s.studentAttendances || [];
 
+  const isDraft = admission?.status === "PENDING" || (s.status as string) === "PENDING" || (s.status as string) === "DRAFT";
+
   return {
     id: s.id,
     userId: s.userId,
@@ -95,7 +97,9 @@ const mapStudentSummary = (s: any) => {
     studentCode: s.studentCode,
     dateOfBirth: s.dateOfBirth,
     qualification: s.qualification,
-    status: s.status,
+    status: isDraft ? "DRAFT" : s.status,
+    admissionStatus: admission?.status ?? null,
+    isDraft,
     createdAt: s.createdAt,
     updatedAt: s.updatedAt,
     user: s.user,

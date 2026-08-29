@@ -98,7 +98,7 @@ export const AdmissionsService = {
     // 1. Create CallLog entry for enquiry
     await prisma.callLog.create({
       data: {
-        enquiryId: id,
+        externalCallId: `call-${Date.now()}`,
         status: "COMPLETED",
         duration: 85,
         transcript: "AI: Hello, this is Aadya Institute. We noticed your enquiry for our program. Prospect: Yes, I am looking to join the upcoming batch. AI: Great, our counselor will follow up with admission details.",

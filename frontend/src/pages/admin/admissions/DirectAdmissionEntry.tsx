@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Receipt,
   FileText,
+  FileCheck2,
   AlertCircle,
   HelpCircle,
   Eye,
@@ -288,18 +289,25 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [createdAdmissionSummary, setCreatedAdmissionSummary] = useState<any>(null);
 
-  // Auto-fill student details when converted directly from a Lead or Enquiry
+  const convertingAppNo = location.state?.application?.applicationNo || location.state?.lead?.applicationNo || (location.state?.applicationId ? `APP-${String(location.state.applicationId).slice(0, 6).toUpperCase()}` : null);
+  const convertingApplicationId = location.state?.applicationId || location.state?.application?.id || location.state?.lead?.applicationId;
+
+  // Auto-fill student details when converted directly from an Application, Lead or Enquiry
   useEffect(() => {
-    const rawData = location.state?.lead || location.state;
+    const rawData = location.state?.lead || location.state?.application || location.state;
     if (!rawData) return;
 
-    if (rawData.name) {
-      const parts = String(rawData.name).trim().split(" ");
+    if (rawData.name || rawData.applicantName) {
+      const targetName = rawData.name || rawData.applicantName;
+      const parts = String(targetName).trim().split(" ");
       setFirstName(parts[0] || "");
       setLastName(parts.slice(1).join(" ") || "");
     }
     if (rawData.phone) {
       setPhone(String(rawData.phone).replace(/[^0-9+]/g, ""));
+    }
+    if (rawData.altPhone || rawData.alternatePhone) {
+      setAltPhone(String(rawData.altPhone || rawData.alternatePhone).replace(/[^0-9+]/g, ""));
     }
     if (rawData.email) {
       setEmail(String(rawData.email));
@@ -310,17 +318,26 @@ export const DirectAdmissionEntry: React.FC = () => {
     if (rawData.source) {
       setSourceMasterId(findMasterIdByLabel(leadSourceOptions, rawData.source));
     }
-    if (rawData.location) {
-      setCity(rawData.location);
+    if (rawData.address) {
+      setAddress(String(rawData.address));
+    }
+    if (rawData.city || rawData.location) {
+      setCity(rawData.city || rawData.location);
+    }
+    if (rawData.state) {
+      setState(String(rawData.state));
+    }
+    if (rawData.pincode) {
+      setPincode(String(rawData.pincode));
     }
     if (rawData.notes) {
       setRemarks(rawData.notes);
     }
-    if (rawData.parentName) {
-      setFatherName(rawData.parentName);
+    if (rawData.parentName || rawData.fatherName) {
+      setFatherName(rawData.parentName || rawData.fatherName);
     }
-    if (rawData.parentPhone) {
-      setEmergencyContact(rawData.parentPhone);
+    if (rawData.parentPhone || rawData.emergencyContact) {
+      setGuardianPhone(rawData.parentPhone || rawData.emergencyContact);
     }
     if (rawData.gender) {
       setGender(rawData.gender);
@@ -919,6 +936,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           courseId: course.courseId,
           batchId: allDbBatches.some((b) => b.id === course.batchId) ? course.batchId : undefined,
           studentId: createdStudentId,
+          applicationId: convertingApplicationId || undefined,
           branchId,
           feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
           status,
@@ -1040,28 +1058,6 @@ export const DirectAdmissionEntry: React.FC = () => {
               Save as Draft
             </Button>
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (!firstName.trim() || phone.replace(/\D/g, "").length < 10 || !email.trim()) {
-                  document.getElementById("section-student")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  notifyError("Complete student details first.");
-                  return;
-                }
-                if (selectedCoursesList.length === 0) {
-                  document.getElementById("section-courses")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  notifyError("Select at least one course to continue.");
-                  return;
-                }
-                document.getElementById("section-fees")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                notifySuccess("Details saved locally. Review fees, installments, and terms next.");
-              }}
-              disabled={isSubmitting}
-              className="text-xs font-semibold border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
-            >
-              Save & Continue
-            </Button>
-            <Button
               size="sm"
               onClick={() => handleConfirmAdmission("Confirmed")}
               disabled={isSubmitting}
@@ -1074,6 +1070,32 @@ export const DirectAdmissionEntry: React.FC = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-8 pt-6">
+        {convertingAppNo && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-primary/10 to-blue-500/10 border border-primary/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-in fade-in duration-200">
+            <div className="flex items-center gap-3.5">
+              <div className="h-10 w-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
+                <FileCheck2 className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black uppercase tracking-wider text-primary">Direct Admission</span>
+                  <Badge className="bg-primary/15 text-primary border-primary/30 text-[11px] font-bold">
+                    Converting Application: {convertingAppNo}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Student details, applied course, documents, and application fee (₹500 Paid) have been automatically pre-filled. Complete tuition fee plan and batch options below.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800 flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> App Fee Paid: ₹500
+              </span>
+            </div>
+          </div>
+        )}
+
         <p className="text-xs sm:text-sm text-muted-foreground mb-6">
           Create a new student admission, select multiple courses, assign batches, configure fees and confirm the admission.
         </p>
@@ -2634,16 +2656,27 @@ export const DirectAdmissionEntry: React.FC = () => {
           </div>
 
           <DialogHeader className="text-center sm:text-center space-y-1">
-            <div className="inline-block mx-auto">
-              <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
-                Step 2 of 2 • Admission Confirmed
-              </Badge>
+            <div className="flex items-center justify-center gap-2">
+              <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              {createdAdmissionSummary?.status === "Draft Saved" ? (
+                <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px] font-bold">
+                  Draft Saved in All Students
+                </Badge>
+              ) : (
+                <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 text-[10px] font-bold">
+                  Step 2 of 2 • Admission Confirmed
+                </Badge>
+              )}
             </div>
             <DialogTitle className="text-xl font-extrabold text-foreground">
-              Admission Created Successfully!
+              {createdAdmissionSummary?.status === "Draft Saved"
+                ? "Student Draft Saved Successfully!"
+                : "Admission Created Successfully!"}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground text-xs">
-              The student admission record, batch schedule allocation, and fee installment structure have been registered.
+              {createdAdmissionSummary?.status === "Draft Saved"
+                ? "The student information has been recorded in the Student Directory under Draft status."
+                : "The student admission record, batch schedule allocation, and fee installment structure have been registered."}
             </DialogDescription>
           </DialogHeader>
 
@@ -2735,11 +2768,11 @@ export const DirectAdmissionEntry: React.FC = () => {
             <Button
               onClick={() => {
                 setShowSuccessModal(false);
-                navigate(`${basePath}/fees/payments`);
+                navigate(`${basePath}/students/all`);
               }}
               className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5"
             >
-              <CreditCard className="h-3.5 w-3.5" /> View Payment Records
+              <UserCheck className="h-3.5 w-3.5" /> View in All Students
             </Button>
           </DialogFooter>
         </DialogContent>

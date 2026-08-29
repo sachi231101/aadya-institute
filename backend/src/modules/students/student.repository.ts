@@ -403,53 +403,224 @@ export const updateStudent = async (
     qualification?: string;
     qualificationMasterId?: string;
     areaMasterId?: string;
-    status?: "ACTIVE" | "ON_LEAVE" | "COMPLETED" | "DISCONTINUED" | "CANCELLED";
+    status?: "ACTIVE" | "ON_LEAVE" | "COMPLETED" | "DISCONTINUED" | "CANCELLED" | "DRAFT";
     branchId?: string;
+    gender?: string;
+    bloodGroup?: string;
+    guardianName?: string;
+    guardianPhone?: string;
+    address?: string;
+    city?: string;
+    pincode?: string;
+    courseId?: string;
+    batchId?: string;
+    admissionStatus?: "CONFIRMED" | "PROVISIONAL" | "CANCELLED" | "PENDING" | "ACTIVE" | "COMPLETED";
+    feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
+    totalFee?: number;
+    downPayment?: number;
+    notes?: string;
   }
 ) => {
-  const { name, email, phone, dateOfBirth, qualification, qualificationMasterId, areaMasterId, status, branchId } = data;
+  const {
+    name,
+    email,
+    phone,
+    dateOfBirth,
+    qualification,
+    qualificationMasterId,
+    areaMasterId,
+    status,
+    branchId,
+    courseId,
+    batchId,
+    admissionStatus,
+    feePlan,
+    totalFee,
+    downPayment,
+    notes,
+  } = data;
 
-  const hasUserUpdates = name !== undefined || email !== undefined || phone !== undefined || branchId !== undefined;
+  const existing = await prisma.student.findUnique({
+    where: { id },
+    include: { user: true, admissions: { orderBy: { createdAt: "desc" }, take: 1 } },
+  });
+  if (!existing) return null;
 
-  // Build student-only update data
-  const studentUpdate: Record<string, unknown> = {};
-  if (qualification !== undefined) studentUpdate.qualification = qualification;
-  if (qualificationMasterId !== undefined) studentUpdate.qualificationMasterId = qualificationMasterId;
-  if (areaMasterId !== undefined) studentUpdate.areaMasterId = areaMasterId;
-  if (status !== undefined) studentUpdate.status = status;
-  if (dateOfBirth !== undefined) studentUpdate.dateOfBirth = new Date(dateOfBirth);
-  if (branchId !== undefined) studentUpdate.branchId = branchId;
+  return prisma.$transaction(async (tx) => {
+    // 1. Update User
+    const userUpdate: Record<string, unknown> = {};
+    if (name !== undefined && name.trim() !== "") userUpdate.name = name.trim();
+    if (email !== undefined) userUpdate.email = email.trim() !== "" ? email.trim() : null;
+    if (phone !== undefined) userUpdate.phone = phone.trim() !== "" ? phone.trim() : null;
+    if (branchId !== undefined && branchId.trim() !== "") userUpdate.branchId = branchId;
 
-  if (hasUserUpdates) {
-    const existing = await prisma.student.findUnique({ where: { id } });
-    if (!existing || !existing.userId) return null;
+    if (existing.userId && Object.keys(userUpdate).length > 0) {
+      await tx.user.update({
+        where: { id: existing.userId },
+        data: userUpdate,
+      });
+    }
 
-    return prisma.$transaction(async (tx) => {
-      const userUpdate: Record<string, unknown> = {};
-      if (name !== undefined) userUpdate.name = name;
-      if (email !== undefined) userUpdate.email = email;
-      if (phone !== undefined) userUpdate.phone = phone;
-      if (branchId !== undefined) userUpdate.branchId = branchId;
+    // 2. Update Student
+    const studentUpdate: Record<string, unknown> = {};
+    if (qualification !== undefined) studentUpdate.qualification = qualification;
+    if (qualificationMasterId !== undefined) studentUpdate.qualificationMasterId = qualificationMasterId || null;
+    if (areaMasterId !== undefined) studentUpdate.areaMasterId = areaMasterId || null;
+    if (status !== undefined) {
+      if (status === "DRAFT") {
+        studentUpdate.status = "ACTIVE";
+      } else {
+        studentUpdate.status = status;
+      }
+    }
+    if (dateOfBirth !== undefined) {
+      studentUpdate.dateOfBirth = dateOfBirth && dateOfBirth.trim() !== "" ? new Date(dateOfBirth) : null;
+    }
+    if (branchId !== undefined && branchId.trim() !== "") studentUpdate.branchId = branchId;
 
-      if (Object.keys(userUpdate).length > 0) {
-        await tx.user.update({
-          where: { id: existing.userId! },
-          data: userUpdate,
+    await tx.student.update({
+      where: { id },
+      data: studentUpdate,
+    });
+
+    // 3. Handle Admission & Course Mapping
+    let admissionId: string | null = existing.admissions?.[0]?.id || null;
+    const finalBranchId = branchId || existing.branchId;
+
+    const targetAdmissionStatus =
+      admissionStatus || (status === "ACTIVE" ? "CONFIRMED" : status === "DRAFT" ? "PENDING" : undefined);
+
+    if (existing.admissions && existing.admissions.length > 0) {
+      const currentAdm = existing.admissions[0];
+      const admUpdate: Record<string, unknown> = {};
+      if (courseId !== undefined && courseId.trim() !== "") admUpdate.courseId = courseId;
+      if (batchId !== undefined) admUpdate.batchId = batchId.trim() !== "" ? batchId : null;
+      if (feePlan !== undefined) admUpdate.feePlan = feePlan;
+      if (targetAdmissionStatus !== undefined) admUpdate.status = targetAdmissionStatus;
+      if (notes !== undefined) admUpdate.notes = notes;
+      if (branchId !== undefined && branchId.trim() !== "") admUpdate.branchId = branchId;
+      if (name !== undefined && name.trim() !== "") admUpdate.studentName = name.trim();
+      if (email !== undefined) admUpdate.email = email.trim() !== "" ? email.trim() : null;
+      if (phone !== undefined) admUpdate.phone = phone.trim() !== "" ? phone.trim() : null;
+
+      if (Object.keys(admUpdate).length > 0) {
+        const updatedAdm = await tx.admission.update({
+          where: { id: currentAdm.id },
+          data: admUpdate,
+        });
+        admissionId = updatedAdm.id;
+      }
+    } else if (courseId && courseId.trim() !== "") {
+      const admissionNo = await SequenceService.getNextNumber(existing.instituteId, "ADMISSION");
+      const newAdm = await tx.admission.create({
+        data: {
+          instituteId: existing.instituteId,
+          branchId: finalBranchId,
+          studentId: id,
+          courseId,
+          batchId: batchId && batchId.trim() !== "" ? batchId : null,
+          studentName: name || existing.user?.name || "Student",
+          email: email || existing.user?.email || null,
+          phone: phone || existing.user?.phone || null,
+          feePlan: feePlan || "INSTALLMENT",
+          status: targetAdmissionStatus || "CONFIRMED",
+          notes: notes || null,
+          admissionNo,
+        },
+      });
+      admissionId = newAdm.id;
+    }
+
+    // 4. Handle Batch Enrollment
+    if (batchId && batchId.trim() !== "") {
+      await tx.batchEnrollment.upsert({
+        where: {
+          batchId_studentId: { batchId: batchId.trim(), studentId: id },
+        },
+        update: {
+          status: "ACTIVE",
+          admissionId,
+        },
+        create: {
+          batchId: batchId.trim(),
+          studentId: id,
+          admissionId,
+          status: "ACTIVE",
+        },
+      });
+    }
+
+    // 5. Handle Fee updates if totalFee provided
+    if (totalFee !== undefined && Number(totalFee) > 0) {
+      const numTotal = Number(totalFee);
+      const numDown = Number(downPayment || 0);
+      const studentName = name || existing.user?.name || "Student";
+      const studentPhone = phone || existing.user?.phone || "9876543210";
+      const courseRecord = courseId ? await tx.course.findUnique({ where: { id: courseId } }) : null;
+      const courseName = courseRecord?.name || "Enrolled Course";
+      const admissionNo = existing.admissions?.[0]?.admissionNo || "ADM-" + id.slice(-6);
+
+      if (numDown > 0) {
+        const receiptNo = await SequenceService.getNextNumber(existing.instituteId, "RECEIPT");
+        await tx.payment.create({
+          data: {
+            receiptNo,
+            instituteId: existing.instituteId,
+            branchId: finalBranchId,
+            studentId: id,
+            admissionId,
+            studentName,
+            admissionNo,
+            courseName,
+            amount: numDown,
+            method: "UPI",
+            status: "SUCCESS",
+            notes: "Down payment on admission update",
+          },
         });
       }
 
-      return tx.student.update({
-        where: { id },
-        data: studentUpdate,
-        include: studentInclude,
-      });
-    });
-  }
+      const balance = Math.max(0, numTotal - numDown);
+      if (balance > 0) {
+        const existingPending = await tx.pendingFee.findFirst({
+          where: { studentId: id },
+        });
+        if (existingPending) {
+          await tx.pendingFee.update({
+            where: { id: existingPending.id },
+            data: {
+              dueAmount: balance,
+              totalFee: numTotal,
+              amountPaid: numDown,
+              status: "DUE_SOON",
+            },
+          });
+        } else {
+          await tx.pendingFee.create({
+            data: {
+              instituteId: existing.instituteId,
+              branchId: finalBranchId,
+              studentId: id,
+              admissionId,
+              studentName,
+              admissionNo,
+              phone: studentPhone,
+              courseName,
+              dueAmount: balance,
+              totalFee: numTotal,
+              amountPaid: numDown,
+              dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+              status: "DUE_SOON",
+            },
+          });
+        }
+      }
+    }
 
-  return prisma.student.update({
-    where: { id },
-    data: studentUpdate,
-    include: studentInclude,
+    return tx.student.findUnique({
+      where: { id },
+      include: studentInclude,
+    });
   });
 };
 

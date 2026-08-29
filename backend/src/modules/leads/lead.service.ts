@@ -310,21 +310,16 @@ export const LeadService = {
           instituteId: lead.instituteId,
           branchId: dto?.branchId || lead.branchId,
           applicationNo,
-          leadId: lead.id,
           applicantName: lead.name,
           email: lead.email,
           phone: lead.phoneNumber,
           courseId,
-          source: lead.source || "Google Ads",
-          counsellorId: lead.assignedCounsellorId || (currentUser.userId || currentUser.id),
           feeStatus: (dto?.feeStatus === "PAID" ? "PAID" : "PENDING") as any,
           status: "SUBMITTED",
           notes: dto?.notes || `Created from Lead ${lead.name} (${lead.source})`,
         },
         include: {
           course: { select: { id: true, name: true, code: true } },
-          lead: true,
-          counsellor: { select: { id: true, name: true, email: true } },
         },
       });
 

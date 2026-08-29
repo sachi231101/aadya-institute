@@ -1,8 +1,11 @@
-import React, { useState } from "react";
-import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { useStudent } from "../../../hooks/useStudents";
-import { aiCallingApi } from "../../../services/ai-calling.api";import {
+import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
+import { useCourses } from "../../../hooks/useCourses";
+import { useBatches } from "../../../hooks/useBatches";
+import { aiCallingApi } from "../../../services/ai-calling.api";
+import {
   ArrowLeft,
   GraduationCap,
   Mail,
@@ -22,22 +25,47 @@ import { aiCallingApi } from "../../../services/ai-calling.api";import {
   Award,
   CircleDot,
   Check,
-  DollarSign,
   ShieldAlert,
+  Sparkles,
+  CheckCircle2,
+  PlusCircle,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 
 export const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryClient = useQueryClient();
+
   const [activeTab, setActiveTab] = useState("overview");
   const [callInitiated, setCallInitiated] = useState(false);
   const [waSent, setWaSent] = useState(false);
+
+  // Admission & Batch Activation Modal State
+  const [isActivateModalOpen, setIsActivateModalOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState("");
+  const [selectedBatchId, setSelectedBatchId] = useState("");
+  const [feePlan, setFeePlan] = useState<"INSTALLMENT" | "FULL_PAYMENT">("INSTALLMENT");
+  const [totalFee, setTotalFee] = useState<number>(0);
+  const [downPayment, setDownPayment] = useState<number>(0);
+  const [admissionNotes, setAdmissionNotes] = useState("");
+  const [dialogError, setDialogError] = useState<string | null>(null);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -50,26 +78,166 @@ export const StudentDetails: React.FC = () => {
   const { data: response, isLoading, isError } = useStudent(id);
   const student = response?.data;
 
+  const { courses } = useCourses();
+  const updateMutation = useUpdateStudent();
+
+  const { batches } = useBatches({
+    courseId: selectedCourseId || undefined,
+  });
+
+  const studentBranchId = student?.branchId || student?.branch?.id || "";
+
+  const availableBatches = useMemo(() => {
+    if (!batches || batches.length === 0) return [];
+    return batches.filter((b) => {
+      if (selectedCourseId && b.courseId && b.courseId !== selectedCourseId) return false;
+      if (studentBranchId && b.branchId && b.branchId !== studentBranchId) return false;
+      return true;
+    });
+  }, [batches, selectedCourseId, studentBranchId]);
+
   const { data: aiCallsResponse } = useQuery({
     queryKey: ["ai-calls", id],
     queryFn: () => aiCallingApi.getCallLogs({ studentId: id!, limit: 10 }),
     enabled: !!id,
   });
   const aiCallLogs = aiCallsResponse?.data ?? [];
+
+  const admission = student?.admissions?.[0] as any;
+  const enrollment = student?.batchEnrollments?.[0] as any;
+
+  const isDraftStudent = useMemo(() => {
+    if (!student) return false;
+    return (
+      student.status === ("DRAFT" as any) ||
+      (student as any).isDraft ||
+      (student as any).admissionStatus === "PENDING" ||
+      admission?.status === "PENDING"
+    );
+  }, [student, admission]);
+
+  // Sync initial dialog state when student loads
+  useEffect(() => {
+    if (student) {
+      const initialCourseId = admission?.courseId || admission?.course?.id || enrollment?.batch?.course?.id || "";
+      const initialBatchId = admission?.batchId || enrollment?.batchId || "";
+      const initialTotalFee = Number(student.fees?.totalFee || (student.fees as any)?.total || admission?.totalFee || 0);
+      const initialDownPay = Number(student.fees?.amountPaid || (student.fees as any)?.paid || 0);
+
+      setSelectedCourseId(initialCourseId);
+      setSelectedBatchId(initialBatchId);
+      setFeePlan((admission?.feePlan as any) || "INSTALLMENT");
+      setTotalFee(initialTotalFee);
+      setDownPayment(initialDownPay);
+      setAdmissionNotes(admission?.notes || "");
+    }
+  }, [student, admission, enrollment]);
+
+  // Auto-open modal if navigated with ?action=activate
+  useEffect(() => {
+    if (searchParams.get("action") === "activate" && student) {
+      setIsActivateModalOpen(true);
+      // clear the search param
+      searchParams.delete("action");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, student, setSearchParams]);
+
+  const handleCourseSelect = (courseId: string) => {
+    setSelectedCourseId(courseId);
+    setSelectedBatchId("");
+    const matched = courses.find((c) => c.id === courseId);
+    if (matched && (matched.fee || (matched as any).totalFee)) {
+      const courseFee = Number(matched.fee || (matched as any).totalFee || 0);
+      if (!totalFee || totalFee === 0) {
+        setTotalFee(courseFee);
+      }
+    }
+  };
+
+  const handleActivateStudent = async () => {
+    if (!id) return;
+    setDialogError(null);
+
+    if (!selectedCourseId) {
+      setDialogError("Please select a Course / Academic Program.");
+      return;
+    }
+
+    try {
+      await updateMutation.mutateAsync({
+        id,
+        data: {
+          name: student?.user?.name || student?.studentCode || "Student",
+          branchId: studentBranchId,
+          courseId: selectedCourseId,
+          batchId: selectedBatchId || undefined,
+          status: "ACTIVE",
+          admissionStatus: "CONFIRMED",
+          feePlan,
+          totalFee: Number(totalFee) || 0,
+          downPayment: Number(downPayment) || 0,
+          notes: admissionNotes || undefined,
+        },
+      });
+
+      // Refetch student data
+      await queryClient.invalidateQueries({ queryKey: ["student", id] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+
+      setIsActivateModalOpen(false);
+      setSuccessToast("Student admission confirmed and status successfully converted to Active!");
+      setTimeout(() => setSuccessToast(null), 5000);
+    } catch (err: any) {
+      setDialogError(err?.response?.data?.message || "Failed to activate student admission.");
+    }
+  };
+
   const getStatusBadge = (status: string) => {
+    if (isDraftStudent) {
+      return (
+        <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-500" /> Draft Student
+        </span>
+      );
+    }
     switch (status) {
       case "ACTIVE":
-        return <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> Active Student</span>;
+        return (
+          <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" /> Active Student
+          </span>
+        );
       case "ON_LEAVE":
-        return <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> On Approved Leave</span>;
+        return (
+          <span className="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-600" /> On Approved Leave
+          </span>
+        );
       case "COMPLETED":
-        return <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-purple-600" /> Graduated</span>;
+        return (
+          <span className="bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-purple-600" /> Graduated
+          </span>
+        );
       case "DISCONTINUED":
-        return <span className="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-red-600" /> Discontinued</span>;
+        return (
+          <span className="bg-red-100 text-red-800 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-red-600" /> Discontinued
+          </span>
+        );
       case "CANCELLED":
-        return <span className="bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1"><span className="h-1.5 w-1.5 rounded-full bg-slate-600" /> Cancelled</span>;
+        return (
+          <span className="bg-slate-200 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-slate-600" /> Cancelled
+          </span>
+        );
       default:
-        return <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">{status}</span>;
+        return (
+          <span className="bg-slate-100 text-slate-700 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+            {status}
+          </span>
+        );
     }
   };
 
@@ -128,7 +296,6 @@ export const StudentDetails: React.FC = () => {
   const pincodeStr = student.address?.pincode || "";
 
   const activeBatch = student.batchEnrollments?.[0]?.batch;
-  const admission = student.admissions?.[0];
   const courseName = activeBatch?.course?.name || student.courseName || admission?.course?.name || notProvided;
   const courseCode = activeBatch?.course?.code || admission?.course?.code || "—";
   const batchName = activeBatch?.name || student.batchName || notProvided;
@@ -144,10 +311,10 @@ export const StudentDetails: React.FC = () => {
   const consecutiveAbsences = student.attendance?.consecutiveAbsences ?? 0;
   const isDiscontinuationRisk = consecutiveAbsences >= 2;
 
-  const totalFee = student.fees?.totalFee ?? 0;
+  const totalFeeAmount = student.fees?.totalFee ?? 0;
   const amountPaid = student.fees?.amountPaid ?? 0;
   const dueAmount = student.fees?.dueAmount ?? 0;
-  const feePlan = student.fees?.feePlan || "—";
+  const feePlanDisplay = student.fees?.feePlan || "—";
   const nextDueDate = student.fees?.nextDueDate
     ? new Date(student.fees.nextDueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : null;
@@ -157,9 +324,28 @@ export const StudentDetails: React.FC = () => {
   const assignments = student.assignments ?? [];
   const payments = student.payments ?? [];
   const pendingFees = student.pendingFees ?? [];
-  const paidPercent = totalFee > 0 ? Math.min(100, Math.round((amountPaid / totalFee) * 100)) : 0;
+  const paidPercent = totalFeeAmount > 0 ? Math.min(100, Math.round((amountPaid / totalFeeAmount) * 100)) : 0;
+
   return (
     <div className="space-y-6 max-w-[1500px] mx-auto pb-12">
+      {/* ─── Success Notification ─── */}
+      {successToast && (
+        <div className="bg-emerald-50 border border-emerald-300 text-emerald-900 rounded-xl p-4 shadow-sm flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span className="text-sm font-semibold">{successToast}</span>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => setSuccessToast(null)}
+            className="text-emerald-700 h-7 text-xs font-bold hover:bg-emerald-100"
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {/* ─── 1. TOP BREADCRUMB & ACTION BAR ──────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -187,6 +373,26 @@ export const StudentDetails: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {/* Complete Admission / Activate Button */}
+          {isDraftStudent ? (
+            <Button
+              onClick={() => setIsActivateModalOpen(true)}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-1.5 shadow-sm flex items-center gap-1.5"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
+              <span>Complete Admission & Activate</span>
+            </Button>
+          ) : (
+            <Button
+              onClick={() => setIsActivateModalOpen(true)}
+              variant="outline"
+              className="border-[#1769AA]/40 text-[#1769AA] hover:bg-[#1769AA]/10 font-semibold text-xs px-3 py-1.5 flex items-center gap-1.5"
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span>Assign / Change Batch</span>
+            </Button>
+          )}
+
           {/* AI Voice Call Trigger */}
           <Button
             onClick={handleAICall}
@@ -226,13 +432,13 @@ export const StudentDetails: React.FC = () => {
             )}
           </Button>
 
-          {/* Edit Button */}
+          {/* Edit Full Profile */}
           <Button
             onClick={() => navigate(`${basePath}/students/${student.id}/edit`)}
             className="bg-[#1769AA] hover:bg-[#125890] text-white font-medium text-xs px-3 py-1.5 shadow-sm flex items-center gap-1.5"
           >
             <Edit className="h-3.5 w-3.5" />
-            <span>Edit Profile</span>
+            <span>Edit Full Profile</span>
           </Button>
         </div>
       </div>
@@ -286,6 +492,17 @@ export const StudentDetails: React.FC = () => {
               </span>
             </div>
 
+            {isDraftStudent && (
+              <Button
+                size="sm"
+                onClick={() => setIsActivateModalOpen(true)}
+                className="mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-8 shadow-sm flex items-center justify-center gap-1.5"
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                Complete Admission & Activate
+              </Button>
+            )}
+
             <div className="w-full border-t border-slate-100 mt-5 pt-4 space-y-2.5 text-left text-xs">
               <div className="flex items-center justify-between text-slate-600">
                 <span className="flex items-center gap-1.5 text-slate-500">
@@ -336,14 +553,16 @@ export const StudentDetails: React.FC = () => {
                 <div
                   className={`h-full rounded-full ${totalClasses === 0 ? "bg-slate-300" : attendanceRate >= 85 ? "bg-emerald-500" : attendanceRate >= 70 ? "bg-amber-500" : "bg-red-500"}`}
                   style={{ width: `${totalClasses === 0 ? 0 : attendanceRate}%` }}
-                />              </div>
+                />
+              </div>
               <p className="text-[11px] text-slate-400 mt-2">
                 {totalClasses === 0
                   ? "No attendance records yet"
                   : absentClasses === 0
                   ? "Perfect attendance record"
                   : `${absentClasses} classes missed`}
-              </p>            </CardContent>
+              </p>
+            </CardContent>
           </Card>
 
           {/* Fees KPI */}
@@ -351,13 +570,13 @@ export const StudentDetails: React.FC = () => {
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">Fee Account Status</span>
-                <div className={`p-1.5 rounded-lg ${dueAmount === 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                <div className={`p-1.5 rounded-lg ${dueAmount === 0 && totalFeeAmount > 0 ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
                   <CreditCard className="h-4 w-4" />
                 </div>
               </div>
               <div className="flex items-baseline gap-2">
                 <h3 className="text-3xl font-black text-slate-900">₹{amountPaid.toLocaleString()}</h3>
-                <span className="text-xs text-slate-500 font-medium">of ₹{totalFee.toLocaleString()}</span>
+                <span className="text-xs text-slate-500 font-medium">of ₹{totalFeeAmount.toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-100 h-2 rounded-full mt-3 overflow-hidden">
                 <div
@@ -366,11 +585,14 @@ export const StudentDetails: React.FC = () => {
                 />
               </div>
               <div className="flex items-center justify-between text-[11px] mt-2">
-                <span className="text-slate-500">Balance: <strong className={dueAmount > 0 ? "text-amber-600 font-bold" : "text-emerald-600 font-bold"}>₹{dueAmount.toLocaleString()}</strong></span>
-                <Badge variant={dueAmount === 0 && totalFee > 0 ? "default" : dueAmount > 0 ? "destructive" : "secondary"} className="text-[10px] px-1.5 py-0">
-                  {totalFee === 0 ? "Not set" : dueAmount === 0 ? "Paid in Full" : "Installment Due"}
+                <span className="text-slate-500">
+                  Balance: <strong className={dueAmount > 0 ? "text-amber-600 font-bold" : "text-emerald-600 font-bold"}>₹{dueAmount.toLocaleString()}</strong>
+                </span>
+                <Badge variant={dueAmount === 0 && totalFeeAmount > 0 ? "default" : dueAmount > 0 ? "destructive" : "secondary"} className="text-[10px] px-1.5 py-0">
+                  {totalFeeAmount === 0 ? "Not set" : dueAmount === 0 ? "Paid in Full" : "Installment Due"}
                 </Badge>
-              </div>            </CardContent>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Academic & Batch KPI */}
@@ -382,12 +604,19 @@ export const StudentDetails: React.FC = () => {
                   <BookOpen className="h-4 w-4" />
                 </div>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 truncate" title={batchName}>{batchName}</h3>
+              <h3 className="text-lg font-bold text-slate-900 truncate" title={batchName}>
+                {batchName !== notProvided ? batchName : "Batch Not Assigned"}
+              </h3>
               <p className="text-xs text-slate-500 font-medium mt-0.5">Faculty: <strong className="text-slate-700">{facultyName}</strong></p>
               <div className="mt-3 p-2 bg-slate-50 rounded border border-slate-100 text-[11px] flex items-center justify-between text-slate-600">
-                <span className="flex items-center gap-1 font-medium"><Clock className="h-3 w-3 text-[#1769AA]" /> {batchTimeSlot}</span>
-                <span className="font-semibold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">{activeBatch?.status || student.status}</span>
-              </div>            </CardContent>
+                <span className="flex items-center gap-1 font-medium">
+                  <Clock className="h-3 w-3 text-[#1769AA]" /> {batchTimeSlot !== notProvided ? batchTimeSlot : "Timing not set"}
+                </span>
+                <span className="font-semibold text-emerald-700 bg-emerald-100/60 px-1.5 py-0.5 rounded">
+                  {activeBatch?.status || (isDraftStudent ? "DRAFT" : student.status)}
+                </span>
+              </div>
+            </CardContent>
           </Card>
         </div>
       </div>
@@ -468,27 +697,17 @@ export const StudentDetails: React.FC = () => {
                   <p className="text-slate-900 font-bold text-sm mt-0.5">
                     {guardianName}
                     {guardianRelation !== notProvided ? ` (${guardianRelation})` : ""}
-                  </p>                </div>
+                  </p>
+                </div>
                 <div>
                   <p className="text-slate-400 font-semibold uppercase">Guardian Mobile</p>
                   <p className="text-slate-800 font-bold text-sm mt-0.5">{guardianPhone}</p>
                 </div>
                 <div className="col-span-2">
-                  <p className="text-slate-400 font-semibold uppercase">Residential Street Address</p>
+                  <p className="text-slate-400 font-semibold uppercase">Residential Address</p>
                   <p className="text-slate-800 font-medium mt-0.5">
-                    {addressStr === notProvided
-                      ? notProvided
-                      : [addressStr, cityStr, pincodeStr].filter(Boolean).join(", ")}
+                    {addressStr}{cityStr ? `, ${cityStr}` : ""}{pincodeStr ? ` - ${pincodeStr}` : ""}
                   </p>
-                </div>                <div>
-                  <p className="text-slate-400 font-semibold uppercase">Center / Branch</p>
-                  <p className="text-slate-800 font-medium mt-0.5">📍 {branchName}</p>
-                </div>
-                <div>
-                  <p className="text-slate-400 font-semibold uppercase">WhatsApp Alerts</p>
-                  <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-semibold inline-block mt-0.5">
-                    ✓ Active on {studentPhone}
-                  </span>
                 </div>
               </CardContent>
             </Card>
@@ -498,11 +717,19 @@ export const StudentDetails: React.FC = () => {
         {/* ─── TAB 2: PROGRAM & BATCHES ───────────────────────────────── */}
         <TabsContent value="academics" className="space-y-4">
           <Card className="border-slate-200 shadow-sm">
-            <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
+            <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <BookOpen className="h-4 w-4 text-[#1769AA]" />
                 Enrolled Academic Curriculum & Batch Schedule
               </CardTitle>
+              <Button
+                size="sm"
+                onClick={() => setIsActivateModalOpen(true)}
+                className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-semibold h-8 flex items-center gap-1.5"
+              >
+                <PlusCircle className="h-3.5 w-3.5" />
+                {isDraftStudent ? "Complete Admission & Assign Batch" : "Change / Assign Batch"}
+              </Button>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="p-4 rounded-xl border border-blue-100 bg-blue-50/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -548,7 +775,8 @@ export const StudentDetails: React.FC = () => {
                     ))}
                   </div>
                 )}
-              </div>            </CardContent>
+              </div>
+            </CardContent>
           </Card>
         </TabsContent>
 
@@ -562,7 +790,6 @@ export const StudentDetails: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* Stat breakdown */}
               <div className="grid grid-cols-4 gap-3">
                 <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-center">
                   <p className="text-[10px] font-bold uppercase text-slate-500">Total Classes</p>
@@ -573,84 +800,88 @@ export const StudentDetails: React.FC = () => {
                   <h4 className="text-xl font-bold text-emerald-800 mt-1">{presentClasses}</h4>
                 </div>
                 <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-center">
-                  <p className="text-[10px] font-bold uppercase text-red-700">Absences</p>
+                  <p className="text-[10px] font-bold uppercase text-red-700">Absent</p>
                   <h4 className="text-xl font-bold text-red-800 mt-1">{absentClasses}</h4>
                 </div>
                 <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 text-center">
-                  <p className="text-[10px] font-bold uppercase text-amber-700">Approved Leave</p>
+                  <p className="text-[10px] font-bold uppercase text-amber-700">On Leave</p>
                   <h4 className="text-xl font-bold text-amber-800 mt-1">{leaveClasses}</h4>
                 </div>
               </div>
 
-              {attendanceRecords.length === 0 ? (
-                <p className="text-sm text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
-                  No class attendance has been marked for this student yet.
-                </p>
-              ) : (
-              <div className="border border-slate-200 rounded-lg overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
-                    <tr>
-                      <th className="p-3">Session / Date</th>
-                      <th className="p-3">Module / Topic</th>
-                      <th className="p-3">Time</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Faculty Remark</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium">
-                    {attendanceRecords.map((row) => (
-                      <tr key={row.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-semibold text-slate-800">
-                          {new Date(row.classSession.scheduledDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                        </td>
-                        <td className="p-3 text-slate-700">{row.classSession.title || "Class Session"}</td>
-                        <td className="p-3 text-slate-500 font-mono text-[11px]">{row.classSession.startTime} - {row.classSession.endTime}</td>
-                        <td className="p-3">
-                          {row.status === "PRESENT" ? (
-                            <span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">PRESENT</span>
-                          ) : row.status === "LEAVE" ? (
-                            <span className="bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded text-[10px]">LEAVE</span>
-                          ) : (
-                            <span className="bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded text-[10px]">ABSENT</span>
-                          )}
-                        </td>
-                        <td className="p-3 text-slate-500">{row.remarks || "—"}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div>
+                <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">
+                  Recent Class Attendance Log
+                </h4>
+                {attendanceRecords.length === 0 ? (
+                  <p className="text-sm text-slate-500 py-8 text-center border border-dashed border-slate-200 rounded-lg">
+                    No attendance records for this student yet.
+                  </p>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">Date</th>
+                          <th className="p-3">Session Topic / Subject</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3">Remarks</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {attendanceRecords.map((rec: any) => (
+                          <tr key={rec.id}>
+                            <td className="p-3 font-semibold text-slate-800">
+                              {new Date(rec.classSession?.scheduledDate || rec.date || rec.markedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                            </td>
+                            <td className="p-3 text-slate-700">{rec.classSession?.title || rec.sessionTopic || "General Class Session"}</td>
+                            <td className="p-3">
+                              <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${rec.status === "PRESENT" ? "bg-emerald-100 text-emerald-800" : rec.status === "LEAVE" ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"}`}>
+                                {rec.status}
+                              </span>
+                            </td>
+                            <td className="p-3 text-slate-500">{rec.remarks || "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              )}            </CardContent>
+            </CardContent>
           </Card>
         </TabsContent>
 
-        {/* ─── TAB 4: FEES & RECEIPTS ─────────────────────────────────── */}
+        {/* ─── TAB 4: FEES & PAYMENTS ─────────────────────────────────── */}
         <TabsContent value="fees" className="space-y-4">
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6 flex flex-row items-center justify-between">
               <CardTitle className="text-sm font-bold text-slate-800 flex items-center gap-2">
                 <CreditCard className="h-4 w-4 text-[#1769AA]" />
-                Fee Structure, Installments & Receipts
+                Fee Payment Plan & Installment Ledger
               </CardTitle>
-              <Button size="sm" className="bg-[#1769AA] text-white text-xs font-semibold">
-                <DollarSign className="h-3.5 w-3.5 mr-1" /> Record Fee Payment
+              <Button
+                size="sm"
+                onClick={() => setIsActivateModalOpen(true)}
+                variant="outline"
+                className="text-xs h-8 border-slate-300 font-semibold"
+              >
+                Update Fee Structure
               </Button>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
-              {/* Fee Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
                   <p className="text-xs font-semibold text-slate-500 uppercase">Total Agreed Fee</p>
-                  <h3 className="text-2xl font-black text-slate-900 mt-1">₹{totalFee.toLocaleString()}</h3>
-                  <p className="text-[11px] text-slate-400 mt-1">Plan: {feePlan}</p>
+                  <h3 className="text-2xl font-black text-slate-900 mt-1">₹{totalFeeAmount.toLocaleString()}</h3>
+                  <p className="text-[11px] text-slate-400 mt-1">Plan: {feePlanDisplay}</p>
                 </div>
-                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/30">
-                  <p className="text-xs font-semibold text-emerald-700 uppercase">Total Paid</p>
+                <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40">
+                  <p className="text-xs font-semibold text-emerald-700 uppercase">Amount Paid</p>
                   <h3 className="text-2xl font-black text-emerald-800 mt-1">₹{amountPaid.toLocaleString()}</h3>
-                  <p className="text-[11px] text-emerald-600 mt-1">{totalFee > 0 ? `${paidPercent}% of Total Paid` : "—"}</p>
+                  <p className="text-[11px] text-emerald-600 mt-1">{paidPercent}% Cleared</p>
                 </div>
-                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/30">
+                <div className="p-4 rounded-xl border border-amber-200 bg-amber-50/40">
                   <p className="text-xs font-semibold text-amber-700 uppercase">Remaining Due</p>
                   <h3 className="text-2xl font-black text-amber-800 mt-1">₹{dueAmount.toLocaleString()}</h3>
                   <p className="text-[11px] text-amber-600 mt-1">{nextDueDate ? `Next Due: ${nextDueDate}` : "No pending due date"}</p>
@@ -659,62 +890,64 @@ export const StudentDetails: React.FC = () => {
 
               <div>
                 <h4 className="text-xs font-bold uppercase text-slate-500 tracking-wider mb-3">
-                  Installment Schedule
+                  Installment Schedule & Payments
                 </h4>
                 {pendingFees.length === 0 && payments.length === 0 ? (
                   <p className="text-sm text-slate-500 py-6 text-center border border-dashed border-slate-200 rounded-lg">
                     No fee records found for this student.
                   </p>
                 ) : (
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
-                      <tr>
-                        <th className="p-3">Installment</th>
-                        <th className="p-3">Due Date</th>
-                        <th className="p-3">Amount</th>
-                        <th className="p-3">Status</th>
-                        <th className="p-3">Receipt / Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 font-medium">
-                      {pendingFees.map((fee) => {
-                        const matchingPayment = payments.find((p) => p.status === "SUCCESS" && Math.abs(p.amount - (fee.totalFee / pendingFees.length)) < 1);
-                        const isPaid = fee.dueAmount <= 0;
-                        return (
-                          <tr key={fee.id}>
-                            <td className="p-3 font-bold text-slate-800">{fee.installmentNo}{fee.installmentNo === 1 ? "st" : fee.installmentNo === 2 ? "nd" : fee.installmentNo === 3 ? "rd" : "th"} Installment</td>
-                            <td className="p-3 text-slate-600">{new Date(fee.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
-                            <td className="p-3 font-bold text-slate-900">₹{fee.dueAmount.toLocaleString()}</td>
-                            <td className="p-3">
-                              <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isPaid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                                {isPaid ? "PAID" : fee.status.replace("_", " ")}
-                              </span>
-                            </td>
-                            <td className="p-3">
-                              {matchingPayment ? (
-                                <span className="text-[#1769AA] font-semibold flex items-center gap-1"><Download className="h-3 w-3" /> {matchingPayment.receiptNo}</span>
-                              ) : isPaid ? (
-                                <span className="text-slate-400">—</span>
-                              ) : (
-                                <span className="text-amber-700 text-[11px]">Due</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {pendingFees.length === 0 && payments.map((p) => (
-                        <tr key={p.id}>
-                          <td className="p-3 font-bold text-slate-800">Payment</td>
-                          <td className="p-3 text-slate-600">{new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
-                          <td className="p-3 font-bold text-slate-900">₹{p.amount.toLocaleString()}</td>
-                          <td className="p-3"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">{p.status}</span></td>
-                          <td className="p-3"><span className="text-[#1769AA] font-semibold">{p.receiptNo}</span></td>
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50 text-slate-500 font-semibold uppercase text-[11px] border-b border-slate-200">
+                        <tr>
+                          <th className="p-3">Installment</th>
+                          <th className="p-3">Due Date</th>
+                          <th className="p-3">Amount</th>
+                          <th className="p-3">Status</th>
+                          <th className="p-3">Receipt / Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium">
+                        {pendingFees.map((fee) => {
+                          const matchingPayment = payments.find((p) => p.status === "SUCCESS" && Math.abs(p.amount - (fee.totalFee / pendingFees.length)) < 1);
+                          const isPaid = fee.dueAmount <= 0;
+                          return (
+                            <tr key={fee.id}>
+                              <td className="p-3 font-bold text-slate-800">
+                                {fee.installmentNo}{fee.installmentNo === 1 ? "st" : fee.installmentNo === 2 ? "nd" : fee.installmentNo === 3 ? "rd" : "th"} Installment
+                              </td>
+                              <td className="p-3 text-slate-600">{new Date(fee.dueDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                              <td className="p-3 font-bold text-slate-900">₹{fee.dueAmount.toLocaleString()}</td>
+                              <td className="p-3">
+                                <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${isPaid ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
+                                  {isPaid ? "PAID" : fee.status.replace("_", " ")}
+                                </span>
+                              </td>
+                              <td className="p-3">
+                                {matchingPayment ? (
+                                  <span className="text-[#1769AA] font-semibold flex items-center gap-1"><Download className="h-3 w-3" /> {matchingPayment.receiptNo}</span>
+                                ) : isPaid ? (
+                                  <span className="text-slate-400">—</span>
+                                ) : (
+                                  <span className="text-amber-700 text-[11px]">Due</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {pendingFees.length === 0 && payments.map((p) => (
+                          <tr key={p.id}>
+                            <td className="p-3 font-bold text-slate-800">Payment</td>
+                            <td className="p-3 text-slate-600">{new Date(p.date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</td>
+                            <td className="p-3 font-bold text-slate-900">₹{p.amount.toLocaleString()}</td>
+                            <td className="p-3"><span className="bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded text-[10px]">{p.status}</span></td>
+                            <td className="p-3"><span className="text-[#1769AA] font-semibold">{p.receiptNo}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             </CardContent>
@@ -736,20 +969,20 @@ export const StudentDetails: React.FC = () => {
                   No assignments submitted or assigned yet.
                 </p>
               ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {assignments.map((item) => (
-                  <div key={item.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <h4 className="font-bold text-slate-800 text-xs">{item.title}</h4>
-                      <Badge variant="default" className="text-[10px] shrink-0">{item.status}</Badge>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {assignments.map((item) => (
+                    <div key={item.id} className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <h4 className="font-bold text-slate-800 text-xs">{item.title}</h4>
+                        <Badge variant="default" className="text-[10px] shrink-0">{item.status}</Badge>
+                      </div>
+                      <p className="text-xs font-mono font-bold text-[#1769AA]">
+                        {item.marks !== null ? `${item.marks} / 100` : item.submittedAt ? "Pending Grading" : "Not submitted"}
+                      </p>
+                      <p className="text-[11px] text-slate-500">{item.feedback || "—"}</p>
                     </div>
-                    <p className="text-xs font-mono font-bold text-[#1769AA]">
-                      {item.marks !== null ? `${item.marks} / 100` : item.submittedAt ? "Pending Grading" : "Not submitted"}
-                    </p>
-                    <p className="text-[11px] text-slate-500">{item.feedback || "—"}</p>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
               )}
             </CardContent>
           </Card>
@@ -802,6 +1035,163 @@ export const StudentDetails: React.FC = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* ─── 5. ON-DOSSIER COMPLETE ADMISSION & BATCH ASSIGNMENT DIALOG ───── */}
+      <Dialog open={isActivateModalOpen} onOpenChange={setIsActivateModalOpen}>
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold text-slate-900 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-emerald-600" />
+              {isDraftStudent ? "Complete Admission & Activate Student" : "Assign / Update Academic Batch & Fee"}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Finalize course enrollment, select an active class batch, and configure student fees for <strong className="text-slate-800">{studentName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          {dialogError && (
+            <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-semibold p-3 rounded-lg flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+              <span>{dialogError}</span>
+            </div>
+          )}
+
+          <div className="space-y-4 py-2 text-xs">
+            {/* Course Selector */}
+            <div>
+              <label className="font-bold text-slate-700 uppercase text-[11px] block mb-1.5">
+                Enrolled Course / Program *
+              </label>
+              <select
+                value={selectedCourseId}
+                onChange={(e) => handleCourseSelect(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+              >
+                <option value="">-- Select Course --</option>
+                {courses.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name} {c.code ? `(${c.code})` : ""} {c.fee ? `- ₹${Number(c.fee).toLocaleString()}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Batch Selector */}
+            <div>
+              <label className="font-bold text-slate-700 uppercase text-[11px] block mb-1.5">
+                Assigned Class Batch
+              </label>
+              <select
+                value={selectedBatchId}
+                onChange={(e) => setSelectedBatchId(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-slate-300 bg-white font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+              >
+                <option value="">-- Assign Batch Later / Not Assigned --</option>
+                {availableBatches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} {b.timeSlot ? `[${b.timeSlot}]` : ""} {b.faculty?.user?.name ? `• ${b.faculty.user.name}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[10px] text-slate-400 mt-1">
+                {availableBatches.length} batch(es) available in this branch
+              </p>
+            </div>
+
+            {/* Fee Plan & Amounts */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-100">
+              <div>
+                <label className="font-semibold text-slate-600 uppercase text-[10px] block mb-1">
+                  Payment Plan
+                </label>
+                <select
+                  value={feePlan}
+                  onChange={(e) => setFeePlan(e.target.value as any)}
+                  className="w-full h-9 px-2 rounded-md border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                >
+                  <option value="INSTALLMENT">Installments</option>
+                  <option value="FULL_PAYMENT">Full One-Time</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-600 uppercase text-[10px] block mb-1">
+                  Total Course Fee (₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                  <Input
+                    type="number"
+                    value={totalFee || ""}
+                    onChange={(e) => setTotalFee(e.target.value === "" ? 0 : Number(e.target.value))}
+                    placeholder="25000"
+                    className="pl-6 h-9 font-bold text-slate-800 text-xs"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-600 uppercase text-[10px] block mb-1">
+                  Down Payment Paid (₹)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">₹</span>
+                  <Input
+                    type="number"
+                    value={downPayment || ""}
+                    onChange={(e) => setDownPayment(e.target.value === "" ? 0 : Number(e.target.value))}
+                    placeholder="5000"
+                    className="pl-6 h-9 font-semibold text-emerald-700 text-xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Remarks */}
+            <div>
+              <label className="font-semibold text-slate-600 uppercase text-[10px] block mb-1">
+                Admission Remarks / Notes
+              </label>
+              <Input
+                value={admissionNotes}
+                onChange={(e) => setAdmissionNotes(e.target.value)}
+                placeholder="e.g. Concession applied, documents verified, etc."
+                className="h-9 text-xs"
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 pt-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsActivateModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={handleActivateStudent}
+              disabled={updateMutation.isPending}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 flex items-center gap-1.5 shadow-sm"
+            >
+              {updateMutation.isPending ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Enrolling...</span>
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                  <span>Activate & Enroll Student</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

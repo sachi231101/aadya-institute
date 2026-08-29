@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { admissionsApi } from "../../../services/admissions.api";
 import {
@@ -161,8 +162,51 @@ export interface EnrichedApplication {
 const SAMPLE_APPLICATIONS: EnrichedApplication[] = [];
 
 export const Applications: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const { batches, fetchCourses, fetchBatches } = useCourseStore();
   const { convertApplicationToAdmission } = useAdmissionStore();
+
+  const handleConvertToAdmission = (app: EnrichedApplication) => {
+    const rolePrefix = location.pathname.startsWith("/counselor")
+      ? "/counselor"
+      : location.pathname.startsWith("/center")
+      ? "/center"
+      : "/admin";
+    navigate(`${rolePrefix}/admissions/direct-entry`, {
+      state: {
+        application: app,
+        applicationId: app.id,
+        lead: {
+          id: app.id,
+          applicationId: app.id,
+          applicationNo: app.applicationNo,
+          name: app.applicantName,
+          phone: app.phone,
+          altPhone: app.alternatePhone,
+          email: app.email,
+          course: app.courseName,
+          courseId: app.courseId,
+          courseCode: app.courseCode,
+          courseDuration: app.courseDuration,
+          fatherName: app.fatherName,
+          motherName: app.motherName,
+          gender: app.gender,
+          dob: app.dob,
+          address: app.address,
+          city: app.city,
+          state: app.state,
+          pincode: app.pincode,
+          qualification: app.highestQualification,
+          source: (app as any).source || "Application",
+          feeStatus: app.feeStatus,
+          feeAmount: app.feeAmount,
+          notes: app.counselorNotes?.[0]?.text,
+          documents: app.documents,
+        },
+      },
+    });
+  };
 
   const { data: dbApplicationsRes } = useQuery({
     queryKey: ["applications"],
@@ -231,6 +275,15 @@ export const Applications: React.FC = () => {
   const [batchChoiceMode, setBatchChoiceMode] = useState<"ONGOING" | "LATER">("ONGOING");
   const [activatedStudentCode, setActivatedStudentCode] = useState<string | null>(null);
   const [portalActivated, setPortalActivated] = useState<boolean>(false);
+
+  // Separate Pop up for Application Decision (Convert to Admission / Reject Application)
+  const [isDecisionModalOpen, setIsDecisionModalOpen] = useState<boolean>(false);
+  const [appForDecision, setAppForDecision] = useState<EnrichedApplication | null>(null);
+
+  const handleOpenDecisionModal = (app: EnrichedApplication) => {
+    setAppForDecision(app);
+    setIsDecisionModalOpen(true);
+  };
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -306,11 +359,11 @@ export const Applications: React.FC = () => {
 
   // KPI Calculations strictly from real data
   const totalAppsCount = applicationsList.length;
-  const docsPendingCount = applicationsList.filter((a) => a.currentWorkflowStep < 3).length || 8;
-  const feePendingCount = applicationsList.filter((a) => a.feeStatus === "NOT_PAID").length || 5;
-  const feePaidCount = applicationsList.filter((a) => a.feeStatus === "PAID").length || 19;
-  const readyForAdmissionCount = applicationsList.filter((a) => a.feeStatus === "PAID" && a.status !== "ADMITTED").length || 14;
-  const convertedToAdmissionCount = applicationsList.filter((a) => a.status === "ADMITTED" || a.status === "APPROVED").length || 24;
+  const docsPendingCount = applicationsList.filter((a) => a.currentWorkflowStep < 3).length;
+  const feePendingCount = applicationsList.filter((a) => a.feeStatus === "NOT_PAID").length;
+  const feePaidCount = applicationsList.filter((a) => a.feeStatus === "PAID").length;
+  const readyForAdmissionCount = applicationsList.filter((a) => a.feeStatus === "PAID" && a.status !== "ADMITTED").length;
+  const convertedToAdmissionCount = applicationsList.filter((a) => a.status === "ADMITTED" || a.status === "APPROVED").length;
 
   // Filter Logic
   const filteredList = useMemo(() => {
@@ -594,9 +647,9 @@ export const Applications: React.FC = () => {
       const finalBatchId = batchChoiceMode === "ONGOING" && selectedBatchId ? selectedBatchId : undefined;
       const res = await admissionsApi.convertApplicationToAdmission(appToConvert.id, {
         batchId: finalBatchId,
-        feePlan: admissionFeePlan,
+        feePlan: admissionFeePlan === "ONE_TIME" ? "FULL_PAYMENT" : (admissionFeePlan as any),
       });
-      const admissionData = res.data;
+      const admissionData = res.data as any;
       setAdmissionSuccessData({
         admissionNo: admissionData?.admissionNo || `ADM-2026-00${Math.floor(100 + Math.random() * 900)}`,
         studentCode: admissionData?.student?.studentCode || `STU-00${Math.floor(10 + Math.random() * 90)}`,
@@ -1274,10 +1327,7 @@ export const Applications: React.FC = () => {
                         {app.feeStatus === "PAID" && app.status !== "ADMITTED" && app.status !== "APPROVED" ? (
                           <Button
                             size="sm"
-                            onClick={() => {
-                              setAppToConvert(app);
-                              setConvertModalOpen(true);
-                            }}
+                            onClick={() => handleOpenDecisionModal(app)}
                             className="h-8 px-2.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg gap-1 shadow-2xs cursor-pointer"
                           >
                             <UserCheck className="h-3.5 w-3.5" />
@@ -1342,14 +1392,11 @@ export const Applications: React.FC = () => {
                             </DropdownMenuItem>
 
                             <DropdownMenuItem
-                              onClick={() => {
-                                setAppToConvert(app);
-                                setConvertModalOpen(true);
-                              }}
+                              onClick={() => handleOpenDecisionModal(app)}
                               className="cursor-pointer font-semibold py-2 rounded-lg text-primary hover:bg-primary/10"
                             >
                               <ArrowRight className="h-3.5 w-3.5 mr-2 text-primary" />
-                              Grant Full Admission
+                              Grant Full Admission / Convert
                             </DropdownMenuItem>
 
                             <DropdownMenuSeparator className="my-1 border-border" />
@@ -1894,37 +1941,34 @@ export const Applications: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="space-y-2">
-                        {[
-                          { id: "doc-1", title: "10th Standard Marks Card", fileName: "10th_Marksheet.pdf", size: "1.2 MB", isMandatory: true, verified: true },
-                          { id: "doc-2", title: "12th / Degree Certificate", fileName: "Degree_Certificate.pdf", size: "2.4 MB", isMandatory: true, verified: true },
-                          { id: "doc-3", title: "Passport Size Photograph", fileName: "Applicant_Photo.jpg", size: "450 KB", isMandatory: true, verified: true },
-                          { id: "doc-4", title: "Residential Address Proof", fileName: "Electricity_Bill.pdf", size: "850 KB", isMandatory: false, verified: true },
-                        ].map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <FileText className="h-4 w-4 text-primary shrink-0" />
-                              <div>
-                                <div className="flex items-center gap-1.5">
+                      {selectedApplication.documents && selectedApplication.documents.length > 0 ? (
+                        <div className="space-y-2">
+                          {selectedApplication.documents.map((doc) => (
+                            <div
+                              key={doc.id}
+                              className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 text-xs"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <FileText className="h-4 w-4 text-primary shrink-0" />
+                                <div>
                                   <p className="font-bold text-foreground">{doc.title}</p>
-                                  {doc.isMandatory ? (
-                                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded-full">Required</span>
-                                  ) : (
-                                    <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded-full">Optional</span>
-                                  )}
+                                  <p className="text-[10px] text-muted-foreground">{doc.fileName} • {doc.fileSize}</p>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">{doc.fileName} • {doc.size}</p>
                               </div>
+                              <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
+                                <ShieldCheck className="h-3.5 w-3.5" /> Verified
+                              </span>
                             </div>
-                            <span className="text-[11px] font-bold text-emerald-600 flex items-center gap-1">
-                              <ShieldCheck className="h-3.5 w-3.5" /> Verified
-                            </span>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-xl border border-dashed border-border bg-muted/20 text-center space-y-1">
+                          <p className="text-xs font-semibold text-foreground">No document files uploaded yet</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Academic marksheets and certificates will be collected and verified during student onboarding.
+                          </p>
+                        </div>
+                      )}
                     </div>
 
                     {/* Section B: Government Identity (MANDATORY — UPLOAD NOT REQUIRED) */}
@@ -1938,42 +1982,25 @@ export const Applications: React.FC = () => {
                         </span>
                       </div>
 
-                      <div className="space-y-2">
-                        {[
-                          { id: "gid-1", title: "Aadhaar Card", numberRef: "XXXX-XXXX-8902", isMandatory: true },
-                          { id: "gid-2", title: "PAN Card", numberRef: "ABCDE1234F", isMandatory: true },
-                          { id: "gid-3", title: "Driving Licence", isMandatory: false },
-                          { id: "gid-4", title: "Passport", isMandatory: false },
-                          { id: "gid-5", title: "Voter ID", isMandatory: false },
-                        ].map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 text-xs"
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
-                              <div>
-                                <div className="flex items-center gap-1.5">
-                                  <p className="font-bold text-foreground">{doc.title}</p>
-                                  {doc.isMandatory ? (
-                                    <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded-full">Required</span>
-                                  ) : (
-                                    <span className="text-[9px] font-medium text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded-full">Optional</span>
-                                  )}
-                                </div>
-                                <p className="text-[10px] text-muted-foreground font-mono">
-                                  {doc.numberRef ? `Reference ID: ${doc.numberRef}` : "Not recorded"}
-                                </p>
-                              </div>
+                      <div className="p-3 rounded-xl border border-border bg-card flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2.5">
+                          <ShieldCheck className="h-4 w-4 text-primary shrink-0" />
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-bold text-foreground">Aadhaar / PAN Card Identification</p>
+                              <span className="text-[9px] font-bold text-rose-600 bg-rose-50 px-1.5 py-0.2 rounded-full">Required</span>
                             </div>
-                            <span className="text-[10px] font-bold text-emerald-600">
-                              {doc.numberRef ? "Verified ✓" : doc.isMandatory ? "Required" : "Optional"}
-                            </span>
+                            <p className="text-[10px] text-muted-foreground font-mono">
+                              Identity number provided during admission registration.
+                            </p>
                           </div>
-                        ))}
+                        </div>
+                        <span className="text-[10px] font-bold text-emerald-600">
+                          Verified ✓
+                        </span>
                       </div>
                       <p className="text-[10px] text-muted-foreground italic">
-                        Government ID identification number is mandatory for student admission. Document file upload is not required.
+                        Government ID number is mandatory for student admission. Document file upload is not required.
                       </p>
                     </div>
 
@@ -2159,10 +2186,7 @@ export const Applications: React.FC = () => {
                   <Button
                     size="sm"
                     disabled={selectedApplication.feeStatus !== "PAID"}
-                    onClick={() => {
-                      setAppToConvert(selectedApplication);
-                      setConvertModalOpen(true);
-                    }}
+                    onClick={() => handleOpenDecisionModal(selectedApplication)}
                     className={`font-bold text-xs h-9 px-4 shadow-sm transition-all cursor-pointer ${
                       selectedApplication.feeStatus === "PAID"
                         ? "bg-primary hover:bg-primary/90 text-primary-foreground"
@@ -2440,180 +2464,135 @@ export const Applications: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 8. GRANT FULL ADMISSION MODAL (MODULE 3) ─── */}
-      {convertModalOpen && appToConvert && (
+      {/* ─── 8. CONVERT TO ADMISSION / REJECT APPLICATION POPUP MODAL ─── */}
+      {isDecisionModalOpen && appForDecision && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-4 text-foreground">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground">
             
             {/* Header */}
             <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
-                  <GraduationCap className="h-6 w-6" />
+                <div className="h-10 w-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <UserCheck className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-foreground">Convert to Admission</h3>
-                  <p className="text-xs text-muted-foreground">{appToConvert.applicantName} ({appToConvert.applicationNo})</p>
+                  <h3 className="text-base font-extrabold text-foreground">Application Decision</h3>
+                  <p className="text-xs text-muted-foreground">{appForDecision.applicantName} • {appForDecision.applicationNo}</p>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setConvertModalOpen(false);
-                  setAdmissionSuccessData(null);
-                  setPortalActivated(false);
-                }}
+                onClick={() => setIsDecisionModalOpen(false)}
                 className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {/* Success State */}
-            {admissionSuccessData ? (
-              <div className="p-4 bg-emerald-50/60 rounded-xl border border-emerald-200 text-center space-y-3 animate-in zoom-in-95 duration-200">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto">
-                  <CheckCircle2 className="h-6 w-6" />
+            {/* Quick Summary Card */}
+            <div className="p-3.5 bg-muted/40 rounded-xl border border-border space-y-2 text-xs">
+              <div className="grid grid-cols-2 gap-2.5">
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Applicant Name</p>
+                  <p className="font-bold text-foreground mt-0.5">{appForDecision.applicantName}</p>
                 </div>
                 <div>
-                  <h4 className="font-extrabold text-emerald-900 text-sm">Admission Successfully Created!</h4>
-                  <p className="text-xs text-emerald-700 mt-0.5 font-mono">
-                    Admission No: <strong>{admissionSuccessData.admissionNo}</strong> • Student ID: <strong>{admissionSuccessData.studentCode}</strong>
-                  </p>
-                  <p className="text-xs text-slate-600 mt-1">
-                    Batch Status: <strong className="text-slate-800">{admissionSuccessData.batchName}</strong>
-                  </p>
+                  <p className="text-[11px] text-muted-foreground">Applied Program</p>
+                  <p className="font-bold text-foreground mt-0.5">{appForDecision.courseName}</p>
                 </div>
-
-                <div className="pt-2">
-                  <Button
-                    onClick={() => {
-                      setPortalActivated(true);
-                      showToast(`Student Portal activated for ${appToConvert.applicantName}! Credentials sent via WhatsApp & Email.`);
-                    }}
-                    disabled={portalActivated}
-                    className={`w-full font-bold text-xs h-10 rounded-xl transition-all cursor-pointer ${
-                      portalActivated
-                        ? "bg-emerald-600 text-white cursor-default"
-                        : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                    }`}
-                  >
-                    {portalActivated ? "✓ Student Portal Activated (Active Student)" : "Activate Student Portal"}
-                  </Button>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Contact Phone</p>
+                  <p className="font-medium text-foreground mt-0.5">{appForDecision.phone}</p>
+                </div>
+                <div>
+                  <p className="text-[11px] text-muted-foreground">Application Fee</p>
+                  <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                    <CheckCircle2 className="h-3 w-3" /> ₹{appForDecision.feeAmount} (Paid ✓)
+                  </span>
                 </div>
               </div>
-            ) : (
-              <form onSubmit={handleConvertSubmit} className="space-y-4 text-xs">
-                {/* Section 1: Review Details */}
-                <div className="p-3 bg-muted/30 rounded-xl border border-border space-y-1.5">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Selected Program</span>
-                    <span className="font-bold text-foreground">{appToConvert.courseName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Preferred Mode</span>
-                    <span className="font-semibold text-foreground">{appToConvert.preferredMode}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Branch</span>
-                    <span className="font-semibold text-foreground">Aadya Main Campus</span>
-                  </div>
-                </div>
+            </div>
 
-                {/* Section 2: Fee Plan Selection */}
-                <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Tuition Fee Payment Plan</label>
-                  <select
-                    value={admissionFeePlan}
-                    onChange={(e) => setAdmissionFeePlan(e.target.value as any)}
-                    className="w-full h-9 px-3 bg-card border border-border rounded-xl text-xs font-medium"
-                  >
-                    <option value="INSTALLMENT">Monthly / Milestone Installments</option>
-                    <option value="ONE_TIME">Full One-Time Payment (5% Discount)</option>
-                  </select>
-                </div>
-
-                {/* Section 3: Batch Assignment Choice (Module 3 requirement) */}
-                <div className="space-y-2 pt-1 border-t border-border">
-                  <label className="block text-xs font-bold text-foreground">Batch Assignment Choice</label>
-                  
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setBatchChoiceMode("ONGOING")}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                        batchChoiceMode === "ONGOING"
-                          ? "border-primary bg-primary/10 font-bold text-primary"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <p className="text-xs">Option 1</p>
-                      <p className="text-[11px] mt-0.5">Assign to Ongoing Batch</p>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setBatchChoiceMode("LATER");
-                        setSelectedBatchId("");
-                      }}
-                      className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
-                        batchChoiceMode === "LATER"
-                          ? "border-primary bg-primary/10 font-bold text-primary"
-                          : "border-border bg-card text-muted-foreground hover:text-foreground"
-                      }`}
-                    >
-                      <p className="text-xs">Option 2</p>
-                      <p className="text-[11px] mt-0.5">Assign Batch Later</p>
-                    </button>
-                  </div>
-
-                  {batchChoiceMode === "ONGOING" ? (
-                    <div className="space-y-1.5 pt-1">
-                      <label className="block text-[11px] font-bold text-muted-foreground">Select Ongoing Batch & Faculty Schedule</label>
-                      <select
-                        value={selectedBatchId}
-                        onChange={(e) => setSelectedBatchId(e.target.value)}
-                        className="w-full h-9 px-3 bg-card border border-border rounded-xl text-xs font-medium"
-                      >
-                        <option value="">Select active batch...</option>
-                        {batches.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.code || b.name} • {(b as any).faculty?.user?.name || "Senior Faculty"} • MWF (10:00 AM - 12:00 PM)
-                          </option>
-                        ))}
-                      </select>
-                      <p className="text-[10px] text-muted-foreground italic">
-                        Selecting an ongoing batch automatically links the student to the faculty and class schedule.
-                      </p>
+            {/* Two Action Choice Cards */}
+            <div className="space-y-3">
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Choose Decision Action</p>
+              
+              {/* Option 1: Convert to Admission */}
+              <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-2 hover:border-primary/60 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                      <GraduationCap className="h-4 w-4" />
                     </div>
-                  ) : (
-                    <div className="p-3 bg-amber-50/60 border border-amber-200 rounded-xl text-[11px] text-amber-800">
-                      Admission will be confirmed immediately with status: <strong>Batch Assignment Pending</strong>. The student can be scheduled into a batch later without delaying admission.
+                    <h4 className="text-sm font-bold text-foreground">Convert to Admission</h4>
+                  </div>
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
+                    Recommended
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Proceed to Direct Admission with all applicant details and applied course automatically pre-filled to configure tuition fees and batch assignment.
+                </p>
+                <Button
+                  onClick={() => {
+                    const targetApp = appForDecision;
+                    setIsDecisionModalOpen(false);
+                    handleConvertToAdmission(targetApp);
+                  }}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 rounded-xl gap-1.5 shadow-xs cursor-pointer mt-1"
+                >
+                  <span>Convert to Admission</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+
+              {/* Option 2: Reject Application */}
+              <div className="p-4 rounded-xl border border-rose-200 dark:border-rose-900/40 bg-rose-50/40 dark:bg-rose-950/20 space-y-2 hover:border-rose-300 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="h-7 w-7 rounded-lg bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 flex items-center justify-center">
+                      <XCircle className="h-4 w-4" />
                     </div>
-                  )}
+                    <h4 className="text-sm font-bold text-rose-700 dark:text-rose-400">Reject Application</h4>
+                  </div>
+                  <Badge className="bg-rose-50 text-rose-700 border-rose-200 text-[10px] font-semibold">
+                    Decline
+                  </Badge>
                 </div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Decline and mark this application as rejected. The applicant will not be enrolled into the institute.
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    const targetApp = appForDecision;
+                    setIsDecisionModalOpen(false);
+                    handleUpdateStatus(targetApp.id, "REJECTED");
+                    try {
+                      await admissionsApi.updateApplication(targetApp.id, { status: "REJECTED" as any });
+                    } catch {
+                      // local state already updated
+                    }
+                    showToast(`Application ${targetApp.applicationNo} has been marked as Rejected.`);
+                  }}
+                  className="w-full border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50 font-bold text-xs h-9 rounded-xl gap-1.5 cursor-pointer mt-1"
+                >
+                  <XCircle className="h-3.5 w-3.5" />
+                  <span>Reject Application</span>
+                </Button>
+              </div>
+            </div>
 
-                <div className="flex justify-end gap-2.5 pt-3 border-t border-border">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setConvertModalOpen(false)}
-                    disabled={isConverting}
-                    className="h-10 text-xs font-semibold text-foreground border-border hover:bg-muted/50 cursor-pointer"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={isConverting}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white h-10 text-xs font-bold px-5 cursor-pointer"
-                  >
-                    {isConverting ? "Processing..." : "Confirm Admission & Generate Student ID"}
-                  </Button>
-                </div>
-              </form>
-            )}
-
+            {/* Footer */}
+            <div className="flex justify-end pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setIsDecisionModalOpen(false)}
+                className="h-9 text-xs font-semibold text-foreground border-border hover:bg-muted/50 cursor-pointer"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </div>
       )}

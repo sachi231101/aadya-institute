@@ -613,7 +613,7 @@ export const Enquiries: React.FC = () => {
             <div>
               <p className="text-[11px] font-semibold text-slate-500">New Enquiries</p>
               <h3 className="text-xl font-black text-[#0A2540] mt-0.5 tracking-tight">
-                {leads.filter((l) => l.status === "New").length || 24}
+                {leads.filter((l) => l.status === "New").length}
               </h3>
               <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Pending initial contact</p>
             </div>
@@ -629,7 +629,7 @@ export const Enquiries: React.FC = () => {
             <div>
               <p className="text-[11px] font-semibold text-slate-500">Follow-ups Due</p>
               <h3 className="text-xl font-black text-amber-600 mt-0.5 tracking-tight">
-                {leads.filter((l) => l.status === "Follow-up" || (l.nextFollowUp && l.nextFollowUp !== "—")).length || 18}
+                {leads.filter((l) => l.status === "Follow-up" || (l.nextFollowUp && l.nextFollowUp !== "No follow-up set" && l.nextFollowUp !== "—")).length}
               </h3>
               <p className="text-[10px] font-bold text-amber-600 mt-0.5">Today & upcoming</p>
             </div>
@@ -645,7 +645,7 @@ export const Enquiries: React.FC = () => {
             <div>
               <p className="text-[11px] font-semibold text-slate-500">Interested / Qualified</p>
               <h3 className="text-xl font-black text-purple-600 mt-0.5 tracking-tight">
-                {leads.filter((l) => l.status === "Interested" || l.status === "Counselling" || l.priority === "Hot").length || 36}
+                {leads.filter((l) => l.status === "Interested" || l.status === "Counselling" || l.priority === "Hot").length}
               </h3>
               <p className="text-[10px] font-bold text-purple-600 mt-0.5">Ready for next step</p>
             </div>
@@ -661,7 +661,7 @@ export const Enquiries: React.FC = () => {
             <div>
               <p className="text-[11px] font-semibold text-slate-500">Converted to Application</p>
               <h3 className="text-xl font-black text-emerald-600 mt-0.5 tracking-tight">
-                {leads.filter((l) => l.status === "Converted" || l.status === "Admission").length || 24}
+                {leads.filter((l) => l.status === "Converted" || l.status === "Admission").length}
               </h3>
               <p className="text-[10px] text-slate-400 font-medium mt-0.5">Applications created</p>
             </div>
@@ -1585,48 +1585,49 @@ export const Enquiries: React.FC = () => {
                       </Button>
                     </div>
 
-                    {/* AI Insights Card */}
-                    <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-xs">
-                      <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100 text-center">
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                          <p className="text-[10px] text-slate-400 font-medium">AI Score</p>
-                          <p className="text-sm font-black text-emerald-600 mt-0.5">88/100</p>
+                    {/* AI Insights & Call Results */}
+                    {selectedLead.status === "Interested" || selectedLead.status === "Counselling" || selectedLead.leadScore >= 80 ? (
+                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-xs">
+                        <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100 text-center">
+                          <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[10px] text-slate-400 font-medium">AI Score</p>
+                            <p className="text-sm font-black text-emerald-600 mt-0.5">{selectedLead.leadScore}/100</p>
+                          </div>
+                          <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[10px] text-slate-400 font-medium">Interest Level</p>
+                            <p className="text-sm font-black text-purple-600 mt-0.5">
+                              {selectedLead.priority === "Hot" ? "🔥 Hot" : selectedLead.priority === "Warm" ? "⚡ Warm" : "❄️ Cold"}
+                            </p>
+                          </div>
+                          <div className="p-2 bg-slate-50 rounded-lg">
+                            <p className="text-[10px] text-slate-400 font-medium">Call Status</p>
+                            <p className="text-sm font-black text-blue-600 mt-0.5">Completed</p>
+                          </div>
                         </div>
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                          <p className="text-[10px] text-slate-400 font-medium">Interest Level</p>
-                          <p className="text-sm font-black text-purple-600 mt-0.5">🔥 Hot</p>
+
+                        <div>
+                          <p className="font-bold text-slate-700 text-[11px]">AI Qualification Summary</p>
+                          <p className="text-slate-600 text-[11px] mt-0.5 leading-relaxed">
+                            Candidate expressed interest in {selectedLead.course}. Enquired about upcoming classroom schedule and course fees.
+                          </p>
                         </div>
-                        <div className="p-2 bg-slate-50 rounded-lg">
-                          <p className="text-[10px] text-slate-400 font-medium">Call Status</p>
-                          <p className="text-sm font-black text-blue-600 mt-0.5">Completed</p>
+
+                        <div className="pt-1">
+                          <p className="font-bold text-slate-700 text-[11px]">Recommended Next Action</p>
+                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] mt-1">
+                            Share fee structure on WhatsApp & Proceed to Application
+                          </Badge>
                         </div>
                       </div>
-
-                      <div>
-                        <p className="font-bold text-slate-700 text-[11px]">AI Call Summary</p>
-                        <p className="text-slate-600 text-[11px] mt-0.5 leading-relaxed">
-                          Student confirmed high interest in Full Stack Web Development program. Looking for a weekend batch starting next month. Inquired about EMI fee options and job placement assistance.
+                    ) : (
+                      <div className="p-5 bg-white rounded-xl border border-dashed border-slate-200 text-center space-y-2">
+                        <Bot className="h-8 w-8 text-slate-400 mx-auto" />
+                        <p className="text-xs font-bold text-slate-800">No AI call initiated yet</p>
+                        <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+                          Click <strong>[ Request AI Call ]</strong> above to automatically trigger an autonomous Sarvam AI voice qualification call for {selectedLead.name}.
                         </p>
                       </div>
-
-                      <div className="pt-1">
-                        <p className="font-bold text-slate-700 text-[11px]">Recommended Next Action</p>
-                        <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] mt-1">
-                          Share fee structure on WhatsApp & Proceed to Application
-                        </Badge>
-                      </div>
-                    </div>
-
-                    {/* Call Transcript Box */}
-                    <div className="space-y-1.5">
-                      <p className="font-bold text-slate-700 text-[11px]">Call Transcript</p>
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-[11px] font-mono text-slate-700 max-h-40 overflow-y-auto">
-                        <p><strong className="text-blue-600">AI Agent:</strong> Hello! This is Aadya Institute. We received your enquiry for Web Development.</p>
-                        <p><strong className="text-purple-600">Student:</strong> Hi, yes! I wanted to check if you have a weekend classroom batch in Bengaluru.</p>
-                        <p><strong className="text-blue-600">AI Agent:</strong> Yes, we have our next weekend batch starting next Saturday. Would you like our senior counsellor to share the syllabus and admission form?</p>
-                        <p><strong className="text-purple-600">Student:</strong> Yes, please send me the application details.</p>
-                      </div>
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
