@@ -135,20 +135,34 @@ export const Enquiries: React.FC = () => {
       passingYear: l.passingYear || "2024",
       preferredMode: "Offline",
       preferredTime: "Morning",
-      notesList: (l.notes || []).map((n: any) => ({
-        id: n.id,
-        author: n.user?.name || "Counsellor",
-        date: new Date(n.createdAt).toLocaleDateString(),
-        time: new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        text: n.content || n.text || "",
-      })),
-      timeline: (l.activities || []).map((a: any) => ({
-        id: a.id,
-        date: new Date(a.createdAt).toLocaleDateString(),
-        time: new Date(a.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        text: a.description || a.action || "Activity logged",
-        mode: a.type || "System",
-      })),
+      notesList: Array.isArray(l.notes)
+        ? l.notes.map((n: any) => ({
+            id: n.id || String(Math.random()),
+            author: n.user?.name || n.author || "Counsellor",
+            date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "Recently",
+            time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+            text: n.content || n.text || "",
+          }))
+        : typeof l.notes === "string" && l.notes.trim()
+        ? [
+            {
+              id: `note-${l.id}`,
+              author: l.assignedTo?.name || "Counsellor",
+              date: l.createdAt ? new Date(l.createdAt).toLocaleDateString() : "Recently",
+              time: "",
+              text: l.notes,
+            },
+          ]
+        : [],
+      timeline: Array.isArray(l.activities)
+        ? l.activities.map((a: any) => ({
+            id: a.id || String(Math.random()),
+            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "Recently",
+            time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+            text: a.description || a.action || "Activity logged",
+            mode: a.type || "System",
+          }))
+        : [],
     }));
   }, [leadsResponse]);
 
