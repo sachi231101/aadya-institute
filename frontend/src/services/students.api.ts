@@ -10,9 +10,44 @@ import type {
   SingleResponse,
 } from "../types/student.types";
 
-export const studentsApi = {
-  // ─── Student CRUD ───────────────────────────────────────────────────
+export interface StudentDashboardData {
+  profile: { id: string; studentCode: string; name: string | null; email: string | null };
+  course: { id: string; name: string; code: string; batchName: string } | null;
+  instructor: { id: string; name: string | null; email: string | null; phone: string | null } | null;
+  counts: {
+    todayClasses: number;
+    upcomingClasses: number;
+    pendingAssignments: number;
+    availableRecordings: number;
+  };
+  attendanceSummary: {
+    attendancePercentage: number;
+    totalClasses: number;
+    presentCount: number;
+  };
+  todaySessions: Array<{
+    id: string;
+    title: string | null;
+    scheduledDate: string;
+    startTime: string;
+    endTime: string;
+    sessionStatus: string | null;
+    mode: string | null;
+    meetingUrl?: string | null;
+    courseName: string | null;
+    facultyName: string | null;
+  }>;
+  upcomingSessions: StudentDashboardData["todaySessions"];
+  activeLiveSessions: Array<{
+    id: string;
+    title: string | null;
+    meetingUrl?: string | null;
+    courseName: string | null;
+    facultyName: string | null;
+  }>;
+}
 
+export const studentsApi = {
   getAll: async (params?: StudentListParams): Promise<PaginatedResponse<Student>> => {
     const response = await api.get<PaginatedResponse<Student>>("/students", { params });
     return response.data;
@@ -37,8 +72,6 @@ export const studentsApi = {
     const response = await api.delete<SingleResponse<null>>(`/students/${id}`);
     return response.data;
   },
-
-  // ─── Student Performance ─────────────────────────────────────────────
 
   getPerformance: async (id: string): Promise<SingleResponse<StudentPerformanceMetrics>> => {
     const response = await api.get<SingleResponse<StudentPerformanceMetrics>>(`/students/${id}/performance`);

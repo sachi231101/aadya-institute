@@ -192,7 +192,10 @@ export const findRecentStudentAttendanceForBatch = async (studentId: string, bat
   return prisma.studentAttendance.findMany({
     where: {
       studentId,
-      classSession: { batchId },
+      classSession: {
+        batchId,
+        sessionType: "THEORY",
+      },
     },
     orderBy: { classSession: { scheduledDate: "desc" } },
     take: limit,

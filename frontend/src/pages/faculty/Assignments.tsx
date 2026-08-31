@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog";
 import { useAssignments, useCreateAssignment, useGradeSubmission } from "@/hooks/useAssignments";
 import { useAuthStore } from "@/store/auth.store";
-import { useAssignmentStore } from "@/store/assignment.store";
 import { useQuery } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
 
@@ -51,7 +50,6 @@ interface FacultyBatchOption {
 
 export const FacultyAssignments: React.FC = () => {
   const { user } = useAuthStore();
-  const { addAssignment } = useAssignmentStore();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [gradeTarget, setGradeTarget] = useState<{
@@ -192,23 +190,6 @@ export const FacultyAssignments: React.FC = () => {
       documentName: uploadedFile ? uploadedFile.name : undefined,
     };
 
-    // Save to global assignment store for real-time Student Portal reflection
-    addAssignment({
-      title: title.trim(),
-      courseName: selectedBatch.courseName,
-      batchName: selectedBatch.name,
-      batchCode: selectedBatch.code,
-      batchId: selectedBatch.id,
-      instructions: instructions.trim(),
-      dueDate: combinedDueDateTime,
-      hasDocument: !!uploadedFile,
-      documentName: uploadedFile ? uploadedFile.name : undefined,
-      status: "ACTIVE",
-    });
-
-    // Save to local optimistic state
-    setLocalAssignments((prev) => [newAssignment, ...prev]);
-
     // Call API mutation
     createMutation.mutate(
       {
@@ -218,8 +199,11 @@ export const FacultyAssignments: React.FC = () => {
         dueDate: combinedDueDateTime,
       },
       {
+        onSuccess: () => {
+          setLocalAssignments((prev) => [newAssignment, ...prev]);
+        },
         onError: () => {
-          // Fallback gracefully to local state
+          // API error surfaced via mutation state
         },
       }
     );

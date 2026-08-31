@@ -58,6 +58,7 @@ export const findAssignments = async (params: {
   instituteId: string;
   branchId?: string;
   batchId?: string;
+  batchIds?: string[];
   classSessionId?: string;
   facultyId?: string;
   status?: string;
@@ -65,7 +66,7 @@ export const findAssignments = async (params: {
   skip: number;
   take: number;
 }) => {
-  const { instituteId, branchId, batchId, classSessionId, facultyId, status, search, skip, take } = params;
+  const { instituteId, branchId, batchId, batchIds, classSessionId, facultyId, status, search, skip, take } = params;
 
   const where: Prisma.AssignmentWhereInput = {
     classSession: {
@@ -74,7 +75,7 @@ export const findAssignments = async (params: {
         ...(branchId ? { branchId } : {}),
       },
     },
-    ...(batchId ? { batchId } : {}),
+    ...(batchIds && batchIds.length > 0 ? { batchId: { in: batchIds } } : batchId ? { batchId } : {}),
     ...(classSessionId ? { classSessionId } : {}),
     ...(facultyId ? { facultyId } : {}),
     ...(status ? { status: status as any } : {}),
@@ -178,6 +179,42 @@ export const gradeSubmission = (id: string, data: {
         },
       },
       assignment: { select: { id: true, title: true, facultyId: true } },
+    },
+  });
+
+export const upsertSubmission = (data: {
+  assignmentId: string;
+  studentId: string;
+  fileKey: string;
+}) =>
+  prisma.assignmentSubmission.upsert({
+    where: {
+      assignmentId_studentId: {
+        assignmentId: data.assignmentId,
+        studentId: data.studentId,
+      },
+    },
+    update: {
+      fileKey: data.fileKey,
+      submittedAt: new Date(),
+      status: "ACTIVE",
+    },
+    create: {
+      assignmentId: data.assignmentId,
+      studentId: data.studentId,
+      fileKey: data.fileKey,
+      submittedAt: new Date(),
+      status: "ACTIVE",
+    },
+    include: {
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true } },
+        },
+      },
+      assignment: { select: { id: true, title: true, facultyId: true, dueDate: true } },
     },
   });
 

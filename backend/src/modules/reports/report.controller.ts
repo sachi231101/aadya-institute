@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { ReportService } from "./report.service";
 import { sendSuccess, sendError } from "../../utils/response";
+import { toAuthUser } from "../../utils/auth-user.util";
 
 export const getStudentReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -63,5 +64,21 @@ export const getFinancialReport = async (req: AuthenticatedRequest, res: Respons
     sendSuccess(res, data, 200, "Financial report retrieved successfully");
   } catch (err: any) {
     sendError(res, err.message || "Failed to fetch financial report", 400);
+  }
+};
+
+export const getScheduleSummary = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+
+    const branchId = (req.query.branchId as string) || user.branchId || undefined;
+    const data = await ReportService.getScheduleSummary(toAuthUser(req), branchId);
+    sendSuccess(res, data, 200, "Schedule summary retrieved successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to fetch schedule summary", 400);
   }
 };

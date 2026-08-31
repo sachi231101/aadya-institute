@@ -38,6 +38,13 @@ import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 
+const toLocalDateString = (d: Date): string => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+};
+
 const parseTimeParts = (time: string): { hour24: number; min: number; label: string } => {
   const ampm = time.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (ampm) {
@@ -74,7 +81,7 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
   const mode: StudentClassSession["mode"] =
     modeRaw === "ONLINE" ? "Online" : modeRaw === "HYBRID" ? "Hybrid" : "Campus";
   let forceStatus: StudentClassSession["forceStatus"];
-  if (raw.sessionStatus === "ONGOING" || raw.status === "LIVE") forceStatus = "LIVE NOW";
+  if (raw.sessionStatus === "LIVE" || raw.sessionStatus === "ONGOING") forceStatus = "LIVE NOW";
   else if (raw.sessionStatus === "COMPLETED") forceStatus = "COMPLETED";
   else forceStatus = "UPCOMING";
 
@@ -85,7 +92,9 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     title,
     courseCode: raw.batch?.course?.code || raw.batch?.code || "CLASS",
     facultyName: raw.faculty?.user?.name || "Faculty",
-    date: raw.scheduledDate ? new Date(raw.scheduledDate).toISOString().split("T")[0] : "",
+    date: raw.scheduledDate
+      ? toLocalDateString(new Date(raw.scheduledDate))
+      : "",
     startTime: start.label,
     endTime: end.label,
     startHour24: start.hour24,
@@ -148,184 +157,33 @@ const RATING_LABELS: Record<number, "Poor" | "Fair" | "Good" | "Very Good" | "Ex
   5: "Excellent",
 };
 
-// 7-Day Week Template
-const DEFAULT_WEEK_DAYS: DayData[] = [
-  { dayName: "MON", dateNumber: "26", monthName: "MAY", fullDate: "2025-05-26", classCount: 1 },
-  { dayName: "TUE", dateNumber: "27", monthName: "MAY", fullDate: "2025-05-27", isToday: true, classCount: 4 },
-  { dayName: "WED", dateNumber: "28", monthName: "MAY", fullDate: "2025-05-28", classCount: 2 },
-  { dayName: "THU", dateNumber: "29", monthName: "MAY", fullDate: "2025-05-29", classCount: 2 },
-  { dayName: "FRI", dateNumber: "30", monthName: "MAY", fullDate: "2025-05-30", classCount: 1 },
-  { dayName: "SAT", dateNumber: "31", monthName: "MAY", fullDate: "2025-05-31", classCount: 0 },
-  { dayName: "SUN", dateNumber: "01", monthName: "JUN", fullDate: "2025-06-01", classCount: 0 },
-];
+const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
+const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-const SCHEDULE_SESSIONS: StudentClassSession[] = [
-  // ── Card 1: UPCOMING (JavaScript Essentials JS-101) ──────────────────────
-  {
-    id: "sc-js-101",
-    title: "JavaScript Essentials",
-    courseCode: "JS-101",
-    facultyName: "Ramesh Kumar",
-    date: "2025-05-27",
-    startTime: "02:00 PM",
-    endTime: "04:00 PM",
-    startHour24: 14,
-    startMin: 0,
-    endHour24: 16,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 1",
-    block: "Main Block",
-    mode: "Campus",
-    forceStatus: "UPCOMING",
-    avatarText: "JS",
-    avatarBg: "bg-amber-500/20 text-amber-500 border border-amber-500/30",
-    avatarColor: "text-amber-500",
-    meetingUrl: "https://meet.google.com/aadya-js-101",
-  },
+const buildWeekDays = (weekOffset = 0, sessions: StudentClassSession[] = []): DayData[] => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const monday = new Date(today);
+  const day = monday.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  monday.setDate(monday.getDate() + diff + weekOffset * 7);
 
-  // ── Card 2: LIVE NOW (Python Programming PY-102) ─────────────────────────
-  {
-    id: "sc-py-102",
-    title: "Python Programming",
-    courseCode: "PY-102",
-    facultyName: "Neha Sharma",
-    date: "2025-05-27",
-    startTime: "10:00 AM",
-    endTime: "12:00 PM",
-    startHour24: 10,
-    startMin: 0,
-    endHour24: 12,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 2",
-    block: "Main Block",
-    mode: "Campus",
-    forceStatus: "LIVE NOW",
-    avatarText: "PY",
-    avatarBg: "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30",
-    avatarColor: "text-emerald-500",
-    meetingUrl: "https://meet.google.com/aadya-py-102",
-  },
-
-  // ── Card 3: COMPLETED – Feedback Required (Database Fundamentals DB-103) ──
-  {
-    id: "sc-db-103",
-    title: "Database Fundamentals",
-    courseCode: "DB-103",
-    facultyName: "Arjun Mehta",
-    date: "2025-05-27",
-    startTime: "04:30 PM",
-    endTime: "06:30 PM",
-    startHour24: 16,
-    startMin: 30,
-    endHour24: 18,
-    endMin: 30,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 3",
-    block: "Main Block",
-    mode: "Campus",
-    forceStatus: "COMPLETED",
-    avatarText: "DB",
-    avatarBg: "bg-purple-500/20 text-purple-500 border border-purple-500/30",
-    avatarColor: "text-purple-500",
-    meetingUrl: "https://meet.google.com/aadya-db-103",
-  },
-
-  // ── Card 4: COMPLETED – Feedback Submitted (React Development Basics RE-104) ──
-  {
-    id: "sc-re-104",
-    title: "React Development Basics",
-    courseCode: "RE-104",
-    facultyName: "Adithya HM",
-    date: "2025-05-27",
-    startTime: "07:00 PM",
-    endTime: "09:00 PM",
-    startHour24: 19,
-    startMin: 0,
-    endHour24: 21,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 2",
-    block: "Main Block",
-    mode: "Campus",
-    forceStatus: "COMPLETED",
-    avatarText: "RE",
-    avatarBg: "bg-teal-500/20 text-teal-500 border border-teal-500/30",
-    avatarColor: "text-teal-500",
-    submittedRating: 4.8,
-    submittedAtFormatted: "27 Aug 2026, 09:10 PM",
-  },
-
-  // ── Other days for interactive browsing ─────────────────────────────────
-  {
-    id: "sc-mon-1",
-    title: "Introduction to Computer Science",
-    courseCode: "CS-101",
-    facultyName: "HM Adithya",
-    date: "2025-05-26",
-    startTime: "10:00 AM",
-    endTime: "12:00 PM",
-    startHour24: 10,
-    startMin: 0,
-    endHour24: 12,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Room 101",
-    block: "Main Block",
-    mode: "Campus",
-    avatarText: "CS",
-    avatarBg: "bg-cyan-500/20 text-cyan-500 border border-cyan-500/30",
-    avatarColor: "text-cyan-500",
-  },
-  {
-    id: "sc-wed-1",
-    title: "Node.js Backend Architecture",
-    courseCode: "BE-201",
-    facultyName: "Ramesh Kumar",
-    date: "2025-05-28",
-    startTime: "09:00 AM",
-    endTime: "11:00 AM",
-    startHour24: 9,
-    startMin: 0,
-    endHour24: 11,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 1",
-    block: "Main Block",
-    mode: "Campus",
-    avatarText: "BE",
-    avatarBg: "bg-indigo-500/20 text-indigo-500 border border-indigo-500/30",
-    avatarColor: "text-indigo-500",
-  },
-  {
-    id: "sc-wed-2",
-    title: "Data Structures & Algorithms",
-    courseCode: "DS-202",
-    facultyName: "Neha Sharma",
-    date: "2025-05-28",
-    startTime: "02:00 PM",
-    endTime: "04:00 PM",
-    startHour24: 14,
-    startMin: 0,
-    endHour24: 16,
-    endMin: 0,
-    joinAvailableMinutesBefore: 15,
-    duration: "2h 00m",
-    roomNo: "Lab 3",
-    block: "Tech Block",
-    mode: "Campus",
-    avatarText: "DS",
-    avatarBg: "bg-rose-500/20 text-rose-500 border border-rose-500/30",
-    avatarColor: "text-rose-500",
-  },
-];
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(monday);
+    d.setDate(monday.getDate() + i);
+    const fullDate = toLocalDateString(d);
+    const isToday = d.getTime() === today.getTime();
+    const classCount = sessions.filter((s) => s.date === fullDate).length;
+    return {
+      dayName: DAY_NAMES[d.getDay()],
+      dateNumber: String(d.getDate()).padStart(2, "0"),
+      monthName: MONTH_NAMES[d.getMonth()],
+      fullDate,
+      isToday,
+      classCount,
+    };
+  });
+};
 
 // Helper to format minutes from midnight to HH:MM AM/PM
 const formatMinutesToTime = (totalMinutes: number): string => {
@@ -337,6 +195,11 @@ const formatMinutesToTime = (totalMinutes: number): string => {
   return `${String(h12).padStart(2, "0")}:${String(mins).padStart(2, "0")} ${period}`;
 };
 
+const formatDayHeader = (day: DayData): string => {
+  const d = new Date(`${day.fullDate}T12:00:00`);
+  return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+};
+
 export const StudentSchedule: React.FC = () => {
   const { user } = useAuthStore();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
@@ -344,39 +207,62 @@ export const StudentSchedule: React.FC = () => {
   const studentId = user?.studentId || user?.id || "std-current";
   const studentName = user?.name || "Rahul Verma";
   const [apiSessions, setApiSessions] = useState<StudentClassSession[] | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
+  const [isLoading, setIsLoading] = useState(true);
+
+  const weekDays = useMemo(
+    () => buildWeekDays(weekOffset, apiSessions ?? []),
+    [weekOffset, apiSessions]
+  );
+
+  const selectedDay = useMemo(
+    () => weekDays.find((d) => d.fullDate === selectedDate) ?? weekDays[0],
+    [weekDays, selectedDate]
+  );
 
   useEffect(() => {
     let mounted = true;
     const load = async () => {
+      setIsLoading(true);
+      const days = buildWeekDays(weekOffset);
+      const startDate = days[0]?.fullDate;
+      const endDate = days[6]?.fullDate;
       try {
-        const res = await classSessionsApi.getAll({ limit: 50 });
+        const res = await classSessionsApi.getAll({ startDate, endDate, limit: 100 });
         const mapped = (res.data || []).map(mapApiSessionToStudentSession);
         if (mounted) {
           setApiSessions(mapped);
         }
       } catch {
         if (mounted) setApiSessions([]);
+      } finally {
+        if (mounted) setIsLoading(false);
       }
     };
     load();
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [weekOffset]);
 
   // Dynamic Live Time & Date Ticker (Updates every 1s)
   const [currentSystemTime, setCurrentSystemTime] = useState<Date>(new Date());
-
-  // Showcase Mode toggle: true = showcase distinct states (Upcoming, Live, Completed, Feedback Submitted), false = strict real-time clock
-  const [useStrictClock, setUseStrictClock] = useState<boolean>(false);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentSystemTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Selected Day in Week Selector (defaults to Tuesday, 27 May)
-  const [selectedDay, setSelectedDay] = useState<DayData>(DEFAULT_WEEK_DAYS[1]);
+  // Keep selected date in sync when navigating weeks
+  useEffect(() => {
+    const inWeek = weekDays.some((d) => d.fullDate === selectedDate);
+    if (!inWeek && weekDays.length > 0) {
+      const today = toLocalDateString(new Date());
+      const todayInWeek = weekDays.find((d) => d.fullDate === today);
+      setSelectedDate(todayInWeek?.fullDate ?? weekDays[0].fullDate);
+    }
+  }, [weekDays, selectedDate]);
 
   // Feedback Modal State (For the mandatory 3-question rating form)
   const [activeFeedbackModalSession, setActiveFeedbackModalSession] = useState<StudentClassSession | null>(null);
@@ -418,37 +304,17 @@ export const StudentSchedule: React.FC = () => {
       };
     }
 
-    // 2. In Showcase Mode, preserve the 4 illustrative cards on Tuesday
-    if (!useStrictClock && session.forceStatus) {
-      if (session.forceStatus === "UPCOMING") {
-        const startMinutes = session.startHour24 * 60 + session.startMin;
-        const joinMinutes = startMinutes - (session.joinAvailableMinutesBefore || 15);
-        const joinTimeStr = formatMinutesToTime(joinMinutes);
-        return {
-          stage: "UPCOMING" as const,
-          statusText: "UPCOMING",
-          subText: `Starts at ${session.startTime}`,
-          joinTimeStr,
-          minutesLeft: session.joinAvailableMinutesBefore || 15,
-          badgeColor: "amber",
-        };
-      }
-      if (session.forceStatus === "LIVE NOW") {
-        return {
-          stage: "LIVE_NOW" as const,
-          statusText: "LIVE NOW",
-          subText: "Your class is currently live.",
-          badgeColor: "emerald",
-        };
-      }
-      if (session.forceStatus === "COMPLETED") {
+    // 2. Past/future days — derive stage from date and API status
+    const todayStr = toLocalDateString(new Date());
+    if (session.date !== todayStr) {
+      if (session.date < todayStr || session.forceStatus === "COMPLETED") {
         if (session.submittedRating) {
           return {
             stage: "FEEDBACK_SUBMITTED" as const,
             statusText: "COMPLETED",
             subText: "Feedback Submitted • Thank you for helping us improve.",
             badgeColor: "emerald",
-            submittedAt: session.submittedAtFormatted || "27 Aug 2026, 06:35 PM",
+            submittedAt: session.submittedAtFormatted,
             rating: session.submittedRating,
           };
         }
@@ -459,9 +325,30 @@ export const StudentSchedule: React.FC = () => {
           badgeColor: "purple",
         };
       }
+      const startMinutes = session.startHour24 * 60 + session.startMin;
+      const joinMinutes = startMinutes - (session.joinAvailableMinutesBefore || 15);
+      const joinTimeStr = formatMinutesToTime(joinMinutes);
+      return {
+        stage: "UPCOMING" as const,
+        statusText: "UPCOMING",
+        subText: `Starts at ${session.startTime}`,
+        joinTimeStr,
+        minutesLeft: session.joinAvailableMinutesBefore || 15,
+        badgeColor: "amber",
+      };
     }
 
-    // 3. Dynamic Real-Time Clock Calculation
+    // 3. Today — prefer API LIVE status, otherwise use real-time clock
+    if (session.forceStatus === "LIVE NOW") {
+      return {
+        stage: "LIVE_NOW" as const,
+        statusText: "LIVE NOW",
+        subText: "Your class is currently live.",
+        badgeColor: "emerald",
+      };
+    }
+
+    // 4. Dynamic Real-Time Clock Calculation
     const now = currentSystemTime;
     const nowMinutes = now.getHours() * 60 + now.getMinutes() + now.getSeconds() / 60;
     const startMinutes = session.startHour24 * 60 + session.startMin;
@@ -567,20 +454,6 @@ export const StudentSchedule: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3 self-end md:self-center">
-          {/* Real-time Clock Mode Switcher */}
-          <button
-            type="button"
-            onClick={() => setUseStrictClock((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${useStrictClock
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50"
-              : "bg-slate-50 text-slate-700 border-slate-200 dark:bg-[#0D1527] dark:text-slate-300 dark:border-slate-800"
-              }`}
-            title="Toggle between Live Clock & State Showcase"
-          >
-            <Radio className={`w-3.5 h-3.5 ${useStrictClock ? "text-emerald-600 animate-pulse" : "text-slate-400"}`} />
-            <span>{useStrictClock ? "Live Clock Mode" : "Workflow Showcase"}</span>
-          </button>
-
           <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs">
             <CalendarDays className="h-4 w-4 text-[#1D4ED8] dark:text-sky-400" />
             <div>
@@ -612,24 +485,21 @@ export const StudentSchedule: React.FC = () => {
       <div className="flex items-center gap-2 sm:gap-3 justify-between">
         <button
           type="button"
-          onClick={() => {
-            const currIdx = DEFAULT_WEEK_DAYS.findIndex((d) => d.fullDate === selectedDay.fullDate);
-            if (currIdx > 0) setSelectedDay(DEFAULT_WEEK_DAYS[currIdx - 1]);
-          }}
-          aria-label="Previous Day"
+          onClick={() => setWeekOffset((w) => w - 1)}
+          aria-label="Previous Week"
           className="h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111C35] hover:bg-slate-50 dark:hover:bg-[#162547] flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0 shadow-2xs cursor-pointer transition-colors"
         >
           <ChevronLeft className="h-5 w-5" />
         </button>
 
         <div className="flex-1 grid grid-cols-7 gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1">
-          {DEFAULT_WEEK_DAYS.map((day) => {
+          {weekDays.map((day) => {
             const isSelected = selectedDay.fullDate === day.fullDate;
             return (
               <button
                 key={day.fullDate}
                 type="button"
-                onClick={() => setSelectedDay(day)}
+                onClick={() => setSelectedDate(day.fullDate)}
                 className={`py-3 sm:py-3.5 px-2 rounded-2xl flex flex-col items-center justify-between text-center transition-all cursor-pointer ${isSelected
                   ? "bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white shadow-md shadow-indigo-500/20 dark:shadow-indigo-900/40 scale-[1.02] border border-indigo-400/30"
                   : "bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-[#152342] shadow-2xs"
@@ -666,11 +536,8 @@ export const StudentSchedule: React.FC = () => {
 
         <button
           type="button"
-          onClick={() => {
-            const currIdx = DEFAULT_WEEK_DAYS.findIndex((d) => d.fullDate === selectedDay.fullDate);
-            if (currIdx < DEFAULT_WEEK_DAYS.length - 1) setSelectedDay(DEFAULT_WEEK_DAYS[currIdx + 1]);
-          }}
-          aria-label="Next Day"
+          onClick={() => setWeekOffset((w) => w + 1)}
+          aria-label="Next Week"
           className="h-11 w-11 rounded-2xl border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#111C35] hover:bg-slate-50 dark:hover:bg-[#162547] flex items-center justify-center text-slate-600 dark:text-slate-300 shrink-0 shadow-2xs cursor-pointer transition-colors"
         >
           <ChevronRight className="h-5 w-5" />
@@ -682,7 +549,7 @@ export const StudentSchedule: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
-              {selectedDay.dayName === "TUE" ? "Tuesday, 27 May 2025" : `${selectedDay.dayName}, ${selectedDay.dateNumber} ${selectedDay.monthName}`}
+              {formatDayHeader(selectedDay)}
             </h2>
             <Badge className="bg-blue-50 text-[#1D4ED8] border-blue-200 dark:bg-blue-950/60 dark:text-sky-400 dark:border-sky-800/50 text-xs font-bold rounded-xl px-2.5 py-0.5">
               {daySessions.length} {daySessions.length === 1 ? "Class" : "Classes"} Scheduled
@@ -697,7 +564,11 @@ export const StudentSchedule: React.FC = () => {
 
         {/* ─── 4. CLASS CARDS WITH AUTOMATIC LIFECYCLE ────────────────────────── */}
         <div className="space-y-4">
-          {daySessions.length === 0 ? (
+          {isLoading ? (
+            <div className="p-12 text-center bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl text-slate-400 text-sm">
+              Loading your schedule...
+            </div>
+          ) : daySessions.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl text-slate-400 text-sm">
               No classes scheduled for this day.
             </div>

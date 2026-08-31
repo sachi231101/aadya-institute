@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { sendSuccess } from "../../utils/response";
+import { sendSuccess, sendPaginated } from "../../utils/response";
 import type { AuthUser } from "../auth/auth.types";
 import * as service from "./recording.service";
 import type { RecordingQueryDTO } from "./recording.types";
@@ -15,7 +15,7 @@ export const getRecordings = async (
       req.user as unknown as AuthUser,
       req.query as RecordingQueryDTO
     );
-    sendSuccess(res, result.data, 200, "Recordings retrieved successfully");
+    sendPaginated(res, result.data, result.meta, "Recordings retrieved successfully");
   } catch (error) {
     next(error);
   }

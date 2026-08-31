@@ -5,6 +5,7 @@ import { validate } from "../../middlewares/validation.middleware";
 import {
   createClassSessionSchema,
   updateClassSessionSchema,
+  queryClassSessionSchema,
 } from "./class-session.validation";
 import {
   createMeetSpaceSchema,
@@ -55,11 +56,11 @@ router.post("/:id/start-live", startLiveSession);
 router.post("/:id/end-live", endLiveSession);
 
 // Session CRUD
-router.get("/", getSessions);
-router.get("/:id", getSessionById);
-router.post("/", validate(createClassSessionSchema), createSession);
-router.patch("/:id", validate(updateClassSessionSchema), updateSession);
-router.post("/:id/cancel", cancelSession);
-router.delete("/:id", deleteSession);
+router.get("/", requirePermission("schedule.read"), validate(queryClassSessionSchema, "query"), getSessions);
+router.get("/:id", requirePermission("schedule.read"), getSessionById);
+router.post("/", requirePermission("schedule.create"), validate(createClassSessionSchema), createSession);
+router.patch("/:id", requirePermission("schedule.update"), validate(updateClassSessionSchema), updateSession);
+router.post("/:id/cancel", requirePermission("schedule.update"), cancelSession);
+router.delete("/:id", requirePermission("schedule.delete"), deleteSession);
 
 export default router;
