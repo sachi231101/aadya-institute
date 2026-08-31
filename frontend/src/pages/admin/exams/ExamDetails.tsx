@@ -1,7 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation, Link } from "react-router-dom";
 import {
-  FileText,
   ArrowLeft,
   Calendar,
   Clock,
@@ -14,31 +13,36 @@ import {
   Edit,
   ShieldAlert,
   HelpCircle,
-  CheckCircle2,
   AlertCircle,
   Loader2,
-  Layers,
-  Sparkles,
   BookOpen,
   Check,
   X,
-  Shuffle,
-  Eye,
+  Folder,
+  Search,
+  UserPlus,
+  GraduationCap,
 } from "lucide-react";
 import {
   useExam,
   useExamQuestions,
   useExamBatches,
+  useExamStudents,
   usePublishExam,
   useScheduleExam,
   useArchiveExam,
   useAddQuestionToExam,
+  useAddQuestionBankToExam,
   useRemoveQuestionFromExam,
   useAssignBatchToExam,
   useRemoveBatchFromExam,
+  useAssignStudentsToExam,
+  useRemoveStudentFromExam,
 } from "@/hooks/useExams";
 import { useQuestions } from "@/hooks/useQuestions";
+import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useBatches } from "@/hooks/useBatches";
+import { useStudentList } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +66,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+const PICKER_PAGE_SIZE = 20;
+
 export const ExamDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -77,29 +83,99 @@ export const ExamDetails: React.FC = () => {
   const { data: batchesResponse, isLoading: batchesLoading } = useExamBatches(id || "");
   const examBatches = batchesResponse?.data || [];
 
+  const { data: studentsResponse, isLoading: studentsLoading } = useExamStudents(id || "");
+  const examStudents = studentsResponse?.data || [];
+
   // Mutations
   const publishMutation = usePublishExam();
   const scheduleMutation = useScheduleExam(id || "");
   const archiveMutation = useArchiveExam();
   const addQuestionMutation = useAddQuestionToExam(id || "");
+  const addQuestionBankMutation = useAddQuestionBankToExam(id || "");
   const removeQuestionMutation = useRemoveQuestionFromExam(id || "");
   const assignBatchMutation = useAssignBatchToExam(id || "");
   const removeBatchMutation = useRemoveBatchFromExam(id || "");
+  const assignStudentsMutation = useAssignStudentsToExam(id || "");
+  const removeStudentMutation = useRemoveStudentFromExam(id || "");
 
-  // Add Question Modal
-  const [showAddQuestionModal, setShowAddQuestionModal] = useState(false);
-  const [questionSearch, setQuestionSearch] = useState("");
-  const { data: catalogResponse, isLoading: catalogLoading } = useQuestions({
-    search: questionSearch || undefined,
-    courseId: exam?.courseId || undefined,
-  });
-  const catalogQuestions = catalogResponse?.data || [];
+  // Inline question bank picker (banks list → questions → Add to Exam)
+  type PickerView = "banks" | "questions";
+  const [pickerView, setPickerView] = useState<PickerView>("banks");
+  const [selectedBankId, setSelectedBankId] = useState<string | null>(null);
+  const [pickerSearch, setPickerSearch] = useState("");
+  const [pickerPage, setPickerPage] = useState(1);
+  const [addingBankId, setAddingBankId] = useState<string | null>(null);
+
+  const canEditQuestions = exam && ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status);
+
+  const { data: banksResponse, isLoading: banksLoading } = useQuestionBanks();
+  const questionBanks = banksResponse?.data || [];
+  const selectedBank = questionBanks.find((b: any) => b.id === selectedBankId);
+
+  const { data: pickerQuestionsResponse, isLoading: pickerQuestionsLoading } = useQuestions(
+    {
+      search: pickerSearch || undefined,
+      questionBankId: selectedBankId || undefined,
+      page: pickerPage,
+      limit: PICKER_PAGE_SIZE,
+    },
+    { enabled: pickerView === "questions" && !!selectedBankId }
+  );
+  const pickerQuestions = pickerQuestionsResponse?.data || [];
+  const pickerTotal = pickerQuestionsResponse?.meta?.total ?? pickerQuestions.length;
+  const pickerTotalPages = pickerQuestionsResponse?.meta?.totalPages ?? 1;
+
+  useEffect(() => {
+    setPickerPage(1);
+  }, [pickerSearch, selectedBankId]);
+
+  const handleBrowseBank = (bankId: string) => {
+    setSelectedBankId(bankId);
+    setPickerSearch("");
+    setPickerPage(1);
+    setPickerView("questions");
+  };
+
+  const handleBackToBanks = () => {
+    setPickerView("banks");
+    setSelectedBankId(null);
+    setPickerSearch("");
+    setPickerPage(1);
+  };
+
+  const handleAddFullBank = async (bank: { id: string; name: string; _count?: { questions?: number } }) => {
+    const count = bank._count?.questions ?? 0;
+    if (count === 0) return;
+
+    const message =
+      count === 1
+        ? `Add the only question from "${bank.name}" to this exam?`
+        : `Add all ${count} questions from "${bank.name}" to this exam?`;
+
+    if (!window.confirm(message)) return;
+
+    setAddingBankId(bank.id);
+    try {
+      await addQuestionBankMutation.mutateAsync(bank.id);
+    } finally {
+      setAddingBankId(null);
+    }
+  };
 
   // Assign Batch Modal
   const [showAssignBatchModal, setShowAssignBatchModal] = useState(false);
   const { batches: allBatches } = useBatches({
     courseId: exam?.courseId || undefined,
   });
+
+  // Assign Students Modal
+  const [showAssignStudentModal, setShowAssignStudentModal] = useState(false);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+  const { data: studentListResponse, isLoading: studentListLoading } = useStudentList(
+    { search: studentSearch || undefined, status: "ACTIVE", limit: 50 },
+  );
+  const availableStudents = studentListResponse?.data || [];
 
   // Schedule Modal
   const [showScheduleModal, setShowScheduleModal] = useState(false);
@@ -186,6 +262,23 @@ export const ExamDetails: React.FC = () => {
 
   const existingQuestionIds = new Set(examQuestions.map((eq: any) => eq.questionId));
   const assignedBatchIds = new Set(examBatches.map((eb: any) => eb.batchId));
+  const assignedStudentIds = new Set(examStudents.map((es: any) => es.studentId));
+
+  const canAssign = ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam?.status || "");
+
+  const toggleStudentSelection = (studentId: string) => {
+    setSelectedStudentIds((prev) =>
+      prev.includes(studentId) ? prev.filter((id) => id !== studentId) : [...prev, studentId]
+    );
+  };
+
+  const handleAssignSelectedStudents = async () => {
+    if (selectedStudentIds.length === 0) return;
+    await assignStudentsMutation.mutateAsync(selectedStudentIds);
+    setSelectedStudentIds([]);
+    setShowAssignStudentModal(false);
+    setStudentSearch("");
+  };
 
   if (examLoading) {
     return (
@@ -337,9 +430,11 @@ export const ExamDetails: React.FC = () => {
 
       {/* Main Tabs */}
       <Tabs defaultValue="questions" className="space-y-4">
-        <TabsList className="grid grid-cols-4 w-full sm:w-[500px]">
+        <TabsList className="grid grid-cols-4 w-full sm:w-[560px]">
           <TabsTrigger value="questions">Questions ({examQuestions.length})</TabsTrigger>
-          <TabsTrigger value="batches">Batches ({examBatches.length})</TabsTrigger>
+          <TabsTrigger value="batches">
+            Assignments ({examBatches.length + examStudents.length})
+          </TabsTrigger>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="settings">Settings & Proctoring</TabsTrigger>
         </TabsList>
@@ -347,25 +442,11 @@ export const ExamDetails: React.FC = () => {
         {/* Tab 1: Questions Management */}
         <TabsContent value="questions" className="space-y-4">
           <Card className="border-border/60 shadow-sm">
-            <CardHeader className="pb-4 flex flex-row items-center justify-between">
-              <div>
-                <CardTitle className="text-base font-semibold">Examination Questions</CardTitle>
-                <CardDescription>
-                  Questions included in this assessment and their respective scoring weights.
-                </CardDescription>
-              </div>
-
-              {["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status) && (
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    className="gap-1.5"
-                    onClick={() => setShowAddQuestionModal(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Add from Catalog
-                  </Button>
-                </div>
-              )}
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold">Questions on This Exam</CardTitle>
+              <CardDescription>
+                Questions currently attached to <strong>{exam.name}</strong>. Remove any you do not want on this paper.
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {questionsLoading ? (
@@ -374,19 +455,12 @@ export const ExamDetails: React.FC = () => {
                   Loading questions...
                 </div>
               ) : examQuestions.length === 0 ? (
-                <div className="py-12 text-center space-y-3">
+                <div className="py-10 text-center space-y-2">
                   <HelpCircle className="h-10 w-10 text-muted-foreground/40 mx-auto" />
-                  <p className="font-semibold text-foreground">No questions added yet</p>
-                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                    An exam requires at least one question before it can be published and taken by students.
+                  <p className="font-semibold text-foreground">No questions on this exam yet</p>
+                  <p className="text-xs text-muted-foreground max-w-md mx-auto">
+                    Browse a question bank below and click <strong>Add to Exam</strong> on each question you want.
                   </p>
-                  <Button
-                    size="sm"
-                    className="gap-2 mt-2"
-                    onClick={() => setShowAddQuestionModal(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Add Question from Bank
-                  </Button>
                 </div>
               ) : (
                 <div className="space-y-4">
@@ -404,7 +478,7 @@ export const ExamDetails: React.FC = () => {
                                 Q{index + 1}
                               </Badge>
                               <Badge variant="outline" className="text-[11px]">
-                                {q.questionType?.replace("_", " ")}
+                                {q.questionType?.replace(/_/g, " ")}
                               </Badge>
                               <Badge
                                 variant="outline"
@@ -422,25 +496,31 @@ export const ExamDetails: React.FC = () => {
                                 Marks: <strong className="text-foreground">{eq.marksOverride ?? q.marks}</strong> pts
                               </span>
                             </div>
-
-                            <p className="text-sm font-medium text-foreground pt-1">
-                              {q.questionText}
-                            </p>
+                            <p className="text-sm font-medium text-foreground pt-1">{q.questionText}</p>
                           </div>
-
-                          {["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status) && (
+                          <div className="flex items-center gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => removeQuestionMutation.mutate(q.id)}
+                              className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                              title="Edit Question"
+                              onClick={() => navigate(`${basePath}/questions/${q.id}/edit`)}
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <Edit className="h-4 w-4" />
                             </Button>
-                          )}
+                            {canEditQuestions && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                title="Remove from Exam"
+                                onClick={() => removeQuestionMutation.mutate(q.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </div>
                         </div>
-
-                        {/* Options preview */}
                         {q.options && q.options.length > 0 && (
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
                             {q.options.map((opt: any, optIdx: number) => (
@@ -468,20 +548,311 @@ export const ExamDetails: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          {canEditQuestions && (
+            <Card className="border-border/60 shadow-sm">
+              <CardHeader className="pb-3">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="text-base font-semibold flex items-center gap-2">
+                      <Folder className="h-4 w-4 text-purple-600" />
+                      Add from Question Bank
+                    </CardTitle>
+                    <CardDescription>
+                      Pick a question bank and add all questions at once, or browse and add individually.
+                    </CardDescription>
+                  </div>
+                  {pickerView === "questions" && selectedBank && (
+                    <Button variant="outline" size="sm" onClick={handleBackToBanks}>
+                      ← Back to Banks
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Tabs
+                  value={pickerView}
+                  onValueChange={(v) => {
+                    if (v === "banks") handleBackToBanks();
+                  }}
+                >
+                  <TabsList className="grid w-full sm:w-[320px] grid-cols-2">
+                    <TabsTrigger value="banks">
+                      Question Banks ({questionBanks.length})
+                    </TabsTrigger>
+                    <TabsTrigger value="questions" disabled={!selectedBankId}>
+                      Questions{selectedBank ? ` (${pickerTotal})` : ""}
+                    </TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="banks" className="mt-4 space-y-3">
+                    {banksLoading ? (
+                      <div className="py-12 text-center text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                        Loading question banks...
+                      </div>
+                    ) : questionBanks.length === 0 ? (
+                      <div className="py-12 text-center space-y-3">
+                        <Folder className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                        <p className="font-semibold text-foreground">No question banks found</p>
+                        <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                          Create question banks and add questions in the{" "}
+                          <Link to={`${basePath}/question-bank`} className="text-primary underline">
+                            Question Bank
+                          </Link>{" "}
+                          page first.
+                        </p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => navigate(`${basePath}/question-bank`)}
+                        >
+                          <BookOpen className="h-4 w-4" /> Open Question Bank
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {questionBanks.map((bank: any) => (
+                          <Card
+                            key={bank.id}
+                            className="border-border/60 shadow-xs hover:shadow-md transition-shadow cursor-pointer"
+                            onClick={() => handleBrowseBank(bank.id)}
+                          >
+                            <CardContent className="p-4 space-y-2">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-lg bg-purple-500/10 flex items-center justify-center text-purple-600 shrink-0">
+                                  <Folder className="h-4 w-4" />
+                                </div>
+                                <div className="min-w-0">
+                                  <p className="text-sm font-semibold truncate">{bank.name}</p>
+                                  <p className="text-[11px] text-muted-foreground truncate">
+                                    {bank.course?.name || "General"}
+                                  </p>
+                                </div>
+                              </div>
+                              {bank.description && (
+                                <p className="text-[11px] text-muted-foreground line-clamp-2">{bank.description}</p>
+                              )}
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t text-[11px]">
+                                <span>
+                                  Questions:{" "}
+                                  <strong className="text-foreground">{bank._count?.questions ?? 0}</strong>
+                                </span>
+                                <div className="flex items-center gap-1">
+                                  {(bank._count?.questions ?? 0) > 0 && (
+                                    <Button
+                                      variant="default"
+                                      size="sm"
+                                      className="h-7 text-[11px] px-2"
+                                      disabled={addingBankId === bank.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleAddFullBank(bank);
+                                      }}
+                                    >
+                                      {addingBankId === bank.id ? (
+                                        <Loader2 className="h-3 w-3 animate-spin" />
+                                      ) : (
+                                        "Add Full Bank"
+                                      )}
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="link"
+                                    size="sm"
+                                    className="h-auto p-0 text-xs"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleBrowseBank(bank.id);
+                                    }}
+                                  >
+                                    Browse →
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </TabsContent>
+
+                  <TabsContent value="questions" className="mt-4 space-y-4">
+                    {selectedBank && (
+                      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-purple-200 bg-purple-500/5 px-4 py-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Folder className="h-4 w-4 text-purple-600" />
+                          <span>
+                            Browsing <strong>{selectedBank.name}</strong>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {pickerTotal > 0 && (
+                            <Button
+                              size="sm"
+                              disabled={addingBankId === selectedBank.id}
+                              onClick={() => handleAddFullBank(selectedBank)}
+                            >
+                              {addingBankId === selectedBank.id ? (
+                                <>
+                                  <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> Adding...
+                                </>
+                              ) : (
+                                "Add All to Exam"
+                              )}
+                            </Button>
+                          )}
+                          <Button size="sm" variant="ghost" className="text-xs" onClick={handleBackToBanks}>
+                            Change Bank
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search questions in this bank..."
+                        value={pickerSearch}
+                        onChange={(e) => setPickerSearch(e.target.value)}
+                        className="pl-9 text-sm"
+                      />
+                    </div>
+
+                    {pickerQuestionsLoading ? (
+                      <div className="py-12 text-center text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                        Loading questions...
+                      </div>
+                    ) : pickerQuestions.length === 0 ? (
+                      <div className="py-12 text-center space-y-2 text-muted-foreground">
+                        <HelpCircle className="h-10 w-10 mx-auto opacity-40" />
+                        <p className="text-sm font-medium text-foreground">No questions in this bank</p>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-2 mt-2"
+                          onClick={() =>
+                            navigate(`${basePath}/questions/create?bankId=${selectedBankId}`)
+                          }
+                        >
+                          <Plus className="h-4 w-4" /> Add Questions to Bank
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {pickerQuestions.map((q: any) => {
+                          const isAdded = existingQuestionIds.has(q.id);
+                          return (
+                            <div
+                              key={q.id}
+                              className={`p-4 border rounded-lg flex flex-col sm:flex-row sm:items-start justify-between gap-3 ${
+                                isAdded ? "bg-muted/40 border-border/60" : "hover:bg-muted/20 border-border/70"
+                              }`}
+                            >
+                              <div className="space-y-2 flex-1 min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="outline" className="text-[10px]">
+                                    {q.questionType?.replace(/_/g, " ")}
+                                  </Badge>
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[10px] ${
+                                      q.difficulty === "EASY"
+                                        ? "text-emerald-600 border-emerald-300"
+                                        : q.difficulty === "HARD"
+                                        ? "text-rose-600 border-rose-300"
+                                        : "text-amber-600 border-amber-300"
+                                    }`}
+                                  >
+                                    {q.difficulty}
+                                  </Badge>
+                                  <span className="text-[11px] text-muted-foreground">{q.marks} pts</span>
+                                </div>
+                                <p className="text-sm text-foreground">{q.questionText}</p>
+                                {q.options && q.options.length > 0 && (
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                                    {q.options.map((opt: any, i: number) => (
+                                      <span
+                                        key={opt.id}
+                                        className={`text-[10px] px-2 py-1 rounded border ${
+                                          opt.isCorrect
+                                            ? "bg-emerald-500/10 border-emerald-300 text-emerald-800 dark:text-emerald-300"
+                                            : "bg-muted/50 border-border/50"
+                                        }`}
+                                      >
+                                        {String.fromCharCode(65 + i)}. {opt.optionText}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                size="sm"
+                                disabled={isAdded || addQuestionMutation.isPending}
+                                variant={isAdded ? "secondary" : "default"}
+                                className="shrink-0 w-full sm:w-auto"
+                                onClick={() => addQuestionMutation.mutate({ questionId: q.id })}
+                              >
+                                {isAdded ? (
+                                  <>
+                                    <Check className="h-3.5 w-3.5 mr-1" /> Added
+                                  </>
+                                ) : (
+                                  "Add to Exam"
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {pickerTotalPages > 1 && (
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t text-xs">
+                        <span className="text-muted-foreground">
+                          Page {pickerPage} of {pickerTotalPages} ({pickerTotal} questions)
+                        </span>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pickerPage <= 1}
+                            onClick={() => setPickerPage((p) => p - 1)}
+                          >
+                            Previous
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={pickerPage >= pickerTotalPages}
+                            onClick={() => setPickerPage((p) => p + 1)}
+                          >
+                            Next
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
 
-        {/* Tab 2: Batch Assignments */}
+        {/* Tab 2: Batch & Student Assignments */}
         <TabsContent value="batches" className="space-y-4">
           <Card className="border-border/60 shadow-sm">
             <CardHeader className="pb-4 flex flex-row items-center justify-between">
               <div>
                 <CardTitle className="text-base font-semibold">Assigned Batches</CardTitle>
                 <CardDescription>
-                  Batches whose enrolled students are eligible to take this examination.
+                  All students enrolled in these batches can take this exam.
                 </CardDescription>
               </div>
 
-              {["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status) && (
+              {canAssign && (
                 <Button
                   size="sm"
                   className="gap-1.5"
@@ -498,19 +869,21 @@ export const ExamDetails: React.FC = () => {
                   Loading batch assignments...
                 </div>
               ) : examBatches.length === 0 ? (
-                <div className="py-12 text-center space-y-3">
+                <div className="py-8 text-center space-y-3">
                   <Users className="h-10 w-10 text-muted-foreground/40 mx-auto" />
                   <p className="font-semibold text-foreground">No batches assigned</p>
                   <p className="text-xs text-muted-foreground max-w-sm mx-auto">
-                    Assign at least one student batch to make this examination available to candidates.
+                    Assign a batch to grant access to all its enrolled students, or assign individual students below.
                   </p>
-                  <Button
-                    size="sm"
-                    className="gap-2 mt-2"
-                    onClick={() => setShowAssignBatchModal(true)}
-                  >
-                    <Plus className="h-4 w-4" /> Assign a Batch
-                  </Button>
+                  {canAssign && (
+                    <Button
+                      size="sm"
+                      className="gap-2 mt-2"
+                      onClick={() => setShowAssignBatchModal(true)}
+                    >
+                      <Plus className="h-4 w-4" /> Assign a Batch
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <Table>
@@ -541,7 +914,7 @@ export const ExamDetails: React.FC = () => {
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
-                          {["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status) && (
+                          {canAssign && (
                             <Button
                               variant="ghost"
                               size="sm"
@@ -559,6 +932,120 @@ export const ExamDetails: React.FC = () => {
               )}
             </CardContent>
           </Card>
+
+          <Card className="border-border/60 shadow-sm">
+            <CardHeader className="pb-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-base font-semibold flex items-center gap-2">
+                  <GraduationCap className="h-4 w-4 text-indigo-600" />
+                  Assigned Students
+                </CardTitle>
+                <CardDescription>
+                  Individual students who can take this exam (in addition to batch assignments).
+                </CardDescription>
+              </div>
+
+              {canAssign && (
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  onClick={() => {
+                    setSelectedStudentIds([]);
+                    setStudentSearch("");
+                    setShowAssignStudentModal(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4" /> Assign Students
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent>
+              {studentsLoading ? (
+                <div className="py-12 text-center text-muted-foreground">
+                  <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
+                  Loading student assignments...
+                </div>
+              ) : examStudents.length === 0 ? (
+                <div className="py-8 text-center space-y-3">
+                  <GraduationCap className="h-10 w-10 text-muted-foreground/40 mx-auto" />
+                  <p className="font-semibold text-foreground">No individual students assigned</p>
+                  <p className="text-xs text-muted-foreground max-w-sm mx-auto">
+                    Assign specific students when the exam should not go to an entire batch.
+                  </p>
+                  {canAssign && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2 mt-2"
+                      onClick={() => {
+                        setSelectedStudentIds([]);
+                        setStudentSearch("");
+                        setShowAssignStudentModal(true);
+                      }}
+                    >
+                      <UserPlus className="h-4 w-4" /> Assign Students
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Code</TableHead>
+                      <TableHead>Batch</TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {examStudents.map((es: any) => {
+                      const activeBatch = es.student?.batchEnrollments?.[0]?.batch;
+                      return (
+                        <TableRow key={es.id}>
+                          <TableCell className="font-medium text-foreground">
+                            {es.student?.user?.name || "—"}
+                            {es.student?.user?.email && (
+                              <p className="text-[11px] text-muted-foreground font-normal">
+                                {es.student.user.email}
+                              </p>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{es.student?.studentCode}</Badge>
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {activeBatch?.name || "—"}
+                          </TableCell>
+                          <TableCell className="text-xs text-muted-foreground">
+                            {es.student?.branch?.name || "—"}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {canAssign && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => removeStudentMutation.mutate(es.studentId)}
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" /> Unassign
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+
+          {examBatches.length === 0 && examStudents.length === 0 && (
+            <div className="p-4 rounded-lg border border-amber-300 bg-amber-500/10 text-xs text-amber-800 dark:text-amber-200">
+              Assign at least one batch or student before publishing this exam.
+            </div>
+          )}
         </TabsContent>
 
         {/* Tab 3: Overview */}
@@ -668,94 +1155,6 @@ export const ExamDetails: React.FC = () => {
         </TabsContent>
       </Tabs>
 
-      {/* Add Question from Catalog Modal */}
-      <Dialog open={showAddQuestionModal} onOpenChange={setShowAddQuestionModal}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HelpCircle className="h-5 w-5 text-primary" />
-              Add Question from Catalog
-            </DialogTitle>
-            <DialogDescription>
-              Select questions from the question bank to add to <strong>{exam.name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-2">
-            <Input
-              placeholder="Search questions by text..."
-              value={questionSearch}
-              onChange={(e) => setQuestionSearch(e.target.value)}
-              className="text-xs"
-            />
-          </div>
-
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[300px]">
-            {catalogLoading ? (
-              <div className="py-12 text-center text-muted-foreground">
-                <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2 text-primary" />
-                Loading questions...
-              </div>
-            ) : catalogQuestions.length === 0 ? (
-              <div className="py-12 text-center space-y-2 text-muted-foreground">
-                <p className="text-sm font-medium">No questions found in catalog</p>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setShowAddQuestionModal(false);
-                    navigate(`${basePath}/questions/create`);
-                  }}
-                >
-                  Create New Question
-                </Button>
-              </div>
-            ) : (
-              catalogQuestions.map((q: any) => {
-                const isAdded = existingQuestionIds.has(q.id);
-                return (
-                  <div
-                    key={q.id}
-                    className="p-3 border rounded-lg flex items-center justify-between gap-3 hover:bg-muted/20 transition-colors"
-                  >
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-[10px]">
-                          {q.questionType?.replace("_", " ")}
-                        </Badge>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {q.difficulty}
-                        </Badge>
-                        <span className="text-[11px] text-muted-foreground">
-                          {q.marks} pts
-                        </span>
-                      </div>
-                      <p className="text-xs text-foreground line-clamp-2">{q.questionText}</p>
-                    </div>
-
-                    <Button
-                      size="sm"
-                      disabled={isAdded || addQuestionMutation.isPending}
-                      variant={isAdded ? "secondary" : "default"}
-                      className="shrink-0"
-                      onClick={() => addQuestionMutation.mutate({ questionId: q.id })}
-                    >
-                      {isAdded ? "Added" : "Add to Exam"}
-                    </Button>
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <DialogFooter className="pt-3 border-t">
-            <Button variant="outline" onClick={() => setShowAddQuestionModal(false)}>
-              Done
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       {/* Assign Batch Modal */}
       <Dialog open={showAssignBatchModal} onOpenChange={setShowAssignBatchModal}>
         <DialogContent className="sm:max-w-md">
@@ -804,6 +1203,96 @@ export const ExamDetails: React.FC = () => {
           <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => setShowAssignBatchModal(false)}>
               Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Students Modal */}
+      <Dialog open={showAssignStudentModal} onOpenChange={setShowAssignStudentModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-indigo-600" />
+              Assign Students to Exam
+            </DialogTitle>
+            <DialogDescription>
+              Search and select one or more students. Already assigned students are marked.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, or student code..."
+              value={studentSearch}
+              onChange={(e) => setStudentSearch(e.target.value)}
+              className="pl-9 text-sm"
+            />
+          </div>
+
+          <div className="space-y-2 max-h-[320px] overflow-y-auto py-1">
+            {studentListLoading ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
+                Loading students...
+              </div>
+            ) : availableStudents.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-6">No students found.</p>
+            ) : (
+              availableStudents.map((s) => {
+                const isAssigned = assignedStudentIds.has(s.id);
+                const isSelected = selectedStudentIds.includes(s.id);
+                return (
+                  <label
+                    key={s.id}
+                    className={`p-3 border rounded-lg flex items-center gap-3 cursor-pointer hover:bg-muted/20 ${
+                      isAssigned ? "opacity-60 cursor-not-allowed" : ""
+                    } ${isSelected ? "border-indigo-400 bg-indigo-500/5" : ""}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 rounded border-input"
+                      disabled={isAssigned}
+                      checked={isSelected}
+                      onChange={() => !isAssigned && toggleStudentSelection(s.id)}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold truncate">
+                        {s.user?.name || "Unnamed Student"}
+                      </p>
+                      <p className="text-[11px] text-muted-foreground">
+                        {s.studentCode}
+                        {s.user?.email ? ` • ${s.user.email}` : ""}
+                        {s.batchName ? ` • ${s.batchName}` : ""}
+                      </p>
+                    </div>
+                    {isAssigned && (
+                      <Badge variant="secondary" className="text-[10px] shrink-0">
+                        Assigned
+                      </Badge>
+                    )}
+                  </label>
+                );
+              })
+            )}
+          </div>
+
+          <DialogFooter className="pt-2 gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowAssignStudentModal(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={selectedStudentIds.length === 0 || assignStudentsMutation.isPending}
+              onClick={handleAssignSelectedStudents}
+            >
+              {assignStudentsMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" /> Assigning...
+                </>
+              ) : (
+                `Assign ${selectedStudentIds.length || ""} Student${selectedStudentIds.length === 1 ? "" : "s"}`
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

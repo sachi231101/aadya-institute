@@ -42,6 +42,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+const PAGE_SIZE = 20;
+
 export const QuestionBank: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -51,7 +53,8 @@ export const QuestionBank: React.FC = () => {
   const [difficultyFilter, setDifficultyFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");
   const [bankFilter, setBankFilter] = useState("ALL");
-  const [activeTab, setActiveTab] = useState("questions");
+  const [activeTab, setActiveTab] = useState("banks");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     const state = location.state as { bankId?: string } | null;
@@ -62,8 +65,22 @@ export const QuestionBank: React.FC = () => {
     }
   }, [location.pathname, location.state, navigate]);
 
-  const { data: allQuestionsResponse } = useQuestions();
-  const allQuestions = allQuestionsResponse?.data || [];
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, typeFilter, difficultyFilter, courseFilter, bankFilter]);
+
+  // Lightweight count queries — accurate at any catalog size (uses meta.total, not fetched rows)
+  const { data: totalStatsResponse } = useQuestions({ limit: 1 });
+  const totalQuestions = totalStatsResponse?.meta?.total ?? 0;
+
+  const { data: easyStatsResponse } = useQuestions({ difficulty: "EASY", limit: 1 });
+  const easyCount = easyStatsResponse?.meta?.total ?? 0;
+
+  const { data: mediumStatsResponse } = useQuestions({ difficulty: "MEDIUM", limit: 1 });
+  const mediumCount = mediumStatsResponse?.meta?.total ?? 0;
+
+  const { data: hardStatsResponse } = useQuestions({ difficulty: "HARD", limit: 1 });
+  const hardCount = hardStatsResponse?.meta?.total ?? 0;
 
   const { data: questionsResponse, isLoading: questionsLoading } = useQuestions({
     search: searchTerm || undefined,
@@ -71,8 +88,12 @@ export const QuestionBank: React.FC = () => {
     difficulty: difficultyFilter !== "ALL" ? difficultyFilter : undefined,
     courseId: courseFilter !== "ALL" ? courseFilter : undefined,
     questionBankId: bankFilter !== "ALL" ? bankFilter : undefined,
+    page,
+    limit: PAGE_SIZE,
   });
   const questions = questionsResponse?.data || [];
+  const filteredTotal = questionsResponse?.meta?.total ?? questions.length;
+  const totalPages = questionsResponse?.meta?.totalPages ?? 1;
 
   const { data: banksResponse, isLoading: banksLoading } = useQuestionBanks({
     courseId: courseFilter !== "ALL" ? courseFilter : undefined,
@@ -121,10 +142,6 @@ export const QuestionBank: React.FC = () => {
     navigate(`${basePath}/questions/create${query}`);
   };
 
-  const easyCount = allQuestions.filter((q: any) => q.difficulty === "EASY").length;
-  const mediumCount = allQuestions.filter((q: any) => q.difficulty === "MEDIUM").length;
-  const hardCount = allQuestions.filter((q: any) => q.difficulty === "HARD").length;
-
   return (
     <div className="p-6 space-y-6 max-w-[1600px] mx-auto">
       {/* Header */}
@@ -165,7 +182,7 @@ export const QuestionBank: React.FC = () => {
           <CardContent className="p-4 flex items-center justify-between">
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase">Total Questions</p>
-              <p className="text-2xl font-bold mt-1">{allQuestions.length}</p>
+              <p className="text-2xl font-bold mt-1">{totalQuestions}</p>
             </div>
             <HelpCircle className="h-7 w-7 text-purple-500/40" />
           </CardContent>
@@ -220,13 +237,13 @@ export const QuestionBank: React.FC = () => {
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <TabsList className="w-full sm:w-[350px] grid grid-cols-2">
-          <TabsTrigger value="questions">
-            Questions ({bankFilter !== "ALL" ? questions.length : allQuestions.length})
-          </TabsTrigger>
           <TabsTrigger value="banks">Question Banks ({questionBanks.length})</TabsTrigger>
+          <TabsTrigger value="questions">
+            Questions ({bankFilter !== "ALL" ? filteredTotal : totalQuestions})
+          </TabsTrigger>
         </TabsList>
 
-        {/* Tab 1: Questions Catalog */}
+        {/* Tab 2: Questions Catalog */}
         <TabsContent value="questions" className="space-y-4">
           {bankFilter !== "ALL" && selectedBank && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-purple-200 bg-purple-500/5 px-4 py-3">
@@ -383,7 +400,7 @@ export const QuestionBank: React.FC = () => {
                       <div className="space-y-1 flex-1">
                         <div className="flex items-center gap-2 flex-wrap">
                           <Badge variant="secondary" className="text-[10px] font-bold">
-                            #{index + 1}
+                            #{(page - 1) * PAGE_SIZE + index + 1}
                           </Badge>
                           <Badge variant="outline" className="text-[10px]">
                             {q.questionType?.replace("_", " ")}
@@ -426,7 +443,20 @@ export const QuestionBank: React.FC = () => {
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-muted"
+                          title="Edit Question"
+                          aria-label="Edit Question"
+                          onClick={() => navigate(`${basePath}/questions/${q.id}/edit`)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          title="Delete Question"
+                          aria-label="Delete Question"
                           onClick={() => {
                             if (window.confirm("Are you sure you want to delete this question?")) {
                               deleteQuestionMutation.mutate(q.id);
@@ -470,9 +500,40 @@ export const QuestionBank: React.FC = () => {
               ))}
             </div>
           )}
+
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <p className="text-xs text-muted-foreground">
+                Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredTotal)} of {filteredTotal} questions
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  Page {page} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </TabsContent>
 
-        {/* Tab 2: Question Banks */}
+        {/* Tab 1: Question Banks */}
         <TabsContent value="banks" className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {banksLoading ? (

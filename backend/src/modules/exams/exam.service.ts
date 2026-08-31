@@ -1,5 +1,5 @@
 import * as repository from './exam.repository';
-import { CreateExamDto, UpdateExamDto, ScheduleExamDto, AddQuestionToExamDto, ReorderQuestionsDto } from './exam.types';
+import { CreateExamDto, UpdateExamDto, ScheduleExamDto, AddQuestionToExamDto, AddQuestionBankToExamDto, ReorderQuestionsDto, AssignStudentsToExamDto } from './exam.types';
 import { AppError } from '../../middlewares/error.middleware';
 import { prisma } from '../../config/database';
 import { resolveOptionalMasterFields } from '../masters/master-resolve.service';
@@ -118,7 +118,9 @@ export const publishExam = async (id: string, instituteId: string, userId: strin
   if (exam.durationMinutes <= 0) errors.push('Duration must be positive');
   if (exam.totalMarks <= 0) errors.push('Exam must have at least one question');
   if (exam.passingMarks > exam.totalMarks) errors.push('Passing marks cannot exceed total marks');
-  if (!exam.batchAssignments || exam.batchAssignments.length === 0) errors.push('Exam must be assigned to at least one batch');
+  if (!exam.batchAssignments?.length && !(exam as any)._count?.studentAssignments) {
+    errors.push('Exam must be assigned to at least one batch or student');
+  }
   if ((exam as any)._count?.examQuestions === 0) errors.push('Exam must have at least one question');
 
   if (errors.length > 0) {
@@ -220,6 +222,42 @@ export const addQuestionToExam = async (
   return examQuestion;
 };
 
+export const addQuestionBankToExam = async (
+  examId: string,
+  instituteId: string,
+  userId: string,
+  data: AddQuestionBankToExamDto
+) => {
+  const exam = await getExamById(examId, instituteId);
+
+  if (exam.status === 'ARCHIVED' || exam.status === 'CANCELLED') {
+    throw new AppError(`Cannot modify questions in a ${exam.status} exam`, 400);
+  }
+
+  const bank = await prisma.questionBank.findFirst({
+    where: { id: data.questionBankId, instituteId },
+  });
+  if (!bank) throw new AppError('Question bank not found', 404);
+
+  const result = await repository.addQuestionBankToExam(examId, data.questionBankId, instituteId);
+
+  if (result.total === 0) {
+    throw new AppError('This question bank has no questions', 400);
+  }
+
+  if (result.added === 0) {
+    throw new AppError('All questions from this bank are already on the exam', 400);
+  }
+
+  await logActivity(userId, instituteId, 'QUESTION_BANK_ADDED_TO_EXAM', examId, null, {
+    questionBankId: data.questionBankId,
+    added: result.added,
+    skipped: result.skipped,
+  });
+
+  return result;
+};
+
 export const removeQuestionFromExam = async (
   examId: string,
   questionId: string,
@@ -281,6 +319,57 @@ export const removeBatchFromExam = async (
 export const getExamBatches = async (examId: string, instituteId: string) => {
   await getExamById(examId, instituteId);
   return repository.getExamBatches(examId);
+};
+
+export const assignStudentsToExam = async (
+  examId: string,
+  instituteId: string,
+  userId: string,
+  data: AssignStudentsToExamDto
+) => {
+  await getExamById(examId, instituteId);
+
+  const uniqueIds = [...new Set(data.studentIds)];
+  const students = await prisma.student.findMany({
+    where: { id: { in: uniqueIds }, instituteId },
+    select: { id: true },
+  });
+
+  if (students.length === 0) {
+    throw new AppError('No valid students found', 404);
+  }
+
+  const validIds = students.map((s) => s.id);
+  const added = await repository.assignStudentsToExam(examId, validIds);
+  const skipped = validIds.length - added;
+
+  if (added === 0) {
+    throw new AppError('All selected students are already assigned to this exam', 400);
+  }
+
+  await logActivity(userId, instituteId, 'STUDENTS_ASSIGNED_TO_EXAM', examId, null, {
+    studentIds: validIds,
+    added,
+    skipped,
+  });
+
+  return { added, skipped, total: validIds.length };
+};
+
+export const removeStudentFromExam = async (
+  examId: string,
+  studentId: string,
+  instituteId: string,
+  userId: string
+) => {
+  await getExamById(examId, instituteId);
+  await repository.removeStudentFromExam(examId, studentId);
+  await logActivity(userId, instituteId, 'STUDENT_REMOVED_FROM_EXAM', examId, null, { studentId });
+};
+
+export const getExamStudents = async (examId: string, instituteId: string) => {
+  await getExamById(examId, instituteId);
+  return repository.getExamStudents(examId);
 };
 
 export const getExamStats = async (instituteId: string, branchId?: string | null) => {

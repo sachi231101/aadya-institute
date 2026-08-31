@@ -88,6 +88,45 @@ export const createQuestion = async (
   });
 };
 
+export const createBulkQuestions = async (
+  instituteId: string,
+  branchId: string | null | undefined,
+  createdById: string,
+  data: CreateQuestionDto[]
+) => {
+  return prisma.$transaction(async (tx) => {
+    const createdQuestions = [];
+    for (const item of data) {
+      const q = await tx.question.create({
+        data: {
+          instituteId,
+          branchId: item.branchId || branchId || null,
+          questionBankId: item.questionBankId || null,
+          courseId: item.courseId || null,
+          moduleId: item.moduleId || null,
+          createdById,
+          questionType: item.questionType as any,
+          questionText: item.questionText,
+          difficulty: (item.difficulty as any) || 'MEDIUM',
+          marks: item.marks || 1,
+          negativeMarks: item.negativeMarks || 0,
+          explanation: item.explanation || null,
+          options: item.options ? {
+            create: item.options.map((opt, i) => ({
+              optionText: opt.optionText,
+              isCorrect: opt.isCorrect,
+              displayOrder: opt.displayOrder ?? i,
+            })),
+          } : undefined,
+        },
+        include: questionInclude,
+      });
+      createdQuestions.push(q);
+    }
+    return createdQuestions;
+  });
+};
+
 export const updateQuestion = async (id: string, data: UpdateQuestionDto) => {
   return prisma.$transaction(async (tx) => {
     // Replace options if provided
@@ -113,10 +152,10 @@ export const updateQuestion = async (id: string, data: UpdateQuestionDto) => {
         ...(data.difficulty !== undefined && { difficulty: data.difficulty as any }),
         ...(data.marks !== undefined && { marks: data.marks }),
         ...(data.negativeMarks !== undefined && { negativeMarks: data.negativeMarks }),
-        ...(data.explanation !== undefined && { explanation: data.explanation }),
-        ...(data.questionBankId !== undefined && { questionBankId: data.questionBankId }),
-        ...(data.courseId !== undefined && { courseId: data.courseId }),
-        ...(data.moduleId !== undefined && { moduleId: data.moduleId }),
+        ...(data.explanation !== undefined && { explanation: data.explanation || null }),
+        ...(data.questionBankId !== undefined && { questionBankId: data.questionBankId || null }),
+        ...(data.courseId !== undefined && { courseId: data.courseId || null }),
+        ...(data.moduleId !== undefined && { moduleId: data.moduleId || null }),
         ...(data.status !== undefined && { status: data.status as any }),
       },
       include: questionInclude,
