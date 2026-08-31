@@ -2,8 +2,9 @@ import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
 import { classSessionService } from "./class-session.service";
-import { sendSuccess, sendError } from "../../utils/response";
+import { sendSuccess, sendPaginated } from "../../utils/response";
 import { assertFacultyOwnsSession, toAuthUser } from "../../utils/auth-user.util";
+import type { QueryClassSessionsDto } from "./class-session.types";
 
 export const getSessions = async (
   req: AuthenticatedRequest,
@@ -27,13 +28,14 @@ export const getSessions = async (
 
     let facultyFilter = req.query.facultyId as string;
     let batchFilter = req.query.batchId as string;
+    let batchIds: string[] | undefined;
 
     if (isPureFaculty) {
       const facultyRecord = await prisma.faculty.findFirst({
         where: { userId: req.user!.userId },
       });
       if (!facultyRecord) {
-        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        sendPaginated(res, [], { total: 0, page: 1, limit: 20, totalPages: 0 }, "Class sessions retrieved successfully");
         return;
       }
       facultyFilter = facultyRecord.id;
@@ -47,36 +49,39 @@ export const getSessions = async (
         },
       });
       if (!studentRecord) {
-        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        sendPaginated(res, [], { total: 0, page: 1, limit: 20, totalPages: 0 }, "Class sessions retrieved successfully");
         return;
       }
       const studentBatchIds = (studentRecord.batchEnrollments || [])
         .map((e: any) => e.batchId)
         .filter(Boolean);
       if (studentBatchIds.length === 0) {
-        sendSuccess(res, [], 200, "Class sessions retrieved successfully");
+        sendPaginated(res, [], { total: 0, page: 1, limit: 20, totalPages: 0 }, "Class sessions retrieved successfully");
         return;
       }
-      // Prefer explicit batch filter only when the student is enrolled in it
       if (batchFilter && studentBatchIds.includes(batchFilter)) {
-        // keep batchFilter
+        // keep single batch filter
       } else {
-        // Pass first enrolled batch; multi-batch students can filter via query later
-        batchFilter = studentBatchIds[0];
+        batchIds = studentBatchIds;
+        batchFilter = "";
       }
     }
 
-    const filters = {
-      batchId: batchFilter,
+    const filters: QueryClassSessionsDto = {
+      batchId: batchFilter || undefined,
+      batchIds,
       facultyId: facultyFilter,
-      status: req.query.status as any,
-      mode: req.query.mode as any,
+      status: req.query.status as QueryClassSessionsDto["status"],
+      mode: req.query.mode as QueryClassSessionsDto["mode"],
+      sessionType: req.query.sessionType as QueryClassSessionsDto["sessionType"],
       startDate: req.query.startDate as string,
       endDate: req.query.endDate as string,
       search: req.query.search as string,
+      page: req.query.page ? Number(req.query.page) : undefined,
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
     };
-    const sessions = await classSessionService.getSessions(instituteId, branchId, filters);
-    sendSuccess(res, sessions, 200, "Class sessions retrieved successfully");
+    const result = await classSessionService.getSessions(instituteId, branchId, filters);
+    sendPaginated(res, result.data, result.meta, "Class sessions retrieved successfully");
   } catch (error) {
     next(error);
   }

@@ -45,6 +45,13 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import {
+  useClassSessions,
+  useCreateClassSession,
+  useUpdateClassSession,
+  useDeleteClassSession,
+} from "@/hooks/useClassSessions";
+import type { BackendClassSession } from "@/services/class-sessions.api";
 
 // ─── TYPES & SCHEDULE DATA STRUCTURES ──────────────────────────────────────
 
@@ -61,11 +68,13 @@ export type DayKey = "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT" | "SUN";
 
 export interface TimetableCellItem {
   id: string;
+  sessionId?: string;
   period: number;
   timeRange: string;
   type: SlotType;
   courseName?: string;
   batchCode?: string;
+  batchId?: string;
   roomNo?: string;
   studentCount?: number;
   category?: "Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Communication" | "Others";
@@ -108,15 +117,64 @@ const TIME_SLOT_COLUMNS = [
   { period: 8, label: "04:00 - 05:00 PM", timeTitle: "04:00 – 05:00", subTitle: "PM", start: "04:00 PM", end: "05:00 PM" },
 ];
 
-const INITIAL_DAYS_CONFIG: WorkingDayConfig[] = [
-  { key: "MON", label: "MONDAY", fullDay: "Monday", dateStr: "18 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "TUE", label: "TUESDAY", fullDay: "Tuesday", dateStr: "19 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "WED", label: "WEDNESDAY", fullDay: "Wednesday", dateStr: "20 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "THU", label: "THURSDAY", fullDay: "Thursday", dateStr: "21 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "FRI", label: "FRIDAY", fullDay: "Friday", dateStr: "22 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "SAT", label: "SATURDAY", fullDay: "Saturday", dateStr: "23 Aug", isWorking: true, statusType: "WORKING" },
-  { key: "SUN", label: "SUNDAY", fullDay: "Sunday", dateStr: "24 Aug", isWorking: false, statusType: "HOLIDAY", note: "Holiday" },
-];
+const DAY_KEYS: DayKey[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+
+const periodFromStartTime = (startTime: string): number | null => {
+  const hour = parseInt(String(startTime).slice(0, 2), 10);
+  if (Number.isNaN(hour)) return null;
+  const map: Record<number, number> = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 7, 16: 8 };
+  return map[hour] ?? null;
+};
+
+const periodToTimes = (period: number): { start: string; end: string } => {
+  const col = TIME_SLOT_COLUMNS.find((c) => c.period === period);
+  return { start: col?.start || "09:00 AM", end: col?.end || "10:00 AM" };
+};
+
+const getWeekRange = (weekOffset: number) => {
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - day + weekOffset * 7);
+  monday.setHours(0, 0, 0, 0);
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  sunday.setHours(23, 59, 59, 999);
+  const from = monday.toISOString().split("T")[0];
+  const to = sunday.toISOString().split("T")[0];
+  const startLabel = monday.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+  const endLabel = sunday.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return { from, to, monday, sunday, label: `${startLabel} – ${endLabel}` };
+};
+
+const buildDaysConfig = (monday: Date, overrides?: WorkingDayConfig[]): WorkingDayConfig[] => {
+  const labels: Record<DayKey, { label: string; fullDay: string }> = {
+    MON: { label: "MONDAY", fullDay: "Monday" },
+    TUE: { label: "TUESDAY", fullDay: "Tuesday" },
+    WED: { label: "WEDNESDAY", fullDay: "Wednesday" },
+    THU: { label: "THURSDAY", fullDay: "Thursday" },
+    FRI: { label: "FRIDAY", fullDay: "Friday" },
+    SAT: { label: "SATURDAY", fullDay: "Saturday" },
+    SUN: { label: "SUNDAY", fullDay: "Sunday" },
+  };
+
+  return DAY_KEYS.map((key, idx) => {
+    const date = new Date(monday);
+    date.setDate(monday.getDate() + idx);
+    const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+    const override = overrides?.find((d) => d.key === key);
+    const isSunday = key === "SUN";
+    return {
+      key,
+      label: labels[key].label,
+      fullDay: labels[key].fullDay,
+      dateStr,
+      isWorking: override?.isWorking ?? !isSunday,
+      statusType: override?.statusType ?? (isSunday ? "HOLIDAY" : "WORKING"),
+      note: override?.note ?? (isSunday ? "Holiday" : undefined),
+    };
+  });
+};
 
 // Helper to generate a default day schedule for a faculty
 const createDefaultDaySlots = (
@@ -159,8 +217,8 @@ const createDefaultDaySlots = (
   return slots;
 };
 
-import { useFacultyList } from "../../../hooks/useFaculty";
-import { useBatches } from "../../../hooks/useBatches";
+import { useFacultyList } from "@/hooks/useFaculty";
+import { useBatches } from "@/hooks/useBatches";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
 
@@ -173,64 +231,14 @@ export const Timetable: React.FC = () => {
   const { batches } = useBatches();
   const { courses: allCourses } = useCourses();
 
+  const createSession = useCreateClassSession();
+  const updateSession = useUpdateClassSession();
+  const deleteSession = useDeleteClassSession();
+
   // Role detection
   const userRoles = user?.roles || (user?.role ? [user.role] : ["ADMIN"]);
   const isAdmin = userRoles.includes("ADMIN");
   const isCenterManager = userRoles.includes("CENTER_MANAGER") && !isAdmin;
-
-  // Build live faculty roster from PostgreSQL
-  const facultyRosterList: FacultyRosterItem[] = useMemo(() => {
-    return facultyMembers.map((f: any, fIdx: number) => {
-      const assignedBatches = batches.filter((b: any) => b.facultyId === f.id || b.courseId === f.id);
-      
-      const buildDaySchedule = (day: DayKey) => {
-        const custom: Partial<Record<number, Partial<TimetableCellItem>>> = {};
-        if (day !== "SUN") {
-          assignedBatches.slice(0, 3).forEach((b: any, bIdx: number) => {
-            const period = bIdx === 0 ? 1 : bIdx === 1 ? 3 : 6;
-            custom[period] = {
-              id: `${f.id}-${day}-${period}`,
-              type: "CLASS",
-              courseName: b.course?.name || b.name || "Assigned Batch",
-              batchCode: b.code || `B-0${bIdx + 1}`,
-              roomNo: `Room 10${bIdx + 1}`,
-              studentCount: b._count?.enrollments || 20,
-              category: "Programming",
-            };
-          });
-        }
-        return createDefaultDaySlots(custom);
-      };
-
-      return {
-        id: f.id,
-        name: f.user?.name || `Faculty Member ${fIdx + 1}`,
-        employeeCode: f.employeeCode || `FA-00${fIdx + 1}`,
-        department: f.specialization || "Instruction",
-        specialization: f.specialization || "Technical Instructor",
-        branchId: f.branchId || branches[0]?.id || "",
-        branchName: f.branch?.name || branches.find((b: any) => b.id === f.branchId)?.name || "Aadya Branch",
-        avatar: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150`,
-        liveStatus: "Available",
-        weeklySchedule: {
-          MON: buildDaySchedule("MON"),
-          TUE: buildDaySchedule("TUE"),
-          WED: buildDaySchedule("WED"),
-          THU: buildDaySchedule("THU"),
-          FRI: buildDaySchedule("FRI"),
-          SAT: buildDaySchedule("SAT"),
-          SUN: buildDaySchedule("SUN"),
-        }
-      };
-    });
-  }, [facultyMembers, batches, branches]);
-
-  // Roster state
-  const [facultyRoster, setFacultyRoster] = useState<FacultyRosterItem[]>([]);
-
-  useEffect(() => {
-    setFacultyRoster(facultyRosterList);
-  }, [facultyRosterList]);
 
   // Determine Assigned Center
   const userCenterId = useMemo(() => {
@@ -240,7 +248,7 @@ export const Timetable: React.FC = () => {
 
   const userCenterName = useMemo(() => {
     if (userCenterId === "ALL") return "All Branches";
-    const found = branches.find((b: any) => b.id === userCenterId);
+    const found = branches.find((b: { id: string }) => b.id === userCenterId);
     return found?.name || "Assigned Center";
   }, [userCenterId, branches]);
 
@@ -251,20 +259,123 @@ export const Timetable: React.FC = () => {
     return `${userCenterName.toUpperCase()} • EDIT MODE`;
   }, [isAdmin, isCenterManager, userCenterName]);
 
-  // Working Days Configuration
-  const [daysConfig, setDaysConfig] = useState<WorkingDayConfig[]>(INITIAL_DAYS_CONFIG);
-  const [isWorkingDaysModalOpen, setIsWorkingDaysModalOpen] = useState(false);
-
   // Selected Day & Week Navigation
   const [selectedDayKey, setSelectedDayKey] = useState<DayKey>("MON");
   const [viewMode, setViewMode] = useState<"week" | "day">("week");
   const [weekOffset, setWeekOffset] = useState<number>(0);
+
+  const weekRange = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
 
   // Filters
   const [selectedBranch, setSelectedBranch] = useState<string>(isAdmin ? "ALL" : userCenterId);
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  const sessionQueryParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      startDate: weekRange.from,
+      endDate: weekRange.to,
+      limit: 500,
+    };
+    if (isAdmin && selectedBranch !== "ALL") {
+      params.branchId = selectedBranch;
+    } else if (!isAdmin && userCenterId !== "ALL") {
+      params.branchId = userCenterId;
+    }
+    return params;
+  }, [weekRange.from, weekRange.to, isAdmin, selectedBranch, userCenterId]);
+
+  const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
+  const classSessions = sessionsResponse?.data ?? [];
+
+  // Working Days Configuration (UI-only holiday toggles)
+  const [workingDayOverrides, setWorkingDayOverrides] = useState<WorkingDayConfig[]>([]);
+  const [isWorkingDaysModalOpen, setIsWorkingDaysModalOpen] = useState(false);
+
+  const daysConfig = useMemo(
+    () => buildDaysConfig(weekRange.monday, workingDayOverrides),
+    [weekRange.monday, workingDayOverrides]
+  );
+
+  const mapSessionToCell = (raw: BackendClassSession, period: number): TimetableCellItem => {
+    const col = TIME_SLOT_COLUMNS.find((c) => c.period === period);
+    return {
+      id: raw.id,
+      sessionId: raw.id,
+      period,
+      timeRange: col?.label || `${raw.startTime} – ${raw.endTime}`,
+      type: "CLASS",
+      courseName: raw.batch?.course?.name || raw.title || "Class",
+      batchCode: raw.batch?.code || raw.batch?.name || "",
+      batchId: raw.batchId,
+      roomNo: raw.roomNo || "TBD",
+      studentCount: raw.enrolledStudentsCount ?? raw.batch?._count?.enrollments,
+      status:
+        raw.sessionStatus === "COMPLETED"
+          ? "COMPLETED"
+          : raw.sessionStatus === "LIVE"
+          ? "ONGOING"
+          : raw.sessionStatus === "CANCELLED"
+          ? "CANCELLED"
+          : "UPCOMING",
+      attendanceStatus:
+        raw.sessionStatus === "COMPLETED"
+          ? "COMPLETED"
+          : raw.sessionStatus === "LIVE"
+          ? "IN_PROGRESS"
+          : "PENDING",
+    };
+  };
+
+  const facultyRoster = useMemo((): FacultyRosterItem[] => {
+    return facultyMembers.map((f: {
+      id: string;
+      employeeCode?: string;
+      specialization?: string;
+      branchId?: string;
+      branch?: { name?: string };
+      user?: { name?: string };
+    }, fIdx: number) => {
+      const weeklySchedule = {} as Record<DayKey, Record<number, TimetableCellItem>>;
+
+      DAY_KEYS.forEach((dayKey, idx) => {
+        const date = new Date(weekRange.monday);
+        date.setDate(weekRange.monday.getDate() + idx);
+        const slots = createDefaultDaySlots();
+
+        classSessions.forEach((raw: BackendClassSession) => {
+          if (raw.facultyId !== f.id) return;
+          const sched = new Date(raw.scheduledDate);
+          if (
+            sched.getFullYear() !== date.getFullYear() ||
+            sched.getMonth() !== date.getMonth() ||
+            sched.getDate() !== date.getDate()
+          ) {
+            return;
+          }
+          const period = periodFromStartTime(raw.startTime);
+          if (!period || slots[period]?.type === "BREAK" || slots[period]?.type === "LUNCH") return;
+          slots[period] = mapSessionToCell(raw, period);
+        });
+
+        weeklySchedule[dayKey] = slots;
+      });
+
+      return {
+        id: f.id,
+        name: f.user?.name || `Faculty Member ${fIdx + 1}`,
+        employeeCode: f.employeeCode || `FA-00${fIdx + 1}`,
+        department: f.specialization || "Instruction",
+        specialization: f.specialization || "Technical Instructor",
+        branchId: f.branchId || branches[0]?.id || "",
+        branchName: f.branch?.name || branches.find((b: { id: string }) => b.id === f.branchId)?.name || "Aadya Branch",
+        avatar: "",
+        liveStatus: "Available" as const,
+        weeklySchedule,
+      };
+    });
+  }, [facultyMembers, classSessions, weekRange.monday, branches]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -275,11 +386,10 @@ export const Timetable: React.FC = () => {
   const [modalFacultyId, setModalFacultyId] = useState<string>("");
   const [modalDayKey, setModalDayKey] = useState<DayKey>("MON");
   const [modalPeriod, setModalPeriod] = useState<number>(1);
-  const [modalCourseName, setModalCourseName] = useState<string>("");
-  const [modalBatchCode, setModalBatchCode] = useState<string>("");
+  const [modalSessionId, setModalSessionId] = useState<string | null>(null);
+  const [modalTitle, setModalTitle] = useState<string>("");
+  const [modalBatchId, setModalBatchId] = useState<string>("");
   const [modalRoomNo, setModalRoomNo] = useState<string>("Room 201");
-  const [modalStudentCount, setModalStudentCount] = useState<number>(24);
-  const [modalCategory, setModalCategory] = useState<"Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Communication" | "Others">("Programming");
   const [modalSlotType, setModalSlotType] = useState<SlotType>("CLASS");
 
   // Move Slot Modal State
@@ -335,11 +445,22 @@ export const Timetable: React.FC = () => {
   }, [isAdmin, userCenterId]);
 
   // Week Date Label
-  const weekDateLabel = useMemo(() => {
-    if (weekOffset === 0) return "18 Aug – 24 Aug 2026";
-    if (weekOffset > 0) return `Week +${weekOffset} (Aug 2026)`;
-    return `Week ${weekOffset} (Aug 2026)`;
-  }, [weekOffset]);
+  const weekDateLabel = weekRange.label;
+
+  const getDateForDayKey = (dayKey: DayKey): string => {
+    const idx = DAY_KEYS.indexOf(dayKey);
+    const date = new Date(weekRange.monday);
+    date.setDate(weekRange.monday.getDate() + idx);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  };
+
+  const facultyBatches = useMemo(() => {
+    if (!modalFacultyId) return batches;
+    return batches.filter((b) => !b.facultyId || b.facultyId === modalFacultyId);
+  }, [batches, modalFacultyId]);
 
   // Current Selected Day Config
   const currentDayConfig = useMemo(() => {
@@ -431,93 +552,101 @@ export const Timetable: React.FC = () => {
 
     if (existingSlot && existingSlot.type === "CLASS") {
       setModalSlotType("CLASS");
-      setModalCourseName(existingSlot.courseName || "");
-      setModalBatchCode(existingSlot.batchCode || "Batch A");
+      setModalSessionId(existingSlot.sessionId || existingSlot.id);
+      setModalTitle(existingSlot.courseName || "");
+      setModalBatchId(existingSlot.batchId || "");
       setModalRoomNo(existingSlot.roomNo || "Room 201");
-      setModalStudentCount(existingSlot.studentCount || 24);
-      setModalCategory(existingSlot.category || "Programming");
     } else if (existingSlot) {
       setModalSlotType(existingSlot.type);
-      setModalCourseName("");
-      setModalBatchCode("");
+      setModalSessionId(null);
+      setModalTitle("");
+      setModalBatchId("");
       setModalRoomNo("Room 201");
-      setModalStudentCount(24);
-      setModalCategory("Programming");
     } else {
       setModalSlotType("CLASS");
-      setModalCourseName("Flutter Dev");
-      setModalBatchCode("Batch A");
+      setModalSessionId(null);
+      setModalTitle("");
+      setModalBatchId("");
       setModalRoomNo("Room 201");
-      setModalStudentCount(24);
-      setModalCategory("Programming");
     }
 
     setIsEditModalOpen(true);
   };
 
-  const handleSaveSlot = () => {
+  const handleSaveSlot = async () => {
     if (!modalFacultyId) return;
 
-    setFacultyRoster((prev) =>
-      prev.map((fac) => {
-        if (fac.id !== modalFacultyId) return fac;
-
-        const updatedSchedule = { ...fac.weeklySchedule };
-        const daySlots = { ...updatedSchedule[modalDayKey] };
-        const col = TIME_SLOT_COLUMNS.find((c) => c.period === modalPeriod);
-
-        if (modalSlotType === "CLASS") {
-          daySlots[modalPeriod] = {
-            id: `slot-${modalFacultyId}-${modalDayKey}-${modalPeriod}-${Date.now()}`,
-            period: modalPeriod,
-            timeRange: col?.label || "09:00 - 10:00 AM",
-            type: "CLASS",
-            courseName: modalCourseName || "Course Class",
-            batchCode: modalBatchCode || "Batch A",
-            roomNo: modalRoomNo || "Room 101",
-            studentCount: modalStudentCount || 20,
-            category: modalCategory,
-            status: "UPCOMING",
-            attendanceStatus: "PENDING",
-          };
-        } else {
-          daySlots[modalPeriod] = {
-            id: `slot-${modalFacultyId}-${modalDayKey}-${modalPeriod}-${Date.now()}`,
-            period: modalPeriod,
-            timeRange: col?.label || "09:00 - 10:00 AM",
-            type: modalSlotType,
-          };
+    if (modalSlotType !== "CLASS") {
+      if (modalSessionId) {
+        try {
+          await deleteSession.mutateAsync(modalSessionId);
+          setNotificationMsg(`✓ Class removed from ${modalDayKey} Period ${modalPeriod}.`);
+        } catch {
+          setNotificationMsg("Failed to update slot. Please try again.");
         }
+      }
+      setIsEditModalOpen(false);
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
 
-        updatedSchedule[modalDayKey] = daySlots;
-        return { ...fac, weeklySchedule: updatedSchedule };
-      })
-    );
+    const fac = facultyMembers.find((f: { id: string; branchId?: string }) => f.id === modalFacultyId);
+    const batch = batches.find((b) => b.id === modalBatchId);
 
-    setIsEditModalOpen(false);
-    setNotificationMsg(`✓ Schedule updated for ${modalDayKey} Period ${modalPeriod}.`);
+    if (!fac) {
+      setNotificationMsg("Please select a faculty instructor.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
+    if (!batch) {
+      setNotificationMsg("Please select a valid batch.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
+
+    const { start, end } = periodToTimes(modalPeriod);
+    const payload = {
+      title: modalTitle || batch.course?.name || batch.name || "Class Session",
+      batchId: batch.id,
+      facultyId: fac.id,
+      branchId: fac.branchId || batch.branchId,
+      scheduledDate: getDateForDayKey(modalDayKey),
+      startTime: start,
+      endTime: end,
+      roomNo: modalRoomNo || undefined,
+      mode: "OFFLINE" as const,
+    };
+
+    try {
+      if (modalSessionId) {
+        await updateSession.mutateAsync({ id: modalSessionId, payload });
+        setNotificationMsg(`✓ Schedule updated for ${modalDayKey} Period ${modalPeriod}.`);
+      } else {
+        await createSession.mutateAsync(payload);
+        setNotificationMsg(`✓ Class scheduled for ${modalDayKey} Period ${modalPeriod}.`);
+      }
+      setIsEditModalOpen(false);
+    } catch {
+      setNotificationMsg("Failed to save class session. Please check the form and try again.");
+    }
     setTimeout(() => setNotificationMsg(null), 3000);
   };
 
-  const handleDeleteSlot = (facultyId: string, dayKey: DayKey, period: number) => {
-    setFacultyRoster((prev) =>
-      prev.map((fac) => {
-        if (fac.id !== facultyId) return fac;
-        const updatedSchedule = { ...fac.weeklySchedule };
-        const daySlots = { ...updatedSchedule[dayKey] };
-        const col = TIME_SLOT_COLUMNS.find((c) => c.period === period);
-        daySlots[period] = {
-          id: `slot-free-${period}`,
-          period,
-          timeRange: col?.label || "09:00 - 10:00 AM",
-          type: "FREE",
-        };
-        updatedSchedule[dayKey] = daySlots;
-        return { ...fac, weeklySchedule: updatedSchedule };
-      })
-    );
+  const handleDeleteSlot = async (facultyId: string, dayKey: DayKey, period: number) => {
+    const fac = facultyRoster.find((f) => f.id === facultyId);
+    const cell = fac?.weeklySchedule[dayKey]?.[period];
+    if (!cell?.sessionId) {
+      setNotificationMsg("No class session to remove for this slot.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
 
-    setNotificationMsg(`✓ Schedule deleted for period ${period}. Slot is now Free.`);
+    try {
+      await deleteSession.mutateAsync(cell.sessionId);
+      setNotificationMsg(`✓ Schedule deleted for period ${period}. Slot is now Free.`);
+    } catch {
+      setNotificationMsg("Failed to delete class session. Please try again.");
+    }
     setTimeout(() => setNotificationMsg(null), 3000);
   };
 
@@ -527,39 +656,36 @@ export const Timetable: React.FC = () => {
     setIsMoveModalOpen(true);
   };
 
-  const handleExecuteMoveSlot = () => {
+  const handleExecuteMoveSlot = async () => {
     if (!moveSource) return;
     const { facultyId, dayKey, period } = moveSource;
+    const fac = facultyRoster.find((f) => f.id === facultyId);
+    const sourceSlot = fac?.weeklySchedule[dayKey]?.[period];
 
-    setFacultyRoster((prev) =>
-      prev.map((fac) => {
-        if (fac.id !== facultyId) return fac;
-        const updatedSchedule = { ...fac.weeklySchedule };
-        const daySlots = { ...updatedSchedule[dayKey] };
+    if (!sourceSlot?.sessionId) {
+      setNotificationMsg("No class session found to move.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      setIsMoveModalOpen(false);
+      return;
+    }
 
-        const sourceSlot = daySlots[period];
-        const targetSlot = daySlots[targetPeriod];
-        const targetCol = TIME_SLOT_COLUMNS.find((c) => c.period === targetPeriod);
-        const sourceCol = TIME_SLOT_COLUMNS.find((c) => c.period === period);
+    const { start, end } = periodToTimes(targetPeriod);
 
-        if (sourceSlot) {
-          daySlots[targetPeriod] = {
-            ...sourceSlot,
-            period: targetPeriod,
-            timeRange: targetCol?.label || "09:00 - 10:00 AM",
-          };
-          daySlots[period] = targetSlot
-            ? { ...targetSlot, period, timeRange: sourceCol?.label || "09:00 - 10:00 AM" }
-            : { id: `slot-free-${period}`, period, timeRange: sourceCol?.label || "09:00 - 10:00 AM", type: "FREE" };
-        }
-
-        updatedSchedule[dayKey] = daySlots;
-        return { ...fac, weeklySchedule: updatedSchedule };
-      })
-    );
+    try {
+      await updateSession.mutateAsync({
+        id: sourceSlot.sessionId,
+        payload: {
+          startTime: start,
+          endTime: end,
+          scheduledDate: getDateForDayKey(dayKey),
+        },
+      });
+      setNotificationMsg(`✓ Class moved from Period ${period} to Period ${targetPeriod}.`);
+    } catch {
+      setNotificationMsg("Failed to move class session. Please try again.");
+    }
 
     setIsMoveModalOpen(false);
-    setNotificationMsg(`✓ Class moved from Period ${period} to Period ${targetPeriod}.`);
     setTimeout(() => setNotificationMsg(null), 3000);
   };
 
@@ -759,7 +885,7 @@ export const Timetable: React.FC = () => {
 
           <div className="text-center sm:text-right">
             <h3 className="text-base font-black text-slate-900">
-              {currentDayConfig.fullDay}, {currentDayConfig.dateStr} 2026
+              {currentDayConfig.fullDay}, {currentDayConfig.dateStr}
             </h3>
             <span className="text-xs text-slate-500 font-medium">
               Showing all {filteredFaculty.length} faculty schedules for {currentDayConfig.fullDay}
@@ -980,7 +1106,13 @@ export const Timetable: React.FC = () => {
             </thead>
 
             <tbody className="divide-y divide-border bg-card">
-              {paginatedFaculty.length > 0 ? (
+              {sessionsLoading ? (
+                <tr>
+                  <td colSpan={10} className="p-12 text-center text-muted-foreground text-sm font-medium">
+                    Loading timetable sessions...
+                  </td>
+                </tr>
+              ) : paginatedFaculty.length > 0 ? (
                 paginatedFaculty.map((fac) => {
                   const daySlots = fac.weeklySchedule[selectedDayKey] || {};
 
@@ -1358,57 +1490,36 @@ export const Timetable: React.FC = () => {
             {/* Course & Batch (If Class) */}
             {modalSlotType === "CLASS" && (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Course / Subject Name *</Label>
-                    <Input
-                      value={modalCourseName}
-                      onChange={(e) => setModalCourseName(e.target.value)}
-                      placeholder="e.g. Flutter Development"
-                      className="h-9 mt-1 text-xs rounded-xl"
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Batch Code *</Label>
-                    <Input
-                      value={modalBatchCode}
-                      onChange={(e) => setModalBatchCode(e.target.value)}
-                      placeholder="e.g. Batch A"
-                      className="h-9 mt-1 text-xs rounded-xl"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab *</Label>
-                    <ClassroomDropdown value={modalRoomNo} onChange={setModalRoomNo} />
-                  </div>
-                  <div>
-                    <Label className="text-[11px] font-bold text-slate-700">Enrolled Students</Label>
-                    <Input
-                      type="number"
-                      value={modalStudentCount}
-                      onChange={(e) => setModalStudentCount(Number(e.target.value))}
-                      className="h-9 mt-1 text-xs rounded-xl"
-                    />
-                  </div>
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700">Session Title</Label>
+                  <Input
+                    value={modalTitle}
+                    onChange={(e) => setModalTitle(e.target.value)}
+                    placeholder="e.g. Module topic or class title"
+                    className="h-9 mt-1 text-xs rounded-xl"
+                  />
                 </div>
 
                 <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Course Category</Label>
+                  <Label className="text-[11px] font-bold text-slate-700">Batch *</Label>
                   <select
-                    value={modalCategory}
-                    onChange={(e) => setModalCategory(e.target.value as any)}
+                    value={modalBatchId}
+                    onChange={(e) => setModalBatchId(e.target.value)}
                     className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
                   >
-                    <option value="Programming">Programming & Full Stack</option>
-                    <option value="Design">Design & UI/UX</option>
-                    <option value="Data Analytics">Data Analytics & AI</option>
-                    <option value="Digital Marketing">Digital Marketing</option>
-                    <option value="Communication">Communication</option>
-                    <option value="Others">Others</option>
+                    <option value="">Select batch</option>
+                    {facultyBatches.map((batch) => (
+                      <option key={batch.id} value={batch.id}>
+                        {batch.code} — {batch.name}
+                        {batch.course?.name ? ` (${batch.course.name})` : ""}
+                      </option>
+                    ))}
                   </select>
+                </div>
+
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab</Label>
+                  <ClassroomDropdown value={modalRoomNo} onChange={setModalRoomNo} />
                 </div>
               </>
             )}
@@ -1424,6 +1535,7 @@ export const Timetable: React.FC = () => {
             </Button>
             <Button
               onClick={handleSaveSlot}
+              disabled={createSession.isPending || updateSession.isPending}
               className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl"
             >
               <Save className="h-3.5 w-3.5 mr-1" /> Save Schedule Entry
@@ -1508,8 +1620,9 @@ export const Timetable: React.FC = () => {
                       value={d.statusType}
                       onChange={(e) => {
                         const val = e.target.value as "WORKING" | "HOLIDAY" | "CUSTOM";
-                        setDaysConfig((prev) =>
-                          prev.map((item) =>
+                        setWorkingDayOverrides((prev) => {
+                          const base = buildDaysConfig(weekRange.monday, prev);
+                          return base.map((item) =>
                             item.key === "SUN"
                               ? {
                                   ...item,
@@ -1518,8 +1631,8 @@ export const Timetable: React.FC = () => {
                                   note: val === "HOLIDAY" ? "Holiday" : val === "CUSTOM" ? "Custom Classes" : "Working Day",
                                 }
                               : item
-                          )
-                        );
+                          );
+                        });
                       }}
                       className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#1769AA] outline-none cursor-pointer"
                     >
@@ -1531,13 +1644,18 @@ export const Timetable: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        setDaysConfig((prev) =>
-                          prev.map((item) =>
+                        setWorkingDayOverrides((prev) => {
+                          const base = buildDaysConfig(weekRange.monday, prev);
+                          return base.map((item) =>
                             item.key === d.key
-                              ? { ...item, isWorking: !item.isWorking, statusType: !item.isWorking ? "WORKING" : "HOLIDAY" }
+                              ? {
+                                  ...item,
+                                  isWorking: !item.isWorking,
+                                  statusType: !item.isWorking ? "WORKING" : "HOLIDAY",
+                                }
                               : item
-                          )
-                        );
+                          );
+                        });
                       }}
                       className={`px-3 py-1 rounded-lg text-xs font-bold cursor-pointer transition-all ${
                         d.isWorking

@@ -1,5 +1,6 @@
 export type ClassMode = "OFFLINE" | "ONLINE" | "HYBRID";
-export type ClassStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
+export type SessionType = "THEORY" | "PRACTICAL";
+export type ClassStatus = "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
 
 export interface ClassSession {
   id: string;
@@ -13,16 +14,18 @@ export interface ClassSession {
   facultyName: string;
   facultyDesignation?: string;
   facultyAvatar?: string;
-  date: string; // YYYY-MM-DD
-  startTime: string; // e.g. "10:00 AM"
-  endTime: string; // e.g. "12:00 PM"
+  date: string;
+  startTime: string;
+  endTime: string;
   roomNo: string;
   mode: ClassMode;
+  sessionType?: SessionType;
   status: ClassStatus;
   attendanceMarked: boolean;
   attendanceStatus?: "PENDING" | "IN_PROGRESS" | "MARKED";
   meetingUrl?: string;
   notes?: string;
+  enrolledStudentsCount?: number;
 }
 
 export interface CreateClassSessionPayload {
@@ -30,12 +33,15 @@ export interface CreateClassSessionPayload {
   batchId: string;
   batchModuleId?: string;
   facultyId: string;
+  branchId?: string;
   scheduledDate: string;
   startTime: string;
   endTime: string;
   roomNo?: string;
   classroomMasterId?: string;
+  timeslotMasterId?: string;
   mode?: ClassMode;
+  sessionType?: SessionType;
   meetingUrl?: string;
   notes?: string;
 }
@@ -43,13 +49,16 @@ export interface CreateClassSessionPayload {
 export interface UpdateClassSessionPayload {
   title?: string;
   batchId?: string;
+  batchModuleId?: string;
   facultyId?: string;
   scheduledDate?: string;
   startTime?: string;
   endTime?: string;
   roomNo?: string;
   classroomMasterId?: string;
+  timeslotMasterId?: string;
   mode?: ClassMode;
+  sessionType?: SessionType;
   meetingUrl?: string;
   notes?: string;
   status?: ClassStatus;

@@ -32,3 +32,8 @@ export const gradeSubmissionSchema = z.object({
   marks: z.coerce.number().min(0, "Marks must be >= 0"),
   feedback: z.string().optional().or(z.literal("")),
 });
+
+export const submitAssignmentSchema = z.object({
+  fileKey: z.string().min(1, "File reference is required"),
+  notes: z.string().optional().or(z.literal("")),
+});

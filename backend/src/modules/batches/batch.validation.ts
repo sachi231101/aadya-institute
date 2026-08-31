@@ -11,6 +11,17 @@ export const createBatchSchema = z.object({
   capacity: z.coerce.number().int().positive().optional(),
   schedulePattern: z.enum(["MWF", "TTS", "WEEKEND", "CUSTOM"]).optional().or(z.literal("")),
   timeSlot: z.string().optional().or(z.literal("")),
+  schedules: z
+    .array(
+      z.object({
+        dayOfWeek: z.coerce.number().int().min(0).max(6),
+        startTime: z.string().min(1),
+        endTime: z.string().min(1),
+        effectiveFrom: z.string().optional(),
+        effectiveTo: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 export const updateBatchSchema = z.object({
@@ -34,4 +45,25 @@ export const assignFacultySchema = z.object({
 export const enrollStudentSchema = z.object({
   studentId: z.string().min(1, "Student ID is required"),
   admissionId: z.string().optional(),
+});
+
+export const createBatchScheduleSchema = z.object({
+  dayOfWeek: z.coerce.number().int().min(0).max(6),
+  startTime: z.string().min(1, "Start time is required"),
+  endTime: z.string().min(1, "End time is required"),
+  effectiveFrom: z.string().optional(),
+  effectiveTo: z.string().optional(),
+});
+
+export const updateBatchScheduleSchema = z.object({
+  dayOfWeek: z.coerce.number().int().min(0).max(6).optional(),
+  startTime: z.string().min(1).optional(),
+  endTime: z.string().min(1).optional(),
+  effectiveFrom: z.string().optional(),
+  effectiveTo: z.string().optional().nullable(),
+});
+
+export const generateSessionsSchema = z.object({
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });

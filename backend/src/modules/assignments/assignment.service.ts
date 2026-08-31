@@ -87,10 +87,24 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
     facultyId = ownFacultyId;
   }
 
+  let studentBatchIds: string[] | undefined;
+  if (currentUser.roles.includes("STUDENT") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("FACULTY")) {
+    const student = await prisma.student.findFirst({
+      where: { userId: currentUser.id, instituteId: currentUser.instituteId },
+      include: { batchEnrollments: { where: { status: "ACTIVE" } } },
+    });
+    if (!student) throw new AppError("Student profile not found", 403);
+    studentBatchIds = student.batchEnrollments.map((e) => e.batchId);
+    if (studentBatchIds.length === 0) {
+      return { data: [], meta: buildMeta(0, page, limit) };
+    }
+  }
+
   const { assignments, total } = await repo.findAssignments({
     instituteId: currentUser.instituteId,
     branchId,
     batchId: query.batchId,
+    batchIds: studentBatchIds,
     classSessionId: query.classSessionId,
     facultyId,
     status: query.status,
@@ -226,6 +240,40 @@ export const gradeSubmission = async (
     marks: dto.marks,
     feedback: dto.feedback || undefined,
     evaluatedBy: currentUser.id,
+  });
+};
+
+export const submitAssignment = async (
+  currentUser: AuthUser,
+  assignmentId: string,
+  dto: { fileKey: string; notes?: string }
+) => {
+  const assignment = await getAssignmentById(currentUser, assignmentId);
+
+  const student = await prisma.student.findFirst({
+    where: { userId: currentUser.id, instituteId: currentUser.instituteId },
+  });
+  if (!student) throw new AppError("Student profile not found", 403);
+
+  const enrollment = await prisma.batchEnrollment.findFirst({
+    where: {
+      batchId: assignment.batchId,
+      studentId: student.id,
+      status: "ACTIVE",
+    },
+  });
+  if (!enrollment) {
+    throw new AppError("You are not enrolled in the batch for this assignment", 403);
+  }
+
+  if (assignment.dueDate && new Date() > assignment.dueDate) {
+    throw new AppError("Assignment due date has passed", 400);
+  }
+
+  return repo.upsertSubmission({
+    assignmentId,
+    studentId: student.id,
+    fileKey: dto.fileKey,
   });
 };
 

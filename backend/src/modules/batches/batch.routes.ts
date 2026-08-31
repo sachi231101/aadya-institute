@@ -8,7 +8,11 @@ import {
   updateBatchSchema,
   assignFacultySchema,
   enrollStudentSchema,
+  createBatchScheduleSchema,
+  updateBatchScheduleSchema,
+  generateSessionsSchema,
 } from "./batch.validation";
+import { requirePermission } from "../../middlewares/permission.middleware";
 
 const router = Router();
 
@@ -70,6 +74,39 @@ router.delete(
   "/:id",
   requireRole("ADMIN"),
   controller.remove
+);
+
+router.get(
+  "/:id/schedules",
+  requirePermission("schedule.read"),
+  controller.getSchedules
+);
+
+router.post(
+  "/:id/schedules",
+  requirePermission("schedule.create"),
+  validate(createBatchScheduleSchema),
+  controller.createSchedule
+);
+
+router.patch(
+  "/:id/schedules/:scheduleId",
+  requirePermission("schedule.update"),
+  validate(updateBatchScheduleSchema),
+  controller.updateSchedule
+);
+
+router.delete(
+  "/:id/schedules/:scheduleId",
+  requirePermission("schedule.delete"),
+  controller.deleteSchedule
+);
+
+router.post(
+  "/:id/generate-sessions",
+  requirePermission("schedule.create"),
+  validate(generateSessionsSchema),
+  controller.generateSessions
 );
 
 export default router;

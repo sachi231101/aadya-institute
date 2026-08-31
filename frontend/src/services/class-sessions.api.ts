@@ -17,10 +17,12 @@ export interface BackendClassSession {
   endTime: string;
   roomNo?: string;
   mode?: "OFFLINE" | "ONLINE" | "HYBRID";
+  sessionType?: "THEORY" | "PRACTICAL";
   meetingUrl?: string;
   notes?: string;
-  sessionStatus?: "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
+  sessionStatus?: "UPCOMING" | "LIVE" | "COMPLETED" | "CANCELLED";
   status: string;
+  enrolledStudentsCount?: number;
   createdAt: string;
   updatedAt: string;
   batch?: {
@@ -63,6 +65,12 @@ export interface ListResponse<T> {
   success: boolean;
   message?: string;
   data: T[];
+  meta?: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }
 
 export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
@@ -70,7 +78,7 @@ export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
   let attendanceStatus: "PENDING" | "IN_PROGRESS" | "MARKED" = "PENDING";
   if (sessionStatus === "COMPLETED") {
     attendanceStatus = "MARKED";
-  } else if (sessionStatus === "ONGOING") {
+  } else if (sessionStatus === "LIVE") {
     attendanceStatus = "IN_PROGRESS";
   }
 
@@ -95,6 +103,7 @@ export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
     attendanceStatus,
     meetingUrl: raw.meetingUrl,
     notes: raw.notes,
+    enrolledStudentsCount: raw.enrolledStudentsCount ?? 0,
   };
 };
 

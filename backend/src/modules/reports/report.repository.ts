@@ -4,6 +4,7 @@ import type {
   FacultyReportResponse,
   CourseReportResponse,
   FinancialReportResponse,
+  ScheduleSummaryResponse,
 } from "./report.types";
 
 export class ReportRepository {
@@ -476,6 +477,111 @@ export class ReportRepository {
       paymentMethodShare,
       monthlyBreakdown: monthlyTrend,
       recentPayments,
+    };
+  }
+
+  static async getScheduleSummaryData(
+    instituteId: string,
+    branchId?: string
+  ): Promise<ScheduleSummaryResponse> {
+    const now = new Date();
+    const todayStart = new Date(now);
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(now);
+    todayEnd.setHours(23, 59, 59, 999);
+    const upcomingEnd = new Date(todayEnd);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 7);
+    const weekStart = new Date(todayStart);
+    weekStart.setDate(weekStart.getDate() - ((now.getDay() + 6) % 7));
+    const expiringBefore = new Date(now);
+    expiringBefore.setDate(expiringBefore.getDate() + 7);
+
+    const sessionWhere = {
+      status: "ACTIVE" as const,
+      batch: {
+        instituteId,
+        ...(branchId ? { branchId } : {}),
+      },
+      ...(branchId ? { branchId } : {}),
+    };
+
+    const [
+      todayClasses,
+      upcomingClasses,
+      liveClasses,
+      completedThisWeek,
+      recordingsExpiringSoon,
+      todaySessionsRaw,
+    ] = await Promise.all([
+      prisma.classSession.count({
+        where: {
+          ...sessionWhere,
+          scheduledDate: { gte: todayStart, lte: todayEnd },
+        },
+      }),
+      prisma.classSession.count({
+        where: {
+          ...sessionWhere,
+          scheduledDate: { gt: todayEnd, lte: upcomingEnd },
+          sessionStatus: "UPCOMING",
+        },
+      }),
+      prisma.classSession.count({
+        where: {
+          ...sessionWhere,
+          sessionStatus: "LIVE",
+        },
+      }),
+      prisma.classSession.count({
+        where: {
+          ...sessionWhere,
+          sessionStatus: "COMPLETED",
+          scheduledDate: { gte: weekStart, lte: todayEnd },
+        },
+      }),
+      prisma.recording.count({
+        where: {
+          status: "ACTIVE",
+          expiresAt: { lte: expiringBefore, gte: now },
+          classSession: {
+            batch: {
+              instituteId,
+              ...(branchId ? { branchId } : {}),
+            },
+          },
+        },
+      }),
+      prisma.classSession.findMany({
+        where: {
+          ...sessionWhere,
+          scheduledDate: { gte: todayStart, lte: todayEnd },
+        },
+        include: {
+          batch: { select: { name: true } },
+          faculty: { select: { user: { select: { name: true } } } },
+        },
+        orderBy: [{ startTime: "asc" }],
+        take: 10,
+      }),
+    ]);
+
+    return {
+      todayClasses,
+      upcomingClasses,
+      liveClasses,
+      completedThisWeek,
+      discontinuationRiskCount: 0,
+      recordingsExpiringSoon,
+      todaySessions: todaySessionsRaw.map((s) => ({
+        id: s.id,
+        title: s.title,
+        scheduledDate: s.scheduledDate,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        sessionStatus: s.sessionStatus,
+        batchName: s.batch?.name ?? null,
+        facultyName: s.faculty?.user?.name ?? null,
+      })),
     };
   }
 }

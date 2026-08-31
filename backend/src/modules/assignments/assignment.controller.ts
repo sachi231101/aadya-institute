@@ -1,6 +1,6 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { sendSuccess } from "../../utils/response";
+import { sendSuccess, sendPaginated } from "../../utils/response";
 import { toAuthUser } from "../../utils/auth-user.util";
 import * as service from "./assignment.service";
 import type { AssignmentQueryDTO } from "./assignment.types";
@@ -12,7 +12,7 @@ export const getAssignments = async (
 ): Promise<void> => {
   try {
     const result = await service.getAssignments(toAuthUser(req), req.query as AssignmentQueryDTO);
-    sendSuccess(res, result.data, 200, "Assignments retrieved successfully");
+    sendPaginated(res, result.data, result.meta, "Assignments retrieved successfully");
   } catch (error) {
     next(error);
   }
@@ -86,6 +86,23 @@ export const gradeSubmission = async (
       req.body
     );
     sendSuccess(res, result, 200, "Submission graded successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const submitAssignment = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await service.submitAssignment(
+      toAuthUser(req),
+      req.params.id as string,
+      req.body
+    );
+    sendSuccess(res, result, 201, "Assignment submitted successfully");
   } catch (error) {
     next(error);
   }

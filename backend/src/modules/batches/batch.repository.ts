@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
-import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters } from "./batch.types";
+import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto } from "./batch.types";
+import { buildDefaultSchedules } from "./batch-schedule.util";
 
 const batchInclude = {
   course: {
@@ -172,6 +173,28 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
       });
     }
 
+    const pattern = data.schedulePattern || "MWF";
+    const timeSlot = data.timeSlot || "10:00 AM - 12:00 PM";
+    const scheduleRows =
+      data.schedules && data.schedules.length > 0
+        ? data.schedules.map((s) => ({
+            batchId: batch.id,
+            dayOfWeek: s.dayOfWeek,
+            startTime: s.startTime,
+            endTime: s.endTime,
+            effectiveFrom: s.effectiveFrom ? new Date(s.effectiveFrom) : new Date(data.startDate),
+            effectiveTo: s.effectiveTo ? new Date(s.effectiveTo) : null,
+          }))
+        : buildDefaultSchedules(pattern, timeSlot, new Date(data.startDate)).map((s) => ({
+            batchId: batch.id,
+            ...s,
+            effectiveTo: null,
+          }));
+
+    if (scheduleRows.length > 0) {
+      await tx.batchSchedule.createMany({ data: scheduleRows });
+    }
+
     return tx.batch.findUniqueOrThrow({
       where: { id: batch.id },
       include: batchInclude,
@@ -273,4 +296,64 @@ export const getBatchStudents = async (batchId: string) => {
       },
     },
   });
+};
+
+export const findBatchSchedules = async (batchId: string, instituteId: string) => {
+  const batch = await prisma.batch.findFirst({ where: { id: batchId, instituteId } });
+  if (!batch) return null;
+  return prisma.batchSchedule.findMany({
+    where: { batchId },
+    orderBy: [{ dayOfWeek: "asc" }, { startTime: "asc" }],
+  });
+};
+
+export const createBatchSchedule = async (
+  batchId: string,
+  instituteId: string,
+  data: CreateBatchScheduleDto
+) => {
+  const batch = await prisma.batch.findFirst({ where: { id: batchId, instituteId } });
+  if (!batch) return null;
+  return prisma.batchSchedule.create({
+    data: {
+      batchId,
+      dayOfWeek: data.dayOfWeek,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      effectiveFrom: data.effectiveFrom ? new Date(data.effectiveFrom) : batch.startDate,
+      effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : null,
+    },
+  });
+};
+
+export const updateBatchSchedule = async (
+  batchId: string,
+  scheduleId: string,
+  instituteId: string,
+  data: UpdateBatchScheduleDto
+) => {
+  const batch = await prisma.batch.findFirst({ where: { id: batchId, instituteId } });
+  if (!batch) return null;
+  const existing = await prisma.batchSchedule.findFirst({ where: { id: scheduleId, batchId } });
+  if (!existing) return null;
+  return prisma.batchSchedule.update({
+    where: { id: scheduleId },
+    data: {
+      ...(data.dayOfWeek !== undefined ? { dayOfWeek: data.dayOfWeek } : {}),
+      ...(data.startTime !== undefined ? { startTime: data.startTime } : {}),
+      ...(data.endTime !== undefined ? { endTime: data.endTime } : {}),
+      ...(data.effectiveFrom !== undefined ? { effectiveFrom: new Date(data.effectiveFrom) } : {}),
+      ...(data.effectiveTo !== undefined
+        ? { effectiveTo: data.effectiveTo ? new Date(data.effectiveTo) : null }
+        : {}),
+    },
+  });
+};
+
+export const deleteBatchSchedule = async (batchId: string, scheduleId: string, instituteId: string) => {
+  const batch = await prisma.batch.findFirst({ where: { id: batchId, instituteId } });
+  if (!batch) return null;
+  const existing = await prisma.batchSchedule.findFirst({ where: { id: scheduleId, batchId } });
+  if (!existing) return null;
+  return prisma.batchSchedule.delete({ where: { id: scheduleId } });
 };

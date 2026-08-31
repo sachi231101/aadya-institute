@@ -46,3 +46,10 @@ export const getPerformance = async (req: AuthenticatedRequest, res: Response, n
     sendSuccess(res, data);
   } catch (err) { next(err); }
 };
+
+export const getMyDashboard = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.getMyDashboard(toAuthUser(req));
+    sendSuccess(res, data, 200, "Student dashboard retrieved successfully");
+  } catch (err) { next(err); }
+};

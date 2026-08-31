@@ -95,6 +95,7 @@ const inferIconType = (name: string): ScheduledClassItem["iconType"] => {
 
 const mapSessionStatusToUI = (sessionStatus?: string): ClassStatus => {
   switch (sessionStatus) {
+    case "LIVE":
     case "ONGOING":
       return "LIVE";
     case "COMPLETED":
@@ -154,7 +155,7 @@ const mapSessionToScheduledClassItem = (
       mode === "ONLINE" ? session.meetingUrl || "Online" : session.roomNo || "TBD",
     isOnlineLink: mode === "ONLINE",
     status: isFacultyAssigned ? mapSessionStatusToUI(session.sessionStatus) : "UNASSIGNED",
-    enrolledStudentsCount: 0,
+    enrolledStudentsCount: (session as BackendClassSession & { enrolledStudentsCount?: number }).enrolledStudentsCount ?? 0,
     attendanceMarked: session.sessionStatus === "COMPLETED",
   };
 };
@@ -162,6 +163,7 @@ const mapSessionToScheduledClassItem = (
 import { useBatches } from "../../../hooks/useBatches";
 import { useBranches } from "../../../hooks/useBranches";
 import { useFacultyList } from "../../../hooks/useFaculty";
+import { useCourses } from "../../../hooks/useCourses";
 import {
   useClassSessions,
   useCreateClassSession,
@@ -170,24 +172,79 @@ import {
 } from "../../../hooks/useClassSessions";
 import { useQueryClient } from "@tanstack/react-query";
 import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
+import { batchesApi } from "../../../services/batches.api";
 
 export const Classes: React.FC = () => {
   const queryClient = useQueryClient();
   const { data: branchData } = useBranches();
   const branchesList = branchData?.data ?? [];
   const { batches } = useBatches();
+  const { data: coursesData } = useCourses({ limit: 100 });
+  const courses = coursesData?.data ?? [];
   const { data: facultyData } = useFacultyList({ limit: 50 });
   const facultyMembers = facultyData?.data ?? [];
 
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
 
+  // Filters
+  const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectedFaculty, setSelectedFaculty] = useState<string>("ALL");
+  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
+  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
+  const [selectedMode, setSelectedMode] = useState<string>("ALL");
+  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
+
   const sessionQueryParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      page: currentPage,
+      limit: rowsPerPage,
+    };
     if (!isViewAllBranches && selectedBranchId && selectedBranchId !== "ALL") {
-      return { branchId: selectedBranchId };
+      params.branchId = selectedBranchId;
     }
-    return undefined;
-  }, [isViewAllBranches, selectedBranchId]);
+    if (searchQuery.trim()) params.search = searchQuery.trim();
+    if (selectedFaculty !== "ALL" && selectedFaculty !== "UNASSIGNED") {
+      params.facultyId = selectedFaculty;
+    }
+    if (selectedBatch !== "ALL") {
+      const batch = batches.find((b) => b.code === selectedBatch);
+      if (batch) params.batchId = batch.id;
+    }
+    if (selectedMode !== "ALL") params.mode = selectedMode;
+    if (selectedStatus !== "ALL") {
+      const statusMap: Record<string, string> = {
+        LIVE: "LIVE",
+        SCHEDULED: "UPCOMING",
+        COMPLETED: "COMPLETED",
+        CANCELLED: "CANCELLED",
+      };
+      if (statusMap[selectedStatus]) params.status = statusMap[selectedStatus];
+    }
+    if (selectedDate) {
+      params.startDate = selectedDate;
+      params.endDate = selectedDate;
+    }
+    return params;
+  }, [
+    isViewAllBranches,
+    selectedBranchId,
+    currentPage,
+    rowsPerPage,
+    searchQuery,
+    selectedFaculty,
+    selectedBatch,
+    selectedMode,
+    selectedStatus,
+    selectedDate,
+    batches,
+  ]);
 
   const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
   const createSession = useCreateClassSession();
@@ -208,43 +265,33 @@ export const Classes: React.FC = () => {
     [classesList]
   );
 
-  // Filters
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedFaculty, setSelectedFaculty] = useState<string>("ALL");
-  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
-  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
-  const [selectedMode, setSelectedMode] = useState<string>("ALL");
-  const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
-
-  // Pagination
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [rowsPerPage, setRowsPerPage] = useState<number>(10);
-
   // Dialogs State
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [isAssignFacultyModalOpen, setIsAssignFacultyModalOpen] = useState(false);
+  const [isStudentsModalOpen, setIsStudentsModalOpen] = useState(false);
+  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
   const [selectedClassItem, setSelectedClassItem] = useState<ScheduledClassItem | null>(null);
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [batchStudents, setBatchStudents] = useState<any[]>([]);
+  const [sessionAttendance, setSessionAttendance] = useState<any[]>([]);
 
   // Schedule Modal Form
-  const [formTopic, setFormTopic] = useState("Java Full Stack");
-  const [formCourse, setFormCourse] = useState("Java Full Stack");
-  const [formModule, setFormModule] = useState("Advanced OOP Concepts");
-  const [formBatch, setFormBatch] = useState("JFS-B01");
-  const [formBranch, setFormBranch] = useState("b-blr");
-  const [formFacultyId, setFormFacultyId] = useState("f-1");
-  const [formDate, setFormDate] = useState("2026-08-24");
+  const [formTopic, setFormTopic] = useState("");
+  const [formCourse, setFormCourse] = useState("");
+  const [formModule, setFormModule] = useState("");
+  const [formBatch, setFormBatch] = useState("");
+  const [formBranch, setFormBranch] = useState("");
+  const [formFacultyId, setFormFacultyId] = useState("");
+  const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
   const [formStartTime, setFormStartTime] = useState("10:00 AM");
-  const [formEndTime, setFormEndTime] = useState("11:30 AM");
+  const [formEndTime, setFormEndTime] = useState("12:00 PM");
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
   const [formClassroomMasterId, setFormClassroomMasterId] = useState("");
   const [formMeetingUrl, setFormMeetingUrl] = useState("");
-  const [formStudentsCount, setFormStudentsCount] = useState(25);
 
   // Assign Faculty Target
-  const [targetFacultyId, setTargetFacultyId] = useState("f-1");
+  const [targetFacultyId, setTargetFacultyId] = useState("");
 
   const currentBranchInfo = useMemo(() => {
     const found = branchesList.find((b: any) => b.id === selectedBranchId);
@@ -272,83 +319,21 @@ export const Classes: React.FC = () => {
     };
   }, [classesList, selectedBranchId, isViewAllBranches]);
 
-  // Filtered Classes
+  // Filtered Classes (server handles most filters; course filter remains client-side)
   const filteredClasses = useMemo(() => {
     return classesList.filter((item) => {
-      // Branch filter
-      if (!isViewAllBranches && item.branchId !== selectedBranchId) {
-        return false;
+      if (selectedCourse !== "ALL" && item.courseName !== selectedCourse) return false;
+      if (selectedFaculty === "UNASSIGNED" && item.isFacultyAssigned) return false;
+      if (selectedFaculty !== "ALL" && selectedFaculty !== "UNASSIGNED") {
+        if (item.facultyId !== selectedFaculty) return false;
       }
-
-      // Search Query
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTopic = item.topicName.toLowerCase().includes(q);
-        const matchCourse = item.courseName.toLowerCase().includes(q);
-        const matchBatch = item.batchCode.toLowerCase().includes(q);
-        const matchFaculty = item.facultyName?.toLowerCase().includes(q);
-        const matchRoom = item.locationOrLink.toLowerCase().includes(q);
-        if (!matchTopic && !matchCourse && !matchBatch && !matchFaculty && !matchRoom) {
-          return false;
-        }
-      }
-
-      // Faculty filter
-      if (selectedFaculty !== "ALL") {
-        if (selectedFaculty === "UNASSIGNED") {
-          if (item.isFacultyAssigned) return false;
-        } else if (item.facultyName !== selectedFaculty) {
-          return false;
-        }
-      }
-
-      // Course filter
-      if (selectedCourse !== "ALL" && item.courseName !== selectedCourse) {
-        return false;
-      }
-
-      // Batch filter
-      if (selectedBatch !== "ALL" && item.batchCode !== selectedBatch) {
-        return false;
-      }
-
-      // Mode filter
-      if (selectedMode !== "ALL" && item.mode !== selectedMode) {
-        return false;
-      }
-
-      // Status filter
-      if (selectedStatus !== "ALL" && item.status !== selectedStatus) {
-        return false;
-      }
-
-      // Date filter
-      if (selectedDate && item.date !== selectedDate) {
-        return false;
-      }
-
       return true;
     });
-  }, [
-    classesList,
-    selectedBranchId,
-    isViewAllBranches,
-    searchQuery,
-    selectedFaculty,
-    selectedCourse,
-    selectedBatch,
-    selectedMode,
-    selectedStatus,
-    selectedDate,
-  ]);
+  }, [classesList, selectedCourse, selectedFaculty]);
 
-  // Paginated Classes
-  const paginatedClasses = useMemo(() => {
-    const start = (currentPage - 1) * rowsPerPage;
-    return filteredClasses.slice(start, start + rowsPerPage);
-  }, [filteredClasses, currentPage, rowsPerPage]);
-
-  const totalPages = Math.ceil(filteredClasses.length / rowsPerPage) || 1;
+  const paginatedClasses = filteredClasses;
+  const totalPages = sessionsResponse?.meta?.totalPages ?? 1;
+  const totalCount = sessionsResponse?.meta?.total ?? filteredClasses.length;
 
   // Handlers
   const handleResetFilters = () => {
@@ -388,12 +373,12 @@ export const Classes: React.FC = () => {
     }
   };
 
-  const handleCreateNewClass = async () => {
-    const fac = formFacultyId !== "none" ? facultyMembers.find((f: any) => f.id === formFacultyId) : null;
+  const handleSaveClass = async () => {
+    const fac = formFacultyId && formFacultyId !== "none" ? facultyMembers.find((f: any) => f.id === formFacultyId) : null;
     const batch = batches.find((b: any) => b.code === formBatch || b.id === formBatch);
 
     if (!batch) {
-      setNotificationMsg("Please enter a valid batch code from your active batches.");
+      setNotificationMsg("Please select a valid batch.");
       setTimeout(() => setNotificationMsg(null), 3500);
       return;
     }
@@ -404,25 +389,75 @@ export const Classes: React.FC = () => {
       return;
     }
 
+    const payload = {
+      title: formModule || formTopic || formCourse,
+      batchId: batch.id,
+      facultyId: fac.id,
+      branchId: formBranch || batch.branchId,
+      scheduledDate: formDate,
+      startTime: formStartTime,
+      endTime: formEndTime,
+      classroomMasterId: formMode !== "ONLINE" ? formClassroomMasterId || undefined : undefined,
+      mode: formMode,
+      meetingUrl: formMode === "ONLINE" ? formMeetingUrl : undefined,
+    };
+
     try {
-      await createSession.mutateAsync({
-        title: formModule || formTopic,
-        batchId: batch.id,
-        facultyId: fac.id,
-        scheduledDate: formDate,
-        startTime: formStartTime,
-        endTime: formEndTime,
-        classroomMasterId: formMode !== "ONLINE" ? formClassroomMasterId || undefined : undefined,
-        mode: formMode,
-        meetingUrl: formMode === "ONLINE" ? formMeetingUrl : undefined,
-      });
+      if (editingSessionId) {
+        await updateSession.mutateAsync({ id: editingSessionId, payload });
+        setNotificationMsg(`✓ Successfully updated class session.`);
+      } else {
+        await createSession.mutateAsync(payload);
+        setNotificationMsg(`✓ Successfully scheduled new class: ${payload.title} (${batch.code}).`);
+      }
       setIsScheduleModalOpen(false);
-      setNotificationMsg(`✓ Successfully scheduled new class: ${formTopic} (${formBatch}).`);
+      setEditingSessionId(null);
       setTimeout(() => setNotificationMsg(null), 3500);
     } catch {
-      setNotificationMsg("Failed to schedule class. Please check the form and try again.");
+      setNotificationMsg("Failed to save class. Please check the form and try again.");
       setTimeout(() => setNotificationMsg(null), 3500);
     }
+  };
+
+  const handleOpenStudents = async (classItem: ScheduledClassItem) => {
+    setSelectedClassItem(classItem);
+    const batch = batches.find((b) => b.code === classItem.batchCode);
+    if (batch) {
+      try {
+        const res = await batchesApi.getStudents(batch.id);
+        setBatchStudents(res.data ?? []);
+      } catch {
+        setBatchStudents([]);
+      }
+    }
+    setIsStudentsModalOpen(true);
+  };
+
+  const handleOpenAttendance = async (classItem: ScheduledClassItem) => {
+    setSelectedClassItem(classItem);
+    try {
+      const res = await classSessionsApi.getAttendance(classItem.id);
+      setSessionAttendance(res.data?.attendance ?? res.data ?? []);
+    } catch {
+      setSessionAttendance([]);
+    }
+    setIsAttendanceModalOpen(true);
+  };
+
+  const resetScheduleForm = () => {
+    setEditingSessionId(null);
+    setFormTopic("");
+    setFormCourse(courses[0]?.name ?? "");
+    setFormModule("");
+    setFormBatch(batches[0]?.code ?? "");
+    setFormBranch(branchesList[0]?.id ?? "");
+    setFormFacultyId(facultyMembers[0]?.id ?? "");
+    setFormDate(new Date().toISOString().split("T")[0]);
+    setFormStartTime("10:00 AM");
+    setFormEndTime("12:00 PM");
+    setFormMode("OFFLINE");
+    setFormClassroomMasterId("");
+    setFormMeetingUrl("");
   };
 
   const handleCancelClass = async (classItem: ScheduledClassItem) => {
@@ -504,7 +539,10 @@ export const Classes: React.FC = () => {
         </div>
 
         <Button
-          onClick={() => setIsScheduleModalOpen(true)}
+          onClick={() => {
+            resetScheduleForm();
+            setIsScheduleModalOpen(true);
+          }}
           className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4 stroke-[2.5]" />
@@ -686,7 +724,7 @@ export const Classes: React.FC = () => {
             {facultyMembers.map((f: any) => {
               const name = f.user?.name || f.employeeCode || "Faculty";
               return (
-                <option key={f.id} value={name}>
+                <option key={f.id} value={f.id}>
                   {name}
                 </option>
               );
@@ -959,11 +997,12 @@ export const Classes: React.FC = () => {
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => {
+                              setEditingSessionId(item.id);
                               setFormTopic(item.topicName);
                               setFormCourse(item.courseName);
                               setFormModule(item.moduleName);
                               setFormBatch(item.batchCode);
-                              setFormFacultyId(item.facultyId || "f-1");
+                              setFormFacultyId(item.facultyId || "");
                               setFormDate(item.date);
                               setFormStartTime(item.startTime);
                               setFormEndTime(item.endTime);
@@ -983,19 +1022,13 @@ export const Classes: React.FC = () => {
                             <UserPlus className="h-3.5 w-3.5 text-emerald-400" /> Change Faculty
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedClassItem(item);
-                              setIsDetailsModalOpen(true);
-                            }}
+                            onClick={() => handleOpenStudents(item)}
                             className="gap-2 cursor-pointer font-medium"
                           >
                             <Users className="h-3.5 w-3.5 text-muted-foreground" /> View Students
                           </DropdownMenuItem>
                           <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedClassItem(item);
-                              setIsDetailsModalOpen(true);
-                            }}
+                            onClick={() => handleOpenAttendance(item)}
                             className="gap-2 cursor-pointer font-medium"
                           >
                             <UserCheck className="h-3.5 w-3.5 text-muted-foreground" /> View Attendance
@@ -1048,7 +1081,7 @@ export const Classes: React.FC = () => {
         {/* ─── 6. PAGINATION FOOTER ──────────────────────────────────────── */}
         <div className="p-4 bg-muted/40 dark:bg-slate-900/80 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
           <span className="text-muted-foreground font-medium">
-            Showing <strong className="text-foreground">{filteredClasses.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, filteredClasses.length)}</strong> of <strong className="text-foreground">{stats.total}</strong> classes
+            Showing <strong className="text-foreground">{totalCount > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–{Math.min(currentPage * rowsPerPage, totalCount)}</strong> of <strong className="text-foreground">{totalCount}</strong> classes
           </span>
 
           <div className="flex items-center gap-3">
@@ -1064,7 +1097,7 @@ export const Classes: React.FC = () => {
                 <ChevronLeft className="h-3.5 w-3.5" />
               </Button>
 
-              {[1, 2, 3, 4, 5].map((pg) => (
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((pg) => (
                 <button
                   key={pg}
                   onClick={() => setCurrentPage(pg)}
@@ -1078,17 +1111,21 @@ export const Classes: React.FC = () => {
                 </button>
               ))}
 
-              <span className="text-muted-foreground px-1">...</span>
-              <button
-                onClick={() => setCurrentPage(totalPages)}
-                className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  currentPage === totalPages
-                    ? "bg-primary text-primary-foreground shadow-xs"
-                    : "bg-card text-foreground border border-border hover:bg-muted"
-                }`}
-              >
-                {totalPages > 5 ? totalPages : 6}
-              </button>
+              {totalPages > 5 && (
+                <>
+                  <span className="text-muted-foreground px-1">...</span>
+                  <button
+                    onClick={() => setCurrentPage(totalPages)}
+                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currentPage === totalPages
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "bg-card text-foreground border border-border hover:bg-muted"
+                    }`}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
 
               <Button
                 variant="outline"
@@ -1125,7 +1162,7 @@ export const Classes: React.FC = () => {
         <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
             <DialogTitle className="text-xl font-black text-foreground">
-              Schedule New Class Session
+              {editingSessionId ? "Edit Class Session" : "Schedule New Class Session"}
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground font-medium">
               Create a scheduled classroom session and assign faculty for this batch.
@@ -1144,24 +1181,29 @@ export const Classes: React.FC = () => {
                   }}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
-                  <option value="Java Full Stack">Java Full Stack</option>
-                  <option value="Python Programming">Python Programming</option>
-                  <option value="Digital Marketing">Digital Marketing</option>
-                  <option value="Advanced Excel">Advanced Excel</option>
-                  <option value="Power BI">Power BI</option>
-                  <option value="Web Development">Web Development</option>
-                  <option value="Database Systems">Database Systems</option>
+                  <option value="">Select course</option>
+                  {courses.map((course: any) => (
+                    <option key={course.id} value={course.name}>
+                      {course.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <Label className="text-[11px] font-bold text-foreground">Batch Code *</Label>
-                <Input
+                <select
                   value={formBatch}
                   onChange={(e) => setFormBatch(e.target.value)}
-                  placeholder="e.g. JFS-B01"
-                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                />
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
+                >
+                  <option value="">Select batch</option>
+                  {batches.map((batch: any) => (
+                    <option key={batch.id} value={batch.code}>
+                      {batch.code} — {batch.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1276,16 +1318,6 @@ export const Classes: React.FC = () => {
               </div>
             </div>
 
-            <div>
-              <Label className="text-[11px] font-bold text-foreground">Enrolled Students Count</Label>
-              <Input
-                type="number"
-                value={formStudentsCount}
-                onChange={(e) => setFormStudentsCount(Number(e.target.value))}
-                placeholder="25"
-                className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-              />
-            </div>
           </div>
 
           <DialogFooter className="flex gap-2 mt-3">
@@ -1297,7 +1329,7 @@ export const Classes: React.FC = () => {
               Cancel
             </Button>
             <Button
-              onClick={handleCreateNewClass}
+              onClick={handleSaveClass}
               className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
             >
               <Check className="h-3.5 w-3.5" /> Schedule Class
@@ -1485,6 +1517,48 @@ export const Classes: React.FC = () => {
               </DialogFooter>
             </>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isStudentsModalOpen} onOpenChange={setIsStudentsModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Enrolled Students</DialogTitle>
+            <DialogDescription>{selectedClassItem?.topicName} — {selectedClassItem?.batchCode}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto space-y-2">
+            {batchStudents.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No enrolled students found.</p>
+            ) : (
+              batchStudents.map((enrollment: any) => (
+                <div key={enrollment.id} className="flex items-center justify-between p-2 border border-border rounded-lg text-sm">
+                  <span className="font-medium">{enrollment.student?.user?.name ?? enrollment.student?.studentCode}</span>
+                  <span className="text-muted-foreground">{enrollment.student?.studentCode}</span>
+                </div>
+              ))
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isAttendanceModalOpen} onOpenChange={setIsAttendanceModalOpen}>
+        <DialogContent className="sm:max-w-md bg-card rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>Session Attendance</DialogTitle>
+            <DialogDescription>{selectedClassItem?.topicName}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-72 overflow-y-auto space-y-2">
+            {sessionAttendance.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No attendance records yet.</p>
+            ) : (
+              sessionAttendance.map((record: any) => (
+                <div key={record.id ?? record.studentId} className="flex items-center justify-between p-2 border border-border rounded-lg text-sm">
+                  <span className="font-medium">{record.student?.user?.name ?? record.studentName ?? record.studentId}</span>
+                  <span className="font-bold">{record.status}</span>
+                </div>
+              ))
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>

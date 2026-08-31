@@ -2,6 +2,7 @@ import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
 import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
+import { sendSuccess } from "../../utils/response";
 import * as service from "./batch.service";
 
 export const getAll = async (
@@ -191,10 +192,90 @@ export const remove = async (
   try {
     const instituteId = req.user!.instituteId;
     await service.deleteBatch(req.params.id as string, instituteId);
-    res.json({
-      success: true,
-      message: "Batch deleted successfully",
-    });
+    sendSuccess(res, { id: req.params.id, deleted: true }, 200, "Batch deleted successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getSchedules = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const schedules = await service.getBatchSchedules(req.params.id as string, instituteId);
+    sendSuccess(res, schedules, 200, "Batch schedules retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createSchedule = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const schedule = await service.addBatchSchedule(req.params.id as string, instituteId, req.body);
+    sendSuccess(res, schedule, 201, "Batch schedule created successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateSchedule = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const schedule = await service.updateBatchScheduleEntry(
+      req.params.id as string,
+      req.params.scheduleId as string,
+      instituteId,
+      req.body
+    );
+    sendSuccess(res, schedule, 200, "Batch schedule updated successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteSchedule = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    await service.deleteBatchScheduleEntry(
+      req.params.id as string,
+      req.params.scheduleId as string,
+      instituteId
+    );
+    sendSuccess(res, { deleted: true }, 200, "Batch schedule deleted successfully");
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const generateSessions = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const result = await service.generateClassSessionsFromSchedule(
+      req.params.id as string,
+      instituteId,
+      req.body
+    );
+    sendSuccess(res, result, 200, `Generated ${result.created} class session(s)`);
   } catch (error) {
     next(error);
   }

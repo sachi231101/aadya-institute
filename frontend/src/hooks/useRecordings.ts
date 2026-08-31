@@ -35,3 +35,9 @@ export const useDeleteRecording = () => {
     },
   });
 };
+
+export const useRecordingAccess = () => {
+  return useMutation({
+    mutationFn: recordingsApi.getRecordingAccess,
+  });
+};

@@ -41,4 +41,7 @@ export interface BranchStatsResponse {
   totalFaculty: number;
   totalBatches: number;
   totalAdmissions: number;
+  todayClasses: number;
+  upcomingClasses: number;
+  liveClasses: number;
 }

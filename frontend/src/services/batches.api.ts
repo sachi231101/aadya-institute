@@ -104,7 +104,32 @@ export const batchesApi = {
   },
 
   delete: async (id: string) => {
-    const response = await api.delete<{ success: boolean }>(`/batches/${id}`);
+    const response = await api.delete<{ success: boolean; data: BatchData }>(`/batches/${id}`);
+    return response.data;
+  },
+
+  getSchedules: async (batchId: string) => {
+    const response = await api.get<{ success: boolean; data: BatchData["schedules"] }>(`/batches/${batchId}/schedules`);
+    return response.data;
+  },
+
+  createSchedule: async (batchId: string, data: { dayOfWeek: number; startTime: string; endTime: string; effectiveFrom?: string; effectiveTo?: string }) => {
+    const response = await api.post(`/batches/${batchId}/schedules`, data);
+    return response.data;
+  },
+
+  updateSchedule: async (batchId: string, scheduleId: string, data: Partial<{ dayOfWeek: number; startTime: string; endTime: string; effectiveFrom?: string; effectiveTo?: string }>) => {
+    const response = await api.patch(`/batches/${batchId}/schedules/${scheduleId}`, data);
+    return response.data;
+  },
+
+  deleteSchedule: async (batchId: string, scheduleId: string) => {
+    const response = await api.delete(`/batches/${batchId}/schedules/${scheduleId}`);
+    return response.data;
+  },
+
+  generateSessions: async (batchId: string, data?: { startDate?: string; endDate?: string }) => {
+    const response = await api.post(`/batches/${batchId}/generate-sessions`, data ?? {});
     return response.data;
   },
 };

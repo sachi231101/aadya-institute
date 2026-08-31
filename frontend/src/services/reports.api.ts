@@ -1,5 +1,24 @@
 import { api } from "./api";
 
+export interface ScheduleSummary {
+  todayClasses: number;
+  upcomingClasses: number;
+  liveClasses: number;
+  completedThisWeek: number;
+  discontinuationRiskCount: number;
+  recordingsExpiringSoon: number;
+  todaySessions: Array<{
+    id: string;
+    title: string | null;
+    scheduledDate: string;
+    startTime: string;
+    endTime: string;
+    sessionStatus: string | null;
+    batchName: string | null;
+    facultyName: string | null;
+  }>;
+}
+
 export interface StudentReportData {
   summary: {
     totalStudents: number;
@@ -110,6 +129,14 @@ export const reportsApi = {
 
   getFinancialReport: async (branchId?: string): Promise<FinancialReportData> => {
     const response = await api.get("/reports/financial", { params: { branchId } });
+    return response.data.data;
+  },
+
+  getScheduleSummary: async (branchId?: string): Promise<ScheduleSummary> => {
+    const response = await api.get<{ success: boolean; data: ScheduleSummary }>(
+      "/reports/schedule/summary",
+      { params: branchId ? { branchId } : undefined }
+    );
     return response.data.data;
   },
 };

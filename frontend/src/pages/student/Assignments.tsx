@@ -28,19 +28,37 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { useAssignmentStore, type AssignmentItem, type StudentSubmission } from "@/store/assignment.store";
+import { useAssignments, useSubmitAssignment } from "@/hooks/useAssignments";
 import { useAuthStore } from "@/store/auth.store";
+import type { Assignment, AssignmentSubmission } from "@/services/assignments.api";
+
+interface EnrichedAssignment {
+  id: string;
+  title: string;
+  courseName: string;
+  batchName: string;
+  batchCode: string;
+  instructions: string;
+  dueDate: string;
+  hasDocument: boolean;
+  documentName?: string;
+  statusInfo: {
+    status: "SUBMITTED" | "OVERDUE" | "PENDING";
+    label: string;
+    color: string;
+    submission?: AssignmentSubmission;
+  };
+}
 
 export const StudentAssignments: React.FC = () => {
   const { user } = useAuthStore();
-  const studentId = user?.id || "std-001";
-  const studentName = user?.name || "Aditya Sharma";
+  const userId = user?.id;
 
-  // Assignment Store
-  const { assignments, submissions, submitAssignment, getSubmission } = useAssignmentStore();
+  const { data: assignmentsResponse, isLoading } = useAssignments({ limit: 100 });
+  const submitMutation = useSubmitAssignment();
+  const apiAssignments: Assignment[] = assignmentsResponse?.data || [];
 
-  // Active Selected Assignment Modal
-  const [selectedAssignment, setSelectedAssignment] = useState<AssignmentItem | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<EnrichedAssignment | null>(null);
   const [showModal, setShowModal] = useState(false);
 
   // Submission Form State
@@ -57,10 +75,12 @@ export const StudentAssignments: React.FC = () => {
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Helper to determine assignment state for this student
-  const getAssignmentStatus = (assignment: AssignmentItem) => {
-    const submission = getSubmission(assignment.id, studentId);
-    if (submission) {
+  const getSubmissionForUser = (assignment: Assignment): AssignmentSubmission | undefined =>
+    assignment.submissions?.find((s) => s.student?.user?.id === userId);
+
+  const getAssignmentStatus = (assignment: Assignment) => {
+    const submission = getSubmissionForUser(assignment);
+    if (submission?.submittedAt) {
       return {
         status: "SUBMITTED" as const,
         label: "SUBMITTED",
@@ -69,7 +89,7 @@ export const StudentAssignments: React.FC = () => {
       };
     }
 
-    const isPastDue = new Date() > new Date(assignment.dueDate);
+    const isPastDue = assignment.dueDate ? new Date() > new Date(assignment.dueDate) : false;
     if (isPastDue) {
       return {
         status: "OVERDUE" as const,
@@ -87,16 +107,19 @@ export const StudentAssignments: React.FC = () => {
     };
   };
 
-  // Filtered & enriched assignments
-  const enrichedAssignments = useMemo(() => {
-    return assignments.map((asg) => {
-      const statusInfo = getAssignmentStatus(asg);
-      return {
-        ...asg,
-        statusInfo,
-      };
-    });
-  }, [assignments, submissions]);
+  const enrichedAssignments = useMemo((): EnrichedAssignment[] => {
+    return apiAssignments.map((asg) => ({
+      id: asg.id,
+      title: asg.title,
+      courseName: asg.classSession?.title || "Course",
+      batchName: "",
+      batchCode: "",
+      instructions: asg.description || "",
+      dueDate: asg.dueDate || "",
+      hasDocument: false,
+      statusInfo: getAssignmentStatus(asg),
+    }));
+  }, [apiAssignments, userId]);
 
   // Tab Filter
   const filteredAssignments = useMemo(() => {
@@ -114,7 +137,7 @@ export const StudentAssignments: React.FC = () => {
   }, [enrichedAssignments]);
 
   // Open Modal Handler
-  const handleOpenAssignment = (assignment: AssignmentItem) => {
+  const handleOpenAssignment = (assignment: EnrichedAssignment) => {
     setSelectedAssignment(assignment);
     setUploadedFile(null);
     setSubmissionNotes("");
@@ -140,34 +163,29 @@ export const StudentAssignments: React.FC = () => {
     if (!selectedAssignment || !uploadedFile) return;
 
     setIsSubmitting(true);
-
-    setTimeout(() => {
-      const formattedSize =
-        uploadedFile.size > 1024 * 1024
-          ? `${(uploadedFile.size / (1024 * 1024)).toFixed(1)} MB`
-          : `${(uploadedFile.size / 1024).toFixed(1)} KB`;
-
-      const newSubmission: StudentSubmission = {
+    submitMutation.mutate(
+      {
         assignmentId: selectedAssignment.id,
-        studentId,
-        studentName,
-        submittedAt: new Date().toISOString(),
-        fileName: uploadedFile.name,
-        fileSize: formattedSize,
-        notes: submissionNotes.trim() || undefined,
-        status: "SUBMITTED",
-      };
-
-      submitAssignment(newSubmission);
-      setIsSubmitting(false);
-      setShowModal(false);
-      showToast(`🎉 Assignment "${selectedAssignment.title}" submitted successfully!`);
-    }, 600);
+        data: {
+          fileKey: uploadedFile.name,
+          notes: submissionNotes.trim() || undefined,
+        },
+      },
+      {
+        onSuccess: () => {
+          setIsSubmitting(false);
+          setShowModal(false);
+          showToast(`Assignment "${selectedAssignment.title}" submitted successfully!`);
+        },
+        onError: () => {
+          setIsSubmitting(false);
+          alert("Failed to submit assignment. Please try again.");
+        },
+      }
+    );
   };
 
-  const currentSubmission = selectedAssignment
-    ? getSubmission(selectedAssignment.id, studentId)
-    : undefined;
+  const currentSubmission = selectedAssignment?.statusInfo.submission;
 
   const isCurrentOverdue = selectedAssignment
     ? new Date() > new Date(selectedAssignment.dueDate) && !currentSubmission
@@ -309,7 +327,11 @@ export const StudentAssignments: React.FC = () => {
 
       {/* ─── 4. ASSIGNMENT CARDS LIST ────────────────────────────────────── */}
       <div className="space-y-4">
-        {filteredAssignments.length === 0 ? (
+        {isLoading ? (
+          <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-12 text-center">
+            <p className="text-sm text-slate-500">Loading assignments...</p>
+          </Card>
+        ) : filteredAssignments.length === 0 ? (
           <Card className="bg-white dark:bg-[#111C35] border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-12 text-center">
             <FileText className="h-12 w-12 text-slate-300 dark:text-slate-700 mx-auto mb-3" />
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">
@@ -590,19 +612,14 @@ export const StudentAssignments: React.FC = () => {
                   <div className="p-3 bg-white dark:bg-[#111C35] rounded-xl border border-emerald-200/60 dark:border-emerald-800/40 flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
                       <span>📄</span>
-                      <span>{currentSubmission.fileName}</span>
-                      {currentSubmission.fileSize && (
-                        <span className="text-[10px] text-slate-400 font-mono">
-                          ({currentSubmission.fileSize})
-                        </span>
-                      )}
+                      <span>{currentSubmission.fileKey || "Submitted file"}</span>
                     </div>
                     <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 text-[10px]">
                       File Verified
                     </Badge>
                   </div>
 
-                  {currentSubmission.status === "EVALUATED" && (
+                  {currentSubmission.marks != null && (
                     <div className="p-3 bg-white dark:bg-[#111C35] rounded-xl border border-emerald-300 dark:border-emerald-700 space-y-1.5">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs font-bold text-amber-600 dark:text-amber-400">
@@ -610,12 +627,12 @@ export const StudentAssignments: React.FC = () => {
                           <span>Evaluation Marks</span>
                         </div>
                         <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono">
-                          {currentSubmission.marks} / {currentSubmission.maxMarks || 100}
+                          {currentSubmission.marks} / 100
                         </span>
                       </div>
                       {currentSubmission.feedback && (
                         <p className="text-xs text-slate-600 dark:text-slate-300 pt-1 border-t border-slate-100 dark:border-slate-800">
-                          Faculty Feedback: <em>"{currentSubmission.feedback}"</em>
+                          Faculty Feedback: <em>&quot;{currentSubmission.feedback}&quot;</em>
                         </p>
                       )}
                     </div>
@@ -709,10 +726,10 @@ export const StudentAssignments: React.FC = () => {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={!uploadedFile || isSubmitting}
+                      disabled={!uploadedFile || isSubmitting || submitMutation.isPending}
                       className="h-10 flex-1 bg-[#5B50EC] hover:bg-[#4C40DB] text-white text-xs font-bold rounded-xl shadow-md shadow-indigo-500/20 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {isSubmitting ? "Submitting..." : "Submit Assignment"}
+                      {isSubmitting || submitMutation.isPending ? "Submitting..." : "Submit Assignment"}
                     </Button>
                   </DialogFooter>
                 </form>

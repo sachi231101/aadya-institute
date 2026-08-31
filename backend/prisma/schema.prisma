@@ -105,6 +105,18 @@ enum BatchStatus {
   CANCELLED
 }
 
+enum SessionType {
+  THEORY
+  PRACTICAL
+}
+
+enum ClassSessionStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
 enum GoogleConnectionStatus {
   CONNECTED
   REAUTH_REQUIRED
@@ -666,7 +678,8 @@ model ClassSession {
   mode              String?   @default("OFFLINE")
   meetingUrl        String?
   notes             String?
-  sessionStatus     String?   @default("UPCOMING")
+  sessionType       SessionType @default(THEORY)
+  sessionStatus     ClassSessionStatus @default(UPCOMING)
   status            Status    @default(ACTIVE)
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
