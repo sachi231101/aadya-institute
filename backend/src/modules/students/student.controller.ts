@@ -53,3 +53,10 @@ export const sendCredentialsWhatsApp = async (req: AuthenticatedRequest, res: Re
     sendSuccess(res, data, 200, "Student credentials dispatched to WhatsApp");
   } catch (err) { next(err); }
 };
+
+export const getMyDashboard = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.getMyDashboard(toAuthUser(req));
+    sendSuccess(res, data, 200, "Student dashboard retrieved successfully");
+  } catch (err) { next(err); }
+};
