@@ -43,6 +43,10 @@ export interface AddQuestionPayload {
   marksOverride?: number;
 }
 
+export interface AddQuestionBankPayload {
+  questionBankId: string;
+}
+
 export interface ReorderQuestionsPayload {
   questions: Array<{ questionId: string; displayOrder: number }>;
 }
@@ -104,6 +108,11 @@ export const addQuestionToExam = async (examId: string, payload: AddQuestionPayl
   return data;
 };
 
+export const addQuestionBankToExam = async (examId: string, payload: AddQuestionBankPayload) => {
+  const { data } = await api.post(`/exams/${examId}/question-banks`, payload);
+  return data;
+};
+
 export const removeQuestionFromExam = async (examId: string, questionId: string) => {
   const { data } = await api.delete(`/exams/${examId}/questions/${questionId}`);
   return data;
@@ -127,5 +136,21 @@ export const assignBatchToExam = async (examId: string, batchId: string) => {
 
 export const removeBatchFromExam = async (examId: string, batchId: string) => {
   const { data } = await api.delete(`/exams/${examId}/batches/${batchId}`);
+  return data;
+};
+
+// Exam Students
+export const getExamStudents = async (examId: string) => {
+  const { data } = await api.get(`/exams/${examId}/students`);
+  return data;
+};
+
+export const assignStudentsToExam = async (examId: string, studentIds: string[]) => {
+  const { data } = await api.post(`/exams/${examId}/students`, { studentIds });
+  return data;
+};
+
+export const removeStudentFromExam = async (examId: string, studentId: string) => {
+  const { data } = await api.delete(`/exams/${examId}/students/${studentId}`);
   return data;
 };

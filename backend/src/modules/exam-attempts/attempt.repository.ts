@@ -71,15 +71,25 @@ export const findStudentByUserId = async (userId: string, instituteId: string) =
   });
 };
 
-export const findExamForStudent = async (examId: string, instituteId: string, batchIds: string[]) => {
+export const findExamForStudent = async (
+  examId: string,
+  instituteId: string,
+  studentId: string,
+  batchIds: string[]
+) => {
+  const accessOr: Record<string, unknown>[] = [
+    { studentAssignments: { some: { studentId } } },
+  ];
+  if (batchIds.length > 0) {
+    accessOr.unshift({ batchAssignments: { some: { batchId: { in: batchIds } } } });
+  }
+
   return prisma.exam.findFirst({
     where: {
       id: examId,
       instituteId,
       status: { in: ['PUBLISHED', 'SCHEDULED', 'LIVE'] },
-      batchAssignments: {
-        some: { batchId: { in: batchIds } },
-      },
+      OR: accessOr,
     },
     include: {
       course: { select: { id: true, name: true } },
@@ -105,22 +115,34 @@ export const findExamForStudent = async (examId: string, instituteId: string, ba
 export const findExamMetaForStudent = async (
   examId: string,
   instituteId: string,
+  studentId: string | null,
   batchIds: string[] | null
 ) => {
+  let accessFilter: Record<string, unknown> = {};
+  if (studentId) {
+    const accessOr: Record<string, unknown>[] = [
+      { studentAssignments: { some: { studentId } } },
+    ];
+    if (batchIds && batchIds.length > 0) {
+      accessOr.unshift({ batchAssignments: { some: { batchId: { in: batchIds } } } });
+    }
+    accessFilter = { OR: accessOr };
+  } else if (batchIds) {
+    accessFilter = {
+      batchAssignments: {
+        some: { batchId: { in: batchIds } },
+      },
+    };
+  }
+
   return prisma.exam.findFirst({
     where: {
       id: examId,
       instituteId,
-      status: batchIds
+      status: batchIds || studentId
         ? { in: ['PUBLISHED', 'SCHEDULED', 'LIVE'] }
         : { in: ['PUBLISHED', 'SCHEDULED', 'LIVE', 'DRAFT'] },
-      ...(batchIds
-        ? {
-            batchAssignments: {
-              some: { batchId: { in: batchIds } },
-            },
-          }
-        : {}),
+      ...accessFilter,
     },
     select: {
       id: true,
@@ -487,13 +509,18 @@ export const findStudentAvailableExams = async (
   studentId: string,
   batchIds: string[]
 ) => {
+  const accessOr: Record<string, unknown>[] = [
+    { studentAssignments: { some: { studentId } } },
+  ];
+  if (batchIds.length > 0) {
+    accessOr.unshift({ batchAssignments: { some: { batchId: { in: batchIds } } } });
+  }
+
   const exams = await prisma.exam.findMany({
     where: {
       instituteId,
       status: { in: ['PUBLISHED', 'SCHEDULED', 'LIVE'] },
-      batchAssignments: {
-        some: { batchId: { in: batchIds } },
-      },
+      OR: accessOr,
     },
     include: {
       course: { select: { id: true, name: true, code: true } },

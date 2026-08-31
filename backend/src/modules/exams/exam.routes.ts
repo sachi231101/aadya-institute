@@ -8,8 +8,10 @@ import {
   updateExamSchema,
   scheduleExamSchema,
   addQuestionToExamSchema,
+  addQuestionBankToExamSchema,
   reorderQuestionsSchema,
   assignBatchSchema,
+  assignStudentsToExamSchema,
 } from './exam.validation';
 
 const router = Router();
@@ -34,6 +36,7 @@ router.post('/:id/archive', requirePermission('exam.update'), controller.archive
 // Questions
 router.get('/:id/questions', requirePermission('exam.read'), controller.getQuestions);
 router.post('/:id/questions', requirePermission('exam.manage_questions'), validate(addQuestionToExamSchema), controller.addQuestion);
+router.post('/:id/question-banks', requirePermission('exam.manage_questions'), validate(addQuestionBankToExamSchema), controller.addQuestionBank);
 router.delete('/:id/questions/:questionId', requirePermission('exam.manage_questions'), controller.removeQuestion);
 router.patch('/:id/questions/reorder', requirePermission('exam.manage_questions'), validate(reorderQuestionsSchema), controller.reorderQuestions);
 
@@ -41,5 +44,9 @@ router.patch('/:id/questions/reorder', requirePermission('exam.manage_questions'
 router.get('/:id/batches', requirePermission('exam.read'), controller.getBatches);
 router.post('/:id/batches', requirePermission('exam.assign'), validate(assignBatchSchema), controller.assignBatch);
 router.delete('/:id/batches/:batchId', requirePermission('exam.assign'), controller.removeBatch);
+
+router.get('/:id/students', requirePermission('exam.read'), controller.getStudents);
+router.post('/:id/students', requirePermission('exam.assign'), validate(assignStudentsToExamSchema), controller.assignStudents);
+router.delete('/:id/students/:studentId', requirePermission('exam.assign'), controller.removeStudent);
 
 export default router;

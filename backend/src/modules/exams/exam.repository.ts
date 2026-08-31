@@ -12,7 +12,7 @@ const examInclude = {
     },
   },
   _count: {
-    select: { examQuestions: true, batchAssignments: true },
+    select: { examQuestions: true, batchAssignments: true, studentAssignments: true },
   },
 };
 
@@ -184,6 +184,56 @@ export const recalculateTotalMarks = async (examId: string) => {
   return totalMarks;
 };
 
+export const addQuestionBankToExam = async (
+  examId: string,
+  questionBankId: string,
+  instituteId: string
+) => {
+  const questions = await prisma.question.findMany({
+    where: { questionBankId, instituteId },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  });
+
+  if (questions.length === 0) {
+    return { added: 0, skipped: 0, total: 0 };
+  }
+
+  const questionIds = questions.map((q) => q.id);
+  const existing = await prisma.examQuestion.findMany({
+    where: { examId, questionId: { in: questionIds } },
+    select: { questionId: true },
+  });
+  const existingIds = new Set(existing.map((e) => e.questionId));
+  const toAdd = questions.filter((q) => !existingIds.has(q.id));
+
+  if (toAdd.length === 0) {
+    return { added: 0, skipped: questions.length, total: questions.length };
+  }
+
+  const maxOrder = await prisma.examQuestion.aggregate({
+    where: { examId },
+    _max: { displayOrder: true },
+  });
+  let displayOrder = (maxOrder._max.displayOrder ?? -1) + 1;
+
+  await prisma.examQuestion.createMany({
+    data: toAdd.map((q) => ({
+      examId,
+      questionId: q.id,
+      displayOrder: displayOrder++,
+    })),
+  });
+
+  await recalculateTotalMarks(examId);
+
+  return {
+    added: toAdd.length,
+    skipped: existingIds.size,
+    total: questions.length,
+  };
+};
+
 export const addQuestionToExam = async (
   examId: string,
   questionId: string,
@@ -278,6 +328,44 @@ export const getExamBatches = async (examId: string) => {
           status: true,
           course: { select: { id: true, name: true } },
           _count: { select: { enrollments: true } },
+        },
+      },
+    },
+  });
+};
+
+export const assignStudentsToExam = async (examId: string, studentIds: string[]) => {
+  const result = await prisma.examStudent.createMany({
+    data: studentIds.map((studentId) => ({ examId, studentId })),
+    skipDuplicates: true,
+  });
+  return result.count;
+};
+
+export const removeStudentFromExam = async (examId: string, studentId: string) => {
+  return prisma.examStudent.deleteMany({
+    where: { examId, studentId },
+  });
+};
+
+export const getExamStudents = async (examId: string) => {
+  return prisma.examStudent.findMany({
+    where: { examId },
+    orderBy: { assignedAt: 'desc' },
+    include: {
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          status: true,
+          branch: { select: { id: true, name: true, code: true } },
+          user: { select: { id: true, name: true, email: true, phone: true } },
+          batchEnrollments: {
+            where: { status: 'ACTIVE' },
+            select: {
+              batch: { select: { id: true, name: true, code: true } },
+            },
+          },
         },
       },
     },

@@ -42,6 +42,15 @@ export const create = async (req: AuthenticatedRequest, res: Response, next: Nex
   } catch (error) { next(error); }
 };
 
+export const createBulk = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, branchId, userId } = req.user!;
+    const items = Array.isArray(req.body) ? req.body : req.body.questions || [];
+    const questions = await service.createBulkQuestions(instituteId, branchId, userId, items);
+    res.status(201).json({ success: true, message: `${questions.length} questions created successfully`, data: questions });
+  } catch (error) { next(error); }
+};
+
 export const update = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const question = await service.updateQuestion(req.params.id as string, req.user!.instituteId, req.body);

@@ -66,6 +66,20 @@ export interface AddQuestionToExamDto {
   marksOverride?: number;
 }
 
+export interface AddQuestionBankToExamDto {
+  questionBankId: string;
+}
+
+export interface AddQuestionBankToExamResult {
+  added: number;
+  skipped: number;
+  total: number;
+}
+
 export interface ReorderQuestionsDto {
   questions: Array<{ questionId: string; displayOrder: number }>;
+}
+
+export interface AssignStudentsToExamDto {
+  studentIds: string[];
 }

@@ -107,6 +107,19 @@ export const addQuestion = async (req: AuthenticatedRequest, res: Response, next
   } catch (error) { next(error); }
 };
 
+export const addQuestionBank = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, userId } = req.user!;
+    const result = await service.addQuestionBankToExam(req.params.id as string, instituteId, userId, req.body);
+    const skippedNote = result.skipped > 0 ? ` (${result.skipped} already on exam)` : '';
+    res.status(201).json({
+      success: true,
+      message: `${result.added} question${result.added === 1 ? '' : 's'} added from bank${skippedNote}`,
+      data: result,
+    });
+  } catch (error) { next(error); }
+};
+
 export const removeQuestion = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const { instituteId, userId } = req.user!;
@@ -144,5 +157,33 @@ export const removeBatch = async (req: AuthenticatedRequest, res: Response, next
     const { instituteId, userId } = req.user!;
     await service.removeBatchFromExam(req.params.id as string, req.params.batchId as string, instituteId, userId);
     res.json({ success: true, message: 'Batch removed from exam' });
+  } catch (error) { next(error); }
+};
+
+export const getStudents = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const students = await service.getExamStudents(req.params.id as string, req.user!.instituteId);
+    res.json({ success: true, message: 'Exam student assignments retrieved successfully', data: students });
+  } catch (error) { next(error); }
+};
+
+export const assignStudents = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, userId } = req.user!;
+    const result = await service.assignStudentsToExam(req.params.id as string, instituteId, userId, req.body);
+    const skippedNote = result.skipped > 0 ? ` (${result.skipped} already assigned)` : '';
+    res.status(201).json({
+      success: true,
+      message: `${result.added} student${result.added === 1 ? '' : 's'} assigned to exam${skippedNote}`,
+      data: result,
+    });
+  } catch (error) { next(error); }
+};
+
+export const removeStudent = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, userId } = req.user!;
+    await service.removeStudentFromExam(req.params.id as string, req.params.studentId as string, instituteId, userId);
+    res.json({ success: true, message: 'Student removed from exam' });
   } catch (error) { next(error); }
 };
