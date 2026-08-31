@@ -156,3 +156,22 @@ export interface FinancialReportResponse {
   monthlyBreakdown: MonthlyFinancialItem[];
   recentPayments: RecentPaymentItem[];
 }
+
+export interface ScheduleSummaryResponse {
+  todayClasses: number;
+  upcomingClasses: number;
+  liveClasses: number;
+  completedThisWeek: number;
+  discontinuationRiskCount: number;
+  recordingsExpiringSoon: number;
+  todaySessions: Array<{
+    id: string;
+    title: string | null;
+    scheduledDate: Date;
+    startTime: string;
+    endTime: string;
+    sessionStatus: string | null;
+    batchName: string | null;
+    facultyName: string | null;
+  }>;
+}

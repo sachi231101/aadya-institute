@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  ArrowLeft, Search, Video, Play, Calendar, Clock,
+  ArrowLeft, Search, Video, Calendar, Clock,
   BookOpen, Eye, Loader2, AlertCircle, FileVideo,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -11,15 +11,18 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
-import { useRecordings } from "@/hooks/useRecordings";
+import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 
 export const FacultyRecordings: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
   const [activeRecording, setActiveRecording] = useState<any | null>(null);
   const [showWatchModal, setShowWatchModal] = useState(false);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playError, setPlayError] = useState<string | null>(null);
 
   const { data: recordingsRes, isLoading, isError, refetch } = useRecordings({ limit: 50 });
+  const accessMutation = useRecordingAccess();
   const recordings = recordingsRes?.data ?? [];
 
   const filteredRecordings = useMemo(() => {
@@ -36,6 +39,31 @@ export const FacultyRecordings: React.FC = () => {
       );
     });
   }, [recordings, searchTerm]);
+
+  const handleViewRecording = async (rec: any) => {
+    setActiveRecording(rec);
+    setPlaybackUrl(null);
+    setPlayError(null);
+    setShowWatchModal(true);
+    try {
+      const res = await accessMutation.mutateAsync(rec.id);
+      const url = res?.data?.playbackUrl;
+      if (url) {
+        setPlaybackUrl(url);
+      } else {
+        setPlayError("No playback URL available for this recording.");
+      }
+    } catch {
+      setPlayError("Unable to load recording playback.");
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowWatchModal(false);
+    setActiveRecording(null);
+    setPlaybackUrl(null);
+    setPlayError(null);
+  };
 
   return (
     <div className="p-6 md:p-8 space-y-6 max-w-[1500px] mx-auto min-h-screen">
@@ -133,12 +161,18 @@ export const FacultyRecordings: React.FC = () => {
                   <Button
                     size="sm"
                     className="w-full bg-[#1769AA] hover:bg-[#125890] text-white"
-                    onClick={() => {
-                      setActiveRecording(rec);
-                      setShowWatchModal(true);
-                    }}
+                    onClick={() => handleViewRecording(rec)}
+                    disabled={accessMutation.isPending && activeRecording?.id === rec.id}
                   >
-                    <Eye className="w-4 h-4 mr-2" /> View
+                    {accessMutation.isPending && activeRecording?.id === rec.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...
+                      </>
+                    ) : (
+                      <>
+                        <Eye className="w-4 h-4 mr-2" /> View
+                      </>
+                    )}
                   </Button>
                 </CardContent>
               </Card>
@@ -147,21 +181,27 @@ export const FacultyRecordings: React.FC = () => {
         </div>
       )}
 
-      <Dialog open={showWatchModal} onOpenChange={setShowWatchModal}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
+      <Dialog open={showWatchModal} onOpenChange={(open) => !open && handleCloseModal()}>
+        <DialogContent className="max-w-3xl p-0 overflow-hidden">
+          <DialogHeader className="p-4 border-b">
             <DialogTitle>
               {activeRecording?.title || activeRecording?.classSession?.title || "Recording"}
             </DialogTitle>
           </DialogHeader>
-          <div className="rounded-xl bg-slate-900 text-white p-8 text-center space-y-3">
-            <Play className="w-12 h-12 mx-auto opacity-80" />
-            <p className="text-sm text-slate-300">
-              Playback uses the stored recording reference. Download is disabled for faculty view.
-            </p>
-            {activeRecording?.storageKey && (
-              <p className="text-xs font-mono text-slate-500 break-all">{activeRecording.storageKey}</p>
-            )}
+          <div className="bg-black aspect-video flex items-center justify-center">
+            {accessMutation.isPending ? (
+              <Loader2 className="h-8 w-8 animate-spin text-white" />
+            ) : playError ? (
+              <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
+            ) : playbackUrl ? (
+              <video
+                src={playbackUrl}
+                controls
+                autoPlay
+                controlsList="nodownload"
+                className="w-full h-full object-contain"
+              />
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

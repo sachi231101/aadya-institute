@@ -2,86 +2,149 @@ import { prisma } from "../../config/database";
 import type { Prisma } from "@prisma/client";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
 
+const sessionInclude = {
+  batch: {
+    include: {
+      course: true,
+      _count: {
+        select: {
+          enrollments: {
+            where: { status: "ACTIVE" as const },
+          },
+        },
+      },
+    },
+  },
+  faculty: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          phone: true,
+        },
+      },
+    },
+  },
+  batchModule: {
+    include: {
+      courseModule: true,
+    },
+  },
+} satisfies Prisma.ClassSessionInclude;
+
+function buildWhere(
+  instituteId: string,
+  branchId?: string,
+  filters?: QueryClassSessionsDto
+): Prisma.ClassSessionWhereInput {
+  const where: Prisma.ClassSessionWhereInput = {
+    status: "ACTIVE",
+    batch: {
+      instituteId,
+    },
+  };
+
+  if (branchId) {
+    where.branchId = branchId;
+  }
+
+  if (filters?.batchIds && filters.batchIds.length > 0) {
+    where.batchId = { in: filters.batchIds };
+  } else if (filters?.batchId) {
+    where.batchId = filters.batchId;
+  }
+
+  if (filters?.facultyId) {
+    where.facultyId = filters.facultyId;
+  }
+
+  if (filters?.mode) {
+    where.mode = filters.mode;
+  }
+
+  if (filters?.sessionType) {
+    where.sessionType = filters.sessionType;
+  }
+
+  if (filters?.status) {
+    where.sessionStatus = filters.status;
+  }
+
+  if (filters?.startDate && filters?.endDate) {
+    where.scheduledDate = {
+      gte: new Date(filters.startDate),
+      lte: new Date(filters.endDate),
+    };
+  } else if (filters?.startDate) {
+    where.scheduledDate = {
+      gte: new Date(filters.startDate),
+    };
+  } else if (filters?.endDate) {
+    where.scheduledDate = {
+      lte: new Date(filters.endDate),
+    };
+  }
+
+  if (filters?.search) {
+    const search = filters.search.toLowerCase();
+    where.OR = [
+      { title: { contains: search, mode: "insensitive" } },
+      { roomNo: { contains: search, mode: "insensitive" } },
+      { batch: { code: { contains: search, mode: "insensitive" } } },
+      { batch: { name: { contains: search, mode: "insensitive" } } },
+      { faculty: { user: { name: { contains: search, mode: "insensitive" } } } },
+    ];
+  }
+
+  return where;
+}
+
+function mapSessionRow(session: any) {
+  const enrolledStudentsCount = session.batch?._count?.enrollments ?? 0;
+  const { _count, ...batchRest } = session.batch || {};
+  return {
+    ...session,
+    batch: batchRest,
+    enrolledStudentsCount,
+  };
+}
+
 export const classSessionRepository = {
   findMany: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
-    const where: Prisma.ClassSessionWhereInput = {
-      batch: {
-        instituteId,
-      },
+    const where = buildWhere(instituteId, branchId, filters);
+    const page = Math.max(1, filters?.page ?? 1);
+    const limit = Math.min(100, Math.max(1, filters?.limit ?? 20));
+    const skip = (page - 1) * limit;
+
+    const [sessions, total] = await prisma.$transaction([
+      prisma.classSession.findMany({
+        where,
+        include: sessionInclude,
+        orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
+        skip,
+        take: limit,
+      }),
+      prisma.classSession.count({ where }),
+    ]);
+
+    return {
+      data: sessions.map(mapSessionRow),
+      total,
+      page,
+      limit,
     };
+  },
 
-    if (branchId) {
-      where.branchId = branchId;
-    }
-
-    if (filters?.batchId) {
-      where.batchId = filters.batchId;
-    }
-
-    if (filters?.facultyId) {
-      where.facultyId = filters.facultyId;
-    }
-
-    if (filters?.mode) {
-      where.mode = filters.mode;
-    }
-
-    if (filters?.status) {
-      where.sessionStatus = filters.status;
-    }
-
-    if (filters?.startDate && filters?.endDate) {
-      where.scheduledDate = {
-        gte: new Date(filters.startDate),
-        lte: new Date(filters.endDate),
-      };
-    } else if (filters?.startDate) {
-      where.scheduledDate = {
-        gte: new Date(filters.startDate),
-      };
-    }
-
-    if (filters?.search) {
-      const search = filters.search.toLowerCase();
-      where.OR = [
-        { title: { contains: search, mode: "insensitive" } },
-        { roomNo: { contains: search, mode: "insensitive" } },
-        { batch: { code: { contains: search, mode: "insensitive" } } },
-        { batch: { name: { contains: search, mode: "insensitive" } } },
-      ];
-    }
-
-    return prisma.classSession.findMany({
+  findManyUnpaginated: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
+    const where = buildWhere(instituteId, branchId, filters);
+    const sessions = await prisma.classSession.findMany({
       where,
-      include: {
-        batch: {
-          include: {
-            course: true,
-          },
-        },
-        faculty: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                phone: true,
-              },
-            },
-          },
-        },
-        batchModule: {
-          include: {
-            courseModule: true,
-          },
-        },
-      },
-      orderBy: [
-        { scheduledDate: "asc" },
-        { startTime: "asc" },
-      ],
+      include: sessionInclude,
+      orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
     });
+    return sessions.map(mapSessionRow);
   },
 
   findById: async (id: string, instituteId: string) => {
@@ -147,6 +210,7 @@ export const classSessionRepository = {
         mode: data.mode || "OFFLINE",
         meetingUrl: data.meetingUrl || undefined,
         notes: data.notes || undefined,
+        sessionType: data.sessionType || "THEORY",
         sessionStatus: "UPCOMING",
       },
       include: {
@@ -195,6 +259,7 @@ export const classSessionRepository = {
     if (data.mode !== undefined) updateData.mode = data.mode;
     if (data.meetingUrl !== undefined) updateData.meetingUrl = data.meetingUrl;
     if (data.notes !== undefined) updateData.notes = data.notes;
+    if (data.sessionType !== undefined) updateData.sessionType = data.sessionType;
     if (data.status !== undefined) updateData.sessionStatus = data.status;
 
     return prisma.classSession.update({
@@ -298,7 +363,7 @@ export const classSessionRepository = {
       batch: {
         instituteId,
       },
-      sessionStatus: { in: ["LIVE", "ONGOING"] },
+      sessionStatus: { in: ["LIVE"] },
     };
 
     if (branchId) {

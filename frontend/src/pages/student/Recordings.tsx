@@ -1,26 +1,85 @@
-import React, { useState } from "react";
-import { Video, Play, Clock, Lock, Eye, Calendar, Sparkles, X } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import { Video, Play, Clock, Lock, Calendar, X, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle
-} from "@/components/ui/dialog";
-import { useSessionStore } from "@/store/session.store";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
+import type { Recording } from "@/services/recordings.api";
+
+const formatDuration = (seconds?: number) => {
+  if (!seconds) return "—";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return mins > 0 ? `${mins}m ${secs > 0 ? `${secs}s` : ""}` : `${secs}s`;
+};
 
 export const StudentRecordings: React.FC = () => {
-  const { recordings: allRecordings } = useSessionStore();
+  const { data: recordingsRes, isLoading, isError } = useRecordings({ limit: 50 });
+  const accessMutation = useRecordingAccess();
 
-  // Filter recordings for student's enrolled courses/batches (e.g. Batch C / Java Programming, DM-2026-A)
-  const studentRecordings = allRecordings;
+  const recordings: Recording[] = recordingsRes?.data ?? [];
 
-  // Active Video Watch Modal State
-  const [activeRecording, setActiveRecording] = useState<any | null>(null);
+  const [activeRecording, setActiveRecording] = useState<Recording | null>(null);
+  const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
+  const [playError, setPlayError] = useState<string | null>(null);
   const [showWatchModal, setShowWatchModal] = useState(false);
 
-  const handleWatchRecording = (rec: any) => {
+  const enrichedRecordings = useMemo(
+    () =>
+      recordings.map((rec) => ({
+        ...rec,
+        batchLabel: rec.classSession?.batch?.name || rec.classSession?.batch?.code || "Batch",
+        courseLabel:
+          rec.classSession?.batchModule?.courseModule?.name ||
+          rec.classSession?.title ||
+          "Class Session",
+        moduleLabel: rec.classSession?.batchModule?.courseModule?.name || "Class Session",
+        facultyName: rec.classSession?.faculty?.user?.name || "Faculty",
+        dateLabel: rec.classSession?.scheduledDate
+          ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—",
+        durationLabel: formatDuration(rec.duration),
+        expiresLabel: rec.expiresAt
+          ? new Date(rec.expiresAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—",
+        status:
+          (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
+      })),
+    [recordings]
+  );
+
+  const handleWatchRecording = async (rec: Recording) => {
     setActiveRecording(rec);
+    setPlaybackUrl(null);
+    setPlayError(null);
     setShowWatchModal(true);
+    try {
+      const res = await accessMutation.mutateAsync(rec.id);
+      const url = res?.data?.playbackUrl;
+      if (url) {
+        setPlaybackUrl(url);
+      } else {
+        setPlayError("No playback URL available for this recording.");
+      }
+    } catch {
+      setPlayError("Unable to load recording. Please try again later.");
+    }
+  };
+
+  const handleCloseModal = () => {
+    setShowWatchModal(false);
+    setActiveRecording(null);
+    setPlaybackUrl(null);
+    setPlayError(null);
   };
 
   return (
@@ -44,7 +103,17 @@ export const StudentRecordings: React.FC = () => {
         </span>
       </div>
 
-      {studentRecordings.length === 0 ? (
+      {isLoading ? (
+        <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
+          <Loader2 className="h-8 w-8 animate-spin text-[#1769AA] mx-auto mb-3" />
+          <p className="text-sm text-slate-500">Loading recordings...</p>
+        </Card>
+      ) : isError ? (
+        <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
+          <p className="text-slate-800 font-bold text-base">Unable to load recordings</p>
+          <p className="text-xs text-slate-500 mt-1">Please refresh the page and try again.</p>
+        </Card>
+      ) : enrichedRecordings.length === 0 ? (
         <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
           <Video className="h-12 w-12 text-slate-300 mx-auto mb-3" />
           <p className="text-slate-800 font-bold text-base">No recordings available</p>
@@ -52,23 +121,22 @@ export const StudentRecordings: React.FC = () => {
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {studentRecordings.map((rec) => (
+          {enrichedRecordings.map((rec) => (
             <Card
               key={rec.id}
               className="bg-white rounded-3xl border border-slate-200/80 shadow-2xs overflow-hidden hover:shadow-lg transition-all duration-300 group flex flex-col justify-between"
             >
               <div>
-                {/* Thumbnail Container */}
                 <div
                   onClick={() => handleWatchRecording(rec)}
-                  className={`relative h-44 ${rec.thumbnailBg || "bg-slate-900"} p-4 flex flex-col justify-between overflow-hidden cursor-pointer`}
+                  className="relative h-44 bg-slate-900 p-4 flex flex-col justify-between overflow-hidden cursor-pointer"
                 >
                   <div className="relative z-10 flex items-center justify-between">
                     <Badge className="bg-white/20 backdrop-blur-md text-white border-white/20 text-[10.5px] font-extrabold px-2.5 py-0.5">
-                      Batch: {rec.batch}
+                      Batch: {rec.batchLabel}
                     </Badge>
                     <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-white font-mono text-[10px] font-black shadow-xs">
-                      HD 1080p
+                      {rec.status === "READY" ? "Ready" : rec.status}
                     </span>
                   </div>
 
@@ -80,7 +148,7 @@ export const StudentRecordings: React.FC = () => {
 
                   <div className="relative z-10 flex items-center justify-between text-white/90 text-[11px] font-medium">
                     <span className="flex items-center gap-1 font-mono font-bold bg-black/40 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                      <Clock className="w-3 h-3 text-emerald-400" /> {rec.duration}
+                      <Clock className="w-3 h-3 text-emerald-400" /> {rec.durationLabel}
                     </span>
                     <span className="text-[10px] font-bold bg-black/40 px-2 py-0.5 rounded-md text-slate-300">
                       View Only
@@ -88,30 +156,20 @@ export const StudentRecordings: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Card Content Body */}
                 <div className="p-5 space-y-2.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
-                      Status: Available
-                    </Badge>
-                    {rec.source === "Google Meet" && (
-                      <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
-                        Google Meet
-                      </span>
-                    )}
-                  </div>
+                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
+                    Status: {rec.status === "READY" ? "Available" : rec.status}
+                  </Badge>
 
                   <h3 className="font-extrabold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-[#1769AA] transition-colors line-clamp-2">
-                    {rec.course} — {rec.module || "Class Session"}
+                    {rec.courseLabel} — {rec.moduleLabel}
                   </h3>
 
                   <div className="flex items-center justify-between text-xs text-slate-600 font-bold pt-1">
                     <span className="flex items-center gap-1 text-slate-700">
-                      <Calendar className="w-3.5 h-3.5 text-[#1769AA]" /> {rec.date}
+                      <Calendar className="w-3.5 h-3.5 text-[#1769AA]" /> {rec.dateLabel}
                     </span>
-                    <span className="text-slate-500 font-medium text-[11px]">
-                      By {rec.facultyName}
-                    </span>
+                    <span className="text-slate-500 font-medium text-[11px]">By {rec.facultyName}</span>
                   </div>
                 </div>
               </div>
@@ -120,9 +178,18 @@ export const StudentRecordings: React.FC = () => {
                 <Button
                   type="button"
                   onClick={() => handleWatchRecording(rec)}
+                  disabled={accessMutation.isPending && activeRecording?.id === rec.id}
                   className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9.5 gap-1.5 shadow-sm cursor-pointer"
                 >
-                  <Play className="w-3.5 h-3.5 fill-current" /> Watch Recording
+                  {accessMutation.isPending && activeRecording?.id === rec.id ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5 fill-current" /> Watch Recording
+                    </>
+                  )}
                 </Button>
               </div>
             </Card>
@@ -130,8 +197,7 @@ export const StudentRecordings: React.FC = () => {
         </div>
       )}
 
-      {/* ─── VIDEO WATCH MODAL POPUP ─── */}
-      <Dialog open={showWatchModal} onOpenChange={setShowWatchModal}>
+      <Dialog open={showWatchModal} onOpenChange={(open) => !open && handleCloseModal()}>
         <DialogContent className="max-w-3xl sm:max-w-4xl bg-slate-950 text-white rounded-3xl p-0 overflow-hidden shadow-2xl border border-slate-800 max-h-[92vh] flex flex-col z-50">
           {activeRecording && (
             <>
@@ -139,45 +205,56 @@ export const StudentRecordings: React.FC = () => {
                 <div>
                   <h3 className="font-extrabold text-sm text-white flex items-center gap-2">
                     <Video className="w-4 h-4 text-emerald-400" />
-                    {activeRecording.course} — {activeRecording.module}
+                    {activeRecording.classSession?.title || "Class Recording"}
                   </h3>
                   <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                    {activeRecording.batch} • {activeRecording.date} • Taught by {activeRecording.facultyName}
+                    {activeRecording.classSession?.batch?.name || "Batch"} •{" "}
+                    {activeRecording.classSession?.scheduledDate
+                      ? new Date(activeRecording.classSession.scheduledDate).toLocaleDateString("en-IN")
+                      : "—"}{" "}
+                    • Taught by {activeRecording.classSession?.faculty?.user?.name || "Faculty"}
                   </p>
                 </div>
                 <button
                   type="button"
-                  onClick={() => setShowWatchModal(false)}
+                  onClick={handleCloseModal}
                   className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Video Player */}
               <div className="relative bg-black aspect-video flex items-center justify-center overflow-hidden">
-                <video
-                  src={activeRecording.videoUrl}
-                  controls
-                  autoPlay
-                  controlsList="nodownload"
-                  className="w-full h-full object-contain"
-                />
+                {accessMutation.isPending ? (
+                  <Loader2 className="h-10 w-10 animate-spin text-white" />
+                ) : playError ? (
+                  <p className="text-sm text-red-400 px-4 text-center">{playError}</p>
+                ) : playbackUrl ? (
+                  <video
+                    src={playbackUrl}
+                    controls
+                    autoPlay
+                    controlsList="nodownload"
+                    className="w-full h-full object-contain"
+                  />
+                ) : null}
               </div>
 
               <div className="p-5 sm:p-6 bg-slate-900 space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-0.5 rounded-md bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[11px] font-bold">
-                      {activeRecording.course}
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold">
-                      Duration: {activeRecording.duration}
-                    </span>
-                  </div>
-                  <span className="text-[11px] font-mono text-slate-400">
-                    Expires in 30 days ({activeRecording.expiresAt})
+                  <span className="px-2.5 py-0.5 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold">
+                    Duration: {formatDuration(activeRecording.duration)}
                   </span>
+                  {activeRecording.expiresAt && (
+                    <span className="text-[11px] font-mono text-slate-400">
+                      Expires:{" "}
+                      {new Date(activeRecording.expiresAt).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  )}
                 </div>
               </div>
             </>

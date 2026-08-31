@@ -26,6 +26,21 @@ export interface RecordingQueryParams {
   batchId?: string;
   classSessionId?: string;
   status?: string;
+  recordingStatus?: string;
+}
+
+export interface RecordingAccess {
+  recordingId: string;
+  classSessionId?: string;
+  title?: string;
+  playbackUrl?: string;
+  googleDriveFileId?: string;
+  storageProvider?: string;
+  recordingStatus?: string;
+  duration?: number;
+  startedAt?: string;
+  endedAt?: string;
+  expiresAt?: string;
 }
 
 export const recordingsApi = {
@@ -53,6 +68,11 @@ export const recordingsApi = {
 
   deleteRecording: async (id: string) => {
     const response = await api.delete(`/recordings/${id}`);
+    return response.data;
+  },
+
+  getRecordingAccess: async (id: string) => {
+    const response = await api.get(`/recordings/${id}/access`);
     return response.data;
   },
 };

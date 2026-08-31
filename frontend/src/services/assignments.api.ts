@@ -37,6 +37,7 @@ export interface AssignmentQueryParams {
   facultyId?: string;
   classSessionId?: string;
   status?: string;
+  search?: string;
 }
 
 export const assignmentsApi = {
@@ -76,6 +77,11 @@ export const assignmentsApi = {
     data: { marks: number; feedback?: string }
   ) => {
     const response = await api.patch(`/assignments/submissions/${submissionId}/grade`, data);
+    return response.data;
+  },
+
+  submitAssignment: async (assignmentId: string, data: { fileKey: string; notes?: string }) => {
+    const response = await api.post(`/assignments/${assignmentId}/submissions`, data);
     return response.data;
   },
 };

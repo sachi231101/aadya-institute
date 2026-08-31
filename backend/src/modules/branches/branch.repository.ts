@@ -85,12 +85,39 @@ export const updateBranch = async (
 };
 
 export const getBranchStats = async (branchId: string, instituteId: string) => {
-  const [totalStudents, totalFaculty, totalBatches, totalAdmissions] =
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const upcomingEnd = new Date(todayEnd);
+  upcomingEnd.setDate(upcomingEnd.getDate() + 7);
+
+  const sessionWhere = {
+    branchId,
+    status: "ACTIVE" as const,
+    batch: { instituteId },
+  };
+
+  const [totalStudents, totalFaculty, totalBatches, totalAdmissions, todayClasses, upcomingClasses, liveClasses] =
     await prisma.$transaction([
       prisma.student.count({ where: { branchId, instituteId } }),
       prisma.faculty.count({ where: { branchId, instituteId } }),
       prisma.batch.count({ where: { branchId, instituteId } }),
       prisma.admission.count({ where: { branchId, instituteId } }),
+      prisma.classSession.count({
+        where: { ...sessionWhere, scheduledDate: { gte: todayStart, lte: todayEnd } },
+      }),
+      prisma.classSession.count({
+        where: {
+          ...sessionWhere,
+          scheduledDate: { gt: todayEnd, lte: upcomingEnd },
+          sessionStatus: "UPCOMING",
+        },
+      }),
+      prisma.classSession.count({
+        where: { ...sessionWhere, sessionStatus: "LIVE" },
+      }),
     ]);
 
   return {
@@ -98,5 +125,8 @@ export const getBranchStats = async (branchId: string, instituteId: string) => {
     totalFaculty,
     totalBatches,
     totalAdmissions,
+    todayClasses,
+    upcomingClasses,
+    liveClasses,
   };
 };

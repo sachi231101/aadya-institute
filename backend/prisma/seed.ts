@@ -160,6 +160,7 @@ async function main() {
     { name: "assignment.update", description: "Update assignment" },
     { name: "assignment.submit", description: "Submit assignment" },
     { name: "assignment.grade", description: "Grade assignment" },
+    { name: "assignment.delete", description: "Delete assignment" },
 
     // Recordings & Feedback
     { name: "recording.read", description: "View class recordings" },
@@ -411,6 +412,7 @@ async function main() {
     "assignment.read",
     "assignment.create",
     "assignment.update",
+    "assignment.delete",
     "assignment.grade",
     "recording.read",
     "recording.create",

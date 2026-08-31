@@ -3,6 +3,7 @@ import { hashPassword } from "../../utils/password";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import { prisma } from "../../config/database";
 import {
   assertFacultyCanAccessStudent,
   requireFacultyIdIfPureFaculty,
@@ -11,6 +12,8 @@ import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
 import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
 import { SequenceService } from "../masters/sequence.service";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent } from "../whatsapp/whatsapp.constants";
 
 type AttendanceLike = {
   status: string;
@@ -228,10 +231,6 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
     pendingFees: student.pendingFees || [],
   };
 };
-
-import { prisma } from "../../config/database";
-import { triggerNotification } from "../whatsapp/whatsapp.service";
-import { NotificationEvent } from "../whatsapp/whatsapp.constants";
 
 /**
  * Create a new student (User + Student + STUDENT role + optional Course/Batch/Fee).
@@ -497,5 +496,178 @@ export const getStudentPerformance = async (studentId: string, currentUser: Auth
     enrolledCourses,
     discontinuationAlert,
     maxConsecutiveAbsences,
+  };
+};
+
+export const getMyDashboard = async (currentUser: AuthUser) => {
+  const student = await prisma.student.findFirst({
+    where: { userId: currentUser.id, instituteId: currentUser.instituteId },
+    include: {
+      user: { select: { name: true, email: true } },
+      batchEnrollments: {
+        where: { status: "ACTIVE" },
+        include: {
+          batch: {
+            include: {
+              course: { select: { id: true, name: true, code: true } },
+              faculty: {
+                include: { user: { select: { name: true, email: true, phone: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!student) throw new AppError("Student profile not found", 403);
+
+  const batchIds = student.batchEnrollments.map((e) => e.batchId);
+  const now = new Date();
+  const todayStart = new Date(now);
+  todayStart.setHours(0, 0, 0, 0);
+  const todayEnd = new Date(now);
+  todayEnd.setHours(23, 59, 59, 999);
+  const upcomingEnd = new Date(todayEnd);
+  upcomingEnd.setDate(upcomingEnd.getDate() + 7);
+
+  const sessionWhere = {
+    status: "ACTIVE" as const,
+    batchId: batchIds.length > 0 ? { in: batchIds } : undefined,
+  };
+
+  const [
+    todaySessions,
+    upcomingSessions,
+    activeLiveSessions,
+    attendanceRecords,
+    pendingAssignments,
+    availableRecordings,
+  ] = await Promise.all([
+    batchIds.length
+      ? prisma.classSession.findMany({
+          where: { ...sessionWhere, scheduledDate: { gte: todayStart, lte: todayEnd } },
+          include: {
+            batch: { include: { course: true } },
+            faculty: { include: { user: { select: { name: true } } } },
+          },
+          orderBy: [{ startTime: "asc" }],
+        })
+      : Promise.resolve([]),
+    batchIds.length
+      ? prisma.classSession.findMany({
+          where: {
+            ...sessionWhere,
+            scheduledDate: { gt: todayEnd, lte: upcomingEnd },
+            sessionStatus: { in: ["UPCOMING", "LIVE"] },
+          },
+          include: {
+            batch: { include: { course: true } },
+            faculty: { include: { user: { select: { name: true } } } },
+          },
+          orderBy: [{ scheduledDate: "asc" }, { startTime: "asc" }],
+          take: 10,
+        })
+      : Promise.resolve([]),
+    batchIds.length
+      ? prisma.classSession.findMany({
+          where: { ...sessionWhere, sessionStatus: "LIVE" },
+          include: {
+            batch: { include: { course: true } },
+            faculty: { include: { user: { select: { name: true } } } },
+          },
+        })
+      : Promise.resolve([]),
+    prisma.studentAttendance.findMany({
+      where: { studentId: student.id },
+      include: { classSession: { select: { scheduledDate: true } } },
+    }),
+    batchIds.length
+      ? prisma.assignment.count({
+          where: {
+            batchId: { in: batchIds },
+            status: "ACTIVE",
+            submissions: { none: { studentId: student.id, submittedAt: { not: null } } },
+          },
+        })
+      : Promise.resolve(0),
+    batchIds.length
+      ? prisma.recording.count({
+          where: {
+            status: "ACTIVE",
+            expiresAt: { gt: now },
+            classSession: { batchId: { in: batchIds } },
+          },
+        })
+      : Promise.resolve(0),
+  ]);
+
+  const attendanceSummary = computeAttendanceSummary(attendanceRecords);
+  const primaryEnrollment = student.batchEnrollments[0];
+
+  return {
+    profile: {
+      id: student.id,
+      studentCode: student.studentCode,
+      name: student.user?.name ?? null,
+      email: student.user?.email ?? null,
+    },
+    course: primaryEnrollment
+      ? {
+          id: primaryEnrollment.batch.course.id,
+          name: primaryEnrollment.batch.course.name,
+          code: primaryEnrollment.batch.course.code,
+          batchName: primaryEnrollment.batch.name,
+        }
+      : null,
+    instructor: primaryEnrollment?.batch.faculty
+      ? {
+          id: primaryEnrollment.batch.faculty.id,
+          name: primaryEnrollment.batch.faculty.user?.name ?? null,
+          email: primaryEnrollment.batch.faculty.user?.email ?? null,
+          phone: primaryEnrollment.batch.faculty.user?.phone ?? null,
+        }
+      : null,
+    counts: {
+      todayClasses: todaySessions.length,
+      upcomingClasses: upcomingSessions.length,
+      pendingAssignments,
+      availableRecordings,
+    },
+    attendanceSummary: {
+      attendancePercentage: attendanceSummary.overallPercentage,
+      totalClasses: attendanceSummary.totalClasses,
+      presentCount: attendanceSummary.presentCount,
+    },
+    todaySessions: todaySessions.map((s) => ({
+      id: s.id,
+      title: s.title,
+      scheduledDate: s.scheduledDate,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      sessionStatus: s.sessionStatus,
+      mode: s.mode,
+      meetingUrl: s.meetingUrl,
+      courseName: s.batch?.course?.name ?? null,
+      facultyName: s.faculty?.user?.name ?? null,
+    })),
+    upcomingSessions: upcomingSessions.map((s) => ({
+      id: s.id,
+      title: s.title,
+      scheduledDate: s.scheduledDate,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      sessionStatus: s.sessionStatus,
+      mode: s.mode,
+      courseName: s.batch?.course?.name ?? null,
+      facultyName: s.faculty?.user?.name ?? null,
+    })),
+    activeLiveSessions: activeLiveSessions.map((s) => ({
+      id: s.id,
+      title: s.title,
+      meetingUrl: s.meetingUrl,
+      courseName: s.batch?.course?.name ?? null,
+      facultyName: s.faculty?.user?.name ?? null,
+    })),
   };
 };

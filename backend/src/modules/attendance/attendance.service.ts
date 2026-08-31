@@ -370,8 +370,7 @@ export const getDiscontinuationRisk = async (
       where: {
         studentId: student.id,
         classSession: {
-          // Theory-class focus: exclude explicitly practical-labelled titles when present
-          NOT: { title: { contains: "Practical", mode: "insensitive" } },
+          sessionType: "THEORY",
         },
       },
       orderBy: { classSession: { scheduledDate: "desc" } },

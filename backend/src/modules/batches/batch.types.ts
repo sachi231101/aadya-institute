@@ -1,3 +1,24 @@
+export interface CreateBatchScheduleDto {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
+export interface UpdateBatchScheduleDto {
+  dayOfWeek?: number;
+  startTime?: string;
+  endTime?: string;
+  effectiveFrom?: string;
+  effectiveTo?: string;
+}
+
+export interface GenerateSessionsDto {
+  startDate?: string;
+  endDate?: string;
+}
+
 export interface CreateBatchDto {
   name: string;
   code: string;
@@ -9,6 +30,7 @@ export interface CreateBatchDto {
   capacity?: number;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
+  schedules?: CreateBatchScheduleDto[];
 }
 
 export interface UpdateBatchDto {

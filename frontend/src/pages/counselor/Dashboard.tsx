@@ -55,6 +55,7 @@ import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
 import type { UnifiedLead } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
+import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel } from "@/utils/master.utils";
@@ -148,6 +149,10 @@ export const CounselorDashboard: React.FC = () => {
   const { counselors, fetchCounselors } = useCounselorStore();
   const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
   const { data: financialReport } = useFinancialReport(user?.branchId || undefined);
+  const { data: discontinuationRiskResponse, isLoading: isRiskLoading } = useDiscontinuationRisk(
+    user?.branchId || undefined
+  );
+  const lowAttendanceCount = discontinuationRiskResponse?.data?.length ?? 0;
 
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: leadStageOptions } = useMasterDropdown("leadstage");
@@ -1784,7 +1789,9 @@ export const CounselorDashboard: React.FC = () => {
               </div>
               <div className="flex justify-between items-center py-0.5">
                 <span className="text-red-600 font-semibold">Low Attendance Students</span>
-                <span className="font-extrabold text-red-600 text-sm">18</span>
+                <span className="font-extrabold text-red-600 text-sm">
+                  {isRiskLoading ? "—" : lowAttendanceCount}
+                </span>
               </div>
             </div>
           </div>

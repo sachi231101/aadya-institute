@@ -1,95 +1,77 @@
-import React, { useState, useEffect } from "react";
-import { 
-  Calendar, 
-  UserCircle, 
-  BookOpen, 
-  CheckCircle2, 
+import React, { useMemo } from "react";
+import {
+  Calendar,
+  UserCircle,
+  BookOpen,
+  CheckCircle2,
   AlertCircle,
   CreditCard,
   Video,
-  Radio,
-  ExternalLink,
   Clock,
-  Sparkles,
-  Play
+  ClipboardList,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/auth.store";
 import { useSessionStore } from "../../store/session.store";
-import { classSessionsApi } from "../../services/class-sessions.api";
-import { attendanceApi } from "../../services/attendance.api";
+import { useStudentDashboard } from "../../hooks/useStudentDashboard";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+
+const formatSessionDate = (iso: string) => {
+  const today = new Date();
+  const d = new Date(iso);
+  const isToday =
+    d.getFullYear() === today.getFullYear() &&
+    d.getMonth() === today.getMonth() &&
+    d.getDate() === today.getDate();
+  if (isToday) return "Today";
+  return d.toLocaleDateString("en-IN", { weekday: "short", day: "numeric", month: "short" });
+};
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
   const { activeLiveClass } = useSessionStore();
-  const [liveSessions, setLiveSessions] = useState<any[]>([]);
-  const [attendancePct, setAttendancePct] = useState<number | null>(null);
-  const [attendanceMeta, setAttendanceMeta] = useState<{ total: number; present: number } | null>(null);
-  const [courseName, setCourseName] = useState<string>("Enrolled Academy Program");
+  const { data: dashRes, isLoading } = useStudentDashboard();
 
-  // Fetch backend active live classes + attendance summary on mount
-  useEffect(() => {
-    let mounted = true;
-    const studentId = user?.studentId || null;
-    const fetchLive = async () => {
-      try {
-        const res = await classSessionsApi.getActiveLive();
-        if (mounted && res.data && res.data.length > 0) {
-          setLiveSessions(res.data);
-          const first = res.data[0];
-          if (first?.batch?.course?.name) setCourseName(first.batch.course.name);
-        }
-      } catch {
-      }
+  const dashboard = dashRes?.data;
+  const studentName = dashboard?.profile?.name || user?.name || "Student";
+  const courseName = dashboard?.course?.name || "Enrolled Academy Program";
+  const batchName = dashboard?.course?.batchName;
+  const instructor = dashboard?.instructor;
+  const attendanceSummary = dashboard?.attendanceSummary;
+  const displayAttendance = Math.round(attendanceSummary?.attendancePercentage ?? 0);
+  const hasAttendanceData = Boolean(attendanceSummary && attendanceSummary.totalClasses > 0);
+  const pendingAssignments = dashboard?.counts?.pendingAssignments ?? 0;
+
+  const todaySessions = dashboard?.todaySessions ?? [];
+  const upcomingSessions = dashboard?.upcomingSessions ?? [];
+  const activeLiveSessions = dashboard?.activeLiveSessions ?? [];
+
+  const currentLive = useMemo(() => {
+    if (activeLiveClass?.status === "LIVE") {
+      return {
+        courseName: activeLiveClass.courseName || courseName,
+        facultyName: activeLiveClass.facultyName || instructor?.name || "Faculty",
+        batchName: activeLiveClass.batchName || batchName || "Your Batch",
+        time: activeLiveClass.time || "",
+        meetUrl: activeLiveClass.meetUrl,
+      };
+    }
+    const live = activeLiveSessions[0];
+    if (!live) return null;
+    return {
+      courseName: live.courseName || live.title || courseName,
+      facultyName: live.facultyName || instructor?.name || "Faculty",
+      batchName: batchName || "Your Batch",
+      time: "",
+      meetUrl: live.meetingUrl,
     };
+  }, [activeLiveClass, activeLiveSessions, batchName, courseName, instructor?.name]);
 
-    const fetchAttendance = async () => {
-      if (!studentId) return;
-      try {
-        const res = await attendanceApi.getStudentSummary(studentId);
-        const summary = res?.data;
-        if (mounted && summary) {
-          setAttendancePct(Number(summary.attendancePercentage ?? 0));
-          setAttendanceMeta({
-            total: Number(summary.totalClasses ?? 0),
-            present: Number(summary.presentCount ?? 0),
-          });
-        }
-      } catch {
-      }
-    };
-
-    fetchLive();
-    fetchAttendance();
-    const interval = setInterval(fetchLive, 15000);
-    return () => {
-      mounted = false;
-      clearInterval(interval);
-    };
-  }, [user?.studentId, user?.id]);
-
-  const studentName = user?.name || "Student";
-  const studentBatchCode = user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE";
-  const displayAttendance = attendancePct ?? 0;
-  const hasAttendanceData = attendancePct !== null;
-
-  // Check if live class is active (either from session store or backend query)
-  const isClassLive = activeLiveClass?.status === "LIVE" || liveSessions.length > 0;
-  const currentLive = activeLiveClass?.status === "LIVE" 
-    ? activeLiveClass 
-    : liveSessions.length > 0 
-    ? {
-        id: liveSessions[0].id,
-        courseName: liveSessions[0].batch?.course?.name || liveSessions[0].title || "Live Academy Class",
-        facultyName: liveSessions[0].faculty?.user?.name || "Ramesh Kumar",
-        batchName: liveSessions[0].batch?.name || liveSessions[0].batch?.code || "Digital Marketing – Batch A",
-        time: `${liveSessions[0].startTime} – ${liveSessions[0].endTime}`,
-        meetUrl: liveSessions[0].meetingUrl || "https://meet.google.com/aady-live-cls",
-      }
-    : null;
+  const isClassLive = Boolean(currentLive);
+  const scheduleItems = [...todaySessions, ...upcomingSessions].slice(0, 6);
 
   const handleJoinGoogleMeet = () => {
     if (currentLive?.meetUrl) {
@@ -97,12 +79,20 @@ export const StudentDashboard: React.FC = () => {
     }
   };
 
+  const studentBatchCode = batchName || (user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE");
+
+  if (isLoading && !dashboard) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-10 animate-in fade-in duration-500">
-      {/* ─── PROMINENT TOP LIVE CLASS BANNER (WHEN CLASS IS LIVE) ─── */}
       {isClassLive && currentLive && (
         <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-rose-600 via-rose-700 to-red-900 p-6 md:p-7 text-white shadow-xl shadow-rose-950/20 border-2 border-rose-400/40 animate-in slide-in-from-top-3 duration-300">
-          {/* Animated Background Pulse */}
           <div className="absolute -top-12 -right-12 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
           <div className="absolute -bottom-10 -left-10 w-36 h-36 bg-amber-400/20 rounded-full blur-xl pointer-events-none" />
 
@@ -111,11 +101,8 @@ export const StudentDashboard: React.FC = () => {
               <div className="flex items-center gap-2.5 flex-wrap">
                 <Badge className="bg-white text-rose-700 hover:bg-white font-black text-xs px-3 py-1 rounded-full shadow-md flex items-center gap-2 animate-pulse">
                   <span className="w-2.5 h-2.5 rounded-full bg-rose-600 animate-ping" />
-                  🔴 LIVE NOW
+                  LIVE NOW
                 </Badge>
-                <span className="text-xs font-bold bg-rose-950/40 text-rose-100 px-2.5 py-1 rounded-lg backdrop-blur-xs border border-rose-400/20">
-                  Google Meet Session Active
-                </span>
               </div>
 
               <div>
@@ -123,35 +110,39 @@ export const StudentDashboard: React.FC = () => {
                   {currentLive.courseName}
                 </h2>
                 <p className="text-rose-100 text-xs sm:text-sm font-medium mt-1">
-                  Faculty: <strong className="text-white font-bold">{currentLive.facultyName}</strong> • Batch: <strong className="text-white font-bold">{currentLive.batchName}</strong>
+                  Faculty: <strong className="text-white font-bold">{currentLive.facultyName}</strong>
+                  {currentLive.batchName ? (
+                    <> • Batch: <strong className="text-white font-bold">{currentLive.batchName}</strong></>
+                  ) : null}
                 </p>
               </div>
 
-              <div className="flex items-center gap-2 text-xs font-semibold text-rose-100/90 pt-1">
-                <Clock className="w-4 h-4 text-amber-300" />
-                <span>Class Slot: {currentLive.time}</span>
-              </div>
+              {currentLive.time ? (
+                <div className="flex items-center gap-2 text-xs font-semibold text-rose-100/90 pt-1">
+                  <Clock className="w-4 h-4 text-amber-300" />
+                  <span>Class Slot: {currentLive.time}</span>
+                </div>
+              ) : null}
             </div>
 
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 shrink-0">
+            {currentLive.meetUrl ? (
               <Button
                 type="button"
                 onClick={handleJoinGoogleMeet}
                 className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 font-black text-sm h-12 px-7 rounded-2xl shadow-xl shadow-black/20 gap-2.5 transform hover:scale-105 transition-all cursor-pointer whitespace-nowrap"
               >
                 <Video className="w-5 h-5 text-rose-600" />
-                <span>🎥 Join Google Meet</span>
+                Join Google Meet
               </Button>
-            </div>
+            ) : null}
           </div>
         </div>
       )}
 
-      {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Welcome back, {studentName.split(" ")[0]}! 🎓</h1>
+            <h1 className="text-3xl font-bold mb-2">Welcome back, {studentName.split(" ")[0]}!</h1>
             <p className="text-blue-100 opacity-90 max-w-xl">
               Track your attendance, manage fees, and view your upcoming class schedule all in one place.
             </p>
@@ -160,7 +151,6 @@ export const StudentDashboard: React.FC = () => {
             {studentBatchCode}
           </Badge>
         </div>
-        {/* Decorative elements */}
         <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
         <div className="absolute top-10 right-20 w-32 h-32 bg-[#F39A16]/20 rounded-full blur-2xl" />
       </div>
@@ -168,14 +158,8 @@ export const StudentDashboard: React.FC = () => {
       <InstallDashboardBanner />
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-        
-        {/* LEFT COLUMN (Attendance & Fees) */}
         <div className="md:col-span-8 space-y-6">
-          
-          {/* Top Cards Row */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            
-            {/* Attendance Card */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
             <Card className="border-border/50 shadow-sm overflow-hidden">
               <div className="h-1 w-full bg-[#10b981]" />
               <CardHeader className="pb-2">
@@ -191,13 +175,12 @@ export const StudentDashboard: React.FC = () => {
                   </div>
                   <div className="text-sm text-text-secondary mb-1">
                     {hasAttendanceData
-                      ? `${attendanceMeta?.present ?? 0}/${attendanceMeta?.total ?? 0} classes`
+                      ? `${attendanceSummary?.presentCount ?? 0}/${attendanceSummary?.totalClasses ?? 0} classes`
                       : "No records yet"}
                   </div>
                 </div>
-                
                 <div className="mt-4 w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-                  <div 
+                  <div
                     className="bg-[#10b981] h-2.5 rounded-full transition-all duration-1000 ease-out"
                     style={{ width: `${hasAttendanceData ? displayAttendance : 0}%` }}
                   />
@@ -208,7 +191,6 @@ export const StudentDashboard: React.FC = () => {
               </CardContent>
             </Card>
 
-            {/* Course Card */}
             <Card className="border-border/50 shadow-sm overflow-hidden">
               <div className="h-1 w-full bg-[#1769AA]" />
               <CardHeader className="pb-2">
@@ -221,13 +203,28 @@ export const StudentDashboard: React.FC = () => {
                 <h3 className="text-xl font-bold text-text-primary mt-2">{courseName}</h3>
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge variant="secondary" className="bg-blue-50 text-[#1769AA] border border-blue-100">Active</Badge>
+                  {batchName ? (
+                    <Badge variant="outline" className="text-xs">{batchName}</Badge>
+                  ) : null}
                 </div>
               </CardContent>
             </Card>
 
+            <Card className="border-border/50 shadow-sm overflow-hidden">
+              <div className="h-1 w-full bg-[#F39A16]" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base flex items-center justify-between text-text-primary">
+                  <span>Pending Assignments</span>
+                  <ClipboardList className="h-4 w-4 text-[#F39A16]" />
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-4xl font-bold text-text-primary mt-2">{pendingAssignments}</div>
+                <p className="text-xs text-text-secondary mt-3">Assignments awaiting submission</p>
+              </CardContent>
+            </Card>
           </div>
 
-          {/* Fees & Payments Section */}
           <Card className="border-border/50 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -237,54 +234,66 @@ export const StudentDashboard: React.FC = () => {
               <CardDescription>Track your fee payments and download receipts</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 rounded-lg bg-slate-50 border border-slate-100">
-                  <p className="text-xs text-text-secondary font-medium uppercase tracking-wider mb-1">Total Fees</p>
-                  <p className="text-2xl font-bold text-text-primary">₹0</p>
-                </div>
-                <div className="p-4 rounded-lg bg-emerald-50 border border-emerald-100">
-                  <p className="text-xs text-text-secondary font-medium uppercase tracking-wider mb-1">Paid Amount</p>
-                  <p className="text-2xl font-bold text-emerald-600">₹0</p>
-                </div>
-                <div className="p-4 rounded-lg bg-red-50 border border-red-100 relative overflow-hidden">
-                  <p className="text-xs text-text-secondary font-medium uppercase tracking-wider mb-1">Pending Balance</p>
-                  <p className="text-2xl font-bold text-red-600">₹0</p>
-                  <div className="absolute top-0 right-0 w-2 h-full bg-red-500" />
-                </div>
-              </div>
-
               <div className="flex flex-col sm:flex-row items-center justify-between p-4 rounded-lg border border-border/60 bg-bg-secondary/50">
                 <div>
                   <h4 className="font-semibold text-text-primary">Payment Status</h4>
                   <p className="text-sm text-text-secondary mt-1">
-                    No pending installment payments due.
+                    Fee details will appear here once linked to your admission record.
                   </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-
         </div>
 
-        {/* RIGHT COLUMN (Schedule & Faculty) */}
         <div className="md:col-span-4 space-y-6">
-          
-          {/* Upcoming Classes */}
-          <Card className="border-border/50 shadow-sm h-full max-h-[400px] flex flex-col">
+          <Card className="border-border/50 shadow-sm max-h-[400px] flex flex-col">
             <CardHeader className="pb-3 border-b border-border/50">
               <CardTitle className="flex items-center justify-between text-base">
                 <span className="flex items-center gap-2">
                   <Calendar className="h-5 w-5 text-indigo-500" /> Class Schedule
                 </span>
-                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700">This Week</Badge>
+                <Badge variant="secondary" className="bg-indigo-50 text-indigo-700">
+                  {dashboard?.counts?.todayClasses ?? todaySessions.length} today
+                </Badge>
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6 text-center text-muted-foreground flex-1 flex items-center justify-center">
-              No class sessions scheduled today.
+            <CardContent className="p-4 flex-1 overflow-y-auto">
+              {scheduleItems.length === 0 ? (
+                <p className="text-center text-muted-foreground text-sm py-6">
+                  No class sessions scheduled.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {scheduleItems.map((session) => (
+                    <div
+                      key={session.id}
+                      className="p-3 rounded-lg border border-border/60 bg-slate-50/50"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-text-primary truncate">
+                            {session.courseName || session.title || "Class Session"}
+                          </p>
+                          <p className="text-xs text-text-secondary mt-0.5">
+                            {session.facultyName || "Faculty TBD"}
+                          </p>
+                        </div>
+                        {session.sessionStatus === "LIVE" ? (
+                          <Badge className="bg-rose-100 text-rose-700 text-[10px] shrink-0">LIVE</Badge>
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        {formatSessionDate(session.scheduledDate)} • {session.startTime} – {session.endTime}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Assigned Faculty */}
           <Card className="border-border/50 shadow-sm bg-gradient-to-br from-white to-slate-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
@@ -292,18 +301,21 @@ export const StudentDashboard: React.FC = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex items-center gap-4 mb-4">
-                <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold border border-emerald-200 shadow-sm">
-                  F
+              {instructor ? (
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center text-xl font-bold border border-emerald-200 shadow-sm">
+                    {(instructor.name || "F").charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-text-primary">{instructor.name || "Faculty Instructor"}</h4>
+                    <p className="text-xs text-text-secondary mt-0.5">{instructor.email || "Academic Lead"}</p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="font-bold text-text-primary">Faculty Instructor</h4>
-                  <p className="text-xs text-text-secondary mt-0.5">Academic Lead</p>
-                </div>
-              </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No instructor assigned yet.</p>
+              )}
             </CardContent>
           </Card>
-
         </div>
       </div>
     </div>

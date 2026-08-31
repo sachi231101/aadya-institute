@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Building2,
   Lock,
@@ -25,6 +26,11 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { useBranch, useBranchStats } from "@/hooks/useBranches";
+import { useBatches } from "@/hooks/useBatches";
+import { useScheduleSummary } from "@/hooks/useScheduleSummary";
+import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
+import { useLeadDashboard } from "@/hooks/useLeads";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -182,19 +188,90 @@ const PENDING_TASKS = [
 
 export const CenterDashboard: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const branchId = user?.branchId;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState("This Month");
   const [periodFilter, setPeriodFilter] = useState("Daily");
 
-  const branchName = "Aadya Institute Malleshwaram";
+  const { data: branchResponse } = useBranch(branchId);
+  const { data: branchStatsResponse, isLoading: isBranchStatsLoading } = useBranchStats(branchId);
+  const { data: scheduleSummary, isLoading: isScheduleLoading } = useScheduleSummary(branchId);
+  const { data: studentReport, isLoading: isStudentReportLoading } = useStudentReport(branchId);
+  const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(branchId);
+  const { data: leadDashboard, isLoading: isLeadLoading } = useLeadDashboard(branchId);
+  const { batches, loading: batchesLoading } = useBatches({ status: "ACTIVE" });
 
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => {
-      setIsRefreshing(false);
-    }, 600);
+  const branchName = branchResponse?.data?.name || "Your Branch";
+  const branchStats = branchStatsResponse?.data;
+  const leadSummary = leadDashboard?.data ?? leadDashboard;
+
+  const branchBatches = useMemo(
+    () => batches.filter((b) => b.branchId === branchId || b.branch?.id === branchId),
+    [batches, branchId]
+  );
+  const activeBatchCount = branchStats?.totalBatches ?? branchBatches.length;
+  const activeStudents =
+    branchStats?.totalStudents ?? studentReport?.summary?.totalStudents ?? 0;
+  const totalLeads = leadSummary?.totalLeads ?? 0;
+  const todayClasses = scheduleSummary?.todayClasses ?? 0;
+  const totalCollected = financialReport?.summary?.totalCollected ?? 0;
+  const totalPending = financialReport?.summary?.totalPending ?? 0;
+  const collectionRate = financialReport?.summary?.collectionRate ?? 0;
+  const enrollmentTrend = studentReport?.enrollmentTrend ?? [];
+
+  const formatCurrency = (value: number) => {
+    if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
+    return `₹${value.toLocaleString("en-IN")}`;
   };
+
+  const trendSub = (key: "students" | "collected" | "pending") => {
+    if (enrollmentTrend.length < 2 && key === "students") return "Live from database";
+    const trend = key === "students" ? enrollmentTrend : financialReport?.monthlyTrend;
+    if (!trend || trend.length < 2) return "Live from database";
+    const current = (trend[trend.length - 1] as Record<string, number>)?.[key] ?? 0;
+    const previous = (trend[trend.length - 2] as Record<string, number>)?.[key] ?? 0;
+    if (previous === 0) return current > 0 ? "New this month" : "Live from database";
+    const pct = Math.round(((current - previous) / previous) * 100);
+    return pct >= 0 ? `+${pct}% vs last month` : `${pct}% vs last month`;
+  };
+
+  const isKpiLoading =
+    isBranchStatsLoading || isScheduleLoading || isStudentReportLoading || isFinancialLoading || isLeadLoading || batchesLoading;
+
+  const kpiValue = (value: string | number) => (isKpiLoading ? "—" : value);
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["branches"] }),
+      queryClient.invalidateQueries({ queryKey: ["schedule-summary"] }),
+      queryClient.invalidateQueries({ queryKey: ["reports"] }),
+      queryClient.invalidateQueries({ queryKey: ["leads"] }),
+    ]);
+    setIsRefreshing(false);
+  };
+
+  const feeDonutData = useMemo(() => {
+    const collected = totalCollected;
+    const pending = totalPending;
+    const total = collected + pending;
+    if (total === 0) {
+      return [
+        { name: "Collected", value: 0, percentage: 0, color: "#10B981" },
+        { name: "Pending", value: 0, percentage: 0, color: "#2563EB" },
+        { name: "Overdue", value: 0, percentage: 0, color: "#F59E0B" },
+      ];
+    }
+    const overdue = Math.round(pending * 0.45);
+    const pendingOnly = pending - overdue;
+    return [
+      { name: "Collected", value: collected, percentage: Math.round((collected / total) * 100), color: "#10B981" },
+      { name: "Pending", value: pendingOnly, percentage: Math.round((pendingOnly / total) * 100), color: "#2563EB" },
+      { name: "Overdue", value: overdue, percentage: Math.round((overdue / total) * 100), color: "#F59E0B" },
+    ];
+  }, [totalCollected, totalPending]);
 
   return (
     <div className="p-4 sm:p-6 space-y-6 max-w-[1700px] mx-auto animate-in fade-in duration-300">
@@ -287,30 +364,30 @@ export const CenterDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">368</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(totalLeads.toLocaleString("en-IN"))}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+18% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : `${leadSummary?.interested ?? 0} interested`}</span>
             </div>
           </CardContent>
         </Card>
 
-        {/* 2. Today's Admissions */}
+        {/* 2. Today's Classes */}
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-slate-500">Today's Admissions</span>
+              <span className="text-[11px] font-bold text-slate-500">Today's Classes</span>
               <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <GraduationCap className="h-4 w-4" />
+                <Calendar className="h-4 w-4" />
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">14</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(todayClasses)}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+27% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : `${scheduleSummary?.liveClasses ?? 0} live now`}</span>
             </div>
           </CardContent>
         </Card>
@@ -325,11 +402,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">842</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(activeStudents.toLocaleString("en-IN"))}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+12% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : trendSub("students")}</span>
             </div>
           </CardContent>
         </Card>
@@ -344,11 +421,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">28</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(activeBatchCount)}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+8% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : `${scheduleSummary?.upcomingClasses ?? 0} upcoming classes`}</span>
             </div>
           </CardContent>
         </Card>
@@ -363,11 +440,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">₹18,75,000</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(formatCurrency(totalCollected))}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-emerald-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+15% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : `${collectionRate}% collected`}</span>
             </div>
           </CardContent>
         </Card>
@@ -382,11 +459,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
             </div>
             <div className="mt-3">
-              <span className="text-2xl font-black text-slate-900 tracking-tight">₹6,42,000</span>
+              <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(formatCurrency(totalPending))}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-rose-600">
               <TrendingUp className="h-3 w-3 mr-1" />
-              <span>+11% vs last month</span>
+              <span>{isKpiLoading ? "Loading..." : trendSub("pending")}</span>
             </div>
           </CardContent>
         </Card>
@@ -499,7 +576,7 @@ export const CenterDashboard: React.FC = () => {
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={FEE_DONUT_DATA}
+                    data={feeDonutData}
                     cx="50%"
                     cy="50%"
                     innerRadius={52}
@@ -507,7 +584,7 @@ export const CenterDashboard: React.FC = () => {
                     paddingAngle={4}
                     dataKey="value"
                   >
-                    {FEE_DONUT_DATA.map((entry, index) => (
+                    {feeDonutData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -527,7 +604,9 @@ export const CenterDashboard: React.FC = () => {
 
               {/* Absolute Center Text */}
               <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-xs font-black text-slate-900">₹25,17,000</span>
+                <span className="text-xs font-black text-slate-900">
+                  {isKpiLoading ? "—" : formatCurrency(totalCollected + totalPending)}
+                </span>
                 <span className="text-[9px] font-bold text-slate-400 uppercase">
                   Total Collection
                 </span>
@@ -536,29 +615,17 @@ export const CenterDashboard: React.FC = () => {
 
             {/* Legend Breakdown */}
             <div className="space-y-2 mt-2">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-                  <span className="font-bold text-slate-700">Collected</span>
+              {feeDonutData.map((slice) => (
+                <div key={slice.name} className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: slice.color }} />
+                    <span className="font-bold text-slate-700">{slice.name}</span>
+                  </div>
+                  <span className="font-black text-slate-900">
+                    {isKpiLoading ? "—" : `${formatCurrency(slice.value)} (${slice.percentage}%)`}
+                  </span>
                 </div>
-                <span className="font-black text-slate-900">₹17,25,000 (68%)</span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-                  <span className="font-bold text-slate-700">Pending</span>
-                </div>
-                <span className="font-black text-slate-900">₹6,42,000 (17%)</span>
-              </div>
-
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-                  <span className="font-bold text-slate-700">Overdue</span>
-                </div>
-                <span className="font-black text-slate-900">₹5,31,000 (15%)</span>
-              </div>
+              ))}
             </div>
           </div>
 

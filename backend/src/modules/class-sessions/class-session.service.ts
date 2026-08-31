@@ -3,6 +3,7 @@ import { logger } from "../../config/logger";
 import { classSessionRepository } from "./class-session.repository";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
+import { buildMeta } from "../../utils/pagination";
 
 async function applyClassSessionMasters(
   instituteId: string,
@@ -41,7 +42,11 @@ async function applyClassSessionMasters(
 
 export const classSessionService = {
   getSessions: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
-    return classSessionRepository.findMany(instituteId, branchId, filters);
+    const result = await classSessionRepository.findMany(instituteId, branchId, filters);
+    return {
+      data: result.data,
+      meta: buildMeta(result.total, result.page, result.limit),
+    };
   },
 
   getSessionById: async (id: string, instituteId: string) => {

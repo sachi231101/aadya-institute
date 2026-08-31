@@ -1,9 +1,12 @@
 import { ReportRepository } from "./report.repository";
+import { getDiscontinuationRisk } from "../attendance/attendance.service";
+import type { AuthUser } from "../auth/auth.types";
 import type {
   StudentReportResponse,
   FacultyReportResponse,
   CourseReportResponse,
   FinancialReportResponse,
+  ScheduleSummaryResponse,
 } from "./report.types";
 
 export class ReportService {
@@ -33,5 +36,17 @@ export class ReportService {
    */
   static async getFinancialReport(instituteId: string, branchId?: string): Promise<FinancialReportResponse> {
     return ReportRepository.getFinancialReportData(instituteId, branchId);
+  }
+
+  static async getScheduleSummary(
+    currentUser: AuthUser,
+    branchId?: string
+  ): Promise<ScheduleSummaryResponse> {
+    const summary = await ReportRepository.getScheduleSummaryData(currentUser.instituteId, branchId);
+    const risks = await getDiscontinuationRisk(currentUser, { branchId });
+    return {
+      ...summary,
+      discontinuationRiskCount: risks.length,
+    };
   }
 }

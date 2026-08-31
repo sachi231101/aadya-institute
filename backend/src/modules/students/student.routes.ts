@@ -18,6 +18,14 @@ const router = Router();
 // All student routes require authentication
 router.use(authMiddleware);
 
+// GET /api/v1/students/me/dashboard — Student personal dashboard
+router.get(
+  "/me/dashboard",
+  requireRole("STUDENT"),
+  requirePermission("dashboard.read"),
+  controller.getMyDashboard
+);
+
 // ─── Student Attendance Endpoints ─────────────────────────────────────────────
 router.get(
   "/:studentId/attendance/summary",
