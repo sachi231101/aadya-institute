@@ -46,3 +46,10 @@ export const getPerformance = async (req: AuthenticatedRequest, res: Response, n
     sendSuccess(res, data);
   } catch (err) { next(err); }
 };
+
+export const sendCredentialsWhatsApp = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.sendStudentCredentialsWhatsAppService(req.params.id as string, toAuthUser(req));
+    sendSuccess(res, data, 200, "Student credentials dispatched to WhatsApp");
+  } catch (err) { next(err); }
+};

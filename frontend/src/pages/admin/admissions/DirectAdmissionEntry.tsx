@@ -39,7 +39,8 @@ import {
   GripVertical,
   SlidersHorizontal,
   PackagePlus,
-  Users
+  Users,
+  Copy
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -218,6 +219,9 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [email, setEmail] = useState("");
   const [dob, setDob] = useState("");
   const [gender, setGender] = useState("Male");
+  const [bloodGroup, setBloodGroup] = useState("");
+  const [qualification, setQualification] = useState("Bachelor's Degree");
+  const [qualificationMasterId, setQualificationMasterId] = useState("");
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("Bengaluru");
   const [state, setState] = useState("Karnataka");
@@ -243,6 +247,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
   const { options: admissionStatusOptions } = useMasterDropdown("admissionstatus");
+  const { options: educationOptions } = useMasterDropdown("education");
   const [referralSourceMasterId, setReferralSourceMasterId] = useState("");
   const [statusMasterId, setStatusMasterId] = useState("");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
@@ -342,6 +347,12 @@ export const DirectAdmissionEntry: React.FC = () => {
     if (rawData.gender) {
       setGender(rawData.gender);
     }
+    if (rawData.bloodGroup) {
+      setBloodGroup(rawData.bloodGroup);
+    }
+    if (rawData.qualification || rawData.highestQualification) {
+      setQualification(rawData.qualification || rawData.highestQualification);
+    }
     if (rawData.dob) {
       setDob(rawData.dob);
     }
@@ -350,6 +361,10 @@ export const DirectAdmissionEntry: React.FC = () => {
     }
     if (rawData.govtIdNumber) {
       setGovtIdNumber(rawData.govtIdNumber);
+    }
+    const rawStudentId = location.state?.studentId || location.state?.application?.studentId || location.state?.lead?.studentId;
+    if (rawStudentId) {
+      setSelectedExistingStudentId(rawStudentId);
     }
   }, [location.state, leadSourceOptions]);
 
@@ -476,6 +491,8 @@ export const DirectAdmissionEntry: React.FC = () => {
         phone: s.user?.phone || s.phone || "",
         dob: s.dateOfBirth ? String(s.dateOfBirth).slice(0, 10) : "",
         gender: s.gender || "Male",
+        bloodGroup: s.bloodGroup || "",
+        qualification: (s as any).highestQualification || s.qualification || "",
         address: street,
         city: s.city || s.address?.city || "",
         state: s.state || s.address?.state || "",
@@ -505,6 +522,8 @@ export const DirectAdmissionEntry: React.FC = () => {
     setEmail(st.email || "");
     setDob(st.dob || "");
     setGender(st.gender || "Female");
+    setBloodGroup(st.bloodGroup || "");
+    setQualification(st.qualification || "Bachelor's Degree");
     setAddress(st.address || "");
     setCity(st.city || "Bengaluru");
     setState(st.state || "Karnataka");
@@ -523,6 +542,8 @@ export const DirectAdmissionEntry: React.FC = () => {
     setEmail("");
     setDob("");
     setGender("Female");
+    setBloodGroup("");
+    setQualification("Bachelor's Degree");
     setAddress("");
     setCity("Bengaluru");
     setState("Karnataka");
@@ -817,6 +838,10 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Please enter a valid email address.");
       return false;
     }
+    if (statusOverride !== "Draft" && !qualification.trim()) {
+      notifyError("Please select the student's highest qualification.");
+      return false;
+    }
     if (!branchId) {
       notifyError("Please select a branch / center.");
       return false;
@@ -867,6 +892,8 @@ export const DirectAdmissionEntry: React.FC = () => {
       referralSourceMasterId
         ? `Referral: ${getMasterLabel(leadSourceOptions, referralSourceMasterId)}`
         : null,
+      qualification ? `Highest Qualification: ${qualification}` : null,
+      bloodGroup ? `Blood Group: ${bloodGroup}` : null,
       altPhone ? `Alternate mobile: ${altPhone}` : null,
       fatherName ? `Father's Name: ${fatherName}` : null,
       motherName ? `Mother's Name: ${motherName}` : null,
@@ -966,6 +993,26 @@ export const DirectAdmissionEntry: React.FC = () => {
           createdStudentId = (result.data as { student?: { id?: string }; studentId?: string })?.student?.id
             || (result.data as { studentId?: string })?.studentId
             || createdStudentId;
+
+          if (createdStudentId) {
+            try {
+              await studentsApi.update(createdStudentId, {
+                qualification: qualification || undefined,
+                qualificationMasterId: qualificationMasterId || undefined,
+                bloodGroup: bloodGroup || undefined,
+                gender: gender || undefined,
+                dateOfBirth: dob || undefined,
+                guardianName: fatherName || undefined,
+                guardianPhone: guardianPhone || undefined,
+                address: address || undefined,
+                city: city || undefined,
+                pincode: pincode || undefined,
+                areaMasterId: areaMasterId || undefined,
+              });
+            } catch {
+              // non-fatal
+            }
+          }
         }
       }
 
@@ -1301,6 +1348,64 @@ export const DirectAdmissionEntry: React.FC = () => {
                       <option value="Female">Female</option>
                       <option value="Male">Male</option>
                       <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Blood Group</label>
+                    <select
+                      value={bloodGroup}
+                      onChange={(e) => setBloodGroup(e.target.value)}
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
+                    >
+                      <option value="">Select Blood Group</option>
+                      <option value="A+">A+</option>
+                      <option value="A-">A-</option>
+                      <option value="B+">B+</option>
+                      <option value="B-">B-</option>
+                      <option value="AB+">AB+</option>
+                      <option value="AB-">AB-</option>
+                      <option value="O+">O+</option>
+                      <option value="O-">O-</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">
+                      Highest Qualification <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={qualification}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setQualification(val);
+                        const matched = educationOptions.find((o) => o.label === val || o.id === val);
+                        if (matched) {
+                          setQualificationMasterId(matched.id);
+                        } else {
+                          setQualificationMasterId("");
+                        }
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
+                    >
+                      <option value="">Select Qualification</option>
+                      {educationOptions.length > 0 ? (
+                        educationOptions.map((opt) => (
+                          <option key={opt.id} value={opt.label}>
+                            {opt.label}
+                          </option>
+                        ))
+                      ) : (
+                        <>
+                          <option value="High School (10th)">High School (10th)</option>
+                          <option value="Higher Secondary (12th)">Higher Secondary (12th / PUC)</option>
+                          <option value="Diploma">Diploma</option>
+                          <option value="Bachelor's Degree">Bachelor's Degree</option>
+                          <option value="Master's Degree">Master's Degree</option>
+                          <option value="Doctorate / PhD">Doctorate / PhD</option>
+                          <option value="Other">Other</option>
+                        </>
+                      )}
                     </select>
                   </div>
 
@@ -2547,6 +2652,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Full Name</span><span className="font-bold text-foreground">{firstName} {lastName}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Mobile</span><span className="font-semibold text-foreground">{phone}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Email</span><span className="font-semibold text-foreground truncate block">{email}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Gender & Blood Group</span><span className="font-semibold text-foreground">{gender}{bloodGroup ? ` • ${bloodGroup}` : ""}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Counsellor</span><span className="font-semibold text-foreground">{counsellorName}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold text-foreground">{academicYear}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Admission Date</span><span className="font-semibold text-foreground">{admissionDate}</span></div>
@@ -2752,6 +2858,50 @@ export const DirectAdmissionEntry: React.FC = () => {
                 ₹{(createdAdmissionSummary?.balanceToPay ?? balanceToBePaid).toLocaleString()}
               </span>
             </div>
+
+            {/* Student Login Credentials Box */}
+            {createdAdmissionSummary?.status !== "Draft Saved" && (
+              <div className="p-3.5 bg-primary/5 rounded-xl border border-primary/20 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] uppercase font-bold text-primary tracking-wider flex items-center gap-1.5">
+                    <UserCheck className="h-3.5 w-3.5" />
+                    Student Account Credentials
+                  </span>
+                  <Badge variant="outline" className="text-[10px] bg-card text-emerald-600 border-emerald-500/30">
+                    Active & Created
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 bg-card rounded-lg border border-border">
+                    <span className="text-[10px] text-muted-foreground block">Student ID / Login ID:</span>
+                    <span className="font-mono font-extrabold text-foreground block mt-0.5">
+                      {createdAdmissionSummary?.admissionNo || admissionNo}
+                    </span>
+                  </div>
+                  <div className="p-2 bg-card rounded-lg border border-border">
+                    <span className="text-[10px] text-muted-foreground block">Initial Password:</span>
+                    <span className="font-mono font-extrabold text-foreground block mt-0.5">
+                      Aadya@123
+                    </span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const targetAdmNo = createdAdmissionSummary?.admissionNo || admissionNo;
+                    const creds = `Aadya Institute Student Portal Credentials:\nStudent ID: ${targetAdmNo}\nDefault Password: Aadya@123\nLogin URL: ${window.location.origin}/login`;
+                    navigator.clipboard.writeText(creds);
+                    notifySuccess("Student login credentials copied to clipboard!");
+                  }}
+                  className="w-full h-8.5 text-xs font-bold text-primary border-primary/30 hover:bg-primary/10 gap-1.5 cursor-pointer shadow-2xs"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  <span>Copy Credentials</span>
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between pt-1">

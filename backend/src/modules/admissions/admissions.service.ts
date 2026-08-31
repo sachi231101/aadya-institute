@@ -246,7 +246,91 @@ export const AdmissionsService = {
 
   async createApplication(instituteId: string, branchId: string | undefined, dto: CreateApplicationDTO) {
     const applicationNo = await SequenceService.getNextNumber(instituteId, "APPLICATION");
-    return AdmissionsRepository.createApplication(instituteId, branchId, applicationNo, dto);
+    const app = await AdmissionsRepository.createApplication(instituteId, branchId, applicationNo, dto);
+
+    // Phase 1: Immediately create/link Student record with status ADMISSION PENDING (without waiting for full admission)
+    try {
+      await prisma.$transaction(async (tx) => {
+        let existingUser: any = null;
+        if (dto.email && dto.email.trim() !== "") {
+          existingUser = await tx.user.findFirst({
+            where: { instituteId, email: dto.email.trim() },
+            include: { student: true },
+          });
+        }
+        if (!existingUser && dto.phone && dto.phone.trim() !== "") {
+          existingUser = await tx.user.findFirst({
+            where: { instituteId, phone: dto.phone.trim() },
+            include: { student: true },
+          });
+        }
+
+        let studentId = existingUser?.student?.id;
+        if (!studentId) {
+          const passwordHash = await hashPassword("Student@123");
+          const studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT");
+          const targetBranchId = branchId || (await tx.branch.findFirst({ where: { instituteId } }))?.id || "";
+
+          let userId = existingUser?.id;
+          if (!userId) {
+            const newUser = await tx.user.create({
+              data: {
+                instituteId,
+                branchId: targetBranchId,
+                name: dto.applicantName,
+                email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : null,
+                phone: dto.phone && dto.phone.trim() !== "" ? dto.phone.trim() : null,
+                passwordHash,
+              },
+            });
+            userId = newUser.id;
+
+            const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+            if (studentRole) {
+              await tx.userRole.create({
+                data: { userId: newUser.id, roleId: studentRole.id },
+              });
+            }
+          }
+
+          const newStudent = await tx.student.create({
+            data: {
+              userId,
+              instituteId,
+              branchId: targetBranchId,
+              studentCode,
+              status: "ACTIVE",
+            },
+          });
+          studentId = newStudent.id;
+        }
+
+        // Ensure a pending/provisional admission link exists so student appears as "Admission Pending"
+        const existingAdmission = await tx.admission.findFirst({
+          where: { studentId, applicationId: app.id },
+        });
+        if (!existingAdmission) {
+          await tx.admission.create({
+            data: {
+              instituteId,
+              branchId: branchId || (await tx.branch.findFirst({ where: { instituteId } }))?.id || "",
+              studentId,
+              applicationId: app.id,
+              courseId: dto.courseId,
+              studentName: dto.applicantName,
+              email: dto.email || null,
+              phone: dto.phone,
+              status: "PENDING",
+              notes: dto.notes,
+            },
+          });
+        }
+      });
+    } catch (err) {
+      logger.error({ err }, "[admissions] Failed to link provisional student record for application");
+    }
+
+    return app;
   },
 
   async updateApplication(id: string, instituteId: string, dto: UpdateApplicationDTO) {
@@ -299,12 +383,35 @@ export const AdmissionsService = {
         });
       }
 
+      const defaultStudentPasswordHash = await hashPassword("Aadya@123");
+      const branchId = app.branchId || (await tx.branch.findFirst({ where: { instituteId: app.instituteId } }))?.id || "";
+
       if (existingUser?.student) {
         studentId = existingUser.student.id;
+        await tx.student.update({
+          where: { id: existingUser.student.id },
+          data: { studentCode: admissionNo, status: "ACTIVE", branchId },
+        });
+        if (existingUser.id) {
+          await tx.user.update({
+            where: { id: existingUser.id },
+            data: {
+              branchId,
+              status: "ACTIVE",
+              passwordHash: defaultStudentPasswordHash,
+            },
+          });
+          const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+          if (studentRole) {
+            await tx.userRole.upsert({
+              where: { userId_roleId: { userId: existingUser.id, roleId: studentRole.id } },
+              update: {},
+              create: { userId: existingUser.id, roleId: studentRole.id },
+            });
+          }
+        }
       } else {
-        const passwordHash = await hashPassword("Student@123");
-        const studentCode = await SequenceService.getNextNumber(app.instituteId, "STUDENT");
-        const branchId = app.branchId || (await tx.branch.findFirst({ where: { instituteId: app.instituteId } }))?.id || "";
+        const studentCode = admissionNo;
 
         let userId = existingUser?.id;
         if (!userId) {
@@ -315,17 +422,29 @@ export const AdmissionsService = {
               name: app.applicantName,
               email: app.email || null,
               phone: app.phone || null,
-              passwordHash,
+              passwordHash: defaultStudentPasswordHash,
+              status: "ACTIVE",
             },
           });
           userId = newUser.id;
+        } else {
+          await tx.user.update({
+            where: { id: userId },
+            data: {
+              branchId,
+              status: "ACTIVE",
+              passwordHash: defaultStudentPasswordHash,
+            },
+          });
+        }
 
-          const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
-          if (studentRole) {
-            await tx.userRole.create({
-              data: { userId: newUser.id, roleId: studentRole.id },
-            });
-          }
+        const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+        if (studentRole && userId) {
+          await tx.userRole.upsert({
+            where: { userId_roleId: { userId, roleId: studentRole.id } },
+            update: {},
+            create: { userId, roleId: studentRole.id },
+          });
         }
 
         const newStudent = await tx.student.create({
@@ -334,6 +453,7 @@ export const AdmissionsService = {
             instituteId: app.instituteId,
             branchId,
             studentCode,
+            status: "ACTIVE",
           },
         });
         studentId = newStudent.id;

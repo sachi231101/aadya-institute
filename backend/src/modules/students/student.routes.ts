@@ -71,6 +71,13 @@ router.patch(
   controller.update
 );
 
+// POST /api/v1/students/:id/send-credentials-whatsapp — Send ID and password to student WhatsApp
+router.post(
+  "/:id/send-credentials-whatsapp",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  controller.sendCredentialsWhatsApp
+);
+
 // DELETE /api/v1/students/:id — Soft-delete student (ADMIN only)
 router.delete(
   "/:id",

@@ -89,6 +89,17 @@ const mapStudentSummary = (s: any) => {
 
   const isDraft = admission?.status === "PENDING" || (s.status as string) === "PENDING" || (s.status as string) === "DRAFT";
 
+  const admissionNotes = admission?.notes || "";
+  const extractFromNotes = (pattern: RegExp) => {
+    const match = admissionNotes.match(pattern);
+    return match ? match[1].trim() : null;
+  };
+  const bloodGroup = s.bloodGroup || extractFromNotes(/Blood Group:\s*([^|\n]+)/i) || null;
+  const gender = s.gender || extractFromNotes(/Gender:\s*([^|\n]+)/i) || null;
+  const guardianName = s.guardianName || extractFromNotes(/(?:Father's Name|Mother's Name|Guardian Name|Guardian):\s*([^|\n]+)/i) || null;
+  const guardianPhone = s.guardianPhone || extractFromNotes(/Guardian Phone:\s*([^|\n]+)/i) || null;
+  const addressStr = s.address || extractFromNotes(/Address:\s*([^|\n]+)/i) || null;
+
   return {
     id: s.id,
     userId: s.userId,
@@ -97,6 +108,10 @@ const mapStudentSummary = (s: any) => {
     studentCode: s.studentCode,
     dateOfBirth: s.dateOfBirth,
     qualification: s.qualification,
+    gender,
+    bloodGroup,
+    guardian: guardianName || guardianPhone ? { name: guardianName, phone: guardianPhone, relation: "Parent / Guardian" } : null,
+    address: addressStr ? { street: addressStr, city: s.address?.city || "Bengaluru", pincode: s.address?.pincode || "" } : null,
     status: isDraft ? "DRAFT" : s.status,
     admissionStatus: admission?.status ?? null,
     isDraft,
@@ -497,5 +512,68 @@ export const getStudentPerformance = async (studentId: string, currentUser: Auth
     enrolledCourses,
     discontinuationAlert,
     maxConsecutiveAbsences,
+  };
+};
+
+/**
+ * Send Student Login Credentials (ID & default password) to the student's registered WhatsApp mobile number.
+ */
+export const sendStudentCredentialsWhatsAppService = async (
+  studentId: string,
+  currentUser: AuthUser
+) => {
+  const student = await repo.findStudentById(studentId);
+  if (!student) throw new AppError("Student not found", 404);
+  if (student.instituteId !== currentUser.instituteId) {
+    throw new AppError("Student not found", 404);
+  }
+
+  const studentName = student.user?.name || "Student";
+  const admission = student.admissions?.[0];
+  const studentCode = student.studentCode || admission?.admissionNo || "Not Assigned";
+  const rawPhone = student.user?.phone || admission?.phone || "";
+
+  if (!rawPhone || rawPhone.trim() === "") {
+    throw new AppError("Student has no registered mobile number on record from admission.", 400);
+  }
+
+  const cleanPhone = rawPhone.replace(/\D/g, "");
+  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+  const initialPassword = "Aadya@123";
+  const portalHost = process.env.CLIENT_URL || "http://localhost:5173";
+  const loginUrl = `${portalHost.replace(/\/+$/, "")}/login`;
+
+  const messageText = `🎓 *Welcome to Aadya Institute!*
+
+Dear *${studentName}*,
+
+Your admission has been confirmed. Below are your Student Portal login credentials:
+
+🆔 *Student ID / Username:* \`${studentCode}\`
+🔑 *Initial Password:* \`${initialPassword}\`
+🌐 *Portal URL:* ${loginUrl}
+
+📌 *Important Instructions:*
+1. Sign in to your Student Dashboard using your Student ID and Initial Password.
+2. Go to *Profile* → *Change Password* to set your personal secure password.
+3. Access your class timetables, attendance history, assignments, and recordings.
+
+For any assistance or questions, please contact your center counsellor or manager.
+
+Best regards,
+*Aadya Institute Management*`;
+
+  const whatsappWebUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
+
+  return {
+    success: true,
+    recipient: {
+      name: studentName,
+      phone: rawPhone,
+      formattedPhone: `+${formattedPhone}`,
+      studentCode,
+    },
+    message: messageText,
+    whatsappWebUrl,
   };
 };
