@@ -135,45 +135,102 @@ export const SequenceService = {
 
     try {
       return await prisma.$transaction(async (tx) => {
-        const seriesRecord = await findActiveNumberingSeries(instituteId, normalizedTarget, tx);
+        let seriesRecord = await findActiveNumberingSeries(instituteId, normalizedTarget, tx);
 
+        // If no series configured yet, auto-create a standard series record based on current DB count
         if (!seriesRecord) {
-          logger.debug(
-            { target: normalizedTarget, instituteId },
-            "[SequenceService] No numbering series found, using fallback"
-          );
-          return fallbackPreview(normalizedTarget, context).preview;
+          let initialCount = 0;
+          if (normalizedTarget === "ADMISSION") {
+            initialCount = await tx.admission.count({ where: { instituteId } });
+          } else if (normalizedTarget === "STUDENT") {
+            initialCount = await tx.student.count({ where: { instituteId } });
+          } else if (normalizedTarget === "APPLICATION") {
+            initialCount = await tx.application.count({ where: { instituteId } });
+          } else if (normalizedTarget === "ENQUIRY") {
+            initialCount = await tx.lead.count({ where: { instituteId } });
+          } else if (normalizedTarget === "RECEIPT") {
+            initialCount = await tx.payment.count({ where: { instituteId } });
+          }
+
+          const defaultPattern = DEFAULT_PATTERNS[normalizedTarget] || "AADYA/{YEAR}/{SEQ:4}";
+          const newSeriesData: NumberingSeriesData = {
+            target: normalizedTarget,
+            pattern: defaultPattern,
+            startNumber: 1,
+            currentSequence: initialCount,
+            resetFrequency: "YEARLY",
+            lastResetPeriod: getCurrentPeriodKey("YEARLY"),
+          };
+
+          try {
+            seriesRecord = await tx.masterRecord.create({
+              data: {
+                instituteId,
+                entityType: "numberingseries",
+                name: `${normalizedTarget} Numbering Series`,
+                code: normalizedTarget,
+                status: "ACTIVE",
+                data: newSeriesData as unknown as Prisma.InputJsonValue,
+              },
+            });
+          } catch {
+            // If another transaction created it concurrently, re-fetch
+            seriesRecord = await findActiveNumberingSeries(instituteId, normalizedTarget, tx);
+          }
         }
 
-        const seriesData = parseSeriesData(seriesRecord);
-        if (!seriesData) {
-          return fallbackPreview(normalizedTarget, context).preview;
-        }
-
-        const pattern = seriesData.pattern || DEFAULT_PATTERNS[normalizedTarget] || "{SEQ:6}";
-        const resetFrequency = seriesData.resetFrequency || "YEARLY";
+        const seriesData = seriesRecord ? parseSeriesData(seriesRecord) : null;
+        const pattern = seriesData?.pattern || DEFAULT_PATTERNS[normalizedTarget] || "AADYA/{YEAR}/{SEQ:4}";
+        const resetFrequency = seriesData?.resetFrequency || "YEARLY";
         const currentPeriodKey = getCurrentPeriodKey(resetFrequency);
         const shouldReset =
-          resetFrequency !== "NEVER" && seriesData.lastResetPeriod !== currentPeriodKey;
+          resetFrequency !== "NEVER" && seriesData?.lastResetPeriod !== currentPeriodKey;
 
-        const startNum = Number(seriesData.startNumber) || 1;
-        const currentSeq = Number(seriesData.currentSequence) || 0;
-        const nextSequence = shouldReset ? startNum : currentSeq + 1;
+        const startNum = Number(seriesData?.startNumber) || 1;
+        const currentSeq = Number(seriesData?.currentSequence) || 0;
+        let nextSequence = shouldReset ? startNum : currentSeq + 1;
 
-        const updatedData: NumberingSeriesData = {
-          ...seriesData,
-          target: normalizedTarget,
-          startNumber: startNum,
-          currentSequence: nextSequence,
-          lastResetPeriod: currentPeriodKey,
-        };
+        let generatedNumber = applyPattern(pattern, nextSequence, context);
 
-        await tx.masterRecord.update({
-          where: { id: seriesRecord.id },
-          data: { data: updatedData as unknown as Prisma.InputJsonValue },
-        });
+        // Verification & Collision Prevention Loop
+        if (normalizedTarget === "ADMISSION") {
+          let attempts = 0;
+          while (
+            (await tx.admission.findFirst({ where: { instituteId, admissionNo: generatedNumber } })) &&
+            attempts < 500
+          ) {
+            nextSequence++;
+            attempts++;
+            generatedNumber = applyPattern(pattern, nextSequence, context);
+          }
+        } else if (normalizedTarget === "STUDENT") {
+          let attempts = 0;
+          while (
+            (await tx.student.findFirst({ where: { instituteId, studentCode: generatedNumber } })) &&
+            attempts < 500
+          ) {
+            nextSequence++;
+            attempts++;
+            generatedNumber = applyPattern(pattern, nextSequence, context);
+          }
+        }
 
-        const generatedNumber = applyPattern(pattern, nextSequence, context);
+        if (seriesRecord) {
+          const updatedData: NumberingSeriesData = {
+            ...(seriesData || {}),
+            target: normalizedTarget,
+            pattern,
+            startNumber: startNum,
+            currentSequence: nextSequence,
+            resetFrequency,
+            lastResetPeriod: currentPeriodKey,
+          };
+
+          await tx.masterRecord.update({
+            where: { id: seriesRecord.id },
+            data: { data: updatedData as unknown as Prisma.InputJsonValue },
+          });
+        }
 
         logger.info(
           { target: normalizedTarget, sequence: nextSequence, generated: generatedNumber },
@@ -187,7 +244,8 @@ export const SequenceService = {
         { error, target: normalizedTarget, instituteId },
         "[SequenceService] Failed to generate number, using fallback"
       );
-      return fallbackPreview(normalizedTarget, context).preview;
+      const fallbackSeq = Math.floor(1000 + Math.random() * 9000);
+      return applyPattern(DEFAULT_PATTERNS[normalizedTarget] || "{SEQ:6}", fallbackSeq, context);
     }
   },
 

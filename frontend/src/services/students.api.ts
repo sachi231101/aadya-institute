@@ -78,8 +78,24 @@ export const studentsApi = {
     return response.data;
   },
 
-  getMyDashboard: async (): Promise<SingleResponse<StudentDashboardData>> => {
-    const response = await api.get<SingleResponse<StudentDashboardData>>("/students/me/dashboard");
+  // ─── Student Credentials WhatsApp ─────────────────────────────────────
+
+  sendCredentialsWhatsApp: async (
+    id: string
+  ): Promise<
+    SingleResponse<{
+      success: boolean;
+      recipient: {
+        name: string;
+        phone: string;
+        formattedPhone: string;
+        studentCode: string;
+      };
+      message: string;
+      whatsappWebUrl: string;
+    }>
+  > => {
+    const response = await api.post(`/students/${id}/send-credentials-whatsapp`);
     return response.data;
   },
 };

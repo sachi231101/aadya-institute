@@ -47,9 +47,9 @@ export const getPerformance = async (req: AuthenticatedRequest, res: Response, n
   } catch (err) { next(err); }
 };
 
-export const getMyDashboard = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+export const sendCredentialsWhatsApp = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const data = await service.getMyDashboard(toAuthUser(req));
-    sendSuccess(res, data, 200, "Student dashboard retrieved successfully");
+    const data = await service.sendStudentCredentialsWhatsAppService(req.params.id as string, toAuthUser(req));
+    sendSuccess(res, data, 200, "Student credentials dispatched to WhatsApp");
   } catch (err) { next(err); }
 };

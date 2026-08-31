@@ -90,6 +90,7 @@ export interface Student {
   // Extended optional attributes for rich UI presentation
   gender?: "Male" | "Female" | "Other" | string;
   bloodGroup?: string;
+  highestQualification?: string;
   emergencyContact?: string;
   guardian?: StudentGuardian;
   address?: StudentAddress;
@@ -257,6 +258,7 @@ export interface UpdateStudentPayload {
   // Extended UI fields
   gender?: string;
   bloodGroup?: string;
+  highestQualification?: string;
   guardianName?: string;
   guardianPhone?: string;
   address?: string;

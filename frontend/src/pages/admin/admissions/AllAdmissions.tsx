@@ -28,6 +28,8 @@ import {
   Layers,
   Edit,
   RefreshCw,
+  ArrowLeft,
+  AlertCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCourseStore } from "../../../store/course.store";
@@ -52,11 +54,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Sheet,
-  SheetContent,
-} from "@/components/ui/sheet";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { ViewAdmissionInfo } from "./ViewAdmissionInfo";
 
 // ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
 
@@ -99,19 +98,28 @@ export interface PaymentTransactionItem {
 export interface EnrichedAdmission {
   id: string;
   admissionNo: string;
+  studentId?: string;
+  studentCode?: string;
   studentName: string;
   avatar: string;
   email: string;
   phone: string;
+  altPhone?: string;
+  emergencyContact?: string;
   dob: string;
-  gender: "Female" | "Male" | "Other";
+  gender: "Female" | "Male" | "Other" | string;
+  bloodGroup?: string;
+  highestQualification?: string;
   address: string;
   city: string;
   state: string;
   pincode: string;
   guardianName: string;
   counselorName: string;
-  admissionSource: "Online Portal" | "Direct Walk-in" | "Enquiry Conversion" | "Referral";
+  admissionSource: string;
+  admissionType?: string;
+  branchName?: string;
+  academicYear?: string;
 
   // Course
   courseId: string;
@@ -173,22 +181,37 @@ export const AllAdmissions: React.FC = () => {
 
   useEffect(() => {
     const rawList = dbAdmissionsRes?.data || [];
+    const extractNote = (notes: string | undefined | null, pattern: RegExp) => {
+      if (!notes) return null;
+      const match = notes.match(pattern);
+      return match ? match[1].trim() : null;
+    };
+
     const mappedDbAdmissions: EnrichedAdmission[] = rawList.map((adm: any) => ({
       id: adm.id,
       admissionNo: adm.admissionNo || `ADM-${adm.id.slice(-6).toUpperCase()}`,
+      studentId: adm.studentId || adm.student?.id || "",
+      studentCode: adm.student?.studentCode || adm.studentCode || "",
       studentName: adm.studentName || adm.student?.user?.name || "Admitted Student",
       avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(adm.studentName || adm.student?.user?.name || "AD")}`,
       email: adm.email || adm.student?.user?.email || "—",
       phone: adm.phone || adm.student?.user?.phone || "",
-      dob: adm.dob ? String(adm.dob).slice(0, 10) : "—",
-      gender: (adm.gender as any) || "Female",
-      address: adm.address || "—",
-      city: adm.city || "—",
-      state: adm.state || "—",
-      pincode: adm.pincode || "—",
-      guardianName: adm.guardianName || "—",
-      counselorName: adm.counselorName || adm.user?.name || "—",
-      admissionSource: adm.admissionSource || "Direct Walk-in",
+      altPhone: extractNote(adm.notes, /Alternate mobile:\s*([^|\n]+)/i) || "—",
+      emergencyContact: extractNote(adm.notes, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || "—",
+      dob: adm.dob ? String(adm.dob).slice(0, 10) : extractNote(adm.notes, /DOB:\s*([^|\n]+)/i) || "—",
+      gender: (adm.gender as any) || extractNote(adm.notes, /Gender:\s*([^|\n]+)/i) || "Female",
+      bloodGroup: extractNote(adm.notes, /Blood Group:\s*([^|\n]+)/i) || adm.student?.bloodGroup || "Not Provided",
+      highestQualification: extractNote(adm.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || adm.student?.qualification || (adm.student as any)?.highestQualification || "Not Provided",
+      address: adm.address || extractNote(adm.notes, /Address:\s*([^|\n]+)/i) || "—",
+      city: adm.city || "Bengaluru",
+      state: adm.state || "Karnataka",
+      pincode: adm.pincode || "560102",
+      guardianName: adm.guardianName || extractNote(adm.notes, /(?:Father's Name|Mother's Name|Guardian Name|Guardian):\s*([^|\n]+)/i) || "—",
+      counselorName: adm.counselorName || adm.user?.name || extractNote(adm.notes, /Counsellor:\s*([^|\n]+)/i) || "Aadya Counsellor",
+      admissionSource: extractNote(adm.notes, /(?:Lead source|Source):\s*([^|\n]+)/i) || adm.admissionSource || "Direct Walk-in",
+      admissionType: extractNote(adm.notes, /Admission type:\s*([^|\n]+)/i) || "Regular Admission",
+      branchName: adm.branch?.name || "Aadya Institute Malleshwaram",
+      academicYear: extractNote(adm.notes, /Academic year:\s*([^|\n]+)/i) || "2025 – 2026",
       courseId: adm.courseId || "",
       courseName: adm.course?.name || "—",
       programDuration: adm.course?.duration ? `(${adm.course.duration} Months)` : "—",
@@ -247,10 +270,11 @@ export const AllAdmissions: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const pageSize = 7;
 
-  // View Details Drawer State
+  // View Details & Sub-Modal States
   const [selectedAdmission, setSelectedAdmission] = useState<EnrichedAdmission | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<"overview" | "batch" | "fee" | "docs" | "notes">("overview");
+  const [isManageAdmissionOpen, setIsManageAdmissionOpen] = useState(false);
+  const [isFeeDetailsModalOpen, setIsFeeDetailsModalOpen] = useState(false);
+  const [isDocsModalOpen, setIsDocsModalOpen] = useState(false);
 
   // Direct Admission Entry Modal
   const [isDirectModalOpen, setIsDirectModalOpen] = useState(false);
@@ -347,7 +371,7 @@ export const AllAdmissions: React.FC = () => {
 
   const handleOpenDetails = (adm: EnrichedAdmission) => {
     setSelectedAdmission(adm);
-    setIsDetailsOpen(true);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleAddCounsellorNote = () => {
@@ -526,30 +550,40 @@ export const AllAdmissions: React.FC = () => {
   };
 
   // Helper for Status Badge
-  const renderAdmissionStatusBadge = (status: AdmissionRecordStatus) => {
+  const renderAdmissionStatusBadge = (status: AdmissionRecordStatus | string) => {
     switch (status) {
       case "Confirmed":
+      case "CONFIRMED":
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 shadow-2xs">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-2xs">
             Confirmed
           </span>
         );
       case "Provisional":
+      case "PROVISIONAL":
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200/70 shadow-2xs">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/30 shadow-2xs">
             Provisional
           </span>
         );
       case "Admission Pending":
+      case "PENDING":
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#1769AA] border border-blue-200/70 shadow-2xs">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/30 shadow-2xs">
             Admission Pending
           </span>
         );
       case "Cancelled":
+      case "CANCELLED":
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-700 border border-rose-200/70 shadow-2xs">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/30 shadow-2xs">
             Cancelled
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+            {status}
           </span>
         );
     }
@@ -566,14 +600,31 @@ export const AllAdmissions: React.FC = () => {
         </div>
       )}
 
-      {/* ─── 1. BREADCRUMB & HEADER ─── */}
-      <div className="space-y-2">
-        {/* Breadcrumb */}
-        <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-            <UserCheck className="h-4 w-4" />
-            <span>Counsellor Portal</span>
-          </div>
+      {selectedAdmission ? (
+        <ViewAdmissionInfo
+          admission={selectedAdmission}
+          onBack={() => setSelectedAdmission(null)}
+          onOpenManageAdmission={() => setIsManageAdmissionOpen(true)}
+          onOpenChangeBatch={() => {
+            setTargetBatchId(selectedAdmission.batchCode);
+            setIsChangeBatchOpen(true);
+          }}
+          onOpenFeeDetails={() => setIsFeeDetailsModalOpen(true)}
+          onOpenDocs={() => setIsDocsModalOpen(true)}
+          onCopyAdmNo={handleCopyAdmNo}
+          renderAdmissionStatusBadge={renderAdmissionStatusBadge}
+          basePath={basePath}
+        />
+      ) : (
+        <>
+          {/* ─── 1. BREADCRUMB & HEADER ─── */}
+          <div className="space-y-2">
+            {/* Breadcrumb */}
+            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
+                <UserCheck className="h-4 w-4" />
+                <span>Counsellor Portal</span>
+              </div>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
           <span className="text-muted-foreground">Admissions & Counselling Desk</span>
           <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
@@ -1233,510 +1284,255 @@ export const AllAdmissions: React.FC = () => {
           </div>
         </div>
       </Card>
+        </>
+      )}
 
-      {/* ─── 6. VIEW ADMISSION DETAILS (SLIDE-OUT SHEET / DRAWER) ─── */}
-      <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-2xl lg:max-w-3xl p-0 overflow-y-auto bg-card text-foreground border-l border-border">
-          {selectedAdmission && (
-            <div className="flex flex-col h-full">
+      {/* ─── MODALS ─── */}
 
-              {/* Drawer Header */}
-              <div className="p-6 border-b border-border bg-muted/30 sticky top-0 z-10 backdrop-blur-md">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20 font-mono">
-                        {selectedAdmission.admissionNo}
-                      </span>
-                      {renderAdmissionStatusBadge(selectedAdmission.status)}
-                      <span className="text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded font-mono">
-                        {selectedAdmission.batchCode}
-                      </span>
-                    </div>
-                    <h2 className="text-xl font-extrabold text-foreground">
-                      {selectedAdmission.studentName}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">
-                      Enrolled in <strong className="text-foreground">{selectedAdmission.courseName}</strong> on {selectedAdmission.admissionDate} at {selectedAdmission.admissionTime}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 mr-6">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleCopyAdmNo(selectedAdmission.admissionNo)}
-                      className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      <span>Copy</span>
-                    </Button>
-
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => window.print()}
-                      className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer"
-                    >
-                      <Printer className="h-3.5 w-3.5" />
-                      <span>Print</span>
-                    </Button>
-                  </div>
+      {/* MANAGE ADMISSION MODAL */}
+      {isManageAdmissionOpen && selectedAdmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-lg p-6 space-y-5 text-foreground">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <SlidersHorizontal className="h-5 w-5" />
                 </div>
-
-                {/* ─── ADMISSION PROGRESS STEPPER ─── */}
-                <div className="mt-5 pt-4 border-t border-border">
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2.5">
-                    Admission Progress Stage
-                  </p>
-                  <div className="grid grid-cols-4 gap-1 text-center">
-                    {[
-                      { step: 1, title: "1. Admission Created", done: selectedAdmission.workflowStep >= 1 },
-                      { step: 2, title: "2. Fee Setup", done: selectedAdmission.workflowStep >= 2 },
-                      { step: 3, title: "3. Batch Assigned", done: selectedAdmission.workflowStep >= 3 },
-                      { step: 4, title: "4. Confirmed", done: selectedAdmission.status === "Confirmed" },
-                    ].map((st) => (
-                      <div key={st.step} className="flex flex-col items-center gap-1">
-                        <div
-                          className={`h-2.5 w-full rounded-full transition-colors ${st.done ? "bg-emerald-500" : "bg-muted"
-                            }`}
-                        />
-                        <span className={`text-[10px] font-semibold truncate ${st.done ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"
-                          }`}>
-                          {st.title}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">Manage Admission</h3>
+                  <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
                 </div>
+              </div>
+              <button
+                onClick={() => setIsManageAdmissionOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
 
-                {/* Tab Navigation */}
-                <div className="flex items-center gap-2 mt-4 pt-2 border-t border-border overflow-x-auto">
-                  <button
-                    onClick={() => setActiveTab("overview")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "overview"
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5">Change Admission Status</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {(["Confirmed", "Provisional", "Cancelled"] as AdmissionRecordStatus[]).map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      onClick={() => handleUpdateAdmissionStatus(selectedAdmission.id, st)}
+                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        selectedAdmission.status === st
+                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                          : "border-border text-foreground hover:bg-muted/50"
                       }`}
-                  >
-                    Student & Admission
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("batch")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "batch"
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                  >
-                    Batch Details
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("fee")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "fee"
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                  >
-                    Fee Structure & Receipts
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("docs")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${activeTab === "docs"
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                  >
-                    <span>Documents</span>
-                    <span className="bg-muted text-foreground text-[10px] px-1.5 py-0.2 rounded-full">
-                      {selectedAdmission.documents.length}
-                    </span>
-                  </button>
-                  <button
-                    onClick={() => setActiveTab("notes")}
-                    className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all cursor-pointer shrink-0 ${activeTab === "notes"
-                        ? "bg-primary text-primary-foreground shadow-2xs"
-                        : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
-                      }`}
-                  >
-                    Counsellor Notes
-                  </button>
+                    >
+                      {st}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Drawer Body */}
-              <div className="p-6 space-y-6 flex-1 bg-card">
+              <div className="space-y-2 pt-2 border-t border-border">
+                <label className="block text-xs font-bold text-foreground">Add Counsellor Note</label>
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Add operational notes, remarks..."
+                    value={newNoteText}
+                    onChange={(e) => setNewNoteText(e.target.value)}
+                    className="bg-background border-border text-foreground text-xs h-9"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddCounsellorNote}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3 h-9 shrink-0 cursor-pointer"
+                  >
+                    <Send className="h-3.5 w-3.5 mr-1" /> Add
+                  </Button>
+                </div>
+              </div>
 
-                {/* ─── TAB 1: STUDENT & ADMISSION OVERVIEW ─── */}
-                {activeTab === "overview" && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
+              {selectedAdmission.counsellorNotes?.length > 0 && (
+                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase">Recent Notes</p>
+                  {selectedAdmission.counsellorNotes.map((n) => (
+                    <div key={n.id} className="p-2.5 rounded-lg border border-border bg-muted/20 text-xs">
+                      <div className="flex justify-between text-[11px] text-muted-foreground font-semibold mb-0.5">
+                        <span>{n.author}</span>
+                        <span>{n.date}</span>
+                      </div>
+                      <p className="text-foreground">{n.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
 
-                    {/* Student Information */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <User className="h-4 w-4 text-primary" /> Student Personal Details
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
+              <div className="flex justify-end pt-3 border-t border-border">
+                <Button
+                  variant="outline"
+                  onClick={() => setIsManageAdmissionOpen(false)}
+                  className="h-9 text-xs font-semibold border-border text-foreground hover:bg-muted/50 cursor-pointer"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FEE DETAILS MODAL */}
+      {isFeeDetailsModalOpen && selectedAdmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                  <CreditCard className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">Fee Details & Transactions</h3>
+                  <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsFeeDetailsModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-3 gap-3 p-3.5 bg-muted/40 rounded-xl border border-border text-xs">
+              <div>
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Total Fee</span>
+                <span className="text-sm font-bold text-foreground mt-0.5 block">₹{selectedAdmission.totalCourseFee.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Paid Amount</span>
+                <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 block">₹{selectedAdmission.amountPaid.toLocaleString()}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Balance Due</span>
+                <span className="text-sm font-bold text-amber-600 dark:text-amber-400 mt-0.5 block">₹{selectedAdmission.amountDue.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Payment History</h4>
+              {selectedAdmission.paymentHistory.length > 0 ? (
+                <div className="space-y-2">
+                  {selectedAdmission.paymentHistory.map((p) => (
+                    <div
+                      key={p.id}
+                      className="p-3 rounded-xl border border-border bg-background flex items-center justify-between text-xs"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <CreditCard className="h-4 w-4 text-emerald-500" />
                         <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Full Name</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedAdmission.studentName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Date of Birth & Gender</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedAdmission.dob} ({selectedAdmission.gender})</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Primary Mobile Number</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
-                            <Phone className="h-3 w-3 text-emerald-500" /> {selectedAdmission.phone}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Email Address</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
-                            <Mail className="h-3 w-3 text-primary" /> {selectedAdmission.email}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Parent / Guardian Name</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedAdmission.guardianName}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Assigned Counsellor</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-center gap-1">
-                            <UserCheck className="h-3 w-3 text-emerald-500" /> {selectedAdmission.counselorName}
-                          </p>
-                        </div>
-                        <div className="sm:col-span-2">
-                          <p className="text-[11px] font-medium text-muted-foreground">Residential Address</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 flex items-start gap-1">
-                            <MapPin className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                            <span>{selectedAdmission.address}, {selectedAdmission.city}, {selectedAdmission.state} - {selectedAdmission.pincode}</span>
-                          </p>
+                          <p className="font-bold text-foreground">{p.receiptNo}</p>
+                          <p className="text-[11px] text-muted-foreground">{p.paymentMode} • {p.date}</p>
                         </div>
                       </div>
-                    </div>
-
-                    {/* Admission Program Details */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                        <GraduationCap className="h-4 w-4 text-primary" /> Admission Program Information
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-2xl border border-border bg-muted/20">
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Admitted Course</p>
-                          <p className="text-xs font-bold text-primary mt-0.5">{selectedAdmission.courseName}</p>
-                          <span className="text-[11px] text-muted-foreground">{selectedAdmission.programDuration}</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Admission Source</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5">{selectedAdmission.admissionSource}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Assigned Batch Code</p>
-                          <p className="text-xs font-bold text-foreground mt-0.5 font-mono">{selectedAdmission.batchCode}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-medium text-muted-foreground">Current Status</p>
-                          <div className="mt-0.5">{renderAdmissionStatusBadge(selectedAdmission.status)}</div>
-                        </div>
+                      <div className="text-right">
+                        <span className="font-bold text-foreground">₹{p.amount.toLocaleString()}</span>
+                        <span className="block text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">{p.status}</span>
                       </div>
                     </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-6 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
+                  No payment transactions recorded yet.
+                </div>
+              )}
+            </div>
 
-                  </div>
-                )}
+            <div className="flex justify-end pt-3 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => setIsFeeDetailsModalOpen(false)}
+                className="h-9 text-xs font-semibold border-border text-foreground hover:bg-muted/50 cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                {/* ─── TAB 2: BATCH & SCHEDULE DETAILS ─── */}
-                {activeTab === "batch" && (
-                  <div className="space-y-5 animate-in fade-in duration-150">
-                    <div className="p-5 rounded-2xl border border-border bg-muted/20 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded font-mono">
-                            {selectedAdmission.batchCode}
+      {/* DOCUMENTS MODAL */}
+      {isDocsModalOpen && selectedAdmission && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl p-6 space-y-5 text-foreground max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-border pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="h-9 w-9 rounded-xl bg-blue-500/10 text-primary flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-foreground">Verification Documents</h3>
+                  <p className="text-xs text-muted-foreground">{selectedAdmission.studentName} ({selectedAdmission.admissionNo})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDocsModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground p-1 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2.5">
+              {selectedAdmission.documents.length > 0 ? (
+                selectedAdmission.documents.map((doc) => (
+                  <div
+                    key={doc.id}
+                    className="p-3.5 rounded-xl border border-border bg-background flex items-center justify-between gap-3 text-xs"
+                  >
+                    <div className="flex items-center gap-3">
+                      <FileText className="h-5 w-5 text-primary shrink-0" />
+                      <div>
+                        <p className="font-bold text-foreground">{doc.title}</p>
+                        <p className="text-[11px] text-muted-foreground">{doc.fileName} • {doc.fileSize}</p>
+                        {doc.verified && (
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
+                            <ShieldCheck className="h-3 w-3" /> Verified by {doc.verifiedBy || "Priya Singh"}
                           </span>
-                          <h3 className="text-base font-extrabold text-foreground mt-1">
-                            {selectedAdmission.courseName} — {selectedAdmission.batchType}
-                          </h3>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            setTargetBatchId(selectedAdmission.batchCode);
-                            setIsChangeBatchOpen(true);
-                          }}
-                          className="h-8 text-xs font-bold text-purple-600 dark:text-purple-400 bg-purple-500/10 border-purple-500/20 hover:bg-purple-500/20 cursor-pointer"
-                        >
-                          <RefreshCw className="h-3.5 w-3.5 mr-1" /> Change Batch
-                        </Button>
-                      </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-3 border-t border-border text-xs">
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Class Timing</span>
-                          <span className="font-bold text-foreground">{selectedAdmission.batchTiming}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Start Date</span>
-                          <span className="font-bold text-foreground">{selectedAdmission.batchStartDate}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Assigned Faculty</span>
-                          <span className="font-bold text-foreground">{selectedAdmission.assignedFaculty}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Batch Capacity</span>
-                          <span className="font-bold text-foreground">{selectedAdmission.batchCapacity} Seats</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Available Seats</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                            {selectedAdmission.batchCapacity - selectedAdmission.enrolledCount} Seats Available
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Batch Schedule Pattern</span>
-                          <span className="font-bold text-foreground">{selectedAdmission.batchType}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* ─── TAB 3: FEE & RECEIPTS ─── */}
-                {activeTab === "fee" && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-
-                    {/* Fee Summary Card */}
-                    <div className="p-5 rounded-2xl border border-border bg-muted/20 space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-xs font-medium text-muted-foreground">Selected Fee Plan</p>
-                          <h3 className="text-xl font-black text-foreground mt-0.5">
-                            {selectedAdmission.feePlan}
-                          </h3>
-                        </div>
-                        {selectedAdmission.feePaymentStatus === "Paid" ? (
-                          <Badge className="bg-emerald-500 text-white font-bold text-xs px-3 py-1">
-                            FULLY PAID
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-rose-500 text-white font-bold text-xs px-3 py-1">
-                            BALANCE DUE: ₹{selectedAdmission.amountDue.toLocaleString()}
-                          </Badge>
                         )}
                       </div>
-
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3 border-t border-border text-xs">
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Total Course Fee</span>
-                          <span className="font-bold text-foreground">₹{selectedAdmission.totalCourseFee.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Discount Applied</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">-₹{selectedAdmission.discountAmount.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Final Payable Fee</span>
-                          <span className="font-bold text-foreground">₹{selectedAdmission.finalFee.toLocaleString()}</span>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground block text-[11px]">Amount Paid</span>
-                          <span className="font-bold text-emerald-600 dark:text-emerald-400">₹{selectedAdmission.amountPaid.toLocaleString()}</span>
-                        </div>
-                      </div>
                     </div>
-
-                    {/* Payment Receipts History */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Payment Transaction History</h4>
-                      {selectedAdmission.paymentHistory.length > 0 ? (
-                        selectedAdmission.paymentHistory.map((p) => (
-                          <div
-                            key={p.id}
-                            className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between text-xs shadow-2xs"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                                <CreditCard className="h-4 w-4" />
-                              </div>
-                              <div>
-                                <h5 className="font-bold text-foreground">{p.receiptNo}</h5>
-                                <p className="text-[11px] text-muted-foreground">{p.paymentMode} • Ref: {p.transactionId}</p>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              <span className="font-extrabold text-foreground text-sm block">₹{p.amount.toLocaleString()}</span>
-                              <span className="text-[10px] text-muted-foreground">{p.date}</span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-6 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
-                          No payments recorded yet.
-                        </div>
-                      )}
-                    </div>
-
+                    <Button
+                      size="sm"
+                      onClick={() => handleToggleDocVerification(doc.id)}
+                      className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${
+                        doc.verified
+                          ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                          : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                      }`}
+                    >
+                      {doc.verified ? "Verified ✓" : "Verify Doc"}
+                    </Button>
                   </div>
-                )}
-
-                {/* ─── TAB 4: SUBMITTED DOCUMENTS ─── */}
-                {activeTab === "docs" && (
-                  <div className="space-y-4 animate-in fade-in duration-150">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h4 className="text-xs font-bold text-foreground">Student Verification Documents</h4>
-                        <p className="text-xs text-muted-foreground">View and verify mandatory identity & educational records.</p>
-                      </div>
-                      <Button size="sm" variant="outline" className="h-8 text-xs font-semibold gap-1 border-border text-foreground hover:bg-muted/50 cursor-pointer">
-                        <Upload className="h-3.5 w-3.5" /> Upload File
-                      </Button>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {selectedAdmission.documents.length > 0 ? (
-                        selectedAdmission.documents.map((doc) => (
-                          <div
-                            key={doc.id}
-                            className="p-3.5 rounded-xl border border-border bg-card flex items-center justify-between gap-3 hover:border-border/80 transition-all shadow-2xs"
-                          >
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-lg bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center shrink-0">
-                                <FileText className="h-5 w-5" />
-                              </div>
-                              <div>
-                                <h5 className="text-xs font-bold text-foreground">{doc.title}</h5>
-                                <p className="text-[11px] text-muted-foreground">
-                                  {doc.fileName} • {doc.fileSize} • Uploaded {doc.uploadDate}
-                                </p>
-                                {doc.verified && (
-                                  <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mt-0.5">
-                                    <ShieldCheck className="h-3 w-3" /> Verified by {doc.verifiedBy || "Priya Singh"}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => showToast(`Previewing document ${doc.fileName}`)}
-                                className="h-8 px-2.5 text-xs font-medium text-foreground border-border hover:bg-muted/50 cursor-pointer"
-                              >
-                                View
-                              </Button>
-
-                              <Button
-                                size="sm"
-                                onClick={() => handleToggleDocVerification(doc.id)}
-                                className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${doc.verified
-                                    ? "bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50"
-                                    : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                                  }`}
-                              >
-                                {doc.verified ? "Verified ✓" : "Verify Doc"}
-                              </Button>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
-                          No documents uploaded yet.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* ─── TAB 5: COUNSELLOR NOTES ─── */}
-                {activeTab === "notes" && (
-                  <div className="space-y-6 animate-in fade-in duration-150">
-
-                    {/* Add Counsellor Note */}
-                    <div className="p-4 rounded-2xl border border-border bg-muted/20 space-y-2.5">
-                      <label className="block text-xs font-bold text-foreground">Add Internal Counsellor Note</label>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Type notes on payments, batch preferences, special concessions..."
-                          value={newNoteText}
-                          onChange={(e) => setNewNoteText(e.target.value)}
-                          className="bg-card border-border text-foreground placeholder:text-muted-foreground text-xs h-9"
-                        />
-                        <Button
-                          size="sm"
-                          onClick={handleAddCounsellorNote}
-                          className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3.5 h-9 shrink-0 cursor-pointer"
-                        >
-                          <Send className="h-3.5 w-3.5 mr-1" /> Post Note
-                        </Button>
-                      </div>
-                    </div>
-
-                    {/* Notes History */}
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Counsellor Audit Trail</h4>
-                      {selectedAdmission.counsellorNotes?.length > 0 ? (
-                        selectedAdmission.counsellorNotes.map((n) => (
-                          <div key={n.id} className="p-3.5 rounded-xl border border-border bg-card text-xs space-y-1 shadow-2xs">
-                            <div className="flex items-center justify-between text-muted-foreground">
-                              <span className="font-bold text-foreground">{n.author} <span className="font-normal text-muted-foreground">({n.role})</span></span>
-                              <span className="text-[11px]">{n.date}, {n.time}</span>
-                            </div>
-                            <p className="text-foreground leading-relaxed font-normal">{n.text}</p>
-                          </div>
-                        ))
-                      ) : (
-                        <p className="text-xs text-muted-foreground italic">No notes recorded yet.</p>
-                      )}
-                    </div>
-
-                  </div>
-                )}
-
-              </div>
-
-              {/* Drawer Footer Actions */}
-              <div className="p-4 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3 sticky bottom-0 z-10">
-                <div className="flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleUpdateAdmissionStatus(selectedAdmission.id, "Cancelled")}
-                    className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 border-border h-9 cursor-pointer"
-                  >
-                    Cancel Admission
-                  </Button>
+                ))
+              ) : (
+                <div className="p-8 text-center border border-dashed border-border rounded-xl text-muted-foreground text-xs">
+                  No documents uploaded yet.
                 </div>
-
-                <div className="flex items-center gap-2.5">
-                  <Button
-                    size="sm"
-                    onClick={() => handleUpdateAdmissionStatus(selectedAdmission.id, "Confirmed")}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs h-9 px-4 shadow-sm cursor-pointer"
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-1.5" /> Confirm Admission
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    onClick={() => {
-                      setTargetBatchId(selectedAdmission.batchCode);
-                      setIsChangeBatchOpen(true);
-                    }}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground font-bold text-xs h-9 px-4 shadow-sm cursor-pointer"
-                  >
-                    Change Batch <ChevronRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </div>
-              </div>
-
+              )}
             </div>
-          )}
-        </SheetContent>
-      </Sheet>
+
+            <div className="flex justify-end pt-3 border-t border-border">
+              <Button
+                variant="outline"
+                onClick={() => setIsDocsModalOpen(false)}
+                className="h-9 text-xs font-semibold border-border text-foreground hover:bg-muted/50 cursor-pointer"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ─── 7. DIRECT ADMISSION ENTRY MODAL ─── */}
       {isDirectModalOpen && (

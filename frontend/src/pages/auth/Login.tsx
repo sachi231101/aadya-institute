@@ -151,7 +151,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     badgeTag: "Learning Portal",
     description: "Check timetable, track class attendance history, watch class recordings, submit assignments, and submit batch feedback.",
     email: "student@aadya.in",
-    password: "Student@123",
+    password: "Aadya@123",
     color: "#8b5cf6",
     bgColor: "rgba(245, 243, 255, 0.9)",
     borderColor: "#ddd6fe",
@@ -192,7 +192,23 @@ export const Login: React.FC = () => {
     try {
       const result = await authApi.login(loginEmail, loginPass);
       
-      const primaryRole = result.user.roles?.[0] || roleConfig.roleEnum;
+      const userRoles = result.user.roles || [];
+      let primaryRole: UserRole;
+
+      const isStudentIdentifier = /^AADYA\//i.test(loginEmail.trim()) || /^ADM-/i.test(loginEmail.trim()) || /^STU-/i.test(loginEmail.trim());
+      
+      if (isStudentIdentifier || roleConfig.roleEnum === UserRole.STUDENT) {
+        if (userRoles.includes(UserRole.STUDENT) || isStudentIdentifier) {
+          primaryRole = UserRole.STUDENT;
+        } else {
+          primaryRole = (userRoles[0] as UserRole) || roleConfig.roleEnum;
+        }
+      } else if (userRoles.includes(roleConfig.roleEnum)) {
+        primaryRole = roleConfig.roleEnum;
+      } else {
+        primaryRole = (userRoles[0] as UserRole) || roleConfig.roleEnum;
+      }
+
       const frontendUser = {
         ...result.user,
         role: primaryRole,
@@ -585,7 +601,9 @@ export const Login: React.FC = () => {
                     marginBottom: "0.5rem",
                   }}
                 >
-                  Email or Phone Number
+                  {currentRole?.id === "student"
+                    ? "Student ID / Admission No, Email, or Mobile"
+                    : "Email, Mobile, or Username"}
                 </label>
                 <div style={{ position: "relative" }}>
                   <Mail
@@ -603,7 +621,11 @@ export const Login: React.FC = () => {
                     value={emailOrPhone}
                     onChange={(e) => setEmailOrPhone(e.target.value)}
                     required
-                    placeholder={currentRole?.email}
+                    placeholder={
+                      currentRole?.id === "student"
+                        ? "e.g. AADYA/2026/0001, student@aadya.in, or 9777777777"
+                        : currentRole?.email || "Enter your login credential"
+                    }
                     style={{
                       width: "100%",
                       padding: "0.75rem 1rem 0.75rem 2.75rem",

@@ -77,9 +77,13 @@ export const AllStudents: React.FC = () => {
         s.status === "DISCONTINUED" ||
         (s.attendance?.consecutiveAbsences ?? 0) >= 2 ||
         (hasAttendance && (s.attendance?.overallPercentage ?? 0) < 65);
-      const isDraft = (s.status as string) === "DRAFT" || (s as any).isDraft || (s as any).admissionStatus === "PENDING" || (s as any).admissions?.[0]?.status === "PENDING";
+      const isDraft = (s.status as string) === "DRAFT" || (s as any).isDraft || (s as any).admissionStatus === "PENDING" || (s as any).admissions?.[0]?.status === "PENDING" || (s as any).admissions?.[0]?.status === "Admission Pending";
+      const hasBatch = Boolean(s.batchName && s.batchName !== "Not assigned" && s.batchName !== "—" && !s.batchName.toLowerCase().includes("pending"));
+      const isBatchPending = !isDraft && s.status === "ACTIVE" && !hasBatch;
       const computedStatus = isDraft
-        ? "Draft"
+        ? "Admission Pending"
+        : isBatchPending
+        ? "Batch Assignment Pending"
         : s.status === "ACTIVE"
         ? (isRisk ? "At Risk" : "Active")
         : s.status === "COMPLETED"
@@ -128,7 +132,8 @@ export const AllStudents: React.FC = () => {
         student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        student.phone.includes(searchTerm);
+        student.phone.includes(searchTerm) ||
+        student.counsellor.toLowerCase().includes(searchTerm.toLowerCase());
 
       // Course Filter
       const matchesCourse =
@@ -137,8 +142,8 @@ export const AllStudents: React.FC = () => {
       // Tab Filter
       const matchesTab =
         selectedTab === "All Students" ||
-        (selectedTab === "Active" && student.status === "Active") ||
-        (selectedTab === "Draft" && student.status === "Draft") ||
+        (selectedTab === "Active" && (student.status === "Active" || student.status === "Batch Assignment Pending")) ||
+        (selectedTab === "Draft" && student.status === "Admission Pending") ||
         (selectedTab === "At Risk" && student.status === "At Risk") ||
         (selectedTab === "Completed" && student.status === "Completed") ||
         (selectedTab === "Dropped" && student.status === "Dropped");
@@ -166,8 +171,8 @@ export const AllStudents: React.FC = () => {
 
   const kpis = {
     total: branchStudents.length,
-    active: branchStudents.filter((s) => s.status === "Active").length,
-    draft: branchStudents.filter((s) => s.status === "Draft").length,
+    active: branchStudents.filter((s) => s.status === "Active" || s.status === "Batch Assignment Pending").length,
+    draft: branchStudents.filter((s) => s.status === "Admission Pending").length,
     atRisk: branchStudents.filter((s) => s.status === "At Risk").length,
     avgAttendance: studentReport?.summary?.avgAttendanceRate ?? calculatedAvgAttendance,
     studentsWithAttendance: studentsWithAttendance.length,
@@ -176,8 +181,8 @@ export const AllStudents: React.FC = () => {
 
   const tabs = [
     { name: "All Students", count: branchStudents.length, color: "text-[#1769AA]" },
-    { name: "Active", count: branchStudents.filter((s) => s.status === "Active").length, color: "text-emerald-600" },
-    { name: "Draft", count: branchStudents.filter((s) => s.status === "Draft").length, color: "text-amber-600" },
+    { name: "Active", count: branchStudents.filter((s) => s.status === "Active" || s.status === "Batch Assignment Pending").length, color: "text-emerald-600" },
+    { name: "Draft", count: branchStudents.filter((s) => s.status === "Admission Pending").length, color: "text-amber-600" },
     { name: "At Risk", count: branchStudents.filter((s) => s.status === "At Risk").length, color: "text-red-500" },
     { name: "Completed", count: branchStudents.filter((s) => s.status === "Completed").length, color: "text-purple-600" },
     { name: "Dropped", count: branchStudents.filter((s) => s.status === "Dropped").length, color: "text-slate-500" },
@@ -456,9 +461,13 @@ export const AllStudents: React.FC = () => {
 
                     {/* Status Badge */}
                     <td className="p-3.5">
-                      {s.status === "Draft" ? (
+                      {s.status === "Admission Pending" || s.status === "Draft" ? (
                         <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-amber-200">
-                          Draft
+                          Admission Pending
+                        </span>
+                      ) : s.status === "Batch Assignment Pending" ? (
+                        <span className="bg-sky-100 text-sky-800 text-[10px] font-bold px-2 py-0.5 rounded-full border border-sky-200">
+                          Batch Pending
                         </span>
                       ) : s.status === "Active" ? (
                         <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
@@ -478,16 +487,16 @@ export const AllStudents: React.FC = () => {
                     {/* Actions */}
                     <td className="p-3.5 text-right pr-5" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
-                        {s.status === "Draft" ? (
+                        {s.status === "Admission Pending" || s.status === "Draft" ? (
                           <Button
                             variant="default"
                             size="sm"
-                            onClick={() => navigate(`${basePath}/students/${s.id}?action=activate`)}
-                            className="h-7 px-2.5 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
-                            title="Open Dossier and activate student admission"
+                            onClick={() => navigate(`${basePath}/students/${s.id}`)}
+                            className="h-7 px-2.5 text-[11px] font-bold bg-amber-600 hover:bg-amber-700 text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
+                            title="Open Dossier and view Admission Pending details"
                           >
-                            <Sparkles className="h-3.5 w-3.5 text-emerald-200" />
-                            Complete in Dossier
+                            <Sparkles className="h-3.5 w-3.5 text-amber-200" />
+                            View Pending
                           </Button>
                         ) : (
                           <Button

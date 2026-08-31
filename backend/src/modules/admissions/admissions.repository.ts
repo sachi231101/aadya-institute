@@ -258,9 +258,44 @@ export const AdmissionsRepository = {
   async createAdmission(instituteId: string, branchId: string, admissionNo: string, dto: CreateAdmissionDTO) {
     return prisma.$transaction(async (tx) => {
       let finalStudentId = dto.studentId || null;
+      const defaultStudentPasswordHash = await hashPassword("Aadya@123");
 
-      // If studentId not provided, check if a Student or User with matching email or phone exists
-      if (!finalStudentId) {
+      if (dto.studentId) {
+        finalStudentId = dto.studentId;
+        const existingStudent = await tx.student.findUnique({
+          where: { id: dto.studentId },
+          include: { user: true },
+        });
+        if (existingStudent) {
+          await tx.student.update({
+            where: { id: dto.studentId },
+            data: {
+              studentCode: admissionNo,
+              status: "ACTIVE",
+              branchId,
+            },
+          });
+          if (existingStudent.userId) {
+            await tx.user.update({
+              where: { id: existingStudent.userId },
+              data: {
+                status: "ACTIVE",
+                passwordHash: defaultStudentPasswordHash,
+                branchId,
+              },
+            });
+            const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+            if (studentRole) {
+              await tx.userRole.upsert({
+                where: { userId_roleId: { userId: existingStudent.userId, roleId: studentRole.id } },
+                update: {},
+                create: { userId: existingStudent.userId, roleId: studentRole.id },
+              });
+            }
+          }
+        }
+      } else {
+        // If studentId not provided, check if a Student or User with matching email or phone exists
         let existingUser: any = null;
         if (dto.email && dto.email.trim() !== "") {
           existingUser = await tx.user.findFirst({
@@ -275,23 +310,54 @@ export const AdmissionsRepository = {
           });
         }
 
+        const extractNote = (pattern: RegExp) => {
+          if (!dto.notes) return null;
+          const match = dto.notes.match(pattern);
+          return match ? match[1].trim() : null;
+        };
+        const extractedQual = extractNote(/(?:Highest Qualification|Qualification):\s*([^|\n]+)/i);
+        const extractedDob = extractNote(/DOB:\s*([^|\n]+)/i);
+
         if (existingUser?.student) {
           finalStudentId = existingUser.student.id;
-          // Keep student branch aligned with the branch selected for this admission
+          const studentUpdate: Record<string, any> = { branchId, status: "ACTIVE" };
+          if (extractedQual) studentUpdate.qualification = extractedQual;
+          if (extractedDob) {
+            try {
+              studentUpdate.dateOfBirth = new Date(extractedDob);
+            } catch {}
+          }
+
+          // Keep student branch and student code aligned with the confirmed admission
           await tx.student.update({
             where: { id: existingUser.student.id },
-            data: { branchId },
+            data: {
+              ...studentUpdate,
+              studentCode: admissionNo,
+            },
           });
           if (existingUser.id) {
             await tx.user.update({
               where: { id: existingUser.id },
-              data: { branchId },
+              data: {
+                branchId,
+                status: "ACTIVE",
+                passwordHash: defaultStudentPasswordHash,
+              },
             });
+
+            const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+            if (studentRole) {
+              await tx.userRole.upsert({
+                where: { userId_roleId: { userId: existingUser.id, roleId: studentRole.id } },
+                update: {},
+                create: { userId: existingUser.id, roleId: studentRole.id },
+              });
+            }
           }
         } else {
-          // Create User + Student + Role
-          const passwordHash = await hashPassword("Student@123");
-          const studentCode = await SequenceService.getNextNumber(instituteId, "STUDENT");
+          // Create User + Student + Role with unified Student ID = Admission Number
+          const studentCode = admissionNo;
 
           let userId = existingUser?.id;
           if (!userId) {
@@ -302,17 +368,36 @@ export const AdmissionsRepository = {
                 name: dto.studentName,
                 email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : null,
                 phone: dto.phone && dto.phone.trim() !== "" ? dto.phone.trim() : null,
-                passwordHash,
+                passwordHash: defaultStudentPasswordHash,
+                status: "ACTIVE",
               },
             });
             userId = newUser.id;
+          } else {
+            await tx.user.update({
+              where: { id: userId },
+              data: {
+                branchId,
+                status: "ACTIVE",
+                passwordHash: defaultStudentPasswordHash,
+              },
+            });
+          }
 
-            const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
-            if (studentRole) {
-              await tx.userRole.create({
-                data: { userId: newUser.id, roleId: studentRole.id },
-              });
-            }
+          const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+          if (studentRole && userId) {
+            await tx.userRole.upsert({
+              where: { userId_roleId: { userId, roleId: studentRole.id } },
+              update: {},
+              create: { userId, roleId: studentRole.id },
+            });
+          }
+
+          let parsedDob: Date | undefined;
+          if (extractedDob) {
+            try {
+              parsedDob = new Date(extractedDob);
+            } catch {}
           }
 
           const newStudent = await tx.student.create({
@@ -321,6 +406,9 @@ export const AdmissionsRepository = {
               instituteId,
               branchId,
               studentCode,
+              qualification: extractedQual || null,
+              dateOfBirth: parsedDob,
+              status: "ACTIVE",
             },
           });
           finalStudentId = newStudent.id;
@@ -359,32 +447,74 @@ export const AdmissionsRepository = {
       const parsedAdmissionDate = dto.admissionDate ? new Date(dto.admissionDate) : undefined;
       const paymentMethod = dto.paymentMethod || "UPI";
 
-      // 2. Create Admission record
-      const admission = await tx.admission.create({
-        data: {
-          instituteId,
-          branchId,
-          admissionNo,
-          studentId: finalStudentId,
-          studentName: dto.studentName,
-          email: dto.email || null,
-          phone: dto.phone,
-          courseId: validCourseId,
-          batchId: validBatchId,
-          applicationId: dto.applicationId || null,
-          feePlan: dto.feePlan || "INSTALLMENT",
-          status: dto.status || "CONFIRMED",
-          notes: dto.notes || null,
-          ...(parsedAdmissionDate && !Number.isNaN(parsedAdmissionDate.getTime())
-            ? { admissionDate: parsedAdmissionDate }
-            : {}),
-        },
-        include: {
-          course: { select: { id: true, name: true, code: true } },
-          batch: { select: { id: true, name: true, code: true } },
-          student: { select: { id: true, studentCode: true } },
-        },
-      });
+      // 2. Create or Update Admission record
+      let admission;
+      const existingPending = (dto.applicationId || finalStudentId)
+        ? await tx.admission.findFirst({
+            where: {
+              instituteId,
+              status: "PENDING",
+              OR: [
+                ...(dto.applicationId ? [{ applicationId: dto.applicationId }] : []),
+                ...(finalStudentId ? [{ studentId: finalStudentId }] : []),
+              ],
+            },
+          })
+        : null;
+
+      if (existingPending) {
+        admission = await tx.admission.update({
+          where: { id: existingPending.id },
+          data: {
+            branchId,
+            admissionNo,
+            studentId: finalStudentId,
+            studentName: dto.studentName,
+            email: dto.email || null,
+            phone: dto.phone,
+            courseId: validCourseId,
+            batchId: validBatchId,
+            applicationId: dto.applicationId || null,
+            feePlan: dto.feePlan || "INSTALLMENT",
+            status: dto.status || "CONFIRMED",
+            notes: dto.notes || null,
+            ...(parsedAdmissionDate && !Number.isNaN(parsedAdmissionDate.getTime())
+              ? { admissionDate: parsedAdmissionDate }
+              : { admissionDate: new Date() }),
+          },
+          include: {
+            course: { select: { id: true, name: true, code: true } },
+            batch: { select: { id: true, name: true, code: true } },
+            student: { select: { id: true, studentCode: true } },
+          },
+        });
+      } else {
+        admission = await tx.admission.create({
+          data: {
+            instituteId,
+            branchId,
+            admissionNo,
+            studentId: finalStudentId,
+            studentName: dto.studentName,
+            email: dto.email || null,
+            phone: dto.phone,
+            courseId: validCourseId,
+            batchId: validBatchId,
+            applicationId: dto.applicationId || null,
+            feePlan: dto.feePlan || "INSTALLMENT",
+            status: dto.status || "CONFIRMED",
+            notes: dto.notes || null,
+            ...(parsedAdmissionDate && !Number.isNaN(parsedAdmissionDate.getTime())
+              ? { admissionDate: parsedAdmissionDate }
+              : {}),
+          },
+          include: {
+            course: { select: { id: true, name: true, code: true } },
+            batch: { select: { id: true, name: true, code: true } },
+            student: { select: { id: true, studentCode: true } },
+          },
+        });
+      }
 
       // Update linked application status to ADMITTED
       if (dto.applicationId) {
