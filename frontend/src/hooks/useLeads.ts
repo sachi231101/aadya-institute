@@ -154,6 +154,17 @@ export const useUpdateFollowUp = () => {
   });
 };
 
+export const useCreateApplicationFromLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data?: Parameters<typeof leadsApi.createApplicationFromLead>[1] }) =>
+      leadsApi.createApplicationFromLead(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
 export const useTriggerLeadCall = () => {
   const queryClient = useQueryClient();
   return useMutation({

@@ -37,7 +37,6 @@ import { CreateBatch } from "../pages/admin/batches/CreateBatch";
 import { BatchDetails } from "../pages/admin/batches/BatchDetails";
 import { BatchStudentAllocationPage, BatchFacultyAllocationPage } from "../pages/admin/batches/BatchAllocationPages";
 
-import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
@@ -142,7 +141,7 @@ export const adminChildRoutes = (
 
     {/* Admission Management */}
     <Route path="admissions">
-      <Route path="enquiries" element={<Enquiries />} />
+      <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
       <Route path="applications" element={<Applications />} />
       <Route path="all" element={<AllAdmissions />} />
       <Route path="direct-entry" element={<DirectAdmissionEntry />} />

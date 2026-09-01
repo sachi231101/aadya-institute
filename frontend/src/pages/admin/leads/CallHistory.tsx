@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { PhoneCall, Search, Plus, Loader2, AlertCircle } from "lucide-react";
 import { useCallHistory } from "@/hooks/useLeads";
-import { ROUTES } from "@/constants/routes";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,8 @@ import {
 
 export const CallHistory: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -54,7 +56,7 @@ export const CallHistory: React.FC = () => {
         </div>
         <Button
           className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
-          onClick={() => navigate(ROUTES.ADMIN.LEADS.NEW)}
+          onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
         >
           <Plus className="mr-2 h-4 w-4" />
           Add Lead
@@ -133,7 +135,7 @@ export const CallHistory: React.FC = () => {
                     <TableRow
                       key={log.id}
                       className="cursor-pointer hover:bg-bg-secondary/30"
-                      onClick={() => log.leadId && navigate(ROUTES.ADMIN.LEADS.DETAIL(log.leadId))}
+                      onClick={() => log.leadId && navigate(`${basePath}/leads/${log.leadId}`)}
                     >
                       <TableCell>
                         <div className="font-medium">{log.lead?.name || "Unknown"}</div>

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { CalendarDays, Clock, AlertTriangle, Loader2, AlertCircle } from "lucide-react";
 import { useFollowUpDashboard } from "@/hooks/useLeads";
-import { ROUTES } from "@/constants/routes";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { LeadStageBadge } from "@/components/common/LeadStageBadge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -19,6 +19,8 @@ type TabKey = "overdue" | "today" | "upcoming";
 
 export const FollowUps: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [activeTab, setActiveTab] = useState<TabKey>("overdue");
   const { data, isLoading, isError, refetch } = useFollowUpDashboard();
 
@@ -105,11 +107,11 @@ export const FollowUps: React.FC = () => {
                     <TableRow
                       key={item.id}
                       className="cursor-pointer hover:bg-bg-secondary/30"
-                      onClick={() => item.lead?.id && navigate(ROUTES.ADMIN.LEADS.DETAIL(item.lead.id))}
+                      onClick={() => item.lead?.id && navigate(`${basePath}/leads/${item.lead.id}`)}
                     >
                       <TableCell className="font-medium">{item.lead?.name}</TableCell>
                       <TableCell>{item.lead?.phoneNumber}</TableCell>
-                      <TableCell><Badge variant="outline">{item.lead?.stage}</Badge></TableCell>
+                      <TableCell><LeadStageBadge stage={item.lead?.stage || "NEW"} /></TableCell>
                       <TableCell>{item.counsellor?.name || "—"}</TableCell>
                       <TableCell>{new Date(item.scheduledAt).toLocaleString("en-IN")}</TableCell>
                       <TableCell>{item.type}</TableCell>

@@ -28,6 +28,7 @@ export interface UpdateLeadDTO {
   phoneNumber?: string;
   email?: string;
   interestedIn?: string;
+  courseId?: string;
   priority?: string;
   notes?: string;
   sourceMasterId?: string;
