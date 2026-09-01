@@ -53,6 +53,7 @@ import { ExamDetails } from "../pages/admin/exams/ExamDetails";
 import { EditExam } from "../pages/admin/exams/EditExam";
 import { QuestionBank } from "../pages/admin/exams/QuestionBank";
 import { CreateQuestion } from "../pages/admin/exams/CreateQuestion";
+import { EditQuestion } from "../pages/admin/exams/EditQuestion";
 import { ExamAttempts } from "../pages/admin/exams/ExamAttempts";
 import { AttemptProctoringDetails } from "../pages/admin/exams/AttemptProctoringDetails";
 import { MyExams } from "../pages/student/exams/MyExams";
@@ -242,6 +243,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="create" element={<CreateExam />} />
           <Route path="question-bank" element={<QuestionBank />} />
           <Route path="questions/create" element={<CreateQuestion />} />
+          <Route path="questions/:id/edit" element={<EditQuestion />} />
           <Route path=":id" element={<ExamDetails />} />
           <Route path=":id/edit" element={<EditExam />} />
           <Route path=":id/attempts" element={<ExamAttempts />} />

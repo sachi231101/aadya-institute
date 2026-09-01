@@ -25,6 +25,15 @@ export const createQuestion = async (
   return repository.createQuestion(instituteId, branchId, userId, data);
 };
 
+export const createBulkQuestions = async (
+  instituteId: string,
+  branchId: string | undefined | null,
+  userId: string,
+  data: CreateQuestionDto[]
+) => {
+  return repository.createBulkQuestions(instituteId, branchId, userId, data);
+};
+
 export const updateQuestion = async (
   id: string,
   instituteId: string,

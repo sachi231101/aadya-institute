@@ -33,7 +33,6 @@ router.get(
 // GET /api/v1/branches/:id — Get single branch details
 router.get(
   "/:id",
-  requirePermission("branch.read"),
   requireBranchAccess("id"),
   getBranch
 );

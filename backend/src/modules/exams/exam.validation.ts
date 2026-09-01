@@ -56,6 +56,10 @@ export const addQuestionToExamSchema = z.object({
   marksOverride: z.coerce.number().positive().optional(),
 });
 
+export const addQuestionBankToExamSchema = z.object({
+  questionBankId: z.string().min(1, 'Question bank ID is required'),
+});
+
 export const reorderQuestionsSchema = z.object({
   questions: z.array(z.object({
     questionId: z.string(),
@@ -65,6 +69,10 @@ export const reorderQuestionsSchema = z.object({
 
 export const assignBatchSchema = z.object({
   batchId: z.string().min(1, 'Batch ID is required'),
+});
+
+export const assignStudentsToExamSchema = z.object({
+  studentIds: z.array(z.string().min(1)).min(1, 'At least one student is required'),
 });
 
 export const examQuerySchema = z.object({

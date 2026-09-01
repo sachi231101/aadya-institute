@@ -311,11 +311,9 @@ export const Applications: React.FC = () => {
   const [createName, setCreateName] = useState("");
   const [createEmail, setCreateEmail] = useState("");
   const [createPhone, setCreatePhone] = useState("");
-  const [createCourse, setCreateCourse] = useState("Digital Marketing");
-  const [createDuration, setCreateDuration] = useState("(1 Year Program)");
-  const [createFeeStatus, setCreateFeeStatus] = useState<"PAID" | "NOT_PAID">(
-    "PAID",
-  );
+  const [createCourse, setCreateCourse] = useState("");
+  const [createDuration, setCreateDuration] = useState("");
+  const [createFeeStatus, setCreateFeeStatus] = useState("Paid (₹500)");
   const [createFeeAmount] = useState<number>(500);
   const [createStatus, setCreateStatus] =
     useState<DetailedStatus>("UNDER_REVIEW_BLUE");
@@ -557,8 +555,8 @@ export const Applications: React.FC = () => {
       state: "Karnataka",
       pincode: "560001",
       courseId: "c-new",
-      courseName: createCourse,
-      courseDuration: createDuration,
+      courseName: createCourse || "Digital Marketing",
+      courseDuration: createDuration || "1 Year Program",
       courseCode: "CR-100",
       preferredBatchTiming: "Morning (09:00 AM - 11:00 AM)",
       preferredMode: "Offline (Classroom)",
@@ -566,10 +564,10 @@ export const Applications: React.FC = () => {
       collegeOrSchool: "Bangalore University",
       passingYear: "2024",
       gradePercentage: "80.0%",
-      feeStatus: createFeeStatus,
-      feeAmount: createFeeStatus === "PAID" ? createFeeAmount : 0,
-      paymentMethod: createFeeStatus === "PAID" ? "UPI / QR" : undefined,
-      paidAt: createFeeStatus === "PAID" ? "Just now" : undefined,
+      feeStatus: createFeeStatus.toLowerCase().includes("not") || createFeeStatus.toLowerCase().includes("pending") ? "NOT_PAID" : "PAID",
+      feeAmount: createFeeStatus.toLowerCase().includes("not") || createFeeStatus.toLowerCase().includes("pending") ? 0 : createFeeAmount,
+      paymentMethod: createFeeStatus.toLowerCase().includes("not") || createFeeStatus.toLowerCase().includes("pending") ? undefined : "UPI / QR",
+      paidAt: createFeeStatus.toLowerCase().includes("not") || createFeeStatus.toLowerCase().includes("pending") ? undefined : "Just now",
       status: createStatus,
       submittedDate: "16 May 2025",
       submittedTime: "10:30 AM",
@@ -2267,101 +2265,24 @@ export const Applications: React.FC = () => {
                   <label className="block text-xs font-bold text-foreground mb-1">
                     Target Course *
                   </label>
-                  <select
+                  <Input
+                    placeholder="e.g. Digital Marketing / Full Stack Web Development"
                     value={createCourse}
                     onChange={(e) => setCreateCourse(e.target.value)}
-                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
-                  >
-                    <option
-                      value="Full Stack Web Development"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Full Stack Web Development
-                    </option>
-                    <option
-                      value="Data Science & Analytics"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Data Science & Analytics
-                    </option>
-                    <option
-                      value="UI/UX Product Design"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      UI/UX Product Design
-                    </option>
-                    <option
-                      value="Artificial Intelligence & Python"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Artificial Intelligence & Python
-                    </option>
-                    <option
-                      value="Digital Marketing"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Digital Marketing
-                    </option>
-                    <option
-                      value="Advanced Excel"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Advanced Excel
-                    </option>
-                    <option
-                      value="Tally Prime with GST"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Tally Prime with GST
-                    </option>
-                    <option
-                      value="Web Designing"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Web Designing
-                    </option>
-                    <option
-                      value="Python Programming"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Python Programming
-                    </option>
-                  </select>
+                    required
+                    className="bg-background border-border text-foreground text-xs h-10"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">
                     Program Duration
                   </label>
-                  <select
+                  <Input
+                    placeholder="e.g. 1 Year Program / 6 Months"
                     value={createDuration}
                     onChange={(e) => setCreateDuration(e.target.value)}
-                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:ring-1 focus:ring-primary"
-                  >
-                    <option
-                      value="(1 Year Program)"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      (1 Year Program)
-                    </option>
-                    <option
-                      value="(6 Months Program)"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      (6 Months Program)
-                    </option>
-                    <option
-                      value="(3 Months Program)"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      (3 Months Program)
-                    </option>
-                    <option
-                      value="(2 Months Program)"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      (2 Months Program)
-                    </option>
-                  </select>
+                    className="bg-background border-border text-foreground text-xs h-10"
+                  />
                 </div>
               </div>
 
@@ -2370,26 +2291,12 @@ export const Applications: React.FC = () => {
                   <label className="block text-xs font-bold text-foreground mb-1">
                     Application Fee Status
                   </label>
-                  <select
+                  <Input
+                    placeholder="e.g. Paid (₹500) / Not Paid (Pending)"
                     value={createFeeStatus}
-                    onChange={(e) =>
-                      setCreateFeeStatus(e.target.value as "PAID" | "NOT_PAID")
-                    }
-                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
-                  >
-                    <option
-                      value="PAID"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Paid (₹500)
-                    </option>
-                    <option
-                      value="NOT_PAID"
-                      className="bg-card text-foreground py-1.5"
-                    >
-                      Not Paid (Pending)
-                    </option>
-                  </select>
+                    onChange={(e) => setCreateFeeStatus(e.target.value)}
+                    className="bg-background border-border text-foreground text-xs h-10"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-foreground mb-1">
@@ -2400,7 +2307,7 @@ export const Applications: React.FC = () => {
                     onChange={(e) =>
                       setCreateStatus(e.target.value as DetailedStatus)
                     }
-                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium"
+                    className="w-full h-10 px-3 bg-background border border-border rounded-xl text-xs text-foreground font-medium focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
                   >
                     <option
                       value="UNDER_REVIEW_BLUE"
@@ -2419,6 +2326,12 @@ export const Applications: React.FC = () => {
                       className="bg-card text-foreground py-1.5"
                     >
                       Approved
+                    </option>
+                    <option
+                      value="REJECTED"
+                      className="bg-card text-foreground py-1.5"
+                    >
+                      Rejected
                     </option>
                   </select>
                 </div>

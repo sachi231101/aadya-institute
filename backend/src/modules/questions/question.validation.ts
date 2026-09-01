@@ -27,6 +27,9 @@ export const createQuestionSchema = z.object({
   }
   return true;
 }, { message: 'MCQ and True/False questions require at least 2 options', path: ['options'] });
+export const createBulkQuestionsSchema = z.object({
+  questions: z.array(createQuestionSchema).min(1, 'At least one question is required'),
+});
 
 export const updateQuestionSchema = z.object({
   questionType: z.enum(['MCQ_SINGLE', 'MCQ_MULTIPLE', 'TRUE_FALSE', 'SHORT_ANSWER', 'LONG_ANSWER', 'NUMERICAL', 'FILL_BLANK']).optional(),

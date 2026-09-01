@@ -1844,6 +1844,7 @@ model Exam {
 
   examQuestions    ExamQuestion[]
   batchAssignments ExamBatch[]
+  studentAssignments ExamStudent[]
   attempts         ExamAttempt[]
 
   @@index([instituteId])
@@ -1885,6 +1886,20 @@ model ExamBatch {
   @@unique([examId, batchId])
   @@index([examId])
   @@index([batchId])
+}
+
+model ExamStudent {
+  id         String   @id @default(cuid())
+  examId     String
+  studentId  String
+  assignedAt DateTime @default(now())
+
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, studentId])
+  @@index([examId])
+  @@index([studentId])
 }
 
 enum AttemptStatus {

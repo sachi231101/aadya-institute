@@ -104,7 +104,7 @@ export const getExamInstructions = async (examId: string, userId: string, instit
     });
   } else {
     const batchIds = student.batchEnrollments.map((be) => be.batchId);
-    exam = await repository.findExamMetaForStudent(examId, instituteId, batchIds);
+    exam = await repository.findExamMetaForStudent(examId, instituteId, student.id, batchIds);
     if (exam) {
       pastAttempts = await prisma.examAttempt.findMany({
         where: { examId, studentId: student.id },
@@ -127,7 +127,7 @@ export const getExamInstructions = async (examId: string, userId: string, instit
   }
 
   if (!exam) {
-    throw new AppError('Examination not found or you are not enrolled in an authorized batch', 403);
+    throw new AppError('Examination not found or you are not assigned to this exam', 403);
   }
 
   const activeAttempt = pastAttempts.find((a) => a.status === 'IN_PROGRESS');
@@ -201,7 +201,7 @@ export const startExamAttempt = async (
   }
 
   const batchIds = student.batchEnrollments.map((be) => be.batchId);
-  let exam = await repository.findExamForStudent(examId, instituteId, batchIds);
+  let exam = await repository.findExamForStudent(examId, instituteId, student.id, batchIds);
   if (!exam) {
     // If staff preview, find directly by examId & instituteId
     exam = await prisma.exam.findFirst({

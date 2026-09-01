@@ -11,6 +11,7 @@ export const examKeys = {
   stats: () => [...examKeys.all, 'stats'] as const,
   questions: (id: string) => [...examKeys.detail(id), 'questions'] as const,
   batches: (id: string) => [...examKeys.detail(id), 'batches'] as const,
+  students: (id: string) => [...examKeys.detail(id), 'students'] as const,
 };
 
 export const useExams = (filters?: api.ExamFilters) => {
@@ -47,6 +48,14 @@ export const useExamBatches = (examId: string) => {
   return useQuery({
     queryKey: examKeys.batches(examId),
     queryFn: () => api.getExamBatches(examId),
+    enabled: !!examId,
+  });
+};
+
+export const useExamStudents = (examId: string) => {
+  return useQuery({
+    queryKey: examKeys.students(examId),
+    queryFn: () => api.getExamStudents(examId),
     enabled: !!examId,
   });
 };
@@ -172,6 +181,24 @@ export const useAddQuestionToExam = (examId: string) => {
   });
 };
 
+export const useAddQuestionBankToExam = (examId: string) => {
+  const queryClient = useQueryClient();
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: (questionBankId: string) =>
+      api.addQuestionBankToExam(examId, { questionBankId }),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: examKeys.questions(examId) });
+      queryClient.invalidateQueries({ queryKey: examKeys.detail(examId) });
+      addNotification(data?.message || 'Question bank added to exam', 'success');
+    },
+    onError: (err: any) => {
+      addNotification(err?.response?.data?.message || 'Failed to add question bank', 'error');
+    },
+  });
+};
+
 export const useRemoveQuestionFromExam = (examId: string) => {
   const queryClient = useQueryClient();
   const addNotification = useNotificationStore((s) => s.addNotification);
@@ -219,6 +246,40 @@ export const useRemoveBatchFromExam = (examId: string) => {
     },
     onError: (err: any) => {
       addNotification(err?.response?.data?.message || 'Failed to remove batch', 'error');
+    },
+  });
+};
+
+export const useAssignStudentsToExam = (examId: string) => {
+  const queryClient = useQueryClient();
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: (studentIds: string[]) => api.assignStudentsToExam(examId, studentIds),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: examKeys.students(examId) });
+      queryClient.invalidateQueries({ queryKey: examKeys.detail(examId) });
+      addNotification(data?.message || 'Students assigned to exam', 'success');
+    },
+    onError: (err: any) => {
+      addNotification(err?.response?.data?.message || 'Failed to assign students', 'error');
+    },
+  });
+};
+
+export const useRemoveStudentFromExam = (examId: string) => {
+  const queryClient = useQueryClient();
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: (studentId: string) => api.removeStudentFromExam(examId, studentId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: examKeys.students(examId) });
+      queryClient.invalidateQueries({ queryKey: examKeys.detail(examId) });
+      addNotification('Student removed from exam', 'success');
+    },
+    onError: (err: any) => {
+      addNotification(err?.response?.data?.message || 'Failed to remove student', 'error');
     },
   });
 };

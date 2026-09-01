@@ -47,6 +47,12 @@ export const createQuestion = async (payload: CreateQuestionPayload) => {
   return data;
 };
 
+export const createBulkQuestions = async (payload: { questions: CreateQuestionPayload[] } | CreateQuestionPayload[]) => {
+  const body = Array.isArray(payload) ? { questions: payload } : payload;
+  const { data } = await api.post('/questions/bulk', body);
+  return data;
+};
+
 export const updateQuestion = async (id: string, payload: Partial<CreateQuestionPayload>) => {
   const { data } = await api.patch(`/questions/${id}`, payload);
   return data;

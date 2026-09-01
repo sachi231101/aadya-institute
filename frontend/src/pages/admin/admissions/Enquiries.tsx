@@ -42,6 +42,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { ViewEnquiryInfo } from "./ViewEnquiryInfo";
 
 // ─── TYPES & MOCK/SEED DATA MATCHING THE REFERENCE IMAGE ───────────────────
 
@@ -486,6 +487,113 @@ export const Enquiries: React.FC = () => {
     });
   };
 
+  // Create Application from Lead Action
+  const handleCreateApplication = async (lead: EnrichedLead) => {
+    try {
+      await admissionsApi.convertEnquiryToApplication(lead.id);
+      showToast(`Application created for ${lead.name}!`);
+    } catch {
+      showToast(`Application created for ${lead.name}!`);
+    }
+    navigate(`${rolePrefix}/admissions/applications`, {
+      state: {
+        lead: {
+          id: lead.id,
+          enquiryNo: lead.enquiryNo,
+          name: lead.name,
+          email: lead.email,
+          phone: lead.phone,
+          course: lead.course,
+          altCourse: lead.altCourse,
+          source: lead.source,
+          qualification: lead.qualification,
+          location: lead.location,
+          assignedCounselor: lead.assignedCounselor,
+          enquiryDate: lead.enquiryDate,
+          notes: lead.notesList?.map((n) => n.text).join("\n") || "",
+          leadScore: lead.leadScore,
+        },
+      },
+    });
+  };
+
+  // Schedule Follow-up from Modal
+  const handleScheduleFollowUpFromModal = (data: { channel: string; outcome: string; nextDate: string; notes: string }) => {
+    if (!selectedLead) return;
+    const newNoteItem = {
+      id: `f-${Date.now()}`,
+      author: selectedLead.assignedCounselor || user?.name || "Priya Singh",
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      text: `[${data.channel} — Outcome: ${data.outcome}] ${data.notes.trim()}`,
+    };
+    const updatedTimeline = [
+      {
+        id: `t-${Date.now()}`,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        text: `Follow-up completed: ${data.outcome} via ${data.channel}`,
+        mode: data.channel,
+      },
+      ...(selectedLead.timeline || []),
+    ];
+    const updated = {
+      ...selectedLead,
+      nextFollowUp: data.nextDate ? new Date(data.nextDate).toLocaleDateString() : selectedLead.nextFollowUp,
+      notesList: [newNoteItem, ...(selectedLead.notesList || [])],
+      timeline: updatedTimeline,
+    };
+    setSelectedLead(updated);
+    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    showToast("Follow-up scheduled successfully!");
+  };
+
+  // Add Note from Modal
+  const handleAddNoteFromModal = (text: string) => {
+    if (!selectedLead || !text.trim()) return;
+    const newNote = {
+      id: `n-${Date.now()}`,
+      author: user?.name || selectedLead.assignedCounselor || "Priya Singh",
+      date: new Date().toLocaleDateString(),
+      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      text: text.trim(),
+    };
+    const updated = {
+      ...selectedLead,
+      notesList: [newNote, ...(selectedLead.notesList || [])],
+    };
+    setSelectedLead(updated);
+    setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    showToast("Note added successfully!");
+  };
+
+  // Request AI Call from Modal
+  const handleRequestAiCall = async (leadId: string) => {
+    try {
+      await admissionsApi.triggerEnquiryAiCall(leadId);
+      showToast("AI qualification call initiated!");
+    } catch {
+      showToast("AI qualification call initiated!");
+    }
+    if (selectedLead && selectedLead.id === leadId) {
+      const updated = {
+        ...selectedLead,
+        timeline: [
+          {
+            id: `t-${Date.now()}`,
+            date: new Date().toLocaleDateString(),
+            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+            text: "AI Voice Qualification Call requested",
+            mode: "AI Call",
+          },
+          ...(selectedLead.timeline || []),
+        ],
+      };
+      setSelectedLead(updated);
+      setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
+    }
+  };
+
   // Export CSV Handler
   const handleExportCSV = () => {
     const headers = "ID,Name,Phone,Email,Course,Source,Status,Priority,NextFollowUp,AssignedTo\n";
@@ -562,6 +670,27 @@ export const Enquiries: React.FC = () => {
     return name.slice(0, 2).toUpperCase();
   };
 
+  // If an enquiry is selected, render the dedicated separate ViewEnquiryInfo centered view
+  if (selectedLead) {
+    return (
+      <div className="p-4 md:p-6 max-w-7xl w-full mx-auto space-y-5">
+        <ViewEnquiryInfo
+          lead={selectedLead}
+          onBack={() => setSelectedLead(null)}
+          onAddNote={handleAddNoteFromModal}
+          onScheduleFollowUp={handleScheduleFollowUpFromModal}
+          onRequestAiCall={handleRequestAiCall}
+          onCreateApplication={handleCreateApplication}
+          onDirectAdmission={handleRegisterStudent}
+          getStatusBadge={getStatusBadge}
+          getSourceBadge={getSourceBadge}
+          getPriorityDot={getPriorityDot}
+          getInitials={getInitials}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-[1750px] w-full mx-auto space-y-5 bg-[#f8fafc] min-h-screen">
       
@@ -580,22 +709,22 @@ export const Enquiries: React.FC = () => {
           <Button
             onClick={() => setShowImportModal(true)}
             variant="outline"
-            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all"
+            className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
           >
-            <Upload className="h-4 w-4 text-slate-500" /> Import Leads
+            <Download className="h-4 w-4 text-muted-foreground" /> Import Leads
           </Button>
 
           <Button
             onClick={handleExportCSV}
             variant="outline"
-            className="border-slate-200 text-slate-700 hover:bg-slate-50 font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all"
+            className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
           >
-            <Download className="h-4 w-4 text-slate-500" /> Export
+            <Upload className="h-4 w-4 text-muted-foreground" /> Export
           </Button>
 
           <Button
             onClick={() => setShowAddModal(true)}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all"
+            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
           >
             <Plus className="h-4 w-4" /> Add New Enquiry
           </Button>
@@ -853,828 +982,286 @@ export const Enquiries: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 5. WORKSPACE CONTAINER (TABLE / PIPELINE + DETAIL DRAWER) ─── */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        
-        {/* Main Content Area */}
-        <div className={selectedLead ? "lg:col-span-7 xl:col-span-8 space-y-4" : "lg:col-span-12 space-y-4"}>
-          {viewMode === "List" ? (
-            <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
-              <CardContent className="p-0 overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/80 text-[11px] uppercase tracking-wider whitespace-nowrap">
-                    <tr>
-                      <th className="py-3 px-3 w-10 text-center">
-                        <input
-                          type="checkbox"
-                          checked={selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0}
-                          onChange={handleSelectAll}
-                          className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                        />
-                      </th>
-                      <th className="py-3 px-3 font-bold">Enquiry</th>
-                      <th className="py-3 px-3 font-bold">Contact</th>
-                      <th className="py-3 px-3 font-bold">Course Interested</th>
-                      <th className="py-3 px-2 font-bold text-center">Source</th>
-                      <th className="py-3 px-2 font-bold text-center">Status</th>
-                      <th className="py-3 px-3 font-bold">Counsellor</th>
-                      <th className="py-3 px-3 font-bold">Last Contact</th>
-                      <th className="py-3 px-3 font-bold">Next Follow-up</th>
-                      <th className="py-3 px-2 font-bold text-center">AI Call</th>
-                      <th className="py-3 px-3 font-bold text-center w-28">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {filteredLeads.length > 0 ? (
-                      filteredLeads.map((lead) => {
-                        const isSelected = selectedLead?.id === lead.id;
-                        const isChecked = selectedLeadIds.includes(lead.id);
+      {/* ─── 5. WORKSPACE CONTAINER (TABLE / PIPELINE) ─── */}
+      <div className="space-y-4">
+        {viewMode === "List" ? (
+          <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/80 text-[11px] uppercase tracking-wider whitespace-nowrap">
+                  <tr>
+                    <th className="py-3 px-3 w-10 text-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedLeadIds.length === filteredLeads.length && filteredLeads.length > 0}
+                        onChange={handleSelectAll}
+                        className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
+                      />
+                    </th>
+                    <th className="py-3 px-3 font-bold">Enquiry</th>
+                    <th className="py-3 px-3 font-bold">Contact</th>
+                    <th className="py-3 px-3 font-bold">Course Interested</th>
+                    <th className="py-3 px-2 font-bold text-center">Source</th>
+                    <th className="py-3 px-2 font-bold text-center">Status</th>
+                    <th className="py-3 px-3 font-bold">Counsellor</th>
+                    <th className="py-3 px-3 font-bold">Last Contact</th>
+                    <th className="py-3 px-3 font-bold">Next Follow-up</th>
+                    <th className="py-3 px-2 font-bold text-center">AI Call</th>
+                    <th className="py-3 px-3 font-bold text-center w-28">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 bg-white">
+                  {filteredLeads.length > 0 ? (
+                    filteredLeads.map((lead) => {
+                      const isSelected = selectedLead?.id === lead.id;
+                      const isChecked = selectedLeadIds.includes(lead.id);
 
-                        return (
-                          <tr
-                            key={lead.id}
-                            onClick={() => setSelectedLead(lead)}
-                            className={`hover:bg-blue-50/40 transition-colors cursor-pointer whitespace-nowrap ${
-                              isSelected ? "bg-blue-50/70 font-medium" : ""
-                            }`}
-                          >
-                            <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleSelectOne(lead.id)}
-                                className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
-                              />
-                            </td>
-
-                            {/* 1. Enquiry Name & ID */}
-                            <td className="py-3.5 px-3">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-200">
-                                  {getInitials(lead.name)}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-1.5">
-                                    <p className="font-bold text-slate-900 text-[13px] leading-tight">{lead.name}</p>
-                                    {lead.status === "New" && (
-                                      <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.2 rounded-full">NEW</span>
-                                    )}
-                                  </div>
-                                  <p className="text-[11px] text-slate-400 font-mono mt-0.5">
-                                    {lead.enquiryNo || `ENQ-${lead.id.slice(0, 6)}`}
-                                  </p>
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* 2. Contact */}
-                            <td className="py-3.5 px-3">
-                              <div className="space-y-0.5 text-slate-600 text-[11px] font-mono">
-                                <div className="flex items-center gap-1 text-slate-800 font-semibold">
-                                  <Phone className="h-3 w-3 text-slate-400" /> {lead.phone}
-                                </div>
-                                <div className="flex items-center gap-1 text-slate-500">
-                                  <Mail className="h-3 w-3 text-slate-400" /> {lead.email}
-                                </div>
-                              </div>
-                            </td>
-
-                            {/* 3. Course Interested */}
-                            <td className="py-3.5 px-3 font-semibold text-slate-700">
-                              {lead.course}
-                            </td>
-
-                            {/* 4. Source */}
-                            <td className="py-3.5 px-2 text-center">
-                              {getSourceBadge(lead.source)}
-                            </td>
-
-                            {/* 5. Status */}
-                            <td className="py-3.5 px-2 text-center">
-                              {getStatusBadge(lead.status)}
-                            </td>
-
-                            {/* 6. Counsellor */}
-                            <td className="py-3.5 px-3 text-slate-700 font-medium text-[11px]">
-                              {lead.assignedCounselor || "Unassigned"}
-                            </td>
-
-                            {/* 7. Last Contact */}
-                            <td className="py-3.5 px-3 text-slate-500 text-[11px]">
-                              {lead.lastContact}
-                            </td>
-
-                            {/* 8. Next Follow-up */}
-                            <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
-                              {lead.nextFollowUp !== "—" ? (
-                                <span className="inline-flex items-center gap-1">
-                                  <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                  {lead.nextFollowUp}
-                                </span>
-                              ) : (
-                                <span className="text-slate-400">—</span>
-                              )}
-                            </td>
-
-                            {/* 9. AI Call Status */}
-                            <td className="py-3.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
-                                <Bot className="h-3 w-3 text-slate-500" />
-                                {lead.status === "Interested" || lead.status === "Counselling" ? "Completed" : "Not Requested"}
-                              </span>
-                            </td>
-
-                            {/* 10. Actions */}
-                            <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-center gap-1.5">
-                                <button
-                                  type="button"
-                                  onClick={() => (window.location.href = `tel:${lead.phone}`)}
-                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
-                                  title="Call Student"
-                                >
-                                  <Phone className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    window.open(
-                                      `https://wa.me/91${lead.phone}?text=${encodeURIComponent(
-                                        `Hello ${lead.name}, greetings from Aadya Institute!`
-                                      )}`,
-                                      "_blank"
-                                    )
-                                  }
-                                  className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
-                                  title="WhatsApp"
-                                >
-                                  <MessageSquare className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setSelectedLead(lead)}
-                                  className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
-                                  title="View Details"
-                                >
-                                  <Eye className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })
-                    ) : (
-                      <tr>
-                        <td colSpan={9} className="py-12 text-center text-slate-400 text-xs">
-                          No matching enquiries found. Try adjusting your filters.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </CardContent>
-
-              {/* Bottom Pagination & Bulk Toolbar */}
-              <div className="p-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs bg-white">
-                <div className="flex items-center gap-3">
-                  <span className="text-slate-500 font-medium">
-                    {selectedLeadIds.length} row(s) selected
-                  </span>
-
-                  {selectedLeadIds.length > 0 && (
-                    <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px] font-bold">
-                      <option value="">Bulk Actions ⌵</option>
-                      <option value="status">Change Status</option>
-                      <option value="priority">Change Priority</option>
-                      <option value="counselor">Assign Counsellor</option>
-                      <option value="export">Export Selected</option>
-                    </select>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-4 text-slate-500 font-medium sm:ml-auto">
-                  <span>Rows per page</span>
-                  <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px]">
-                    <option value="10">10</option>
-                    <option value="25">25</option>
-                    <option value="50">50</option>
-                  </select>
-
-                  <div className="flex items-center gap-1">
-                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50">
-                      &lt;
-                    </button>
-                    <button className="h-6 w-6 rounded bg-[#1769AA] text-white font-bold flex items-center justify-center">
-                      1
-                    </button>
-                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
-                      2
-                    </button>
-                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
-                      3
-                    </button>
-                    <span className="px-1 text-slate-400">...</span>
-                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
-                      26
-                    </button>
-                    <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
-                      &gt;
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </Card>
-          ) : (
-            /* ─── PIPELINE KANBAN VIEW ─── */
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-4">
-              {[
-                { stage: "New", color: "bg-blue-500" },
-                { stage: "Contacted", color: "bg-sky-500" },
-                { stage: "Interested", color: "bg-emerald-500" },
-                { stage: "Counselling", color: "bg-purple-500" },
-                { stage: "Follow-up", color: "bg-amber-500" },
-                { stage: "Demo", color: "bg-yellow-500" },
-                { stage: "Admission", color: "bg-teal-500" },
-                { stage: "Converted", color: "bg-emerald-700" },
-              ].map((col) => {
-                const stageLeads = leads.filter((l) => l.status === col.stage);
-                return (
-                  <div key={col.stage} className="bg-slate-100/70 p-3 rounded-2xl border border-slate-200/60 min-w-[240px] space-y-3">
-                    <div className="flex items-center justify-between font-bold text-xs text-slate-700 pb-1 border-b border-slate-200">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-2 h-2 rounded-full ${col.color}`} />
-                        <span className="uppercase">{col.stage}</span>
-                      </div>
-                      <span className="bg-white px-2 py-0.5 rounded-full text-[10px] text-slate-500 font-bold">
-                        {stageLeads.length}
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5">
-                      {stageLeads.map((lead) => (
-                        <div
+                      return (
+                        <tr
                           key={lead.id}
                           onClick={() => setSelectedLead(lead)}
-                          className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-1.5"
+                          className={`hover:bg-blue-50/40 transition-colors cursor-pointer whitespace-nowrap ${
+                            isSelected ? "bg-blue-50/70 font-medium" : ""
+                          }`}
                         >
-                          <div className="flex items-start justify-between">
-                            <h4 className="font-bold text-slate-900 text-xs">{lead.name}</h4>
-                            {getPriorityDot(lead.priority)}
-                          </div>
-                          <p className="text-[11px] text-slate-600 font-medium">{lead.course}</p>
-                          <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-50">
-                            <span>{lead.source}</span>
-                            <span className="text-slate-600 font-semibold">{lead.nextFollowUp}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
+                          <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => handleSelectOne(lead.id)}
+                              className="h-3.5 w-3.5 rounded border-slate-300 text-blue-600 accent-blue-600 cursor-pointer"
+                            />
+                          </td>
 
-        {/* ─── 6. LEAD DETAIL SIDE PANEL (DRAWER) ─── */}
-        {selectedLead && (
-          <div className="lg:col-span-4 bg-white border border-slate-200/70 rounded-2xl shadow-xs overflow-hidden sticky top-6">
-            
-            {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-100 space-y-3">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-sm border border-purple-200">
-                    {getInitials(selectedLead.name)}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-extrabold text-slate-900 text-base">{selectedLead.name}</h3>
-                      {getStatusBadge(selectedLead.status)}
-                    </div>
-                    <p className="text-xs text-slate-400 font-mono mt-0.5">
-                      {selectedLead.phone} • {selectedLead.email}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedLead(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
+                          {/* 1. Enquiry Name & ID */}
+                          <td className="py-3.5 px-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-200">
+                                {getInitials(lead.name)}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-bold text-slate-900 text-[13px] leading-tight">{lead.name}</p>
+                                  {lead.status === "New" && (
+                                    <span className="bg-blue-100 text-blue-700 text-[9px] font-bold px-1.5 py-0.2 rounded-full">NEW</span>
+                                  )}
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                  {lead.enquiryNo || `ENQ-${lead.id.slice(0, 6)}`}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
 
-              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium pt-1">
-                <span>Enquiry ID: <strong className="text-slate-800">{selectedLead.enquiryNo}</strong></span>
-                <span>Lead Score: <strong className="text-amber-600">{selectedLead.leadScore} 🔥</strong></span>
-              </div>
+                          {/* 2. Contact */}
+                          <td className="py-3.5 px-3">
+                            <div className="space-y-0.5 text-slate-600 text-[11px] font-mono">
+                              <div className="flex items-center gap-1 text-slate-800 font-semibold">
+                                <Phone className="h-3 w-3 text-slate-400" /> {lead.phone}
+                              </div>
+                              <div className="flex items-center gap-1 text-slate-500">
+                                <Mail className="h-3 w-3 text-slate-400" /> {lead.email}
+                              </div>
+                            </div>
+                          </td>
 
-              {/* Drawer Tabs (Icon-Based Segmented Control — No Scrolling Required) */}
-              <div className="grid grid-cols-6 gap-1 p-1 bg-slate-100/80 rounded-xl mt-2 text-center">
-                {[
-                  { key: "Overview", icon: User, label: "Profile" },
-                  { key: "Course Interest", icon: GraduationCap, label: "Course" },
-                  { key: "Timeline", icon: Clock, label: "Timeline" },
-                  { key: "Follow-ups", icon: CalendarCheck, label: "Followup" },
-                  { key: "AI Call", icon: Bot, label: "AI Call" },
-                  { key: "Notes", icon: FileText, label: "Notes" },
-                ].map(({ key, icon: Icon, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    title={key}
-                    onClick={() => setActiveDrawerTab(key as any)}
-                    className={`py-1.5 px-1 rounded-lg flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                      activeDrawerTab === key
-                        ? "bg-white text-[#1769AA] shadow-xs font-bold"
-                        : "text-slate-500 hover:text-slate-800 hover:bg-slate-200/50"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    <span className="text-[10px] font-medium leading-none">{label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+                          {/* 3. Course Interested */}
+                          <td className="py-3.5 px-3 font-semibold text-slate-700">
+                            {lead.course}
+                          </td>
 
-            {/* Drawer Body */}
-            <div className="p-5 space-y-4 text-xs max-h-[calc(100vh-320px)] overflow-y-auto">
-              
-              {activeDrawerTab === "Overview" && (
-                <>
-                  {/* Card 1: Student Information */}
-                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
-                    <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Student Information</span>
-                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
-                    </div>
+                          {/* 4. Source */}
+                          <td className="py-3.5 px-2 text-center">
+                            {getSourceBadge(lead.source)}
+                          </td>
 
-                    <div className="space-y-1.5 text-[11px] text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400"><MapPin className="h-3.5 w-3.5" /> Location</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.location}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400"><GraduationCap className="h-3.5 w-3.5" /> Qualification</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.qualification}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400"><Calendar className="h-3.5 w-3.5" /> Passing Year</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.passingYear}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400"><Laptop className="h-3.5 w-3.5" /> Preferred Mode</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.preferredMode}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-1.5 text-slate-400"><Clock className="h-3.5 w-3.5" /> Preferred Time</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.preferredTime}</span>
-                      </div>
-                    </div>
-                  </div>
+                          {/* 5. Status */}
+                          <td className="py-3.5 px-2 text-center">
+                            {getStatusBadge(lead.status)}
+                          </td>
 
-                  {/* Card 2: Enquiry Information */}
-                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
-                    <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Enquiry Information</span>
-                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
-                    </div>
+                          {/* 6. Counsellor */}
+                          <td className="py-3.5 px-3 text-slate-700 font-medium text-[11px]">
+                            {lead.assignedCounselor || "Unassigned"}
+                          </td>
 
-                    <div className="space-y-1.5 text-[11px] text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Interested Course</span>
-                        <span className="font-bold text-slate-900">{selectedLead.course}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Alternative Course</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.altCourse || "—"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Source</span>
-                        {getSourceBadge(selectedLead.source)}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Enquiry Date</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.enquiryDate}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Assigned Counselor</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.assignedCounselor}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Priority</span>
-                        {getPriorityDot(selectedLead.priority)}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Status</span>
-                        {getStatusBadge(selectedLead.status)}
-                      </div>
-                    </div>
-                  </div>
+                          {/* 7. Last Contact */}
+                          <td className="py-3.5 px-3 text-slate-500 text-[11px]">
+                            {lead.lastContact}
+                          </td>
 
-                  {/* Card 3: Next Follow-up */}
-                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2">
-                    <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Next Follow-up</span>
-                      <button className="text-[#1769AA] hover:underline text-[11px]">Edit</button>
-                    </div>
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-2">
-                        <CalendarCheck className="h-4 w-4 text-[#1769AA]" />
-                        <span className="font-bold text-slate-900 text-xs">{selectedLead.nextFollowUp}</span>
-                      </div>
-                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">
-                        Scheduled
-                      </Badge>
-                    </div>
-                    <p className="text-[11px] text-slate-500">
-                      Follow-up Type: <strong className="text-slate-700">{selectedLead.nextFollowUpType || "Call"}</strong>
-                    </p>
-                  </div>
+                          {/* 8. Next Follow-up */}
+                          <td className="py-3.5 px-3 text-slate-600 font-medium text-[11px]">
+                            {lead.nextFollowUp !== "—" ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                {lead.nextFollowUp}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">—</span>
+                            )}
+                          </td>
 
-                  {/* Quick Actions Strip */}
-                  <div className="space-y-1.5 pt-1">
-                    <p className="font-bold text-slate-800 text-[11px]">Quick Actions</p>
-                    <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center">
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          try {
-                            await admissionsApi.triggerEnquiryAiCall(selectedLead.id);
-                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
-                          } catch {
-                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
-                          }
-                        }}
-                        className="p-2 rounded-xl border border-border hover:border-emerald-500 hover:bg-emerald-500/10 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <Bot className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">AI Call</span>
-                      </button>
+                          {/* 9. AI Call Status */}
+                          <td className="py-3.5 px-2 text-center" onClick={(e) => e.stopPropagation()}>
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200">
+                              <Bot className="h-3 w-3 text-slate-500" />
+                              {lead.status === "Interested" || lead.status === "Counselling" ? "Completed" : "Not Requested"}
+                            </span>
+                          </td>
 
-                      <button
-                        type="button"
-                        onClick={() => (window.location.href = `tel:${selectedLead.phone}`)}
-                        className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <Phone className="h-4 w-4 text-emerald-600" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">Call</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          window.open(`https://wa.me/91${selectedLead.phone}`, "_blank")
-                        }
-                        className="p-2 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <MessageSquare className="h-4 w-4 text-emerald-600" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-emerald-700">WhatsApp</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => (window.location.href = `mailto:${selectedLead.email}`)}
-                        className="p-2 rounded-xl border border-slate-200 hover:border-blue-500 hover:bg-blue-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <Mail className="h-4 w-4 text-blue-600" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-blue-700">Email</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLeadToMarkLost(selectedLead);
-                          setShowLostModal(true);
-                        }}
-                        className="p-2 rounded-xl border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <CalendarCheck className="h-4 w-4 text-purple-600" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-purple-700">Schedule</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setActiveDrawerTab("Notes")}
-                        className="p-2 rounded-xl border border-slate-200 hover:border-amber-500 hover:bg-amber-50/50 transition-all flex flex-col items-center gap-1 group cursor-pointer"
-                      >
-                        <FileText className="h-4 w-4 text-amber-600" />
-                        <span className="text-[10px] font-semibold text-slate-600 group-hover:text-amber-700">Add Note</span>
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {/* TIMELINE TAB */}
-              {activeDrawerTab === "Timeline" && (
-                <div className="space-y-3 relative pl-4 border-l-2 border-slate-200">
-                  {selectedLead.timeline && selectedLead.timeline.length > 0 ? (
-                    selectedLead.timeline.map((item) => (
-                      <div key={item.id} className="relative space-y-1">
-                        <span className="absolute -left-[21px] top-1 w-2.5 h-2.5 rounded-full bg-[#1769AA] ring-4 ring-blue-50" />
-                        <div className="bg-slate-50 p-3 rounded-xl border border-slate-100">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-800 text-[11px]">{item.date} — {item.time}</span>
-                            <span className="text-[10px] text-[#1769AA] font-bold">{item.mode}</span>
-                          </div>
-                          <p className="text-slate-600 text-xs mt-1">{item.text}</p>
-                        </div>
-                      </div>
-                    ))
+                          {/* 10. Actions */}
+                          <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => (window.location.href = `tel:${lead.phone}`)}
+                                className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                                title="Call Student"
+                              >
+                                <Phone className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  window.open(
+                                    `https://wa.me/91${lead.phone}?text=${encodeURIComponent(
+                                      `Hello ${lead.name}, greetings from Aadya Institute!`
+                                    )}`,
+                                    "_blank"
+                                  )
+                                }
+                                className="w-7 h-7 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                                title="WhatsApp"
+                              >
+                                <MessageSquare className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setSelectedLead(lead)}
+                                className="w-7 h-7 rounded-full bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center transition-colors shadow-xs cursor-pointer"
+                                title="View Details"
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
-                    <p className="text-slate-400 italic">No timeline entries yet.</p>
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center text-slate-400 text-xs">
+                        No matching enquiries found. Try adjusting your filters.
+                      </td>
+                    </tr>
                   )}
-                </div>
-              )}
+                </tbody>
+              </table>
+            </CardContent>
 
-              {/* NOTES TAB */}
-              {activeDrawerTab === "Notes" && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-slate-700 font-bold text-xs">Add Counsellor Note</Label>
-                    <textarea
-                      value={newNoteText}
-                      onChange={(e) => setNewNoteText(e.target.value)}
-                      placeholder="Type details about this interaction..."
-                      className="w-full border border-slate-200 rounded-xl p-2.5 text-xs bg-slate-50 focus:bg-white min-h-[70px]"
-                    />
-                    <Button
-                      size="sm"
-                      onClick={handleAddNote}
-                      className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold"
-                    >
-                      + Save Note
-                    </Button>
+            {/* Bottom Pagination & Bulk Toolbar */}
+            <div className="p-3.5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs bg-white">
+              <div className="flex items-center gap-3">
+                <span className="text-slate-500 font-medium">
+                  {selectedLeadIds.length} row(s) selected
+                </span>
+
+                {selectedLeadIds.length > 0 && (
+                  <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px] font-bold">
+                    <option value="">Bulk Actions ⌵</option>
+                    <option value="status">Change Status</option>
+                    <option value="priority">Change Priority</option>
+                    <option value="counselor">Assign Counsellor</option>
+                    <option value="export">Export Selected</option>
+                  </select>
+                )}
+              </div>
+
+              <div className="flex items-center gap-4 text-slate-500 font-medium sm:ml-auto">
+                <span>Rows per page</span>
+                <select className="h-7 px-2 border border-slate-200 rounded-lg text-slate-700 bg-slate-50 text-[11px]">
+                  <option value="10">10</option>
+                  <option value="25">25</option>
+                  <option value="50">50</option>
+                </select>
+
+                <div className="flex items-center gap-1">
+                  <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50">
+                    &lt;
+                  </button>
+                  <button className="h-6 w-6 rounded bg-[#1769AA] text-white font-bold flex items-center justify-center">
+                    1
+                  </button>
+                  <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                    2
+                  </button>
+                  <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                    3
+                  </button>
+                  <span className="px-1 text-slate-400">...</span>
+                  <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                    26
+                  </button>
+                  <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
+                    &gt;
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        ) : (
+          /* ─── PIPELINE KANBAN VIEW ─── */
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-x-auto pb-4">
+            {[
+              { stage: "New", color: "bg-blue-500" },
+              { stage: "Contacted", color: "bg-sky-500" },
+              { stage: "Interested", color: "bg-emerald-500" },
+              { stage: "Counselling", color: "bg-purple-500" },
+              { stage: "Follow-up", color: "bg-amber-500" },
+              { stage: "Demo", color: "bg-yellow-500" },
+              { stage: "Admission", color: "bg-teal-500" },
+              { stage: "Converted", color: "bg-emerald-700" },
+            ].map((col) => {
+              const stageLeads = leads.filter((l) => l.status === col.stage);
+              return (
+                <div key={col.stage} className="bg-slate-100/70 p-3 rounded-2xl border border-slate-200/60 min-w-[240px] space-y-3">
+                  <div className="flex items-center justify-between font-bold text-xs text-slate-700 pb-1 border-b border-slate-200">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-2 h-2 rounded-full ${col.color}`} />
+                      <span className="uppercase">{col.stage}</span>
+                    </div>
+                    <span className="bg-white px-2 py-0.5 rounded-full text-[10px] text-slate-500 font-bold">
+                      {stageLeads.length}
+                    </span>
                   </div>
 
-                  <div className="space-y-3 pt-2">
-                    <h5 className="font-bold text-slate-800 text-xs">Previous Notes ({selectedLead.notesList?.length || 0})</h5>
-                    {selectedLead.notesList && selectedLead.notesList.length > 0 ? (
-                      selectedLead.notesList.map((n) => (
-                        <div key={n.id} className="p-3 bg-slate-50 rounded-xl border border-slate-100 space-y-1">
-                          <div className="flex justify-between text-[10px] text-slate-400">
-                            <span className="font-bold text-slate-700">{n.author}</span>
-                            <span>{n.date}, {n.time}</span>
-                          </div>
-                          <p className="text-slate-700 text-xs">{n.text}</p>
-                        </div>
-                      ))
-                    ) : (
-                      <p className="text-slate-400 italic">No notes added yet.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* COURSE INTEREST TAB */}
-              {activeDrawerTab === "Course Interest" && (
-                <div className="space-y-3">
-                  <div className="p-4 bg-slate-50/60 rounded-xl border border-slate-100 space-y-2.5">
-                    <div className="flex items-center justify-between font-bold text-slate-800">
-                      <span>Course & Learning Preferences</span>
-                      <Badge className="bg-blue-50 text-blue-700 border-blue-200 text-[10px]">Academic</Badge>
-                    </div>
-
-                    <div className="space-y-2 text-[11px] text-slate-600">
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Primary Course</span>
-                        <span className="font-bold text-slate-900">{selectedLead.course}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Alternate Course</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.altCourse || "None Specified"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Preferred Batch Timing</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.preferredTime || "Morning (09:00 AM - 11:00 AM)"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Learning Mode</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.preferredMode || "Offline (Classroom)"}</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Highest Qualification</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.qualification} ({selectedLead.passingYear})</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-slate-400">Target Center / Branch</span>
-                        <span className="font-semibold text-slate-800">{selectedLead.location || "Aadya Main Campus"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* FOLLOW-UPS TAB */}
-              {activeDrawerTab === "Follow-ups" && (
-                <div className="space-y-4">
-                  {/* Schedule Follow-up Box */}
-                  <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200 space-y-3">
-                    <h5 className="font-bold text-slate-800 text-xs flex items-center gap-1.5">
-                      <CalendarCheck className="h-4 w-4 text-[#1769AA]" /> Schedule / Log Interaction
-                    </h5>
-
-                    <div className="grid grid-cols-2 gap-2 text-xs">
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Interaction Channel</label>
-                        <select
-                          value={followUpChannel}
-                          onChange={(e) => setFollowUpChannel(e.target.value)}
-                          className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
-                        >
-                          <option value="Phone Call">Phone Call</option>
-                          <option value="WhatsApp">WhatsApp</option>
-                          <option value="Center Visit">Center Visit / Walk-in</option>
-                          <option value="Demo Class">Demo Class</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[10px] font-bold text-slate-600 mb-1">Interaction Outcome</label>
-                        <select
-                          value={followUpOutcome}
-                          onChange={(e) => setFollowUpOutcome(e.target.value)}
-                          className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
-                        >
-                          <option value="Connected">Connected</option>
-                          <option value="No Answer">No Answer</option>
-                          <option value="Callback Requested">Callback Requested</option>
-                          <option value="Interested">Interested</option>
-                          <option value="Not Interested">Not Interested</option>
-                          <option value="Needs More Information">Needs More Info</option>
-                          <option value="Ready for Admission">Ready for Admission</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Next Follow-up Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        value={followUpDate}
-                        onChange={(e) => setFollowUpDate(e.target.value)}
-                        className="w-full h-8 px-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-[10px] font-bold text-slate-600 mb-1">Follow-up Notes</label>
-                      <textarea
-                        value={followUpNotes}
-                        onChange={(e) => setFollowUpNotes(e.target.value)}
-                        placeholder="Log counselling discussion, requirements, or next steps..."
-                        className="w-full border border-slate-200 rounded-xl p-2 text-xs bg-white min-h-[60px]"
-                      />
-                    </div>
-
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        if (!followUpNotes.trim() && !followUpDate) return;
-                        const newNoteItem = {
-                          id: `f-${Date.now()}`,
-                          author: selectedLead.assignedCounselor || "Priya Singh",
-                          date: new Date().toLocaleDateString(),
-                          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                          text: `[${followUpChannel} — Outcome: ${followUpOutcome}] ${followUpNotes.trim()}`,
-                        };
-                        const updatedTimeline = [
-                          {
-                            id: `t-${Date.now()}`,
-                            date: new Date().toLocaleDateString(),
-                            time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-                            text: `Follow-up completed: ${followUpOutcome} via ${followUpChannel}`,
-                            mode: followUpChannel,
-                          },
-                          ...(selectedLead.timeline || []),
-                        ];
-                        const updated = {
-                          ...selectedLead,
-                          nextFollowUp: followUpDate ? new Date(followUpDate).toLocaleDateString() : selectedLead.nextFollowUp,
-                          notesList: [newNoteItem, ...(selectedLead.notesList || [])],
-                          timeline: updatedTimeline,
-                        };
-                        setSelectedLead(updated);
-                        setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
-                        setFollowUpNotes("");
-                        showToast("Follow-up saved successfully!");
-                      }}
-                      className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold h-9 cursor-pointer"
-                    >
-                      Save Follow-up & Next Action
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* AI CALL TAB */}
-              {activeDrawerTab === "AI Call" && (
-                <div className="space-y-4">
-                  <div className="p-4 bg-slate-50/70 rounded-xl border border-slate-200 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                          <Bot className="h-4 w-4" />
-                        </span>
-                        <div>
-                          <h5 className="font-bold text-slate-900 text-xs">Optional AI Voice Qualification</h5>
-                          <p className="text-[10px] text-slate-500">Autonomous voice agent for organic enquiry qualification</p>
-                        </div>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={async () => {
-                          try {
-                            await admissionsApi.triggerEnquiryAiCall(selectedLead.id);
-                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
-                          } catch {
-                            showToast(`AI qualification call initiated for ${selectedLead.name}!`);
-                          }
-                        }}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold h-8 px-3 cursor-pointer"
+                  <div className="space-y-2.5">
+                    {stageLeads.map((lead) => (
+                      <div
+                        key={lead.id}
+                        onClick={() => setSelectedLead(lead)}
+                        className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-2xs hover:shadow-md transition-all cursor-pointer space-y-1.5"
                       >
-                        [ Request AI Call ]
-                      </Button>
-                    </div>
-
-                    {/* AI Insights & Call Results */}
-                    {selectedLead.status === "Interested" || selectedLead.status === "Counselling" || selectedLead.leadScore >= 80 ? (
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2 text-xs">
-                        <div className="grid grid-cols-3 gap-2 pb-2 border-b border-slate-100 text-center">
-                          <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[10px] text-slate-400 font-medium">AI Score</p>
-                            <p className="text-sm font-black text-emerald-600 mt-0.5">{selectedLead.leadScore}/100</p>
-                          </div>
-                          <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[10px] text-slate-400 font-medium">Interest Level</p>
-                            <p className="text-sm font-black text-purple-600 mt-0.5">
-                              {selectedLead.priority === "Hot" ? "🔥 Hot" : selectedLead.priority === "Warm" ? "⚡ Warm" : "❄️ Cold"}
-                            </p>
-                          </div>
-                          <div className="p-2 bg-slate-50 rounded-lg">
-                            <p className="text-[10px] text-slate-400 font-medium">Call Status</p>
-                            <p className="text-sm font-black text-blue-600 mt-0.5">Completed</p>
-                          </div>
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-bold text-slate-900 text-xs">{lead.name}</h4>
+                          {getPriorityDot(lead.priority)}
                         </div>
-
-                        <div>
-                          <p className="font-bold text-slate-700 text-[11px]">AI Qualification Summary</p>
-                          <p className="text-slate-600 text-[11px] mt-0.5 leading-relaxed">
-                            Candidate expressed interest in {selectedLead.course}. Enquired about upcoming classroom schedule and course fees.
-                          </p>
-                        </div>
-
-                        <div className="pt-1">
-                          <p className="font-bold text-slate-700 text-[11px]">Recommended Next Action</p>
-                          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] mt-1">
-                            Share fee structure on WhatsApp & Proceed to Application
-                          </Badge>
+                        <p className="text-[11px] text-slate-600 font-medium">{lead.course}</p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1 border-t border-slate-50">
+                          <span>{lead.source}</span>
+                          <span className="text-slate-600 font-semibold">{lead.nextFollowUp}</span>
                         </div>
                       </div>
-                    ) : (
-                      <div className="p-5 bg-white rounded-xl border border-dashed border-slate-200 text-center space-y-2">
-                        <Bot className="h-8 w-8 text-slate-400 mx-auto" />
-                        <p className="text-xs font-bold text-slate-800">No AI call initiated yet</p>
-                        <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
-                          Click <strong>[ Request AI Call ]</strong> above to automatically trigger an autonomous Sarvam AI voice qualification call for {selectedLead.name}.
-                        </p>
-                      </div>
-                    )}
+                    ))}
                   </div>
                 </div>
-              )}
-            </div>
-
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex items-center gap-2">
-              <Button
-                onClick={async () => {
-                  try {
-                    await admissionsApi.convertEnquiryToApplication(selectedLead.id);
-                    showToast(`Application created for ${selectedLead.name}!`);
-                    navigate(`${rolePrefix}/admissions/applications`);
-                  } catch {
-                    showToast(`Application created for ${selectedLead.name}!`);
-                    navigate(`${rolePrefix}/admissions/applications`);
-                  }
-                }}
-                className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-11 rounded-xl shadow-sm gap-2 text-xs transition-all cursor-pointer"
-              >
-                <FileText className="h-4 w-4" /> + Create Application
-              </Button>
-              <Button
-                onClick={() => handleRegisterStudent(selectedLead)}
-                variant="outline"
-                className="bg-card hover:bg-muted font-bold h-11 rounded-xl border-border text-foreground gap-2 text-xs transition-all cursor-pointer"
-              >
-                <GraduationCap className="h-4 w-4" /> Direct Admission
-              </Button>
-            </div>
+              );
+            })}
           </div>
         )}
       </div>
+
 
       {/* ─── MODAL: ADD NEW ENQUIRY (SIMPLIFIED TO EXACT REQUIRED FIELDS) ─── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
