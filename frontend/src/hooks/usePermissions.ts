@@ -6,6 +6,12 @@ import {
   type ItemAccessState,
   isBaselineOnlyPermissions,
 } from "@/utils/permission-utils";
+import { canReadCenterItem, canEditCenterItem, CENTER_ITEM_READ_PERMISSIONS } from "@/constants/center-item-permissions";
+import {
+  canReadCounselorItem,
+  canEditCounselorItem,
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+} from "@/constants/counselor-item-permissions";
 import { useQuery } from "@tanstack/react-query";
 import { usersApi } from "@/services/users.api";
 
@@ -40,11 +46,23 @@ export const usePermissions = () => {
 
   const canReadItem = (itemKey: string): boolean => {
     if (isAdmin) return true;
+    if (roleScope === "CENTER_MANAGER") {
+      return canReadCenterItem(permissions, itemKey);
+    }
+    if (roleScope === "COUNSELLOR") {
+      return canReadCounselorItem(permissions, itemKey);
+    }
     return accessByItem[itemKey]?.show ?? false;
   };
 
   const canEditItem = (itemKey: string): boolean => {
     if (isAdmin) return true;
+    if (roleScope === "CENTER_MANAGER") {
+      return canEditCenterItem(permissions, itemKey);
+    }
+    if (roleScope === "COUNSELLOR") {
+      return canEditCounselorItem(permissions, itemKey);
+    }
     return accessByItem[itemKey]?.editable ?? false;
   };
 
@@ -59,6 +77,16 @@ export const usePermissions = () => {
   const hasAnyModuleAccess = React.useMemo(() => {
     if (isAdmin) return true;
     if (!roleScope || isBaselineOnlyPermissions(permissions)) return false;
+    if (roleScope === "CENTER_MANAGER") {
+      return Object.keys(CENTER_ITEM_READ_PERMISSIONS).some((key) =>
+        canReadCenterItem(permissions, key)
+      );
+    }
+    if (roleScope === "COUNSELLOR") {
+      return Object.keys(COUNSELOR_ITEM_READ_PERMISSIONS).some((key) =>
+        canReadCounselorItem(permissions, key)
+      );
+    }
     return Object.values(accessByItem).some((a) => a.show);
   }, [isAdmin, roleScope, permissions, accessByItem]);
 

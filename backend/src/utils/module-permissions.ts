@@ -44,6 +44,8 @@ export const ALL_MODULE_KEYS = [
   "targets",
   "notifications",
   "placement",
+  "batches",
+  "assignments",
 ];
 
 export const resolveModulePermissions = (

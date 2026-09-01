@@ -79,14 +79,14 @@ export const AllFaculty: React.FC = () => {
 
   // Filter faculty by search, status tabs
   const filteredFaculty = rawFacultyList.filter((fac: any) => {
-    const matchesSearch = 
+    const matchesSearch =
       !searchTerm ||
       fac.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fac.employeeCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       fac.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const statusNorm = fac.status?.toUpperCase();
-    const matchesStatus = 
+    const matchesStatus =
       selectedFilterTab === "All" ||
       (selectedFilterTab === "Active" && statusNorm === "ACTIVE") ||
       (selectedFilterTab === "On Leave" && (statusNorm === "ON_LEAVE" || statusNorm === "ON LEAVE")) ||
@@ -116,7 +116,7 @@ export const AllFaculty: React.FC = () => {
     <div className="p-6 max-w-[1600px] mx-auto min-h-screen relative overflow-x-hidden space-y-6 animate-in fade-in duration-300">
       {/* ─── FACULTY DIRECTORY CONTENT ─── */}
       <div className="w-full space-y-6">
-        
+
         {/* PAGE HEADER */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -129,8 +129,8 @@ export const AllFaculty: React.FC = () => {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="text-primary border-border hover:bg-muted/40 font-bold bg-card shadow-2xs rounded-xl cursor-pointer"
               onClick={() => navigate(`${basePath}/faculty/timetable`)}
             >
@@ -169,9 +169,9 @@ export const AllFaculty: React.FC = () => {
           <div className="p-4 border-b border-border flex flex-col xl:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <input 
-                type="text" 
-                placeholder="Search faculty by name, code or specialization..." 
+              <input
+                type="text"
+                placeholder="Search faculty by name, code or specialization..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 text-xs font-medium bg-muted/30 border border-border text-foreground rounded-xl focus:outline-none focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
@@ -179,7 +179,7 @@ export const AllFaculty: React.FC = () => {
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {/* Branch Filter */}
-              <select 
+              <select
                 value={selectedBranchId}
                 onChange={(e) => setSelectedBranchId(e.target.value)}
                 className="text-xs font-bold border border-border rounded-xl px-3 py-2 text-foreground bg-muted/30 focus:outline-none focus:bg-background focus:border-primary cursor-pointer"
@@ -191,17 +191,16 @@ export const AllFaculty: React.FC = () => {
               </select>
             </div>
           </div>
-          
+
           <div className="p-3 bg-muted/20 flex items-center gap-2 overflow-x-auto">
             {filterTabs.map(tab => (
-              <button 
+              <button
                 key={tab.name}
                 onClick={() => setSelectedFilterTab(tab.name)}
-                className={`text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${
-                  selectedFilterTab === tab.name 
-                    ? "bg-primary text-white shadow-xs" 
+                className={`text-xs font-bold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer whitespace-nowrap ${selectedFilterTab === tab.name
+                    ? "bg-primary text-white shadow-xs"
                     : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-                }`}
+                  }`}
               >
                 {tab.name} ({tab.count})
               </button>
@@ -235,8 +234,8 @@ export const AllFaculty: React.FC = () => {
                   </tr>
                 ) : filteredFaculty.length > 0 ? (
                   filteredFaculty.map((fac: any) => (
-                    <tr 
-                      key={fac.id} 
+                    <tr
+                      key={fac.id}
                       onClick={() => navigate(`${basePath}/faculty/${fac.id}`)}
                       className="transition-colors cursor-pointer group hover:bg-muted/30"
                     >
@@ -278,9 +277,9 @@ export const AllFaculty: React.FC = () => {
                         </span>
                       </td>
                       <td className="px-4 py-3.5 text-center">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           className="h-7 px-3 text-xs border-border bg-card text-foreground hover:bg-primary hover:text-white transition-all font-bold shadow-2xs rounded-xl cursor-pointer"
                           onClick={(e) => {
                             e.stopPropagation();
