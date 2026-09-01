@@ -10,6 +10,7 @@ import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
+import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -132,12 +133,14 @@ export const AdminLayout: React.FC = () => {
         <AppSidebar />
         
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 bg-bg-secondary px-6">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="-ml-2" />
+          <header className="flex h-11 shrink-0 items-center justify-between border-b border-[#0B4F8A] bg-gradient-to-r from-[#0B3B60] via-[#1769AA] to-[#0B4F8A] text-white px-4 sm:px-5 z-10 shadow-md">
+            <div className="flex items-center gap-2 md:gap-3">
+              <SidebarTrigger className="-ml-1 h-7 w-7 text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-md transition-colors cursor-pointer" />
+              <div className="h-3.5 w-[1px] bg-white/20 hidden sm:block" />
+              <NavbarAskAi />
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <InstallAppButton variant="header" />
               <TeamChatButton />
               <Button 
@@ -145,9 +148,9 @@ export const AdminLayout: React.FC = () => {
                   form.reset();
                   setIsBranchModalOpen(true);
                 }}
-                className="gap-2 bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors h-9 px-4 hidden sm:flex font-semibold shadow-sm"
+                className="gap-1.5 bg-[#F39A16] hover:bg-[#E08A0E] text-white transition-all h-7 px-3 hidden md:flex font-bold text-[11px] shadow-sm rounded-md cursor-pointer"
               >
-                <Plus size={16} />
+                <Plus size={13} />
                 Create a Branch
               </Button>
               <ThemeToggle />

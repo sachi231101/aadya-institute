@@ -31,6 +31,8 @@ export interface Lead {
   createdBy?: { id: string; name: string };
   assignedCounsellor?: { id: string; name: string };
   callLogs?: CallLog[];
+  followUps?: LeadFollowUp[];
+  activities?: LeadActivity[];
 }
 
 export interface CallLog {
@@ -141,7 +143,12 @@ export const leadsApi = {
     return response.data;
   },
 
-  convertLead: async (id: string, data: { branchId: string; courseId: string; notes?: string }) => {
+  convertLead: async (id: string, data: {
+    courseId: string;
+    batchId?: string;
+    feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
+    notes?: string;
+  }) => {
     const response = await api.post(`/leads/${id}/convert`, data);
     return response.data;
   },

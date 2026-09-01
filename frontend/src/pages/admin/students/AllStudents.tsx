@@ -94,7 +94,7 @@ export const AllStudents: React.FC = () => {
       return {
         id: s.id,
         studentCode: s.studentCode,
-        name: s.user?.name || s.studentCode,
+        name: (s as any).displayName || s.user?.name || s.studentCode,
         email: s.user?.email || "—",
         phone: s.user?.phone || "—",
         course: s.courseName || "Not assigned",

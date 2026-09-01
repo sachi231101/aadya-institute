@@ -9,7 +9,6 @@ import { LeadConversionService } from "./services/lead-conversion.service";
 import { LeadActivityService } from "./services/lead-activity.service";
 import { logger } from "../../config/logger";
 import {
-  resolveOptionalMasterFields,
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
 import { SequenceService } from "../masters/sequence.service";
@@ -74,18 +73,9 @@ export const LeadService = {
       }
     }
 
-    // 4. Assign ownership based on role or explicit selection
-    let assignedCounsellorId = dto.assignedCounsellorId;
-    if (!assignedCounsellorId) {
-      const isCounsellor = currentUser.roles.includes("COUNSELLOR");
-      assignedCounsellorId = isCounsellor ? (currentUser.userId || currentUser.id) : undefined;
-    }
-
-    // 4. Resolve master references for source / stage / lead type
+    // 4. Leads start unassigned — AI call runs before counsellor allocation
     let sourceCode = dto.source || "WALK_IN";
     let sourceMasterId: string | undefined;
-    let stageCode = assignedCounsellorId ? "ASSIGNED" : "NEW";
-    let stageMasterId: string | undefined;
 
     if (dto.sourceMasterId) {
       const resolved = await resolveRequiredMasterFields({
@@ -98,17 +88,6 @@ export const LeadService = {
       sourceCode = resolved.code || resolved.label;
     }
 
-    if (dto.stageMasterId) {
-      const resolved = await resolveRequiredMasterFields({
-        instituteId,
-        entityType: "leadstage",
-        masterRecordId: dto.stageMasterId,
-        branchId,
-      });
-      stageMasterId = resolved.masterId;
-      stageCode = resolved.code || resolved.label;
-    }
-
     const lead = await LeadRepository.createLead({
       instituteId,
       branchId,
@@ -119,27 +98,20 @@ export const LeadService = {
       courseId,
       source: sourceCode,
       sourceMasterId,
-      stage: stageCode,
-      stageMasterId,
+      stage: "NEW",
       priority: dto.priority ?? "MEDIUM",
       notes: dto.notes,
       createdById: currentUser.userId || currentUser.id,
-      assignedCounsellorId,
     });
 
-    // Keep admissions Enquiry assignee in sync when a counsellor owns the lead
-    if (assignedCounsellorId) {
-      const { syncEnquiryAssigneeFromLead } = await import(
-        "./services/lead-enquiry-sync.service"
-      );
-      await syncEnquiryAssigneeFromLead({
-        instituteId,
-        phoneNumber: dto.phoneNumber,
-        counsellorId: assignedCounsellorId,
-      });
-    }
+    const { startInitialAiCall } = await import("./services/lead-ai-call.service");
+    await startInitialAiCall({
+      id: lead.id,
+      phoneNumber: lead.phoneNumber,
+      createdById: lead.createdById,
+    });
 
-    return lead;
+    return LeadRepository.findLeadById(lead.id, instituteId) ?? lead;
   },
 
   // ─── List Leads ─────────────────────────────────────────────────────────────
@@ -213,12 +185,13 @@ export const LeadService = {
       !currentUser.roles.includes("CENTER_MANAGER");
     const counsellorId = currentUser.userId || currentUser.id;
 
-    if (
-      isCounsellorOnly &&
-      lead.assignedCounsellorId &&
-      lead.assignedCounsellorId !== counsellorId
-    ) {
-      throw new AppError("Lead not found", 404);
+    if (isCounsellorOnly) {
+      const isAssignee = lead.assignedCounsellorId === counsellorId;
+      const isCreatorWaiting =
+        !lead.assignedCounsellorId && lead.createdById === counsellorId;
+      if (!isAssignee && !isCreatorWaiting) {
+        throw new AppError("Lead not found", 404);
+      }
     }
 
     return lead;
@@ -235,6 +208,7 @@ export const LeadService = {
       ...(dto.interestedIn ? { interestedIn: dto.interestedIn } : {}),
       ...(dto.priority ? { priority: dto.priority } : {}),
       ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
+      ...(dto.courseId !== undefined ? { courseId: dto.courseId || null } : {}),
     });
 
     await LeadActivityService.logActivity(
@@ -321,21 +295,17 @@ export const LeadService = {
       throw new AppError("Lead not found", 404);
     }
 
-    // Determine course
-    let courseId = dto?.courseId || lead.courseId;
+    if (lead.status === "LOST" || lead.stage === "LOST") {
+      throw new AppError("Cannot create an application from a lost lead", 400);
+    }
+
+    if (lead.status === "CONVERTED" || lead.stage === "CONVERTED") {
+      throw new AppError("Lead has already been converted", 400);
+    }
+
+    const courseId = dto?.courseId || lead.courseId;
     if (!courseId) {
-      const matched = await prisma.course.findFirst({
-        where: { instituteId: lead.instituteId, name: { contains: lead.interestedIn, mode: "insensitive" } },
-      });
-      if (matched) {
-        courseId = matched.id;
-      } else {
-        const fallback = await prisma.course.findFirst({
-          where: { instituteId: lead.instituteId, status: "ACTIVE" },
-        });
-        if (!fallback) throw new AppError("No course found in institute", 400);
-        courseId = fallback.id;
-      }
+      throw new AppError("Course is required to create an application", 400);
     }
 
     const applicationNo = await SequenceService.getNextNumber(lead.instituteId, "APPLICATION");
@@ -358,10 +328,11 @@ export const LeadService = {
           branchId: dto?.branchId || lead.branchId,
           applicationNo,
           enquiryId: matchedEnquiry?.id || null,
+          leadId: lead.id,
           applicantName: lead.name,
           email: lead.email,
           phone: lead.phoneNumber,
-          courseId: courseId!,
+          courseId,
           feeStatus: (dto?.feeStatus === "PAID" ? "PAID" : "PENDING") as any,
           status: "SUBMITTED",
           notes:
@@ -509,6 +480,9 @@ export const LeadService = {
           metadata: { attempt_id, status, duration },
         }
       );
+
+      const { applyTerminalCallStatus } = await import("./services/lead-ai-call.service");
+      await applyTerminalCallStatus(matchedLeadId, status);
     }
 
     logger.info(
@@ -571,19 +545,6 @@ export const LeadService = {
       },
     });
 
-    // Mark contacted once a call is placed (or queued for provider)
-    if (
-      status !== "FAILED" &&
-      (lead.stage === "NEW" || lead.stage === "ASSIGNED")
-    ) {
-      await LeadRepository.changeStage(
-        lead.id,
-        "CONTACTED",
-        userId,
-        "Updated when AI voice call was initiated"
-      );
-    }
-
     await LeadActivityService.logActivity(
       lead.id,
       status === "FAILED" ? "NOTE_ADDED" : "CALL_COMPLETED",
@@ -596,6 +557,13 @@ export const LeadService = {
         metadata: { callId: callLog.id, status, telephonyConfigured },
       }
     );
+
+    const { applyTerminalCallStatus, isTerminalCallStatus } = await import(
+      "./services/lead-ai-call.service"
+    );
+    if (isTerminalCallStatus(status) || !telephonyConfigured) {
+      await applyTerminalCallStatus(lead.id, telephonyConfigured ? status : "FAILED");
+    }
 
     return {
       success: status !== "FAILED",

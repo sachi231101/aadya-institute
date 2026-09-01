@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 
 const ALLOWED_STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STAFF"];
 
-export const TeamChatButton: React.FC = () => {
+export const TeamChatButton: React.FC<{ className?: string }> = ({ className = "" }) => {
   const { user } = useAuthStore();
   const { toggleChat } = useChatStore();
   const unreadCount = useTotalUnreadChatCount();
@@ -25,16 +25,16 @@ export const TeamChatButton: React.FC = () => {
       variant="outline"
       size="sm"
       onClick={toggleChat}
-      className="relative gap-2 h-9 px-3 border-border/80 bg-background/80 hover:bg-accent/80 hover:text-foreground text-foreground font-medium text-xs transition-colors shadow-2xs cursor-pointer"
+      className={`relative gap-1.5 h-7 px-2.5 border-white/20 bg-white/10 hover:bg-white/20 text-white hover:text-white font-medium text-[11px] transition-all cursor-pointer ${className}`}
       title="Open Team Chat"
       aria-label={`Open Team Chat${unreadCount > 0 ? `, ${unreadCount} unread messages` : ""}`}
     >
-      <MessageSquare className="h-4 w-4 text-[#1769AA] dark:text-sky-400 shrink-0" />
+      <MessageSquare className="h-3 w-3 text-sky-200 shrink-0" />
       <span className="hidden sm:inline font-semibold">Team Chat</span>
       {unreadCount > 0 && (
         <Badge
           variant="destructive"
-          className="h-5 min-w-[1.25rem] px-1.5 flex items-center justify-center text-[10px] font-bold bg-[#EF4444] text-white rounded-full leading-none"
+          className="h-4 min-w-[1rem] px-1 flex items-center justify-center text-[9px] font-bold bg-[#EF4444] text-white rounded-full leading-none"
         >
           {unreadCount > 99 ? "99+" : unreadCount}
         </Badge>

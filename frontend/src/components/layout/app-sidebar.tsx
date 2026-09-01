@@ -72,7 +72,6 @@ const data = {
       url: A.ADMISSIONS.ALL,
       icon: Target,
       items: [
-        { title: "Enquiries", url: A.ADMISSIONS.ENQUIRIES },
         { title: "Applications", url: A.ADMISSIONS.APPLICATIONS },
         { title: "Admissions", url: A.ADMISSIONS.ALL },
         { title: "Direct Admission", url: A.ADMISSIONS.DIRECT },
@@ -247,12 +246,6 @@ const data = {
         { title: "Settings", url: A.ADMINISTRATION.SETTINGS },
       ],
     },
-    {
-      title: "ASK ME",
-      url: A.ASK_ME,
-      icon: Sparkles,
-      isAi: true,
-    },
   ],
 }
 
@@ -270,61 +263,43 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
-      <SidebarHeader>
+      <SidebarHeader className="border-b border-border/40 py-3 px-3">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to={A.DASHBOARD}>
-                <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold text-text-primary">Aadya Portal</span>
-                  <span className="text-xs text-accent-primary font-bold">ADMIN</span>
+            <SidebarMenuButton size="lg" asChild className="hover:bg-accent/60 rounded-xl transition-all">
+              <Link to={A.DASHBOARD} className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-border/60 shadow-2xs shrink-0 p-1">
+                  <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
+                </div>
+                <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
+                  <span className="font-bold text-sm tracking-tight text-text-primary truncate">Aadya Portal</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-[#1769AA] dark:text-sky-400 font-extrabold tracking-wider bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded">
+                      ADMIN
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">Workspace</span>
+                  </div>
                 </div>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarMenu>
+
+      <SidebarContent className="px-2 py-2">
+        <SidebarGroup className="p-0">
+          <SidebarMenu className="gap-1">
             {data.navMain.map((item) => {
               const isItemActive = location.pathname === item.url
               const isGroupActive = item.items?.some((sub) => isPathActive(location.pathname, sub.url))
-
-              if (item.isAi) {
-                return (
-                  <SidebarMenuItem key={item.title} className="mb-2">
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isItemActive}
-                      tooltip={item.title}
-                      className={isItemActive
-                        ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
-                        : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
-                      }
-                    >
-                      <Link to={item.url!} className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className={`h-4 w-4 shrink-0 ${isItemActive ? "text-white fill-white" : "text-[#1769AA]"}`} />
-                          <span className="tracking-wide">✦ ASK ME</span>
-                        </div>
-                        <span className={`${isItemActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"} text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}>
-                          AI
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                )
-              }
 
               if (!item.items) {
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.title}>
-                      <Link to={item.url!}>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
+                      <Link to={item.url!} className="flex items-center gap-2.5 w-full">
+                        {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isItemActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />}
+                        <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -340,22 +315,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive}>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
-                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive} className="w-full justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isGroupActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />}
+                          <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
+                        </div>
+                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub>
+                      <SidebarMenuSub className="my-1 ml-3.5 pl-2.5 border-l border-border/60 gap-0.5">
                         {item.items.map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               asChild
                               isActive={isPathActive(location.pathname, subItem.url)}
-                              className="transition-all duration-150 rounded-lg hover:text-[#1769AA] hover:bg-blue-50/50 data-[active=true]:bg-blue-50/90 data-[active=true]:text-[#1769AA] data-[active=true]:font-semibold"
+                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#1769AA] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
                             >
-                              <Link to={subItem.url}>
+                              <Link to={subItem.url} className="truncate min-w-0 flex-1">
                                 <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>
@@ -370,28 +347,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenu>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="border-t border-border/50">
-        <div className="px-2 pt-2">
-          <InstallAppButton variant="sidebar" />
-        </div>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center justify-between p-2">
-              <div className="flex flex-col gap-1 overflow-hidden">
-                <span className="text-sm font-semibold truncate">{user?.name || "Aadya Admin"}</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email || "admin@aadya.in"}</span>
-              </div>
-              <button onClick={() => {
-                logout();
-                navigate("/login");
-              }} className="p-2 text-destructive hover:bg-destructive/10 rounded-md transition-colors">
-                <LogOut size={16} />
-              </button>
+
+      <SidebarFooter className="border-t border-border/50 p-2.5 gap-2 bg-bg-secondary">
+        <InstallAppButton variant="sidebar" />
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-border/40">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="h-8 w-8 rounded-full bg-[#1769AA]/10 text-[#1769AA] dark:text-sky-400 font-bold text-xs flex items-center justify-center shrink-0 border border-[#1769AA]/20">
+              {(user?.name || "Admin").charAt(0).toUpperCase()}
             </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
+            <div className="flex flex-col min-w-0 flex-1 leading-tight">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || "Aadya System Admin"}</span>
+              <span className="text-[11px] text-muted-foreground truncate">{user?.email || "admin@aadya.in"}</span>
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+            title="Logout"
+            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0 cursor-pointer"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   )
 }
+

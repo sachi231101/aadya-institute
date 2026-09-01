@@ -307,7 +307,7 @@ export const CounsellorOverview: React.FC = () => {
             </CardTitle>
             <button
               type="button"
-              onClick={() => navigate(`${basePath}/leads/enquiries`)}
+              onClick={() => navigate(`${basePath}/leads`)}
               className="text-xs font-bold text-[#1769AA] hover:underline"
             >
               View All

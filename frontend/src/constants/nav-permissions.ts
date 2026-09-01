@@ -1,72 +1,17 @@
 /**
  * Maps center/counselor sidebar sub-items to permission item keys from permission-catalog.
  */
-export const CENTER_NAV_PERMISSION_KEYS: Record<string, string> = {
-  "/center/students/all": "students.all",
-  "/center/students/attendance": "students.attendance",
-  "/center/students/discontinuation-risk": "students.discontinuation",
-  "/center/faculty/all": "faculty.all",
-  "/center/faculty/courses": "faculty.courses",
-  "/center/faculty/attendance": "faculty.attendance",
-  "/center/faculty/ratings": "faculty.ratings",
-  "/center/courses/all": "courses.all",
-  "/center/courses/curriculum": "courses.curriculum",
-  "/center/courses/batches": "courses.batches",
-  "/center/leads": "leads.all",
-  "/center/leads/ai-calling": "leads.ai_calling",
-  "/center/leads/follow-ups": "leads.followups",
-  "/center/admissions/all": "admissions.all",
-  "/center/admissions/applications": "admissions.applications",
-  "/center/admissions/enquiries": "admissions.enquiries",
-  "/center/counselor/overview": "counsellor.overview",
-  "/center/counselor/all": "counsellor.manage",
-  "/center/counselor/batches": "counsellor.batches",
-  "/center/targets": "targets.manage",
-  "/center/performance": "targets.leaderboard",
-  "/center/incentives": "targets.incentives",
-  "/center/schedule/classes": "schedule.classes",
-  "/center/schedule/timetable": "schedule.timetable",
-  "/center/schedule/recordings": "schedule.recordings",
-  "/center/schedule/assignments": "schedule.assignments",
-  "/center/exams": "exams.all",
-  "/center/exams/create": "exams.create",
-  "/center/exams/question-bank": "exams.question_bank",
-  "/center/fees/payments": "fees.payments",
-  "/center/fees/pending": "fees.pending",
-  "/center/fees/reports": "fees.reports",
-  "/center/reports/students": "reports.students",
-  "/center/reports/faculty": "reports.faculty",
-  "/center/reports/courses": "reports.courses",
-  "/center/reports/financial": "reports.financial",
-  "/center/reports/placement": "reports.placement",
-  "/center/masters": "masters.setup",
-  "/center/notifications": "notifications.all",
-  "/center/notifications/whatsapp": "notifications.whatsapp",
-};
+import { buildCenterNavPermissionKeys } from "./center-portal-nav";
+import { buildCounselorNavPermissionKeys } from "./counselor-portal-nav";
+import { canReadCenterItem, CENTER_ITEM_READ_PERMISSIONS } from "./center-item-permissions";
+import {
+  canReadCounselorItem,
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+} from "./counselor-item-permissions";
 
-export const COUNSELOR_NAV_PERMISSION_KEYS: Record<string, string> = {
-  "/counselor/leads": "leads.all",
-  "/counselor/leads/ai-calling": "leads.ai_calling",
-  "/counselor/leads/follow-ups": "leads.followups",
-  "/counselor/admissions/all": "admissions.all",
-  "/counselor/admissions/applications": "admissions.applications",
-  "/counselor/admissions/enquiries": "admissions.enquiries",
-  "/counselor/students/all": "students.all",
-  "/counselor/students/attendance": "students.attendance",
-  "/counselor/faculty/all": "faculty.all",
-  "/counselor/faculty/courses": "faculty.courses",
-  "/counselor/faculty/attendance": "faculty.attendance",
-  "/counselor/batches": "courses.batches",
-  "/counselor/timetable": "courses.timetable",
-  "/counselor/fees/payments": "fees.payments",
-  "/counselor/fees/pending": "fees.pending",
-  "/counselor/fees/reports": "fees.reports",
-  "/counselor/reports/students": "reports.students",
-  "/counselor/reports/faculty": "reports.faculty",
-  "/counselor/reports/courses": "reports.courses",
-  "/counselor/reports/financial": "reports.financial",
-  "/counselor/performance": "targets.performance",
-};
+export const CENTER_NAV_PERMISSION_KEYS: Record<string, string> = buildCenterNavPermissionKeys();
+
+export const COUNSELOR_NAV_PERMISSION_KEYS: Record<string, string> = buildCounselorNavPermissionKeys();
 
 export const BASELINE_PERMISSIONS = [
   "dashboard.read",
@@ -141,18 +86,40 @@ export const canAccessNavUrl = (
     return permSetHasItemKey(permSet, itemKey);
   }
   if (modulePermissions?.length) {
-    const moduleKey = itemKey.split(".")[0];
-    if (moduleKey === "leads") return modulePermissions.includes("leads_ai_calling");
-    if (moduleKey === "counsellor") return modulePermissions.includes("counsellor");
-    if (moduleKey === "exams") return modulePermissions.includes("examinations");
-    if (moduleKey === "targets") return modulePermissions.includes("targets");
-    if (moduleKey === "notifications") return modulePermissions.includes("notifications");
-    return modulePermissions.includes(moduleKey);
+    const prefix = itemKey.split(".")[0];
+    const legacyMap: Record<string, string> = {
+      leads: "leads_ai_calling",
+      counsellor: "counsellor",
+      exams: "examinations",
+      targets: "targets",
+      notifications: "notifications",
+      communication: "notifications",
+      batches: "batches",
+      assignments: "assignments",
+      placement: "placement",
+      admin: "masters",
+      schedule: "schedule",
+      fees: "fees",
+      reports: "reports",
+      admissions: "admissions",
+      students: "students",
+      faculty: "faculty",
+      courses: "courses",
+    };
+    const legacyKey = legacyMap[prefix] ?? prefix;
+    return modulePermissions.includes(legacyKey);
   }
   return false;
 };
 
 function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
+  const permissions = Array.from(permSet);
+  if (COUNSELOR_ITEM_READ_PERMISSIONS[itemKey]) {
+    return canReadCounselorItem(permissions, itemKey);
+  }
+  if (CENTER_ITEM_READ_PERMISSIONS[itemKey]) {
+    return canReadCenterItem(permissions, itemKey);
+  }
   const readMap: Record<string, string[]> = {
     "students.all": ["student.read"],
     "students.attendance": ["attendance.read"],

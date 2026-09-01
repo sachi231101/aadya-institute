@@ -142,6 +142,11 @@ export const updateLeadSchema = z.object({
   notes: z.string().optional(),
   sourceMasterId: z.string().optional(),
   leadTypeMasterId: z.string().optional(),
+  courseId: z
+    .preprocess(
+      (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
+      z.string().optional()
+    ),
 });
 
 export const assignLeadSchema = z.object({
@@ -168,6 +173,13 @@ export const convertLeadSchema = z.object({
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional().default("INSTALLMENT"),
   notes: z.string().optional(),
   createStudentUser: z.boolean().optional().default(true),
+});
+
+export const createApplicationFromLeadSchema = z.object({
+  courseId: z.string().optional(),
+  branchId: z.string().optional(),
+  feeStatus: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const createFollowUpSchema = z.object({

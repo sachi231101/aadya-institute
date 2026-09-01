@@ -84,7 +84,7 @@ export const getExamInstructions = async (examId: string, userId: string, instit
   let pastAttempts: any[] = [];
 
   if (!student) {
-    exam = await repository.findExamMetaForStudent(examId, instituteId, null);
+    exam = await repository.findExamMetaForStudent(examId, instituteId, null, null);
     pastAttempts = await prisma.examAttempt.findMany({
       where: { examId, userId },
       orderBy: { attemptNumber: 'desc' },

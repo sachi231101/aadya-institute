@@ -11,6 +11,7 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { CenterSidebar } from "@/components/layout/center-sidebar";
 import { useAuthStore } from "@/store/auth.store";
 import { useCurrentUserSync } from "@/hooks/useAuth";
+import { useBranch } from "@/hooks/useBranches";
 import { useStudentStore } from "@/store/student.store";
 import { useCourseStore } from "@/store/course.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -19,6 +20,7 @@ import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
+import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
 import { PortalRouteGuard } from "@/components/permissions/PortalRouteGuard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -37,8 +39,8 @@ export const CenterLayout: React.FC = () => {
   // Keep Center Manager permissions & profile live-synced in real-time
   useCurrentUserSync();
 
-  // Strict branch lock for Center Manager
-  const branchName = "Aadya Institute Malleshwaram";
+  const { data: branchResponse } = useBranch(user?.branchId ?? undefined);
+  const branchName = branchResponse?.data?.name || "Your Branch";
   const managerName = user?.name || "Suresh Sharma";
   const managerInitials = managerName
     .split(" ")
@@ -90,20 +92,22 @@ export const CenterLayout: React.FC = () => {
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* ─── Top Header Navigation Bar ───────────────────────────────── */}
-          <header className="flex h-16 shrink-0 items-center justify-between border-b border-border/60 bg-bg-secondary px-4 sm:px-6 z-20 shadow-2xs">
-            <div className="flex items-center gap-3">
-              <SidebarTrigger className="-ml-1 text-muted-foreground hover:bg-accent rounded-lg" />
-              <div className="flex items-center gap-2 text-foreground">
-                <div className="h-7 w-7 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-[#1D4ED8] dark:text-sky-400 flex items-center justify-center">
-                  <Building2 size={16} />
+          <header className="flex h-11 shrink-0 items-center justify-between border-b border-[#0B4F8A] bg-gradient-to-r from-[#0B3B60] via-[#1769AA] to-[#0B4F8A] text-white px-4 sm:px-5 z-20 shadow-md">
+            <div className="flex items-center gap-2 md:gap-3">
+              <SidebarTrigger className="-ml-1 h-7 w-7 text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-md transition-colors cursor-pointer" />
+              <div className="flex items-center gap-1.5 text-white hidden sm:flex">
+                <div className="h-5 w-5 rounded-md bg-white/15 text-white flex items-center justify-center">
+                  <Building2 size={12} />
                 </div>
-                <span className="text-xs sm:text-sm font-black text-foreground tracking-tight">
-                  Center Manager Portal — <span className="text-[#1D4ED8] dark:text-sky-400">{branchName}</span>
+                <span className="text-[11px] font-bold text-white tracking-tight">
+                  {branchName}
                 </span>
               </div>
+              <div className="h-3.5 w-[1px] bg-white/20 hidden md:block" />
+              <NavbarAskAi />
             </div>
 
-            <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="flex items-center gap-2">
               <InstallAppButton variant="header" />
               <TeamChatButton />
               <ThemeToggle />

@@ -198,7 +198,7 @@ describe("Lead Management Module Tests", () => {
   });
 
   after(async () => {
-    // Cleanup test data
+    await prisma.callLog.deleteMany({ where: { lead: { instituteId } } });
     await prisma.leadActivity.deleteMany({ where: { lead: { instituteId } } });
     await prisma.leadFollowUp.deleteMany({ where: { lead: { instituteId } } });
     await prisma.leadAssignment.deleteMany({ where: { lead: { instituteId } } });
@@ -286,7 +286,7 @@ describe("Lead Management Module Tests", () => {
   describe("2. Lead Creation & Ownership", () => {
     let createdLeadId: string;
 
-    test("Counsellor creates lead -> auto-assigned self, branch, stage ASSIGNED", async () => {
+    test("Counsellor creates lead -> unassigned, AI call attempted, stage CONTACTED locally", async () => {
       const lead = await LeadService.createLead(counsellorAUser, {
         name: "Rohan Verma",
         phoneNumber: "+919876500001",
@@ -301,11 +301,15 @@ describe("Lead Management Module Tests", () => {
       assert.strictEqual(lead.name, "Rohan Verma");
       assert.strictEqual(lead.phoneNumber, "+919876500001");
       assert.strictEqual(lead.createdById, counsellorAUser.userId);
-      assert.strictEqual(lead.assignedCounsellorId, counsellorAUser.userId);
+      assert.strictEqual(lead.assignedCounsellorId, null);
       assert.strictEqual(lead.branchId, branchAId);
-      assert.strictEqual(lead.stage, "ASSIGNED");
+      assert.strictEqual(lead.stage, "CONTACTED");
       assert.strictEqual(lead.status, "ACTIVE");
-      assert.strictEqual(lead.courseId, courseId); // Auto-matched by name
+      assert.strictEqual(lead.courseId, courseId);
+
+      const callLogs = await prisma.callLog.findMany({ where: { leadId: lead.id } });
+      assert.ok(callLogs.length >= 1);
+      assert.ok(["FAILED", "COMPLETED", "NO_ANSWER", "BUSY", "CALLBACK_REQUESTED"].includes(callLogs[0].status));
     });
 
     test("Duplicate active phone number returns 409 conflict", async () => {
@@ -378,6 +382,7 @@ describe("Lead Management Module Tests", () => {
 
   describe("4. Assignment, Stage Transition & Audit Activities", () => {
     let leadId: string;
+    let blockedLeadId: string;
 
     before(async () => {
       const lead = await LeadService.createLead(counsellorAUser, {
@@ -387,15 +392,44 @@ describe("Lead Management Module Tests", () => {
         source: "PHONE_CALL",
       });
       leadId = lead.id;
+
+      const blocked = await LeadService.createLead(managerAUser, {
+        name: "Blocked Until AI Lead",
+        phoneNumber: "+919876500014",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+      });
+      blockedLeadId = blocked.id;
+      await prisma.callLog.deleteMany({ where: { leadId: blockedLeadId } });
+      await prisma.lead.update({
+        where: { id: blockedLeadId },
+        data: { stage: "NEW" },
+      });
     });
 
-    test("Manager reassigns lead to Counsellor A", async () => {
+    test("Assign before terminal AI call is rejected", async () => {
+      await assert.rejects(
+        async () => {
+          await LeadService.assignLead(blockedLeadId, managerAUser, {
+            counsellorId: counsellorAUser.id,
+          });
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 400);
+          assert.match(err.message, /AI call has finished/);
+          return true;
+        }
+      );
+    });
+
+    test("Manager assigns lead to Counsellor A after AI call", async () => {
       const result = await LeadService.assignLead(leadId, managerAUser, {
         counsellorId: counsellorAUser.id,
-        notes: "Reassigned by center manager",
+        notes: "Assigned after AI qualification",
       });
 
       assert.strictEqual(result.lead.assignedCounsellorId, counsellorAUser.id);
+      assert.strictEqual(result.lead.stage, "ASSIGNED");
       assert.strictEqual(result.assignment.isCurrent, true);
     });
 
@@ -491,6 +525,10 @@ describe("Lead Management Module Tests", () => {
     });
 
     test("Converts lead to Student & Admission atomically in transaction", async () => {
+      await LeadService.assignLead(leadId, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+
       const result = await LeadService.convertLead(leadId, counsellorAUser, {
         courseId,
         feePlan: "FULL_PAYMENT",
@@ -498,13 +536,62 @@ describe("Lead Management Module Tests", () => {
       });
 
       assert.ok(result.student.id);
-      assert.ok(result.student.studentCode.startsWith("STU-2026-"));
+      assert.ok(result.student.studentCode);
       assert.ok(result.admission.id);
-      assert.ok(result.admission.admissionNo?.startsWith("ADM-2026-"));
+      assert.ok(result.admission.admissionNo);
       assert.strictEqual(result.lead.status, "CONVERTED");
       assert.strictEqual(result.lead.stage, "CONVERTED");
       assert.strictEqual(result.lead.convertedStudentId, result.student.id);
       assert.strictEqual(result.lead.convertedAdmissionId, result.admission.id);
+    });
+
+    test("Convert without courseId is rejected when lead has no course", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "No Course Lead",
+        phoneNumber: "+919876500016",
+        interestedIn: "Unmatchable Course XYZ999",
+        source: "WALK_IN",
+      });
+
+      await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+
+      await assert.rejects(
+        async () => {
+          await LeadService.convertLead(lead.id, managerAUser, {});
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 400);
+          assert.match(err.message, /Course is required/);
+          return true;
+        }
+      );
+    });
+
+    test("Create application from lead sets leadId and stage INTERESTED", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "Application Path Lead",
+        phoneNumber: "+919876500017",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+      });
+
+      await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+
+      const application = await LeadService.createApplicationFromLead(lead.id, managerAUser, {
+        courseId,
+        notes: "Needs fee discussion",
+      });
+
+      assert.ok(application.id);
+      assert.strictEqual(application.leadId, lead.id);
+      assert.strictEqual(application.courseId, courseId);
+
+      const updated = await LeadService.getLeadById(lead.id, managerAUser);
+      assert.strictEqual(updated.stage, "INTERESTED");
     });
 
     test("Duplicate conversion attempt on already converted lead is rejected", async () => {

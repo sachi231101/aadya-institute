@@ -386,6 +386,7 @@ model Student {
   pendingFees           PendingFee[]
   convertedFromLeads    Lead[]
   examAttempts          ExamAttempt[]
+  examAssignments       ExamStudent[]
   placementApplications PlacementApplication[]
   placementRecords      PlacementRecord[]
 
@@ -521,6 +522,7 @@ model Application {
   branchId      String?
   applicationNo String            @unique
   enquiryId     String?
+  leadId        String?
   applicantName String
   email         String?
   phone         String
@@ -536,12 +538,14 @@ model Application {
   branch     Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
   course     Course      @relation(fields: [courseId], references: [id], onDelete: Restrict)
   enquiry    Enquiry?    @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  lead       Lead?       @relation(fields: [leadId], references: [id], onDelete: SetNull)
   admissions Admission[]
 
   @@index([instituteId])
   @@index([branchId])
   @@index([courseId])
   @@index([enquiryId])
+  @@index([leadId])
 }
 
 model Admission {
@@ -1205,7 +1209,7 @@ model Lead {
   courseId             String?         // Matched course relation if found
   source               String          @default("WALK_IN")
   sourceMasterId       String?
-  stage                String          @default("ASSIGNED")
+  stage                String          @default("NEW")
   stageMasterId        String?
   leadTypeMasterId     String?
   status               LeadStatus      @default(ACTIVE)
@@ -1240,6 +1244,7 @@ model Lead {
   activities           LeadActivity[]
   followUps            LeadFollowUp[]
   callLogs             CallLog[]
+  applications         Application[]
 
   @@index([instituteId])
   @@index([branchId])
