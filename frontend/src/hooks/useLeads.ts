@@ -1,10 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leadsApi, type LeadQueryParams } from "../services/leads.api";
+import { useAuthStore } from "@/store/auth.store";
+import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
 export const useLeads = (params?: LeadQueryParams) => {
+  const { user } = useAuthStore();
+  const mergedParams = mergeBranchScopedParams(user, params);
   return useQuery({
-    queryKey: ["leads", params],
-    queryFn: () => leadsApi.getLeads(params),
+    queryKey: ["leads", mergedParams],
+    queryFn: () => leadsApi.getLeads(mergedParams),
   });
 };
 

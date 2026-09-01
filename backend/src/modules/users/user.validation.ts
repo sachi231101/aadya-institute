@@ -37,7 +37,18 @@ export const createUserSchema = z.object({
 }).refine((data) => data.email || data.phone, {
   message: "At least one of email or phone is required",
   path: ["email"],
-});
+}).refine(
+  (data) => {
+    const needsBranch = data.roles.some((r) =>
+      ["CENTER_MANAGER", "COUNSELLOR"].includes(r)
+    );
+    return !needsBranch || Boolean(data.branchId?.trim());
+  },
+  {
+    message: "Branch assignment is required for Center Manager and Counsellor",
+    path: ["branchId"],
+  }
+);
 
 export const updateUserSchema = z.object({
   name: z.string().min(2).trim().optional(),

@@ -1,17 +1,17 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { 
-  Check, 
-  X, 
-  Clock, 
-  Users, 
-  Calendar, 
-  MapPin, 
-  Video, 
-  Download, 
-  Upload, 
-  ChevronDown, 
-  Bell, 
+import {
+  Check,
+  X,
+  Clock,
+  Users,
+  Calendar,
+  MapPin,
+  Video,
+  Download,
+  Upload,
+  ChevronDown,
+  Bell,
   Code2,
   ArrowRight,
   Save
@@ -395,110 +395,107 @@ export const FacultyMarkAttendance: React.FC = () => {
                   </tr>
                 ) : (
                   students.map((student, idx) => {
-                  return (
-                    <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
-                      {/* Checkbox */}
-                      <td className="py-3.5 px-4 text-center">
-                        <input
-                          type="checkbox"
-                          checked={student.isSelected}
-                          onChange={() => handleToggleSelect(student.id)}
-                          className="rounded border-slate-300 text-[#5B50EC] focus:ring-[#5B50EC] cursor-pointer"
-                        />
-                      </td>
+                    return (
+                      <tr key={student.id} className="hover:bg-slate-50/70 transition-colors">
+                        {/* Checkbox */}
+                        <td className="py-3.5 px-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={student.isSelected}
+                            onChange={() => handleToggleSelect(student.id)}
+                            className="rounded border-slate-300 text-[#5B50EC] focus:ring-[#5B50EC] cursor-pointer"
+                          />
+                        </td>
 
-                      {/* Index */}
-                      <td className="py-3.5 px-3 font-semibold text-slate-400">{idx + 1}</td>
+                        {/* Index */}
+                        <td className="py-3.5 px-3 font-semibold text-slate-400">{idx + 1}</td>
 
-                      {/* Student ID */}
-                      <td className="py-3.5 px-4 font-mono font-semibold text-slate-600">{student.studentId}</td>
+                        {/* Student ID */}
+                        <td className="py-3.5 px-4 font-mono font-semibold text-slate-600">{student.studentId}</td>
 
-                      {/* Student Avatar + Name */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="w-8 h-8 rounded-full border border-slate-200">
-                            <AvatarImage src={student.avatar} alt={student.name} />
-                            <AvatarFallback className="bg-slate-100 text-slate-700 font-bold text-xs">
-                              {student.name.charAt(0)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="font-bold text-slate-900 text-xs">{student.name}</span>
-                        </div>
-                      </td>
+                        {/* Student Avatar + Name */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-2.5">
+                            <Avatar className="w-8 h-8 rounded-full border border-slate-200">
+                              <AvatarImage src={student.avatar} alt={student.name} />
+                              <AvatarFallback className="bg-slate-100 text-slate-700 font-bold text-xs">
+                                {student.name.charAt(0)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-bold text-slate-900 text-xs">{student.name}</span>
+                          </div>
+                        </td>
 
-                      {/* Email */}
-                      <td className="py-3.5 px-4 font-medium text-slate-500">{student.email}</td>
+                        {/* Email */}
+                        <td className="py-3.5 px-4 font-medium text-slate-500">{student.email}</td>
 
-                      {/* Status Toggle Buttons */}
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {/* Present Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(student.id, "PRESENT")}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              student.status === "PRESENT"
-                                ? "bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"
-                                : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
-                            }`}
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                            <span>Present</span>
-                          </button>
+                        {/* Status Toggle Buttons */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center justify-center gap-1.5">
+                            {/* Present Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "PRESENT")}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${student.status === "PRESENT"
+                                  ? "bg-emerald-50 text-emerald-700 border border-emerald-300 shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
+                                }`}
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              <span>Present</span>
+                            </button>
 
-                          {/* Absent Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(student.id, "ABSENT")}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              student.status === "ABSENT"
-                                ? "bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs"
-                                : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
-                            }`}
-                          >
-                            <X className="w-3.5 h-3.5" />
-                            <span>Absent</span>
-                          </button>
+                            {/* Absent Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "ABSENT")}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${student.status === "ABSENT"
+                                  ? "bg-rose-50 text-rose-700 border border-rose-300 shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
+                                }`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                              <span>Absent</span>
+                            </button>
 
-                          {/* Excused Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleStatusChange(student.id, "EXCUSED")}
-                            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                              student.status === "EXCUSED"
-                                ? "bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs"
-                                : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
-                            }`}
-                          >
-                            <Clock className="w-3.5 h-3.5" />
-                            <span>Excused</span>
-                          </button>
-                        </div>
-                      </td>
+                            {/* Excused Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleStatusChange(student.id, "EXCUSED")}
+                              className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${student.status === "EXCUSED"
+                                  ? "bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs"
+                                  : "text-slate-400 hover:text-slate-700 hover:bg-slate-100 border border-transparent"
+                                }`}
+                            >
+                              <Clock className="w-3.5 h-3.5" />
+                              <span>Excused</span>
+                            </button>
+                          </div>
+                        </td>
 
-                      {/* Remarks */}
-                      <td className="py-3.5 px-4 min-w-[200px]">
-                        {student.status === "EXCUSED" || student.status === "ABSENT" ? (
-                          <div className="relative">
+                        {/* Remarks */}
+                        <td className="py-3.5 px-4 min-w-[200px]">
+                          {student.status === "EXCUSED" || student.status === "ABSENT" ? (
+                            <div className="relative">
+                              <Input
+                                type="text"
+                                value={student.remarks}
+                                onChange={(e) => handleRemarkChange(student.id, e.target.value)}
+                                placeholder="Add remarks (optional)..."
+                                className="h-8 text-xs bg-slate-50 border-slate-200 rounded-lg pr-7"
+                              />
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
+                            </div>
+                          ) : (
                             <Input
                               type="text"
                               value={student.remarks}
                               onChange={(e) => handleRemarkChange(student.id, e.target.value)}
                               placeholder="Add remarks (optional)..."
-                              className="h-8 text-xs bg-slate-50 border-slate-200 rounded-lg pr-7"
+                              className="h-8 text-xs bg-transparent border-slate-200 rounded-lg"
                             />
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-2.5 pointer-events-none" />
-                          </div>
-                        ) : (
-                          <Input
-                            type="text"
-                            value={student.remarks}
-                            onChange={(e) => handleRemarkChange(student.id, e.target.value)}
-                            placeholder="Add remarks (optional)..."
-                            className="h-8 text-xs bg-transparent border-slate-200 rounded-lg"
-                          />
-                        )}
-                      </td>
+                          )}
+                        </td>
                       </tr>
                     );
                   })

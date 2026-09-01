@@ -11,6 +11,7 @@ import type {
   MarkAttendancePayload,
 } from "@/types/faculty.types";
 import { useAuthStore } from "@/store/auth.store";
+import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
 const FACULTY_KEY = "faculty";
 const FACULTY_COURSES_KEY = "faculty-courses";
@@ -20,8 +21,7 @@ const FACULTY_MY_STUDENTS_KEY = "faculty-my-students";
 
 export const useFacultyList = (params?: FacultyListParams) => {
   const { user } = useAuthStore();
-  const branchId = user?.role === "CENTER_MANAGER" && user.branchId ? user.branchId : params?.branchId;
-  const mergedParams = { ...params, ...(branchId ? { branchId } : {}) };
+  const mergedParams = mergeBranchScopedParams(user, params);
 
   return useQuery({
     queryKey: [FACULTY_KEY, mergedParams],
