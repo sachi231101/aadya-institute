@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { prisma } from "../../config/database";
 import { assertFacultyOwnsBatch, toAuthUser } from "../../utils/auth-user.util";
 import { sendSuccess } from "../../utils/response";
+import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import * as service from "./batch.service";
 
 export const getAll = async (
@@ -12,7 +13,8 @@ export const getAll = async (
 ): Promise<void> => {
   try {
     const instituteId = req.user!.instituteId;
-    const branchId = req.user!.branchId || undefined;
+    const user = toAuthUser(req);
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const roles = req.user?.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
       !roles.includes("ADMIN") &&

@@ -1,6 +1,8 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { AdmissionsService } from "./admissions.service";
+import { toAuthUser } from "../../utils/auth-user.util";
+import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import {
   createEnquirySchema,
   updateEnquirySchema,
@@ -20,12 +22,14 @@ export const AdmissionsController = {
   // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
   async getEnquiries(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const parsedQuery = queryEnquiriesSchema.parse(req.query);
-      const result = await AdmissionsService.getEnquiries(instituteId, {
+      const branchId = resolveEffectiveBranchId(user);
+      const result = await AdmissionsService.getEnquiries(user.instituteId, {
         ...parsedQuery,
         source: parsedQuery.source as EnquirySource | "ALL" | undefined,
         status: parsedQuery.status as EnquiryStatus | "ALL" | undefined,
+        branchId,
       });
       res.json({
         success: true,
@@ -45,9 +49,9 @@ export const AdmissionsController = {
 
   async getEnquiryById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
-      const data = await AdmissionsService.getEnquiryById(id, instituteId);
+      const data = await AdmissionsService.getEnquiryById(id, user.instituteId, user);
       res.json({
         success: true,
         message: "Enquiry fetched successfully",
@@ -139,12 +143,14 @@ export const AdmissionsController = {
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async getApplications(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const parsedQuery = queryApplicationsSchema.parse(req.query);
-      const result = await AdmissionsService.getApplications(instituteId, {
+      const branchId = resolveEffectiveBranchId(user);
+      const result = await AdmissionsService.getApplications(user.instituteId, {
         ...parsedQuery,
         feeStatus: parsedQuery.feeStatus as FeeStatus | "ALL" | undefined,
         status: parsedQuery.status as ApplicationStatus | "ALL" | undefined,
+        branchId,
       });
       res.json({
         success: true,
@@ -164,9 +170,9 @@ export const AdmissionsController = {
 
   async getApplicationById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
-      const data = await AdmissionsService.getApplicationById(id, instituteId);
+      const data = await AdmissionsService.getApplicationById(id, user.instituteId, user);
       res.json({
         success: true,
         message: "Application fetched successfully",
@@ -243,11 +249,13 @@ export const AdmissionsController = {
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
   async getAdmissions(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const parsedQuery = queryAdmissionsSchema.parse(req.query);
-      const result = await AdmissionsService.getAdmissions(instituteId, {
+      const branchId = resolveEffectiveBranchId(user);
+      const result = await AdmissionsService.getAdmissions(user.instituteId, {
         ...parsedQuery,
         status: parsedQuery.status as AdmissionStatus | "ALL" | undefined,
+        branchId,
       });
       res.json({
         success: true,
@@ -267,9 +275,9 @@ export const AdmissionsController = {
 
   async getAdmissionById(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
+      const user = toAuthUser(req);
       const id = req.params.id as string;
-      const data = await AdmissionsService.getAdmissionById(id, instituteId);
+      const data = await AdmissionsService.getAdmissionById(id, user.instituteId, user);
       res.json({
         success: true,
         message: "Admission fetched successfully",

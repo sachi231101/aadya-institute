@@ -4,6 +4,7 @@ import { TargetCalculationService } from "./target.calculation";
 import { createAuditLog } from "../../utils/audit-log.util";
 import { prisma } from "../../config/database";
 import type { AuthUser } from "../auth/auth.types";
+import { isBranchLockedRole } from "../../utils/branch-isolation.util";
 import type {
   CreateTargetPlanDTO,
   UpdateTargetPlanDTO,
@@ -17,14 +18,14 @@ import type {
   LeaderboardEntry,
 } from "./target.types";
 
+const scopedBranchId = (user: AuthUser): string | undefined =>
+  isBranchLockedRole(user.roles) ? (user.branchId ?? undefined) : undefined;
+
 export const TargetService = {
   // ─── Target Plans ──────────────────────────────────────────────────────────
 
   async getTargetPlans(currentUser: AuthUser, status?: any) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const branchId = isCenterManager ? currentUser.branchId : undefined;
+    const branchId = scopedBranchId(currentUser);
 
     return TargetRepository.findTargetPlans(
       currentUser.instituteId,
@@ -34,10 +35,7 @@ export const TargetService = {
   },
 
   async getTargetPlanById(currentUser: AuthUser, id: string) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const branchId = isCenterManager ? currentUser.branchId : undefined;
+    const branchId = scopedBranchId(currentUser);
 
     const plan = await TargetRepository.findTargetPlanById(
       id,
@@ -55,10 +53,7 @@ export const TargetService = {
   async createTargetPlan(currentUser: AuthUser, dto: CreateTargetPlanDTO) {
     let branchId = dto.branchId;
 
-    if (
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN")
-    ) {
+    if (isBranchLockedRole(currentUser.roles)) {
       if (branchId && branchId !== currentUser.branchId) {
         throw new AppError("Cannot create target plan for another branch", 403);
       }
@@ -200,10 +195,7 @@ export const TargetService = {
   // ─── Targets ───────────────────────────────────────────────────────────────
 
   async getTargets(currentUser: AuthUser, query: QueryTargetsDTO) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const allowedBranchId = isCenterManager ? currentUser.branchId : undefined;
+    const allowedBranchId = scopedBranchId(currentUser);
 
     return TargetRepository.findTargets(
       currentUser.instituteId,
@@ -213,10 +205,7 @@ export const TargetService = {
   },
 
   async getTargetById(currentUser: AuthUser, id: string) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const allowedBranchId = isCenterManager ? currentUser.branchId : undefined;
+    const allowedBranchId = scopedBranchId(currentUser);
 
     const target = await TargetRepository.findTargetById(
       id,
@@ -234,10 +223,7 @@ export const TargetService = {
   async createTarget(currentUser: AuthUser, dto: CreateTargetDTO) {
     let branchId = dto.branchId;
 
-    if (
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN")
-    ) {
+    if (isBranchLockedRole(currentUser.roles)) {
       if (branchId && branchId !== currentUser.branchId) {
         throw new AppError("Cannot create target for another branch", 403);
       }
@@ -430,10 +416,9 @@ export const TargetService = {
     currentUser: AuthUser,
     branchId?: string
   ): Promise<PerformanceSummary> {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const allowedBranchId = isCenterManager ? currentUser.branchId : branchId;
+    const allowedBranchId = isBranchLockedRole(currentUser.roles)
+      ? currentUser.branchId
+      : branchId;
 
     const targetsResult = await TargetRepository.findTargets(
       currentUser.instituteId,
@@ -559,10 +544,7 @@ export const TargetService = {
   // ─── Incentives & Approvals ────────────────────────────────────────────────
 
   async getIncentives(currentUser: AuthUser, query: QueryIncentivesDTO) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const allowedBranchId = isCenterManager ? currentUser.branchId : undefined;
+    const allowedBranchId = scopedBranchId(currentUser);
 
     return TargetRepository.findIncentives(
       currentUser.instituteId,
@@ -572,10 +554,7 @@ export const TargetService = {
   },
 
   async getIncentiveById(currentUser: AuthUser, id: string) {
-    const isCenterManager =
-      currentUser.roles.includes("CENTER_MANAGER") &&
-      !currentUser.roles.includes("ADMIN");
-    const allowedBranchId = isCenterManager ? currentUser.branchId : undefined;
+    const allowedBranchId = scopedBranchId(currentUser);
 
     const incentive = await TargetRepository.findIncentiveById(
       id,

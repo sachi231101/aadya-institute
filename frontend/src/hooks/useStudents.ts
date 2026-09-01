@@ -17,13 +17,13 @@ const STUDENT_PERFORMANCE_KEY = "student-performance";
 const ATTENDANCE_ROSTER_KEY = "attendance-roster";
 
 import { useAuthStore } from "@/store/auth.store";
+import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
 // ─── Student CRUD Hooks ─────────────────────────────────────────────────
 
 export const useStudentList = (params?: StudentListParams) => {
   const { user } = useAuthStore();
-  const branchId = user?.role === "CENTER_MANAGER" && user.branchId ? user.branchId : params?.branchId;
-  const mergedParams = { ...params, ...(branchId ? { branchId } : {}) };
+  const mergedParams = mergeBranchScopedParams(user, params);
 
   return useQuery({
     queryKey: [STUDENTS_KEY, mergedParams],

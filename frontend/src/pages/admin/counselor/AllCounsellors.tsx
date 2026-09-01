@@ -228,6 +228,13 @@ export const AllCounsellors: React.FC = () => {
     setCreateError(null);
     setIsSubmitting(true);
 
+    const effectiveBranchId = isCenterManager ? (userBranchId || branchId) : branchId;
+    if (!effectiveBranchId) {
+      setCreateError("Branch assignment is required for counsellors.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const permissions = buildPermissionsFromAccess(createItemAccess, catalog);
       await createUserMutation.mutateAsync({
@@ -236,7 +243,7 @@ export const AllCounsellors: React.FC = () => {
         password: password || "Password@123",
         phone,
         roles: ["COUNSELLOR"],
-        branchId: branchId || branches[0]?.id || undefined,
+        branchId: effectiveBranchId,
         permissions,
       });
       await refetchCounsellors();
@@ -661,7 +668,7 @@ export const AllCounsellors: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch *</label>
                   {isCenterManager ? (
                     <Input
                       value={branches.find((b) => b.id === branchId)?.name || branchId}
@@ -796,7 +803,7 @@ export const AllCounsellors: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Branch *</label>
                   {isCenterManager ? (
                     <Input
                       value={branches.find((b) => b.id === editBranchId)?.name || editBranchId}

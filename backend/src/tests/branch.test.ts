@@ -53,9 +53,36 @@ describe("Branch Isolation Helper Unit Tests", () => {
     assert.strictEqual(hasBranchAccess(adminUser, "branch-b"), true);
   });
 
-  test("hasBranchAccess allows CENTER_MANAGER only for their assigned branch", () => {
-    assert.strictEqual(hasBranchAccess(managerA, "branch-a"), true);
-    assert.strictEqual(hasBranchAccess(managerA, "branch-b"), false);
+  test("getBranchScopeFilter for COUNSELLOR strictly locks to user.branchId", () => {
+    const counsellor: AuthUser = {
+      id: "counsellor-1",
+      name: "Counsellor",
+      email: "c@aadya.in",
+      phone: "9876543211",
+      instituteId: "inst-1",
+      branchId: "branch-a",
+      roles: ["COUNSELLOR"],
+      permissions: ["lead.read"],
+    };
+    const filter = getBranchScopeFilter(counsellor);
+    assert.strictEqual(filter.branchId, "branch-a");
+    const spoofFilter = getBranchScopeFilter(counsellor, "branch-b");
+    assert.strictEqual(spoofFilter.branchId, "branch-a");
+  });
+
+  test("hasBranchAccess allows COUNSELLOR only for their assigned branch", () => {
+    const counsellor: AuthUser = {
+      id: "counsellor-1",
+      name: "Counsellor",
+      email: "c@aadya.in",
+      phone: "9876543211",
+      instituteId: "inst-1",
+      branchId: "branch-a",
+      roles: ["COUNSELLOR"],
+      permissions: ["lead.read"],
+    };
+    assert.strictEqual(hasBranchAccess(counsellor, "branch-a"), true);
+    assert.strictEqual(hasBranchAccess(counsellor, "branch-b"), false);
   });
 });
 

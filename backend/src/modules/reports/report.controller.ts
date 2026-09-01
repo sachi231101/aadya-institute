@@ -3,16 +3,18 @@ import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { ReportService } from "./report.service";
 import { sendSuccess, sendError } from "../../utils/response";
 import { toAuthUser } from "../../utils/auth-user.util";
+import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 
 export const getStudentReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
 
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getStudentReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Student report retrieved successfully");
   } catch (err: any) {
@@ -22,13 +24,14 @@ export const getStudentReport = async (req: AuthenticatedRequest, res: Response)
 
 export const getFacultyReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
 
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getFacultyReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Faculty report retrieved successfully");
   } catch (err: any) {
@@ -53,13 +56,14 @@ export const getCourseReport = async (req: AuthenticatedRequest, res: Response):
 
 export const getFinancialReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
 
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getFinancialReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Financial report retrieved successfully");
   } catch (err: any) {
@@ -69,14 +73,14 @@ export const getFinancialReport = async (req: AuthenticatedRequest, res: Respons
 
 export const getScheduleSummary = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const user = req.user;
-    if (!user?.instituteId) {
+    const user = toAuthUser(req);
+    if (!user.instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
 
-    const branchId = (req.query.branchId as string) || user.branchId || undefined;
-    const data = await ReportService.getScheduleSummary(toAuthUser(req), branchId);
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
+    const data = await ReportService.getScheduleSummary(user, branchId);
     sendSuccess(res, data, 200, "Schedule summary retrieved successfully");
   } catch (err: any) {
     sendError(res, err.message || "Failed to fetch schedule summary", 400);
@@ -85,12 +89,13 @@ export const getScheduleSummary = async (req: AuthenticatedRequest, res: Respons
 
 export const getAdmissionsReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getAdmissionsReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Admissions report retrieved successfully");
   } catch (err: any) {
@@ -100,12 +105,13 @@ export const getAdmissionsReport = async (req: AuthenticatedRequest, res: Respon
 
 export const getAttendanceReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getAttendanceReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Attendance report retrieved successfully");
   } catch (err: any) {
@@ -115,12 +121,13 @@ export const getAttendanceReport = async (req: AuthenticatedRequest, res: Respon
 
 export const getExaminationsReport = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
-    const instituteId = req.user?.instituteId;
+    const user = toAuthUser(req);
+    const instituteId = user.instituteId;
     if (!instituteId) {
       sendError(res, "Institute ID required", 400);
       return;
     }
-    const branchId = (req.query.branchId as string) || req.user?.branchId || undefined;
+    const branchId = resolveEffectiveBranchId(user, req.query.branchId as string | undefined);
     const data = await ReportService.getExaminationsReport(instituteId, branchId);
     sendSuccess(res, data, 200, "Examinations report retrieved successfully");
   } catch (err: any) {
