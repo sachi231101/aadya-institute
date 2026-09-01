@@ -26,6 +26,7 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -306,32 +307,33 @@ export const StudentLayout: React.FC = () => {
       {/* ── Main Layout Body & Header ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="h-16 lg:h-18 bg-bg-secondary border-b border-border/50 px-4 sm:px-6 lg:px-8 flex items-center justify-between shrink-0 z-20 shadow-2xs">
+        <header className="h-11 bg-gradient-to-r from-[#0B3B60] via-[#1769AA] to-[#0B4F8A] border-b border-[#0B4F8A] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
           {/* Hamburger + Greeting */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              className="lg:hidden p-1.5 rounded-md text-white hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Open mobile menu"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-4 h-4" />
             </button>
 
             <div>
-              <h1 className="text-sm lg:text-base font-bold text-foreground flex items-center gap-1.5">
+              <h1 className="text-[11px] font-bold text-white flex items-center gap-1">
                 Hello, {studentName}! 👋
               </h1>
-              <p className="text-xs text-muted-foreground font-medium hidden md:block">
+              <p className="text-[9px] text-white/75 font-medium hidden md:block">
                 Here's your class schedule (Only assigned by your Counsellor)
               </p>
             </div>
           </div>
 
           {/* Right Header Widgets */}
-          <div className="flex items-center gap-2 sm:gap-3.5">
+          <div className="flex items-center gap-2">
+            <NavbarAskAi />
             {/* Dynamic Date & Time Pill */}
-            <div className="hidden xl:flex items-center gap-2 bg-muted/40 border border-border/60 rounded-xl px-3.5 py-1.5 text-xs font-semibold text-muted-foreground shadow-2xs">
-              <Calendar className="w-3.5 h-3.5 text-indigo-500" />
+            <div className="hidden xl:flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-white">
+              <Calendar className="w-3 h-3 text-amber-300" />
               <span>
                 {currentTime.toLocaleDateString("en-GB", {
                   weekday: "long",
