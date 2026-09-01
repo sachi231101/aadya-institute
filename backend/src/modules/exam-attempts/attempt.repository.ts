@@ -116,7 +116,7 @@ export const findExamMetaForStudent = async (
   examId: string,
   instituteId: string,
   studentId: string | null,
-  batchIds: string[] | null
+  batchIds: string[] | null = null
 ) => {
   let accessFilter: Record<string, unknown> = {};
   if (studentId) {

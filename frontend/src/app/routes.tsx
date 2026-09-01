@@ -37,7 +37,6 @@ import { UsersManagement } from "../pages/admin/administration/UsersManagement";
 import { ViewAdmin } from "../pages/admin/administration/ViewAdmin";
 import { EditAdmin } from "../pages/admin/administration/EditAdmin";
 import { AddAdmin } from "../pages/admin/administration/AddAdmin";
-import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
@@ -243,7 +242,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Enquiries />} />
+          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
           <Route path="documents" element={<AdmissionDocuments />} />
         </Route>
 
@@ -335,7 +334,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Enquiries />} />
+          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
         </Route>
 
         {/* Students */}

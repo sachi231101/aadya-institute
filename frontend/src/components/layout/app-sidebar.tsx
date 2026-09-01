@@ -72,7 +72,6 @@ const data = {
       url: A.ADMISSIONS.ALL,
       icon: Target,
       items: [
-        { title: "Enquiries", url: A.ADMISSIONS.ENQUIRIES },
         { title: "Applications", url: A.ADMISSIONS.APPLICATIONS },
         { title: "Admissions", url: A.ADMISSIONS.ALL },
         { title: "Direct Admission", url: A.ADMISSIONS.DIRECT },

@@ -31,6 +31,10 @@ export const LeadConversionService = {
       throw new AppError("Lead has already been converted to a student", 400);
     }
 
+    if (lead.status === "LOST" || lead.stage === "LOST") {
+      throw new AppError("Cannot convert a lost lead", 400);
+    }
+
     // Branch check for CENTER_MANAGER
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
@@ -41,28 +45,9 @@ export const LeadConversionService = {
       throw new AppError("Lead not found", 404);
     }
 
-    // Resolve course
-    let courseId = dto.courseId || lead.courseId;
+    const courseId = dto.courseId || lead.courseId;
     if (!courseId) {
-      // Attempt to find course by interestedIn name
-      const matchedCourse = await prisma.course.findFirst({
-        where: {
-          instituteId: lead.instituteId,
-          name: { contains: lead.interestedIn, mode: "insensitive" },
-        },
-      });
-      if (matchedCourse) {
-        courseId = matchedCourse.id;
-      } else {
-        // Fallback to any active course in institute
-        const anyCourse = await prisma.course.findFirst({
-          where: { instituteId: lead.instituteId, status: "ACTIVE" },
-        });
-        if (!anyCourse) {
-          throw new AppError("No course found to associate with this conversion", 400);
-        }
-        courseId = anyCourse.id;
-      }
+      throw new AppError("Course is required to convert this lead", 400);
     }
 
     const course = await prisma.course.findUnique({

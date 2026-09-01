@@ -6,6 +6,7 @@ export interface AICallingJob {
   from: string;
   callbackUrl: string;
   studentId?: string;
+  leadId?: string;
 }
 
 export const aiCallingQueue = createQueue("ai-calling");
@@ -13,6 +14,14 @@ export const aiCallingQueue = createQueue("ai-calling");
 export const aiCallingWorker = createWorker<AICallingJob>(
   "ai-calling",
   async (job) => {
+    if (job.data.leadId) {
+      const { processQueuedLeadCall } = await import(
+        "../modules/leads/services/lead-ai-call.service"
+      );
+      await processQueuedLeadCall(job.data.leadId);
+      return;
+    }
+
     await initiateCall({
       to: job.data.to,
       from: job.data.from,

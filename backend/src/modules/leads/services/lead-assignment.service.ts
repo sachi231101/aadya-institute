@@ -23,6 +23,23 @@ export const LeadAssignmentService = {
       throw new AppError("Lead not found", 404);
     }
 
+    if (lead.status === "LOST" || lead.stage === "LOST") {
+      throw new AppError("Cannot assign a lost lead", 400);
+    }
+
+    if (lead.status === "CONVERTED" || lead.stage === "CONVERTED") {
+      throw new AppError("Cannot assign a converted lead", 400);
+    }
+
+    const { hasTerminalAiCall } = await import("./lead-ai-call.service");
+    const aiCallReady = await hasTerminalAiCall(leadId);
+    if (!aiCallReady) {
+      throw new AppError(
+        "Lead cannot be assigned until the AI call has finished (completed, no-answer, busy, or failed)",
+        400
+      );
+    }
+
     // Branch isolation check for CENTER_MANAGER
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
@@ -94,7 +111,7 @@ export const LeadAssignmentService = {
         where: { id: leadId },
         data: {
           assignedCounsellorId: counsellorId,
-          stage: lead.stage === "NEW" ? "ASSIGNED" : lead.stage,
+          stage: ["NEW", "CONTACTED"].includes(lead.stage) ? "ASSIGNED" : lead.stage,
         },
         include: {
           assignedCounsellor: {

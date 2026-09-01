@@ -63,8 +63,8 @@ const TIER1_MASTERS: MasterSeed[] = [
 
   // Lead stages (codes align with legacy LeadStage enum)
   { entityType: "leadstage", name: "New", code: "NEW", sortOrder: 1 },
-  { entityType: "leadstage", name: "Assigned", code: "ASSIGNED", sortOrder: 2 },
-  { entityType: "leadstage", name: "Contacted", code: "CONTACTED", sortOrder: 3 },
+  { entityType: "leadstage", name: "Contacted", code: "CONTACTED", sortOrder: 2 },
+  { entityType: "leadstage", name: "Assigned", code: "ASSIGNED", sortOrder: 3 },
   { entityType: "leadstage", name: "Interested", code: "INTERESTED", sortOrder: 4 },
   { entityType: "leadstage", name: "Follow Up", code: "FOLLOW_UP", sortOrder: 5 },
   { entityType: "leadstage", name: "Converted", code: "CONVERTED", sortOrder: 6 },

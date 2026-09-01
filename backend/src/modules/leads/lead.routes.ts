@@ -30,6 +30,7 @@ import {
   changeLeadStageSchema,
   markLeadLostSchema,
   convertLeadSchema,
+  createApplicationFromLeadSchema,
   createFollowUpSchema,
   updateFollowUpSchema,
   addActivitySchema,
@@ -128,6 +129,7 @@ router.post(
 router.post(
   "/:id/create-application",
   requirePermission("lead.update"),
+  validate(createApplicationFromLeadSchema),
   createApplicationFromLead
 );
 
