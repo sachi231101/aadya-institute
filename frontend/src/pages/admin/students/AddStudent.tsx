@@ -51,7 +51,7 @@ const studentSchema = z.object({
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
   password: z.string().min(8, "Password must be at least 8 characters"),
   branchId: z.string().min(1, "Branch selection is required"),
-  
+
   // Demographics
   dateOfBirth: z.string().optional().or(z.literal("")),
   gender: z.enum(["Male", "Female", "Other", ""]).optional(),
@@ -112,10 +112,10 @@ export const AddStudent: React.FC = () => {
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
-    ? "/center"
-    : location.pathname.startsWith("/faculty")
-    ? "/faculty"
-    : "/admin";
+      ? "/center"
+      : location.pathname.startsWith("/faculty")
+        ? "/faculty"
+        : "/admin";
 
   const { data: branchResponse } = useBranches();
   const branches = branchResponse?.data ?? [];
@@ -134,7 +134,7 @@ export const AddStudent: React.FC = () => {
       name: "",
       email: "",
       phone: "",
-      password: "Student@123",
+      password: "Aadya@123",
       branchId: user?.branchId || "",
       dateOfBirth: "",
       gender: "Male",
@@ -209,7 +209,7 @@ export const AddStudent: React.FC = () => {
         name: data.name.trim(),
         email: data.email ? data.email.trim() : undefined,
         phone: data.phone ? data.phone.trim() : undefined,
-        password: data.password,
+        password: data.password?.trim() || "Aadya@123",
         qualification: data.qualificationMasterId
           ? getMasterLabel(educationOptions, data.qualificationMasterId) || undefined
           : undefined,
@@ -526,7 +526,7 @@ export const AddStudent: React.FC = () => {
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
-                            placeholder="Min. 8 characters"
+                            placeholder="Min. 8 characters (Default: Aadya@123)"
                             {...field}
                             className="pr-9"
                           />
@@ -543,6 +543,9 @@ export const AddStudent: React.FC = () => {
                           </button>
                         </div>
                       </FormControl>
+                      <p className="text-[11px] text-slate-500 mt-1">
+                        Default initial password: <span className="font-semibold text-slate-700 font-mono">Aadya@123</span> (Students can log in with Admission No / ID / Mobile and this password)
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -37,6 +37,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
@@ -202,10 +203,11 @@ const formatDayHeader = (day: DayData): string => {
 
 export const StudentSchedule: React.FC = () => {
   const { user } = useAuthStore();
+  const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
 
-  const studentId = user?.studentId || user?.id || "std-current";
-  const studentName = user?.name || "Rahul Verma";
+  const studentId = academic.studentId || user?.studentId || user?.id || "std-current";
+  const studentName = academic.studentName || user?.name || "Rahul Verma";
   const [apiSessions, setApiSessions] = useState<StudentClassSession[] | null>(null);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
@@ -230,7 +232,15 @@ export const StudentSchedule: React.FC = () => {
       const endDate = days[6]?.fullDate;
       try {
         const res = await classSessionsApi.getAll({ startDate, endDate, limit: 100 });
-        const mapped = (res.data || []).map(mapApiSessionToStudentSession);
+        const filtered = (res.data || []).filter((raw: any) => {
+          return academic.isAuthorizedForSession({
+            courseId: raw.batch?.courseId || raw.courseId,
+            batchId: raw.batchId || raw.batch?.id,
+            courseName: raw.batch?.course?.name || raw.courseName || raw.title,
+            batch: raw.batch,
+          });
+        });
+        const mapped = filtered.map(mapApiSessionToStudentSession);
         if (mounted) {
           setApiSessions(mapped);
         }
@@ -244,7 +254,7 @@ export const StudentSchedule: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, [weekOffset]);
+  }, [weekOffset, academic]);
 
   // Dynamic Live Time & Date Ticker (Updates every 1s)
   const [currentSystemTime, setCurrentSystemTime] = useState<Date>(new Date());
@@ -492,7 +502,7 @@ export const StudentSchedule: React.FC = () => {
           <ChevronLeft className="h-5 w-5" />
         </button>
 
-        <div className="flex-1 grid grid-cols-7 gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1">
+        <div className="flex-1 flex gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1">
           {weekDays.map((day) => {
             const isSelected = selectedDay.fullDate === day.fullDate;
             return (
@@ -500,33 +510,33 @@ export const StudentSchedule: React.FC = () => {
                 key={day.fullDate}
                 type="button"
                 onClick={() => setSelectedDate(day.fullDate)}
-                className={`py-3 sm:py-3.5 px-2 rounded-2xl flex flex-col items-center justify-between text-center transition-all cursor-pointer ${isSelected
+                className={`flex-1 min-w-[68px] sm:min-w-[85px] py-3 sm:py-3.5 px-2 rounded-2xl flex flex-col items-center justify-between text-center transition-all cursor-pointer ${isSelected
                   ? "bg-gradient-to-br from-[#4F46E5] to-[#6366F1] text-white shadow-md shadow-indigo-500/20 dark:shadow-indigo-900/40 scale-[1.02] border border-indigo-400/30"
                   : "bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 text-slate-600 dark:text-slate-400 hover:border-blue-300 dark:hover:border-slate-700 hover:bg-slate-50/80 dark:hover:bg-[#152342] shadow-2xs"
                   }`}
               >
-                <span className={`text-[10px] font-black tracking-wider ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
+                <span className={`text-[10px] font-black tracking-wider uppercase ${isSelected ? "text-indigo-100" : "text-slate-400"}`}>
                   {day.dayName}
                 </span>
 
-                <span className={`text-lg sm:text-xl font-black my-0.5 ${isSelected ? "text-white" : "text-slate-800 dark:text-slate-200"}`}>
-                  {day.dateNumber} {day.monthName}
+                <span className={`text-base sm:text-xl font-black my-0.5 ${isSelected ? "text-white" : "text-slate-800 dark:text-slate-200"}`}>
+                  {day.dateNumber} <span className="text-xs uppercase">{day.monthName}</span>
                 </span>
 
                 {day.isToday ? (
                   <span
-                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${isSelected
-                      ? "bg-white/20 text-white backdrop-blur-xs"
+                    className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${isSelected
+                      ? "bg-black/25 text-white backdrop-blur-xs"
                       : "bg-blue-100 text-[#1D4ED8] dark:bg-blue-950/60 dark:text-sky-400 border border-blue-200/60 dark:border-sky-800/40"
                       }`}
                   >
                     TODAY
                   </span>
                 ) : (
-                  <span className="h-1.5 w-1.5 rounded-full my-1 bg-slate-300 dark:bg-slate-700" />
+                  <span className="h-1 w-1 rounded-full my-1 bg-slate-300 dark:bg-slate-700" />
                 )}
 
-                <span className={`text-[10px] font-bold mt-0.5 ${isSelected ? "text-indigo-100" : "text-slate-400 dark:text-slate-500"}`}>
+                <span className={`text-[9.5px] font-bold mt-0.5 ${isSelected ? "text-indigo-100" : "text-slate-400 dark:text-slate-500"}`}>
                   {day.classCount === 0 ? "No Classes" : `${day.classCount} ${day.classCount === 1 ? "Class" : "Classes"}`}
                 </span>
               </button>
@@ -569,8 +579,19 @@ export const StudentSchedule: React.FC = () => {
               Loading your schedule...
             </div>
           ) : daySessions.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl text-slate-400 text-sm">
-              No classes scheduled for this day.
+            <div className="bg-white dark:bg-[#0E172A] border border-slate-200/80 dark:border-slate-800/80 rounded-3xl p-10 sm:p-14 text-center space-y-3 shadow-xs">
+              <div className="relative w-16 h-16 mx-auto flex items-center justify-center rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 mb-2">
+                <CalendarIcon className="w-8 h-8 stroke-[1.8]" />
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#6366F1] text-white flex items-center justify-center text-xs font-black ring-2 ring-white dark:ring-[#0E172A]">
+                  !
+                </div>
+              </div>
+              <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white">
+                No classes scheduled for this day.
+              </h3>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                You're all set! Enjoy your day and keep learning.
+              </p>
             </div>
           ) : (
             daySessions.map((session) => {

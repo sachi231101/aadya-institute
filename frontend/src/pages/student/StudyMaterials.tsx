@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+
 interface StudyMaterialItem {
   id: string;
   title: string;
@@ -41,16 +43,23 @@ interface StudyMaterialItem {
 const MOCK_STUDY_MATERIALS: StudyMaterialItem[] = [];
 
 export const StudentStudyMaterials: React.FC = () => {
+  const academic = useStudentAcademicAccess();
   const [selectedModule, setSelectedModule] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [previewItem, setPreviewItem] = useState<StudyMaterialItem | null>(null);
 
-  const modulesList = ["ALL", "SEO Fundamentals", "Backend Architecture", "JavaScript Essentials", "Technical SEO", "React Framework"];
+  const modulesList = useMemo(() => {
+    return ["ALL", ...academic.assignedModuleNames];
+  }, [academic.assignedModuleNames]);
 
   // Filtered materials
   const filteredMaterials = useMemo(() => {
     return MOCK_STUDY_MATERIALS.filter((item) => {
+      // Course authorization check
+      if (item.courseName && !academic.isAuthorizedForCourse(item.courseName)) {
+        return false;
+      }
       // Module filter
       if (selectedModule !== "ALL" && item.moduleName !== selectedModule) {
         return false;
@@ -70,7 +79,7 @@ export const StudentStudyMaterials: React.FC = () => {
       }
       return true;
     });
-  }, [selectedModule, selectedType, searchQuery]);
+  }, [academic, selectedModule, selectedType, searchQuery]);
 
   const renderTypeIcon = (type: StudyMaterialItem["fileType"]) => {
     switch (type) {
@@ -131,11 +140,11 @@ export const StudentStudyMaterials: React.FC = () => {
               </h1>
               <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-[#5B50EC] border border-indigo-200/60">
                 <Sparkles className="w-3 h-3" />
-                Assigned Curriculum
+                {academic.primaryCourse?.name || "Assigned Curriculum"}
               </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Access lecture notes, slide presentations, cheat sheets, and lab workbooks assigned to your enrolled courses.
+              Access lecture notes, slide presentations, cheat sheets, and lab workbooks assigned to your enrolled course ({academic.primaryCourse?.name || "Enrolled Program"}).
             </p>
           </div>
         </div>
@@ -165,7 +174,7 @@ export const StudentStudyMaterials: React.FC = () => {
                 Total Files
               </span>
               <div className="text-2xl font-black text-slate-900 leading-tight">
-                {MOCK_STUDY_MATERIALS.length}
+                {filteredMaterials.length}
               </div>
               <span className="text-[11px] font-medium text-slate-500 block">
                 Curriculum Assets
@@ -185,10 +194,10 @@ export const StudentStudyMaterials: React.FC = () => {
                 Modules
               </span>
               <div className="text-2xl font-black text-slate-900 leading-tight">
-                5
+                {academic.assignedModuleNames.length}
               </div>
               <span className="text-[11px] font-bold text-emerald-600 block">
-                All Enrolled
+                Assigned Modules
               </span>
             </div>
           </CardContent>
@@ -205,7 +214,7 @@ export const StudentStudyMaterials: React.FC = () => {
                 Est. Study Time
               </span>
               <div className="text-2xl font-black text-slate-900 leading-tight">
-                18h
+                {filteredMaterials.length > 0 ? `${filteredMaterials.length * 2}h` : "0h"}
               </div>
               <span className="text-[11px] font-medium text-slate-500 block">
                 Guided Content
@@ -225,7 +234,7 @@ export const StudentStudyMaterials: React.FC = () => {
                 Storage Size
               </span>
               <div className="text-2xl font-black text-slate-900 leading-tight">
-                37.7 MB
+                {filteredMaterials.length > 0 ? `${(filteredMaterials.length * 3.5).toFixed(1)} MB` : "0 MB"}
               </div>
               <span className="text-[11px] font-medium text-slate-500 block">
                 Cloud Synced

@@ -24,6 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { attendanceApi } from "@/services/attendance.api";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 
 interface SubjectAttendanceData {
   id: string;
@@ -38,299 +39,14 @@ interface SubjectAttendanceData {
   }[];
 }
 
-// Multi-subject Attendance matrix datasets matching the exact layout in the screenshot
-const SUBJECTS_DATA: SubjectAttendanceData[] = [
-  {
-    id: "core-java",
-    name: "Core Java",
-    attended: 34,
-    total: 72,
-    missed: 38,
-    matrix: [
-      {
-        month: "Jun",
-        days: {
-          15: "A", 16: "A", 17: "A", 18: "P", 19: "P", 24: "P", 25: "A", 26: "P", 27: "P", 28: "P", 30: "A",
-        },
-      },
-      {
-        month: "July",
-        days: {
-          1: "P", 2: "A", 3: "A", 4: "A", 7: "P", 8: "A", 10: "P", 11: "P",
-          14: "P", 15: "P", 16: "P", 17: "P", 18: "P", 19: "P", 22: "A", 23: "P",
-          24: "P", 25: "P", 26: "P", 29: "P", 30: "P", 31: "P",
-        },
-      },
-      {
-        month: "Aug",
-        days: {
-          1: "P", 5: "P", 7: "P", 8: "A", 11: "A", 12: "A", 14: "P",
-          18: "A", 19: "P", 20: "P", 21: "P", 25: "A", 26: "P", 28: "P", 29: "A", 30: "A",
-        },
-      },
-      {
-        month: "Sep",
-        days: {
-          1: "P", 2: "P", 3: "A", 4: "A", 5: "A", 8: "P", 9: "A", 10: "A", 11: "A", 12: "A",
-          15: "A", 16: "A", 17: "A", 18: "A", 19: "A", 22: "A", 23: "A", 24: "A", 25: "A", 26: "A",
-          29: "A", 30: "A", 31: "A",
-        },
-      },
-      {
-        month: "Oct",
-        days: {
-          3: "A", 4: "A",
-        },
-      },
-    ],
-  },
-  {
-    id: "programming",
-    name: "Programming",
-    attended: 48,
-    total: 60,
-    missed: 12,
-    matrix: [
-      {
-        month: "Jun",
-        days: { 10: "P", 11: "P", 12: "P", 15: "P", 16: "P", 18: "P", 19: "P", 24: "P", 25: "P", 26: "P" },
-      },
-      {
-        month: "July",
-        days: { 1: "P", 2: "P", 3: "P", 4: "P", 7: "P", 8: "P", 10: "P", 11: "P", 14: "P", 15: "P", 16: "P", 22: "A", 23: "P", 24: "P", 25: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 1: "P", 5: "P", 7: "P", 8: "P", 11: "P", 12: "P", 14: "P", 18: "A", 19: "P", 20: "P", 21: "P" },
-      },
-      {
-        month: "Sep",
-        days: { 1: "P", 2: "P", 3: "P", 4: "P", 8: "P", 9: "A", 10: "A", 15: "P", 16: "P", 17: "P" },
-      },
-      {
-        month: "Oct",
-        days: { 1: "P", 2: "P", 3: "P" },
-      },
-    ],
-  },
-  {
-    id: "sql",
-    name: "SQL",
-    attended: 38,
-    total: 45,
-    missed: 7,
-    matrix: [
-      {
-        month: "Jun",
-        days: { 14: "P", 15: "P", 16: "P", 20: "P", 21: "P", 22: "P", 27: "P", 28: "P" },
-      },
-      {
-        month: "July",
-        days: { 2: "P", 3: "P", 5: "P", 9: "P", 10: "P", 12: "P", 16: "P", 17: "P", 23: "A", 24: "P", 30: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 3: "P", 4: "P", 6: "P", 10: "P", 11: "P", 13: "P", 17: "P", 18: "P", 24: "A", 25: "P" },
-      },
-      {
-        month: "Sep",
-        days: { 1: "P", 2: "P", 7: "P", 8: "A", 14: "P", 15: "P", 21: "P", 22: "A" },
-      },
-      {
-        month: "Oct",
-        days: { 2: "P", 5: "P" },
-      },
-    ],
-  },
-  {
-    id: "adv-java",
-    name: "Advanced Java",
-    attended: 28,
-    total: 40,
-    missed: 12,
-    matrix: [
-      {
-        month: "July",
-        days: { 10: "P", 11: "P", 14: "P", 15: "P", 17: "P", 18: "P", 24: "P", 25: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 1: "P", 5: "P", 7: "P", 8: "A", 12: "P", 14: "P", 19: "P", 20: "A", 26: "P" },
-      },
-      {
-        month: "Sep",
-        days: { 2: "P", 3: "A", 8: "P", 9: "A", 10: "A", 16: "P", 17: "P", 23: "A", 24: "P" },
-      },
-      {
-        month: "Oct",
-        days: { 1: "P", 3: "A" },
-      },
-    ],
-  },
-  {
-    id: "soft-skills",
-    name: "Soft Skills",
-    attended: 20,
-    total: 22,
-    missed: 2,
-    matrix: [
-      {
-        month: "Jun",
-        days: { 18: "P", 25: "P" },
-      },
-      {
-        month: "July",
-        days: { 2: "P", 9: "P", 16: "P", 23: "P", 30: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 6: "P", 13: "P", 20: "P", 27: "A" },
-      },
-      {
-        month: "Sep",
-        days: { 3: "P", 10: "P", 17: "P", 24: "P" },
-      },
-      {
-        month: "Oct",
-        days: { 1: "P" },
-      },
-    ],
-  },
-  {
-    id: "html-css",
-    name: "HTML & CSS",
-    attended: 30,
-    total: 32,
-    missed: 2,
-    matrix: [
-      {
-        month: "Jun",
-        days: { 1: "P", 2: "P", 3: "P", 4: "P", 5: "P", 8: "P", 9: "P", 10: "P" },
-      },
-      {
-        month: "July",
-        days: { 1: "P", 2: "P", 6: "P", 7: "P", 8: "P", 9: "P", 13: "P", 14: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 3: "P", 4: "P", 5: "P", 10: "P", 11: "A" },
-      },
-    ],
-  },
-  {
-    id: "python",
-    name: "Python",
-    attended: 24,
-    total: 30,
-    missed: 6,
-    matrix: [
-      {
-        month: "July",
-        days: { 15: "P", 16: "P", 22: "P", 23: "P", 29: "P", 30: "P" },
-      },
-      {
-        month: "Aug",
-        days: { 5: "P", 6: "P", 12: "P", 13: "A", 19: "P", 20: "P", 26: "P", 27: "P" },
-      },
-      {
-        month: "Sep",
-        days: { 2: "P", 3: "P", 9: "A", 10: "A", 16: "P", 17: "P", 23: "P", 24: "P" },
-      },
-      {
-        month: "Oct",
-        days: { 1: "A", 2: "P" },
-      },
-    ],
-  },
-];
-
-interface AttendanceRecord {
-  id: string;
-  date: string;
-  timeSlot: string;
-  topic: string;
-  moduleName: string;
-  batchCode: string;
-  courseName: string;
-  facultyName: string;
-  status: "PRESENT" | "ABSENT" | "EXCUSED";
-  remarks: string;
-  markedAt: string;
-}
-
-const ATTENDANCE_HISTORY_DATA: AttendanceRecord[] = [
-  {
-    id: "att-1",
-    date: "27 Aug 2026",
-    timeSlot: "09:30 AM – 11:00 AM",
-    topic: "React Hooks, Context API & State Management",
-    moduleName: "Frontend Development",
-    batchCode: "FSD-01",
-    courseName: "Full Stack Web Development",
-    facultyName: "Dr. Vikram Seth",
-    status: "PRESENT",
-    remarks: "Active in live coding lab",
-    markedAt: "27 Aug 2026, 11:05 AM",
-  },
-  {
-    id: "att-2",
-    date: "25 Aug 2026",
-    timeSlot: "09:30 AM – 11:00 AM",
-    topic: "Component Lifecycle & Custom Hooks",
-    moduleName: "Frontend Development",
-    batchCode: "FSD-01",
-    courseName: "Full Stack Web Development",
-    facultyName: "Dr. Vikram Seth",
-    status: "PRESENT",
-    remarks: "Submitted exercise on time",
-    markedAt: "25 Aug 2026, 11:02 AM",
-  },
-  {
-    id: "att-3",
-    date: "22 Aug 2026",
-    timeSlot: "02:00 PM – 03:30 PM",
-    topic: "Database Indexing & Complex Joins in PostgreSQL",
-    moduleName: "Database Systems",
-    batchCode: "FSD-01",
-    courseName: "Full Stack Web Development",
-    facultyName: "Ananya Iyer",
-    status: "ABSENT",
-    remarks: "Consecutive Absence #1",
-    markedAt: "22 Aug 2026, 03:35 PM",
-  },
-  {
-    id: "att-4",
-    date: "20 Aug 2026",
-    timeSlot: "09:30 AM – 11:00 AM",
-    topic: "Node.js Architecture & Express Routing",
-    moduleName: "Backend Architecture",
-    batchCode: "FSD-01",
-    courseName: "Full Stack Web Development",
-    facultyName: "Rohan Verma",
-    status: "PRESENT",
-    remarks: "Completed lab challenge",
-    markedAt: "20 Aug 2026, 11:00 AM",
-  },
-  {
-    id: "att-5",
-    date: "18 Aug 2026",
-    timeSlot: "02:00 PM – 03:30 PM",
-    topic: "RESTful API Security & JWT Authorization",
-    moduleName: "Backend Architecture",
-    batchCode: "FSD-01",
-    courseName: "Full Stack Web Development",
-    facultyName: "Rohan Verma",
-    status: "EXCUSED",
-    remarks: "Medical leave approved by Center Manager",
-    markedAt: "18 Aug 2026, 02:15 PM",
-  },
-];
-
 const DAYS_HEADER = Array.from({ length: 31 }, (_, i) => i + 1);
 
 export const StudentAttendance: React.FC = () => {
+  const academic = useStudentAcademicAccess();
+  const studentId = academic.studentId || useAuthStore.getState().user?.studentId;
+
   // Selected Subject for Matrix
-  const [selectedSubjectId, setSelectedSubjectId] = useState("core-java");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
   const [startDate, setStartDate] = useState("2026-06-01");
   const [endDate, setEndDate] = useState("2026-10-31");
 
@@ -341,7 +57,6 @@ export const StudentAttendance: React.FC = () => {
   const [apiHistory, setApiHistory] = useState<any[]>([]);
 
   useEffect(() => {
-    const studentId = useAuthStore.getState().user?.studentId;
     if (!studentId) return;
     let mounted = true;
     (async () => {
@@ -366,7 +81,59 @@ export const StudentAttendance: React.FC = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [studentId]);
+
+  // Dynamically build subjects from student's enrolled course and modules
+  const dynamicSubjects: SubjectAttendanceData[] = useMemo(() => {
+    const totalPresent = apiSummary?.present ?? 0;
+    const totalClasses = apiSummary?.total ?? 0;
+
+    if (academic.assignedModules.length > 0) {
+      const moduleCount = Math.max(1, academic.assignedModules.length);
+      return academic.assignedModules.map((mod, idx) => {
+        const modTotal = Math.max(1, Math.round(totalClasses / moduleCount));
+        const modAttended = Math.min(modTotal, Math.round(totalPresent / moduleCount));
+        return {
+          id: mod.id || `mod-${idx}`,
+          name: mod.name,
+          attended: modAttended,
+          total: modTotal,
+          missed: Math.max(0, modTotal - modAttended),
+          matrix: [],
+        };
+      });
+    }
+
+    if (academic.assignedCourses.length > 0) {
+      return academic.assignedCourses.map((c) => ({
+        id: c.id,
+        name: c.name,
+        attended: totalPresent,
+        total: totalClasses > 0 ? totalClasses : 1,
+        missed: Math.max(0, totalClasses - totalPresent),
+        matrix: [],
+      }));
+    }
+
+    return [{
+      id: "default-course",
+      name: "Enrolled Course",
+      attended: totalPresent,
+      total: totalClasses > 0 ? totalClasses : 1,
+      missed: Math.max(0, totalClasses - totalPresent),
+      matrix: [],
+    }];
+  }, [academic.assignedModules, academic.assignedCourses, apiSummary]);
+
+  // Set initial selected subject if not set or invalid
+  useEffect(() => {
+    if (dynamicSubjects.length > 0) {
+      const exists = dynamicSubjects.some((s) => s.id === selectedSubjectId);
+      if (!exists || !selectedSubjectId) {
+        setSelectedSubjectId(dynamicSubjects[0].id);
+      }
+    }
+  }, [dynamicSubjects, selectedSubjectId]);
 
   // Hover state for interactive tooltip
   const [hoveredCell, setHoveredCell] = useState<{
@@ -377,16 +144,45 @@ export const StudentAttendance: React.FC = () => {
   } | null>(null);
 
   const currentSubject = useMemo(() => {
-    return SUBJECTS_DATA.find((s) => s.id === selectedSubjectId) || SUBJECTS_DATA[0];
-  }, [selectedSubjectId]);
+    return dynamicSubjects.find((s) => s.id === selectedSubjectId) || dynamicSubjects[0] || {
+      id: "none",
+      name: "General Attendance",
+      attended: 0,
+      total: 0,
+      missed: 0,
+      matrix: [],
+    };
+  }, [dynamicSubjects, selectedSubjectId]);
 
   const percentage = apiSummary
     ? Math.round(apiSummary.percentage)
-    : Math.round((currentSubject.attended / currentSubject.total) * 100);
+    : currentSubject.total > 0
+      ? Math.round((currentSubject.attended / currentSubject.total) * 100)
+      : 100;
   const isGoodStanding = percentage >= 75;
 
+  const rawHistoryList = useMemo(() => {
+    if (apiHistory.length > 0) {
+      return apiHistory.map((item: any) => ({
+        id: item.id,
+        date: item.markedAt ? new Date(item.markedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—",
+        timeSlot: item.classSession ? `${item.classSession.startTime || ""} - ${item.classSession.endTime || ""}` : "Class Time",
+        topic: item.classSession?.title || item.remarks || "Class Session",
+        moduleName: item.classSession?.batchModule?.courseModule?.name || academic.primaryCourse?.name || "Curriculum",
+        batchCode: item.classSession?.batch?.code || academic.primaryBatch?.code || "BATCH-01",
+        courseName: item.classSession?.batch?.course?.name || academic.primaryCourse?.name || "Enrolled Course",
+        facultyName: item.classSession?.faculty?.user?.name || "Faculty",
+        status: (item.status === "PRESENT" ? "PRESENT" : item.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
+        remarks: item.remarks || (item.status === "PRESENT" ? "Marked Present" : "Marked Absent"),
+        markedAt: item.markedAt ? new Date(item.markedAt).toLocaleString("en-IN") : "—",
+      }));
+    }
+    return [];
+  }, [apiHistory, academic.primaryCourse, academic.primaryBatch]);
+
   const filteredHistory = useMemo(() => {
-    return ATTENDANCE_HISTORY_DATA.filter((item) => {
+    return rawHistoryList.filter((item) => {
+      if (item.courseName && !academic.isAuthorizedForCourse(item.courseName)) return false;
       if (historyFilter !== "ALL" && item.status !== historyFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -398,7 +194,7 @@ export const StudentAttendance: React.FC = () => {
       }
       return true;
     });
-  }, [historyFilter, searchQuery]);
+  }, [rawHistoryList, academic, historyFilter, searchQuery]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto animate-in fade-in duration-300 font-sans">
@@ -452,7 +248,7 @@ export const StudentAttendance: React.FC = () => {
 
         {/* Row 2: Subject Filter Pills Bar */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
-          {SUBJECTS_DATA.map((subject) => {
+          {dynamicSubjects.map((subject) => {
             const isActive = subject.id === selectedSubjectId;
             return (
               <button

@@ -294,7 +294,7 @@ export const CounsellorBatches: React.FC = () => {
       await studentsApi.create({
         name: regStudentName.trim(),
         studentCode: generatedCode,
-        password: "Student@123",
+        password: "Aadya@123",
         branchId,
         courseId: courses.find((c) => c.name === regStudentCourse)?.id,
       });
@@ -316,7 +316,7 @@ export const CounsellorBatches: React.FC = () => {
       if (selectedStudentIds.length > 0 && createdBatch?.data?.id) {
         await Promise.all(
           selectedStudentIds.map((sId) =>
-            batchesApi.enrollStudent(createdBatch.data.id, sId).catch(() => {})
+            batchesApi.enrollStudent(createdBatch.data.id, sId).catch(() => { })
           )
         );
       }
@@ -561,66 +561,63 @@ export const CounsellorBatches: React.FC = () => {
                   No students found. Add students from Admissions or use + New Student.
                 </div>
               ) : (
-              filteredStudents.map((student) => {
-                const isSelected = selectedStudentIds.includes(student.id);
-                return (
-                  <div
-                    key={student.id}
-                    onClick={() => toggleStudent(student.id)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
-                        ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
-                        : "bg-white border-slate-200/80 hover:bg-slate-50/70"
-                    }`}
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      {/* Custom Checkbox */}
-                      <div
-                        className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected
-                            ? "bg-[#1769AA] border-[#1769AA] text-white"
-                            : "border-slate-300 bg-white"
+                filteredStudents.map((student) => {
+                  const isSelected = selectedStudentIds.includes(student.id);
+                  return (
+                    <div
+                      key={student.id}
+                      onClick={() => toggleStudent(student.id)}
+                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
+                          ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
+                          : "bg-white border-slate-200/80 hover:bg-slate-50/70"
                         }`}
-                      >
-                        {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
-                      </div>
-
-                      {/* Avatar */}
-                      <div
-                        className={`w-8 h-8 rounded-full ${student.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
-                      >
-                        {student.initials}
-                      </div>
-
-                      {/* Name & Details */}
-                      <div className="min-w-0">
-                        <span className="font-bold text-xs text-slate-900 truncate block">
-                          {student.name}
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-medium truncate block">
-                          {student.studentId} • {student.course}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Action Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleStudent(student.id);
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-                        isSelected
-                          ? "bg-[#1769AA] text-white shadow-xs"
-                          : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] border border-slate-200"
-                      }`}
                     >
-                      {isSelected ? "Selected" : "+ Add"}
-                    </button>
-                  </div>
-                );
-              })
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* Custom Checkbox */}
+                        <div
+                          className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 transition-colors ${isSelected
+                              ? "bg-[#1769AA] border-[#1769AA] text-white"
+                              : "border-slate-300 bg-white"
+                            }`}
+                        >
+                          {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                        </div>
+
+                        {/* Avatar */}
+                        <div
+                          className={`w-8 h-8 rounded-full ${student.avatarBg} text-xs font-black flex items-center justify-center shrink-0 shadow-2xs`}
+                        >
+                          {student.initials}
+                        </div>
+
+                        {/* Name & Details */}
+                        <div className="min-w-0">
+                          <span className="font-bold text-xs text-slate-900 truncate block">
+                            {student.name}
+                          </span>
+                          <span className="text-[11px] text-slate-500 font-medium truncate block">
+                            {student.studentId} • {student.course}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Action Button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleStudent(student.id);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${isSelected
+                            ? "bg-[#1769AA] text-white shadow-xs"
+                            : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] border border-slate-200"
+                          }`}
+                      >
+                        {isSelected ? "Selected" : "+ Add"}
+                      </button>
+                    </div>
+                  );
+                })
               )}
             </div>
           </CardContent>
@@ -673,20 +670,18 @@ export const CounsellorBatches: React.FC = () => {
                   <div
                     key={faculty.id}
                     onClick={() => handleSelectFaculty(faculty)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                      isSelected
+                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
                         ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
                         : "bg-white border-slate-200/80 hover:bg-slate-50/70"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
                       {/* Radio Selector */}
                       <div
-                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${
-                          isSelected
+                        className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 transition-colors ${isSelected
                             ? "border-[#1769AA] bg-[#1769AA]"
                             : "border-slate-300 bg-white"
-                        }`}
+                          }`}
                       >
                         {isSelected && <div className="w-2 h-2 rounded-full bg-white" />}
                       </div>
@@ -723,11 +718,10 @@ export const CounsellorBatches: React.FC = () => {
                           e.stopPropagation();
                           handleSelectFaculty(faculty);
                         }}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                          isSelected
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${isSelected
                             ? "bg-[#1769AA] text-white shadow-xs"
                             : "bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-[#1769AA] border border-slate-200"
-                        }`}
+                          }`}
                       >
                         {isSelected ? "✓ Selected" : "Select"}
                       </button>
@@ -975,11 +969,10 @@ export const CounsellorBatches: React.FC = () => {
                         {/* Status Badge */}
                         <TableCell>
                           <span
-                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${
-                              (batch.status as string) === "ONGOING" || (batch.status as string) === "ACTIVE"
+                            className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase border ${(batch.status as string) === "ONGOING" || (batch.status as string) === "ACTIVE"
                                 ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                 : "bg-blue-50 text-blue-700 border-blue-200"
-                            }`}
+                              }`}
                           >
                             {batch.status || "UPCOMING"}
                           </span>
@@ -1339,11 +1332,10 @@ export const CounsellorBatches: React.FC = () => {
                     Enrolled Students ({editEnrolledStudentIds.length})
                   </span>
                   <span
-                    className={`text-[10.5px] font-bold ${
-                      editEnrolledStudentIds.length >= editCapacity
+                    className={`text-[10.5px] font-bold ${editEnrolledStudentIds.length >= editCapacity
                         ? "text-rose-600"
                         : "text-emerald-700"
-                    }`}
+                      }`}
                   >
                     {Math.max(0, editCapacity - editEnrolledStudentIds.length)} Seats Available
                   </span>

@@ -34,6 +34,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 
 interface CertificateItem {
   id: string;
@@ -59,31 +60,31 @@ const INITIAL_CERTIFICATES: CertificateItem[] = [
     title: "Certificate of Course Completion",
     courseName: "Full Stack Web Development & Cloud Architecture",
     category: "Course Completion",
-    issueDate: "Feb 15, 2026",
+    issueDate: "Aug 15, 2026",
     status: "ISSUED",
     grade: "Grade A+ (Distinction)",
     score: "94.5%",
-    instructor: "Prof. Rajesh Sharma",
-    skills: ["React.js", "Node.js", "TypeScript", "PostgreSQL", "Cloud Deployment"],
-    description: "Has successfully completed the comprehensive training program and capstone project in Full Stack Web Engineering.",
+    instructor: "Dr. Vikram Sethi",
+    skills: ["React 19", "Node.js", "TypeScript", "PostgreSQL", "Docker", "REST APIs"],
+    description: "Demonstrated advanced proficiency in building enterprise-grade full stack web applications.",
     verificationUrl: "https://verify.aadyainstitution.com/cert/AADYA-CC-2026-8492",
-    duration: "6 Months (480 Hours)",
+    duration: "6 Months Professional Program",
   },
   {
     id: "cert-2",
     certificateNo: "AADYA-EX-2026-1049",
-    title: "Proctored Examination Certificate of Excellence",
-    courseName: "Advanced JavaScript & TypeScript Architecture",
+    title: "Proctored Final Exam Certificate",
+    courseName: "Advanced React & Frontend System Design",
     category: "Proctored Exam",
-    issueDate: "Jan 28, 2026",
+    issueDate: "Jul 28, 2026",
     status: "ISSUED",
-    grade: "Distinction with 96%",
-    score: "96.0%",
-    instructor: "Academic Examination Board",
-    skills: ["TypeScript 5.x", "Async Patterns", "Performance Optimization", "Clean Architecture"],
-    description: "Achieved top percentile in the AI-Proctored Academy Certification Examination.",
+    grade: "Score: 98/100",
+    score: "98.0%",
+    instructor: "Prof. Priya Sharma",
+    skills: ["React Architecture", "State Optimization", "SSR", "Performance Auditing"],
+    description: "Cleared the comprehensive 180-minute camera-proctored examination with distinction.",
     verificationUrl: "https://verify.aadyainstitution.com/cert/AADYA-EX-2026-1049",
-    duration: "National Standard Exam",
+    duration: "Comprehensive Assessment",
   },
   {
     id: "cert-3",
@@ -137,7 +138,8 @@ const INITIAL_CERTIFICATES: CertificateItem[] = [
 
 export const StudentCertificates: React.FC = () => {
   const { user } = useAuthStore();
-  const studentName = user?.name || "Rahul Verma";
+  const academic = useStudentAcademicAccess();
+  const studentName = academic.studentName || user?.name || "Student";
 
   const [certificates, setCertificates] = useState<CertificateItem[]>(INITIAL_CERTIFICATES);
   const [searchTerm, setSearchTerm] = useState("");
@@ -162,6 +164,11 @@ export const StudentCertificates: React.FC = () => {
   };
 
   const filteredCertificates = certificates.filter((cert) => {
+    // Course authorization check
+    if (cert.courseName && !academic.isAuthorizedForCourse(cert.courseName) && academic.assignedCourses.length > 0) {
+      return false;
+    }
+
     const matchesSearch =
       cert.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cert.courseName.toLowerCase().includes(searchTerm.toLowerCase()) ||

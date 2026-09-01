@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import type { Recording } from "@/services/recordings.api";
 
 const formatDuration = (seconds?: number) => {
@@ -15,6 +16,7 @@ const formatDuration = (seconds?: number) => {
 };
 
 export const StudentRecordings: React.FC = () => {
+  const academic = useStudentAcademicAccess();
   const { data: recordingsRes, isLoading, isError } = useRecordings({ limit: 50 });
   const accessMutation = useRecordingAccess();
 
@@ -25,37 +27,41 @@ export const StudentRecordings: React.FC = () => {
   const [playError, setPlayError] = useState<string | null>(null);
   const [showWatchModal, setShowWatchModal] = useState(false);
 
-  const enrichedRecordings = useMemo(
-    () =>
-      recordings.map((rec) => ({
-        ...rec,
-        batchLabel: rec.classSession?.batch?.name || rec.classSession?.batch?.code || "Batch",
-        courseLabel:
-          rec.classSession?.batchModule?.courseModule?.name ||
-          rec.classSession?.title ||
-          "Class Session",
-        moduleLabel: rec.classSession?.batchModule?.courseModule?.name || "Class Session",
-        facultyName: rec.classSession?.faculty?.user?.name || "Faculty",
-        dateLabel: rec.classSession?.scheduledDate
-          ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })
-          : "—",
-        durationLabel: formatDuration(rec.duration),
-        expiresLabel: rec.expiresAt
-          ? new Date(rec.expiresAt).toLocaleDateString("en-IN", {
-              day: "2-digit",
-              month: "short",
-              year: "numeric",
-            })
-          : "—",
-        status:
-          (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
-      })),
-    [recordings]
-  );
+  const enrichedRecordings = useMemo(() => {
+    const scoped = recordings.filter((rec) => {
+      const session = rec.classSession;
+      if (!session) return false;
+      return academic.isAuthorizedForSession(session);
+    });
+
+    return scoped.map((rec) => ({
+      ...rec,
+      batchLabel: rec.classSession?.batch?.name || rec.classSession?.batch?.code || "Batch",
+      courseLabel:
+        rec.classSession?.batchModule?.courseModule?.name ||
+        rec.classSession?.title ||
+        "Class Session",
+      moduleLabel: rec.classSession?.batchModule?.courseModule?.name || "Class Session",
+      facultyName: rec.classSession?.faculty?.user?.name || "Faculty",
+      dateLabel: rec.classSession?.scheduledDate
+        ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : "—",
+      durationLabel: formatDuration(rec.duration),
+      expiresLabel: rec.expiresAt
+        ? new Date(rec.expiresAt).toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          })
+        : "—",
+      status:
+        (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
+    }));
+  }, [recordings, academic]);
 
   const handleWatchRecording = async (rec: Recording) => {
     setActiveRecording(rec);

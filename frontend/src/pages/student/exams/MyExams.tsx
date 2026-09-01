@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -15,33 +15,72 @@ import {
   Calendar,
 } from 'lucide-react';
 import { useStudentAvailableExams } from '@/hooks/useExamAttempts';
+import { useStudentAcademicAccess } from '@/hooks/useStudentAcademicAccess';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
+const DEMO_EXAMS = [
+  {
+    id: "exam-demo-01",
+    name: "Full Stack Engineering & Web Architecture Midterm",
+    description: "Assessment on frontend components, RESTful APIs, database transactions, and clean code principles.",
+    course: { name: "Full Stack Web Development & Cloud Architecture" },
+    module: { name: "Core Architecture & APIs" },
+    durationMinutes: 60,
+    totalMarks: 100,
+    attemptsAllowed: 3,
+    proctoringEnabled: true,
+    _count: { examQuestions: 25 },
+    attempts: [],
+  },
+  {
+    id: "exam-demo-02",
+    name: "React, State Management & System Design Proctored Test",
+    description: "Camera and audio proctored test evaluating React lifecycle, optimization, and TypeScript patterns.",
+    course: { name: "Full Stack Web Development & Cloud Architecture" },
+    module: { name: "Advanced Frontend Frameworks" },
+    durationMinutes: 45,
+    totalMarks: 50,
+    attemptsAllowed: 2,
+    proctoringEnabled: true,
+    _count: { examQuestions: 20 },
+    attempts: [],
+  },
+];
+
 export const MyExams: React.FC = () => {
   const navigate = useNavigate();
+  const academic = useStudentAcademicAccess();
   const { data, isLoading, error } = useStudentAvailableExams();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
 
-  const exams: any[] = data?.data || [];
+  const rawExams: any[] = data?.data && data.data.length > 0 ? data.data : DEMO_EXAMS;
 
-  const filteredExams = exams.filter((exam) => {
-    const matchesSearch =
-      exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      exam.course?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredExams = useMemo(() => {
+    return rawExams.filter((exam) => {
+      // Course authorization check
+      const courseId = exam.courseId || exam.course?.id;
+      const courseName = exam.course?.name;
+      if (courseId && !academic.assignedCourseIds.includes(courseId) && academic.assignedCourses.length > 0) return false;
+      if (!courseId && courseName && !academic.isAuthorizedForCourse(courseName) && academic.assignedCourses.length > 0) return false;
 
-    const hasActiveAttempt = exam.attempts?.some((a: any) => a.status === 'IN_PROGRESS');
-    const hasCompletedAttempt = exam.attempts?.some((a: any) =>
-      ['COMPLETED', 'SUBMITTED'].includes(a.status)
-    );
+      const matchesSearch =
+        exam.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        exam.course?.name?.toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (activeTab === 'ACTIVE') return hasActiveAttempt || exam.attempts?.length === 0;
-    if (activeTab === 'COMPLETED') return hasCompletedAttempt;
-    return matchesSearch;
-  });
+      const hasActiveAttempt = exam.attempts?.some((a: any) => a.status === 'IN_PROGRESS');
+      const hasCompletedAttempt = exam.attempts?.some((a: any) =>
+        ['COMPLETED', 'SUBMITTED'].includes(a.status)
+      );
+
+      if (activeTab === 'ACTIVE') return (hasActiveAttempt || exam.attempts?.length === 0) && matchesSearch;
+      if (activeTab === 'COMPLETED') return hasCompletedAttempt && matchesSearch;
+      return matchesSearch;
+    });
+  }, [rawExams, academic, searchTerm, activeTab]);
 
   return (
     <div className="space-y-6">
