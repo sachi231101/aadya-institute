@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database";
+import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import type { Prisma } from "@prisma/client";
 import type { 
@@ -279,6 +280,7 @@ export const AdmissionsRepository = {
             await tx.user.update({
               where: { id: existingStudent.userId },
               data: {
+                name: dto.studentName,
                 status: "ACTIVE",
                 passwordHash: defaultStudentPasswordHash,
                 branchId,
@@ -295,19 +297,23 @@ export const AdmissionsRepository = {
           }
         }
       } else {
-        // If studentId not provided, check if a Student or User with matching email or phone exists
-        let existingUser: any = null;
-        if (dto.email && dto.email.trim() !== "") {
-          existingUser = await tx.user.findFirst({
-            where: { instituteId, email: dto.email.trim() },
-            include: { student: true },
+        // New admission: duplicate check by phone only (not email). Never silently reuse profiles.
+        const normalizedPhone = (dto.phone || "").replace(/\D/g, "").slice(-10);
+
+        if (normalizedPhone.length >= 10) {
+          const usersWithPhone = await tx.user.findMany({
+            where: { instituteId, phone: { not: null } },
+            select: { phone: true },
           });
-        }
-        if (!existingUser && dto.phone && dto.phone.trim() !== "") {
-          existingUser = await tx.user.findFirst({
-            where: { instituteId, phone: dto.phone.trim() },
-            include: { student: true },
-          });
+          const phoneTaken = usersWithPhone.some(
+            (u) => (u.phone || "").replace(/\D/g, "").slice(-10) === normalizedPhone
+          );
+          if (phoneTaken) {
+            throw new AppError(
+              "This phone number is already registered. Please enter a different phone number.",
+              409
+            );
+          }
         }
 
         const extractNote = (pattern: RegExp) => {
@@ -318,101 +324,46 @@ export const AdmissionsRepository = {
         const extractedQual = extractNote(/(?:Highest Qualification|Qualification):\s*([^|\n]+)/i);
         const extractedDob = extractNote(/DOB:\s*([^|\n]+)/i);
 
-        if (existingUser?.student) {
-          finalStudentId = existingUser.student.id;
-          const studentUpdate: Record<string, any> = { branchId, status: "ACTIVE" };
-          if (extractedQual) studentUpdate.qualification = extractedQual;
-          if (extractedDob) {
-            try {
-              studentUpdate.dateOfBirth = new Date(extractedDob);
-            } catch {}
-          }
+        const studentCode = admissionNo;
 
-          // Keep student branch and student code aligned with the confirmed admission
-          await tx.student.update({
-            where: { id: existingUser.student.id },
-            data: {
-              ...studentUpdate,
-              studentCode: admissionNo,
-            },
+        const newUser = await tx.user.create({
+          data: {
+            instituteId,
+            branchId,
+            name: dto.studentName,
+            email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : null,
+            phone: normalizedPhone.length >= 10 ? normalizedPhone : dto.phone?.trim() || null,
+            passwordHash: defaultStudentPasswordHash,
+            status: "ACTIVE",
+          },
+        });
+
+        const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
+        if (studentRole) {
+          await tx.userRole.create({
+            data: { userId: newUser.id, roleId: studentRole.id },
           });
-          if (existingUser.id) {
-            await tx.user.update({
-              where: { id: existingUser.id },
-              data: {
-                branchId,
-                status: "ACTIVE",
-                passwordHash: defaultStudentPasswordHash,
-              },
-            });
-
-            const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
-            if (studentRole) {
-              await tx.userRole.upsert({
-                where: { userId_roleId: { userId: existingUser.id, roleId: studentRole.id } },
-                update: {},
-                create: { userId: existingUser.id, roleId: studentRole.id },
-              });
-            }
-          }
-        } else {
-          // Create User + Student + Role with unified Student ID = Admission Number
-          const studentCode = admissionNo;
-
-          let userId = existingUser?.id;
-          if (!userId) {
-            const newUser = await tx.user.create({
-              data: {
-                instituteId,
-                branchId,
-                name: dto.studentName,
-                email: dto.email && dto.email.trim() !== "" ? dto.email.trim() : null,
-                phone: dto.phone && dto.phone.trim() !== "" ? dto.phone.trim() : null,
-                passwordHash: defaultStudentPasswordHash,
-                status: "ACTIVE",
-              },
-            });
-            userId = newUser.id;
-          } else {
-            await tx.user.update({
-              where: { id: userId },
-              data: {
-                branchId,
-                status: "ACTIVE",
-                passwordHash: defaultStudentPasswordHash,
-              },
-            });
-          }
-
-          const studentRole = await tx.role.findUnique({ where: { name: "STUDENT" } });
-          if (studentRole && userId) {
-            await tx.userRole.upsert({
-              where: { userId_roleId: { userId, roleId: studentRole.id } },
-              update: {},
-              create: { userId, roleId: studentRole.id },
-            });
-          }
-
-          let parsedDob: Date | undefined;
-          if (extractedDob) {
-            try {
-              parsedDob = new Date(extractedDob);
-            } catch {}
-          }
-
-          const newStudent = await tx.student.create({
-            data: {
-              userId,
-              instituteId,
-              branchId,
-              studentCode,
-              qualification: extractedQual || null,
-              dateOfBirth: parsedDob,
-              status: "ACTIVE",
-            },
-          });
-          finalStudentId = newStudent.id;
         }
+
+        let parsedDob: Date | undefined;
+        if (extractedDob) {
+          try {
+            parsedDob = new Date(extractedDob);
+          } catch {}
+        }
+
+        const newStudent = await tx.student.create({
+          data: {
+            userId: newUser.id,
+            instituteId,
+            branchId,
+            studentCode,
+            qualification: extractedQual || null,
+            dateOfBirth: parsedDob,
+            status: "ACTIVE",
+          },
+        });
+        finalStudentId = newStudent.id;
       }
 
       // Ensure valid courseId
