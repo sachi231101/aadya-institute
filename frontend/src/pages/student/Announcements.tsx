@@ -29,16 +29,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useAnnouncementStore } from "@/store/announcement.store";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import type { AnnouncementItem, AuthorRole } from "@/store/announcement.store";
 
 export const StudentAnnouncements: React.FC = () => {
   const { user } = useAuthStore();
+  const academic = useStudentAcademicAccess();
   const { announcements, markAsRead, markAllAsRead } = useAnnouncementStore();
 
-  const studentId = user?.id || "std-current";
-  const studentName = user?.name || "Rahul Verma";
-  const enrolledCourse = (user as any)?.courseName || "Java Programming";
-  const enrolledBatch = (user as any)?.batchName || "Batch A – Java Programming";
+  const studentId = academic.studentId || user?.id || "std-current";
+  const studentName = academic.studentName || user?.name || "Student";
+  const enrolledCourse = academic.primaryCourse?.name || "Enrolled Program";
+  const enrolledBatch = academic.primaryBatch?.name || "Assigned Batch";
 
   // Filter States
   const [activeTab, setActiveTab] = useState<
@@ -57,9 +59,10 @@ export const StudentAnnouncements: React.FC = () => {
 
       // Strict course & batch isolation (or matches student's enrolled batch)
       const matchesBatch =
-        a.batchName === enrolledBatch ||
-        a.courseName === enrolledCourse ||
-        a.batchCode === "Batch A";
+        (a.batchName && academic.isAuthorizedForBatch(a.batchName)) ||
+        (a.batchCode && academic.isAuthorizedForBatch(a.batchCode)) ||
+        (a.courseName && academic.isAuthorizedForCourse(a.courseName)) ||
+        (a.targetRole === "ALL" || a.targetRole === "STUDENT");
 
       if (!matchesBatch) return false;
 

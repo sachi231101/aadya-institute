@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth.store";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { api } from "@/services/api";
 
 const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
@@ -30,6 +31,7 @@ const PLACEMENT_PORTAL_URL = "https://placement.aadyainstitution.com/";
 export const StudentProfile: React.FC = () => {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const academic = useStudentAcademicAccess();
 
   // Change Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -111,18 +113,23 @@ export const StudentProfile: React.FC = () => {
       <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
-            {user?.name?.charAt(0)?.toUpperCase() || "S"}
+            {(academic.studentName || user?.name)?.charAt(0)?.toUpperCase() || "S"}
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{user?.name || "Student"}</h1>
+            <h1 className="text-2xl font-bold">{academic.studentName || user?.name || "Student"}</h1>
             <p className="text-blue-100">{user?.email || user?.phone || "Aadya Student"}</p>
             <div className="flex flex-wrap gap-2 mt-2">
               <Badge className="bg-white/20 text-white border-white/30 border">
                 <GraduationCap size={12} className="mr-1" /> Student
               </Badge>
-              {user?.id && (
+              {academic.studentCode && (
                 <Badge className="bg-white/10 text-white/90 border-white/20 font-mono text-[11px]">
-                  ID: {user.id.slice(-8).toUpperCase()}
+                  ID: {academic.studentCode}
+                </Badge>
+              )}
+              {academic.primaryCourse && (
+                <Badge className="bg-white/25 text-white border-white/40 font-semibold text-[11px]">
+                  {academic.primaryCourse.name}
                 </Badge>
               )}
             </div>
@@ -135,12 +142,15 @@ export const StudentProfile: React.FC = () => {
         <Card className="border-border shadow-xs bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-foreground">
-              <User size={16} className="text-[#1769AA]" /> Personal Information
+              <User size={16} className="text-[#1769AA]" /> Personal & Enrollment Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {[
-              { label: "Full Name", value: user?.name },
+              { label: "Full Name", value: academic.studentName || user?.name },
+              { label: "Student Code / ID", value: academic.studentCode || user?.id },
+              { label: "Enrolled Program", value: academic.primaryCourse?.name || "Enrolled Course" },
+              { label: "Assigned Batch", value: academic.primaryBatch?.name || academic.primaryBatch?.code || "Current Batch" },
               { label: "Email", value: user?.email },
               { label: "Phone", value: user?.phone },
               { label: "Branch", value: user?.branchId ? `Branch ${user.branchId.slice(-4)}` : "Main Branch" },
@@ -164,18 +174,18 @@ export const StudentProfile: React.FC = () => {
             <div className="grid grid-cols-2 gap-3">
               <div className="p-3 bg-emerald-500/10 rounded-lg text-center border border-emerald-500/20">
                 <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">100%</p>
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Attendance</p>
+                <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">Active</p>
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Good Standing</p>
               </div>
               <div className="p-3 bg-blue-500/10 rounded-lg text-center border border-blue-500/20">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">Active</p>
-                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Enrolled</p>
+                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{academic.assignedCourses.length || 1}</p>
+                <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Enrolled Courses</p>
               </div>
               <div className="p-3 bg-amber-500/10 rounded-lg text-center border border-amber-500/20">
                 <Star className="h-5 w-5 text-amber-600 dark:text-amber-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-amber-700 dark:text-amber-300">Active</p>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Learning Status</p>
+                <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{academic.assignedModules.length || "—"}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Assigned Modules</p>
               </div>
               <div className="p-3 bg-purple-500/10 rounded-lg text-center border border-purple-500/20">
                 <Calendar className="h-5 w-5 text-purple-600 dark:text-purple-400 mx-auto mb-1" />

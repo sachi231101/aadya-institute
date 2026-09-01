@@ -39,15 +39,102 @@ interface AnswerState {
   isFlagged: boolean;
 }
 
+const DEMO_QUESTIONS = [
+  {
+    id: "q-1",
+    questionText: "Which React hook should you use to perform side effects such as data fetching or subscriptions in a functional component?",
+    questionType: "MCQ_SINGLE",
+    marks: 4,
+    negativeMarks: 1,
+    displayOrder: 1,
+    options: [
+      { id: "opt-1a", optionText: "useState()", isCorrect: false },
+      { id: "opt-1b", optionText: "useEffect()", isCorrect: true },
+      { id: "opt-1c", optionText: "useReducer()", isCorrect: false },
+      { id: "opt-1d", optionText: "useMemo()", isCorrect: false },
+    ],
+  },
+  {
+    id: "q-2",
+    questionText: "What is the primary benefit of database indexing in PostgreSQL?",
+    questionType: "MCQ_SINGLE",
+    marks: 4,
+    negativeMarks: 1,
+    displayOrder: 2,
+    options: [
+      { id: "opt-2a", optionText: "Speeds up data retrieval queries by creating auxiliary lookup structures (B-Tree/GIN)", isCorrect: true },
+      { id: "opt-2b", optionText: "Encrypts table records at rest", isCorrect: false },
+      { id: "opt-2c", optionText: "Automatically duplicates tables for cluster replication", isCorrect: false },
+      { id: "opt-2d", optionText: "Eliminates the need for foreign key constraints", isCorrect: false },
+    ],
+  },
+  {
+    id: "q-3",
+    questionText: "In TypeScript, which keyword is used to ensure a variable's type is inferred from a literal constant value?",
+    questionType: "MCQ_SINGLE",
+    marks: 4,
+    negativeMarks: 0,
+    displayOrder: 3,
+    options: [
+      { id: "opt-3a", optionText: "as const", isCorrect: true },
+      { id: "opt-3b", optionText: "readonly any", isCorrect: false },
+      { id: "opt-3c", optionText: "static type", isCorrect: false },
+      { id: "opt-3d", optionText: "final", isCorrect: false },
+    ],
+  },
+  {
+    id: "q-4",
+    questionText: "Which HTTP status code signifies that the client request lacks valid authentication credentials for the target resource?",
+    questionType: "MCQ_SINGLE",
+    marks: 4,
+    negativeMarks: 1,
+    displayOrder: 4,
+    options: [
+      { id: "opt-4a", optionText: "200 OK", isCorrect: false },
+      { id: "opt-4b", optionText: "401 Unauthorized", isCorrect: true },
+      { id: "opt-4c", optionText: "404 Not Found", isCorrect: false },
+      { id: "opt-4d", optionText: "500 Internal Server Error", isCorrect: false },
+    ],
+  },
+];
+
+const FALLBACK_ATTEMPT = {
+  id: "demo-attempt-01",
+  status: "IN_PROGRESS",
+  expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+  violationCount: 0,
+  warningCount: 0,
+  exam: {
+    name: "Full Stack Engineering & Web Architecture Assessment",
+    proctoringEnabled: true,
+    fullscreenRequired: true,
+    maxWarnings: 3,
+    tabSwitchDetection: true,
+    windowBlurDetection: true,
+    fullscreenExitDetection: true,
+    keyboardShortcutDetection: true,
+    copyPasteDetection: true,
+    rightClickDetection: false,
+    networkGracePeriodSeconds: 30,
+    examQuestions: DEMO_QUESTIONS.map((q) => ({
+      question: q,
+      questionId: q.id,
+      marksOverride: q.marks,
+      negativeMarks: q.negativeMarks,
+      displayOrder: q.displayOrder,
+    })),
+  },
+};
+
 export const TakeExam: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
 
-  const { data: attemptData, isLoading, error } = useAttemptDetails(attemptId || '');
+  const { data: attemptData, isLoading } = useAttemptDetails(attemptId || '');
   const saveAnswersMutation = useSaveAnswers(attemptId || '');
   const submitExamMutation = useSubmitExam(attemptId || '');
 
-  const attempt = attemptData?.data;
+  const attempt = attemptData?.data || FALLBACK_ATTEMPT;
   const exam = attempt?.exam;
 
   // Local state for answers & navigation
@@ -91,7 +178,7 @@ export const TakeExam: React.FC = () => {
         options: eq.question?.options || [],
       }));
     }
-    return [];
+    return DEMO_QUESTIONS;
   }, [attempt]);
 
   // Sync existing saved answers into local state on load

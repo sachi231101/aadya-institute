@@ -3,12 +3,21 @@ import { Star, MessageSquare } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useFeedbackByStudent } from "@/hooks/useFeedback";
 import { useAuthStore } from "@/store/auth.store";
+import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 
 export const StudentFeedback: React.FC = () => {
   const { user } = useAuthStore();
-  const resolvedStudentId = user?.studentId || "";
-  const { data: feedbackResponse, isLoading, isError, error } = useFeedbackByStudent(resolvedStudentId);
-  const feedbacks = feedbackResponse?.data || [];
+  const academic = useStudentAcademicAccess();
+  const resolvedStudentId = academic.studentId || user?.studentId || "";
+  const { data: feedbackResponse, isLoading } = useFeedbackByStudent(resolvedStudentId);
+  const rawFeedbacks = feedbackResponse?.data || [];
+
+  const feedbacks = React.useMemo(() => {
+    return rawFeedbacks.filter((fb: any) => {
+      if (!fb.classSession) return true;
+      return academic.isAuthorizedForSession(fb.classSession);
+    });
+  }, [rawFeedbacks, academic]);
 
   if (!resolvedStudentId) {
     return (

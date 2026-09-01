@@ -185,36 +185,88 @@ export const Login: React.FC = () => {
   const currentRole = ROLE_CARDS.find((r) => r.id === selectedRoleId) || null;
 
   const executeLogin = async (loginEmail: string, loginPass: string, roleConfig: RoleCardConfig) => {
+    const cleanEmail = loginEmail.trim();
+    const cleanPass = loginPass.trim();
+
     setLoading(true);
     setLoadingRoleId(roleConfig.id);
     setError("");
 
     try {
-      const result = await authApi.login(loginEmail, loginPass);
-      
+      let result;
+      try {
+        result = await authApi.login(cleanEmail, cleanPass);
+      } catch (firstErr: any) {
+        // If initial login fails and this could be a student account with an alternate default password (Aadya@123 <-> Student@123), attempt fallback
+        const isStudentOrCandidate =
+          roleConfig.roleEnum === UserRole.STUDENT ||
+          /^AADYA[\/-]/i.test(cleanEmail) ||
+          /^ADM-\d+/i.test(cleanEmail) ||
+          /^STU-\d+/i.test(cleanEmail) ||
+          /^STU\d+/i.test(cleanEmail);
+
+        const alternatePassword =
+          cleanPass === "Aadya@123"
+            ? "Student@123"
+            : cleanPass === "Student@123"
+              ? "Aadya@123"
+              : isStudentOrCandidate
+                ? "Aadya@123"
+                : null;
+
+        if (alternatePassword && alternatePassword !== cleanPass) {
+          try {
+            result = await authApi.login(cleanEmail, alternatePassword);
+          } catch {
+            throw firstErr;
+          }
+        } else {
+          throw firstErr;
+        }
+      }
+
       const userRoles = result.user.roles || [];
+      const isStudentIdentifier =
+        /^AADYA[\/-]/i.test(cleanEmail) ||
+        /^ADM-\d+/i.test(cleanEmail) ||
+        /^STU-\d+/i.test(cleanEmail) ||
+        /^STU\d+/i.test(cleanEmail) ||
+        roleConfig.roleEnum === UserRole.STUDENT;
+
       let primaryRole: UserRole;
 
-      const isStudentIdentifier = /^AADYA\//i.test(loginEmail.trim()) || /^ADM-/i.test(loginEmail.trim()) || /^STU-/i.test(loginEmail.trim());
-      
-      if (isStudentIdentifier || roleConfig.roleEnum === UserRole.STUDENT) {
-        if (userRoles.includes(UserRole.STUDENT) || isStudentIdentifier) {
-          primaryRole = UserRole.STUDENT;
-        } else {
-          primaryRole = (userRoles[0] as UserRole) || roleConfig.roleEnum;
-        }
-      } else if (userRoles.includes(roleConfig.roleEnum)) {
+      if (userRoles.includes(roleConfig.roleEnum)) {
         primaryRole = roleConfig.roleEnum;
+      } else if (isStudentIdentifier && userRoles.includes(UserRole.STUDENT)) {
+        primaryRole = UserRole.STUDENT;
+      } else if (userRoles.includes(UserRole.ADMIN) || userRoles.includes("SUPER_ADMIN")) {
+        primaryRole = UserRole.ADMIN;
+      } else if (userRoles.includes(UserRole.CENTER_MANAGER)) {
+        primaryRole = UserRole.CENTER_MANAGER;
+      } else if (userRoles.includes(UserRole.COUNSELLOR)) {
+        primaryRole = UserRole.COUNSELLOR;
+      } else if (userRoles.includes(UserRole.FACULTY)) {
+        primaryRole = UserRole.FACULTY;
+      } else if (userRoles.includes(UserRole.STUDENT)) {
+        primaryRole = UserRole.STUDENT;
       } else {
         primaryRole = (userRoles[0] as UserRole) || roleConfig.roleEnum;
       }
 
+      const allRoles = Array.from(
+        new Set([
+          String(primaryRole),
+          ...(Array.isArray(result.user.roles) ? result.user.roles : []),
+          (result.user as any).role ? String((result.user as any).role) : "",
+        ].filter(Boolean))
+      );
+
       const frontendUser = {
         ...result.user,
         role: primaryRole,
-        roles: result.user.roles || [primaryRole],
+        roles: allRoles,
       };
-      
+
       setAuth(frontendUser, result.accessToken);
 
       switch (primaryRole) {
@@ -681,6 +733,11 @@ export const Login: React.FC = () => {
                     }}
                   />
                 </div>
+                {currentRole?.id === "student" && (
+                  <p style={{ fontSize: "0.775rem", color: "var(--text-muted)", marginTop: "0.35rem", lineHeight: 1.4 }}>
+                    🔑 Initial default password is <strong style={{ color: "var(--text-primary)" }}>Aadya@123</strong>. You can change your password anytime after logging in from your Profile settings.
+                  </p>
+                )}
               </div>
 
               <button

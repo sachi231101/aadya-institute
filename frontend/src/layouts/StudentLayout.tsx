@@ -20,6 +20,7 @@ import {
   Briefcase,
   Award,
   ExternalLink,
+  MoreHorizontal,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
@@ -43,6 +44,7 @@ export const StudentLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileMoreOpen, setMobileMoreOpen] = useState(false);
 
   if (!token) {
     return <Navigate to="/login" replace />;
@@ -51,10 +53,6 @@ export const StudentLayout: React.FC = () => {
   const userRoles = (user?.roles || (user?.role ? [user.role] : [])).map((r: string) =>
     typeof r === "string" ? r.toUpperCase() : ""
   );
-
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
 
   // Allow Student, Admin, Super Admin, Center Manager, and Faculty to access the student portal / preview
   const isAllowed =
@@ -112,6 +110,13 @@ export const StudentLayout: React.FC = () => {
     { label: "My Certificates", icon: Award, path: "https://verify.aadyainstitution.com/", isExternal: true },
     { label: "Placement Portal", icon: Briefcase, path: "https://placement.aadyainstitution.com/", isExternal: true, badge: "NEW" },
     { label: "My Profile", icon: User, path: "/student/profile" },
+  ];
+
+  const mobileBottomTabs = [
+    { label: "Schedule", icon: Calendar, path: "/student/schedule" },
+    { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
+    { label: "Materials", icon: BookOpen, path: "/student/study-materials" },
+    { label: "Assignments", icon: FileText, path: "/student/assignments" },
   ];
 
   const isAiActive = location.pathname === "/student/ask-me";
@@ -303,6 +308,150 @@ export const StudentLayout: React.FC = () => {
         </div>
       )}
 
+      {/* ── Mobile "More" Bottom Sheet ────────────────────────────────────────── */}
+      {mobileMoreOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden flex-col justify-end animate-in fade-in duration-200">
+          <div 
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs" 
+            onClick={() => setMobileMoreOpen(false)} 
+          />
+          <div className="relative bg-card dark:bg-[#0E172A] border-t border-border rounded-t-3xl p-5 z-50 shadow-2xl space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-250">
+            <div className="flex items-center justify-between pb-2 border-b border-border/60">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                  <MoreHorizontal className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-foreground">More Student Services</h3>
+              </div>
+              <button 
+                onClick={() => setMobileMoreOpen(false)}
+                className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <Link
+                to="/student/exams"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Online Exams</span>
+                  <span className="text-[10px] text-purple-600 dark:text-purple-400 font-extrabold uppercase">PROCTORED</span>
+                </div>
+              </Link>
+
+              <Link
+                to="/student/recordings"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Recordings</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">Video Vault</span>
+                </div>
+              </Link>
+
+              <Link
+                to="/student/announcements"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Megaphone className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Announcements</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">Notices &amp; Alerts</span>
+                </div>
+              </Link>
+
+              <Link
+                to="/student/ask-me"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Ask Me AI</span>
+                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-extrabold">24/7 ASSIST</span>
+                </div>
+              </Link>
+
+              <a
+                href="https://verify.aadyainstitution.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <Award className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Certificates</span>
+                  <span className="text-[10px] text-muted-foreground font-medium">Verify Online</span>
+                </div>
+              </a>
+
+              <a
+                href="https://placement.aadyainstitution.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMobileMoreOpen(false)}
+                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
+              >
+                <div className="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
+                  <Briefcase className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="block">Placements</span>
+                  <span className="text-[10px] text-orange-600 font-extrabold">PORTAL</span>
+                </div>
+              </a>
+            </div>
+
+            <div className="pt-2 border-t border-border/60 flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  navigate("/student/profile");
+                }}
+                className="flex-1 rounded-xl text-xs font-bold gap-2"
+              >
+                <User className="w-4 h-4" />
+                <span>My Profile</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMobileMoreOpen(false);
+                  handleLogout();
+                }}
+                className="flex-1 rounded-xl text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/30 border-rose-200 dark:border-rose-900 gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>Logout</span>
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── Main Layout Body & Header ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
@@ -311,7 +460,7 @@ export const StudentLayout: React.FC = () => {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors"
+              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
               aria-label="Open mobile menu"
             >
               <Menu className="w-5 h-5" />
@@ -321,7 +470,7 @@ export const StudentLayout: React.FC = () => {
               <h1 className="text-sm lg:text-base font-bold text-foreground flex items-center gap-1.5">
                 Hello, {studentName}! 👋
               </h1>
-              <p className="text-xs text-muted-foreground font-medium hidden md:block">
+              <p className="text-xs text-muted-foreground font-medium hidden sm:block">
                 Here's your class schedule (Only assigned by your Counsellor)
               </p>
             </div>
@@ -392,10 +541,45 @@ export const StudentLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Main Outlet */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto bg-bg-primary">
+        {/* Main Outlet with mobile bottom padding so it never covers content */}
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 lg:pb-8 overflow-y-auto bg-bg-primary">
           <Outlet />
         </main>
+
+        {/* ── Fixed Bottom Mobile Navigation Bar (Matching App Screenshot) ─────── */}
+        <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-card/95 dark:bg-[#0B1120]/95 backdrop-blur-lg border-t border-border/70 px-2 py-2 shadow-2xl flex items-center justify-around select-none">
+          {mobileBottomTabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = location.pathname === tab.path;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+                  isActive
+                    ? "text-[#6366F1] dark:text-[#818CF8] font-black"
+                    : "text-muted-foreground hover:text-foreground font-medium"
+                }`}
+              >
+                <Icon className={`w-5 h-5 mb-1 transition-transform ${isActive ? "stroke-[2.5] scale-110" : "stroke-[1.8]"}`} />
+                <span className="text-[10px] tracking-tight">{tab.label}</span>
+              </Link>
+            );
+          })}
+
+          {/* More Action Sheet Button */}
+          <button
+            onClick={() => setMobileMoreOpen((prev) => !prev)}
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
+              mobileMoreOpen
+                ? "text-[#6366F1] dark:text-[#818CF8] font-black"
+                : "text-muted-foreground hover:text-foreground font-medium"
+            }`}
+          >
+            <MoreHorizontal className={`w-5 h-5 mb-1 transition-transform ${mobileMoreOpen ? "stroke-[2.5] scale-110" : "stroke-[1.8]"}`} />
+            <span className="text-[10px] tracking-tight">More</span>
+          </button>
+        </nav>
       </div>
     </div>
   );

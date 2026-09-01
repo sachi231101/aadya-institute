@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthStore } from "../../store/auth.store";
 import { useSessionStore } from "../../store/session.store";
 import { useStudentDashboard } from "../../hooks/useStudentDashboard";
+import { useStudentAcademicAccess } from "../../hooks/useStudentAcademicAccess";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 
 const formatSessionDate = (iso: string) => {
@@ -32,25 +33,38 @@ const formatSessionDate = (iso: string) => {
 
 export const StudentDashboard: React.FC = () => {
   const { user } = useAuthStore();
+  const academic = useStudentAcademicAccess();
   const { activeLiveClass } = useSessionStore();
   const { data: dashRes, isLoading } = useStudentDashboard();
 
   const dashboard = dashRes?.data;
-  const studentName = dashboard?.profile?.name || user?.name || "Student";
-  const courseName = dashboard?.course?.name || "Enrolled Academy Program";
-  const batchName = dashboard?.course?.batchName;
+  const studentName = academic.studentName || dashboard?.profile?.name || user?.name || "Student";
+  const courseName = academic.primaryCourse?.name || dashboard?.course?.name || "Enrolled Program";
+  const batchName = academic.primaryBatch?.name || dashboard?.course?.batchName || "Assigned Batch";
   const instructor = dashboard?.instructor;
   const attendanceSummary = dashboard?.attendanceSummary;
   const displayAttendance = Math.round(attendanceSummary?.attendancePercentage ?? 0);
   const hasAttendanceData = Boolean(attendanceSummary && attendanceSummary.totalClasses > 0);
   const pendingAssignments = dashboard?.counts?.pendingAssignments ?? 0;
 
-  const todaySessions = dashboard?.todaySessions ?? [];
-  const upcomingSessions = dashboard?.upcomingSessions ?? [];
-  const activeLiveSessions = dashboard?.activeLiveSessions ?? [];
+  const rawTodaySessions = dashboard?.todaySessions ?? [];
+  const rawUpcomingSessions = dashboard?.upcomingSessions ?? [];
+  const rawActiveLiveSessions = dashboard?.activeLiveSessions ?? [];
+
+  const todaySessions = useMemo(() => {
+    return rawTodaySessions.filter((s) => academic.isAuthorizedForSession(s));
+  }, [rawTodaySessions, academic]);
+
+  const upcomingSessions = useMemo(() => {
+    return rawUpcomingSessions.filter((s) => academic.isAuthorizedForSession(s));
+  }, [rawUpcomingSessions, academic]);
+
+  const activeLiveSessions = useMemo(() => {
+    return rawActiveLiveSessions.filter((s) => academic.isAuthorizedForSession(s));
+  }, [rawActiveLiveSessions, academic]);
 
   const currentLive = useMemo(() => {
-    if (activeLiveClass?.status === "LIVE") {
+    if (activeLiveClass?.status === "LIVE" && academic.isAuthorizedForCourse(activeLiveClass.courseName)) {
       return {
         courseName: activeLiveClass.courseName || courseName,
         facultyName: activeLiveClass.facultyName || instructor?.name || "Faculty",
@@ -68,7 +82,7 @@ export const StudentDashboard: React.FC = () => {
       time: "",
       meetUrl: live.meetingUrl,
     };
-  }, [activeLiveClass, activeLiveSessions, batchName, courseName, instructor?.name]);
+  }, [activeLiveClass, activeLiveSessions, academic, batchName, courseName, instructor?.name]);
 
   const isClassLive = Boolean(currentLive);
   const scheduleItems = [...todaySessions, ...upcomingSessions].slice(0, 6);
