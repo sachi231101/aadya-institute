@@ -508,31 +508,28 @@ export const StudentAttendance: React.FC = () => {
         <div className="flex items-center gap-1 bg-muted/60 p-1 rounded-xl border border-border">
           <button
             onClick={() => setActiveTab("list")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              activeTab === "list"
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === "list"
                 ? "bg-card text-primary shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             <Users className="h-3.5 w-3.5" /> Student List
           </button>
           <button
             onClick={() => setActiveTab("summary")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              activeTab === "summary"
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === "summary"
                 ? "bg-card text-primary shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             <TrendingUp className="h-3.5 w-3.5" /> Attendance Summary
           </button>
           <button
             onClick={() => setActiveTab("history")}
-            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-              activeTab === "history"
+            className={`flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${activeTab === "history"
                 ? "bg-card text-primary shadow-xs"
                 : "text-muted-foreground hover:text-foreground"
-            }`}
+              }`}
           >
             <Clock className="h-3.5 w-3.5" /> Attendance History
           </button>
@@ -543,41 +540,37 @@ export const StudentAttendance: React.FC = () => {
           <div className="flex items-center gap-1 bg-card p-1 rounded-xl border border-border shadow-2xs">
             <button
               onClick={() => setStatusFilter("ALL")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                statusFilter === "ALL"
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "ALL"
                   ? "bg-primary text-white shadow-xs"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-              }`}
+                }`}
             >
               All
             </button>
             <button
               onClick={() => setStatusFilter("PRESENT")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                statusFilter === "PRESENT"
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "PRESENT"
                   ? "bg-emerald-600 text-white shadow-xs"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-              }`}
+                }`}
             >
               Present
             </button>
             <button
               onClick={() => setStatusFilter("ABSENT")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                statusFilter === "ABSENT"
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "ABSENT"
                   ? "bg-rose-600 text-white shadow-xs"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-              }`}
+                }`}
             >
               Absent
             </button>
             <button
               onClick={() => setStatusFilter("EXCUSED")}
-              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                statusFilter === "EXCUSED"
+              className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${statusFilter === "EXCUSED"
                   ? "bg-amber-600 text-white shadow-xs"
                   : "text-muted-foreground hover:bg-muted/40 hover:text-foreground"
-              }`}
+                }`}
             >
               Excused
             </button>
@@ -606,9 +599,8 @@ export const StudentAttendance: React.FC = () => {
         </div>
         <div className="flex items-center gap-1.5 text-xs font-bold">
           <span
-            className={`h-2 w-2 rounded-full ${
-              autoSaveState === "saved" ? "bg-emerald-500" : "bg-amber-500 animate-ping"
-            }`}
+            className={`h-2 w-2 rounded-full ${autoSaveState === "saved" ? "bg-emerald-500" : "bg-amber-500 animate-ping"
+              }`}
           />
           <span className={autoSaveState === "saved" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400"}>
             {autoSaveState === "saved" ? "All changes saved" : "Saving changes..."}
@@ -663,9 +655,8 @@ export const StudentAttendance: React.FC = () => {
                     return (
                       <TableRow
                         key={stu.id}
-                        className={`border-b border-border/70 hover:bg-muted/30 transition-colors ${
-                          isSelected ? "bg-primary/10" : ""
-                        }`}
+                        className={`border-b border-border/70 hover:bg-muted/30 transition-colors ${isSelected ? "bg-primary/10" : ""
+                          }`}
                       >
                         {/* Checkbox */}
                         <TableCell className="text-center">
@@ -711,11 +702,10 @@ export const StudentAttendance: React.FC = () => {
                             {/* Present */}
                             <button
                               onClick={() => handleStatusChange(stu.id, "PRESENT")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                stu.status === "PRESENT"
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${stu.status === "PRESENT"
                                   ? "bg-emerald-600 text-white shadow-emerald-500/20 shadow-md ring-2 ring-emerald-600/30"
                                   : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20"
-                              }`}
+                                }`}
                             >
                               <Check className="h-3.5 w-3.5" />
                               <span>Present</span>
@@ -724,11 +714,10 @@ export const StudentAttendance: React.FC = () => {
                             {/* Absent */}
                             <button
                               onClick={() => handleStatusChange(stu.id, "ABSENT")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                stu.status === "ABSENT"
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${stu.status === "ABSENT"
                                   ? "bg-rose-600 text-white shadow-rose-500/20 shadow-md ring-2 ring-rose-600/30"
                                   : "bg-rose-500/10 text-rose-600 dark:text-rose-400 hover:bg-rose-500/20 border border-rose-500/20"
-                              }`}
+                                }`}
                             >
                               <XCircle className="h-3.5 w-3.5" />
                               <span>Absent</span>
@@ -737,11 +726,10 @@ export const StudentAttendance: React.FC = () => {
                             {/* Excused */}
                             <button
                               onClick={() => handleStatusChange(stu.id, "EXCUSED")}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                stu.status === "EXCUSED"
+                              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${stu.status === "EXCUSED"
                                   ? "bg-amber-500 text-white shadow-amber-500/20 shadow-md ring-2 ring-amber-500/30"
                                   : "bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20"
-                              }`}
+                                }`}
                             >
                               <Clock className="h-3.5 w-3.5" />
                               <span>Excused</span>

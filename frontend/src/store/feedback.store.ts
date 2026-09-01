@@ -29,26 +29,71 @@ interface FeedbackStore {
   getFacultyAverageRating: (facultyName: string) => { average: number; count: number };
 }
 
-const STORAGE_KEY = "aadya_class_feedbacks_v3";
+const STORAGE_KEY = "aadya_class_feedbacks_v4";
 
 const INITIAL_FEEDBACKS: ClassFeedbackItem[] = [
+  {
+    id: "fb-rk-101",
+    sessionId: "sc-rk-101",
+    courseName: "Full Stack Web Development",
+    batchCode: "FSWD-2026",
+    facultyName: "Ramesh Kumar",
+    classDate: "2026-08-18",
+    classTime: "09:00 AM – 11:00 AM",
+    studentId: "std-001",
+    studentName: "Rahul Verma",
+    rating: 5.0,
+    ratingLabel: "Excellent",
+    teachingRating: 5,
+    understandingRating: 5,
+    overallExperienceRating: 5,
+    classExperienceRating: 5,
+    facultyRating: 5,
+    teachingQuality: "Excellent",
+    comments: "Excellent session on React state management and hooks. The real-world examples were super clear!",
+    submittedAt: "18 Aug 2026, 11:05 AM",
+  },
+  {
+    id: "fb-rk-102",
+    sessionId: "sc-rk-102",
+    courseName: "Node.js & Express Architecture",
+    batchCode: "BE-2026",
+    facultyName: "Ramesh Kumar",
+    classDate: "2026-08-19",
+    classTime: "02:00 PM – 04:00 PM",
+    studentId: "std-002",
+    studentName: "Priya Sharma",
+    rating: 4.7,
+    ratingLabel: "Very Good",
+    teachingRating: 5,
+    understandingRating: 4,
+    overallExperienceRating: 5,
+    classExperienceRating: 5,
+    facultyRating: 5,
+    teachingQuality: "Excellent",
+    comments: "Great explanation of middleware chaining and JWT token validation. Practical lab was very helpful.",
+    submittedAt: "19 Aug 2026, 04:12 PM",
+  },
   {
     id: "fb-re-104",
     sessionId: "sc-re-104",
     courseName: "React Development Basics",
     batchCode: "RE-104",
     facultyName: "Adithya HM",
-    classDate: "2025-05-27",
+    classDate: "2026-08-20",
     classTime: "07:00 PM – 09:00 PM",
     studentId: "std-current",
     studentName: "Rahul Verma",
     rating: 4.5,
     ratingLabel: "Very Good",
+    teachingRating: 5,
+    understandingRating: 4,
+    overallExperienceRating: 5,
     classExperienceRating: 5,
     facultyRating: 4,
     teachingQuality: "Excellent",
     comments: "Great live coding session on React Hooks, useEffect dependency arrays, and state optimization.",
-    submittedAt: "27 May 2025, 09:10 PM",
+    submittedAt: "20 Aug 2026, 09:10 PM",
   },
 ];
 
@@ -56,7 +101,10 @@ const loadInitialFeedbacks = (): ClassFeedbackItem[] => {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.error("Failed to load feedback from localStorage", e);

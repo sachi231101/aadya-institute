@@ -130,7 +130,7 @@ export const TakeExam: React.FC = () => {
   const { attemptId } = useParams<{ attemptId: string }>();
   const navigate = useNavigate();
 
-  const { data: attemptData, isLoading } = useAttemptDetails(attemptId || '');
+  const { data: attemptData, isLoading, error } = useAttemptDetails(attemptId || '');
   const saveAnswersMutation = useSaveAnswers(attemptId || '');
   const submitExamMutation = useSubmitExam(attemptId || '');
 
