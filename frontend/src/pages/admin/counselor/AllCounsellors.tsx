@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Users,
   Plus,
@@ -14,22 +15,31 @@ import {
   CheckCircle2,
   Loader2,
   ShieldCheck,
-  CheckSquare,
-  Square,
   Sparkles,
 } from "lucide-react";
-import { useCounselorStore } from "@/store/counselor.store";
+import {
+  useAdminUsers,
+  useCreateUser,
+  useUpdateUser,
+  useUpdateUserStatus,
+  useDeleteUser,
+  useUpdateUserPermissions,
+} from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
-import { useUpdateUserPermissions } from "@/hooks/useUsers";
 import { useLeads } from "@/hooks/useLeads";
 import type { Lead } from "@/services/leads.api";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
+import { usersApi, type UserResponse } from "@/services/users.api";
+import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
 import {
-  COUNSELLOR_MODULE_OPTIONS,
-  ALL_COUNSELLOR_MODULE_KEYS,
-} from "@/constants/module-permissions";
+  buildPermissionsFromAccess,
+  permissionsToAccessState,
+  createDefaultAccessState,
+  type ItemAccessState,
+  type PermissionModuleDefinition,
+} from "@/utils/permission-utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -59,15 +69,27 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
+const mapUserStatus = (status: string): CounselorStatus => {
+  if (status === "INACTIVE") return "INACTIVE";
+  if (status === "BLOCKED") return "BLOCKED";
+  return "ACTIVE";
+};
+
+const toCounselor = (u: UserResponse): Counselor => ({
+  id: u.id,
+  name: u.name,
+  employeeCode: `CNS-${u.id.slice(-4).toUpperCase()}`,
+  email: u.email || "",
+  phone: u.phone || "",
+  branchId: u.branchId || "",
+  branchName: u.branch?.name || "—",
+  assignedLeadsCount: 0,
+  convertedLeadsCount: 0,
+  status: mapUserStatus(u.status),
+  createdAt: u.createdAt,
+});
+
 export const AllCounsellors: React.FC = () => {
-  const {
-    counselors,
-    isLoading,
-    fetchCounselors,
-    addCounselor,
-    updateCounselor,
-    deleteCounselor,
-  } = useCounselorStore();
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
@@ -75,6 +97,35 @@ export const AllCounsellors: React.FC = () => {
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
+
+  const counsellorBranchFilter = isCenterManager
+    ? userBranchId || undefined
+    : selectedBranchId === "ALL" || !selectedBranchId
+      ? undefined
+      : selectedBranchId;
+
+  const {
+    data: counsellorsResponse,
+    isLoading,
+    refetch: refetchCounsellors,
+  } = useAdminUsers({ role: "COUNSELLOR", limit: 100, branchId: counsellorBranchFilter });
+
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const updateStatusMutation = useUpdateUserStatus();
+  const deleteUserMutation = useDeleteUser();
+  const updatePermissionsMutation = useUpdateUserPermissions();
+
+  const { data: catalogRes } = useQuery({
+    queryKey: ["permission-catalog", "COUNSELLOR"],
+    queryFn: () => usersApi.getPermissionCatalog("COUNSELLOR"),
+  });
+  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
+
+  const counselors = useMemo(
+    () => (counsellorsResponse?.data || []).map((u) => toCounselor(u)),
+    [counsellorsResponse]
+  );
 
   const leadsBranchId = isCenterManager
     ? userBranchId || undefined
@@ -84,14 +135,6 @@ export const AllCounsellors: React.FC = () => {
 
   const { data: leadsResponse } = useLeads({ limit: 500, branchId: leadsBranchId });
   const allLeads: Lead[] = (leadsResponse?.data as Lead[]) || [];
-
-  useEffect(() => {
-    if (isCenterManager) {
-      fetchCounselors(userBranchId || undefined);
-    } else {
-      fetchCounselors(selectedBranchId === "ALL" ? undefined : selectedBranchId);
-    }
-  }, [isCenterManager, userBranchId, selectedBranchId, fetchCounselors]);
 
   const counselorsWithCounts = useMemo(() => {
     return counselors.map((c) => {
@@ -120,10 +163,13 @@ export const AllCounsellors: React.FC = () => {
   const [createError, setCreateError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Module permissions state (create)
-  const [selectedModules, setSelectedModules] = useState<string[]>([...ALL_COUNSELLOR_MODULE_KEYS]);
-  const toggleCreateModule = (key: string) =>
-    setSelectedModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
+  const [createItemAccess, setCreateItemAccess] = useState<Record<string, ItemAccessState>>({});
+
+  useEffect(() => {
+    if (catalog.length > 0 && Object.keys(createItemAccess).length === 0) {
+      setCreateItemAccess(createDefaultAccessState(catalog));
+    }
+  }, [catalog, createItemAccess]);
 
   // Edit Modal State
   const [editCounselor, setEditCounselor] = useState<Counselor | null>(null);
@@ -132,10 +178,17 @@ export const AllCounsellors: React.FC = () => {
   const [editPhone, setEditPhone] = useState("");
   const [editBranchId, setEditBranchId] = useState("");
   const [editStatus, setEditStatus] = useState<CounselorStatus>("ACTIVE");
-  const [editModules, setEditModules] = useState<string[]>([...ALL_COUNSELLOR_MODULE_KEYS]);
-  const toggleEditModule = (key: string) =>
-    setEditModules((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
-  const updatePermissionsMutation = useUpdateUserPermissions();
+  const [editItemAccess, setEditItemAccess] = useState<Record<string, ItemAccessState>>({});
+  const [editPermissions, setEditPermissions] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!editCounselor || catalog.length === 0) return;
+    if (editPermissions) {
+      setEditItemAccess(permissionsToAccessState(editPermissions, catalog));
+    } else {
+      setEditItemAccess(createDefaultAccessState(catalog));
+    }
+  }, [editCounselor, catalog, editPermissions]);
 
   // Delete Modal State
   const [deleteCounselorId, setDeleteCounselorId] = useState<string | null>(null);
@@ -175,27 +228,30 @@ export const AllCounsellors: React.FC = () => {
     setCreateError(null);
     setIsSubmitting(true);
 
-    const selectedBranch = branches.find((b) => b.id === branchId);
-
-    const created = await addCounselor({
-      name,
-      email,
-      password: password || undefined,
-      phone,
-      branchId: branchId || (branches[0]?.id || ""),
-      branchName: selectedBranch?.name || branches[0]?.name || "—",
-      status,
-      modulePermissions: selectedModules,
-    });
-
-    setIsSubmitting(false);
-
-    if (created) {
+    try {
+      const permissions = buildPermissionsFromAccess(createItemAccess, catalog);
+      await createUserMutation.mutateAsync({
+        name,
+        email,
+        password: password || "Password@123",
+        phone,
+        roles: ["COUNSELLOR"],
+        branchId: branchId || branches[0]?.id || undefined,
+        permissions,
+      });
+      await refetchCounsellors();
       setShowCreateModal(false);
       resetCreateForm();
-    } else {
-      const storeErr = useCounselorStore.getState().error;
-      setCreateError(storeErr || "Failed to create counsellor.");
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string; errors?: { message?: string }[] } } };
+      const backendErr = apiErr.response?.data;
+      let errMsg = backendErr?.message || "Failed to create counsellor.";
+      if (backendErr?.errors?.length) {
+        errMsg = backendErr.errors.map((e) => e.message).filter(Boolean).join(". ");
+      }
+      setCreateError(errMsg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -207,7 +263,11 @@ export const AllCounsellors: React.FC = () => {
     setBranchId(isCenterManager && userBranchId ? userBranchId : (branches[0]?.id || ""));
     setStatus("ACTIVE");
     setCreateError(null);
-    setSelectedModules([...ALL_COUNSELLOR_MODULE_KEYS]);
+    if (catalog.length > 0) {
+      setCreateItemAccess(createDefaultAccessState(catalog));
+    } else {
+      setCreateItemAccess({});
+    }
   };
 
   const handleOpenEditModal = async (c: Counselor) => {
@@ -217,18 +277,18 @@ export const AllCounsellors: React.FC = () => {
     setEditPhone(c.phone);
     setEditBranchId(c.branchId);
     setEditStatus(c.status === "BLOCKED" ? "INACTIVE" : c.status);
+    setEditItemAccess({});
+    setEditPermissions(null);
 
-    // Fetch the user's current module permissions from the API
     try {
-      const { usersApi } = await import("@/services/users.api");
       const res = await usersApi.getUserById(c.id);
-      if (res.success && res.data?.modulePermissions?.length > 0) {
-        setEditModules(res.data.modulePermissions);
+      if (res.success && res.data?.permissions?.length) {
+        setEditPermissions(res.data.permissions);
       } else {
-        setEditModules([...ALL_COUNSELLOR_MODULE_KEYS]);
+        setEditPermissions([]);
       }
     } catch {
-      setEditModules([...ALL_COUNSELLOR_MODULE_KEYS]);
+      setEditPermissions([]);
     }
   };
 
@@ -236,32 +296,48 @@ export const AllCounsellors: React.FC = () => {
     e.preventDefault();
     if (!editCounselor || !editName || !editEmail) return;
 
-    await updateCounselor(editCounselor.id, {
-      name: editName,
-      email: editEmail,
-      phone: editPhone,
-      branchId: editBranchId,
-      branchName: branches.find((b) => b.id === editBranchId)?.name,
-      status: editStatus,
-    });
-
-    // Also update module permissions
     try {
+      await updateUserMutation.mutateAsync({
+        id: editCounselor.id,
+        data: {
+          name: editName,
+          email: editEmail,
+          phone: editPhone,
+          branchId: editBranchId,
+        },
+      });
+
+      if (editStatus !== editCounselor.status) {
+        await updateStatusMutation.mutateAsync({
+          id: editCounselor.id,
+          data: {
+            status: editStatus === "ACTIVE" ? "ACTIVE" : editStatus === "BLOCKED" ? "BLOCKED" : "INACTIVE",
+          },
+        });
+      }
+
+      const permissions = buildPermissionsFromAccess(editItemAccess, catalog);
       await updatePermissionsMutation.mutateAsync({
         id: editCounselor.id,
-        data: { modulePermissions: editModules },
+        data: { permissions },
       });
-    } catch {
-      // Permission update failed — still close modal
-    }
 
-    setEditCounselor(null);
+      await refetchCounsellors();
+      setEditCounselor(null);
+      setEditPermissions(null);
+    } catch {
+      // Keep modal open on failure
+    }
   };
 
   const handleDeleteConfirm = async () => {
     if (deleteCounselorId) {
-      await deleteCounselor(deleteCounselorId);
-      setDeleteCounselorId(null);
+      try {
+        await deleteUserMutation.mutateAsync(deleteCounselorId);
+        await refetchCounsellors();
+      } finally {
+        setDeleteCounselorId(null);
+      }
     }
   };
 
@@ -614,76 +690,23 @@ export const AllCounsellors: React.FC = () => {
                 </div>
               </div>
 
-              {/* ─── Module Permissions Section ─── */}
               <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800">Module Permissions</span>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                    <ShieldCheck className="h-3.5 w-3.5" />
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedModules([...ALL_COUNSELLOR_MODULE_KEYS])}
-                      className="text-[11px] font-bold text-[#1769AA] hover:underline cursor-pointer"
-                    >
-                      Select All
-                    </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setSelectedModules([])}
-                      className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  </div>
+                  <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
                 </div>
                 <div className="px-2.5 py-1.5 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-800 flex items-center gap-1.5 mb-3">
                   <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                  <span>Only checked modules will be visible in the Counsellor portal sidebar.</span>
+                  <span>By default, new counsellors see only Dashboard, ASK ME, and Settings. Enable Show/Editable to grant module access.</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                  {COUNSELLOR_MODULE_OPTIONS.map((mod) => {
-                    const isChecked = selectedModules.includes(mod.key);
-                    const Icon = mod.icon;
-                    return (
-                      <div
-                        key={mod.key}
-                        onClick={() => toggleCreateModule(mod.key)}
-                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked
-                          ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
-                          : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
-                          }`}
-                      >
-                        <div
-                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
-                            }`}
-                        >
-                          {isChecked && (
-                            <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </div>
-                        <div
-                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
-                            }`}
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-xs font-bold block truncate ${isChecked ? "text-slate-900" : "text-slate-600"}`}>
-                            {mod.label}
-                          </span>
-                          <p className="text-[10px] text-slate-400 truncate">{mod.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <PermissionMatrix
+                  role="COUNSELLOR"
+                  value={createItemAccess}
+                  onChange={setCreateItemAccess}
+                  disabled={isSubmitting}
+                />
               </div>
             </div>
 
@@ -802,72 +825,18 @@ export const AllCounsellors: React.FC = () => {
                 </div>
               </div>
 
-              {/* ─── Module Permissions Section ─── */}
               <div className="border-t border-slate-200 pt-4">
-                <div className="flex items-center justify-between mb-2.5">
-                  <div className="flex items-center gap-2">
-                    <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                    </div>
-                    <span className="text-xs font-bold text-slate-800">Module Permissions</span>
+                <div className="flex items-center gap-2 mb-2.5">
+                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                    <ShieldCheck className="h-3.5 w-3.5" />
                   </div>
-                  <div className="flex gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditModules([...ALL_COUNSELLOR_MODULE_KEYS])}
-                      className="text-[11px] font-bold text-[#1769AA] hover:underline cursor-pointer"
-                    >
-                      Select All
-                    </button>
-                    <span className="text-slate-300">|</span>
-                    <button
-                      type="button"
-                      onClick={() => setEditModules([])}
-                      className="text-[11px] font-bold text-slate-500 hover:underline cursor-pointer"
-                    >
-                      Clear
-                    </button>
-                  </div>
+                  <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[220px] overflow-y-auto pr-1">
-                  {COUNSELLOR_MODULE_OPTIONS.map((mod) => {
-                    const isChecked = editModules.includes(mod.key);
-                    const Icon = mod.icon;
-                    return (
-                      <div
-                        key={mod.key}
-                        onClick={() => toggleEditModule(mod.key)}
-                        className={`group flex items-center gap-2.5 p-2.5 rounded-xl border cursor-pointer select-none transition-all ${isChecked
-                          ? "bg-blue-50/50 border-[#1769AA]/40 shadow-2xs"
-                          : "bg-slate-50/60 border-slate-200 opacity-70 hover:opacity-100"
-                          }`}
-                      >
-                        <div
-                          className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 transition-colors ${isChecked ? "bg-[#1769AA] border-[#1769AA] text-white" : "border-slate-300 bg-white"
-                            }`}
-                        >
-                          {isChecked && (
-                            <svg className="h-2.5 w-2.5 stroke-current" fill="none" viewBox="0 0 24 24" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                              <polyline points="20 6 9 17 4 12" />
-                            </svg>
-                          )}
-                        </div>
-                        <div
-                          className={`h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${isChecked ? "bg-blue-100 text-[#1769AA]" : "bg-slate-100 text-slate-400"
-                            }`}
-                        >
-                          <Icon className="h-3.5 w-3.5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className={`text-xs font-bold block truncate ${isChecked ? "text-slate-900" : "text-slate-600"}`}>
-                            {mod.label}
-                          </span>
-                          <p className="text-[10px] text-slate-400 truncate">{mod.description}</p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <PermissionMatrix
+                  role="COUNSELLOR"
+                  value={editItemAccess}
+                  onChange={setEditItemAccess}
+                />
               </div>
             </div>
 

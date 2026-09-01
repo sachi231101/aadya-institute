@@ -207,4 +207,16 @@ export const leadsApi = {
     const response = await api.get("/leads/dashboard/follow-ups", { params });
     return response.data;
   },
+
+  getCallHistory: async (params?: {
+    page?: number;
+    limit?: number;
+    branchId?: string;
+    leadId?: string;
+    studentId?: string;
+    status?: string;
+  }) => {
+    const response = await api.get("/leads/call-history", { params });
+    return response.data;
+  },
 };

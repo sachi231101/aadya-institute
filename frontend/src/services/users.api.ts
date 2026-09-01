@@ -50,6 +50,7 @@ export interface CreateUserPayload {
   roles: string[];
   branchId?: string;
   modulePermissions?: string[];
+  permissions?: string[];
 }
 
 export interface UpdateUserPayload {
@@ -64,7 +65,8 @@ export interface UpdateUserStatusPayload {
 }
 
 export interface UpdateUserPermissionsPayload {
-  modulePermissions: string[];
+  modulePermissions?: string[];
+  permissions?: string[];
 }
 
 export const usersApi = {
@@ -103,6 +105,11 @@ export const usersApi = {
 
   deleteUser: async (id: string): Promise<SingleResponse<{ id: string; deleted: boolean }>> => {
     const response = await api.delete<SingleResponse<{ id: string; deleted: boolean }>>(`/users/${id}`);
+    return response.data;
+  },
+
+  getPermissionCatalog: async (role: "CENTER_MANAGER" | "COUNSELLOR") => {
+    const response = await api.get("/users/permission-catalog", { params: { role } });
     return response.data;
   },
 };

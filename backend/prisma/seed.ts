@@ -239,6 +239,26 @@ async function main() {
     { name: "question_bank.update", description: "Update question bank" },
     { name: "question_bank.delete", description: "Delete question bank" },
     { name: "exam.take", description: "Take authorized online examination" },
+
+    // Documents
+    { name: "document.read", description: "View documents" },
+    { name: "document.create", description: "Upload document metadata" },
+    { name: "document.update", description: "Update document metadata" },
+    { name: "document.delete", description: "Delete document" },
+    { name: "document.verify", description: "Verify or reject documents" },
+
+    // Placement
+    { name: "placement.read", description: "View placement data" },
+    { name: "placement.create", description: "Create placement records" },
+    { name: "placement.update", description: "Update placement records" },
+    { name: "placement.delete", description: "Delete placement records" },
+
+    // Email
+    { name: "email.read", description: "View email templates and logs" },
+    { name: "email.manage", description: "Manage email templates and send test emails" },
+
+    // Audit
+    { name: "audit.read", description: "View audit logs" },
   ];
 
   const permissions: Record<string, any> = {};
@@ -546,6 +566,23 @@ async function main() {
         permissionId: perm.id,
         grantedById: adminUser.id,
       },
+    });
+  }
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // BILLING PLANS
+  // ───────────────────────────────────────────────────────────────────────────
+  console.log("💳 Seeding Billing Plans...");
+  const billingPlans = [
+    { name: "Starter", code: "STARTER", price: 4999, billingCycle: "MONTHLY" },
+    { name: "Professional", code: "PROFESSIONAL", price: 9999, billingCycle: "MONTHLY" },
+    { name: "Enterprise", code: "ENTERPRISE", price: 99999, billingCycle: "YEARLY" },
+  ];
+  for (const plan of billingPlans) {
+    await prisma.billingPlan.upsert({
+      where: { code: plan.code },
+      update: { name: plan.name, price: plan.price, billingCycle: plan.billingCycle },
+      create: plan,
     });
   }
 

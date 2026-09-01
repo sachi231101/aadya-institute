@@ -33,6 +33,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
 import { InstallAppButton } from "@/components/common/InstallAppButton"
+import { COUNSELOR_NAV_PERMISSION_KEYS, canAccessNavUrl } from "@/constants/nav-permissions"
 
 interface CounselorNavItem {
   title: string;
@@ -57,12 +58,13 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "My Targets & Rewards",
+    title: "Target & Incentive",
     url: "/counselor/performance",
     icon: Award,
+    moduleKey: "targets",
   },
   {
-    title: "Leads & AI Calling",
+    title: "Lead Management",
     url: "/counselor/leads",
     icon: Bot,
     moduleKey: "leads_ai_calling",
@@ -73,7 +75,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Admissions",
+    title: "Admission Management",
     url: "/counselor/admissions/all",
     icon: Target,
     moduleKey: "admissions",
@@ -84,7 +86,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Students",
+    title: "Student Management",
     url: "/counselor/students/all",
     icon: GraduationCap,
     moduleKey: "students",
@@ -94,7 +96,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Faculty",
+    title: "Faculty Management",
     url: "/counselor/faculty/all",
     icon: Users,
     moduleKey: "faculty",
@@ -105,7 +107,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Batches & Timetable",
+    title: "Batch Management",
     url: "/counselor/batches",
     icon: Layers,
     moduleKey: "courses",
@@ -115,7 +117,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Fees",
+    title: "Fee Management",
     url: "/counselor/fees/payments",
     icon: CreditCard,
     moduleKey: "fees",
@@ -126,7 +128,7 @@ const rawCounselorNavItems: CounselorNavItem[] = [
     ],
   },
   {
-    title: "Reports",
+    title: "Report Management",
     url: "/counselor/reports/students",
     icon: BarChart3,
     moduleKey: "reports",
@@ -158,18 +160,47 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
 
     const grantedModules = user?.modulePermissions;
     const grantedPermissions = user?.permissions;
+    const isAdmin = user?.roles?.includes("ADMIN");
 
-    return rawCounselorNavItems.filter((item) => {
-      // Items with no moduleKey are core items (ASK ME, Dashboard, Settings)
+    return rawCounselorNavItems
+      .map((item) => {
+        if (!item.items?.length) {
+          if (item.moduleKey === "targets") {
+            const visible = canAccessNavUrl(
+              item.url,
+              grantedPermissions,
+              grantedModules,
+              COUNSELOR_NAV_PERMISSION_KEYS,
+              isAdmin
+            );
+            return visible ? item : { ...item, _hidden: true };
+          }
+          return item;
+        }
+        const visibleItems = item.items.filter((sub) =>
+          canAccessNavUrl(sub.url, grantedPermissions, grantedModules, COUNSELOR_NAV_PERMISSION_KEYS, isAdmin)
+        );
+        return { ...item, items: visibleItems };
+      })
+      .filter((item) => {
+      if ((item as { _hidden?: boolean })._hidden) return false;
       if (!item.moduleKey) return true;
+      if (item.items && item.items.length === 0) return false;
 
-      // If user has modulePermissions list, check direct inclusion
+      if (grantedPermissions?.length) {
+        if (item.items?.length) {
+          return item.items.some((sub) =>
+            canAccessNavUrl(sub.url, grantedPermissions, grantedModules, COUNSELOR_NAV_PERMISSION_KEYS, isAdmin)
+          );
+        }
+        return canAccessNavUrl(item.url, grantedPermissions, grantedModules, COUNSELOR_NAV_PERMISSION_KEYS, isAdmin);
+      }
+
       if (grantedModules && Array.isArray(grantedModules)) {
         return grantedModules.includes(item.moduleKey);
       }
 
-      // If no explicit permissions array set yet on user object, show all (backward compatible)
-      return true;
+      return false;
     });
   }, [user]);
 

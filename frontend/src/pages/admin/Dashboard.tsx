@@ -28,12 +28,14 @@ import { useStudentReport, useFinancialReport, useFacultyReport } from "@/hooks/
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
 import { useLeadDashboard } from "@/hooks/useLeads";
 import { usePayments } from "@/hooks/useFees";
+import { usePlacementSummary } from "@/hooks/usePlacement";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { ROUTES } from "@/constants/routes";
 
 import { useNotificationStore } from "@/store/notification.store";
 
@@ -59,6 +61,7 @@ export const AdminDashboard: React.FC = () => {
   const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
   const { data: scheduleSummary, isLoading: isScheduleLoading } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
+  const { data: placementSummary } = usePlacementSummary();
 
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
@@ -219,18 +222,18 @@ export const AdminDashboard: React.FC = () => {
       {/* 1. PAGE HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#0A2540]">Admin Executive Dashboard</h2>
+          <h2 className="text-2xl font-bold tracking-tight text-[#0A2540]">Dashboard Overview</h2>
           <p className="text-sm text-slate-500">
-            Full administrative control across all Aadya Institute branches, center managers, and academy operations.
+            ERP module hub — leads, admissions, students, schedule, fees, placement, and operations at a glance.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
             className="bg-[#1769AA] hover:bg-[#13568c] text-white font-bold text-xs gap-1.5 shadow-sm"
           >
-            <Building2 className="h-4 w-4" /> Add New Branch
+            <Building2 className="h-4 w-4" /> Manage Branches
           </Button>
         </div>
       </div>
@@ -362,6 +365,37 @@ export const AdminDashboard: React.FC = () => {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* ERP Module Quick Access */}
+      <div className="pt-2">
+        <h3 className="text-sm font-bold text-foreground mb-3">Module Quick Access</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+          {[
+            { label: "Leads", path: ROUTES.ADMIN.LEADS.ROOT, count: kpiTotalLeads },
+            { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: kpiTotalStudents },
+            { label: "Students", path: ROUTES.ADMIN.STUDENTS.ALL, count: kpiTotalStudents },
+            { label: "Schedule", path: ROUTES.ADMIN.SCHEDULE.CLASSES, count: scheduleSummary?.todayClasses ?? 0 },
+            { label: "Fees", path: ROUTES.ADMIN.FEES.PENDING, count: financialReport?.summary?.totalPending ? "Pending" : 0 },
+            { label: "Placement", path: ROUTES.ADMIN.PLACEMENT.ELIGIBLE, count: placementSummary?.eligibleCount ?? 0 },
+            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: "→" },
+            { label: "Reports", path: ROUTES.ADMIN.REPORTS.STUDENTS, count: "→" },
+            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "→" },
+            { label: "Counsellors", path: ROUTES.ADMIN.COUNSELLORS.ALL, count: "→" },
+            { label: "Batches", path: ROUTES.ADMIN.BATCHES.ALL, count: kpiActiveBatches },
+            { label: "Administration", path: ROUTES.ADMIN.ADMINISTRATION.ORGANIZATION, count: apiBranches.length },
+          ].map((mod) => (
+            <button
+              key={mod.label}
+              type="button"
+              onClick={() => navigate(mod.path)}
+              className="text-left p-3 rounded-xl border border-border bg-card hover:bg-blue-50/50 hover:border-blue-200 transition-all"
+            >
+              <p className="text-xs font-bold text-foreground">{mod.label}</p>
+              <p className="text-lg font-extrabold text-[#1769AA] mt-1">{mod.count}</p>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 3. MAIN SECTION - BRANCH REVENUE PERFORMANCE */}

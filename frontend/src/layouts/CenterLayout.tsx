@@ -19,6 +19,7 @@ import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
+import { PortalRouteGuard } from "@/components/permissions/PortalRouteGuard";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -176,7 +177,9 @@ export const CenterLayout: React.FC = () => {
           </header>
 
           <main className="flex-1 overflow-auto bg-bg-primary">
-            <Outlet />
+            <PortalRouteGuard portal="center">
+              <Outlet />
+            </PortalRouteGuard>
           </main>
         </div>
       </div>

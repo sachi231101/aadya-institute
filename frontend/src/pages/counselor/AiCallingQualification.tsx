@@ -200,8 +200,7 @@ export const AiCallingQualification: React.FC = () => {
       nextActionLabel: "Contact Now",
       transcript: transcriptLines,
       attemptsHistory: [],
-      audioRecordingUrl: call?.recordingUrl,
-    };
+    } as unknown as UnifiedLead;
   };
 
   const leads = useMemo(() => {

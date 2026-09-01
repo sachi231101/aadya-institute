@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { LeadService } from "./lead.service";
+import type { QueryCallHistoryDTO } from "./lead.types";
 
 export const createLead = async (
   req: AuthenticatedRequest,
@@ -231,6 +232,22 @@ export const getFollowUpDashboard = async (
   try {
     const dashboard = await LeadService.getFollowUpDashboard(req.user as unknown as AuthUser);
     sendSuccess(res, dashboard, 200, "Follow-up dashboard retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getCallHistory = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { callLogs, meta } = await LeadService.getCallHistory(
+      req.user as unknown as AuthUser,
+      req.query as QueryCallHistoryDTO
+    );
+    sendPaginated(res, callLogs, meta, "Call history retrieved successfully");
   } catch (err) {
     next(err);
   }

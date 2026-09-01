@@ -15,6 +15,10 @@ import type { LoginInput, TokenPair, AuthUser } from "./auth.types";
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
 import { resolvePermissionsToModules } from "../../utils/module-permissions";
+import {
+  ALWAYS_ON_PERMISSIONS,
+  type PermissionRoleScope,
+} from "../../utils/permission-catalog";
 
 /**
  * Map a Prisma user record (with roles + permissions joins) to the safe AuthUser shape.
@@ -40,15 +44,14 @@ const buildAuthUser = (user: any): AuthUser => {
   const isCenterManager = roles.includes("CENTER_MANAGER");
   const isCounsellor = roles.includes("COUNSELLOR");
 
-  if ((isCenterManager || isCounsellor) && hasUserPermissions) {
-    // Use only user-level permissions for CENTER_MANAGER / COUNSELLOR
-    const userPerms = new Set<string>();
-    (user.userPermissions ?? []).forEach((up: any) => {
-      if (up.permission?.name) {
-        userPerms.add(up.permission.name);
-      }
-    });
-    const permsList = Array.from(userPerms);
+  if (isCenterManager || isCounsellor) {
+    const roleScope: PermissionRoleScope = isCounsellor ? "COUNSELLOR" : "CENTER_MANAGER";
+    const permsList = hasUserPermissions
+      ? (user.userPermissions ?? [])
+          .map((up: { permission?: { name?: string } }) => up.permission?.name)
+          .filter((name: string | undefined): name is string => Boolean(name))
+      : [...ALWAYS_ON_PERMISSIONS];
+
     return {
       id: user.id,
       name: user.name,
@@ -58,7 +61,7 @@ const buildAuthUser = (user: any): AuthUser => {
       branchId: user.branchId,
       roles,
       permissions: permsList,
-      modulePermissions: resolvePermissionsToModules(permsList),
+      modulePermissions: resolvePermissionsToModules(permsList, roleScope),
       studentId: user.student?.id ?? null,
       facultyId: user.faculty?.id ?? null,
     };
@@ -72,6 +75,9 @@ const buildAuthUser = (user: any): AuthUser => {
   });
 
   const allPermsList = Array.from(permissionsSet);
+  const roleScope: PermissionRoleScope = roles.includes("COUNSELLOR")
+    ? "COUNSELLOR"
+    : "CENTER_MANAGER";
   return {
     id: user.id,
     name: user.name,
@@ -81,7 +87,7 @@ const buildAuthUser = (user: any): AuthUser => {
     branchId: user.branchId,
     roles,
     permissions: allPermsList,
-    modulePermissions: resolvePermissionsToModules(allPermsList),
+    modulePermissions: resolvePermissionsToModules(allPermsList, roleScope),
     studentId: user.student?.id ?? null,
     facultyId: user.faculty?.id ?? null,
   };

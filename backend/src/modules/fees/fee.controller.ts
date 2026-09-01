@@ -7,7 +7,12 @@ import {
   createPaymentSchema,
   queryPendingFeesSchema,
   collectPendingFeeSchema,
+  queryFeePlansSchema,
+  createFeePlanSchema,
+  updateFeePlanSchema,
+  queryReceiptsSchema,
 } from "./fee.validation";
+import { toAuthUser } from "../../utils/auth-user.util";
 
 export const getPayments = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
@@ -136,5 +141,65 @@ export const getFeeReports = async (req: AuthenticatedRequest, res: Response): P
     sendSuccess(res, reports, 200, "Fee financial reports retrieved successfully");
   } catch (err: any) {
     sendError(res, err.message || "Failed to fetch fee reports", 400);
+  }
+};
+
+export const getFeePlans = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = queryFeePlansSchema.parse(req.query);
+    const result = await FeeService.getFeePlans(toAuthUser(req), validated);
+    sendSuccess(res, result, 200, "Fee plan templates retrieved successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to fetch fee plans", 400);
+  }
+};
+
+export const createFeePlan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = createFeePlanSchema.parse(req.body);
+    const plan = await FeeService.createFeePlan(toAuthUser(req), validated);
+    sendSuccess(res, plan, 201, "Fee plan template created successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to create fee plan", 400);
+  }
+};
+
+export const updateFeePlan = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = updateFeePlanSchema.parse(req.body);
+    const plan = await FeeService.updateFeePlan(toAuthUser(req), req.params.id as string, validated);
+    sendSuccess(res, plan, 200, "Fee plan template updated successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to update fee plan", 400);
+  }
+};
+
+export const getReceipts = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const user = req.user;
+    if (!user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = queryReceiptsSchema.parse(req.query);
+    const result = await FeeService.getReceipts(toAuthUser(req), validated);
+    sendSuccess(res, result, 200, "Fee receipts retrieved successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to fetch receipts", 400);
   }
 };

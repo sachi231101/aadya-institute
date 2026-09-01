@@ -30,6 +30,27 @@ export const useCounsellorPerformance = (branchId?: string) => {
   });
 };
 
+export const useFollowUpDashboard = (branchId?: string) => {
+  return useQuery({
+    queryKey: ["leads", "dashboard", "follow-ups", branchId],
+    queryFn: () => leadsApi.getFollowUpDashboard({ branchId }),
+  });
+};
+
+export const useCallHistory = (params?: {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  leadId?: string;
+  studentId?: string;
+  status?: string;
+}) => {
+  return useQuery({
+    queryKey: ["leads", "call-history", params],
+    queryFn: () => leadsApi.getCallHistory(params),
+  });
+};
+
 export const useLeadFollowUps = (id: string) => {
   return useQuery({
     queryKey: ["leads", id, "follow-ups"],

@@ -45,3 +45,40 @@ export const collectPendingFeeSchema = z.object({
 }).refine((d) => d.paymentModeMasterId || d.method, {
   message: "paymentModeMasterId or method is required",
 });
+
+export const queryFeePlansSchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  branchId: z.string().optional(),
+  courseId: z.string().optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
+  search: z.string().trim().optional(),
+});
+
+export const createFeePlanSchema = z.object({
+  name: z.string().min(1).trim(),
+  code: z.string().optional(),
+  branchId: z.string().optional(),
+  courseId: z.string().optional(),
+  totalAmount: z.number().positive(),
+  planType: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional().default("FULL_PAYMENT"),
+  installments: z.array(z.object({
+    installmentNo: z.number().int().positive(),
+    amount: z.number().positive(),
+    dueDays: z.number().int().nonnegative(),
+  })).optional(),
+  description: z.string().optional(),
+});
+
+export const updateFeePlanSchema = createFeePlanSchema.partial().extend({
+  status: z.enum(["ACTIVE", "INACTIVE", "SUSPENDED", "DELETED"]).optional(),
+});
+
+export const queryReceiptsSchema = z.object({
+  search: z.string().optional(),
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().optional().default(50),
+  branchId: z.string().optional(),
+  dateFrom: z.string().optional(),
+  dateTo: z.string().optional(),
+});

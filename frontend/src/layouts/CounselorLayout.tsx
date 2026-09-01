@@ -11,6 +11,7 @@ import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
+import { PortalRouteGuard } from "@/components/permissions/PortalRouteGuard";
 
 export const CounselorLayout: React.FC = () => {
   const { token, user } = useAuthStore();
@@ -54,7 +55,9 @@ export const CounselorLayout: React.FC = () => {
           </header>
           
           <main className="flex-1 overflow-auto bg-bg-primary">
-            <Outlet />
+            <PortalRouteGuard portal="counselor">
+              <Outlet />
+            </PortalRouteGuard>
           </main>
         </div>
       </div>

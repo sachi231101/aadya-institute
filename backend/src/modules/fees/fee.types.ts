@@ -64,3 +64,36 @@ export interface FeeReportsResponse {
   paymentModeDistribution: Array<{ mode: string; count: number; amount: number }>;
   dueStatusSummary: Array<{ status: string; count: number; totalAmount: number }>;
 }
+
+export interface QueryFeePlansDTO {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  courseId?: string;
+  status?: string;
+  search?: string;
+}
+
+export interface CreateFeePlanDTO {
+  name: string;
+  code?: string;
+  branchId?: string;
+  courseId?: string;
+  totalAmount: number;
+  planType?: string;
+  installments?: Array<{ installmentNo: number; amount: number; dueDays: number }>;
+  description?: string;
+}
+
+export interface UpdateFeePlanDTO extends Partial<CreateFeePlanDTO> {
+  status?: string;
+}
+
+export interface QueryReceiptsDTO {
+  search?: string;
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}

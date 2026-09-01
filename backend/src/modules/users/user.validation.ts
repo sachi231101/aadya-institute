@@ -33,6 +33,7 @@ export const createUserSchema = z.object({
       message: "Invalid module key",
     }))
     .optional(),
+  permissions: z.array(z.string().min(1)).optional(),
 }).refine((data) => data.email || data.phone, {
   message: "At least one of email or phone is required",
   path: ["email"],
@@ -46,12 +47,21 @@ export const updateUserSchema = z.object({
   whatsappEnabled: z.boolean().optional(),
 });
 
-export const updateUserPermissionsSchema = z.object({
-  modulePermissions: z
-    .array(z.string().refine((key) => ALL_MODULE_KEYS.includes(key), {
-      message: "Invalid module key",
-    }))
-    .min(0),
+export const updateUserPermissionsSchema = z
+  .object({
+    modulePermissions: z
+      .array(z.string().refine((key) => ALL_MODULE_KEYS.includes(key), {
+        message: "Invalid module key",
+      }))
+      .optional(),
+    permissions: z.array(z.string().min(1)).optional(),
+  })
+  .refine((data) => data.modulePermissions !== undefined || (data.permissions && data.permissions.length >= 0), {
+    message: "Either modulePermissions or permissions must be provided",
+  });
+
+export const permissionCatalogQuerySchema = z.object({
+  role: z.enum(["CENTER_MANAGER", "COUNSELLOR"]),
 });
 
 export const updateWhatsappPreferenceSchema = z.object({

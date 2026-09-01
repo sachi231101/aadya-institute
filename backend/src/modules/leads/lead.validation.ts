@@ -189,6 +189,15 @@ export const addActivitySchema = z.object({
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
+export const queryCallHistorySchema = z.object({
+  page: z.coerce.number().int().positive().optional().default(1),
+  limit: z.coerce.number().int().positive().max(100).optional().default(20),
+  branchId: z.string().optional(),
+  leadId: z.string().optional(),
+  studentId: z.string().optional(),
+  status: z.string().optional(),
+});
+
 export const queryLeadsSchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   limit: z.coerce.number().int().positive().max(100).optional().default(20),

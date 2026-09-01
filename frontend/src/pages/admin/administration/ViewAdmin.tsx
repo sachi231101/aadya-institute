@@ -1,6 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { useUser, useUpdateUserStatus, useUpdateUser } from "@/hooks/useUsers";
+import { usersApi } from "@/services/users.api";
+import {
+  permissionsToAccessState,
+  isBaselineOnlyPermissions,
+  type PermissionModuleDefinition,
+} from "@/utils/permission-utils";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
 import { useNotificationStore } from "@/store/notification.store";
 import {
@@ -76,6 +83,23 @@ export const ViewAdmin: React.FC = () => {
   const admin = userResponse?.data;
   const branches = branchesResponse?.data ?? [];
   const assignedBranch = branches.find((b) => b.id === admin?.branchId);
+
+  const isCenterManager = admin?.roles.includes("CENTER_MANAGER");
+  const { data: catalogRes } = useQuery({
+    queryKey: ["permission-catalog", "CENTER_MANAGER"],
+    queryFn: () => usersApi.getPermissionCatalog("CENTER_MANAGER"),
+    enabled: Boolean(isCenterManager),
+  });
+  const permissionCatalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
+  const permissionAccess = useMemo(() => {
+    if (!admin?.permissions || permissionCatalog.length === 0) return {};
+    return permissionsToAccessState(admin.permissions, permissionCatalog);
+  }, [admin?.permissions, permissionCatalog]);
+  const enabledModuleCount = useMemo(() => {
+    return permissionCatalog.filter((mod: PermissionModuleDefinition) =>
+      mod.items.some((item) => permissionAccess[item.key]?.show)
+    ).length;
+  }, [permissionCatalog, permissionAccess]);
 
   // Fetch branch statistics if assigned
   const { data: branchStatsResponse } = useBranchStats(admin?.branchId || undefined);
@@ -507,10 +531,10 @@ export const ViewAdmin: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-[#1769AA]" /> Authorized Module Access
+                        <Shield className="h-4 w-4 text-[#1769AA]" /> ERP Module Access
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Specific modules enabled for this Center Manager account:
+                        Submodule Show/Editable settings for this Center Manager account
                       </p>
                     </div>
                     <Button
@@ -523,54 +547,51 @@ export const ViewAdmin: React.FC = () => {
                     </Button>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                    {[
-                      { key: "students", name: "Students", desc: "View, create, and manage students & attendance" },
-                      { key: "faculty", name: "Faculty", desc: "View faculty profiles, courses, and attendance" },
-                      { key: "courses", name: "Courses & Batches", desc: "View courses, curriculum, and manage batches" },
-                      { key: "admissions", name: "Admissions", desc: "Manage admissions and application processing" },
-                      { key: "leads_ai_calling", name: "Leads & AI Calling", desc: "Lead follow-ups, qualification & AI calling" },
-                      { key: "schedule", name: "Schedule & Attendance", desc: "Class scheduling, daily attendance, recordings" },
-                      { key: "fees", name: "Fees & Payments", desc: "Fee installments, receipts & payment tracking" },
-                      { key: "reports", name: "Reports & Analytics", desc: "Access center revenue & performance metrics" },
-                      { key: "counsellor", name: "Counsellor Management", desc: "Oversee counsellors and batch assignments" },
-                    ].map((mod) => {
-                      const isGranted =
-                        admin.modulePermissions && admin.modulePermissions.length > 0
-                          ? admin.modulePermissions.includes(mod.key)
-                          : true; // Default true if no explicit restrictions
+                  {isBaselineOnlyPermissions(admin.permissions ?? []) ? (
+                    <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
+                      <strong>Baseline access only.</strong> This manager can use Dashboard, ASK ME, and Settings. No operational ERP modules are assigned yet.
+                    </div>
+                  ) : (
+                    <p className="text-xs text-slate-500">
+                      {enabledModuleCount} of {permissionCatalog.length} ERP modules have at least one enabled submodule.
+                    </p>
+                  )}
 
+                  <div className="space-y-3 pt-1">
+                    {permissionCatalog.map((mod: PermissionModuleDefinition) => {
+                      const enabledItems = mod.items.filter((item) => permissionAccess[item.key]?.show);
+                      if (enabledItems.length === 0) return null;
                       return (
                         <div
                           key={mod.key}
-                          className={`flex items-start justify-between p-3.5 rounded-xl border transition-all ${
-                            isGranted
-                              ? "bg-emerald-50/40 border-emerald-200/70"
-                              : "bg-slate-50 border-slate-200/60 opacity-60"
-                          }`}
+                          className="rounded-xl border border-emerald-200/70 bg-emerald-50/30 p-4"
                         >
-                          <div className="flex items-start gap-2.5">
-                            {isGranted ? (
-                              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                            ) : (
-                              <Lock className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
-                            )}
-                            <div>
-                              <p className={`text-xs font-bold ${isGranted ? "text-slate-900" : "text-slate-600"}`}>
-                                {mod.name}
-                              </p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">{mod.desc}</p>
-                            </div>
+                          <p className="text-sm font-bold text-slate-900 mb-2">{mod.label}</p>
+                          <div className="flex flex-wrap gap-2">
+                            {enabledItems.map((item) => {
+                              const editable = permissionAccess[item.key]?.editable;
+                              return (
+                                <span
+                                  key={item.key}
+                                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
+                                    editable
+                                      ? "bg-white border-emerald-300 text-emerald-800"
+                                      : "bg-slate-50 border-slate-200 text-slate-700"
+                                  }`}
+                                >
+                                  {editable ? (
+                                    <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                  ) : (
+                                    <Lock className="h-3 w-3 text-slate-400" />
+                                  )}
+                                  {item.label}
+                                  <span className="font-semibold opacity-70">
+                                    {editable ? "Editable" : "Show"}
+                                  </span>
+                                </span>
+                              );
+                            })}
                           </div>
-                          <span
-                            className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                              isGranted
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-slate-200 text-slate-600"
-                            }`}
-                          >
-                            {isGranted ? "Granted" : "Restricted"}
-                          </span>
                         </div>
                       );
                     })}

@@ -91,4 +91,49 @@ export const feesApi = {
     );
     return response.data;
   },
+
+  // Fee Plans
+  getPlans: async (params?: {
+    page?: number;
+    limit?: number;
+    branchId?: string;
+    courseId?: string;
+    status?: string;
+    search?: string;
+  }) => {
+    const response = await api.get("/fees/plans", { params });
+    return response.data;
+  },
+
+  createPlan: async (payload: {
+    name: string;
+    code?: string;
+    branchId?: string;
+    courseId?: string;
+    totalAmount: number;
+    planType?: string;
+    installments?: Array<{ installmentNo: number; amount: number; dueDays: number }>;
+    description?: string;
+  }) => {
+    const response = await api.post("/fees/plans", payload);
+    return response.data;
+  },
+
+  updatePlan: async (id: string, payload: Record<string, unknown>) => {
+    const response = await api.patch(`/fees/plans/${id}`, payload);
+    return response.data;
+  },
+
+  // Receipts
+  getReceipts: async (params?: {
+    search?: string;
+    page?: number;
+    limit?: number;
+    branchId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }) => {
+    const response = await api.get("/fees/receipts", { params });
+    return response.data;
+  },
 };

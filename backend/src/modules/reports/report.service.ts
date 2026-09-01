@@ -7,6 +7,9 @@ import type {
   CourseReportResponse,
   FinancialReportResponse,
   ScheduleSummaryResponse,
+  AdmissionsReportResponse,
+  AttendanceReportResponse,
+  ExaminationsReportResponse,
 } from "./report.types";
 
 export class ReportService {
@@ -48,5 +51,26 @@ export class ReportService {
       ...summary,
       discontinuationRiskCount: risks.length,
     };
+  }
+
+  static async getAdmissionsReport(
+    instituteId: string,
+    branchId?: string
+  ): Promise<AdmissionsReportResponse> {
+    return ReportRepository.getAdmissionsReportData(instituteId, branchId);
+  }
+
+  static async getAttendanceReport(
+    instituteId: string,
+    branchId?: string
+  ): Promise<AttendanceReportResponse> {
+    return ReportRepository.getAttendanceReportData(instituteId, branchId);
+  }
+
+  static async getExaminationsReport(
+    instituteId: string,
+    branchId?: string
+  ): Promise<ExaminationsReportResponse> {
+    return ReportRepository.getExaminationsReportData(instituteId, branchId);
   }
 }

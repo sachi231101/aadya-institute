@@ -10,6 +10,10 @@ import {
   sendFeeReminder,
   getFeeStats,
   getFeeReports,
+  getFeePlans,
+  createFeePlan,
+  updateFeePlan,
+  getReceipts,
 } from "./fee.controller";
 
 const router = Router();
@@ -19,6 +23,14 @@ router.use(authMiddleware);
 // Stats & Financial Reports
 router.get("/stats", requirePermission("fee.read"), getFeeStats);
 router.get("/reports", requirePermission("fee.read"), getFeeReports);
+
+// Fee Plan Templates
+router.get("/plans", requirePermission("fee.read"), getFeePlans);
+router.post("/plans", requirePermission("fee.update"), createFeePlan);
+router.patch("/plans/:id", requirePermission("fee.update"), updateFeePlan);
+
+// Receipts
+router.get("/receipts", requirePermission("fee.read"), getReceipts);
 
 // Payments
 router.get("/payments", requirePermission("fee.read"), getPayments);

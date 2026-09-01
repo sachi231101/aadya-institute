@@ -10,6 +10,7 @@ import {
   updateWhatsappPreferenceService,
   updateUserPermissionsService,
   deleteUserService,
+  getPermissionCatalogService,
 } from "./user.service";
 import type { AuthUser } from "../auth/auth.types";
 
@@ -123,6 +124,20 @@ export const updateUserPermissions = async (
       req.body
     );
     sendSuccess(res, user, 200, "Module permissions updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getPermissionCatalog = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const role = (req.query.role as "CENTER_MANAGER" | "COUNSELLOR") || "CENTER_MANAGER";
+    const catalog = getPermissionCatalogService(role);
+    sendSuccess(res, catalog);
   } catch (err) {
     next(err);
   }
