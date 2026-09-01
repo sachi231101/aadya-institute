@@ -52,15 +52,15 @@ export const StudentDashboard: React.FC = () => {
   const rawActiveLiveSessions = dashboard?.activeLiveSessions ?? [];
 
   const todaySessions = useMemo(() => {
-    return rawTodaySessions.filter((s) => academic.isAuthorizedForSession(s));
+    return rawTodaySessions.filter((s: any) => academic.isAuthorizedForSession(s));
   }, [rawTodaySessions, academic]);
 
   const upcomingSessions = useMemo(() => {
-    return rawUpcomingSessions.filter((s) => academic.isAuthorizedForSession(s));
+    return rawUpcomingSessions.filter((s: any) => academic.isAuthorizedForSession(s));
   }, [rawUpcomingSessions, academic]);
 
   const activeLiveSessions = useMemo(() => {
-    return rawActiveLiveSessions.filter((s) => academic.isAuthorizedForSession(s));
+    return rawActiveLiveSessions.filter((s: any) => academic.isAuthorizedForSession(s));
   }, [rawActiveLiveSessions, academic]);
 
   const currentLive = useMemo(() => {
@@ -335,3 +335,5 @@ export const StudentDashboard: React.FC = () => {
     </div>
   );
 };
+
+

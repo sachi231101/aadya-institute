@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
-import { 
-  LayoutDashboard, 
-  Calendar, 
-  CheckSquare, 
-  FileText, 
-  BookOpen, 
-  Video, 
-  User, 
-  Sparkles, 
-  Headphones, 
+import {
+  LayoutDashboard,
+  Calendar,
+  CheckSquare,
+  FileText,
+  BookOpen,
+  Video,
+  User,
+  Sparkles,
+  Headphones,
   ChevronDown,
   ShieldCheck,
   LogOut,
@@ -127,8 +127,8 @@ export const StudentLayout: React.FC = () => {
       <div className="space-y-4">
         {/* Brand Header */}
         <div className="flex items-center justify-between">
-          <Link 
-            to="/student/dashboard" 
+          <Link
+            to="/student/dashboard"
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 px-2 py-1.5 no-underline group"
           >
@@ -159,20 +159,18 @@ export const StudentLayout: React.FC = () => {
           <Link
             to="/student/ask-me"
             onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${
-              isAiActive
+            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${isAiActive
                 ? "bg-[#5B50EC] text-white border-[#5B50EC] shadow-xs"
                 : "bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 dark:hover:bg-blue-900/50 text-[#5B50EC] dark:text-indigo-300 border-blue-200/60 dark:border-indigo-900/50"
-            }`}
+              }`}
           >
             <div className="flex items-center gap-2">
               <Sparkles className={`w-4 h-4 ${isAiActive ? "text-white" : "text-[#5B50EC] dark:text-indigo-400"}`} />
               <span>ASK ME Anything</span>
             </div>
             <span
-              className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${
-                isAiActive ? "bg-white/20 text-white" : "bg-[#5B50EC] text-white"
-              }`}
+              className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${isAiActive ? "bg-white/20 text-white" : "bg-[#5B50EC] text-white"
+                }`}
             >
               AI
             </span>
@@ -218,11 +216,10 @@ export const StudentLayout: React.FC = () => {
                 key={item.path}
                 to={item.path}
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${
-                  isActive
+                className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold transition-colors ${isActive
                     ? "bg-[#5B50EC] text-white shadow-xs"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
-                }`}
+                  }`}
               >
                 <div className="flex items-center gap-3">
                   <Icon className={`w-4 h-4 ${isActive ? "text-white stroke-[2.2]" : "text-muted-foreground stroke-[1.8]"}`} />
@@ -235,11 +232,10 @@ export const StudentLayout: React.FC = () => {
                 </div>
                 {item.badge && (
                   <span
-                    className={`px-1.5 py-0.2 rounded-md text-[9px] font-black uppercase tracking-wider ${
-                      isActive
+                    className={`px-1.5 py-0.2 rounded-md text-[9px] font-black uppercase tracking-wider ${isActive
                         ? "bg-white/20 text-white"
                         : "bg-indigo-100 text-indigo-700 font-black"
-                    }`}
+                      }`}
                   >
                     {item.badge}
                   </span>
@@ -299,8 +295,8 @@ export const StudentLayout: React.FC = () => {
       {/* ── Mobile Drawer Backdrop & Sidebar ─────────────────────────────────── */}
       {mobileMenuOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden animate-in fade-in duration-150">
-          <div 
-            className="fixed inset-0 bg-black/50 backdrop-blur-xs" 
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-xs"
             onClick={() => setMobileMenuOpen(false)}
           />
           <aside className="relative w-72 max-w-[85vw] bg-bg-secondary border-r border-border/50 h-full p-4 z-50 shadow-2xl flex flex-col justify-between overflow-y-auto animate-in slide-in-from-left duration-200">
@@ -312,9 +308,9 @@ export const StudentLayout: React.FC = () => {
       {/* ── Mobile "More" Bottom Sheet ────────────────────────────────────────── */}
       {mobileMoreOpen && (
         <div className="fixed inset-0 z-50 flex lg:hidden flex-col justify-end animate-in fade-in duration-200">
-          <div 
-            className="fixed inset-0 bg-black/60 backdrop-blur-xs" 
-            onClick={() => setMobileMoreOpen(false)} 
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setMobileMoreOpen(false)}
           />
           <div className="relative bg-card dark:bg-[#0E172A] border-t border-border rounded-t-3xl p-5 z-50 shadow-2xl space-y-4 max-h-[80vh] overflow-y-auto animate-in slide-in-from-bottom duration-250">
             <div className="flex items-center justify-between pb-2 border-b border-border/60">
@@ -324,7 +320,7 @@ export const StudentLayout: React.FC = () => {
                 </div>
                 <h3 className="text-sm font-black text-foreground">More Student Services</h3>
               </div>
-              <button 
+              <button
                 onClick={() => setMobileMoreOpen(false)}
                 className="p-1.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground"
               >
@@ -524,14 +520,14 @@ export const StudentLayout: React.FC = () => {
                 <DropdownMenuLabel className="text-xs text-muted-foreground font-semibold px-2 py-1.5">
                   Student Account
                 </DropdownMenuLabel>
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={() => navigate("/student/profile")}
                   className="text-xs font-medium text-foreground hover:bg-muted rounded-lg px-2 py-1.5 cursor-pointer"
                 >
                   My Profile
                 </DropdownMenuItem>
                 <DropdownMenuSeparator className="my-1 border-border/60" />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   onClick={handleLogout}
                   className="text-xs font-medium text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-lg px-2 py-1.5 cursor-pointer flex items-center gap-1.5"
                 >
@@ -557,11 +553,10 @@ export const StudentLayout: React.FC = () => {
               <Link
                 key={tab.path}
                 to={tab.path}
-                className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-                  isActive
+                className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${isActive
                     ? "text-[#6366F1] dark:text-[#818CF8] font-black"
                     : "text-muted-foreground hover:text-foreground font-medium"
-                }`}
+                  }`}
               >
                 <Icon className={`w-5 h-5 mb-1 transition-transform ${isActive ? "stroke-[2.5] scale-110" : "stroke-[1.8]"}`} />
                 <span className="text-[10px] tracking-tight">{tab.label}</span>
@@ -572,11 +567,10 @@ export const StudentLayout: React.FC = () => {
           {/* More Action Sheet Button */}
           <button
             onClick={() => setMobileMoreOpen((prev) => !prev)}
-            className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${
-              mobileMoreOpen
+            className={`flex flex-col items-center justify-center flex-1 py-1 px-1.5 rounded-xl transition-all cursor-pointer ${mobileMoreOpen
                 ? "text-[#6366F1] dark:text-[#818CF8] font-black"
                 : "text-muted-foreground hover:text-foreground font-medium"
-            }`}
+              }`}
           >
             <MoreHorizontal className={`w-5 h-5 mb-1 transition-transform ${mobileMoreOpen ? "stroke-[2.5] scale-110" : "stroke-[1.8]"}`} />
             <span className="text-[10px] tracking-tight">More</span>

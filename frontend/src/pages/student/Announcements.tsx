@@ -61,8 +61,7 @@ export const StudentAnnouncements: React.FC = () => {
       const matchesBatch =
         (a.batchName && academic.isAuthorizedForBatch(a.batchName)) ||
         (a.batchCode && academic.isAuthorizedForBatch(a.batchCode)) ||
-        (a.courseName && academic.isAuthorizedForCourse(a.courseName)) ||
-        (a.targetRole === "ALL" || a.targetRole === "STUDENT");
+        ((a as any).targetRole === "ALL" || (a as any).targetRole === "STUDENT" || !(a as any).targetRole);
 
       if (!matchesBatch) return false;
 

@@ -111,30 +111,34 @@ export const StudentAssignments: React.FC = () => {
 
   const enrichedAssignments = useMemo((): EnrichedAssignment[] => {
     const scopedAssignments = apiAssignments.filter((asg) => {
-      const courseId = asg.classSession?.batch?.courseId || (asg.classSession as any)?.batchModule?.courseModule?.courseId;
-      const courseName = asg.classSession?.batch?.course?.name || asg.classSession?.title;
-      const batchId = asg.classSession?.batchId || asg.classSession?.batch?.id;
-      const batchCode = asg.classSession?.batch?.code;
+      const session = asg.classSession as any;
+      const courseId = session?.batch?.courseId || session?.batchModule?.courseModule?.courseId;
+      const courseName = session?.batch?.course?.name || session?.title;
+      const batchId = session?.batchId || session?.batch?.id;
+      const batchCode = session?.batch?.code;
 
       if (batchId && academic.assignedBatchIds.includes(batchId)) return true;
       if (batchCode && academic.assignedBatchCodes.includes(batchCode)) return true;
       if (courseId && academic.assignedCourseIds.includes(courseId)) return true;
       if (courseName && academic.isAuthorizedForCourse(courseName)) return true;
-      if (asg.classSession && academic.isAuthorizedForSession(asg.classSession)) return true;
+      if (session && academic.isAuthorizedForSession(session)) return true;
       return false;
     });
 
-    return scopedAssignments.map((asg) => ({
-      id: asg.id,
-      title: asg.title,
-      courseName: asg.classSession?.batch?.course?.name || asg.classSession?.title || academic.primaryCourse?.name || "Course Assignment",
-      batchName: asg.classSession?.batch?.name || academic.primaryBatch?.name || "",
-      batchCode: asg.classSession?.batch?.code || academic.primaryBatch?.code || "",
-      instructions: asg.description || "",
-      dueDate: asg.dueDate || "",
-      hasDocument: false,
-      statusInfo: getAssignmentStatus(asg),
-    }));
+    return scopedAssignments.map((asg) => {
+      const session = asg.classSession as any;
+      return {
+        id: asg.id,
+        title: asg.title,
+        courseName: session?.batch?.course?.name || session?.title || academic.primaryCourse?.name || "Course Assignment",
+        batchName: session?.batch?.name || academic.primaryBatch?.name || "",
+        batchCode: session?.batch?.code || academic.primaryBatch?.code || "",
+        instructions: asg.description || "",
+        dueDate: asg.dueDate || "",
+        hasDocument: false,
+        statusInfo: getAssignmentStatus(asg),
+      };
+    });
   }, [apiAssignments, academic, userId]);
 
   // Tab Filter
