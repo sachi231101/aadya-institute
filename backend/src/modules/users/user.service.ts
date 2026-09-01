@@ -14,6 +14,7 @@ import {
   type PermissionRoleScope,
 } from "../../utils/permission-catalog";
 import type { AuthUser } from "../auth/auth.types";
+import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
 import type {
   CreateUserInput,
   UpdateUserInput,
@@ -47,18 +48,10 @@ const getInstituteId = (currentUser: AuthUser): string => {
 };
 
 /**
- * If the requesting user is a CENTER_MANAGER, enforce that they can only
- * see/create users in their own branch.
+ * Branch filter for user listing — non-admins are locked to their assigned branch.
  */
 const getBranchFilter = (currentUser: AuthUser, requestedBranchId?: string): string | undefined => {
-  if (currentUser.roles.includes("ADMIN") || currentUser.roles.includes("COUNSELLOR")) {
-    return requestedBranchId; // Admin & Counsellor can filter by requested branch or see all
-  }
-  if (currentUser.roles.includes("CENTER_MANAGER")) {
-    // Always enforce the manager's own branch — ignore any branchId from request
-    return currentUser.branchId ?? undefined;
-  }
-  return currentUser.branchId ?? undefined;
+  return getBranchScopeFilter(currentUser, requestedBranchId).branchId;
 };
 
 // ─── List Users ──────────────────────────────────────────────────────────────
@@ -148,10 +141,23 @@ export const createUserService = async (
     if (existing) throw new AppError("Phone number already in use", 409);
   }
 
-  // Branch assignment for CENTER_MANAGER
-  const branchId = currentUser.roles.includes("CENTER_MANAGER")
-    ? (currentUser.branchId || input.branchId || null)
-    : (input.branchId ?? null);
+  // Branch assignment for CENTER_MANAGER / COUNSELLOR (required)
+  const isBranchRole = input.roles.some((r) =>
+    ["CENTER_MANAGER", "COUNSELLOR"].includes(r)
+  );
+  let branchId: string | null;
+  if (currentUser.roles.includes("CENTER_MANAGER")) {
+    branchId = currentUser.branchId || input.branchId || null;
+  } else {
+    branchId = input.branchId ?? null;
+  }
+
+  if (isBranchRole && !branchId) {
+    throw new AppError(
+      "Branch assignment is required when creating a Center Manager or Counsellor",
+      400
+    );
+  }
 
   const passwordHash = await hashPassword(input.password || "Password@123");
 

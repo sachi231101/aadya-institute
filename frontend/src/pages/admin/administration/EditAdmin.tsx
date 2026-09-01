@@ -61,7 +61,7 @@ const editAdminSchema = z.object({
         message: "Phone must be a valid phone number (7-15 digits)",
       }
     ),
-  branchId: z.string().optional().or(z.literal("")),
+    branchId: z.string().min(1, "Assigned branch is required"),
 });
 
 type EditAdminFormValues = z.infer<typeof editAdminSchema>;
@@ -274,13 +274,13 @@ export const EditAdmin: React.FC = () => {
                   name="branchId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Assigned Branch</FormLabel>
+                      <FormLabel>Assigned Branch *</FormLabel>
                       <FormControl>
                         <select
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           {...field}
                         >
-                          <option value="">No branch (Institute-wide)</option>
+                          <option value="" disabled>Select a branch</option>
                           {branches.map((branch) => (
                             <option key={branch.id} value={branch.id}>
                               {branch.name} ({branch.code})

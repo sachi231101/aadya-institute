@@ -18,10 +18,11 @@ import { SequenceService } from "../masters/sequence.service";
 export const AdmissionsRepository = {
   // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
   async findEnquiries(instituteId: string, params: QueryEnquiriesDTO) {
-    const { search, source, status, courseId, page = 1, limit = 50 } = params;
+    const { search, source, status, courseId, branchId, page = 1, limit = 50 } = params;
 
     const where: Prisma.EnquiryWhereInput = {
       instituteId,
+      ...(branchId ? { branchId } : {}),
       ...(source && source !== "ALL" ? { source: source as any } : {}),
       ...(status && status !== "ALL" ? { status: status as any } : {}),
       ...(courseId && courseId !== "ALL" ? { courseId } : {}),
@@ -112,10 +113,11 @@ export const AdmissionsRepository = {
 
   // ─── APPLICATIONS ──────────────────────────────────────────────────────────
   async findApplications(instituteId: string, params: QueryApplicationsDTO) {
-    const { search, feeStatus, status, courseId, page = 1, limit = 50 } = params;
+    const { search, feeStatus, status, courseId, branchId, page = 1, limit = 50 } = params;
 
     const where: Prisma.ApplicationWhereInput = {
       instituteId,
+      ...(branchId ? { branchId } : {}),
       ...(feeStatus && feeStatus !== "ALL" ? { feeStatus: feeStatus as any } : {}),
       ...(status && status !== "ALL" ? { status: status as any } : {}),
       ...(courseId && courseId !== "ALL" ? { courseId } : {}),
@@ -204,10 +206,11 @@ export const AdmissionsRepository = {
 
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
   async findAdmissions(instituteId: string, params: QueryAdmissionsDTO) {
-    const { search, courseId, status, batchId, page = 1, limit = 50 } = params;
+    const { search, courseId, status, batchId, branchId, page = 1, limit = 50 } = params;
 
     const where: Prisma.AdmissionWhereInput = {
       instituteId,
+      ...(branchId ? { branchId } : {}),
       ...(courseId && courseId !== "ALL" ? { courseId } : {}),
       ...(status && status !== "ALL" ? { status: status as any } : {}),
       ...(batchId && batchId !== "ALL" ? { batchId } : {}),

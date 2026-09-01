@@ -45,6 +45,7 @@ export interface QueryEnquiriesDTO {
   source?: EnquirySource | "ALL";
   status?: EnquiryStatus | "ALL";
   courseId?: string;
+  branchId?: string;
   page?: number;
   limit?: number;
 }
@@ -76,6 +77,7 @@ export interface QueryApplicationsDTO {
   feeStatus?: FeeStatus | "ALL";
   status?: ApplicationStatus | "ALL";
   courseId?: string;
+  branchId?: string;
   page?: number;
   limit?: number;
 }
@@ -123,6 +125,7 @@ export interface QueryAdmissionsDTO {
   courseId?: string | "ALL";
   status?: AdmissionStatus | "ALL";
   batchId?: string;
+  branchId?: string;
   page?: number;
   limit?: number;
 }

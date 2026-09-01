@@ -18,6 +18,8 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
+import type { AuthUser } from "../auth/auth.types";
+import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 
 const triggerAdmissionNotification = async (admissionId: string) => {
   try {
@@ -67,11 +69,12 @@ export const AdmissionsService = {
     return AdmissionsRepository.findEnquiries(instituteId, params);
   },
 
-  async getEnquiryById(id: string, instituteId: string) {
+  async getEnquiryById(id: string, instituteId: string, currentUser: AuthUser) {
     const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
     if (!enquiry) {
       throw new Error("Enquiry not found");
     }
+    assertBranchRecordAccess(currentUser, enquiry.branchId);
     return enquiry;
   },
 
@@ -236,11 +239,12 @@ export const AdmissionsService = {
     return AdmissionsRepository.findApplications(instituteId, params);
   },
 
-  async getApplicationById(id: string, instituteId: string) {
+  async getApplicationById(id: string, instituteId: string, currentUser: AuthUser) {
     const app = await AdmissionsRepository.findApplicationById(id, instituteId);
     if (!app) {
       throw new Error("Application not found");
     }
+    assertBranchRecordAccess(currentUser, app.branchId);
     return app;
   },
 
@@ -517,11 +521,12 @@ export const AdmissionsService = {
     return AdmissionsRepository.findAdmissions(instituteId, params);
   },
 
-  async getAdmissionById(id: string, instituteId: string) {
+  async getAdmissionById(id: string, instituteId: string, currentUser: AuthUser) {
     const adm = await AdmissionsRepository.findAdmissionById(id, instituteId);
     if (!adm) {
       throw new Error("Admission not found");
     }
+    assertBranchRecordAccess(currentUser, adm.branchId);
     return adm;
   },
 
