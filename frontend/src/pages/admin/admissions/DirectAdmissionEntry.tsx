@@ -950,6 +950,19 @@ export const DirectAdmissionEntry: React.FC = () => {
       : undefined;
 
     try {
+      if (!realStudentId) {
+        const normalizedPhone = phone.replace(/\D/g, "").slice(-10);
+        const phoneSearchRes = await studentsApi.getAll({ search: normalizedPhone, limit: 50 });
+        const phoneMatch = (phoneSearchRes.data || []).find(
+          (s) => (s.user?.phone || "").replace(/\D/g, "").slice(-10) === normalizedPhone
+        );
+        if (phoneMatch) {
+          notifyError("This phone number is already registered. Please enter a different phone number.");
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       let createdStudentId = realStudentId;
       let firstAdmissionNo = admissionNo;
 
