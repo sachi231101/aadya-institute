@@ -55,12 +55,6 @@ interface NavItem {
 
 const rawCenterNavItems: NavItem[] = [
   {
-    title: "ASK ME",
-    url: "/center/ask-me",
-    icon: Sparkles,
-    isAi: true,
-  },
-  {
     title: "Dashboard",
     url: "/center/dashboard",
     icon: LayoutDashboard,
@@ -303,47 +297,12 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
               );
 
               if (!item.items) {
-                if (item.isAi) {
-                  return (
-                    <SidebarMenuItem key={item.title} className="mb-2">
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isItemActive}
-                        tooltip={item.title}
-                        className={
-                          isItemActive
-                            ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
-                            : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
-                        }
-                      >
-                        <Link to={item.url} className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            <Sparkles
-                              className={`h-4 w-4 shrink-0 ${
-                                isItemActive ? "text-white fill-white" : "text-[#1769AA]"
-                              }`}
-                            />
-                            <span className="tracking-wide">✦ ASK ME</span>
-                          </div>
-                          <span
-                            className={`${
-                              isItemActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
-                            } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
-                          >
-                            AI
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                }
-
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton asChild isActive={isItemActive} tooltip={item.title}>
-                      <Link to={item.url}>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
+                      <Link to={item.url} className="flex items-center gap-2.5 w-full">
+                        {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isItemActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />}
+                        <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -359,21 +318,24 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive}>
-                        {item.icon && <item.icon />}
-                        <span>{item.title}</span>
-                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                      <SidebarMenuButton tooltip={item.title} isActive={isGroupActive} className="w-full justify-between">
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isGroupActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />}
+                          <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
+                        </div>
+                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub>
+                      <SidebarMenuSub className="my-1 ml-3.5 pl-2.5 border-l border-border/60 gap-0.5">
                         {item.items.map((subItem) => (
                           <SidebarMenuSubItem key={subItem.title}>
                             <SidebarMenuSubButton
                               asChild
                               isActive={location.pathname === subItem.url}
+                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#1769AA] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
                             >
-                              <Link to={subItem.url}>
+                              <Link to={subItem.url} className="truncate min-w-0 flex-1">
                                 <span>{subItem.title}</span>
                               </Link>
                             </SidebarMenuSubButton>

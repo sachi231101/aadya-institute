@@ -81,14 +81,14 @@ export const ThemeToggle: React.FC<ThemeToggleProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          className={`h-9 w-9 rounded-xl border border-border/60 bg-background/80 hover:bg-accent hover:text-accent-foreground text-foreground transition-all duration-200 shrink-0 ${className}`}
+          className={`h-7 w-7 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 text-white transition-all duration-200 shrink-0 cursor-pointer ${className}`}
           title="Change theme (Light / Dark / System)"
           aria-label="Change theme"
         >
           {resolvedTheme === "dark" ? (
-            <Moon className="h-4 w-4 text-sky-400 transition-all" />
+            <Moon className="h-3 w-3 text-sky-200 transition-all" />
           ) : (
-            <Sun className="h-4 w-4 text-amber-500 transition-all" />
+            <Sun className="h-3 w-3 text-amber-300 transition-all" />
           )}
           <span className="sr-only">Toggle theme</span>
         </Button>
