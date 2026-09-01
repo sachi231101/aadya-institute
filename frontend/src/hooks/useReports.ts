@@ -5,6 +5,9 @@ import type {
   FacultyReportData,
   CourseReportData,
   FinancialReportData,
+  AdmissionsReportData,
+  AttendanceReportData,
+  ExaminationsReportData,
 } from "../services/reports.api";
 
 export const useStudentReport = (branchId?: string) => {
@@ -35,6 +38,30 @@ export const useFinancialReport = (branchId?: string) => {
   return useQuery<FinancialReportData>({
     queryKey: ["reports", "financial", branchId],
     queryFn: () => reportsApi.getFinancialReport(branchId),
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useAdmissionsReport = (branchId?: string) => {
+  return useQuery<AdmissionsReportData>({
+    queryKey: ["reports", "admissions", branchId],
+    queryFn: () => reportsApi.getAdmissionsReport(branchId),
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useAttendanceReport = (branchId?: string) => {
+  return useQuery<AttendanceReportData>({
+    queryKey: ["reports", "attendance", branchId],
+    queryFn: () => reportsApi.getAttendanceReport(branchId),
+    staleTime: 1000 * 60 * 5,
+  });
+};
+
+export const useExaminationsReport = (branchId?: string) => {
+  return useQuery<ExaminationsReportData>({
+    queryKey: ["reports", "examinations", branchId],
+    queryFn: () => reportsApi.getExaminationsReport(branchId),
     staleTime: 1000 * 60 * 5,
   });
 };

@@ -310,7 +310,7 @@ export const Timetable: React.FC = () => {
       batchCode: raw.batch?.code || raw.batch?.name || "",
       batchId: raw.batchId,
       roomNo: raw.roomNo || "TBD",
-      studentCount: raw.enrolledStudentsCount ?? raw.batch?._count?.enrollments,
+      studentCount: raw.enrolledStudentsCount ?? (raw.batch as { _count?: { enrollments?: number } })?._count?.enrollments,
       status:
         raw.sessionStatus === "COMPLETED"
           ? "COMPLETED"
@@ -329,14 +329,7 @@ export const Timetable: React.FC = () => {
   };
 
   const facultyRoster = useMemo((): FacultyRosterItem[] => {
-    return facultyMembers.map((f: {
-      id: string;
-      employeeCode?: string;
-      specialization?: string;
-      branchId?: string;
-      branch?: { name?: string };
-      user?: { name?: string };
-    }, fIdx: number) => {
+    return facultyMembers.map((f, fIdx) => {
       const weeklySchedule = {} as Record<DayKey, Record<number, TimetableCellItem>>;
 
       DAY_KEYS.forEach((dayKey, idx) => {

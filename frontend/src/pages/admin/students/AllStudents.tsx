@@ -21,6 +21,7 @@ import { useBranches } from "@/hooks/useBranches";
 import { useStudentList } from "@/hooks/useStudents";
 import { useStudentReport } from "@/hooks/useReports";
 import { useCourses } from "@/hooks/useCourses";
+import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
 
 const getFeeDetails = (fees?: any) => {
   const total = Number(fees?.totalFee ?? fees?.total ?? 0);
@@ -44,6 +45,7 @@ export const AllStudents: React.FC = () => {
     ? "/faculty"
     : "/admin";
   const isFacultyPortal = basePath === "/faculty";
+  const isRestrictedPortal = basePath === "/center" || basePath === "/counselor";
 
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
@@ -212,15 +214,21 @@ export const AllStudents: React.FC = () => {
             <Download className="h-4 w-4 mr-2 text-slate-500" /> Export Excel
           </Button>
           {!isFacultyPortal && (
-            <Button
-              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
-              onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-            >
-              <Plus className="h-4 w-4 mr-2" /> Register Student
-            </Button>
+            <PermissionGate itemKey="students.all" mode="write">
+              <Button
+                className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
+                onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+              >
+                <Plus className="h-4 w-4 mr-2" /> Register Student
+              </Button>
+            </PermissionGate>
           )}
         </div>
       </div>
+
+      {isRestrictedPortal && (
+        <ReadOnlyBanner itemKey="students.all" label="All Students" />
+      )}
 
       {/* ─── 2. STATS KPI CARDS ────────────────────────────────────────── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">

@@ -25,8 +25,8 @@ export const aiCallingApi = {
     return response.data;
   },
 
-  getCallLogs: async (params?: { leadId?: string; studentId?: string; page?: number; limit?: number }) => {
-    const response = await api.get("/ai-calling/logs", { params });
+  getCallLogs: async (params?: { leadId?: string; studentId?: string; page?: number; limit?: number; branchId?: string; status?: string }) => {
+    const response = await api.get("/leads/call-history", { params });
     return response.data;
   },
 

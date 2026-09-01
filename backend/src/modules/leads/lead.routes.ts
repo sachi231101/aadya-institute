@@ -20,6 +20,7 @@ import {
   getDashboardSummary,
   getCounsellorPerformance,
   getFollowUpDashboard,
+  getCallHistory,
   triggerLeadCall,
 } from "./lead.controller";
 import {
@@ -33,6 +34,7 @@ import {
   updateFollowUpSchema,
   addActivitySchema,
   queryLeadsSchema,
+  queryCallHistorySchema,
 } from "./lead.validation";
 
 const router = Router();
@@ -57,6 +59,13 @@ router.get(
   "/dashboard/follow-ups",
   requirePermission("lead.read"),
   getFollowUpDashboard
+);
+
+router.get(
+  "/call-history",
+  requirePermission("ai_call.read"),
+  validate(queryCallHistorySchema, "query"),
+  getCallHistory
 );
 
 // ─── Core Lead Endpoints ─────────────────────────────────────────────────────

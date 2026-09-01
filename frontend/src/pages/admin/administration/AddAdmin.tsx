@@ -1,18 +1,25 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+import { useQuery } from "@tanstack/react-query";
 import { useNotificationStore } from "@/store/notification.store";
 import { useCreateUser } from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
+import { usersApi } from "@/services/users.api";
+import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
+import {
+  buildPermissionsFromAccess,
+  createDefaultAccessState,
+  type ItemAccessState,
+  type PermissionModuleDefinition,
+} from "@/utils/permission-utils";
 import {
   ArrowLeft,
   Loader2,
   AlertCircle,
   ShieldCheck,
-  CheckSquare,
-  Square,
   Sparkles,
 } from "lucide-react";
 import {
@@ -32,10 +39,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  MODULE_OPTIONS,
-  ALL_MODULE_KEYS,
-} from "@/constants/module-permissions";
 
 const addAdminSchema = z
   .object({
@@ -79,19 +82,19 @@ export const AddAdmin: React.FC = () => {
 
   const branches = branchesResponse?.data ?? [];
 
-  // Selected module permissions state (default: all checked)
-  const [selectedModules, setSelectedModules] = useState<string[]>(ALL_MODULE_KEYS);
+  const { data: catalogRes } = useQuery({
+    queryKey: ["permission-catalog", "CENTER_MANAGER"],
+    queryFn: () => usersApi.getPermissionCatalog("CENTER_MANAGER"),
+  });
+  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
 
-  const toggleModule = (moduleKey: string) => {
-    setSelectedModules((prev) =>
-      prev.includes(moduleKey)
-        ? prev.filter((k) => k !== moduleKey)
-        : [...prev, moduleKey]
-    );
-  };
+  const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
 
-  const handleSelectAll = () => setSelectedModules([...ALL_MODULE_KEYS]);
-  const handleDeselectAll = () => setSelectedModules([]);
+  useEffect(() => {
+    if (catalog.length > 0 && Object.keys(itemAccess).length === 0) {
+      setItemAccess(createDefaultAccessState(catalog));
+    }
+  }, [catalog, itemAccess]);
 
   const form = useForm<AddAdminFormValues>({
     resolver: zodResolver(addAdminSchema) as any,
@@ -110,13 +113,7 @@ export const AddAdmin: React.FC = () => {
     form.clearErrors("root");
     const sanitizedPhone = data.phone?.trim() ? data.phone.trim() : undefined;
 
-    if (selectedModules.length === 0) {
-      form.setError("root", {
-        type: "manual",
-        message: "Please select at least one module permission for the Center Manager.",
-      });
-      return;
-    }
+    const permissions = buildPermissionsFromAccess(itemAccess, catalog);
 
     createUserMutation.mutate(
       {
@@ -126,7 +123,7 @@ export const AddAdmin: React.FC = () => {
         password: data.password,
         roles: [data.role],
         branchId: data.branchId || undefined,
-        modulePermissions: selectedModules,
+        permissions,
       },
       {
         onSuccess: () => {
@@ -153,7 +150,7 @@ export const AddAdmin: React.FC = () => {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-5xl mx-auto space-y-6">
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
@@ -301,128 +298,39 @@ export const AddAdmin: React.FC = () => {
             </CardContent>
           </Card>
 
-          {/* ─── Module Permissions Card ─────────────────────────────── */}
           <Card className="border-blue-100/80 shadow-xs">
             <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1769AA] flex items-center justify-center">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base font-bold text-slate-900">
-                      Module Permissions
-                    </CardTitle>
-                    <CardDescription className="text-xs text-slate-500">
-                      Select which modules this Central Manager is authorized to access and manage
-                    </CardDescription>
-                  </div>
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                  <ShieldCheck className="h-5 w-5" />
                 </div>
-
-                <div className="flex items-center gap-2 self-start sm:self-auto">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleSelectAll}
-                    className="h-8 text-xs font-semibold text-[#1769AA] hover:bg-blue-50 border-blue-200"
-                  >
-                    <CheckSquare className="h-3.5 w-3.5 mr-1" /> Select All
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={handleDeselectAll}
-                    className="h-8 text-xs font-semibold text-slate-600 hover:bg-slate-100"
-                  >
-                    <Square className="h-3.5 w-3.5 mr-1" /> Deselect All
-                  </Button>
+                <div>
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    Module & Submodule Permissions
+                  </CardTitle>
+                  <CardDescription className="text-xs text-slate-500">
+                    By default, new managers see only Dashboard, ASK ME, and Settings. Enable Show/Editable per submodule to grant access.
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
 
             <CardContent className="pt-5">
-              <div className="mb-3 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2">
+              <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                 <span>
-                  <strong>Dynamic Access:</strong> Only the checked modules will appear in the Center Manager's navigation sidebar and portal pages.
+                  <strong>Default access:</strong> Unchecked modules stay hidden until you enable Show. Use Grant all for full ERP access.
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {MODULE_OPTIONS.map((module) => {
-                  const isChecked = selectedModules.includes(module.key);
-                  const Icon = module.icon;
-
-                  return (
-                    <div
-                      key={module.key}
-                      onClick={() => toggleModule(module.key)}
-                      className={`group relative p-3.5 rounded-xl border transition-all cursor-pointer select-none flex items-start gap-3 ${
-                        isChecked
-                          ? "bg-blue-50/40 border-[#1769AA]/40 shadow-2xs hover:border-[#1769AA]"
-                          : "bg-white border-slate-200/80 opacity-75 hover:opacity-100 hover:border-slate-300 hover:bg-slate-50/50"
-                      }`}
-                    >
-                      {/* Checkbox visual */}
-                      <div
-                        className={`mt-0.5 h-5 w-5 rounded-md border flex items-center justify-center transition-colors shrink-0 ${
-                          isChecked
-                            ? "bg-[#1769AA] border-[#1769AA] text-white"
-                            : "border-slate-300 bg-white group-hover:border-slate-400"
-                        }`}
-                      >
-                        {isChecked && (
-                          <svg
-                            className="h-3.5 w-3.5 stroke-current"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          >
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </div>
-
-                      {/* Icon */}
-                      <div
-                        className={`h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
-                          isChecked
-                            ? "bg-blue-100 text-[#1769AA]"
-                            : "bg-slate-100 text-slate-500 group-hover:bg-slate-200/70"
-                        }`}
-                      >
-                        <Icon className="h-4.5 w-4.5" />
-                      </div>
-
-                      {/* Text */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={`text-sm font-bold truncate ${
-                              isChecked ? "text-slate-900" : "text-slate-700"
-                            }`}
-                          >
-                            {module.label}
-                          </span>
-                          <span className="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
-                            {module.category}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-0.5 leading-relaxed line-clamp-2">
-                          {module.description}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <PermissionMatrix
+                role="CENTER_MANAGER"
+                value={itemAccess}
+                onChange={setItemAccess}
+              />
 
               <div className="mt-4 text-xs text-slate-400 font-medium">
-                * Note: Dashboard, ASK ME, Settings, and Notifications are core utilities and always available to active managers.
+                Dashboard, ASK ME, and Settings are always available to active managers.
               </div>
             </CardContent>
           </Card>

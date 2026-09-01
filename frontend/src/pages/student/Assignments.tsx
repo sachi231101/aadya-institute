@@ -76,7 +76,7 @@ export const StudentAssignments: React.FC = () => {
   };
 
   const getSubmissionForUser = (assignment: Assignment): AssignmentSubmission | undefined =>
-    assignment.submissions?.find((s) => s.student?.user?.id === userId);
+    assignment.submissions?.find((s) => s.studentId === user?.studentId || (s.student as { user?: { id?: string } })?.user?.id === userId);
 
   const getAssignmentStatus = (assignment: Assignment) => {
     const submission = getSubmissionForUser(assignment);
@@ -596,13 +596,13 @@ export const StudentAssignments: React.FC = () => {
                       </h4>
                     </div>
                     <span className="text-[11px] font-mono text-emerald-700 dark:text-emerald-300">
-                      {new Date(currentSubmission.submittedAt).toLocaleDateString("en-IN", {
+                      {currentSubmission.submittedAt && new Date(currentSubmission.submittedAt).toLocaleDateString("en-IN", {
                         day: "2-digit",
                         month: "short",
                         year: "numeric",
                       })}{" "}
                       •{" "}
-                      {new Date(currentSubmission.submittedAt).toLocaleTimeString([], {
+                      {currentSubmission.submittedAt && new Date(currentSubmission.submittedAt).toLocaleTimeString([], {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}

@@ -96,3 +96,12 @@ export interface QueryLeadsDTO {
   followUpFrom?: string;
   followUpTo?: string;
 }
+
+export interface QueryCallHistoryDTO {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  leadId?: string;
+  studentId?: string;
+  status?: string;
+}

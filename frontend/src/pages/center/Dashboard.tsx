@@ -26,6 +26,8 @@ import {
   Zap,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
+import { usePermissions } from "@/hooks/usePermissions";
+import { DashboardBaselineView } from "@/components/dashboard/DashboardBaselineView";
 import { useBranch, useBranchStats } from "@/hooks/useBranches";
 import { useBatches } from "@/hooks/useBatches";
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
@@ -190,7 +192,8 @@ export const CenterDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const branchId = user?.branchId;
+  const { hasAnyModuleAccess } = usePermissions();
+  const branchId = user?.branchId ?? undefined;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState("This Month");
   const [periodFilter, setPeriodFilter] = useState("Daily");
@@ -230,8 +233,8 @@ export const CenterDashboard: React.FC = () => {
     if (enrollmentTrend.length < 2 && key === "students") return "Live from database";
     const trend = key === "students" ? enrollmentTrend : financialReport?.monthlyTrend;
     if (!trend || trend.length < 2) return "Live from database";
-    const current = (trend[trend.length - 1] as Record<string, number>)?.[key] ?? 0;
-    const previous = (trend[trend.length - 2] as Record<string, number>)?.[key] ?? 0;
+    const current = (trend[trend.length - 1] as unknown as Record<string, number>)?.[key] ?? 0;
+    const previous = (trend[trend.length - 2] as unknown as Record<string, number>)?.[key] ?? 0;
     if (previous === 0) return current > 0 ? "New this month" : "Live from database";
     const pct = Math.round(((current - previous) / previous) * 100);
     return pct >= 0 ? `+${pct}% vs last month` : `${pct}% vs last month`;
@@ -352,6 +355,10 @@ export const CenterDashboard: React.FC = () => {
         </p>
       </div>
 
+      {!hasAnyModuleAccess ? (
+        <DashboardBaselineView role="CENTER_MANAGER" userName={user?.name} />
+      ) : (
+        <>
       {/* ─── 3. SIX BRANCH-SPECIFIC SUMMARY KPI CARDS ─────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {/* 1. Total Leads */}
@@ -867,6 +874,9 @@ export const CenterDashboard: React.FC = () => {
           </div>
         </div>
       </div>
+
+        </>
+      )}
 
       {/* ─── 6. FOOTER RESTRICTION NOTICE ─────────────────────────────────── */}
       <div className="p-3.5 rounded-2xl bg-blue-50/60 border border-blue-200/60 flex items-center gap-2.5 text-xs text-slate-600">

@@ -2,9 +2,9 @@ import React, { useState, useEffect } from "react";
 import { Calendar, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useCourseStore } from "../../../store/course.store";
+import { useBatches } from "../../../hooks/useBatches";
 import { useFacultyList } from "../../../hooks/useFaculty";
-import { useScheduleStore } from "../../../store/schedule.store";
+import { useUpdateClassSession } from "../../../hooks/useClassSessions";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import type { ClassSession, ClassMode, ClassStatus } from "../../../types/schedule.types";
 
@@ -15,10 +15,10 @@ interface EditClassModalProps {
 }
 
 export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose, onSave }) => {
-  const { batches } = useCourseStore();
+  const { batches } = useBatches();
   const { data: facultyResponse } = useFacultyList({ limit: 100 });
   const facultyList = facultyResponse?.data ?? [];
-  const { updateClassSession } = useScheduleStore();
+  const updateSessionMutation = useUpdateClassSession();
 
   const [title, setTitle] = useState("");
   const [batchId, setBatchId] = useState("");
@@ -66,16 +66,19 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       status,
     };
 
-    await updateClassSession(session.id, {
-      title,
-      batchId,
-      facultyId,
-      scheduledDate: date,
-      startTime,
-      endTime,
-      classroomMasterId: classroomMasterId || undefined,
-      mode,
-      status,
+    await updateSessionMutation.mutateAsync({
+      id: session.id,
+      payload: {
+        title,
+        batchId,
+        facultyId,
+        scheduledDate: date,
+        startTime,
+        endTime,
+        classroomMasterId: classroomMasterId || undefined,
+        mode,
+        status,
+      },
     });
 
     if (onSave) {

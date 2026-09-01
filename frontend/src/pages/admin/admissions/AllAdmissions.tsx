@@ -32,7 +32,6 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useCourseStore } from "../../../store/course.store";
 import { admissionsApi } from "../../../services/admissions.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -168,8 +167,6 @@ export const AllAdmissions: React.FC = () => {
     : location.pathname.startsWith("/center")
       ? "/center"
       : "/admin";
-
-  const { fetchCourses, fetchBatches } = useCourseStore();
 
   const [admissionsList, setAdmissionsList] = useState<EnrichedAdmission[]>([]);
 
@@ -307,11 +304,6 @@ export const AllAdmissions: React.FC = () => {
   // Copy Feedback & Toast State
   const [copiedAdmNo, setCopiedAdmNo] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (fetchCourses) fetchCourses();
-    if (fetchBatches) fetchBatches();
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);

@@ -179,8 +179,7 @@ export const Classes: React.FC = () => {
   const { data: branchData } = useBranches();
   const branchesList = branchData?.data ?? [];
   const { batches } = useBatches();
-  const { data: coursesData } = useCourses({ limit: 100 });
-  const courses = coursesData?.data ?? [];
+  const { courses } = useCourses();
   const { data: facultyData } = useFacultyList({ limit: 50 });
   const facultyMembers = facultyData?.data ?? [];
 

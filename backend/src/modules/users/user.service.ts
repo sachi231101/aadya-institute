@@ -3,8 +3,16 @@ import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
 import {
   resolveModulePermissions,
-  ALL_MODULE_KEYS,
+  resolvePermissionsToModules,
 } from "../../utils/module-permissions";
+import {
+  resolveModuleKeysToPermissions,
+  getFullAccessPermissions,
+  getBaselinePermissions,
+  ALWAYS_ON_PERMISSIONS,
+  getPermissionCatalog,
+  type PermissionRoleScope,
+} from "../../utils/permission-catalog";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   CreateUserInput,
@@ -157,10 +165,20 @@ export const createUserService = async (
     roleIds: foundRoles.map((r) => r.id),
   });
 
-  // If creating a CENTER_MANAGER or COUNSELLOR, set module permissions
+  // If creating a CENTER_MANAGER or COUNSELLOR, set granular permissions
   if (input.roles.includes("CENTER_MANAGER") || input.roles.includes("COUNSELLOR")) {
-    const moduleKeys = input.modulePermissions ?? ALL_MODULE_KEYS; // Default: all modules
-    await assignModulePermissions(user.id, moduleKeys, currentUser.id);
+    const roleScope: PermissionRoleScope = input.roles.includes("COUNSELLOR")
+      ? "COUNSELLOR"
+      : "CENTER_MANAGER";
+
+    const permissionNames =
+      input.permissions !== undefined
+        ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
+        : input.modulePermissions?.length
+          ? resolveModuleKeysToPermissions(input.modulePermissions, roleScope)
+          : getBaselinePermissions(roleScope);
+
+    await assignDirectPermissions(user.id, permissionNames, currentUser.id);
 
     // Re-fetch to include the newly created permissions
     const refreshed = await findUserById(user.id, instituteId);
@@ -210,7 +228,15 @@ export const updateUserPermissionsService = async (
     throw new AppError("Module permissions can only be set for Center Managers and Counsellors", 400);
   }
 
-  await assignModulePermissions(userId, input.modulePermissions, currentUser.id);
+  const roleScope: PermissionRoleScope = existing.roles.includes("COUNSELLOR")
+    ? "COUNSELLOR"
+    : "CENTER_MANAGER";
+
+  const permissionNames = input.permissions?.length
+    ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
+    : resolveModuleKeysToPermissions(input.modulePermissions ?? [], roleScope);
+
+  await assignDirectPermissions(userId, permissionNames, currentUser.id);
 
   // Re-fetch to include updated permissions
   const refreshed = await findUserById(userId, instituteId);
@@ -276,17 +302,22 @@ export const deleteUserService = async (
   return { id: userId, deleted: true };
 };
 
+// ─── Permission Catalog ───────────────────────────────────────────────────────
+
+export const getPermissionCatalogService = (role: "CENTER_MANAGER" | "COUNSELLOR") => {
+  return getPermissionCatalog(role);
+};
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Resolve module keys → permission names → permission IDs, then set on user.
+ * Set explicit permission names on a user (replaces all user-level permissions).
  */
-async function assignModulePermissions(
+async function assignDirectPermissions(
   userId: string,
-  moduleKeys: string[],
+  permissionNames: string[],
   grantedById?: string
 ): Promise<void> {
-  const permissionNames = resolveModulePermissions(moduleKeys);
   const permissionRecords = await findPermissionsByNames(permissionNames);
   const permissionIds = permissionRecords.map((p) => p.id);
 

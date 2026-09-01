@@ -175,3 +175,63 @@ export interface ScheduleSummaryResponse {
     facultyName: string | null;
   }>;
 }
+
+export interface AdmissionsReportSummary {
+  totalAdmissions: number;
+  confirmedAdmissions: number;
+  provisionalAdmissions: number;
+  cancelledAdmissions: number;
+  conversionRate: number;
+}
+
+export interface AdmissionsReportResponse {
+  summary: AdmissionsReportSummary;
+  monthlyTrend: Array<{ month: string; admissions: number }>;
+  courseBreakdown: Array<{ courseName: string; count: number }>;
+  branchBreakdown: Array<{ branchName: string; count: number }>;
+  recentAdmissions: Array<{
+    id: string;
+    admissionNo: string;
+    studentName: string;
+    courseName: string;
+    branchName: string;
+    status: string;
+    createdAt: Date;
+  }>;
+}
+
+export interface AttendanceReportSummary {
+  totalSessions: number;
+  avgAttendanceRate: number;
+  presentCount: number;
+  absentCount: number;
+  leaveCount: number;
+}
+
+export interface AttendanceReportResponse {
+  summary: AttendanceReportSummary;
+  branchBreakdown: Array<{ branchName: string; attendanceRate: number; sessions: number }>;
+  monthlyTrend: Array<{ month: string; attendanceRate: number }>;
+  atRiskStudents: number;
+}
+
+export interface ExaminationsReportSummary {
+  totalExams: number;
+  publishedExams: number;
+  totalAttempts: number;
+  avgScore: number;
+  passRate: number;
+}
+
+export interface ExaminationsReportResponse {
+  summary: ExaminationsReportSummary;
+  examBreakdown: Array<{
+    id: string;
+    title: string;
+    status: string;
+    attempts: number;
+    avgScore: number;
+    passRate: number;
+  }>;
+  scoreDistribution: Array<{ range: string; count: number }>;
+}

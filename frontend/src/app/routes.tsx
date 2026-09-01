@@ -8,22 +8,18 @@ import { CounselorLayout } from "../layouts/CounselorLayout";
 import { FacultyLayout } from "../layouts/FacultyLayout";
 import { StudentLayout } from "../layouts/StudentLayout";
 
-// Admin Dashboard & AI
-import { AdminDashboard } from "../pages/admin/Dashboard";
+import { adminChildRoutes } from "./admin.routes";
 import { AiHome } from "../pages/admin/ai/AiHome";
 import { AskMe } from "../pages/admin/ai/AskMe";
-import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
-import { BranchRevenueDetails } from "../pages/admin/branch/BranchRevenueDetails";
 
-// Students
+// Shared admin pages (center/counselor portals)
 import { AllStudents } from "../pages/admin/students/AllStudents";
 import { AddStudent } from "../pages/admin/students/AddStudent";
 import { StudentDetails } from "../pages/admin/students/StudentDetails";
 import { EditStudent } from "../pages/admin/students/EditStudent";
 import { StudentAttendance } from "../pages/admin/students/StudentAttendance";
 import { StudentPerformance } from "../pages/admin/students/StudentPerformance";
-
-// Faculty
+import { DiscontinuationRisk } from "../pages/admin/students/DiscontinuationRisk";
 import { AllFaculty } from "../pages/admin/faculty/AllFaculty";
 import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
 import { EditFaculty } from "../pages/admin/faculty/EditFaculty";
@@ -31,37 +27,26 @@ import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
 import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
 import { FacultyCourses } from "../pages/admin/faculty/FacultyCourses";
 import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
-
-// Courses
+import { FacultyRatings } from "../pages/admin/faculty/FacultyRatings";
 import { AllCourses } from "../pages/admin/courses/AllCourses";
 import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { EditCourse } from "../pages/admin/courses/EditCourse";
 import { Batches } from "../pages/admin/courses/Batches";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
-
-// Administration
-import { AdminPanel } from "../pages/admin/administration/AdminPanel";
+import { UsersManagement } from "../pages/admin/administration/UsersManagement";
 import { ViewAdmin } from "../pages/admin/administration/ViewAdmin";
 import { EditAdmin } from "../pages/admin/administration/EditAdmin";
 import { AddAdmin } from "../pages/admin/administration/AddAdmin";
-
-// Admissions
 import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
-
-// Counsellor
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
 import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
 import { AssignStudents } from "../pages/admin/counselor/AssignStudents";
 import { AssignFaculty } from "../pages/admin/counselor/AssignFaculty";
-
-// Schedule
 import { Classes } from "../pages/admin/schedule/Classes";
-
-// Examinations & Proctoring
 import { ExamManagement } from "../pages/admin/exams/ExamManagement";
 import { CreateExam } from "../pages/admin/exams/CreateExam";
 import { ExamDetails } from "../pages/admin/exams/ExamDetails";
@@ -76,40 +61,25 @@ import { ExamConsentScreen } from "../pages/student/exams/ExamConsentScreen";
 import { TakeExam } from "../pages/student/exams/TakeExam";
 import { ExamResultScreen } from "../pages/student/exams/ExamResultScreen";
 import { Timetable } from "../pages/admin/schedule/Timetable";
-
-// Fees
 import { Payments } from "../pages/admin/fees/Payments";
 import { PendingFees } from "../pages/admin/fees/PendingFees";
 import { FeeReports } from "../pages/admin/fees/FeeReports";
-
-// Reports
 import { StudentReports } from "../pages/admin/reports/StudentReports";
 import { FacultyReports } from "../pages/admin/reports/FacultyReports";
 import { CourseReports } from "../pages/admin/reports/CourseReports";
 import { FinancialReports } from "../pages/admin/reports/FinancialReports";
-
-// Settings & Masters
 import { Settings } from "../pages/admin/settings/Settings";
 import { NotificationsPage } from "../pages/admin/notifications/NotificationsPage";
 import { MasterSetup } from "../pages/admin/masters/MasterSetup";
-
-// Phase 1 — Lead Management & AI Calling
-import { LeadManagement } from "../pages/admin/leads/LeadManagement";
+import { AllLeadsList } from "../pages/admin/leads/AllLeadsList";
 import { LeadDetails } from "../pages/admin/leads/LeadDetails";
 import { AddLead } from "../pages/admin/leads/AddLead";
+import { FollowUps } from "../pages/admin/leads/FollowUps";
 import { AiCallingQualification } from "../pages/counselor/AiCallingQualification";
-
-// Phase 2 — Recordings, Assignments, Feedback, WhatsApp, Discontinuation
 import { Recordings } from "../pages/admin/schedule/Recordings";
 import { AdminAssignments } from "../pages/admin/schedule/Assignments";
-import { FacultyRatings } from "../pages/admin/faculty/FacultyRatings";
-import { WhatsAppMonitor } from "../pages/admin/notifications/WhatsAppMonitor";
-import { DiscontinuationRisk } from "../pages/admin/students/DiscontinuationRisk";
-
-// Phase 3 — Placement Export
+import { WhatsAppHub } from "../pages/admin/communication/WhatsAppHub";
 import { PlacementExport } from "../pages/admin/reports/PlacementExport";
-
-// Target & Incentive Management System
 import { TargetManagement } from "../pages/admin/targets/TargetManagement";
 import { TargetPerformance } from "../pages/admin/targets/TargetPerformance";
 import { IncentiveManagement } from "../pages/admin/targets/IncentiveManagement";
@@ -149,130 +119,17 @@ export const AppRoutes: React.FC = () => {
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
 
-      {/* Administration Routes */}
+      {/* Legacy Administration Routes — redirect to ERP paths */}
       <Route path="/administration" element={<AdminLayout />}>
-        <Route index element={<AdminPanel />} />
+        <Route index element={<Navigate to="/admin/administration/users" replace />} />
         <Route path="admins/new" element={<AddAdmin />} />
         <Route path="admins/:id" element={<ViewAdmin />} />
         <Route path="admins/:id/edit" element={<EditAdmin />} />
       </Route>
 
-      {/* Admin Routes */}
+      {/* Admin Routes — ERP structure */}
       <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<AiHome />} />
-        <Route path="dashboard" element={<AdminDashboard />} />
-        <Route path="ask-me" element={<AskMe />} />
-        <Route path="branch/:id/performance" element={<BranchPerformance />} />
-        <Route path="branch/:id/revenue" element={<BranchRevenueDetails />} />
-
-        {/* Students */}
-        <Route path="students">
-          <Route path="all" element={<AllStudents />} />
-          <Route path="add" element={<AddStudent />} />
-          <Route path=":id" element={<StudentDetails />} />
-          <Route path=":id/edit" element={<EditStudent />} />
-          <Route path="attendance" element={<StudentAttendance />} />
-          <Route path="performance" element={<StudentPerformance />} />
-          <Route path="discontinuation-risk" element={<DiscontinuationRisk />} />
-        </Route>
-
-        {/* Faculty */}
-        <Route path="faculty">
-          <Route path="all" element={<AllFaculty />} />
-          <Route path="timetable" element={<Timetable />} />
-          <Route path="add" element={<AddFaculty />} />
-          <Route path=":id/edit" element={<EditFaculty />} />
-          <Route path=":id" element={<FacultyDetails />} />
-          <Route path="courses" element={<FacultyCourses />} />
-          <Route path="attendance" element={<FacultyAttendance />} />
-          <Route path="ratings" element={<FacultyRatings />} />
-        </Route>
-
-        {/* Courses */}
-        <Route path="courses">
-          <Route path="all" element={<AllCourses />} />
-          <Route path="add" element={<AddCourse />} />
-          <Route path=":id/edit" element={<EditCourse />} />
-          <Route path="batches" element={<Batches />} />
-          <Route path="curriculum" element={<Curriculum />} />
-        </Route>
-
-        {/* Admissions */}
-        <Route path="admissions">
-          <Route path="all" element={<AllAdmissions />} />
-          <Route path="direct-entry" element={<DirectAdmissionEntry />} />
-          <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Enquiries />} />
-        </Route>
-
-        {/* Counsellor */}
-        <Route path="counselor">
-          <Route path="overview" element={<CounsellorOverview />} />
-          <Route path="all" element={<AllCounsellors />} />
-          <Route path="batches" element={<CounsellorBatches />} />
-          <Route path="assign-students" element={<Navigate to="/admin/counselor/batches" replace />} />
-          <Route path="assign-faculty" element={<Navigate to="/admin/counselor/batches" replace />} />
-        </Route>
-
-        {/* Schedule */}
-        <Route path="schedule">
-          <Route path="classes" element={<Classes />} />
-          <Route path="timetable" element={<Timetable />} />
-          <Route path="recordings" element={<Recordings />} />
-          <Route path="assignments" element={<AdminAssignments />} />
-        </Route>
-
-        {/* Fees */}
-        <Route path="fees">
-          <Route path="payments" element={<Payments />} />
-          <Route path="pending" element={<PendingFees />} />
-          <Route path="reports" element={<FeeReports />} />
-        </Route>
-
-        {/* Reports */}
-        <Route path="reports">
-          <Route path="students" element={<StudentReports />} />
-          <Route path="faculty" element={<FacultyReports />} />
-          <Route path="courses" element={<CourseReports />} />
-          <Route path="financial" element={<FinancialReports />} />
-          <Route path="placement" element={<PlacementExport />} />
-        </Route>
-
-        {/* Settings, Notifications & Masters */}
-        <Route path="masters" element={<MasterSetup />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />
-        {/* Phase 1 — Leads & AI Calling */}
-        <Route path="leads">
-          <Route index element={<LeadManagement />} />
-          <Route path="all" element={<LeadManagement />} />
-          <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
-          <Route path="ai-calling" element={<AiCallingQualification />} />
-          <Route path="follow-ups" element={<LeadManagement />} />
-          <Route path="add" element={<AddLead />} />
-          <Route path=":id" element={<LeadDetails />} />
-        </Route>
-
-        {/* Target & Incentive Management System */}
-        <Route path="targets" element={<TargetManagement />} />
-        <Route path="performance" element={<TargetPerformance />} />
-        <Route path="incentives" element={<IncentiveManagement />} />
-
-        {/* Examination Management System & Proctoring */}
-        <Route path="exams">
-          <Route index element={<ExamManagement />} />
-          <Route path="all" element={<ExamManagement />} />
-          <Route path="create" element={<CreateExam />} />
-          <Route path="question-bank" element={<QuestionBank />} />
-          <Route path="questions/create" element={<CreateQuestion />} />
-          <Route path="questions/:id/edit" element={<EditQuestion />} />
-          <Route path=":id" element={<ExamDetails />} />
-          <Route path=":id/edit" element={<EditExam />} />
-          <Route path=":id/attempts" element={<ExamAttempts />} />
-          <Route path="attempts/:attemptId/proctoring" element={<AttemptProctoringDetails />} />
-        </Route>
+        {adminChildRoutes}
       </Route>
 
 
@@ -361,15 +218,15 @@ export const AppRoutes: React.FC = () => {
         <Route path="masters" element={<MasterSetup />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="notifications/whatsapp" element={<WhatsAppMonitor />} />
+        <Route path="notifications/whatsapp" element={<WhatsAppHub />} />
 
         {/* Center Manager: Leads (branch-filtered) */}
         <Route path="leads">
-          <Route index element={<LeadManagement />} />
-          <Route path="all" element={<LeadManagement />} />
+          <Route index element={<AllLeadsList />} />
+          <Route path="all" element={<AllLeadsList />} />
           <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
-          <Route path="follow-ups" element={<LeadManagement />} />
+          <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
@@ -456,11 +313,11 @@ export const AppRoutes: React.FC = () => {
 
         {/* Phase 1 — Leads & AI Calling */}
         <Route path="leads">
-          <Route index element={<LeadManagement />} />
-          <Route path="all" element={<LeadManagement />} />
+          <Route index element={<AllLeadsList />} />
+          <Route path="all" element={<AllLeadsList />} />
           <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
-          <Route path="follow-ups" element={<LeadManagement />} />
+          <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>

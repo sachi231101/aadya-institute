@@ -17,7 +17,8 @@ export interface CreateUserInput {
   roles: string[]; // role names e.g. ["FACULTY"]
   instituteId: string;
   branchId?: string;
-  modulePermissions?: string[]; // module keys e.g. ["students", "faculty", "leads_ai_calling"]
+  modulePermissions?: string[];
+  permissions?: string[];
 }
 
 export interface UpdateUserInput {
@@ -29,7 +30,8 @@ export interface UpdateUserInput {
 }
 
 export interface UpdateUserPermissionsInput {
-  modulePermissions: string[]; // module keys e.g. ["students", "faculty"]
+  modulePermissions?: string[];
+  permissions?: string[];
 }
 
 export interface UpdateWhatsappPreferenceInput {

@@ -53,6 +53,8 @@ import { useStudentStore } from "@/store/student.store";
 import { useCounselorStore } from "@/store/counselor.store";
 import { useAdmissionStore } from "@/store/admission.store";
 import { useAuthStore } from "@/store/auth.store";
+import { usePermissions } from "@/hooks/usePermissions";
+import { DashboardBaselineView } from "@/components/dashboard/DashboardBaselineView";
 import type { UnifiedLead } from "@/store/lead.store";
 import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
@@ -145,6 +147,7 @@ export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
+  const { hasAnyModuleAccess } = usePermissions();
   const { students, fetchStudents } = useStudentStore();
   const { counselors, fetchCounselors } = useCounselorStore();
   const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
@@ -849,6 +852,7 @@ export const CounselorDashboard: React.FC = () => {
           </div>
         </div>
 
+        {hasAnyModuleAccess && (
         <div className="flex items-center gap-3 flex-wrap">
           <Button
             onClick={() => setShowCreateBatchModal(true)}
@@ -872,10 +876,15 @@ export const CounselorDashboard: React.FC = () => {
             <Plus className="h-4 w-4" /> Register Students
           </Button>
         </div>
+        )}
       </div>
 
       <InstallDashboardBanner />
 
+      {!hasAnyModuleAccess ? (
+        <DashboardBaselineView role="COUNSELLOR" userName={user?.name} />
+      ) : (
+        <>
       {/* ─── FOLLOW-UP / ACTION SUCCESS NOTIFICATION ─── */}
       {followUpSuccessMsg && (
         <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center justify-between gap-2 text-xs font-bold shadow-xs animate-in slide-in-from-top-2">
@@ -1854,6 +1863,9 @@ export const CounselorDashboard: React.FC = () => {
           </div>
         </Card>
       </div>
+
+        </>
+      )}
 
       {/* ─── MODAL 1: ADD NEW LEAD ENQUIRY ─── */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>

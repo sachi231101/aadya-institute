@@ -40,6 +40,7 @@ import {
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuthStore } from "@/store/auth.store";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
+import { CENTER_NAV_PERMISSION_KEYS, canAccessNavUrl } from "@/constants/nav-permissions";
 
 interface NavItem {
   title: string;
@@ -65,7 +66,7 @@ const rawCenterNavItems: NavItem[] = [
     icon: LayoutDashboard,
   },
   {
-    title: "Students",
+    title: "Student Management",
     url: "/center/students",
     icon: GraduationCap,
     moduleKey: "students",
@@ -77,7 +78,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Faculty",
+    title: "Faculty Management",
     url: "/center/faculty",
     icon: Users,
     moduleKey: "faculty",
@@ -90,7 +91,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Courses",
+    title: "Course Management",
     url: "/center/courses",
     icon: BookOpen,
     moduleKey: "courses",
@@ -102,7 +103,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Leads & AI Calling",
+    title: "Lead Management",
     url: "/center/leads",
     icon: Bot,
     moduleKey: "leads_ai_calling",
@@ -114,7 +115,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Admissions",
+    title: "Admission Management",
     url: "/center/admissions",
     icon: Target,
     moduleKey: "admissions",
@@ -126,7 +127,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Counsellor",
+    title: "Counsellor Management",
     url: "/center/counselor/overview",
     icon: UserCheck,
     moduleKey: "counsellor",
@@ -138,9 +139,11 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Targets & Incentives",
+    title: "Target & Incentive",
     url: "/center/targets",
     icon: Award,
+    moduleKey: "targets",
+    requiredPermissions: ["target.read"],
     items: [
       { title: "Manage Targets", url: "/center/targets" },
       { title: "Leaderboard & Stats", url: "/center/performance" },
@@ -148,7 +151,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Schedule",
+    title: "Class & Schedule",
     url: "/center/schedule",
     icon: Calendar,
     moduleKey: "schedule",
@@ -161,7 +164,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Examinations",
+    title: "Examination Management",
     url: "/center/exams",
     icon: FileText,
     moduleKey: "examinations",
@@ -173,7 +176,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Fees",
+    title: "Fee Management",
     url: "/center/fees",
     icon: CreditCard,
     moduleKey: "fees",
@@ -185,7 +188,7 @@ const rawCenterNavItems: NavItem[] = [
     ],
   },
   {
-    title: "Reports",
+    title: "Report Management",
     url: "/center/reports",
     icon: BarChart3,
     moduleKey: "reports",
@@ -202,6 +205,8 @@ const rawCenterNavItems: NavItem[] = [
     title: "Notifications",
     url: "/center/notifications",
     icon: Bell,
+    moduleKey: "notifications",
+    requiredPermissions: ["notification.read"],
     items: [
       { title: "All Notifications", url: "/center/notifications" },
       { title: "WhatsApp Monitor", url: "/center/notifications/whatsapp" },
@@ -237,23 +242,34 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
 
     const grantedModules = user?.modulePermissions;
     const grantedPermissions = user?.permissions;
+    const isAdmin = user?.roles?.includes("ADMIN");
 
-    return rawCenterNavItems.filter((item) => {
-      // 1. Items with no moduleKey are core items (ASK ME, Dashboard, Settings, Notifications)
+    return rawCenterNavItems
+      .map((item) => {
+        if (!item.items?.length) return item;
+        const visibleItems = item.items.filter((sub) =>
+          canAccessNavUrl(sub.url, grantedPermissions, grantedModules, CENTER_NAV_PERMISSION_KEYS, isAdmin)
+        );
+        return { ...item, items: visibleItems };
+      })
+      .filter((item) => {
       if (!item.moduleKey) return true;
+      if (item.items && item.items.length === 0) return false;
 
-      // 2. If user has modulePermissions list, check direct inclusion
+      if (grantedPermissions?.length) {
+        if (item.items?.length) {
+          return item.items.some((sub) =>
+            canAccessNavUrl(sub.url, grantedPermissions, grantedModules, CENTER_NAV_PERMISSION_KEYS, isAdmin)
+          );
+        }
+        return canAccessNavUrl(item.url, grantedPermissions, grantedModules, CENTER_NAV_PERMISSION_KEYS, isAdmin);
+      }
+
       if (grantedModules && Array.isArray(grantedModules)) {
         return grantedModules.includes(item.moduleKey);
       }
 
-      // 3. Fallback: check granular permissions list
-      if (grantedPermissions && Array.isArray(grantedPermissions) && item.requiredPermissions) {
-        return item.requiredPermissions.some((p) => grantedPermissions.includes(p));
-      }
-
-      // 4. If no explicit permissions array set yet on user object, show all (backward compatible)
-      return true;
+      return false;
     });
   }, [user]);
 

@@ -21,8 +21,12 @@ import {
   Code2,
   FileText,
   Building,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { useStudentList } from "../../../hooks/useStudents";
+import { useStudentReport } from "../../../hooks/useReports";
+import { useBranchStore } from "@/store/branch.store";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -31,23 +35,67 @@ export const StudentPerformance: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const queryStudentId = searchParams.get("studentId");
 
+  const { selectedBranchId } = useBranchStore();
+  const branchFilter = selectedBranchId !== "ALL" ? selectedBranchId : undefined;
+
   // Fetch real students from API
   const { data: studentListResponse } = useStudentList({ limit: 100 });
   const apiStudents = studentListResponse?.data ?? [];
 
+  const {
+    data: reportData,
+    isLoading: reportLoading,
+    isError: reportError,
+  } = useStudentReport(branchFilter);
+
+  const reportStudents = reportData?.students ?? [];
+  const maxEnrollment = Math.max(
+    ...(reportData?.enrollmentTrend?.map((t) => t.students) ?? [1]),
+    1
+  );
+
+  const instituteAttendanceHistory = useMemo(
+    () =>
+      (reportData?.enrollmentTrend ?? []).map((t) => ({
+        date: t.month,
+        attendance: reportData?.summary?.avgAttendanceRate ?? 0,
+      })),
+    [reportData]
+  );
+
+  const institutePerformanceTrend = useMemo(
+    () =>
+      (reportData?.enrollmentTrend ?? []).map((t) => ({
+        month: t.month,
+        score: Math.min(100, Math.round((t.students / maxEnrollment) * 100)),
+      })),
+    [reportData, maxEnrollment]
+  );
+
   // Build unified student list strictly from PostgreSQL
   const allAvailableStudents = useMemo(() => {
     return apiStudents.map((apiS: any) => {
-      const courseName = apiS.admissions?.[0]?.course?.name || "Full Stack Web Development";
-      const branchName = apiS.branch?.name || "Aadya Branch";
-      const totalAttendances = apiS.studentAttendances?.length || 0;
-      const presentCount = apiS.studentAttendances?.filter((a: any) => a.status === "PRESENT")?.length || 0;
-      const attPct = totalAttendances > 0 ? Math.round((presentCount / totalAttendances) * 100) : 85;
-      const submissionsCount = apiS.assignmentSubmissions?.length || 0;
+      const reportRow = reportStudents.find((r) => r.id === apiS.id);
+      const courseName =
+        reportRow?.courseName || apiS.admissions?.[0]?.course?.name || "Full Stack Web Development";
+      const branchName = reportRow?.branchName || apiS.branch?.name || "Aadya Branch";
+      const attPct =
+        reportRow?.attendancePercentage ??
+        (() => {
+          const totalAttendances = apiS.studentAttendances?.length || 0;
+          const presentCount =
+            apiS.studentAttendances?.filter((a: any) => a.status === "PRESENT")?.length || 0;
+          return totalAttendances > 0 ? Math.round((presentCount / totalAttendances) * 100) : 85;
+        })();
+      const submissionsCount =
+        reportRow?.assignmentsSubmitted ?? apiS.assignmentSubmissions?.length ?? 0;
+      const totalAssignments = reportRow?.totalAssignments ?? 10;
+      const assignmentPct =
+        totalAssignments > 0 ? Math.round((submissionsCount / totalAssignments) * 100) : 75;
 
       return {
         id: apiS.id,
-        name: apiS.user?.name || `Student ${apiS.studentCode}`,
+        name: reportRow?.name || apiS.user?.name || `Student ${apiS.studentCode}`,
         studentCode: apiS.studentCode,
         email: apiS.user?.email || "student@aadya.in",
         phone: apiS.user?.phone || "+91 98765 43210",
@@ -56,34 +104,43 @@ export const StudentPerformance: React.FC = () => {
         faculty: "Faculty Instructor",
         center: branchName,
         admissionNo: `ADM-${apiS.studentCode}`,
-        dateOfJoining: apiS.createdAt ? new Date(apiS.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A",
-        status: apiS.status || "ACTIVE",
+        dateOfJoining: apiS.createdAt
+          ? new Date(apiS.createdAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "N/A",
+        status: reportRow?.riskFlag === "At Risk" ? "AT RISK" : apiS.status || "ACTIVE",
         avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250`,
         attendance: attPct,
-        progress: 75,
+        progress: assignmentPct,
         coursesCount: 1,
-        assignmentsCompleted: `${submissionsCount}/10`,
-        performanceGrade: attPct >= 80 ? "Good" : "Average",
-        performanceMessage: "Academic progress active",
+        assignmentsCompleted: `${submissionsCount}/${totalAssignments}`,
+        performanceGrade: attPct >= 80 ? "Good" : attPct >= 60 ? "Average" : "Needs Improvement",
+        performanceMessage: reportRow?.riskFlag === "At Risk" ? "Attendance risk flagged" : "Academic progress active",
         assessments: [] as any[],
         enrolledCourses: [
-          { name: courseName, batch: apiS.admissions?.[0]?.batch?.name || "Active Batch", progress: 75, status: "In Progress", icon: Code2, iconBg: "bg-blue-50 text-blue-600" }
+          {
+            name: courseName,
+            batch: apiS.admissions?.[0]?.batch?.name || "Active Batch",
+            progress: assignmentPct,
+            status: "In Progress",
+            icon: Code2,
+            iconBg: "bg-blue-50 text-blue-600",
+          },
         ],
-        attendanceHistory: [
-          { date: "1 May", attendance: 88 },
-          { date: "4 May", attendance: 92 },
-          { date: "7 May", attendance: 90 },
-          { date: "10 May", attendance: 95 },
-          { date: "13 May", attendance: 92 },
-        ],
-        performanceTrend: [
-          { month: "Jan", score: 75 },
-          { month: "Feb", score: 80 },
-          { month: "Mar", score: 85 },
-        ]
+        attendanceHistory:
+          instituteAttendanceHistory.length > 0
+            ? instituteAttendanceHistory.map((p) => ({ ...p, attendance: attPct }))
+            : [{ date: "Current", attendance: attPct }],
+        performanceTrend:
+          institutePerformanceTrend.length > 0
+            ? institutePerformanceTrend.map((p) => ({ ...p, score: assignmentPct }))
+            : [{ month: "Current", score: assignmentPct }],
       };
     });
-  }, [apiStudents]);
+  }, [apiStudents, reportStudents, instituteAttendanceHistory, institutePerformanceTrend]);
 
   // Determine selected student ID
   const [selectedStudentId, setSelectedStudentId] = useState<string>(() => {
@@ -146,9 +203,22 @@ export const StudentPerformance: React.FC = () => {
     return Math.round(totalPercentage / currentStudent.assessments.length);
   }, [currentStudent]);
 
-  // Calculate Assessment Breakdown
+  // Calculate Assessment Breakdown from report attendance distribution when available
   const assessmentDistribution = useMemo(() => {
-    const scores = (currentStudent.assessments || []).map((a: any) => Math.round(((a.obtained || 0) / (a.maxMarks || 100)) * 100));
+    if (reportData?.attendanceDistribution?.length) {
+      return reportData.attendanceDistribution.map((item) => ({
+        name: item.range,
+        count: item.count,
+        percent: `${Math.round(
+          (item.count / Math.max(reportData.summary.totalStudents, 1)) * 100
+        )}%`,
+        color: item.color,
+      }));
+    }
+
+    const scores = (currentStudent.assessments || []).map((a: any) =>
+      Math.round(((a.obtained || 0) / (a.maxMarks || 100)) * 100)
+    );
     const total = scores.length || 1;
     const excellent = scores.filter((s: number) => s >= 80).length;
     const good = scores.filter((s: number) => s >= 60 && s < 80).length;
@@ -156,15 +226,26 @@ export const StudentPerformance: React.FC = () => {
     const below = scores.filter((s: number) => s < 40).length;
 
     return [
-      { name: 'Excellent (80-100%)', count: excellent, percent: `${Math.round((excellent / total) * 100)}%`, color: '#22c55e' },
-      { name: 'Good (60-79%)', count: good, percent: `${Math.round((good / total) * 100)}%`, color: '#3b82f6' },
-      { name: 'Average (40-59%)', count: average, percent: `${Math.round((average / total) * 100)}%`, color: '#f59e0b' },
-      { name: 'Below Average (0-39%)', count: below, percent: `${Math.round((below / total) * 100)}%`, color: '#ef4444' },
+      { name: "Excellent (80-100%)", count: excellent, percent: `${Math.round((excellent / total) * 100)}%`, color: "#22c55e" },
+      { name: "Good (60-79%)", count: good, percent: `${Math.round((good / total) * 100)}%`, color: "#3b82f6" },
+      { name: "Average (40-59%)", count: average, percent: `${Math.round((average / total) * 100)}%`, color: "#f59e0b" },
+      { name: "Below Average (0-39%)", count: below, percent: `${Math.round((below / total) * 100)}%`, color: "#ef4444" },
     ];
-  }, [currentStudent]);
+  }, [currentStudent, reportData]);
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
+
+      {reportLoading && (
+        <div className="flex items-center gap-2 text-sm text-slate-500">
+          <Loader2 className="h-4 w-4 animate-spin" /> Loading performance report data...
+        </div>
+      )}
+      {reportError && (
+        <div className="flex items-center gap-2 text-sm text-red-600">
+          <AlertCircle className="h-4 w-4" /> Failed to load report analytics. Showing student list data only.
+        </div>
+      )}
 
       {/* 1. Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

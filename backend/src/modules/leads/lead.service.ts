@@ -25,6 +25,7 @@ import type {
   UpdateFollowUpDTO,
   AddActivityDTO,
   QueryLeadsDTO,
+  QueryCallHistoryDTO,
 } from "./lead.types";
 import type { SarvamWebhookPayload } from "../../integrations/sarvam/sarvam.types";
 
@@ -600,6 +601,28 @@ export const LeadService = {
       success: status !== "FAILED",
       call: callLog,
       message: providerMessage,
+    };
+  },
+
+  async getCallHistory(currentUser: AuthUser, query: QueryCallHistoryDTO) {
+    const scope = getBranchScopeFilter(currentUser, query.branchId);
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+
+    const { total, data } = await LeadRepository.findCallHistory({
+      instituteId: scope.instituteId,
+      branchId: scope.branchId,
+      leadId: query.leadId,
+      studentId: query.studentId,
+      status: query.status,
+      skip,
+      take: limit,
+    });
+
+    return {
+      callLogs: data,
+      meta: buildMeta(total, page, limit),
     };
   },
 };

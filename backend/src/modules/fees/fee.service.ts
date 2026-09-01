@@ -4,9 +4,16 @@ import type {
   CreatePaymentDTO,
   QueryPendingFeesDTO,
   CollectPendingFeeDTO,
+  QueryFeePlansDTO,
+  CreateFeePlanDTO,
+  UpdateFeePlanDTO,
+  QueryReceiptsDTO,
 } from "./fee.types";
 import { prisma } from "../../config/database";
 import { SequenceService } from "../masters/sequence.service";
+import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
+import type { AuthUser } from "../auth/auth.types";
+import { AppError } from "../../middlewares/error.middleware";
 import {
   resolveOptionalMasterFields,
   resolveRequiredMasterFields,
@@ -164,5 +171,47 @@ export const FeeService = {
 
   async getFeeReports(instituteId: string) {
     return FeeRepository.getFeeReports(instituteId);
+  },
+
+  async getFeePlans(currentUser: AuthUser, query: QueryFeePlansDTO) {
+    const scope = getBranchScopeFilter(currentUser, query.branchId);
+    return FeeRepository.findFeePlans(scope.instituteId, {
+      branchId: scope.branchId,
+      courseId: query.courseId,
+      status: query.status,
+      search: query.search,
+      page: query.page,
+      limit: query.limit,
+    });
+  },
+
+  async createFeePlan(currentUser: AuthUser, dto: CreateFeePlanDTO) {
+    const scope = getBranchScopeFilter(currentUser, dto.branchId);
+    return FeeRepository.createFeePlan(scope.instituteId, {
+      ...dto,
+      branchId: dto.branchId || scope.branchId,
+    });
+  },
+
+  async updateFeePlan(currentUser: AuthUser, id: string, dto: UpdateFeePlanDTO) {
+    const existing = await FeeRepository.findFeePlanById(id, currentUser.instituteId);
+    if (!existing) throw new AppError("Fee plan template not found", 404);
+    return FeeRepository.updateFeePlan(id, currentUser.instituteId, {
+      ...dto,
+      planType: dto.planType as never,
+      status: dto.status as never,
+    });
+  },
+
+  async getReceipts(currentUser: AuthUser, query: QueryReceiptsDTO) {
+    const scope = getBranchScopeFilter(currentUser, query.branchId);
+    return FeeRepository.findReceipts(scope.instituteId, {
+      search: query.search,
+      branchId: scope.branchId,
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+      page: query.page,
+      limit: query.limit,
+    });
   },
 };

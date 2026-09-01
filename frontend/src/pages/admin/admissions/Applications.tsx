@@ -33,8 +33,7 @@ import {
   MapPin,
   Award,
 } from "lucide-react";
-import { useAdmissionStore } from "../../../store/admission.store";
-import { useCourseStore } from "../../../store/course.store";
+import { useBatches } from "../../../hooks/useBatches";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -164,8 +163,7 @@ const SAMPLE_APPLICATIONS: EnrichedApplication[] = [];
 export const Applications: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { batches, fetchCourses, fetchBatches } = useCourseStore();
-  const { convertApplicationToAdmission } = useAdmissionStore();
+  const { batches } = useBatches();
 
   const handleConvertToAdmission = (app: EnrichedApplication) => {
     const rolePrefix = location.pathname.startsWith("/counselor")
@@ -334,11 +332,6 @@ export const Applications: React.FC = () => {
   // Copy Feedback state
   const [copiedAppNo, setCopiedAppNo] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (fetchCourses) fetchCourses();
-    if (fetchBatches) fetchBatches();
-  }, []);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);

@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import type { UserStatus, Prisma } from "@prisma/client";
 import { resolvePermissionsToModules } from "../../utils/module-permissions";
+import type { PermissionRoleScope } from "../../utils/permission-catalog";
 
 // ─── Shared include shape ─────────────────────────────────────────────────────
 
@@ -27,6 +28,11 @@ export const mapUserToResponse = (user: UserWithRoles) => {
     (up) => up.permission.name
   );
 
+  const roles = user.userRoles.map((ur) => ur.role.name);
+  const roleScope: PermissionRoleScope = roles.includes("COUNSELLOR")
+    ? "COUNSELLOR"
+    : "CENTER_MANAGER";
+
   return {
     id: user.id,
     name: user.name,
@@ -37,8 +43,8 @@ export const mapUserToResponse = (user: UserWithRoles) => {
     branchId: user.branchId,
     branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
     whatsappEnabled: user.whatsappEnabled,
-    roles: user.userRoles.map((ur) => ur.role.name),
-    modulePermissions: resolvePermissionsToModules(permissionNames),
+    roles,
+    modulePermissions: resolvePermissionsToModules(permissionNames, roleScope),
     permissions: permissionNames,
     createdAt: user.createdAt,
     updatedAt: user.updatedAt,

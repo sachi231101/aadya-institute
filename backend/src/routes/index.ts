@@ -27,6 +27,11 @@ import masterRoutes from "../modules/masters/master.routes";
 import googleWorkspaceRoutes from "../modules/google-workspace/google-workspace.routes";
 import chatRoutes from "../modules/chat/chat.routes";
 import feedbackRoutes from "../modules/feedback/feedback.routes";
+import documentRoutes from "../modules/documents/document.routes";
+import placementRoutes from "../modules/placement/placement.routes";
+import emailRoutes from "../modules/email/email.routes";
+import auditLogRoutes from "../modules/audit-logs/audit-log.routes";
+import billingRoutes from "../modules/billing/billing.routes";
 
 const router = Router();
 
@@ -74,6 +79,19 @@ router.use("/assignments", assignmentRoutes);
 
 // Feedback
 router.use("/feedback", feedbackRoutes);
+
+// Documents
+router.use("/documents", documentRoutes);
+
+// Placement
+router.use("/placement", placementRoutes);
+
+// Email
+router.use("/email", emailRoutes);
+
+// Audit Logs
+router.use("/audit-logs", auditLogRoutes);
+router.use("/billing", billingRoutes);
 
 // Recordings
 router.use("/recordings", recordingRoutes);

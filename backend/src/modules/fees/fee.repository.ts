@@ -303,4 +303,149 @@ export const FeeRepository = {
       dueStatusSummary,
     };
   },
+
+  // ─── FEE PLAN TEMPLATES ──────────────────────────────────────────────────────
+  async findFeePlans(instituteId: string, params: {
+    branchId?: string;
+    courseId?: string;
+    status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { branchId, courseId, status, search, page = 1, limit = 20 } = params;
+    const where: Prisma.FeePlanTemplateWhereInput = {
+      instituteId,
+      ...(branchId ? { branchId } : {}),
+      ...(courseId ? { courseId } : {}),
+      ...(status ? { status: status as never } : {}),
+      ...(search
+        ? {
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { code: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, data] = await Promise.all([
+      prisma.feePlanTemplate.count({ where }),
+      prisma.feePlanTemplate.findMany({
+        where,
+        include: {
+          course: { select: { id: true, name: true, code: true } },
+          branch: { select: { id: true, name: true, code: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
+  },
+
+  async findFeePlanById(id: string, instituteId: string) {
+    return prisma.feePlanTemplate.findFirst({
+      where: { id, instituteId },
+      include: {
+        course: { select: { id: true, name: true, code: true } },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    });
+  },
+
+  async createFeePlan(instituteId: string, data: {
+    name: string;
+    code?: string;
+    branchId?: string;
+    courseId?: string;
+    totalAmount: number;
+    planType?: string;
+    installments?: unknown;
+    description?: string;
+  }) {
+    return prisma.feePlanTemplate.create({
+      data: {
+        instituteId,
+        branchId: data.branchId || null,
+        courseId: data.courseId || null,
+        name: data.name,
+        code: data.code,
+        totalAmount: data.totalAmount,
+        planType: (data.planType as never) || "FULL_PAYMENT",
+        installments: data.installments as Prisma.InputJsonValue,
+        description: data.description,
+      },
+      include: {
+        course: { select: { id: true, name: true, code: true } },
+        branch: { select: { id: true, name: true, code: true } },
+      },
+    });
+  },
+
+  async updateFeePlan(id: string, instituteId: string, data: Prisma.FeePlanTemplateUpdateInput) {
+    await prisma.feePlanTemplate.updateMany({ where: { id, instituteId }, data });
+    return FeeRepository.findFeePlanById(id, instituteId);
+  },
+
+  async findReceipts(instituteId: string, params: {
+    search?: string;
+    branchId?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    const { search, branchId, dateFrom, dateTo, page = 1, limit = 50 } = params;
+    const where: Prisma.PaymentWhereInput = {
+      instituteId,
+      status: "SUCCESS",
+      ...(branchId ? { branchId } : {}),
+      ...(dateFrom || dateTo
+        ? {
+            date: {
+              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+              ...(dateTo ? { lte: new Date(dateTo) } : {}),
+            },
+          }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { receiptNo: { contains: search, mode: "insensitive" } },
+              { studentName: { contains: search, mode: "insensitive" } },
+              { admissionNo: { contains: search, mode: "insensitive" } },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, data] = await Promise.all([
+      prisma.payment.count({ where }),
+      prisma.payment.findMany({
+        where,
+        select: {
+          id: true,
+          receiptNo: true,
+          studentName: true,
+          admissionNo: true,
+          courseName: true,
+          amount: true,
+          date: true,
+          method: true,
+          status: true,
+          transactionRef: true,
+          branchId: true,
+          createdAt: true,
+        },
+        orderBy: { date: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+    ]);
+
+    return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
+  },
 };

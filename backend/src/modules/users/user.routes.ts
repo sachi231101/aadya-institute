@@ -11,6 +11,7 @@ import {
   updateWhatsappPreference,
   updateUserPermissions,
   deleteUser,
+  getPermissionCatalog,
 } from "./user.controller";
 import {
   createUserSchema,
@@ -18,6 +19,7 @@ import {
   updateUserStatusSchema,
   updateWhatsappPreferenceSchema,
   updateUserPermissionsSchema,
+  permissionCatalogQuerySchema,
   userListQuerySchema,
 } from "./user.validation";
 
@@ -40,6 +42,14 @@ router.get(
   requirePermission("user.read"),
   validate(userListQuerySchema, "query"),
   listUsers
+);
+
+// GET /api/v1/users/permission-catalog — Module/submodule permission tree
+router.get(
+  "/permission-catalog",
+  requirePermission("user.read"),
+  validate(permissionCatalogQuerySchema, "query"),
+  getPermissionCatalog
 );
 
 // GET /api/v1/users/:id — Get single user

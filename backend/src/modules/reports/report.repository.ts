@@ -584,4 +584,203 @@ export class ReportRepository {
       })),
     };
   }
+
+  static async getAdmissionsReportData(
+    instituteId: string,
+    branchId?: string
+  ): Promise<import("./report.types").AdmissionsReportResponse> {
+    const whereBranch = branchId ? { branchId } : {};
+    const admissions = await prisma.admission.findMany({
+      where: { instituteId, ...whereBranch },
+      include: {
+        course: { select: { name: true } },
+        branch: { select: { name: true } },
+        student: { include: { user: { select: { name: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    const totalAdmissions = admissions.length;
+    const confirmedAdmissions = admissions.filter((a) => a.status === "CONFIRMED" || a.status === "ACTIVE").length;
+    const provisionalAdmissions = admissions.filter((a) => a.status === "PROVISIONAL" || a.status === "PENDING").length;
+    const cancelledAdmissions = admissions.filter((a) => a.status === "CANCELLED").length;
+
+    const courseMap = new Map<string, number>();
+    const branchMap = new Map<string, number>();
+    const monthMap = new Map<string, number>();
+
+    for (const a of admissions) {
+      const courseName = a.course?.name || "Unknown";
+      courseMap.set(courseName, (courseMap.get(courseName) || 0) + 1);
+      const branchName = a.branch?.name || "Unknown";
+      branchMap.set(branchName, (branchMap.get(branchName) || 0) + 1);
+      const month = a.createdAt.toLocaleString("en-US", { month: "short", year: "numeric" });
+      monthMap.set(month, (monthMap.get(month) || 0) + 1);
+    }
+
+    return {
+      summary: {
+        totalAdmissions,
+        confirmedAdmissions,
+        provisionalAdmissions,
+        cancelledAdmissions,
+        conversionRate: totalAdmissions > 0 ? Math.round((confirmedAdmissions / totalAdmissions) * 100) : 0,
+      },
+      monthlyTrend: Array.from(monthMap.entries()).map(([month, admissionsCount]) => ({
+        month,
+        admissions: admissionsCount,
+      })),
+      courseBreakdown: Array.from(courseMap.entries()).map(([courseName, count]) => ({ courseName, count })),
+      branchBreakdown: Array.from(branchMap.entries()).map(([branchName, count]) => ({ branchName, count })),
+      recentAdmissions: admissions.slice(0, 20).map((a) => ({
+        id: a.id,
+        admissionNo: a.admissionNo || "",
+        studentName: a.student?.user?.name || a.studentName || "Unknown",
+        courseName: a.course?.name || "Unassigned",
+        branchName: a.branch?.name || "Unknown",
+        status: a.status,
+        createdAt: a.createdAt,
+      })),
+    };
+  }
+
+  static async getAttendanceReportData(
+    instituteId: string,
+    branchId?: string
+  ): Promise<import("./report.types").AttendanceReportResponse> {
+    const whereBranch = branchId ? { branchId } : {};
+    const attendances = await prisma.studentAttendance.findMany({
+      where: {
+        classSession: { batch: { instituteId, ...whereBranch } },
+      },
+      include: {
+        classSession: {
+          include: { batch: { include: { branch: { select: { name: true } } } } },
+        },
+      },
+    });
+
+    const totalSessions = new Set(attendances.map((a) => a.classSessionId)).size;
+    const presentCount = attendances.filter((a) => a.status === "PRESENT").length;
+    const absentCount = attendances.filter((a) => a.status === "ABSENT").length;
+    const leaveCount = attendances.filter((a) => a.status === "LEAVE").length;
+    const totalRecords = attendances.length;
+    const avgAttendanceRate = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
+
+    const branchStats = new Map<string, { present: number; total: number; sessions: Set<string> }>();
+    const monthStats = new Map<string, { present: number; total: number }>();
+
+    for (const a of attendances) {
+      const branchName = a.classSession.batch?.branch?.name || "Unknown";
+      if (!branchStats.has(branchName)) {
+        branchStats.set(branchName, { present: 0, total: 0, sessions: new Set() });
+      }
+      const bs = branchStats.get(branchName)!;
+      bs.total += 1;
+      if (a.status === "PRESENT") bs.present += 1;
+      bs.sessions.add(a.classSessionId);
+
+      const month = a.classSession.scheduledDate.toLocaleString("en-US", { month: "short", year: "numeric" });
+      if (!monthStats.has(month)) monthStats.set(month, { present: 0, total: 0 });
+      const ms = monthStats.get(month)!;
+      ms.total += 1;
+      if (a.status === "PRESENT") ms.present += 1;
+    }
+
+    const students = await prisma.student.findMany({
+      where: { instituteId, ...whereBranch },
+      include: { studentAttendances: true },
+    });
+    const atRiskStudents = students.filter((s) => {
+      const total = s.studentAttendances.length;
+      if (total === 0) return false;
+      const present = s.studentAttendances.filter((a) => a.status === "PRESENT").length;
+      return (present / total) * 100 < 75;
+    }).length;
+
+    return {
+      summary: {
+        totalSessions,
+        avgAttendanceRate,
+        presentCount,
+        absentCount,
+        leaveCount,
+      },
+      branchBreakdown: Array.from(branchStats.entries()).map(([branchName, data]) => ({
+        branchName,
+        attendanceRate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
+        sessions: data.sessions.size,
+      })),
+      monthlyTrend: Array.from(monthStats.entries()).map(([month, data]) => ({
+        month,
+        attendanceRate: data.total > 0 ? Math.round((data.present / data.total) * 100) : 0,
+      })),
+      atRiskStudents,
+    };
+  }
+
+  static async getExaminationsReportData(
+    instituteId: string,
+    branchId?: string
+  ): Promise<import("./report.types").ExaminationsReportResponse> {
+    const whereBranch = branchId ? { branchId } : {};
+    const exams = await prisma.exam.findMany({
+      where: { instituteId, ...whereBranch },
+      include: {
+        attempts: {
+          where: { status: "COMPLETED" },
+          select: { score: true, percentage: true, passed: true },
+        },
+      },
+    });
+
+    const totalExams = exams.length;
+    const publishedExams = exams.filter((e) =>
+      ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(e.status)
+    ).length;
+    const allAttempts = exams.flatMap((e) => e.attempts);
+    const totalAttempts = allAttempts.length;
+    const avgScore =
+      totalAttempts > 0
+        ? Math.round(allAttempts.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) / totalAttempts)
+        : 0;
+    const passedCount = allAttempts.filter((a) => a.passed === true).length;
+    const passRate = totalAttempts > 0 ? Math.round((passedCount / totalAttempts) * 100) : 0;
+
+    const scoreBuckets = { "90-100": 0, "75-89": 0, "50-74": 0, "Below 50": 0 };
+    for (const a of allAttempts) {
+      const pct = a.percentage || a.score || 0;
+      if (pct >= 90) scoreBuckets["90-100"] += 1;
+      else if (pct >= 75) scoreBuckets["75-89"] += 1;
+      else if (pct >= 50) scoreBuckets["50-74"] += 1;
+      else scoreBuckets["Below 50"] += 1;
+    }
+
+    return {
+      summary: {
+        totalExams,
+        publishedExams,
+        totalAttempts,
+        avgScore,
+        passRate,
+      },
+      examBreakdown: exams.map((e) => {
+        const attempts = e.attempts.length;
+        const avg =
+          attempts > 0
+            ? Math.round(e.attempts.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) / attempts)
+            : 0;
+        const passed = e.attempts.filter((a) => a.passed === true).length;
+        return {
+          id: e.id,
+          title: e.name,
+          status: e.status,
+          attempts,
+          avgScore: avg,
+          passRate: attempts > 0 ? Math.round((passed / attempts) * 100) : 0,
+        };
+      }),
+      scoreDistribution: Object.entries(scoreBuckets).map(([range, count]) => ({ range, count })),
+    };
+  }
 }

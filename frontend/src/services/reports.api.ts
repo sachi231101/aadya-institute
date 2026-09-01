@@ -86,6 +86,60 @@ export interface CourseReportData {
   }[];
 }
 
+export interface AdmissionsReportData {
+  summary: {
+    totalAdmissions: number;
+    confirmedAdmissions: number;
+    provisionalAdmissions: number;
+    cancelledAdmissions: number;
+    conversionRate: number;
+  };
+  monthlyTrend: { month: string; admissions: number }[];
+  courseBreakdown: { courseName: string; count: number }[];
+  branchBreakdown: { branchName: string; count: number }[];
+  recentAdmissions: Array<{
+    id: string;
+    admissionNo: string;
+    studentName: string;
+    courseName: string;
+    branchName: string;
+    status: string;
+    createdAt: string;
+  }>;
+}
+
+export interface AttendanceReportData {
+  summary: {
+    totalSessions: number;
+    avgAttendanceRate: number;
+    presentCount: number;
+    absentCount: number;
+    leaveCount: number;
+  };
+  branchBreakdown: Array<{ branchName: string; attendanceRate: number; sessions: number }>;
+  monthlyTrend: Array<{ month: string; attendanceRate: number }>;
+  atRiskStudents: number;
+}
+
+export interface ExaminationsReportData {
+  summary: {
+    totalExams: number;
+    publishedExams: number;
+    totalAttempts: number;
+    avgScore: number;
+    passRate: number;
+  };
+  examBreakdown: Array<{
+    id: string;
+    title: string;
+    status: string;
+    attempts: number;
+    avgScore: number;
+    passRate: number;
+  }>;
+  scoreDistribution: Array<{ range: string; count: number }>;
+}
+
 export interface RecentPaymentData {
   id: string;
   receiptNo: string;
@@ -137,6 +191,21 @@ export const reportsApi = {
       "/reports/schedule/summary",
       { params: branchId ? { branchId } : undefined }
     );
+    return response.data.data;
+  },
+
+  getAdmissionsReport: async (branchId?: string): Promise<AdmissionsReportData> => {
+    const response = await api.get("/reports/admissions", { params: { branchId } });
+    return response.data.data;
+  },
+
+  getAttendanceReport: async (branchId?: string): Promise<AttendanceReportData> => {
+    const response = await api.get("/reports/attendance", { params: { branchId } });
+    return response.data.data;
+  },
+
+  getExaminationsReport: async (branchId?: string): Promise<ExaminationsReportData> => {
+    const response = await api.get("/reports/examinations", { params: { branchId } });
     return response.data.data;
   },
 };

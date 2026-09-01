@@ -502,4 +502,66 @@ export const LeadRepository = {
 
     return performance;
   },
+
+  async findCallHistory(params: {
+    instituteId: string;
+    branchId?: string;
+    leadId?: string;
+    studentId?: string;
+    status?: string;
+    skip: number;
+    take: number;
+  }) {
+    const { instituteId, branchId, leadId, studentId, status, skip, take } = params;
+
+    const branchFilter = branchId ? { branchId } : {};
+    const where: Prisma.CallLogWhereInput = {
+      ...(status ? { status } : {}),
+    };
+
+    if (leadId) {
+      where.leadId = leadId;
+      where.lead = { instituteId, ...branchFilter };
+    } else if (studentId) {
+      where.studentId = studentId;
+      where.student = { instituteId, ...branchFilter };
+    } else {
+      where.OR = [
+        { lead: { instituteId, ...branchFilter } },
+        { student: { instituteId, ...branchFilter } },
+      ];
+    }
+
+    const [total, data] = await Promise.all([
+      prisma.callLog.count({ where }),
+      prisma.callLog.findMany({
+        where,
+        include: {
+          lead: {
+            select: {
+              id: true,
+              name: true,
+              phoneNumber: true,
+              branchId: true,
+              branch: { select: { id: true, name: true, code: true } },
+            },
+          },
+          student: {
+            select: {
+              id: true,
+              studentCode: true,
+              branchId: true,
+              branch: { select: { id: true, name: true, code: true } },
+              user: { select: { id: true, name: true, phone: true } },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip,
+        take,
+      }),
+    ]);
+
+    return { total, data };
+  },
 };

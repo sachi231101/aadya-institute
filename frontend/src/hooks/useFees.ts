@@ -7,6 +7,8 @@ export const FEES_KEYS = {
   reports: ["fees", "reports"] as const,
   payments: (params?: Record<string, any>) => ["fees", "payments", params] as const,
   pendingFees: (params?: Record<string, any>) => ["fees", "pending", params] as const,
+  plans: (params?: Record<string, any>) => ["fees", "plans", params] as const,
+  receipts: (params?: Record<string, any>) => ["fees", "receipts", params] as const,
 };
 
 export const useFeeStats = () => {
@@ -86,5 +88,54 @@ export const useSendFeeReminder = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees"] });
     },
+  });
+};
+
+export const useFeePlans = (params?: {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  courseId?: string;
+  status?: string;
+  search?: string;
+}) => {
+  return useQuery({
+    queryKey: FEES_KEYS.plans(params),
+    queryFn: () => feesApi.getPlans(params),
+  });
+};
+
+export const useCreateFeePlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: feesApi.createPlan,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fees"] });
+    },
+  });
+};
+
+export const useUpdateFeePlan = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: Record<string, unknown> }) =>
+      feesApi.updatePlan(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["fees"] });
+    },
+  });
+};
+
+export const useFeeReceipts = (params?: {
+  search?: string;
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+}) => {
+  return useQuery({
+    queryKey: FEES_KEYS.receipts(params),
+    queryFn: () => feesApi.getReceipts(params),
   });
 };
