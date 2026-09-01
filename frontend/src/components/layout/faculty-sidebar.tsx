@@ -49,12 +49,6 @@ interface NavItem {
 
 const facultyNavItems: NavItem[] = [
   {
-    title: "+ ASK ME",
-    url: "/faculty/ask-me",
-    icon: Sparkles,
-    isAi: true,
-  },
-  {
     title: "Dashboard",
     url: "/faculty/dashboard",
     icon: LayoutDashboard,
@@ -159,56 +153,16 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
               const isExpanded = isSubItemActive || isDirectActive
 
               if (!item.items) {
-                if (item.isAi) {
-                  return (
-                    <SidebarMenuItem key={item.title} className="mb-2">
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isDirectActive}
-                        tooltip={item.title}
-                        className={
-                          isDirectActive
-                            ? "bg-[#1769AA] text-white font-bold rounded-xl shadow-xs"
-                            : "bg-blue-50/80 hover:bg-blue-100/90 text-[#1769AA] font-bold border border-blue-200/60 rounded-xl transition-all"
-                        }
-                      >
-                        <Link to={item.url} className="flex items-center justify-between w-full">
-                          <div className="flex items-center gap-2">
-                            <Sparkles
-                              className={`h-4 w-4 shrink-0 ${isDirectActive ? "text-white fill-white" : "text-[#1769AA]"
-                                }`}
-                            />
-                            <span className="tracking-wide">✦ ASK ME</span>
-                          </div>
-                          <span
-                            className={`${isDirectActive ? "bg-white/20 text-white" : "bg-[#1769AA] text-white"
-                              } text-[9px] font-black px-1.5 py-0.5 rounded-full shadow-xs`}
-                          >
-                            AI
-                          </span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  )
-                }
-
                 return (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
                       asChild
                       isActive={isDirectActive}
                       tooltip={item.title}
-                      className={`text-xs font-semibold rounded-xl transition-colors ${
-                        isDirectActive
-                          ? "bg-[#5B50EC] text-white font-bold shadow-xs hover:bg-[#4F46E5] hover:text-white"
-                          : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                      }`}
                     >
-                      <Link to={item.url} className="flex items-center justify-between w-full">
-                        <div className="flex items-center gap-3">
-                          {item.icon && <item.icon className={`h-4 w-4 ${isDirectActive ? "text-white stroke-[2.2]" : "text-slate-400 stroke-[1.8]"}`} />}
-                          <span>{item.title}</span>
-                        </div>
+                      <Link to={item.url} className="flex items-center gap-2.5 w-full">
+                        {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isDirectActive ? "text-indigo-600 dark:text-indigo-400 font-semibold" : "text-muted-foreground"}`} />}
+                        <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
@@ -227,19 +181,17 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                       <SidebarMenuButton
                         tooltip={item.title}
                         isActive={isSubItemActive || isDirectActive}
-                        className={`text-xs font-semibold rounded-xl transition-colors ${
-                          isSubItemActive || isDirectActive
-                            ? "text-[#5B50EC] font-bold bg-indigo-50/60"
-                            : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-                        }`}
+                        className="w-full justify-between"
                       >
-                        {item.icon && <item.icon className={`h-4 w-4 ${isSubItemActive || isDirectActive ? "text-[#5B50EC]" : "text-slate-400"}`} />}
-                        <span>{item.title}</span>
-                        <ChevronDown className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0 group-data-[state=closed]/collapsible:-rotate-90 text-slate-400" />
+                        <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                          {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isSubItemActive || isDirectActive ? "text-indigo-600 dark:text-indigo-400 font-semibold" : "text-muted-foreground"}`} />}
+                          <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
+                        </div>
+                        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0 group-data-[state=closed]/collapsible:-rotate-90" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
-                      <SidebarMenuSub className="ml-3.5 border-l-2 border-slate-100 pl-2 space-y-1">
+                      <SidebarMenuSub className="my-1 ml-3.5 pl-2.5 border-l border-border/60 gap-0.5">
                         {item.items.map((subItem) => {
                           const isSubActive =
                             location.pathname === subItem.url ||
@@ -250,17 +202,10 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={isSubActive}
-                                className={`text-xs rounded-lg transition-colors ${
-                                  isSubActive 
-                                    ? "bg-[#5B50EC] text-white font-bold shadow-xs hover:bg-[#4F46E5] hover:text-white" 
-                                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-50 font-medium"
-                                }`}
+                                className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-indigo-50/90 dark:data-[active=true]:bg-indigo-950/50 data-[active=true]:text-indigo-600 dark:data-[active=true]:text-indigo-400 data-[active=true]:font-semibold"
                               >
-                                <Link to={subItem.url} className="flex items-center justify-between">
+                                <Link to={subItem.url} className="truncate min-w-0 flex-1">
                                   <span>{subItem.title}</span>
-                                  {isSubActive && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-white ml-auto" />
-                                  )}
                                 </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
@@ -276,48 +221,30 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         </SidebarGroup>
       </SidebarContent>
         
-      <SidebarFooter className="p-3 border-t border-border/40">
-          <div className="px-2 pt-2">
-          <InstallAppButton variant="sidebar" />
-        </div>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center justify-between p-2 rounded-2xl border border-border/60 bg-card hover:bg-muted/40 transition-colors shadow-2xs">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Avatar className="h-9 w-9 rounded-xl border border-slate-200 shadow-2xs shrink-0">
-                  <AvatarImage src={facultyAvatar} alt={facultyName} />
-                  <AvatarFallback className="bg-[#4F46E5] text-white font-bold text-xs rounded-xl">
-                    {facultyName.slice(0, 2).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex flex-col min-w-0 text-left">
-                  <span className="text-xs font-bold text-slate-900 truncate">{facultyName}</span>
-                  <span className="text-[10px] text-slate-500 font-medium truncate">{facultyDesignation}</span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <span className="text-[9px] font-semibold text-slate-600 flex items-center gap-0.5 truncate">
-                      <MapPin className="h-2.5 w-2.5 text-blue-600 shrink-0" />
-                      {facultyCenter}
-                    </span>
-                    <span className="text-[9px] font-bold text-emerald-600 flex items-center gap-0.5 shrink-0">
-                      ● Online
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  logout()
-                  navigate("/login")
-                }}
-                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer shrink-0 ml-1"
-                title="Log out"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
+      <SidebarFooter className="border-t border-border/50 p-2.5 gap-2 bg-bg-secondary">
+        <InstallAppButton variant="sidebar" />
+        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-border/40">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+            <div className="h-8 w-8 rounded-full bg-indigo-500/10 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-500/20">
+              {(user?.name || "Faculty").charAt(0).toUpperCase()}
             </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
+            <div className="flex flex-col min-w-0 flex-1 leading-tight">
+              <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || "Dr. Rajesh Kumar"}</span>
+              <span className="text-[11px] text-muted-foreground truncate">{user?.email || "faculty@aadya.in"}</span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              logout()
+              navigate("/login")
+            }}
+            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0 cursor-pointer"
+            title="Log out"
+          >
+            <LogOut size={15} />
+          </button>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

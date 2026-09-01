@@ -172,14 +172,14 @@ export const NotificationPopover: React.FC = () => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 rounded-full text-slate-500 hover:text-slate-900 hover:bg-slate-100 transition-colors focus:outline-none cursor-pointer"
+        className="relative h-7 w-7 rounded-lg border border-white/20 bg-white/10 hover:bg-white/20 text-white transition-all duration-200 flex items-center justify-center focus:outline-none cursor-pointer"
         aria-label="Notifications"
       >
-        <Bell size={20} />
+        <Bell size={14} />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center">
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex h-4 w-4 rounded-full bg-red-600 text-[10px] font-bold text-white items-center justify-center">
+            <span className="relative inline-flex h-3.5 w-3.5 rounded-full bg-red-500 text-[8px] font-bold text-white items-center justify-center">
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
           </span>
