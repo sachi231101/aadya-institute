@@ -2,13 +2,11 @@ import React, { useState, useMemo, useEffect } from "react";
 import {
   Users,
   Calendar,
-  BookOpen,
   ChevronLeft,
   ChevronRight,
   Download,
   Search,
   Filter,
-  Building2,
   CheckCircle2,
   Save,
   Edit3,
@@ -17,11 +15,8 @@ import {
   MoreVertical,
   Coffee,
   UtensilsCrossed,
-  SlidersHorizontal,
-  Bell,
   Trash2,
   MoveHorizontal,
-  Settings,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -252,16 +247,10 @@ export const Timetable: React.FC = () => {
     return found?.name || "Assigned Center";
   }, [userCenterId, branches]);
 
-  // Context Badge Label
-  const roleContextBadge = useMemo(() => {
-    if (isAdmin) return "FULL ACADEMY ACCESS • EDIT MODE";
-    if (isCenterManager) return `${userCenterName.toUpperCase()} • EDIT MODE`;
-    return `${userCenterName.toUpperCase()} • EDIT MODE`;
-  }, [isAdmin, isCenterManager, userCenterName]);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Selected Day & Week Navigation
   const [selectedDayKey, setSelectedDayKey] = useState<DayKey>("MON");
-  const [viewMode, setViewMode] = useState<"week" | "day">("week");
   const [weekOffset, setWeekOffset] = useState<number>(0);
 
   const weekRange = useMemo(() => getWeekRange(weekOffset), [weekOffset]);
@@ -271,6 +260,15 @@ export const Timetable: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  const branchLabel = useMemo(() => {
+    if (isAdmin && selectedBranch === "ALL") return "All branches";
+    if (isAdmin && selectedBranch !== "ALL") {
+      const found = branches.find((b: { id: string }) => b.id === selectedBranch);
+      return found?.name || userCenterName;
+    }
+    return userCenterName;
+  }, [isAdmin, selectedBranch, userCenterName, branches]);
 
   const sessionQueryParams = useMemo(() => {
     const params: Record<string, string | number> = {
@@ -389,46 +387,6 @@ export const Timetable: React.FC = () => {
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
   const [moveSource, setMoveSource] = useState<{ facultyId: string; dayKey: DayKey; period: number } | null>(null);
   const [targetPeriod, setTargetPeriod] = useState<number>(1);
-
-  // Dual Scrollbar Synchronization (Top & Bottom scrolling option)
-  const topScrollRef = React.useRef<HTMLDivElement>(null);
-  const bottomScrollRef = React.useRef<HTMLDivElement>(null);
-  const isSyncingTop = React.useRef(false);
-  const isSyncingBottom = React.useRef(false);
-
-  const handleTopScroll = () => {
-    if (isSyncingTop.current) {
-      isSyncingTop.current = false;
-      return;
-    }
-    if (topScrollRef.current && bottomScrollRef.current) {
-      isSyncingBottom.current = true;
-      bottomScrollRef.current.scrollLeft = topScrollRef.current.scrollLeft;
-    }
-  };
-
-  const handleBottomScroll = () => {
-    if (isSyncingBottom.current) {
-      isSyncingBottom.current = false;
-      return;
-    }
-    if (topScrollRef.current && bottomScrollRef.current) {
-      isSyncingTop.current = true;
-      topScrollRef.current.scrollLeft = bottomScrollRef.current.scrollLeft;
-    }
-  };
-
-  const handleScrollLeft = () => {
-    if (bottomScrollRef.current) {
-      bottomScrollRef.current.scrollBy({ left: -320, behavior: "smooth" });
-    }
-  };
-
-  const handleScrollRight = () => {
-    if (bottomScrollRef.current) {
-      bottomScrollRef.current.scrollBy({ left: 320, behavior: "smooth" });
-    }
-  };
 
   // Keep branch filter locked for non-admins
   useEffect(() => {
@@ -709,388 +667,203 @@ export const Timetable: React.FC = () => {
   };
 
   return (
-    <div className="p-4 lg:p-6 space-y-5 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-16 animate-in fade-in duration-200">
-      {/* ─── 1. TOP PAGE HEADER ────────────────────────────────────────── */}
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0 shadow-2xs">
-            <Calendar className="h-6 w-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl lg:text-3xl font-bold tracking-tight text-slate-900">
-                Academy Timetable
-              </h1>
-              {/* Role Context Badge */}
-              <span className="px-3 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-blue-100/90 text-[#1769AA] border border-blue-200 shadow-2xs">
-                {roleContextBadge}
-              </span>
-            </div>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
-              View and manage weekly & daily schedules of all faculties across all branches.
-            </p>
-          </div>
+    <div className="p-4 lg:p-6 space-y-4 text-slate-800 font-sans w-full max-w-[1720px] mx-auto pb-12">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900">Timetable</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {branchLabel} · {weekDateLabel}
+          </p>
         </div>
-
-        {/* Top Header Actions */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
-            onClick={handleExportCSV}
-            className="text-xs font-bold h-9 px-3.5 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center gap-1.5 shadow-2xs cursor-pointer"
+            size="sm"
+            onClick={() => {
+              const defaultFac = filteredFaculty[0] || facultyRoster[0];
+              if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
+            }}
+            className="text-xs h-9 gap-1.5"
           >
-            <Download className="h-3.5 w-3.5 text-slate-500" /> Export CSV
+            <Plus className="h-3.5 w-3.5" /> Add class
           </Button>
-          <button className="relative p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer" title="Notifications">
-            <Bell className="h-4 w-4" />
-            <span className="absolute -top-1 -right-1 bg-rose-500 text-white text-[9px] font-black h-4 w-4 rounded-full flex items-center justify-center shadow-xs">8</span>
-          </button>
-          <button className="p-2 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 shadow-2xs transition-colors cursor-pointer" title="Settings">
-            <SlidersHorizontal className="h-4 w-4" />
-          </button>
+          <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs h-9 gap-1.5">
+            <Download className="h-3.5 w-3.5" /> Export
+          </Button>
         </div>
       </div>
 
-      {/* ─── 2. CONTROLS BAR: WEEK/DAY SWITCHER & STATUS LEGEND ─────────── */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3.5 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Week Date Navigator */}
-          <div className="flex items-center bg-slate-50 border border-slate-200 rounded-xl p-1 shadow-2xs">
+      {/* Single toolbar: week nav, view, day, search */}
+      <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 p-0.5">
             <button
+              type="button"
               onClick={() => setWeekOffset((p) => p - 1)}
-              className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
-              title="Previous Week"
+              className="p-1.5 rounded-md hover:bg-slate-200/60 text-slate-600"
+              title="Previous week"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
-            <div className="flex items-center gap-2 px-3 text-xs font-bold text-slate-800">
-              <Calendar className="h-3.5 w-3.5 text-[#1769AA]" />
-              <span>{weekDateLabel}</span>
-            </div>
+            <span className="px-2 text-xs font-semibold text-slate-700 whitespace-nowrap">{weekDateLabel}</span>
             <button
+              type="button"
               onClick={() => setWeekOffset((p) => p + 1)}
-              className="p-1.5 hover:bg-slate-200/60 rounded-lg text-slate-600 transition-colors cursor-pointer"
-              title="Next Week"
+              className="p-1.5 rounded-md hover:bg-slate-200/60 text-slate-600"
+              title="Next week"
             >
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
-          {/* View Toggles: Week View vs Day View */}
-          <div className="flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/60 shadow-2xs">
-            <button
-              onClick={() => setViewMode("week")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                viewMode === "week"
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Week View
-            </button>
-            <button
-              onClick={() => setViewMode("day")}
-              className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                viewMode === "day"
-                  ? "bg-[#1769AA] text-white shadow-xs"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Day View
-            </button>
-          </div>
-        </div>
-
-        {/* Status Legend Pills */}
-        <div className="flex flex-wrap items-center gap-3.5 text-xs font-semibold text-slate-600">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
-            <span>Class</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            <span>Free</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
-            <span>Break</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-orange-500" />
-            <span>Lunch</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-rose-500" />
-            <span>Leave</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-full bg-slate-400" />
-            <span>Not Assigned</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Notifications Alert */}
-      {notificationMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-          <span>{notificationMsg}</span>
-        </div>
-      )}
-
-      {/* ─── 3. TOP DAYS OF THE WEEK (WEEK VIEW) / DAY NAVIGATOR (DAY VIEW) ─ */}
-      {viewMode === "day" ? (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const idx = daysConfig.findIndex((d) => d.key === selectedDayKey);
-                if (idx > 0) setSelectedDayKey(daysConfig[idx - 1].key);
+          <div className="relative flex-1 min-w-[180px] max-w-md">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Search faculty or batch..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
               }}
-              disabled={selectedDayKey === "MON"}
-              className="text-xs font-bold h-9 rounded-xl border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"
-            >
-              <ChevronLeft className="h-3.5 w-3.5 mr-1" /> Previous Day
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setSelectedDayKey("MON")}
-              className="text-xs font-bold h-9 rounded-xl border-slate-200 bg-white hover:bg-slate-50 cursor-pointer"
-            >
-              Today
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                const idx = daysConfig.findIndex((d) => d.key === selectedDayKey);
-                if (idx < daysConfig.length - 1) setSelectedDayKey(daysConfig[idx + 1].key);
-              }}
-              disabled={selectedDayKey === "SUN"}
-              className="text-xs font-bold h-9 rounded-xl border-slate-200 bg-slate-50 hover:bg-slate-100 cursor-pointer"
-            >
-              Next Day <ChevronRight className="h-3.5 w-3.5 ml-1" />
-            </Button>
+              className="h-9 pl-8 text-xs rounded-lg border-slate-200"
+            />
           </div>
 
-          <div className="text-center sm:text-right">
-            <h3 className="text-base font-black text-slate-900">
-              {currentDayConfig.fullDay}, {currentDayConfig.dateStr}
-            </h3>
-            <span className="text-xs text-slate-500 font-medium">
-              Showing all {filteredFaculty.length} faculty schedules for {currentDayConfig.fullDay}
-            </span>
-          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters((v) => !v)}
+            className="text-xs h-9 gap-1.5 shrink-0"
+          >
+            <Filter className="h-3.5 w-3.5" />
+            Filters
+          </Button>
         </div>
-      ) : (
-        <div className="w-full overflow-x-auto pb-1">
-          <div className="grid grid-cols-7 gap-2.5 min-w-[850px]">
-            {daysConfig.map((d) => {
-              const isSelected = selectedDayKey === d.key;
-              const classCount = dayClassCounts[d.key] || 0;
-              const isSundayHoliday = d.key === "SUN" && d.statusType === "HOLIDAY";
 
-              return (
-                <div
-                  key={d.key}
-                  onClick={() => setSelectedDayKey(d.key)}
-                  className={`p-3 rounded-2xl border transition-all cursor-pointer text-left flex flex-col justify-between h-20 ${
-                    isSelected
-                      ? "bg-blue-50/70 border-blue-500 ring-2 ring-blue-500/20 shadow-xs"
-                      : "bg-white border-slate-200 hover:border-slate-300 hover:bg-slate-50/60 shadow-2xs"
-                  }`}
-                >
-                  <div>
-                    <div className={`text-[11px] font-black tracking-wide uppercase ${isSelected ? "text-[#1769AA]" : "text-slate-800"}`}>
-                      {d.label}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium mt-0.5">
-                      {d.dateStr}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    {isSundayHoliday ? (
-                      <span className="px-1.5 py-0.5 rounded-full text-[9px] font-black bg-rose-50 text-rose-600 border border-rose-200 flex items-center gap-0.5">
-                        📅 {d.note || "Holiday"}
-                      </span>
-                    ) : (
-                      <div className="flex items-baseline gap-1">
-                        <span className={`text-base font-black ${isSelected ? "text-[#1769AA]" : "text-slate-900"}`}>
-                          {classCount}
-                        </span>
-                        <span className="text-[9px] text-slate-500 font-semibold">Classes</span>
-                      </div>
-                    )}
-
-                    {isSelected && (
-                      <span className="h-1.5 w-1.5 rounded-full bg-[#1769AA]" />
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ─── 4. FILTER BAR ────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200/80 shadow-xs">
-        <div className="flex flex-wrap items-center gap-3 flex-1">
-          {/* Branch Dropdown / Locked Badge */}
-          {isAdmin ? (
-            <div className="relative min-w-[190px]">
-              <Building2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+        {showFilters && (
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
+            {isAdmin ? (
               <select
                 value={selectedBranch}
                 onChange={(e) => {
                   setSelectedBranch(e.target.value);
                   setCurrentPage(1);
                 }}
-                className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
+                className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50"
               >
-                <option value="ALL">🏢 All Branches</option>
+                <option value="ALL">All branches</option>
                 {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    📍 {b.name}
-                  </option>
+                  <option key={b.id} value={b.id}>{b.name}</option>
                 ))}
               </select>
-            </div>
-          ) : (
-            <div className="h-10 px-3.5 bg-slate-100 border border-slate-200 rounded-xl flex items-center gap-2 text-xs font-bold text-slate-700 shrink-0">
-              <Lock className="h-3.5 w-3.5 text-slate-400" />
-              <span>{userCenterName}</span>
-            </div>
-          )}
-
-          {/* Course Category Dropdown */}
-          <div className="relative min-w-[170px]">
-            <BookOpen className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            ) : (
+              <span className="text-xs text-slate-600 flex items-center gap-1 px-2">
+                <Lock className="h-3 w-3" /> {userCenterName}
+              </span>
+            )}
             <select
               value={selectedCourse}
               onChange={(e) => {
                 setSelectedCourse(e.target.value);
                 setCurrentPage(1);
               }}
-              className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all appearance-none cursor-pointer"
+              className="h-9 px-3 text-xs font-medium border border-slate-200 rounded-lg bg-slate-50"
             >
-              <option value="ALL">📚 All Courses</option>
+              <option value="ALL">All courses</option>
               {allCourses.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
-                </option>
+                <option key={c.id} value={c.name}>{c.name}</option>
               ))}
             </select>
-          </div>
-
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search faculty, course, batch, room..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (isAdmin) setSelectedBranch("ALL");
+                setSelectedCourse("ALL");
+                setSearchQuery("");
                 setCurrentPage(1);
               }}
-              className="h-10 pl-9 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:ring-2 focus:ring-[#1769AA]/30"
-            />
+              className="text-xs h-9 text-slate-500"
+            >
+              Clear filters
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsWorkingDaysModalOpen(true)}
+              className="text-xs h-9 text-slate-600 ml-auto"
+            >
+              <Calendar className="h-3.5 w-3.5 mr-1" /> Working days
+            </Button>
           </div>
-        </div>
+        )}
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              if (isAdmin) setSelectedBranch("ALL");
-              setSelectedCourse("ALL");
-              setSearchQuery("");
-              setCurrentPage(1);
-            }}
-            className="text-xs font-bold h-10 border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl shrink-0 gap-1.5 cursor-pointer"
-          >
-            <Filter className="h-3.5 w-3.5" /> More Filters
-          </Button>
-          <button className="h-10 w-10 flex items-center justify-center border border-slate-200 bg-slate-50 hover:bg-slate-100 rounded-xl text-slate-600 transition-colors cursor-pointer" title="Timetable Settings">
-            <Settings className="h-4 w-4" />
-          </button>
+        {/* Compact day picker */}
+        <div className="flex flex-wrap gap-1.5">
+          {daysConfig.map((d) => {
+            const isSelected = selectedDayKey === d.key;
+            const classCount = dayClassCounts[d.key] || 0;
+            return (
+              <button
+                key={d.key}
+                type="button"
+                onClick={() => setSelectedDayKey(d.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                  isSelected
+                    ? "bg-[#1769AA] text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {d.fullDay.slice(0, 3)}
+                {!d.isWorking ? " · Off" : classCount > 0 ? ` · ${classCount}` : ""}
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* ─── 5. MAIN TIMETABLE MATRIX TABLE (FACULTY ROWS × TIME SLOTS) ──── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
-        {/* Table Top Control Header with Quick-Scroll Controls */}
-        <div className="flex items-center justify-between px-4 py-2.5 bg-muted/40 border-b border-border">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-foreground">
-              Schedule Timeline ({currentDayConfig.fullDay})
-            </span>
-            <span className="text-[11px] font-medium text-muted-foreground hidden sm:inline">
-              • 8 Time Slots (09:00 AM – 05:00 PM)
-            </span>
-          </div>
+      {/* Notifications Alert */}
+      {notificationMsg && (
+        <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2 text-xs font-medium">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          {notificationMsg}
+        </div>
+      )}
 
-          {/* Quick-Scroll Buttons at the Top */}
-          <div className="flex items-center gap-2">
-            <span className="text-[11px] font-medium text-muted-foreground hidden md:inline">Scroll Timeline:</span>
-            <button
-              type="button"
-              onClick={handleScrollLeft}
-              className="px-2.5 py-1 text-xs font-bold text-foreground bg-card hover:bg-muted/50 border border-border rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
-              title="Scroll Left"
-            >
-              <ChevronLeft className="h-3.5 w-3.5" /> Left
-            </button>
-            <button
-              type="button"
-              onClick={handleScrollRight}
-              className="px-2.5 py-1 text-xs font-bold text-foreground bg-card hover:bg-muted/50 border border-border rounded-lg shadow-2xs flex items-center gap-1 cursor-pointer transition-all active:scale-95"
-              title="Scroll Right"
-            >
-              Right <ChevronRight className="h-3.5 w-3.5" />
-            </button>
-          </div>
+      {/* Timetable grid */}
+      <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground">
+          <span>
+            <strong className="text-foreground">{currentDayConfig.fullDay}</strong>
+            {" · "}{totalFacultyCount} faculty
+          </span>
+          <span className="hidden sm:inline">
+            <span className="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1" /> Class
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mx-1 ml-3" /> Free
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mx-1 ml-3" /> Break
+          </span>
         </div>
 
-        {/* Top Synchronized Horizontal Scrollbar */}
-        <div
-          ref={topScrollRef}
-          onScroll={handleTopScroll}
-          className="overflow-x-auto w-full border-b border-border bg-muted/20 scrollbar-thin"
-          style={{ scrollbarWidth: "thin" }}
-        >
-          <div className="min-w-[1300px] h-3.5 flex items-center justify-between px-4 text-[9px] font-bold text-muted-foreground select-none">
-            <span>◀ 09:00 AM</span>
-            <span className="text-[9px] text-muted-foreground tracking-wider uppercase font-semibold">◀ Drag top scrollbar to view all time slots ▶</span>
-            <span>05:00 PM ▶</span>
-          </div>
-        </div>
-
-        {/* Main Table Scroll Container */}
-        <div ref={bottomScrollRef} onScroll={handleBottomScroll} className="overflow-x-auto w-full scrollbar-thin">
-          <table className="w-full min-w-[1300px] border-collapse text-left table-fixed">
+        <div className="overflow-x-auto w-full">
+          <table className="w-full min-w-[980px] border-collapse text-left table-fixed">
             <thead>
               <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
-                <th className="py-3 px-4 pl-5 w-[200px] border-r border-border sticky left-0 bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] text-foreground">
-                  FACULTY <span className="text-[10px] font-normal text-muted-foreground">({totalFacultyCount} TOTAL)</span>
+                <th className="py-2 px-3 pl-4 w-[160px] border-r border-border sticky left-0 bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)] text-foreground">
+                  FACULTY <span className="text-[9px] font-normal text-muted-foreground">({totalFacultyCount})</span>
                 </th>
-                <th className="py-3 px-2 text-center w-[110px] border-r border-border font-bold text-foreground sticky left-[200px] bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                <th className="py-2 px-1.5 text-center w-[72px] border-r border-border font-bold text-foreground sticky left-[160px] bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                   BRANCH
                 </th>
                 {TIME_SLOT_COLUMNS.map((col) => (
                   <th
                     key={col.period}
-                    className="py-3 px-2 text-center w-[125px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
+                    className="py-2 px-1 text-center w-[96px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
                   >
-                    <div className="text-[11px] font-bold text-foreground tracking-tight whitespace-nowrap">
+                    <div className="text-[10px] font-bold text-foreground tracking-tight whitespace-nowrap">
                       {col.timeTitle}
                     </div>
-                    <div className="text-[9px] text-muted-foreground font-semibold tracking-wider uppercase">
+                    <div className="text-[8px] text-muted-foreground font-semibold tracking-wider uppercase">
                       {col.subTitle}
                     </div>
                   </th>
@@ -1112,22 +885,22 @@ export const Timetable: React.FC = () => {
                   return (
                     <tr key={fac.id} className="hover:bg-muted/40 transition-colors">
                       {/* Column 1: Faculty Card (Sticky) */}
-                      <td className="py-2.5 px-4 pl-5 border-r border-border align-middle bg-card sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar className="w-9 h-9 border border-border shadow-2xs shrink-0">
+                      <td className="py-1.5 px-3 pl-4 border-r border-border align-middle bg-card sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <div className="flex items-center gap-2">
+                          <Avatar className="w-7 h-7 border border-border shrink-0">
                             <AvatarImage src={fac.avatar} alt={fac.name} />
-                            <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-600 text-white font-bold text-xs">
+                            <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-600 text-white font-bold text-[10px]">
                               {fac.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
                           <div className="min-w-0">
-                            <h4 className="font-bold text-foreground text-xs truncate">{fac.name}</h4>
-                            <p className="text-[10px] text-muted-foreground font-medium truncate">{fac.department}</p>
+                            <h4 className="font-semibold text-foreground text-[11px] truncate leading-tight">{fac.name}</h4>
+                            <p className="text-[9px] text-muted-foreground truncate leading-tight">{fac.department}</p>
                             <div className="flex items-center gap-1 mt-0.5">
-                              <span className={`h-1.5 w-1.5 rounded-full shrink-0 ${
+                              <span className={`h-1 w-1 rounded-full shrink-0 ${
                                 fac.liveStatus === "Available" ? "bg-emerald-500" : "bg-blue-600"
                               }`} />
-                              <span className={`text-[9px] font-semibold ${
+                              <span className={`text-[8px] font-medium ${
                                 fac.liveStatus === "Available" ? "text-emerald-600 dark:text-emerald-400" : "text-blue-600 dark:text-blue-400"
                               }`}>
                                 {fac.liveStatus}
@@ -1138,12 +911,9 @@ export const Timetable: React.FC = () => {
                       </td>
 
                       {/* Column 2: Branch Location (Sticky) */}
-                      <td className="py-2.5 px-2 text-center border-r border-border align-middle bg-card sticky left-[200px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
-                        <span className="text-xs font-bold text-primary dark:text-blue-400 block truncate">
+                      <td className="py-1.5 px-1 text-center border-r border-border align-middle bg-card sticky left-[160px] z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
+                        <span className="text-[10px] font-semibold text-primary dark:text-blue-400 block truncate leading-tight">
                           {fac.branchName.split(" ")[0]}
-                        </span>
-                        <span className="text-[9px] text-muted-foreground font-semibold block">
-                          {fac.branchName.split(" ")[1] || "Center"}
                         </span>
                       </td>
 
@@ -1159,48 +929,48 @@ export const Timetable: React.FC = () => {
                         // 1. CLASS SLOT
                         if (cell.type === "CLASS") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div className="h-[74px] p-2 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 hover:border-blue-500/50 hover:shadow-xs transition-all text-left flex flex-col justify-between group">
-                                <div className="flex items-center justify-between gap-1">
-                                  <span className="text-[11px] font-bold text-blue-900 dark:text-blue-200 truncate block">
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <div className="h-[52px] px-1.5 py-1 rounded-md border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 hover:border-blue-500/50 transition-all text-left flex flex-col justify-between group">
+                                <div className="flex items-center justify-between gap-0.5">
+                                  <span className="text-[9px] font-semibold text-blue-900 dark:text-blue-200 truncate block leading-tight">
                                     {cell.courseName}
                                   </span>
                                   <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                       <button className="p-0.5 hover:bg-blue-500/20 rounded text-blue-600 dark:text-blue-400 transition-opacity cursor-pointer shrink-0">
-                                        <MoreVertical className="h-3 w-3" />
+                                        <MoreVertical className="h-2.5 w-2.5" />
                                       </button>
                                     </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-44 rounded-xl bg-popover border border-border shadow-xl p-1 text-xs">
+                                    <DropdownMenuContent align="end" className="w-40 rounded-lg bg-popover border border-border shadow-xl p-1 text-xs">
                                       <DropdownMenuItem
                                         onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                        className="gap-2 cursor-pointer"
+                                        className="gap-2 cursor-pointer text-xs py-1.5"
                                       >
-                                        <Edit3 className="h-3.5 w-3.5 text-blue-500" /> Edit Schedule
+                                        <Edit3 className="h-3 w-3 text-blue-500" /> Edit
                                       </DropdownMenuItem>
                                       <DropdownMenuItem
                                         onClick={() => handleOpenMoveModal(fac.id, selectedDayKey, col.period)}
-                                        className="gap-2 cursor-pointer"
+                                        className="gap-2 cursor-pointer text-xs py-1.5"
                                       >
-                                        <MoveHorizontal className="h-3.5 w-3.5 text-indigo-400" /> Move Time Slot
+                                        <MoveHorizontal className="h-3 w-3 text-indigo-400" /> Move
                                       </DropdownMenuItem>
                                       <DropdownMenuSeparator className="bg-border" />
                                       <DropdownMenuItem
                                         onClick={() => handleDeleteSlot(fac.id, selectedDayKey, col.period)}
-                                        className="gap-2 text-rose-500 cursor-pointer"
+                                        className="gap-2 text-rose-500 cursor-pointer text-xs py-1.5"
                                       >
-                                        <Trash2 className="h-3.5 w-3.5" /> Remove Class
+                                        <Trash2 className="h-3 w-3" /> Remove
                                       </DropdownMenuItem>
                                     </DropdownMenuContent>
                                   </DropdownMenu>
                                 </div>
-                                <div className="text-[10px] font-semibold text-foreground/90 truncate">
+                                <div className="text-[8px] font-medium text-foreground/90 truncate leading-tight">
                                   {cell.batchCode}
                                 </div>
-                                <div className="flex items-center justify-between text-[9px] text-muted-foreground pt-0.5 border-t border-blue-500/20">
+                                <div className="flex items-center justify-between text-[8px] text-muted-foreground leading-tight">
                                   <span className="truncate">{cell.roomNo}</span>
-                                  <span className="flex items-center gap-0.5 font-bold text-foreground/80 shrink-0">
-                                    <Users className="h-2.5 w-2.5 text-muted-foreground" />
+                                  <span className="flex items-center gap-0.5 shrink-0">
+                                    <Users className="h-2 w-2 text-muted-foreground" />
                                     {cell.studentCount || 20}
                                   </span>
                                 </div>
@@ -1212,16 +982,17 @@ export const Timetable: React.FC = () => {
                         // 2. FREE SLOT
                         if (cell.type === "FREE") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group"
+                                className="h-[52px] w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group"
                               >
-                                <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-300 tracking-wide uppercase">FREE</span>
-                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 flex items-center gap-0.5 opacity-90 group-hover:opacity-100">
-                                  <Plus className="h-2.5 w-2.5" /> Add Class
+                                <span className="text-[8px] font-semibold text-emerald-600 dark:text-emerald-300 uppercase">Free</span>
+                                <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 group-hover:bg-emerald-500/25">
+                                  <Plus className="h-2 w-2" /> Add
                                 </span>
-                              </div>
+                              </button>
                             </td>
                           );
                         }
@@ -1229,14 +1000,15 @@ export const Timetable: React.FC = () => {
                         // 3. BREAK SLOT
                         if (cell.type === "BREAK") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-amber-600 dark:text-amber-300"
+                                className="h-[52px] w-full rounded-md border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-amber-600 dark:text-amber-300"
                               >
-                                <span className="text-[11px] font-bold tracking-wide uppercase">BREAK</span>
-                                <Coffee className="h-3.5 w-3.5 mt-1 text-amber-500 dark:text-amber-400" />
-                              </div>
+                                <span className="text-[8px] font-semibold uppercase">Break</span>
+                                <Coffee className="h-2.5 w-2.5 mt-0.5 text-amber-500 dark:text-amber-400" />
+                              </button>
                             </td>
                           );
                         }
@@ -1244,14 +1016,15 @@ export const Timetable: React.FC = () => {
                         // 4. LUNCH SLOT
                         if (cell.type === "LUNCH") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-orange-600 dark:text-orange-300"
+                                className="h-[52px] w-full rounded-md border border-orange-500/30 bg-orange-500/10 hover:bg-orange-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-orange-600 dark:text-orange-300"
                               >
-                                <span className="text-[11px] font-bold tracking-wide uppercase">LUNCH</span>
-                                <UtensilsCrossed className="h-3.5 w-3.5 mt-1 text-orange-500 dark:text-orange-400" />
-                              </div>
+                                <span className="text-[8px] font-semibold uppercase">Lunch</span>
+                                <UtensilsCrossed className="h-2.5 w-2.5 mt-0.5 text-orange-500 dark:text-orange-400" />
+                              </button>
                             </td>
                           );
                         }
@@ -1259,14 +1032,15 @@ export const Timetable: React.FC = () => {
                         // 5. LEAVE SLOT
                         if (cell.type === "LEAVE") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-600 dark:text-rose-300"
+                                className="h-[52px] w-full rounded-md border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-600 dark:text-rose-300"
                               >
-                                <span className="text-[11px] font-bold tracking-wide uppercase">LEAVE</span>
-                                <span className="text-[9px] text-rose-500 dark:text-rose-400 font-semibold mt-0.5">Official Off</span>
-                              </div>
+                                <span className="text-[8px] font-semibold uppercase">Leave</span>
+                                <span className="text-[7px] text-rose-500 dark:text-rose-400 mt-0.5">Off</span>
+                              </button>
                             </td>
                           );
                         }
@@ -1274,30 +1048,32 @@ export const Timetable: React.FC = () => {
                         // 6. MEETING SLOT
                         if (cell.type === "MEETING") {
                           return (
-                            <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                              <div
+                            <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                              <button
+                                type="button"
                                 onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[74px] rounded-xl border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-600 dark:text-purple-300"
+                                className="h-[52px] w-full rounded-md border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-600 dark:text-purple-300"
                               >
-                                <span className="text-[11px] font-bold tracking-wide uppercase">MEETING</span>
-                                <span className="text-[9px] text-purple-500 dark:text-purple-400 font-semibold mt-0.5">Faculty Sync</span>
-                              </div>
+                                <span className="text-[8px] font-semibold uppercase">Meeting</span>
+                                <span className="text-[7px] text-purple-500 dark:text-purple-400 mt-0.5">Sync</span>
+                              </button>
                             </td>
                           );
                         }
 
                         // 7. NOT ASSIGNED SLOT
                         return (
-                          <td key={col.period} className="p-1.5 border-r border-border last:border-r-0 align-middle">
-                            <div
+                          <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
+                            <button
+                              type="button"
                               onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                              className="h-[74px] rounded-xl border border-border bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col items-center justify-center cursor-pointer group"
+                              className="h-[52px] w-full rounded-md border border-border bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col items-center justify-center cursor-pointer group"
                             >
-                              <span className="text-[11px] font-medium text-muted-foreground">Not Assigned</span>
-                              <span className="text-[9px] font-bold text-muted-foreground mt-0.5 flex items-center gap-0.5 opacity-80 group-hover:opacity-100">
-                                <Plus className="h-2.5 w-2.5" /> Add Class
+                              <span className="text-[8px] font-medium text-muted-foreground">Empty</span>
+                              <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-muted-foreground bg-muted/40 group-hover:bg-muted/60">
+                                <Plus className="h-2 w-2" /> Add
                               </span>
-                            </div>
+                            </button>
                           </td>
                         );
                       })}
@@ -1315,101 +1091,34 @@ export const Timetable: React.FC = () => {
           </table>
         </div>
 
-        {/* ─── 6. TABLE PAGINATION FOOTER ───────────────────────────────── */}
-        <div className="p-4 bg-muted/40 dark:bg-slate-900/80 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-          <span className="text-muted-foreground font-medium">
-            Showing {filteredFaculty.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0} to{" "}
-            {Math.min(currentPage * rowsPerPage, totalFacultyCount)} of {totalFacultyCount} faculty
+        <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
+          <span>
+            {filteredFaculty.length > 0 ? (currentPage - 1) * rowsPerPage + 1 : 0}–
+            {Math.min(currentPage * rowsPerPage, totalFacultyCount)} of {totalFacultyCount}
           </span>
-
-          <div className="flex items-center gap-3">
-            {/* Page number buttons */}
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
-              >
-                <ChevronLeft className="h-3.5 w-3.5" />
-              </Button>
-
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pg) => (
-                <button
-                  key={pg}
-                  onClick={() => setCurrentPage(pg)}
-                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    currentPage === pg
-                      ? "bg-primary text-primary-foreground shadow-xs"
-                      : "bg-card text-foreground border border-border hover:bg-muted"
-                  }`}
-                >
-                  {pg}
-                </button>
-              ))}
-
-              <Button
-                variant="outline"
-                size="icon"
-                disabled={currentPage === totalPages}
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                className="h-8 w-8 rounded-lg border-border bg-card text-foreground hover:bg-muted"
-              >
-                <ChevronRight className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-
-            {/* Rows Per Page */}
-            <div className="flex items-center gap-1.5 pl-2 border-l border-border">
-              <span className="text-muted-foreground">Rows per page:</span>
-              <select
-                value={rowsPerPage}
-                onChange={(e) => {
-                  setRowsPerPage(Number(e.target.value));
-                  setCurrentPage(1);
-                }}
-                className="h-8 px-2 bg-background border border-border rounded-lg text-xs font-bold text-foreground outline-none cursor-pointer"
-              >
-                <option value={6}>6</option>
-                <option value={10}>10</option>
-                <option value={20}>20</option>
-                <option value={50}>50</option>
-              </select>
-            </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="h-8 w-8"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" />
+            </Button>
+            <span className="text-foreground font-medium">Page {currentPage} / {totalPages}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="h-8 w-8"
+            >
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Button>
           </div>
         </div>
       </Card>
-
-      {/* ─── 7. BOTTOM ACTION & WORKING DAYS BAR ───────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white border border-slate-200/80 rounded-2xl shadow-xs">
-        <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-          <Lock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-          <span>Click on any cell to view / edit schedule. Drag & drop to move class to another time slot.</span>
-        </div>
-
-        <div className="flex items-center gap-3 shrink-0">
-          <Button
-            variant="outline"
-            onClick={() => setIsWorkingDaysModalOpen(true)}
-            className="text-xs font-bold h-10 px-4 border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl gap-2 shadow-2xs cursor-pointer"
-          >
-            <Calendar className="h-4 w-4 text-[#1769AA]" /> Manage Working Days & Holidays
-          </Button>
-
-          <Button
-            onClick={() => {
-              const defaultFac = filteredFaculty[0] || facultyRoster[0];
-              if (defaultFac) {
-                handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
-              }
-            }}
-            className="text-xs font-bold h-10 px-4 bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Add New Class
-          </Button>
-        </div>
-      </div>
 
       {/* ─── MODAL 1: ADD / EDIT CLASS SCHEDULE ─────────────────────────── */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>

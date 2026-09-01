@@ -95,6 +95,7 @@ export interface CreateAdmissionDTO {
   batchId?: string;
   studentId?: string;
   applicationId?: string;
+  leadId?: string;
   branchId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;
@@ -105,6 +106,12 @@ export interface CreateAdmissionDTO {
   transactionRef?: string;
   admissionDate?: string;
   installments?: AdmissionInstallmentDTO[];
+  sourceMasterId?: string;
+  statusMasterId?: string;
+  paymentModeMasterId?: string;
+  areaMasterId?: string;
+  concessionHeadMasterId?: string;
+  sendCredentials?: boolean;
 }
 
 export interface UpdateAdmissionDTO {
@@ -123,6 +130,7 @@ export interface QueryAdmissionsDTO {
   courseId?: string | "ALL";
   status?: AdmissionStatus | "ALL";
   batchId?: string;
+  branchId?: string;
   page?: number;
   limit?: number;
 }
@@ -137,4 +145,7 @@ export interface ConvertApplicationDTO {
   batchId?: string;
   feePlan?: FeePlan;
   notes?: string;
+  totalFee?: number;
+  amountPaid?: number;
+  installments?: AdmissionInstallmentDTO[];
 }

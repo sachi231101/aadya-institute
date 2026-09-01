@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, Phone, PhoneCall, Bot, UserCheck, CheckCircle2, Clock,
-  FileText, AlertCircle, Calendar, XCircle, Pencil,
+  FileText, AlertCircle, Calendar, XCircle, Pencil, GraduationCap,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  useLeadById, useLeadFollowUps, useLeadHistory, useConvertLead,
+  useLeadById, useLeadFollowUps, useLeadHistory,
   useCreateFollowUp, useUpdateFollowUp, useTriggerLeadCall, useChangeLeadStage,
   useAssignLead, useMarkLeadLost, useUpdateLead, useCreateApplicationFromLead,
 } from "@/hooks/useLeads";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useAdminUsers } from "@/hooks/useUsers";
 import { useCourses } from "@/hooks/useCourses";
-import { useBatches } from "@/hooks/useBatches";
 import { getPortalBasePath } from "@/utils/portal-path";
 import {
   DEFAULT_LEAD_STAGE_PIPELINE,
@@ -35,17 +34,12 @@ export const LeadDetails: React.FC = () => {
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
 
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showLostDialog, setShowLostDialog] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const [convertCourseId, setConvertCourseId] = useState("");
-  const [convertBatchId, setConvertBatchId] = useState("");
-  const [convertFeePlan, setConvertFeePlan] = useState<"INSTALLMENT" | "FULL_PAYMENT">("INSTALLMENT");
-  const [convertNotes, setConvertNotes] = useState("");
   const [appCourseId, setAppCourseId] = useState("");
   const [appNotes, setAppNotes] = useState("");
 
@@ -67,7 +61,6 @@ export const LeadDetails: React.FC = () => {
   const { data: followUpsResponse } = useLeadFollowUps(id || "");
   const { data: historyResponse } = useLeadHistory(id || "");
 
-  const convertMutation = useConvertLead();
   const createAppMutation = useCreateApplicationFromLead();
   const createFollowUpMutation = useCreateFollowUp();
   const updateFollowUpMutation = useUpdateFollowUp();
@@ -78,9 +71,26 @@ export const LeadDetails: React.FC = () => {
   const updateLeadMutation = useUpdateLead();
 
   const lead = leadResponse?.data;
-  const { batches } = useBatches({
-    courseId: convertCourseId || lead?.courseId || undefined,
-  });
+
+  const navigateToDirectAdmission = () => {
+    if (!lead) return;
+    navigate(`${basePath}/admissions/direct-entry`, {
+      state: {
+        lead: {
+          id: lead.id,
+          name: lead.name,
+          phone: lead.phoneNumber,
+          email: lead.email,
+          courseId: lead.courseId,
+          course: lead.course?.name || lead.interestedIn,
+          source: lead.source,
+          notes: lead.notes,
+          branchId: lead.branchId,
+        },
+        leadId: lead.id,
+      },
+    });
+  };
 
   const followUps: Array<{
     id: string; type: string; status: string; scheduledAt: string;
@@ -104,40 +114,10 @@ export const LeadDetails: React.FC = () => {
   const canAssign = aiReady && !isClosed;
   const canAct = isAssigned && !isClosed;
 
-  const openConvert = () => {
-    setConvertCourseId(lead?.courseId || "");
-    setConvertBatchId("");
-    setConvertFeePlan("INSTALLMENT");
-    setConvertNotes("");
-    setShowConvertDialog(true);
-  };
-
   const openApplication = () => {
     setAppCourseId(lead?.courseId || "");
     setAppNotes("");
     setShowApplicationDialog(true);
-  };
-
-  const handleConvert = () => {
-    if (!id || !convertCourseId) return;
-    convertMutation.mutate(
-      {
-        id,
-        data: {
-          courseId: convertCourseId,
-          batchId: convertBatchId || undefined,
-          feePlan: convertFeePlan,
-          notes: convertNotes || `Converted from lead: ${lead?.name}`,
-        },
-      },
-      {
-        onSuccess: (res) => {
-          setShowConvertDialog(false);
-          const admissionId = res?.data?.admission?.id;
-          navigate(`${basePath}/admissions/all`, { state: { admissionId } });
-        },
-      }
-    );
   };
 
   const handleCreateApplication = () => {
@@ -157,7 +137,7 @@ export const LeadDetails: React.FC = () => {
   const handleStageChange = (newStage: string) => {
     if (!id || !lead || newStage === lead.stage) return;
     if (newStage === "CONVERTED") {
-      if (canAct) openConvert();
+      if (canAct) navigateToDirectAdmission();
       return;
     }
     if (newStage === "LOST") {
@@ -247,6 +227,23 @@ export const LeadDetails: React.FC = () => {
             >
               <Calendar size={14} /> Follow-Up
             </Button>
+            {canAct && lead.stage !== "CONVERTED" && (
+              <>
+                <Button
+                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
+                  onClick={navigateToDirectAdmission}
+                >
+                  <GraduationCap size={14} /> Continue to Admission
+                </Button>
+                <Button
+                  variant="outline"
+                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
+                  onClick={openApplication}
+                >
+                  <FileText size={14} /> Create Application
+                </Button>
+              </>
+            )}
             {canAct && (
               <Button
                 variant="outline"
@@ -256,29 +253,14 @@ export const LeadDetails: React.FC = () => {
                 <XCircle size={14} /> Mark Lost
               </Button>
             )}
-            {lead.stage === "CONVERTED" ? (
+            {lead.stage === "CONVERTED" && (
               <Button
                 className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
                 onClick={() => navigate(`${basePath}/admissions/all`, { state: { admissionId: lead.convertedAdmissionId } })}
               >
                 <CheckCircle2 size={14} /> View Admission
               </Button>
-            ) : canAct ? (
-              <div className="flex items-center gap-2">
-                <Button
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 text-xs"
-                  onClick={openApplication}
-                >
-                  <FileText size={14} /> Create Application
-                </Button>
-                <Button
-                  className="bg-green-600 hover:bg-green-700 text-white gap-2 text-xs"
-                  onClick={openConvert}
-                >
-                  <CheckCircle2 size={14} /> Direct Admission
-                </Button>
-              </div>
-            ) : null}
+            )}
           </div>
         </div>
 
@@ -483,68 +465,6 @@ export const LeadDetails: React.FC = () => {
           </Card>
         </TabsContent>
       </Tabs>
-
-      <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Direct Admission</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <p className="text-sm text-text-secondary">Creates a student and confirmed admission for {lead.name}.</p>
-            <div>
-              <Label>Course *</Label>
-              <select
-                value={convertCourseId}
-                onChange={(e) => { setConvertCourseId(e.target.value); setConvertBatchId(""); }}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="">Select course</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Batch (optional)</Label>
-              <select
-                value={convertBatchId}
-                onChange={(e) => setConvertBatchId(e.target.value)}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="">No batch yet</option>
-                {batches.map((b) => (
-                  <option key={b.id} value={b.id}>{b.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Fee plan</Label>
-              <select
-                value={convertFeePlan}
-                onChange={(e) => setConvertFeePlan(e.target.value as "INSTALLMENT" | "FULL_PAYMENT")}
-                className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
-              >
-                <option value="INSTALLMENT">Installment</option>
-                <option value="FULL_PAYMENT">Full payment</option>
-              </select>
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea value={convertNotes} onChange={(e) => setConvertNotes(e.target.value)} className="mt-1" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>Cancel</Button>
-            <Button
-              className="bg-green-600 text-white"
-              onClick={handleConvert}
-              disabled={!convertCourseId || convertMutation.isPending}
-            >
-              {convertMutation.isPending ? "Converting..." : "Confirm & Create Admission"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       <Dialog open={showApplicationDialog} onOpenChange={setShowApplicationDialog}>
         <DialogContent>

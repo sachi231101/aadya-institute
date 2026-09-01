@@ -58,6 +58,7 @@ export const createAdmissionSchema = z.object({
   batchId: z.string().optional().or(z.literal("")),
   studentId: z.string().optional(),
   applicationId: z.string().optional(),
+  leadId: z.string().optional(),
   branchId: z.string().optional(),
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
   status: z.enum(["CONFIRMED", "PROVISIONAL", "CANCELLED", "PENDING", "ACTIVE", "COMPLETED"]).optional(),
@@ -68,6 +69,12 @@ export const createAdmissionSchema = z.object({
   transactionRef: z.string().optional(),
   admissionDate: z.string().optional(),
   installments: z.array(installmentItemSchema).optional(),
+  sourceMasterId: z.string().optional(),
+  statusMasterId: z.string().optional(),
+  paymentModeMasterId: z.string().optional(),
+  areaMasterId: z.string().optional(),
+  concessionHeadMasterId: z.string().optional(),
+  sendCredentials: z.boolean().optional(),
 });
 
 export const updateAdmissionSchema = createAdmissionSchema.partial();
@@ -77,6 +84,7 @@ export const queryAdmissionsSchema = z.object({
   courseId: z.string().optional(),
   status: z.string().optional(),
   batchId: z.string().optional(),
+  branchId: z.string().optional(),
   page: z.coerce.number().optional().default(1),
   limit: z.coerce.number().optional().default(20),
 });
@@ -90,4 +98,7 @@ export const convertApplicationSchema = z.object({
   batchId: z.string().optional(),
   feePlan: z.enum(["FULL_PAYMENT", "INSTALLMENT"]).optional(),
   notes: z.string().optional(),
+  totalFee: z.coerce.number().optional(),
+  amountPaid: z.coerce.number().optional(),
+  installments: z.array(installmentItemSchema).optional(),
 });

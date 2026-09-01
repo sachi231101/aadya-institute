@@ -75,6 +75,7 @@ import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
+import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
 
 export interface CourseCatalogItem {
@@ -296,6 +297,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   const convertingAppNo = location.state?.application?.applicationNo || location.state?.lead?.applicationNo || (location.state?.applicationId ? `APP-${String(location.state.applicationId).slice(0, 6).toUpperCase()}` : null);
   const convertingApplicationId = location.state?.applicationId || location.state?.application?.id || location.state?.lead?.applicationId;
+  const convertingLeadId = location.state?.leadId || location.state?.lead?.id;
 
   // Auto-fill student details when converted directly from an Application, Lead or Enquiry
   useEffect(() => {
@@ -965,6 +967,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
       let createdStudentId = realStudentId;
       let firstAdmissionNo = admissionNo;
+      let firstAdmissionId: string | undefined;
 
       for (let index = 0; index < selectedCoursesList.length; index += 1) {
         const course = selectedCoursesList[index];
@@ -977,6 +980,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           batchId: allDbBatches.some((b) => b.id === course.batchId) ? course.batchId : undefined,
           studentId: createdStudentId,
           applicationId: convertingApplicationId || undefined,
+          leadId: isPrimary ? convertingLeadId || undefined : undefined,
           branchId,
           feePlan: paymentMode === "FULL" ? "FULL_PAYMENT" : "INSTALLMENT",
           status,
@@ -988,6 +992,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           areaMasterId: areaMasterId || undefined,
           paymentMethod: mapPaymentMethod(getMasterLabel(paymentModeOptions, paymentModeMasterId)),
           transactionRef: transactionRef || undefined,
+          sendCredentials: isPrimary && status === "CONFIRMED",
           totalFee: isPrimary ? finalPayableAmount : undefined,
           amountPaid: isPrimary ? Number(amountPaidAtAdmission) || 0 : undefined,
           installments:
@@ -1003,9 +1008,21 @@ export const DirectAdmissionEntry: React.FC = () => {
         const result = await admissionsApi.createAdmission(payload);
         if (isPrimary) {
           firstAdmissionNo = result.data?.admissionNo || firstAdmissionNo;
-          createdStudentId = (result.data as { student?: { id?: string }; studentId?: string })?.student?.id
+          firstAdmissionId = result.data?.id;
+          createdStudentId = (result.data as { student?: { id?: string; studentCode?: string }; studentId?: string })?.student?.id
             || (result.data as { studentId?: string })?.studentId
             || createdStudentId;
+          const studentCode = (result.data as { student?: { studentCode?: string } })?.student?.studentCode;
+
+          setCreatedAdmissionSummary((prev: any) => ({
+            ...(prev || {}),
+            admissionNo: firstAdmissionNo,
+            admissionId: firstAdmissionId,
+            studentId: createdStudentId,
+            studentCode: studentCode || firstAdmissionNo,
+            course: selectedCoursesList.map((c) => c.courseName).join(", "),
+            batch: selectedCoursesList.map((c) => c.batchCode).join(", "),
+          }));
 
           if (createdStudentId) {
             try {
@@ -1063,7 +1080,9 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   return (
+    <PermissionGate itemKey="admissions.direct" mode="read">
     <div className="min-h-screen bg-background text-foreground pb-16">
+      <ReadOnlyBanner itemKey="admissions.direct" label="Direct Admission" />
       {(formError || formSuccess) && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
           {formError ? (
@@ -2828,14 +2847,14 @@ export const DirectAdmissionEntry: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
               <span className="text-muted-foreground font-medium shrink-0">Course(s):</span>
               <span className="font-semibold text-foreground sm:text-right min-w-0 break-words">
-                {createdAdmissionSummary?.course || selectedCoursesList.map((c) => c.courseName).join(", ") || "Digital Marketing"}
+                {createdAdmissionSummary?.course || selectedCoursesList.map((c) => c.courseName).join(", ") || "—"}
               </span>
             </div>
 
             <div className="flex items-center justify-between gap-2">
               <span className="text-muted-foreground font-medium shrink-0">Batch Code(s):</span>
               <span className="font-mono font-bold text-primary dark:text-blue-400 text-right truncate">
-                {createdAdmissionSummary?.batch || selectedCoursesList.map((c) => c.batchCode).join(", ") || "DM-JUN-2026-MORN"}
+                {createdAdmissionSummary?.batch || selectedCoursesList.map((c) => c.batchCode).join(", ") || "—"}
               </span>
             </div>
 
@@ -2888,7 +2907,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                   <div className="p-2 bg-card rounded-lg border border-border">
                     <span className="text-[10px] text-muted-foreground block">Student ID / Login ID:</span>
                     <span className="font-mono font-extrabold text-foreground block mt-0.5">
-                      {createdAdmissionSummary?.admissionNo || admissionNo}
+                      {createdAdmissionSummary?.studentCode || createdAdmissionSummary?.admissionNo || admissionNo}
                     </span>
                   </div>
                   <div className="p-2 bg-card rounded-lg border border-border">
@@ -2917,29 +2936,91 @@ export const DirectAdmissionEntry: React.FC = () => {
             )}
           </div>
 
-          <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between pt-1">
+          <DialogFooter className="flex flex-col gap-2 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  if (createdAdmissionSummary?.studentId) {
+                    navigate(`${basePath}/students/${createdAdmissionSummary.studentId}`);
+                  } else {
+                    navigate(`${basePath}/students/all`);
+                  }
+                }}
+                className="text-xs font-semibold"
+              >
+                View Student
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate(`${basePath}/fees/pending`);
+                }}
+                className="text-xs font-semibold"
+              >
+                View Fees
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  navigate(`${basePath}/admissions/documents`);
+                }}
+                className="text-xs font-semibold"
+              >
+                Documents
+              </Button>
+              {createdAdmissionSummary?.admissionId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShowSuccessModal(false);
+                    navigate(`${basePath}/admissions/all`, {
+                      state: { admissionId: createdAdmissionSummary.admissionId },
+                    });
+                  }}
+                  className="text-xs font-semibold"
+                >
+                  View Admission
+                </Button>
+              )}
+              {createdAdmissionSummary?.studentId && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    try {
+                      await studentsApi.sendCredentialsWhatsApp(createdAdmissionSummary.studentId);
+                      notifySuccess("Login credentials sent via WhatsApp.");
+                    } catch {
+                      notifyError("Could not send credentials. Try again from the student profile.");
+                    }
+                  }}
+                  className="text-xs font-semibold col-span-2 sm:col-span-1"
+                >
+                  Send Login on WhatsApp
+                </Button>
+              )}
+            </div>
             <Button
-              variant="outline"
               onClick={() => {
                 setShowSuccessModal(false);
                 navigate(`${basePath}/admissions/all`);
               }}
-              className="text-xs font-semibold border-border text-foreground hover:bg-muted"
+              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold"
             >
-              Back to All Admissions
-            </Button>
-            <Button
-              onClick={() => {
-                setShowSuccessModal(false);
-                navigate(`${basePath}/students/all`);
-              }}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5"
-            >
-              <UserCheck className="h-3.5 w-3.5" /> View in All Students
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
+    </PermissionGate>
   );
 };

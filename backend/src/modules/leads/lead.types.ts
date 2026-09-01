@@ -58,6 +58,11 @@ export interface ConvertLeadDTO {
   feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
   notes?: string;
   createStudentUser?: boolean;
+  totalFee?: number;
+  amountPaid?: number;
+  paymentMethod?: "UPI" | "NET_BANKING" | "CARD" | "CASH" | "CHEQUE";
+  transactionRef?: string;
+  installments?: Array<{ installmentNo: number; dueDate: string; amount: number }>;
 }
 
 export interface CreateFollowUpDTO {

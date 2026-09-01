@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { admissionsApi } from "../../../services/admissions.api";
+import { useAdmissionById } from "../../../hooks/useAdmissions";
+import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -168,6 +170,9 @@ export const AllAdmissions: React.FC = () => {
       ? "/center"
       : "/admin";
 
+  const preselectedAdmissionId = (location.state as { admissionId?: string })?.admissionId;
+  const { data: preselectedAdmissionRes } = useAdmissionById(preselectedAdmissionId || "");
+
   const [admissionsList, setAdmissionsList] = useState<EnrichedAdmission[]>([]);
 
   // Fetch live admissions from PostgreSQL database
@@ -196,37 +201,37 @@ export const AllAdmissions: React.FC = () => {
       altPhone: extractNote(adm.notes, /Alternate mobile:\s*([^|\n]+)/i) || "—",
       emergencyContact: extractNote(adm.notes, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || "—",
       dob: adm.dob ? String(adm.dob).slice(0, 10) : extractNote(adm.notes, /DOB:\s*([^|\n]+)/i) || "—",
-      gender: (adm.gender as any) || extractNote(adm.notes, /Gender:\s*([^|\n]+)/i) || "Female",
-      bloodGroup: extractNote(adm.notes, /Blood Group:\s*([^|\n]+)/i) || adm.student?.bloodGroup || "Not Provided",
-      highestQualification: extractNote(adm.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || adm.student?.qualification || (adm.student as any)?.highestQualification || "Not Provided",
-      address: adm.address || extractNote(adm.notes, /Address:\s*([^|\n]+)/i) || "—",
-      city: adm.city || "Bengaluru",
-      state: adm.state || "Karnataka",
-      pincode: adm.pincode || "560102",
-      guardianName: adm.guardianName || extractNote(adm.notes, /(?:Father's Name|Mother's Name|Guardian Name|Guardian):\s*([^|\n]+)/i) || "—",
-      counselorName: adm.counselorName || adm.user?.name || extractNote(adm.notes, /Counsellor:\s*([^|\n]+)/i) || "Aadya Counsellor",
-      admissionSource: extractNote(adm.notes, /(?:Lead source|Source):\s*([^|\n]+)/i) || adm.admissionSource || "Direct Walk-in",
+      gender: extractNote(adm.notes, /Gender:\s*([^|\n]+)/i) || "—",
+      bloodGroup: extractNote(adm.notes, /Blood Group:\s*([^|\n]+)/i) || "—",
+      highestQualification: extractNote(adm.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || adm.student?.qualification || "—",
+      address: extractNote(adm.notes, /Address:\s*([^|\n]+)/i) || "—",
+      city: extractNote(adm.notes, /City:\s*([^|\n]+)/i) || "—",
+      state: extractNote(adm.notes, /State:\s*([^|\n]+)/i) || "—",
+      pincode: extractNote(adm.notes, /Pincode:\s*([^|\n]+)/i) || "—",
+      guardianName: extractNote(adm.notes, /(?:Father's Name|Mother's Name|Guardian Name|Guardian):\s*([^|\n]+)/i) || "—",
+      counselorName: extractNote(adm.notes, /Counsellor:\s*([^|\n]+)/i) || "—",
+      admissionSource: extractNote(adm.notes, /(?:Lead source|Source):\s*([^|\n]+)/i) || "Direct Walk-in",
       admissionType: extractNote(adm.notes, /Admission type:\s*([^|\n]+)/i) || "Regular Admission",
-      branchName: adm.branch?.name || "Aadya Institute Malleshwaram",
-      academicYear: extractNote(adm.notes, /Academic year:\s*([^|\n]+)/i) || "2025 – 2026",
+      branchName: adm.branch?.name || "—",
+      academicYear: extractNote(adm.notes, /Academic year:\s*([^|\n]+)/i) || "—",
       courseId: adm.courseId || "",
       courseName: adm.course?.name || "—",
       programDuration: adm.course?.duration ? `(${adm.course.duration} Months)` : "—",
       batchId: adm.batchId || "",
-      batchCode: adm.batch?.code || adm.batch?.name || "Pending Batch Assignment",
+      batchCode: adm.batch?.code || adm.batch?.name || "—",
       batchType: "Morning Batch",
       batchTiming: adm.batch?.timeSlot || "—",
-      batchStartDate: adm.batch?.startDate ? new Date(adm.batch.startDate).toLocaleDateString() : "Upcoming",
-      assignedFaculty: adm.batch?.faculty?.user?.name || "Faculty Mentor",
-      batchCapacity: adm.batch?.capacity || 30,
-      enrolledCount: adm.batch?._count?.enrollments || 1,
+      batchStartDate: adm.batch?.startDate ? new Date(adm.batch.startDate).toLocaleDateString() : "—",
+      assignedFaculty: "—",
+      batchCapacity: adm.batch?.capacity || 0,
+      enrolledCount: 0,
       feePlan: adm.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
-      feePaymentStatus: adm.status === "CONFIRMED" ? "Paid" : "Due",
-      totalCourseFee: Number(adm.feeAmount || adm.course?.fee || 0),
-      discountAmount: Number(adm.discount || 0),
-      finalFee: Number(adm.feeAmount || adm.course?.fee || 0),
-      amountPaid: adm.status === "CONFIRMED" ? Number(adm.feeAmount || 0) : Number(adm.paidAmount || 0),
-      amountDue: Math.max(0, Number(adm.feeAmount || 0) - Number(adm.paidAmount || 0)),
+      feePaymentStatus: (adm.payments?.length || 0) > 0 ? "Paid" : "Due",
+      totalCourseFee: Number(adm.course?.fee || 0),
+      discountAmount: 0,
+      finalFee: Number(adm.course?.fee || 0),
+      amountPaid: (adm.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0),
+      amountDue: (adm.pendingFees || []).reduce((sum: number, p: any) => sum + Number(p.dueAmount || 0), 0),
       paymentHistory: (adm.payments || []).map((p: any) => ({
         id: p.id,
         receiptNo: p.receiptNo || `REC-${p.id.slice(-6).toUpperCase()}`,
@@ -254,6 +259,82 @@ export const AllAdmissions: React.FC = () => {
 
     setAdmissionsList(mappedDbAdmissions);
   }, [dbAdmissionsRes]);
+
+  useEffect(() => {
+    const detail = preselectedAdmissionRes?.data;
+    if (!detail) return;
+    const extractNote = (notes: string | undefined | null, pattern: RegExp) => {
+      if (!notes) return null;
+      const match = notes.match(pattern);
+      return match ? match[1].trim() : null;
+    };
+    const mapped: EnrichedAdmission = {
+      id: detail.id,
+      admissionNo: detail.admissionNo || `ADM-${detail.id.slice(-6).toUpperCase()}`,
+      studentId: detail.studentId || detail.student?.id || "",
+      studentCode: detail.student?.studentCode || "",
+      studentName: detail.studentName || detail.student?.user?.name || "Admitted Student",
+      avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(detail.studentName || "AD")}`,
+      email: detail.email || detail.student?.user?.email || "—",
+      phone: detail.phone || detail.student?.user?.phone || "",
+      altPhone: extractNote(detail.notes, /Alternate mobile:\s*([^|\n]+)/i) || "—",
+      emergencyContact: extractNote(detail.notes, /(?:Guardian Phone|Emergency):\s*([^|\n]+)/i) || "—",
+      dob: extractNote(detail.notes, /DOB:\s*([^|\n]+)/i) || "—",
+      gender: extractNote(detail.notes, /Gender:\s*([^|\n]+)/i) || "—",
+      bloodGroup: extractNote(detail.notes, /Blood Group:\s*([^|\n]+)/i) || "—",
+      highestQualification: extractNote(detail.notes, /(?:Highest Qualification|Qualification):\s*([^|\n]+)/i) || detail.student?.qualification || "—",
+      address: extractNote(detail.notes, /Address:\s*([^|\n]+)/i) || "—",
+      city: "—",
+      state: "—",
+      pincode: "—",
+      guardianName: extractNote(detail.notes, /(?:Father's Name|Mother's Name|Guardian):\s*([^|\n]+)/i) || "—",
+      counselorName: "—",
+      admissionSource: extractNote(detail.notes, /(?:Lead source|Source):\s*([^|\n]+)/i) || "Direct Walk-in",
+      branchName: detail.branch?.name || "—",
+      courseId: detail.courseId,
+      courseName: detail.course?.name || "—",
+      programDuration: "—",
+      batchId: detail.batchId || "",
+      batchCode: detail.batch?.code || detail.batch?.name || "—",
+      batchType: "Morning Batch",
+      batchTiming: detail.batch?.timeSlot || "—",
+      batchStartDate: "—",
+      assignedFaculty: "—",
+      batchCapacity: 0,
+      enrolledCount: 0,
+      feePlan: detail.feePlan === "FULL_PAYMENT" ? "Standard Plan" : "Installment Plan",
+      feePaymentStatus: (detail.payments?.length || 0) > 0 ? "Paid" : "Due",
+      totalCourseFee: Number(detail.course?.fee || 0),
+      discountAmount: 0,
+      finalFee: Number(detail.course?.fee || 0),
+      amountPaid: (detail.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0),
+      amountDue: (detail.pendingFees || []).reduce((sum, p) => sum + Number(p.dueAmount || 0), 0),
+      paymentHistory: (detail.payments || []).map((p) => ({
+        id: p.id,
+        receiptNo: p.receiptNo,
+        amount: Number(p.amount || 0),
+        paymentMode: p.method || "UPI",
+        transactionId: p.transactionRef || p.id,
+        date: p.date ? new Date(p.date).toLocaleDateString("en-IN") : "—",
+        status: p.status === "SUCCESS" ? "Completed" : "Pending",
+      })),
+      status: detail.status === "CONFIRMED" ? "Confirmed" : detail.status === "PENDING" ? "Admission Pending" : "Provisional",
+      workflowStep: detail.status === "CONFIRMED" ? 4 : 2,
+      admissionDate: new Date(detail.admissionDate || detail.createdAt || Date.now()).toLocaleDateString("en-IN"),
+      admissionTime: new Date(detail.admissionDate || detail.createdAt || Date.now()).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      documents: (detail.documents || []).map((d) => ({
+        id: d.id,
+        title: d.name,
+        category: "Identity Proof",
+        fileName: d.fileName,
+        fileSize: "—",
+        uploadDate: "—",
+        verified: d.status === "VERIFIED",
+      })),
+      counsellorNotes: detail.notes ? [{ id: `n-${detail.id}`, author: "Counsellor", role: "Counsellor", date: "Today", time: "Now", text: detail.notes }] : [],
+    };
+    setSelectedAdmission(mapped);
+  }, [preselectedAdmissionRes]);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -582,7 +663,9 @@ export const AllAdmissions: React.FC = () => {
   };
 
   return (
+    <PermissionGate itemKey="admissions.all" mode="read">
     <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
+      <ReadOnlyBanner itemKey="admissions.all" label="Admissions" />
 
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
@@ -1813,5 +1896,6 @@ export const AllAdmissions: React.FC = () => {
       )}
 
     </div>
+    </PermissionGate>
   );
 };

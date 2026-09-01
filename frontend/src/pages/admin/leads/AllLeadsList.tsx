@@ -10,7 +10,7 @@ import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
+import { ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -120,15 +120,6 @@ export const AllLeadsList: React.FC = () => {
             Add Lead
           </Button>
         </div>
-        <PermissionGate itemKey="leads.all" mode="write">
-          <Button
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
-            onClick={() => navigate(ROUTES.ADMIN.LEADS.NEW)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Lead
-          </Button>
-        </PermissionGate>
       </div>
 
       <Card className="border-border/50 shadow-sm">

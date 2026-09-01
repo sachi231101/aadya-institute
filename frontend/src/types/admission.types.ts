@@ -44,20 +44,27 @@ export type FeePlan = "FULL_PAYMENT" | "INSTALLMENT";
 export interface Admission {
   id: string;
   admissionNo?: string | null;
+  studentId?: string | null;
   studentName?: string | null;
   email?: string | null;
   phone?: string | null;
   courseId: string;
   courseName?: string;
-  course?: { id: string; name: string; code: string };
+  course?: { id: string; name: string; code: string; fee?: number };
   batchId?: string | null;
   batchName?: string | null;
-  batch?: { id: string; name: string; code: string } | null;
+  batch?: { id: string; name: string; code: string; timeSlot?: string; schedulePattern?: string } | null;
   feePlan: FeePlan;
-  status: AdmissionStatus;
+  status: AdmissionStatus | string;
   admissionDate: string;
   notes?: string | null;
   createdAt?: string;
+  student?: { id: string; studentCode: string; user?: { id: string; name: string; email?: string; phone?: string } };
+  branch?: { id: string; name: string; code: string };
+  application?: { id: string; applicationNo: string; status: string; feeStatus: string };
+  payments?: Array<{ id: string; receiptNo: string; amount: number; method: string; status: string; date?: string }>;
+  pendingFees?: Array<{ id: string; dueAmount: number; dueDate: string; installmentNo: number; status: string }>;
+  documents?: Array<{ id: string; name: string; status: string; fileName: string }>;
 }
 
 export interface CreateEnquiryPayload {
@@ -95,6 +102,7 @@ export interface CreateAdmissionPayload {
   batchId?: string;
   studentId?: string;
   applicationId?: string;
+  leadId?: string;
   branchId?: string;
   feePlan?: FeePlan;
   status?: AdmissionStatus;
@@ -110,6 +118,7 @@ export interface CreateAdmissionPayload {
   paymentModeMasterId?: string;
   areaMasterId?: string;
   concessionHeadMasterId?: string;
+  sendCredentials?: boolean;
 }
 
 export interface ConvertEnquiryPayload {

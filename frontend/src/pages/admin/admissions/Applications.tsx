@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { admissionsApi } from "../../../services/admissions.api";
+import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import {
   FileCheck2,
   Plus,
@@ -228,27 +229,27 @@ export const Applications: React.FC = () => {
             avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(app.applicantName || "AP")}`,
             email: app.email || "—",
             phone: app.phone || "—",
-            gender: "Male",
-            dob: "2004-01-01",
-            category: "General",
+            gender: "—",
+            dob: "—",
+            category: "—",
             fatherName: "—",
             motherName: "—",
-            address: "Bengaluru",
-            city: "Bengaluru",
-            state: "Karnataka",
-            pincode: "560102",
+            address: "—",
+            city: "—",
+            state: "—",
+            pincode: "—",
             courseId: app.courseId,
             courseName: app.course?.name || "Program",
-            courseDuration: "(6 Months)",
-            courseCode: app.course?.code || "CRS",
-            preferredBatchTiming: "Morning (10:00 AM - 12:00 PM)",
+            courseDuration: "—",
+            courseCode: app.course?.code || "—",
+            preferredBatchTiming: "—",
             preferredMode: "Offline (Classroom)",
-            highestQualification: "Graduate",
-            collegeOrSchool: "University",
-            passingYear: "2024",
-            gradePercentage: "80%",
-            feeStatus: app.feeStatus || "PAID",
-            feeAmount: 500,
+            highestQualification: "—",
+            collegeOrSchool: "—",
+            passingYear: "—",
+            gradePercentage: "—",
+            feeStatus: app.feeStatus === "PAID" ? "PAID" : "NOT_PAID",
+            feeAmount: 0,
             status:
               app.status === "ADMITTED" ? "APPROVED" : "UNDER_REVIEW_BLUE",
             submittedDate: new Date(
@@ -705,7 +706,9 @@ export const Applications: React.FC = () => {
   };
 
   return (
+    <PermissionGate itemKey="admissions.applications" mode="read">
     <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
+      <ReadOnlyBanner itemKey="admissions.applications" label="Applications" />
       {/* ─── TOAST NOTIFICATION ─── */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200">
@@ -2503,5 +2506,6 @@ export const Applications: React.FC = () => {
         </div>
       )}
     </div>
+    </PermissionGate>
   );
 };
