@@ -2,6 +2,7 @@ import { Router } from "express";
 import { AdmissionsController } from "./admissions.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission } from "../../middlewares/permission.middleware";
 
 const router = Router();
 
@@ -10,31 +11,31 @@ router.use(authMiddleware);
 // ─── ENQUIRIES ROUTES ────────────────────────────────────────────────────────
 router.get(
   "/enquiries",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getEnquiries
 );
 
 router.get(
   "/enquiries/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getEnquiryById
 );
 
 router.post(
   "/enquiries",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.createEnquiry
 );
 
 router.patch(
   "/enquiries/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.update"),
   AdmissionsController.updateEnquiry
 );
 
 router.post(
   "/enquiries/:id/ai-call",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.update"),
   AdmissionsController.triggerEnquiryAiCall
 );
 
@@ -46,38 +47,38 @@ router.delete(
 
 router.post(
   "/enquiries/:id/convert",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.convertEnquiryToApplication
 );
 
 router.post(
   "/enquiries/:id/create-application",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.convertEnquiryToApplication
 );
 
 // ─── APPLICATIONS ROUTES ─────────────────────────────────────────────────────
 router.get(
   "/applications",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getApplications
 );
 
 router.get(
   "/applications/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getApplicationById
 );
 
 router.post(
   "/applications",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.createApplication
 );
 
 router.patch(
   "/applications/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.update"),
   AdmissionsController.updateApplication
 );
 
@@ -89,32 +90,32 @@ router.delete(
 
 router.post(
   "/applications/:id/convert",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.convertApplicationToAdmission
 );
 
 // ─── ADMISSIONS ROUTES ───────────────────────────────────────────────────────
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getAdmissions
 );
 
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.read"),
   AdmissionsController.getAdmissionById
 );
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.create"),
   AdmissionsController.createAdmission
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("admission.update"),
   AdmissionsController.updateAdmission
 );
 

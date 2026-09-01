@@ -1,6 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { AdmissionsService } from "./admissions.service";
+import type { AuthUser } from "../auth/auth.types";
 import { toAuthUser } from "../../utils/auth-user.util";
 import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import {
@@ -17,6 +18,17 @@ import {
   convertApplicationSchema,
 } from "./admissions.validation";
 import type { EnquirySource, EnquiryStatus, ApplicationStatus, FeeStatus, AdmissionStatus } from "./admissions.types";
+
+const toAuthUser = (req: AuthenticatedRequest): AuthUser => ({
+  id: req.user!.userId,
+  userId: req.user!.userId,
+  name: req.user!.name || "User",
+  email: req.user!.email,
+  instituteId: req.user!.instituteId,
+  branchId: req.user!.branchId,
+  roles: req.user!.roles || [],
+  permissions: req.user!.permissions || [],
+});
 
 export const AdmissionsController = {
   // ─── ENQUIRIES ─────────────────────────────────────────────────────────────
@@ -235,7 +247,12 @@ export const AdmissionsController = {
       const instituteId = req.user!.instituteId;
       const id = req.params.id as string;
       const dto = convertApplicationSchema.parse(req.body);
-      const data = await AdmissionsService.convertApplicationToAdmission(id, instituteId, dto);
+      const data = await AdmissionsService.convertApplicationToAdmission(
+        id,
+        instituteId,
+        dto,
+        toAuthUser(req)
+      );
       res.status(201).json({
         success: true,
         message: "Application converted to admission successfully",
@@ -295,6 +312,8 @@ export const AdmissionsController = {
       const dto = createAdmissionSchema.parse(req.body);
       const data = await AdmissionsService.createAdmission(instituteId, branchId, dto, {
         roles: req.user!.roles || [],
+        userId: req.user!.userId,
+        currentUser: toAuthUser(req),
       });
       res.status(201).json({
         success: true,
@@ -308,10 +327,9 @@ export const AdmissionsController = {
 
   async updateAdmission(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
       const id = req.params.id as string;
       const dto = updateAdmissionSchema.parse(req.body);
-      const data = await AdmissionsService.updateAdmission(id, instituteId, dto);
+      const data = await AdmissionsService.updateAdmission(id, toAuthUser(req), dto);
       res.json({
         success: true,
         message: "Admission updated successfully",
@@ -324,9 +342,8 @@ export const AdmissionsController = {
 
   async deleteAdmission(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
-      const instituteId = req.user!.instituteId;
       const id = req.params.id as string;
-      await AdmissionsService.deleteAdmission(id, instituteId);
+      await AdmissionsService.deleteAdmission(id, toAuthUser(req));
       res.json({
         success: true,
         message: "Admission deleted successfully",

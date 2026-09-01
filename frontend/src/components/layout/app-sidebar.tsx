@@ -61,7 +61,6 @@ const data = {
       icon: Bot,
       items: [
         { title: "All Leads", url: A.LEADS.ROOT },
-        { title: "New Lead", url: A.LEADS.NEW },
         { title: "AI Calling", url: A.LEADS.AI_CALLING },
         { title: "Follow-ups", url: A.LEADS.FOLLOW_UPS },
         { title: "Call History", url: A.LEADS.CALL_HISTORY },
