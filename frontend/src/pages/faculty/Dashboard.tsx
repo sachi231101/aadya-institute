@@ -24,8 +24,8 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
-import { FacultyTimetable } from "@/pages/admin/faculty/FacultyTimetable";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import type { FacultyDashboardSession } from "@/types/faculty.types";
 
 type SessionCard = FacultyDashboardSession & {
@@ -116,18 +116,28 @@ export const FacultyDashboard: React.FC = () => {
     });
   }, [myAssignedClasses, activeTab, searchQuery]);
 
+  const [selectedModalClass, setSelectedModalClass] = useState<ClassSessionModalData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
   const handleOpenClass = (cls: SessionCard) => {
-    const params = new URLSearchParams({
-      sessionId: cls.id,
-      course: cls.courseName || "Class",
-      batch: cls.batchName || cls.batchCode || "",
-      room: cls.roomNo || "",
-      time: cls.timeRange,
-      date: cls.dateLabel,
-      students: String(cls.assignedStudents),
-      subject: cls.subjectName || "",
+    setSelectedModalClass({
+      id: cls.id,
+      title: cls.title || cls.subjectName || "Class Session",
+      courseName: cls.courseName || "Assigned Course",
+      subjectName: cls.subjectName || "",
+      batchId: cls.batchId || undefined,
+      batchName: cls.batchName || cls.batchCode || "Batch",
+      batchCode: cls.batchCode || "BATCH",
+      date: cls.scheduledDate ? cls.scheduledDate.split("T")[0] : todayIso,
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+      roomNo: cls.roomNo || "Room 101",
+      mode: cls.mode || "OFFLINE",
+      meetingUrl: cls.meetingUrl || undefined,
+      status: cls.sessionStatus,
+      enrolledStudentsCount: cls.assignedStudents,
     });
-    navigate(`/faculty/class-session?${params.toString()}`);
+    setIsModalOpen(true);
   };
 
   if (isLoading) {
@@ -511,19 +521,33 @@ export const FacultyDashboard: React.FC = () => {
       )}
 
       <div className="space-y-3 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
           <div>
-            <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+            <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Calendar className="w-5 h-5 text-[#1769AA]" />
-              My Weekly Timetable Overview
+              Need Full Timetable Grid?
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Teaching slots from your class sessions this week.
+              Switch week, view room assignments, and manage all assigned classes in the dedicated academic timetable.
             </p>
           </div>
+          <Button
+            onClick={() => navigate("/faculty/timetable")}
+            className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs shrink-0"
+          >
+            Open My Schedule <ArrowRight className="w-4 h-4 ml-1.5" />
+          </Button>
         </div>
-        <FacultyTimetable readOnly={true} />
       </div>
+
+      <StartClassModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        session={selectedModalClass}
+        onSessionStatusChange={() => {
+          refetch();
+        }}
+      />
     </div>
   );
 };
