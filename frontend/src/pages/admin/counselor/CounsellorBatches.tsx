@@ -28,11 +28,12 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { batchesApi, type BatchData, type CreateBatchPayload, type BatchCoursePayload } from "../../../services/batches.api";
+import { batchesApi, type BatchData, type CreateBatchPayload, type BatchCoursePayload, type ScheduleLinePayload } from "../../../services/batches.api";
 import { formatBatchSubjectNames, formatBatchInstructorsSummary } from "@/utils/batch.utils";
 import { BatchSubjectChips } from "@/components/batches/BatchSubjectFacultyDisplay";
 import {
   BatchCourseSelector,
+  createEmptyCourseRow,
   type BatchCourseFormRow,
 } from "@/components/batches/BatchCourseSelector";
 import { coursesApi } from "../../../services/courses.api";
@@ -42,8 +43,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MasterSelect } from "@/components/common/MasterSelect";
-import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
 import {
@@ -155,23 +154,6 @@ const getBatchEnrolledStudentIds = (batch: BatchData): string[] => {
     .filter((id): id is string => Boolean(id));
 };
 
-const inferSchedulePattern = (
-  daysText: string
-): "MWF" | "TTS" | "WEEKEND" | "CUSTOM" => {
-  const lower = daysText.toLowerCase();
-  const hasMon = lower.includes("mon");
-  const hasWed = lower.includes("wed");
-  const hasFri = lower.includes("fri");
-  const hasTue = lower.includes("tue");
-  const hasThu = lower.includes("thu");
-  const hasSat = lower.includes("sat");
-  const hasSun = lower.includes("sun");
-  if (hasMon && hasWed && hasFri && !hasTue && !hasThu) return "MWF";
-  if (hasTue && hasThu && !hasMon && !hasWed && !hasFri) return "TTS";
-  if ((hasSat || hasSun) && !hasMon && !hasTue && !hasWed && !hasThu && !hasFri) return "WEEKEND";
-  return "CUSTOM";
-};
-
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -202,34 +184,99 @@ export const CounsellorBatches: React.FC = () => {
   // Edit Batch Form State (Including Enrolled Students & Adding New Students)
   const [editBatchName, setEditBatchName] = useState<string>("");
   const [editFacultyId, setEditFacultyId] = useState<string>("");
-  const [editStartDate, setEditStartDate] = useState<string>("");
   const [editCapacity, setEditCapacity] = useState<number>(30);
-  const [editTimeSlotMasterId, setEditTimeSlotMasterId] = useState<string>("");
-  const [editClassroomMasterId, setEditClassroomMasterId] = useState<string>("");
   const [editEnrolledStudentIds, setEditEnrolledStudentIds] = useState<string[]>([]);
   const [editSelectedCourses, setEditSelectedCourses] = useState<BatchCourseFormRow[]>([]);
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [selectedNewStudentIdToAdd, setSelectedNewStudentIdToAdd] = useState<string>("");
 
+  const mapCourseRowsToPayload = (rows: BatchCourseFormRow[]): BatchCoursePayload[] =>
+    rows.map((r, idx) => ({
+      courseId: r.courseId,
+      facultyId: r.facultyId || undefined,
+      sequence: idx + 1,
+      startDate: r.startDate,
+      expectedEndDate: r.expectedEndDate || undefined,
+      schedulePattern: r.schedulePattern,
+      timeSlot: getMasterLabel(timeslotOptions, r.timeslotMasterId) || undefined,
+      timeslotMasterId: r.timeslotMasterId || undefined,
+      classroomMasterId: r.classroomMasterId || undefined,
+    }));
+
+  const PATTERN_DAYS: Record<string, number[]> = {
+    MWF: [1, 3, 5],
+    TTS: [2, 4, 6],
+    WEEKEND: [0, 6],
+    CUSTOM: [1],
+  };
+
+  const mapCourseRowsToScheduleLines = (rows: BatchCourseFormRow[]): ScheduleLinePayload[] =>
+    rows.flatMap((r) => {
+      const days = PATTERN_DAYS[r.schedulePattern] || PATTERN_DAYS.MWF;
+      const timeSlot = getMasterLabel(timeslotOptions, r.timeslotMasterId) || undefined;
+      return days.map((dayOfWeek) => ({
+        courseId: r.courseId,
+        dayOfWeek,
+        timeSlot,
+        timeslotMasterId: r.timeslotMasterId || undefined,
+        classroomMasterId: r.classroomMasterId || undefined,
+        facultyId: r.facultyId || undefined,
+        status: "ACTIVE" as const,
+        attendanceEnabled: true,
+      }));
+    });
+
   const handleOpenEditModal = (batch: BatchData) => {
     setEditModalBatch(batch);
     setEditBatchName(batch.name || "");
     setEditFacultyId(batch.facultyId || batch.faculty?.id || "");
-    setEditStartDate(batch.startDate ? batch.startDate.split("T")[0] : "");
     setEditCapacity(batch.capacity || 30);
-    setEditTimeSlotMasterId(
-      batch.timeslotMasterId || findMasterIdByLabel(timeslotOptions, batch.timeSlot) || ""
-    );
-    setEditClassroomMasterId(batch.classroomMasterId || "");
     setEditEnrolledStudentIds(getBatchEnrolledStudentIds(batch));
     setEditSelectedCourses(
       batch.batchCourses && batch.batchCourses.length > 0
         ? batch.batchCourses.map((bc) => ({
             courseId: bc.courseId,
             facultyId: bc.facultyId || bc.faculty?.id || "",
+            startDate: bc.startDate
+              ? bc.startDate.split("T")[0]
+              : batch.startDate
+                ? batch.startDate.split("T")[0]
+                : new Date().toISOString().slice(0, 10),
+            expectedEndDate: bc.expectedEndDate
+              ? bc.expectedEndDate.split("T")[0]
+              : batch.expectedEndDate
+                ? batch.expectedEndDate.split("T")[0]
+                : "",
+            schedulePattern:
+              (bc.schedulePattern as BatchCourseFormRow["schedulePattern"]) ||
+              (batch.schedulePattern as BatchCourseFormRow["schedulePattern"]) ||
+              "MWF",
+            timeslotMasterId:
+              bc.timeslotMasterId ||
+              findMasterIdByLabel(timeslotOptions, bc.timeSlot || batch.timeSlot) ||
+              batch.timeslotMasterId ||
+              "",
+            classroomMasterId: bc.classroomMasterId || batch.classroomMasterId || "",
           }))
         : batch.courseId
-          ? [{ courseId: batch.courseId, facultyId: batch.facultyId || batch.faculty?.id || "" }]
+          ? [
+              {
+                ...createEmptyCourseRow(batch.courseId, {
+                  facultyId: batch.facultyId || batch.faculty?.id || "",
+                  startDate: batch.startDate ? batch.startDate.split("T")[0] : undefined,
+                  schedulePattern:
+                    (batch.schedulePattern as BatchCourseFormRow["schedulePattern"]) || "MWF",
+                }),
+                expectedEndDate: batch.expectedEndDate
+                  ? batch.expectedEndDate.split("T")[0]
+                  : "",
+                timeslotMasterId:
+                  batch.timeslotMasterId ||
+                  findMasterIdByLabel(timeslotOptions, batch.timeSlot) ||
+                  "",
+                classroomMasterId: batch.classroomMasterId || "",
+              },
+            ]
           : []
     );
     setSelectedNewStudentIdToAdd("");
@@ -251,12 +298,6 @@ export const CounsellorBatches: React.FC = () => {
   const [newBatchName, setNewBatchName] = useState<string>("");
   const [newBatchCode, setNewBatchCode] = useState<string>("");
   const [newSelectedCourses, setNewSelectedCourses] = useState<BatchCourseFormRow[]>([]);
-  const [newStartDate, setNewStartDate] = useState<string>(
-    new Date().toISOString().slice(0, 10)
-  );
-  const [newScheduleDays, setNewScheduleDays] = useState<string>("Monday, Wednesday, Friday");
-  const [newTimeSlotMasterId, setNewTimeSlotMasterId] = useState<string>("");
-  const [newClassroomMasterId, setNewClassroomMasterId] = useState<string>("");
   const [newCapacity, setNewCapacity] = useState<number>(35);
 
   // Queries for real batches, students, courses, faculty
@@ -377,22 +418,23 @@ export const CounsellorBatches: React.FC = () => {
       const toAdd = nextIds.filter((id) => !previousIds.includes(id));
       const toRemove = previousIds.filter((id) => !nextIds.includes(id));
 
-      const coursesPayload: BatchCoursePayload[] = editSelectedCourses.map((r, idx) => ({
-        courseId: r.courseId,
-        facultyId: r.facultyId,
-        sequence: idx + 1,
-      }));
+      const coursesPayload = mapCourseRowsToPayload(editSelectedCourses);
+      const scheduleLines = mapCourseRowsToScheduleLines(editSelectedCourses);
+      const starts = coursesPayload.map((c) => c.startDate!).filter(Boolean).sort();
+      const ends = coursesPayload
+        .map((c) => c.expectedEndDate)
+        .filter((d): d is string => Boolean(d))
+        .sort();
 
       await batchesApi.update(editModalBatch.id, {
         name: editBatchName.trim(),
         courseId: editSelectedCourses[0].courseId,
         facultyId: editFacultyId || editSelectedCourses[0].facultyId,
         courses: coursesPayload,
-        startDate: editStartDate || undefined,
+        scheduleLines,
+        startDate: starts[0],
+        expectedEndDate: ends.length > 0 ? ends[ends.length - 1] : undefined,
         capacity: editCapacity,
-        timeSlot: getMasterLabel(timeslotOptions, editTimeSlotMasterId) || undefined,
-        timeslotMasterId: editTimeSlotMasterId || undefined,
-        classroomMasterId: editClassroomMasterId || undefined,
       });
 
       await Promise.all([
@@ -1159,55 +1201,13 @@ export const CounsellorBatches: React.FC = () => {
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">Start Date</label>
-                <Input
-                  type="date"
-                  value={newStartDate}
-                  onChange={(e) => setNewStartDate(e.target.value)}
-                  className="h-9 text-xs rounded-xl"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700">Batch Capacity</label>
-                <Input
-                  type="number"
-                  value={newCapacity}
-                  onChange={(e) => setNewCapacity(Number(e.target.value))}
-                  className="h-9 text-xs rounded-xl"
-                />
-              </div>
-            </div>
-
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700">Class Schedule</label>
+              <label className="text-[11px] font-bold text-slate-700">Batch Capacity</label>
               <Input
-                value={newScheduleDays}
-                onChange={(e) => setNewScheduleDays(e.target.value)}
-                placeholder="e.g. Monday, Wednesday, Friday"
+                type="number"
+                value={newCapacity}
+                onChange={(e) => setNewCapacity(Number(e.target.value))}
                 className="h-9 text-xs rounded-xl"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700">Preferred Time Slot</label>
-              <MasterSelect
-                entityType="timeslot"
-                value={newTimeSlotMasterId}
-                onChange={setNewTimeSlotMasterId}
-                placeholder="Select time slot"
-                className="mt-0 rounded-xl h-9"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700">Classroom</label>
-              <ClassroomDropdown
-                value={newClassroomMasterId}
-                onChange={setNewClassroomMasterId}
-                className="mt-0 rounded-xl h-9"
               />
             </div>
           </div>
@@ -1243,29 +1243,35 @@ export const CounsellorBatches: React.FC = () => {
                   setTimeout(() => setSuccessMsg(null), 3500);
                   return;
                 }
+                const missingSchedule = newSelectedCourses.find((r) => !r.startDate || !r.schedulePattern);
+                if (missingSchedule) {
+                  setSuccessMsg("Each selected subject needs a start date and schedule pattern.");
+                  setTimeout(() => setSuccessMsg(null), 3500);
+                  return;
+                }
                 if (!targetFacultyId || !targetBranchId) {
                   setSuccessMsg("Select a faculty member and ensure a branch exists.");
                   setTimeout(() => setSuccessMsg(null), 3500);
                   return;
                 }
-                const coursesPayload: BatchCoursePayload[] = newSelectedCourses.map((r, idx) => ({
-                  courseId: r.courseId,
-                  facultyId: r.facultyId,
-                  sequence: idx + 1,
-                }));
+                const coursesPayload = mapCourseRowsToPayload(newSelectedCourses);
+                const scheduleLines = mapCourseRowsToScheduleLines(newSelectedCourses);
+                const starts = coursesPayload.map((c) => c.startDate!).filter(Boolean).sort();
+                const ends = coursesPayload
+                  .map((c) => c.expectedEndDate)
+                  .filter((d): d is string => Boolean(d))
+                  .sort();
                 createBatchMutation.mutate({
                   name: newBatchName.trim(),
                   code: newBatchCode.trim(),
                   courseId: newSelectedCourses[0].courseId,
                   facultyId: targetFacultyId,
                   courses: coursesPayload,
+                  scheduleLines,
                   branchId: targetBranchId,
                   capacity: newCapacity,
-                  startDate: newStartDate,
-                  schedulePattern: inferSchedulePattern(newScheduleDays),
-                  timeSlot: getMasterLabel(timeslotOptions, newTimeSlotMasterId) || undefined,
-                  timeslotMasterId: newTimeSlotMasterId || undefined,
-                  classroomMasterId: newClassroomMasterId || undefined,
+                  startDate: starts[0],
+                  expectedEndDate: ends.length > 0 ? ends[ends.length - 1] : undefined,
                 });
               }}
               className="w-full sm:flex-1 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
@@ -1342,47 +1348,14 @@ export const CounsellorBatches: React.FC = () => {
                 </select>
               </div>
 
-              {/* Start Date, Capacity, Time Slot */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Start Date</label>
-                  <Input
-                    type="date"
-                    value={editStartDate}
-                    onChange={(e) => setEditStartDate(e.target.value)}
-                    className="h-9 rounded-xl text-xs"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Capacity</label>
-                  <Input
-                    type="number"
-                    value={editCapacity}
-                    onChange={(e) => setEditCapacity(Number(e.target.value))}
-                    className="h-9 rounded-xl text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Time Slot</label>
-                  <MasterSelect
-                    entityType="timeslot"
-                    value={editTimeSlotMasterId}
-                    onChange={setEditTimeSlotMasterId}
-                    placeholder="Select time slot"
-                    className="mt-0 rounded-xl h-9"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-700">Classroom</label>
-                  <ClassroomDropdown
-                    value={editClassroomMasterId}
-                    onChange={setEditClassroomMasterId}
-                    className="mt-0 rounded-xl h-9"
-                  />
-                </div>
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Capacity</label>
+                <Input
+                  type="number"
+                  value={editCapacity}
+                  onChange={(e) => setEditCapacity(Number(e.target.value))}
+                  className="h-9 rounded-xl text-xs"
+                />
               </div>
 
               {/* ─── ENROLLED STUDENTS & ADD NEW STUDENTS SECTION ─── */}

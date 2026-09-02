@@ -112,6 +112,44 @@ export const formatBatchInstructorsSummary = (batch: BatchLike): string => {
   return `${names[0]} +${names.length - 1} more`;
 };
 
+const formatShortDate = (value?: string | Date | null): string => {
+  if (!value) return "—";
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+};
+
+/** Zenox-style title: Faculty|Course|Time|DateRange|Pattern */
+export const formatBatchScheduleTitle = (batch: BatchLike & {
+  name?: string;
+  startDate?: string | Date | null;
+  expectedEndDate?: string | Date | null;
+  schedulePattern?: string | null;
+  timeSlot?: string | null;
+  schedules?: Array<{
+    startTime?: string;
+    endTime?: string;
+    timeslotMaster?: { name?: string } | null;
+    faculty?: { user?: { name?: string } | null } | null;
+  }>;
+}): string => {
+  const faculty =
+    batch.faculty?.user?.name ||
+    batch.schedules?.find((s) => s.faculty?.user?.name)?.faculty?.user?.name ||
+    getUniqueFacultyInBatch(batch)[0]?.user?.name ||
+    "Unassigned";
+  const course = formatBatchSubjectNames(batch);
+  const slot =
+    batch.timeSlot ||
+    batch.schedules?.[0]?.timeslotMaster?.name ||
+    (batch.schedules?.[0]?.startTime
+      ? `${batch.schedules[0].startTime} to ${batch.schedules[0].endTime}`
+      : "—");
+  const range = `${formatShortDate(batch.startDate)} to ${formatShortDate(batch.expectedEndDate)}`;
+  const pattern = batch.schedulePattern || "CUSTOM";
+  return `${faculty} | ${course} | ${slot} | ${range} | ${pattern}`;
+};
+
 /** Prefer session title, then batch subjects, then legacy primary course */
 export const getSessionSubjectLabel = (session: {
   title?: string | null;

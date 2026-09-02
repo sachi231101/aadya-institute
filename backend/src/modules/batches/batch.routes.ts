@@ -12,12 +12,20 @@ import {
   updateBatchScheduleSchema,
   generateSessionsSchema,
   transferStudentSchema,
+  availableFacultyQuerySchema,
 } from "./batch.validation";
 import { requirePermission } from "../../middlewares/permission.middleware";
 
 const router = Router();
 
 router.use(authMiddleware);
+
+router.get(
+  "/faculty/available",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  validate(availableFacultyQuerySchema, "query"),
+  controller.getAvailableFaculty
+);
 
 router.get(
   "/",

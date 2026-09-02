@@ -83,6 +83,25 @@ export const BatchSubjectsFacultyTable: React.FC<SubjectTableProps> = ({ batchCo
                   {row.course?.code && (
                     <p className="text-[10px] font-mono text-muted-foreground">{row.course.code}</p>
                   )}
+                  {(row as BatchCourseItem).schedulePattern || (row as BatchCourseItem).timeSlot ? (
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      {(row as BatchCourseItem).schedulePattern || "—"}
+                      {(row as BatchCourseItem).timeSlot
+                        ? ` · ${(row as BatchCourseItem).timeSlot}`
+                        : ""}
+                      {(row as BatchCourseItem).classroomMaster?.name
+                        ? ` · ${(row as BatchCourseItem).classroomMaster?.name}`
+                        : ""}
+                    </p>
+                  ) : null}
+                  {(row as BatchCourseItem).startDate ? (
+                    <p className="text-[10px] text-muted-foreground">
+                      {new Date((row as BatchCourseItem).startDate!).toLocaleDateString("en-IN")}
+                      {(row as BatchCourseItem).expectedEndDate
+                        ? ` → ${new Date((row as BatchCourseItem).expectedEndDate!).toLocaleDateString("en-IN")}`
+                        : ""}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex items-center gap-1.5 sm:pl-6 shrink-0">

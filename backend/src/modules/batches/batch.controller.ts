@@ -307,3 +307,26 @@ export const generateSessions = async (
     next(error);
   }
 };
+
+export const getAvailableFaculty = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const faculty = await service.getAvailableFaculty(instituteId, {
+      dayOfWeek: Number(req.query.dayOfWeek),
+      startTime: req.query.startTime as string | undefined,
+      endTime: req.query.endTime as string | undefined,
+      timeslotMasterId: req.query.timeslotMasterId as string | undefined,
+      startDate: req.query.startDate as string | undefined,
+      endDate: req.query.endDate as string | undefined,
+      branchId: req.query.branchId as string | undefined,
+      excludeBatchId: req.query.excludeBatchId as string | undefined,
+    });
+    sendSuccess(res, faculty, 200, "Available faculty retrieved successfully");
+  } catch (error) {
+    next(error);
+  }
+};

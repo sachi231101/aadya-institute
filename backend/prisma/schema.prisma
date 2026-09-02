@@ -419,6 +419,7 @@ model Faculty {
 
   batches           Batch[]
   batchCourses      BatchCourse[]
+  batchSchedules    BatchSchedule[]
   classSessions     ClassSession[]
   facultyAttendance FacultyAttendance[]
   assignments       Assignment[]
@@ -608,6 +609,7 @@ model Batch {
   timeslotMasterId  String?
   classroomMasterId String?
   capacity        Int         @default(35)
+  remark          String?
   status          BatchStatus @default(UPCOMING)
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
@@ -637,18 +639,29 @@ model Batch {
 }
 
 model BatchCourse {
-  id        String   @id @default(cuid())
-  batchId   String
-  courseId  String
-  facultyId String?
-  sequence  Int      @default(1)
-  status    Status   @default(ACTIVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                String    @id @default(cuid())
+  batchId           String
+  courseId          String
+  facultyId         String?
+  sequence          Int       @default(1)
+  startDate         DateTime?
+  expectedEndDate   DateTime?
+  schedulePattern   String?
+  timeSlot          String?
+  timeslotMasterId  String?
+  classroomMasterId String?
+  status            Status    @default(ACTIVE)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  batch   Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  course  Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  faculty Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  batch           Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  faculty         Faculty?      @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  timeslotMaster  MasterRecord? @relation("BatchCourseTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
+  classroomMaster MasterRecord? @relation("BatchCourseClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
+
+  schedules     BatchSchedule[]
+  classSessions ClassSession[]
 
   @@unique([batchId, courseId])
   @@index([batchId])
@@ -657,18 +670,31 @@ model BatchCourse {
 }
 
 model BatchSchedule {
-  id            String    @id @default(cuid())
-  batchId       String
-  dayOfWeek     Int
-  startTime     String
-  endTime       String
-  effectiveFrom DateTime
-  effectiveTo   DateTime?
-  createdAt     DateTime  @default(now())
+  id                String    @id @default(cuid())
+  batchId           String
+  batchCourseId     String?
+  dayOfWeek         Int
+  startTime         String
+  endTime           String
+  effectiveFrom     DateTime
+  effectiveTo       DateTime?
+  facultyId         String?
+  timeslotMasterId  String?
+  classroomMasterId String?
+  status            Status    @default(ACTIVE)
+  attendanceEnabled Boolean   @default(true)
+  createdAt         DateTime  @default(now())
 
-  batch Batch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch           Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchCourse     BatchCourse?  @relation(fields: [batchCourseId], references: [id], onDelete: Cascade)
+  faculty         Faculty?      @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  timeslotMaster  MasterRecord? @relation("BatchScheduleTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
+  classroomMaster MasterRecord? @relation("BatchScheduleClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
 
   @@index([batchId])
+  @@index([batchCourseId])
+  @@index([facultyId])
+  @@index([dayOfWeek])
 }
 
 model BatchModule {
@@ -713,6 +739,7 @@ model BatchEnrollment {
 model ClassSession {
   id                String    @id @default(cuid())
   batchId           String
+  batchCourseId     String?
   batchModuleId     String?
   facultyId         String
   branchId          String
@@ -735,6 +762,7 @@ model ClassSession {
   updatedAt         DateTime  @updatedAt
 
   batch            Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchCourse      BatchCourse?  @relation(fields: [batchCourseId], references: [id], onDelete: SetNull)
   batchModule      BatchModule?  @relation(fields: [batchModuleId], references: [id], onDelete: SetNull)
   faculty          Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
   classroomMaster  MasterRecord? @relation("ClassSessionClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
@@ -748,6 +776,7 @@ model ClassSession {
   feedback          Feedback[]
 
   @@index([batchId])
+  @@index([batchCourseId])
   @@index([facultyId])
   @@index([scheduledDate])
 }
@@ -1445,6 +1474,10 @@ model MasterRecord {
   classSessionsAsTimeslot    ClassSession[] @relation("ClassSessionTimeslotMaster")
   batchesAsClassroom         Batch[]        @relation("BatchClassroomMaster")
   batchesAsTimeslot          Batch[]        @relation("BatchTimeslotMaster")
+  batchCoursesAsClassroom    BatchCourse[]  @relation("BatchCourseClassroomMaster")
+  batchCoursesAsTimeslot     BatchCourse[]  @relation("BatchCourseTimeslotMaster")
+  batchSchedulesAsClassroom  BatchSchedule[] @relation("BatchScheduleClassroomMaster")
+  batchSchedulesAsTimeslot   BatchSchedule[] @relation("BatchScheduleTimeslotMaster")
   paymentsAsMode             Payment[]      @relation("PaymentModeMaster")
   paymentsAsBankAccount      Payment[]      @relation("PaymentBankAccountMaster")
   paymentsAsFeeHead          Payment[]      @relation("PaymentFeeHeadMaster")

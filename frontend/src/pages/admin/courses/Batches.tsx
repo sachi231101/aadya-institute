@@ -1,24 +1,25 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams, Link } from "react-router-dom";
-import { 
-  GraduationCap, 
-  Plus, 
-  Search, 
-  Users, 
-  Calendar, 
-  CheckCircle2, 
-  MoreVertical, 
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import {
+  GraduationCap,
+  Plus,
+  Search,
+  Users,
+  Calendar,
+  CheckCircle2,
+  MoreVertical,
   Trash2,
   Pencil,
-  UserCheck,
   Loader2,
   AlertTriangle,
   Sparkles,
   X,
+  Eye,
+  RefreshCw,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBatches } from "../../../hooks/useBatches";
-import type { BatchData, BatchCoursePayload } from "../../../services/batches.api";
+import type { BatchData, ScheduleLinePayload } from "../../../services/batches.api";
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { batchesApi } from "@/services/batches.api";
@@ -27,20 +28,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { MasterSelect } from "@/components/common/MasterSelect";
-import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
 import {
   batchIncludesCourse,
   formatBatchSubjectNames,
-  formatBatchInstructorsSummary,
+  formatBatchScheduleTitle,
 } from "@/utils/batch.utils";
-import { BatchSubjectChips } from "@/components/batches/BatchSubjectFacultyDisplay";
 import {
-  BatchCourseSelector,
-  type BatchCourseFormRow,
-} from "@/components/batches/BatchCourseSelector";
+  BatchScheduleLinesEditor,
+  createEmptyScheduleLine,
+  newLineKey,
+  type ScheduleLineFormRow,
+} from "@/components/batches/BatchScheduleLinesEditor";
 import {
   Table,
   TableBody,
@@ -58,15 +58,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-type SelectedCourseRow = BatchCourseFormRow;
-
 export const Batches: React.FC = () => {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (courseIdFromUrl && courseIdFromUrl !== courseFilter) {
@@ -99,13 +99,11 @@ export const Batches: React.FC = () => {
   const [editingBatch, setEditingBatch] = useState<BatchData | null>(null);
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
-  const [selectedCourses, setSelectedCourses] = useState<SelectedCourseRow[]>([]);
+  const [scheduleLines, setScheduleLines] = useState<ScheduleLineFormRow[]>([]);
   const [facultyId, setFacultyId] = useState("");
-  const [startDate, setStartDate] = useState("2026-04-01");
+  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [expectedEndDate, setExpectedEndDate] = useState("");
-  const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
-  const [timeSlotMasterId, setTimeSlotMasterId] = useState("");
-  const [classroomMasterId, setClassroomMasterId] = useState("");
+  const [remark, setRemark] = useState("");
   const [batchStatus, setBatchStatus] = useState<BatchData["status"]>("UPCOMING");
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [capacity, setCapacity] = useState<number>(35);
@@ -133,9 +131,16 @@ export const Batches: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
 
-  const canGenerateSessions = (batch: typeof batchToGenerate) => {
+  const canGenerateSessions = (batch: {
+    facultyId?: string | null;
+    schedules?: Array<{ id: string }>;
+    batchCourses?: Array<{ facultyId?: string | null }>;
+  } | null) => {
     if (!batch) return false;
-    if (!batch.facultyId) return false;
+    const hasFaculty =
+      Boolean(batch.facultyId) ||
+      Boolean(batch.batchCourses?.some((bc) => bc.facultyId));
+    if (!hasFaculty) return false;
     if (!batch.schedules || batch.schedules.length === 0) return false;
     return true;
   };
@@ -146,10 +151,10 @@ export const Batches: React.FC = () => {
       ? new Date(batch.expectedEndDate).toISOString().split("T")[0]
       : start
         ? (() => {
-            const d = new Date(start);
-            d.setDate(d.getDate() + 90);
-            return d.toISOString().split("T")[0];
-          })()
+          const d = new Date(start);
+          d.setDate(d.getDate() + 90);
+          return d.toISOString().split("T")[0];
+        })()
         : "";
     setBatchToGenerate({
       id: batch.id,
@@ -218,24 +223,23 @@ export const Batches: React.FC = () => {
   const avgOccupancy = totalCapacity > 0 ? Math.round((totalEnrolled / totalCapacity) * 100) : 0;
 
   useEffect(() => {
-    if (editingBatch || selectedCourses.length === 0 || name.trim()) return;
-    const names = selectedCourses
-      .map((row) => courses.find((c) => c.id === row.courseId)?.name)
+    if (editingBatch || scheduleLines.length === 0 || name.trim()) return;
+    const courseIds = [...new Set(scheduleLines.map((l) => l.courseId).filter(Boolean))];
+    const names = courseIds
+      .map((id) => courses.find((c) => c.id === id)?.name)
       .filter(Boolean);
     if (names.length === 1) setName(`${names[0]} Batch`);
     else if (names.length > 1) setName(`${names[0]} Full Stack Batch`);
-  }, [selectedCourses, courses, editingBatch, name]);
+  }, [scheduleLines, courses, editingBatch, name]);
 
   const resetFormFields = () => {
     setName("");
     setCode("");
-    setSelectedCourses([]);
+    setScheduleLines([]);
     setFacultyId("");
-    setStartDate("2026-04-01");
+    setStartDate(new Date().toISOString().slice(0, 10));
     setExpectedEndDate("");
-    setSchedulePattern("MWF");
-    setTimeSlotMasterId("");
-    setClassroomMasterId("");
+    setRemark("");
     setBatchStatus("UPCOMING");
     setCapacity(35);
     setFormError(null);
@@ -244,6 +248,7 @@ export const Batches: React.FC = () => {
   const handleOpenCreateModal = () => {
     setEditingBatch(null);
     resetFormFields();
+    setScheduleLines([createEmptyScheduleLine()]);
     setShowModal(true);
   };
 
@@ -251,26 +256,56 @@ export const Batches: React.FC = () => {
     setEditingBatch(batch);
     setName(batch.name || "");
     setCode(batch.code || "");
-    setSelectedCourses(
-      batch.batchCourses && batch.batchCourses.length > 0
-        ? batch.batchCourses.map((bc) => ({
-            courseId: bc.courseId,
-            facultyId: bc.facultyId || bc.faculty?.id || "",
-          }))
-        : batch.courseId
-          ? [{ courseId: batch.courseId, facultyId: batch.facultyId || batch.faculty?.id || "" }]
-          : []
-    );
-    setFacultyId(batch.facultyId || batch.faculty?.id || "");
-    setStartDate(batch.startDate ? batch.startDate.split("T")[0] : "2026-04-01");
+    setStartDate(batch.startDate ? batch.startDate.split("T")[0] : new Date().toISOString().slice(0, 10));
     setExpectedEndDate(batch.expectedEndDate ? batch.expectedEndDate.split("T")[0] : "");
-    setSchedulePattern((batch.schedulePattern as "MWF" | "TTS" | "WEEKEND" | "CUSTOM") || "MWF");
-    setTimeSlotMasterId(
-      batch.timeslotMasterId || findMasterIdByLabel(timeslotOptions, batch.timeSlot) || ""
-    );
-    setClassroomMasterId(batch.classroomMasterId || "");
+    setRemark(batch.remark || "");
+    setFacultyId(batch.facultyId || batch.faculty?.id || "");
     setBatchStatus(batch.status || "UPCOMING");
     setCapacity(batch.capacity || 35);
+
+    if (batch.schedules && batch.schedules.length > 0) {
+      setScheduleLines(
+        batch.schedules.map((s) => ({
+          key: newLineKey(),
+          courseId:
+            s.batchCourse?.courseId ||
+            batch.batchCourses?.find((bc) => bc.id === s.batchCourseId)?.courseId ||
+            batch.courseId ||
+            "",
+          dayOfWeek: s.dayOfWeek,
+          timeslotMasterId:
+            s.timeslotMasterId ||
+            findMasterIdByLabel(timeslotOptions, `${s.startTime} - ${s.endTime}`) ||
+            "",
+          classroomMasterId: s.classroomMasterId || "",
+          facultyId: s.facultyId || s.faculty?.id || "",
+          status: (s.status === "INACTIVE" ? "INACTIVE" : "ACTIVE") as "ACTIVE" | "INACTIVE",
+          attendanceEnabled: s.attendanceEnabled !== false,
+        }))
+      );
+    } else if (batch.batchCourses && batch.batchCourses.length > 0) {
+      setScheduleLines(
+        batch.batchCourses.map((bc) =>
+          createEmptyScheduleLine({
+            courseId: bc.courseId,
+            facultyId: bc.facultyId || bc.faculty?.id || "",
+            timeslotMasterId:
+              bc.timeslotMasterId ||
+              findMasterIdByLabel(timeslotOptions, bc.timeSlot || undefined) ||
+              "",
+            classroomMasterId: bc.classroomMasterId || "",
+          })
+        )
+      );
+    } else {
+      setScheduleLines([
+        createEmptyScheduleLine({
+          courseId: batch.courseId,
+          facultyId: batch.facultyId || "",
+        }),
+      ]);
+    }
+
     setFormError(null);
     setShowModal(true);
   };
@@ -281,33 +316,71 @@ export const Batches: React.FC = () => {
     setFormError(null);
   };
 
+  // Deep-link from Batch Details: ?edit=:id or ?create=1
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    const createFlag = searchParams.get("create");
+    if (!editId && createFlag !== "1") return;
+    if (loading) return;
+
+    if (createFlag === "1") {
+      handleOpenCreateModal();
+      const next = new URLSearchParams(searchParams);
+      next.delete("create");
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
+    const batch = batches.find((b) => b.id === editId);
+    if (batch) {
+      handleOpenEditModal(batch);
+      const next = new URLSearchParams(searchParams);
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+    }
+  }, [loading, batches]); // intentionally omit searchParams to avoid reopen loops
+
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !code || selectedCourses.length === 0) return;
+    if (!name || !code) return;
+
+    const incomplete = scheduleLines.find(
+      (l) => !l.courseId || !l.facultyId || l.dayOfWeek === undefined
+    );
+    if (scheduleLines.length === 0 || incomplete) {
+      setFormError("Add at least one complete schedule line (course, day, faculty).");
+      return;
+    }
+    if (!startDate) {
+      setFormError("Start date is required.");
+      return;
+    }
 
     try {
       setSubmitting(true);
       setFormError(null);
 
-      const coursesPayload: BatchCoursePayload[] = selectedCourses.map((row, idx) => ({
-        courseId: row.courseId,
-        facultyId: row.facultyId || undefined,
-        sequence: idx + 1,
+      const scheduleLinesPayload: ScheduleLinePayload[] = scheduleLines.map((l) => ({
+        courseId: l.courseId,
+        dayOfWeek: l.dayOfWeek,
+        timeSlot: getMasterLabel(timeslotOptions, l.timeslotMasterId) || undefined,
+        timeslotMasterId: l.timeslotMasterId || undefined,
+        classroomMasterId: l.classroomMasterId || undefined,
+        facultyId: l.facultyId || undefined,
+        status: l.status,
+        attendanceEnabled: l.attendanceEnabled,
       }));
 
       const payload = {
         name,
         code,
-        courseId: selectedCourses[0].courseId,
-        courses: coursesPayload,
-        facultyId: facultyId || undefined,
+        courseId: scheduleLines[0].courseId,
+        scheduleLines: scheduleLinesPayload,
+        facultyId: facultyId || scheduleLines.find((l) => l.facultyId)?.facultyId || undefined,
         startDate,
         expectedEndDate: expectedEndDate || undefined,
-        schedulePattern,
-        timeSlot: getMasterLabel(timeslotOptions, timeSlotMasterId) || undefined,
-        timeslotMasterId: timeSlotMasterId || undefined,
-        classroomMasterId: classroomMasterId || undefined,
         capacity,
+        remark: remark || undefined,
       };
 
       if (editingBatch) {
@@ -361,37 +434,76 @@ export const Batches: React.FC = () => {
     }
   };
 
-  const getPatternBadge = (pattern?: string) => {
-    switch (pattern) {
-      case "MWF":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Mon, Wed, Fri</Badge>;
-      case "TTS":
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">Tue, Thu, Sat</Badge>;
-      case "WEEKEND":
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Weekend</Badge>;
-      default:
-        return <Badge variant="outline">{pattern || "MWF"}</Badge>;
-    }
-  };
-
   return (
-    <div className="space-y-6 animate-in fade-in duration-300">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-foreground">Batch Management</h2>
-          <p className="text-xs text-muted-foreground font-medium mt-0.5">
-            Monitor active student cohorts, schedules, faculty allocation, and capacity limits.
-          </p>
+    <div className="pt-4 space-y-6 animate-in fade-in duration-300">
+      {/* Header — Zenox-style action toolbar */}
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-2xl font-black tracking-tight text-foreground">Batch Schedule</h2>
+          {selectedIds.length > 0 && (
+            <Badge className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0 h-5 min-w-5 justify-center">
+              {selectedIds.length}
+            </Badge>
+          )}
         </div>
 
-        <Button
-          className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
-          onClick={handleOpenCreateModal}
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          Create New Batch
-        </Button>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Button
+            size="sm"
+            className="h-8 px-2.5 text-xs font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
+            disabled={selectedIds.length !== 1}
+            onClick={() => {
+              const id = selectedIds[0];
+              if (id) navigate(ROUTES.ADMIN.BATCHES.DETAIL(id));
+            }}
+          >
+            <Eye className="mr-1.5 h-3.5 w-3.5" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 px-2.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
+            disabled={selectedIds.length !== 1}
+            onClick={() => {
+              const batch = filteredBatches.find((b) => b.id === selectedIds[0]);
+              if (batch) handleOpenEditModal(batch);
+            }}
+          >
+            <Pencil className="mr-1.5 h-3.5 w-3.5" />
+            Edit
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 px-2.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
+            disabled={selectedIds.length !== 1}
+            onClick={() => {
+              const batch = filteredBatches.find((b) => b.id === selectedIds[0]);
+              if (!batch) return;
+              setDeleteError(null);
+              setBatchToDelete({ id: batch.id, name: batch.name, code: batch.code });
+            }}
+          >
+            <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+            Delete
+          </Button>
+          <Button
+            size="sm"
+            className="h-8 px-2.5 text-xs font-semibold bg-primary hover:bg-primary/90 text-white shadow-xs rounded-lg transition-all cursor-pointer"
+            onClick={handleOpenCreateModal}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Add New Batch
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 w-8 p-0 rounded-lg border-border hover:bg-muted/50 transition-all cursor-pointer"
+            onClick={() => refetch()}
+            title="Refresh"
+          >
+            <RefreshCw className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
 
       {/* Success Notification Banner */}
@@ -506,79 +618,116 @@ export const Batches: React.FC = () => {
             ) : (
               <Table>
                 <TableHeader className="bg-muted/50 border-b border-border">
-                  <TableRow className="text-xs">
-                    <TableHead className="font-bold text-foreground pl-6">Batch Code & Title</TableHead>
-                    <TableHead className="font-bold text-foreground">Subjects / Courses</TableHead>
-                    <TableHead className="font-bold text-foreground">Instructors</TableHead>
-                    <TableHead className="font-bold text-foreground">Schedule Pattern</TableHead>
-                    <TableHead className="font-bold text-foreground">Start Date</TableHead>
-                    <TableHead className="font-bold text-foreground">Occupancy</TableHead>
-                    <TableHead className="font-bold text-foreground">Status</TableHead>
-                    <TableHead className="text-right font-bold text-foreground pr-6">Actions</TableHead>
+                  <TableRow className="text-xs uppercase tracking-wide">
+                    <TableHead className="w-10 pl-4">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-border cursor-pointer"
+                        checked={
+                          filteredBatches.length > 0 &&
+                          filteredBatches.every((b) => selectedIds.includes(b.id))
+                        }
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedIds(filteredBatches.map((b) => b.id));
+                          } else {
+                            setSelectedIds([]);
+                          }
+                        }}
+                        aria-label="Select all batches"
+                      />
+                    </TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">Created Date</TableHead>
+                    <TableHead className="font-bold text-foreground min-w-[18rem] whitespace-nowrap">Batch Schedule Title</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">Start Date</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">End Date</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">Admission Batch</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">Module</TableHead>
+                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3">No. of Students</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-right font-bold text-foreground whitespace-nowrap pr-4">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {filteredBatches.length > 0 ? (
                     filteredBatches.map((batch) => {
                       const enrolledCount = batch._count?.enrollments || 0;
-                      const maxCapacity = batch.capacity || 35;
-                      const occupancyPercent = Math.round((enrolledCount / maxCapacity) * 100);
-                      const formattedDate = batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "-";
-                      const instructorSummary = formatBatchInstructorsSummary(batch);
+                      const isSelected = selectedIds.includes(batch.id);
+                      const createdDate = batch.createdAt
+                        ? new Date(batch.createdAt).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "2-digit",
+                        })
+                        : "—";
+                      const startDateLabel = batch.startDate
+                        ? new Date(batch.startDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "2-digit",
+                        })
+                        : "—";
+                      const endDateLabel = batch.expectedEndDate
+                        ? new Date(batch.expectedEndDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "2-digit",
+                        })
+                        : "—";
+                      const scheduleTitle = formatBatchScheduleTitle(batch);
+                      const timeSlot =
+                        batch.timeSlot ||
+                        batch.schedules?.[0]?.timeslotMaster?.name ||
+                        (batch.schedules?.[0]?.startTime
+                          ? `${batch.schedules[0].startTime} to ${batch.schedules[0].endTime}`
+                          : "—");
 
                       return (
-                        <TableRow key={batch.id} className="hover:bg-muted/40 transition-colors border-b border-border/70 text-xs">
-                          <TableCell className="pl-6 py-3.5">
-                            <div>
-                              <span className="font-mono text-xs font-bold text-primary block">
-                                {batch.code}
-                              </span>
-                              <span className="font-bold text-foreground text-sm">
-                                {batch.name}
-                              </span>
+                        <TableRow
+                          key={batch.id}
+                          className={`transition-colors border-b border-border/70 text-xs cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/40"
+                            }`}
+                          onClick={() => setSelectedIds([batch.id])}
+                        >
+                          <TableCell className="pl-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              className="h-4 w-4 rounded border-border cursor-pointer"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedIds([batch.id]);
+                                } else {
+                                  setSelectedIds((prev) => prev.filter((id) => id !== batch.id));
+                                }
+                              }}
+                              aria-label={`Select ${batch.name}`}
+                            />
+                          </TableCell>
+                          <TableCell className="py-3 whitespace-nowrap text-muted-foreground font-medium align-middle">
+                            {createdDate}
+                          </TableCell>
+                          <TableCell className="py-3 align-middle">
+                            <div className="space-y-0.5">
+                              <p className="font-semibold text-foreground text-[11px] leading-snug break-words">
+                                {scheduleTitle}
+                              </p>
+                              <p className="text-[10px] text-muted-foreground font-mono">
+                                {batch.code} · {batch.name}
+                              </p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-xs text-foreground font-medium py-3.5">
-                            <BatchSubjectChips batch={batch} maxVisible={2} />
-                            {(batch.batchCourses?.length ?? 0) <= 1 && (
-                              <span className="block text-[10px] text-muted-foreground mt-1 truncate">
-                                {formatBatchSubjectNames(batch)}
-                              </span>
-                            )}
+                          <TableCell className="py-3 whitespace-nowrap align-middle">{startDateLabel}</TableCell>
+                          <TableCell className="py-3 whitespace-nowrap align-middle">{endDateLabel}</TableCell>
+                          <TableCell className="py-3 whitespace-nowrap font-medium align-middle">{timeSlot}</TableCell>
+                          <TableCell className="py-3 max-w-[14rem] align-middle">
+                            <span className="line-clamp-2 font-medium">
+                              {formatBatchSubjectNames(batch)}
+                            </span>
                           </TableCell>
-                          <TableCell className="text-xs text-foreground py-3.5">
-                            <div className="flex items-center gap-1.5">
-                              <UserCheck className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                              <span className="font-semibold">{instructorSummary}</span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="space-y-1">
-                              {getPatternBadge(batch.schedulePattern)}
-                              <span className="block text-[11px] font-mono text-muted-foreground">
-                                {batch.timeSlot || "10:00 AM - 12:00 PM"}
-                              </span>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-foreground py-3.5">
-                            {formattedDate}
-                          </TableCell>
-                          <TableCell className="py-3.5">
-                            <div className="w-32 space-y-1">
-                              <div className="flex justify-between text-[11px] font-bold text-foreground">
-                                <span>{enrolledCount} / {maxCapacity}</span>
-                                <span>{occupancyPercent}%</span>
-                              </div>
-                              <div className="w-full bg-muted h-1.5 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full ${occupancyPercent >= 90 ? "bg-amber-500" : "bg-primary"}`}
-                                  style={{ width: `${Math.min(occupancyPercent, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="py-3.5">{getStatusBadge(batch.status)}</TableCell>
-                          <TableCell className="text-right pr-6 py-3.5">
+                          <TableCell className="py-3 text-center font-bold whitespace-nowrap align-middle">{enrolledCount}</TableCell>
+                          <TableCell className="py-3 whitespace-nowrap align-middle">{getStatusBadge(batch.status)}</TableCell>
+                          <TableCell className="text-right pr-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
@@ -589,19 +738,13 @@ export const Batches: React.FC = () => {
                                 <DropdownMenuLabel className="text-xs font-bold">Batch Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-border" />
                                 <DropdownMenuItem asChild className="cursor-pointer text-xs font-bold">
-                                  <Link to={`${ROUTES.ADMIN.BATCHES.ALL}/${batch.id}`}>View Details</Link>
+                                  <Link to={ROUTES.ADMIN.BATCHES.DETAIL(batch.id)}>
+                                    <Eye className="mr-2 h-4 w-4" /> View Details
+                                  </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="cursor-pointer text-xs font-bold"
-                                  disabled={!canGenerateSessions({
-                                    id: batch.id,
-                                    name: batch.name,
-                                    code: batch.code,
-                                    facultyId: batch.facultyId,
-                                    startDate: batch.startDate,
-                                    expectedEndDate: batch.expectedEndDate,
-                                    schedules: batch.schedules,
-                                  })}
+                                  disabled={!canGenerateSessions(batch)}
                                   onClick={() => openGenerateModal(batch)}
                                 >
                                   <Sparkles className="mr-2 h-4 w-4" /> Generate Class Sessions
@@ -613,7 +756,7 @@ export const Batches: React.FC = () => {
                                 >
                                   <Pencil className="mr-2 h-4 w-4" /> Edit Batch
                                 </DropdownMenuItem>
-                                <DropdownMenuItem 
+                                <DropdownMenuItem
                                   className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
                                   onClick={() => {
                                     setDeleteError(null);
@@ -634,7 +777,7 @@ export const Batches: React.FC = () => {
                     })
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={8} className="h-32 text-center text-muted-foreground text-xs font-medium">
+                      <TableCell colSpan={10} className="h-32 text-center text-muted-foreground text-xs font-medium">
                         No batches found matching criteria.
                       </TableCell>
                     </TableRow>
@@ -648,8 +791,8 @@ export const Batches: React.FC = () => {
 
       {/* Modal Dialog for Creating / Editing Batch */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
-          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl text-foreground overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-[calc(100vw-2rem)] text-foreground overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh] my-auto">
             {/* Modal Header */}
             <div className="shrink-0 bg-muted/30 border-b border-border px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -661,24 +804,52 @@ export const Batches: React.FC = () => {
                     {editingBatch ? "Edit Batch" : "Create New Batch"}
                   </h3>
                   <p className="text-xs text-muted-foreground">
-                    {editingBatch
-                      ? "Update cohort schedule, classroom, faculty, and capacity"
-                      : "Set up cohort schedule, allocate classroom, and assign faculty"}
+                    Batch header plus day / slot / room / faculty schedule lines
                   </p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                aria-label="Close dialog"
-              >
-                <X className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleCloseModal}
+                  disabled={submitting}
+                  className="rounded-xl text-xs font-semibold h-9"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  form="batch-zenox-form"
+                  disabled={submitting || scheduleLines.length === 0}
+                  className="bg-emerald-600 hover:bg-emerald-600/90 text-white rounded-xl text-xs font-semibold h-9"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save"
+                  )}
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  aria-label="Close dialog"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
-              <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
+            <form
+              id="batch-zenox-form"
+              onSubmit={handleFormSubmit}
+              className="flex flex-col min-h-0 flex-1 overflow-hidden"
+            >
+              <div className="p-6 space-y-5 overflow-y-auto flex-1 min-h-0">
                 {formError && (
                   <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -686,26 +857,18 @@ export const Batches: React.FC = () => {
                   </div>
                 )}
 
-                <BatchCourseSelector
-                  courses={courses}
-                  facultyList={facultyList}
-                  selectedCourses={selectedCourses}
-                  onChange={setSelectedCourses}
-                  defaultFacultyId={facultyId}
-                />
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-5 gap-y-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
                       Batch Name <span className="text-rose-500">*</span>
                     </label>
                     <Input
                       type="text"
-                      placeholder="e.g. MERN Cohort 3"
+                      placeholder="e.g. Java Full Stack Morning"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
-                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                      className="h-10 rounded-xl text-xs"
                     />
                   </div>
                   <div>
@@ -718,27 +881,46 @@ export const Batches: React.FC = () => {
                       value={code}
                       onChange={(e) => setCode(e.target.value)}
                       required
-                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                      className="h-10 rounded-xl text-xs"
                     />
                   </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Batch Coordinator <span className="text-muted-foreground font-normal">(optional)</span>
+                      Start Date <span className="text-rose-500">*</span>
+                    </label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      required
+                      className="h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Expected End Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={expectedEndDate}
+                      min={startDate || undefined}
+                      onChange={(e) => setExpectedEndDate(e.target.value)}
+                      className="h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Batch Status
                     </label>
                     <select
-                      value={facultyId}
-                      onChange={(e) => setFacultyId(e.target.value)}
-                      className="w-full h-10 px-3 py-2 bg-slate-50/80 dark:bg-slate-900/60 border border-border rounded-xl text-xs font-medium text-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
+                      value={batchStatus}
+                      onChange={(e) => setBatchStatus(e.target.value as BatchData["status"])}
+                      className="w-full h-10 px-3 border border-border rounded-xl text-xs bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
                     >
-                      <option value="">Unassigned</option>
-                      {facultyList.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
-                        </option>
-                      ))}
+                      <option value="UPCOMING">Upcoming</option>
+                      <option value="ACTIVE">Active</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
                     </select>
                   </div>
                   <div>
@@ -750,134 +932,30 @@ export const Batches: React.FC = () => {
                       min={1}
                       value={capacity}
                       onChange={(e) => setCapacity(Number(e.target.value))}
-                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                      className="h-10 rounded-xl text-xs"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">Remark</label>
+                    <textarea
+                      value={remark}
+                      onChange={(e) => setRemark(e.target.value)}
+                      rows={1}
+                      className="w-full h-10 px-3 py-2 border border-border rounded-xl text-xs bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                      placeholder="Optional notes"
                     />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Schedule Pattern
-                    </label>
-                    <select
-                      value={schedulePattern}
-                      onChange={(e) => setSchedulePattern(e.target.value as typeof schedulePattern)}
-                      className="w-full h-10 px-3 py-2 bg-slate-50/80 dark:bg-slate-900/60 border border-border rounded-xl text-xs font-medium text-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
-                    >
-                      <option value="MWF">Mon, Wed, Fri (MWF)</option>
-                      <option value="TTS">Tue, Thu, Sat (TTS)</option>
-                      <option value="WEEKEND">Weekend (Sat, Sun)</option>
-                      <option value="CUSTOM">Custom Schedule</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Start Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      required
-                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Expected End Date
-                    </label>
-                    <Input
-                      type="date"
-                      value={expectedEndDate}
-                      onChange={(e) => setExpectedEndDate(e.target.value)}
-                      min={startDate}
-                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Time Slot
-                    </label>
-                    <MasterSelect
-                      entityType="timeslot"
-                      value={timeSlotMasterId}
-                      onChange={setTimeSlotMasterId}
-                      placeholder="Select time slot"
-                      className="mt-0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Classroom / Lab
-                    </label>
-                    <ClassroomDropdown
-                      value={classroomMasterId}
-                      onChange={setClassroomMasterId}
-                      placeholder="Select classroom"
-                      className="mt-0"
-                    />
-                  </div>
-                </div>
-
-                {editingBatch && (
-                  <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Batch Status
-                    </label>
-                    <select
-                      value={batchStatus}
-                      onChange={(e) => setBatchStatus(e.target.value as BatchData["status"])}
-                      className="w-full h-10 px-3 py-2 bg-slate-50/80 dark:bg-slate-900/60 border border-border rounded-xl text-xs font-medium text-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
-                    >
-                      <option value="UPCOMING">Upcoming</option>
-                      <option value="ACTIVE">Active</option>
-                      <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              {/* Modal Footer Actions */}
-              <div className="shrink-0 bg-muted/20 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCloseModal}
-                  disabled={submitting}
-                  className="rounded-xl border-border bg-background text-foreground hover:bg-muted text-xs font-semibold px-4 h-9 cursor-pointer"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-semibold px-5 h-9 shadow-sm shadow-primary/25 cursor-pointer flex items-center gap-1.5"
-                  disabled={submitting || selectedCourses.length === 0}
-                >
-                  {submitting ? (
-                    <>
-                      <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
-                      Saving...
-                    </>
-                  ) : editingBatch ? (
-                    <>
-                      <Pencil className="h-3.5 w-3.5" />
-                      Save Changes
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-3.5 w-3.5" />
-                      Save Batch
-                    </>
-                  )}
-                </Button>
+                <BatchScheduleLinesEditor
+                  courses={courses}
+                  facultyList={facultyList}
+                  lines={scheduleLines}
+                  onChange={setScheduleLines}
+                  startDate={startDate}
+                  endDate={expectedEndDate}
+                  excludeBatchId={editingBatch?.id}
+                />
               </div>
             </form>
           </div>
