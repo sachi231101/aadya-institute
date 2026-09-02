@@ -4,9 +4,9 @@ import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import { sendStudentCredentialsWhatsAppService } from "../students/student.service";
-import type { 
-  CreateEnquiryDTO, 
-  UpdateEnquiryDTO, 
+import type {
+  CreateEnquiryDTO,
+  UpdateEnquiryDTO,
   QueryEnquiriesDTO,
   CreateApplicationDTO,
   UpdateApplicationDTO,
