@@ -65,6 +65,11 @@ import {
 
 import { coursesApi } from "@/services/courses.api";
 import { batchesApi, type BatchData } from "@/services/batches.api";
+import {
+  batchIncludesCourse,
+  formatBatchSubjectNames,
+  getFacultyForCourseInBatch,
+} from "@/utils/batch.utils";
 import { studentsApi } from "@/services/students.api";
 import { admissionsApi } from "@/services/admissions.api";
 import { branchesApi } from "@/services/branches.api";
@@ -147,11 +152,18 @@ const formatBatchSchedule = (batch: BatchData) => {
   return `${pattern} ${batch.timeSlot || ""}`.trim();
 };
 
-const mapBatchToSelection = (batch: BatchData) => {
-  const facultyName = batch.faculty?.user?.name || "Faculty to be assigned";
+const mapBatchToSelection = (batch: BatchData, courseId?: string) => {
+  const subjectFaculty = courseId ? getFacultyForCourseInBatch(batch, courseId) : null;
+  const facultyName =
+    subjectFaculty?.user?.name ||
+    batch.faculty?.user?.name ||
+    "Faculty to be assigned";
+  const subjectsLabel = formatBatchSubjectNames(batch);
   return {
     batchId: batch.id,
     batchCode: batch.code,
+    batchName: batch.name,
+    subjectsLabel,
     facultyName,
     facultyAvatar: facultyName.charAt(0).toUpperCase(),
     schedule: formatBatchSchedule(batch),
@@ -232,7 +244,9 @@ export const DirectAdmissionEntry: React.FC = () => {
   // Government ID & Guardian details (Optional)
   const [fatherName, setFatherName] = useState("");
   const [motherName, setMotherName] = useState("");
+  const [guardianRelationMasterId, setGuardianRelationMasterId] = useState("");
   const [guardianPhone, setGuardianPhone] = useState("");
+  const { options: parentInfoOptions } = useMasterDropdown("parentinfo");
   const [govtIdType, setGovtIdType] = useState("Aadhaar Card");
   const [govtIdNumber, setGovtIdNumber] = useState("");
   const [govtIdFileName, setGovtIdFileName] = useState("");
@@ -272,6 +286,7 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [discountType, setDiscountType] = useState<"Percentage" | "Fixed">("Fixed");
   const [discountValue, setDiscountValue] = useState<number>(0);
   const [scholarshipAmount, setScholarshipAmount] = useState<number>(0);
+  const [concessionHeadMasterId, setConcessionHeadMasterId] = useState("");
   const [customGstAmount, setCustomGstAmount] = useState<number | null>(null);
   const [customFinalPayable, setCustomFinalPayable] = useState<number | null>(null);
 
@@ -559,14 +574,17 @@ export const DirectAdmissionEntry: React.FC = () => {
   };
 
   const getCourseBatches = (courseId: string, courseName: string, courseCode: string) => {
-    const realBatches = allDbBatches.filter((b) => b.courseId === courseId && b.status !== "CANCELLED");
+    const realBatches = allDbBatches.filter(
+      (b) => batchIncludesCourse(b, courseId) && b.status !== "CANCELLED"
+    );
     if (realBatches.length > 0) {
       return realBatches.map((batch) => {
-        const mapped = mapBatchToSelection(batch);
+        const mapped = mapBatchToSelection(batch, courseId);
         return {
           id: mapped.batchId,
           name: batch.name,
           code: mapped.batchCode,
+          subjectsLabel: mapped.subjectsLabel,
           facultyName: mapped.facultyName,
           facultyAvatar: mapped.facultyAvatar,
           schedule: mapped.schedule,
@@ -909,6 +927,9 @@ export const DirectAdmissionEntry: React.FC = () => {
       altPhone ? `Alternate mobile: ${altPhone}` : null,
       fatherName ? `Father's Name: ${fatherName}` : null,
       motherName ? `Mother's Name: ${motherName}` : null,
+      guardianRelationMasterId
+        ? `Guardian Relation: ${getMasterLabel(parentInfoOptions, guardianRelationMasterId)}`
+        : null,
       guardianPhone ? `Guardian Phone: ${guardianPhone}` : null,
       govtIdNumber ? `Govt ID (${govtIdType}): ${govtIdNumber}` : null,
       address ? `Address: ${address}` : null,
@@ -999,6 +1020,7 @@ export const DirectAdmissionEntry: React.FC = () => {
           sourceMasterId: sourceMasterId || undefined,
           statusMasterId: statusMasterId || undefined,
           paymentModeMasterId: paymentModeMasterId || undefined,
+          concessionHeadMasterId: isPrimary ? concessionHeadMasterId || undefined : undefined,
           areaMasterId: areaMasterId || undefined,
           paymentMethod: mapPaymentMethod(getMasterLabel(paymentModeOptions, paymentModeMasterId)),
           transactionRef: transactionRef || undefined,
@@ -1416,39 +1438,16 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <label className="text-xs font-semibold text-foreground block mb-1">
                       Highest Qualification <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={qualification}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setQualification(val);
-                        const matched = educationOptions.find((o) => o.label === val || o.id === val);
-                        if (matched) {
-                          setQualificationMasterId(matched.id);
-                        } else {
-                          setQualificationMasterId("");
-                        }
+                    <MasterSelect
+                      entityType="education"
+                      value={qualificationMasterId}
+                      onChange={(id) => {
+                        setQualificationMasterId(id);
+                        setQualification(getMasterLabel(educationOptions, id) || "");
                       }}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                    >
-                      <option value="">Select Qualification</option>
-                      {educationOptions.length > 0 ? (
-                        educationOptions.map((opt) => (
-                          <option key={opt.id} value={opt.label}>
-                            {opt.label}
-                          </option>
-                        ))
-                      ) : (
-                        <>
-                          <option value="High School (10th)">High School (10th)</option>
-                          <option value="Higher Secondary (12th)">Higher Secondary (12th / PUC)</option>
-                          <option value="Diploma">Diploma</option>
-                          <option value="Bachelor's Degree">Bachelor's Degree</option>
-                          <option value="Master's Degree">Master's Degree</option>
-                          <option value="Doctorate / PhD">Doctorate / PhD</option>
-                          <option value="Other">Other</option>
-                        </>
-                      )}
-                    </select>
+                      placeholder="Select Qualification"
+                      className="mt-0 rounded-md"
+                    />
                   </div>
 
                   <div className="sm:col-span-2">
@@ -1484,6 +1483,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                       onChange={(e) => setMotherName(e.target.value)}
                       placeholder="Mother Name"
                       className="bg-background border-border text-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Guardian Relationship</label>
+                    <MasterSelect
+                      entityType="parentinfo"
+                      value={guardianRelationMasterId}
+                      onChange={setGuardianRelationMasterId}
+                      placeholder="Select relationship"
+                      className="mt-0 rounded-md"
                     />
                   </div>
 
@@ -2163,6 +2173,17 @@ export const DirectAdmissionEntry: React.FC = () => {
                       value={scholarshipAmount}
                       onChange={(e) => setScholarshipAmount(Number(e.target.value))}
                       className="bg-background border-border text-foreground"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-xs font-semibold text-foreground block mb-1">Concession Head</label>
+                    <MasterSelect
+                      entityType="concessionheads"
+                      value={concessionHeadMasterId}
+                      onChange={setConcessionHeadMasterId}
+                      placeholder="Select concession head"
+                      className="mt-0 rounded-md"
                     />
                   </div>
 

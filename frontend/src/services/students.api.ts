@@ -12,7 +12,7 @@ import type {
 
 export interface StudentDashboardData {
   profile: { id: string; studentCode: string; name: string | null; email: string | null };
-  course: { id: string; name: string; code: string; batchName: string } | null;
+  course: { id: string; name: string; code: string; batchName: string; subjects?: string } | null;
   instructor: { id: string; name: string | null; email: string | null; phone: string | null } | null;
   counts: {
     todayClasses: number;

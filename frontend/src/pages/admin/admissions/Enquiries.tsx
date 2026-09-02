@@ -193,7 +193,7 @@ export const Enquiries: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>("All Enquiries");
   const [viewMode, setViewMode] = useState<"List" | "Pipeline">("List");
   const [searchTerm, setSearchTerm] = useState("");
-  const [sourceFilter, setSourceFilter] = useState("All Sources");
+  const [sourceFilter, setSourceFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("All Statuses");
   const [courseFilter, setCourseFilter] = useState("All Courses");
   const [counselorFilter, setCounselorFilter] = useState("All Counsellors");
@@ -294,7 +294,7 @@ export const Enquiries: React.FC = () => {
       }
 
       // Dropdown filters
-      if (sourceFilter !== "All Sources") {
+      if (sourceFilter) {
         const label = getMasterLabel(leadSourceOptions, sourceFilter);
         if (lead.source !== label && (lead as { sourceMasterId?: string }).sourceMasterId !== sourceFilter) {
           return false;
@@ -326,7 +326,7 @@ export const Enquiries: React.FC = () => {
 
   const handleResetFilters = () => {
     setSearchTerm("");
-    setSourceFilter("All Sources");
+    setSourceFilter("");
     setStatusFilter("All Statuses");
     setCourseFilter("All Courses");
     setCounselorFilter("All Counsellors");
@@ -830,20 +830,15 @@ export const Enquiries: React.FC = () => {
           {/* Compact Dropdown Filters Row */}
           <div className="flex flex-wrap items-center gap-2.5 pt-1 text-xs">
             {/* All Sources */}
-            <select
-              value={sourceFilter}
-              onChange={(e) => setSourceFilter(e.target.value)}
-              className="h-8 px-2.5 border border-slate-200 rounded-lg text-slate-700 bg-white font-medium hover:border-slate-300 transition-colors cursor-pointer"
-            >
-              <option value="All Sources">All Sources</option>
-              <option value="Walk-in">Walk-in</option>
-              <option value="Direct Call">Direct Call</option>
-              <option value="Website">Website Form</option>
-              <option value="WhatsApp">WhatsApp</option>
-              <option value="Social Media">Social Media</option>
-              <option value="Referral">Referral</option>
-              <option value="Manual Entry">Manual Entry</option>
-            </select>
+            <div className="min-w-[160px]">
+              <MasterSelect
+                entityType="leadsource"
+                value={sourceFilter}
+                onChange={setSourceFilter}
+                placeholder="All Sources"
+                className="mt-0 h-8 rounded-lg"
+              />
+            </div>
 
             {/* All Statuses */}
             <select
@@ -1344,6 +1339,17 @@ export const Enquiries: React.FC = () => {
                   className="mt-1 rounded-lg"
                 />
               </div>
+            </div>
+
+            <div>
+              <Label className="text-slate-700 font-semibold text-xs">Education / Qualification</Label>
+              <MasterSelect
+                entityType="education"
+                value={newFormQualificationMasterId}
+                onChange={setNewFormQualificationMasterId}
+                placeholder="Select education"
+                className="mt-1 rounded-lg"
+              />
             </div>
 
             {/* Assigned Counsellor */}

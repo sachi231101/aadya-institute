@@ -15,6 +15,7 @@ import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.con
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { AppError } from "../../middlewares/error.middleware";
+import { getSessionSubjectLabel } from "../../utils/batch-course.util";
 
 /**
  * Helper to trigger absence notification for a student marked ABSENT.
@@ -159,7 +160,10 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
         id: session.batch.id,
         name: session.batch.name,
         code: session.batch.code,
-        courseName: session.batch.course?.name,
+        courseName: getSessionSubjectLabel({
+          title: session.title,
+          batch: session.batch,
+        }),
       },
       faculty: {
         id: session.faculty.id,

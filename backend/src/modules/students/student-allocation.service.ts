@@ -3,6 +3,7 @@ import { AppError } from "../../middlewares/error.middleware";
 import { logger } from "../../config/logger";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
+import { batchIncludesCourse, getBatchCourseIds } from "../../utils/batch-course.util";
 
 const triggerBatchAssignedNotification = async (studentId: string, batchId: string) => {
   try {
@@ -12,10 +13,18 @@ const triggerBatchAssignedNotification = async (studentId: string, batchId: stri
     });
     const batch = await prisma.batch.findUnique({
       where: { id: batchId },
-      include: { course: true },
+      include: {
+        course: true,
+        batchCourses: { include: { course: true } },
+      },
     });
 
     if (!student || !batch) return;
+
+    const courseNames =
+      batch.batchCourses && batch.batchCourses.length > 0
+        ? batch.batchCourses.map((bc) => bc.course?.name).filter(Boolean).join(", ")
+        : batch.course?.name ?? "Course";
 
     const idempotencyKey = buildIdempotencyKey.BATCH_ASSIGNED(studentId, batchId);
 
@@ -27,11 +36,12 @@ const triggerBatchAssignedNotification = async (studentId: string, batchId: stri
       templateParams: {
         student_name: student.user?.name ?? "Student",
         batch_name: batch.name,
-        course_name: batch.course?.name ?? "Course",
+        course_name: courseNames,
       },
       metadata: {
         batchId,
         courseId: batch.courseId,
+        courseIds: getBatchCourseIds(batch),
       },
     });
   } catch (err) {
@@ -68,6 +78,7 @@ const validateBatchForEnrollment = async (batchId: string, instituteId: string) 
   const batch = await prisma.batch.findFirst({
     where: { id: batchId, instituteId },
     include: {
+      batchCourses: { select: { courseId: true } },
       _count: { select: { enrollments: { where: { status: "ACTIVE" } } } },
     },
   });
@@ -103,8 +114,11 @@ export const assignStudentToBatch = async (
   }
 
   const admission = await resolveAdmission(studentId, instituteId, admissionId);
-  if (admission && admission.courseId !== batch.courseId) {
-    throw new AppError("Student's admission course does not match the batch course", 400);
+  if (admission && !batchIncludesCourse(batch, admission.courseId)) {
+    throw new AppError(
+      "Student's admission course is not offered in this batch's subject list",
+      400
+    );
   }
 
   const resolvedAdmissionId = admission?.id ?? null;
@@ -251,8 +265,11 @@ export const transferStudent = async (
   }
 
   const admission = await resolveAdmission(studentId, instituteId, admissionId);
-  if (admission && admission.courseId !== toBatch.courseId) {
-    throw new AppError("Student's admission course does not match the target batch course", 400);
+  if (admission && !batchIncludesCourse(toBatch, admission.courseId)) {
+    throw new AppError(
+      "Student's admission course is not offered in this batch's subject list",
+      400
+    );
   }
 
   const resolvedAdmissionId = admission?.id ?? activeEnrollment.admissionId ?? null;

@@ -29,6 +29,11 @@ export const useBatches = (filters?: { search?: string; courseId?: string; facul
     return response.data;
   };
 
+  const updateBatch = async (id: string, payload: Partial<CreateBatchPayload> & { status?: string }) => {
+    await batchesApi.update(id, payload);
+    await fetchBatches();
+  };
+
   const deleteBatch = async (id: string) => {
     await batchesApi.delete(id);
     await fetchBatches();
@@ -40,6 +45,7 @@ export const useBatches = (filters?: { search?: string; courseId?: string; facul
     error,
     refetch: fetchBatches,
     createBatch,
+    updateBatch,
     deleteBatch,
   };
 };

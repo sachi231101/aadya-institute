@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
+import { batchIncludesCourse } from "../../utils/batch-course.util";
 import { hashPassword } from "../../utils/password";
 import { SequenceService } from "../masters/sequence.service";
 import { LeadActivityService } from "../leads/services/lead-activity.service";
@@ -242,9 +243,12 @@ export async function provisionAdmissionInTransaction(
   if (validBatchId) {
     const batchExists = await tx.batch.findFirst({
       where: { id: validBatchId, instituteId },
+      include: { batchCourses: { select: { courseId: true } } },
     });
     if (!batchExists) {
       validBatchId = null;
+    } else if (!batchIncludesCourse(batchExists, dto.courseId)) {
+      throw new AppError("Selected batch does not include the admission course as a subject", 400);
     }
   }
 

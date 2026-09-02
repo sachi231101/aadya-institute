@@ -40,6 +40,12 @@ export const StudentDashboard: React.FC = () => {
   const dashboard = dashRes?.data;
   const studentName = academic.studentName || dashboard?.profile?.name || user?.name || "Student";
   const courseName = academic.primaryCourse?.name || dashboard?.course?.name || "Enrolled Program";
+  const subjectsLabel =
+    dashboard?.course?.subjects && dashboard.course.subjects !== "N/A"
+      ? dashboard.course.subjects
+      : null;
+  const programLabel = subjectsLabel || courseName;
+  const isMultiSubject = Boolean(subjectsLabel && subjectsLabel.includes(","));
   const batchName = academic.primaryBatch?.name || dashboard?.course?.batchName || "Assigned Batch";
   const instructor = dashboard?.instructor;
   const attendanceSummary = dashboard?.attendanceSummary;
@@ -215,12 +221,15 @@ export const StudentDashboard: React.FC = () => {
               <div className="h-1 w-full bg-[#1769AA]" />
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between text-text-primary">
-                  <span>Current Course</span>
+                  <span>{isMultiSubject ? "Batch Subjects" : "Current Course"}</span>
                   <BookOpen className="h-4 w-4 text-[#1769AA]" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <h3 className="text-xl font-bold text-text-primary mt-2">{courseName}</h3>
+                <h3 className="text-xl font-bold text-text-primary mt-2">{programLabel}</h3>
+                {isMultiSubject && (
+                  <p className="text-xs text-text-secondary mt-1">Primary admission: {courseName}</p>
+                )}
                 <div className="mt-4 flex flex-wrap gap-2">
                   <Badge variant="secondary" className="bg-blue-50 text-[#1769AA] border border-blue-100">Active</Badge>
                   {batchName ? (

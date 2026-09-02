@@ -115,7 +115,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-blue-600",
     description: "Manage areas / regions for operations",
     columns: [
-      { key: "code", label: "Area Code" },
       { key: "name", label: "Area Name", required: true },
       { key: "city", label: "City" },
       { key: "pincode", label: "PIN Code" },
@@ -127,7 +126,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-emerald-600",
     description: "Manage classrooms and locations",
     columns: [
-      { key: "code", label: "Room Code" },
       { key: "name", label: "Room Name", required: true },
       { key: "capacity", label: "Capacity" },
       { key: "type", label: "Room Type" },
@@ -139,7 +137,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-purple-600",
     description: "Manage employee designations",
     columns: [
-      { key: "code", label: "Code" },
       { key: "name", label: "Designation Title", required: true },
       { key: "level", label: "Hierarchy Level" },
       { key: "department", label: "Department" },
@@ -151,7 +148,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-amber-600",
     description: "Manage education levels & groups",
     columns: [
-      { key: "code", label: "Code" },
       { key: "name", label: "Degree / Qualification", required: true },
       { key: "stream", label: "Stream / Field" },
     ],
@@ -173,7 +169,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-indigo-600",
     description: "Manage time slots for scheduling",
     columns: [
-      { key: "code", label: "Slot Code" },
       { key: "name", label: "Slot Name", required: true },
       { key: "startTime", label: "Start Time" },
       { key: "endTime", label: "End Time" },
@@ -186,7 +181,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-emerald-600",
     description: "Manage exam terms and sessions",
     columns: [
-      { key: "code", label: "Term Code" },
       { key: "name", label: "Term Name", required: true },
       { key: "academicYear", label: "Academic Year" },
     ],
@@ -197,7 +191,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-blue-600",
     description: "Manage lead sources",
     columns: [
-      { key: "code", label: "Source Code" },
       { key: "name", label: "Source Channel", required: true },
       { key: "channelType", label: "Channel Type" },
     ],
@@ -208,7 +201,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-green-600",
     description: "Manage lead stages and pipeline",
     columns: [
-      { key: "code", label: "Order" },
       { key: "name", label: "Stage Name", required: true },
       { key: "description", label: "Pipeline Action" },
       { key: "color", label: "Badge Color" },
@@ -220,7 +212,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-amber-600",
     description: "Manage admission statuses",
     columns: [
-      { key: "code", label: "Status Code" },
       { key: "name", label: "Status Title", required: true },
       { key: "step", label: "Enrollment Step" },
     ],
@@ -243,7 +234,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-emerald-600",
     description: "Manage fee heads",
     columns: [
-      { key: "code", label: "Head Code" },
       { key: "name", label: "Fee Head Title", required: true },
       { key: "type", label: "Fee Type" },
       { key: "gstApplicable", label: "GST Rate" },
@@ -255,7 +245,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-amber-600",
     description: "Manage payment modes",
     columns: [
-      { key: "code", label: "Mode Code" },
       { key: "name", label: "Payment Mode", required: true },
       { key: "processingFee", label: "Gateway Charge" },
     ],
@@ -266,7 +255,6 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconColor: "text-teal-600",
     description: "Manage concession heads",
     columns: [
-      { key: "code", label: "Code" },
       { key: "name", label: "Scholarship / Discount", required: true },
       { key: "percentage", label: "Max Discount" },
       { key: "approvalLevel", label: "Approval Required" },
@@ -511,7 +499,6 @@ export const MasterSetup: React.FC = () => {
     });
     // Ensure name is populated
     formVals.name = formVals.name || rec.name || "";
-    formVals.code = formVals.code || rec.code || "";
     formVals.description = formVals.description || rec.description || "";
     if (entity.id === "numberingseries") {
       formVals.code = rec.code || rec.data?.target || "ADMISSION";
@@ -558,12 +545,16 @@ export const MasterSetup: React.FC = () => {
       recordFormValues.qualification?.trim() ||
       selectedMasterEntity.name;
 
-    const recordCode = recordFormValues.code?.trim() || undefined;
+    const recordCode =
+      entityId === "numberingseries"
+        ? recordFormValues.code?.trim() || undefined
+        : undefined;
     const recordDesc = recordFormValues.description?.trim() || undefined;
 
-    // Build data object from all form values
+    // Build data object from all form values (exclude unused top-level code for non-series)
     const dataObj: Record<string, any> = {};
     selectedMasterEntity.columns.forEach((col) => {
+      if (col.key === "code" && entityId !== "numberingseries") return;
       if (recordFormValues[col.key]?.trim()) {
         dataObj[col.key] = recordFormValues[col.key].trim();
       }
@@ -584,7 +575,7 @@ export const MasterSetup: React.FC = () => {
           id: editingRecordId,
           payload: {
             name: recordName,
-            code: recordCode,
+            ...(entityId === "numberingseries" ? { code: recordCode } : {}),
             description: recordDesc,
             data: dataObj,
           },
@@ -595,7 +586,7 @@ export const MasterSetup: React.FC = () => {
           entityType: entityId,
           payload: {
             name: recordName,
-            code: recordCode,
+            ...(entityId === "numberingseries" ? { code: recordCode } : {}),
             description: recordDesc,
             data: dataObj,
           },
@@ -657,14 +648,21 @@ export const MasterSetup: React.FC = () => {
       return;
     }
 
-    const headers = ["Name", "Code", "Status", ...entity.columns.filter(c => c.key !== "name" && c.key !== "code").map((c) => c.label)].join(",");
+    const isNumberingSeries = entity.id === "numberingseries";
+    const extraCols = entity.columns.filter((c) => c.key !== "name" && c.key !== "code");
+    const headers = [
+      "Name",
+      ...(isNumberingSeries ? ["Target Document"] : []),
+      "Status",
+      ...extraCols.map((c) => c.label),
+    ].join(",");
     const rows = records
       .map((r: any) => {
         const vals = [
           `"${r.name || ""}"`,
-          `"${r.code || ""}"`,
+          ...(isNumberingSeries ? [`"${r.code || ""}"`] : []),
           `"${r.status || ""}"`,
-          ...entity.columns.filter(c => c.key !== "name" && c.key !== "code").map((c) => `"${r.data?.[c.key] || ""}"`),
+          ...extraCols.map((c) => `"${r.data?.[c.key] || ""}"`),
         ];
         return vals.join(",");
       })
@@ -848,7 +846,7 @@ export const MasterSetup: React.FC = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
-            placeholder="Search master by name, code, or description..."
+            placeholder="Search master by name or description..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="h-10 pl-10 bg-slate-50 border-slate-200 text-xs font-medium rounded-xl focus:bg-white"
@@ -1111,7 +1109,9 @@ export const MasterSetup: React.FC = () => {
                       <thead className="bg-slate-50 sticky top-0 border-b border-slate-200 text-[10px] font-black text-slate-500 uppercase tracking-wider">
                         <tr>
                           <th className="py-2.5 px-3">Name</th>
-                          <th className="py-2.5 px-3">Code</th>
+                          {selectedMasterEntity.id === "numberingseries" && (
+                            <th className="py-2.5 px-3">Target Document</th>
+                          )}
                           {selectedMasterEntity.columns
                             .filter((c) => c.key !== "name" && c.key !== "code")
                             .map((col) => (
@@ -1128,7 +1128,9 @@ export const MasterSetup: React.FC = () => {
                         {entityApiData.data.map((rec: any) => (
                           <tr key={rec.id} className="hover:bg-slate-50">
                             <td className="py-2.5 px-3 text-slate-800 font-semibold">{rec.name || "—"}</td>
-                            <td className="py-2.5 px-3 text-slate-600 font-medium">{rec.code || "—"}</td>
+                            {selectedMasterEntity.id === "numberingseries" && (
+                              <td className="py-2.5 px-3 text-slate-600 font-medium">{rec.code || "—"}</td>
+                            )}
                             {selectedMasterEntity.columns
                               .filter((c) => c.key !== "name" && c.key !== "code")
                               .map((col) => (

@@ -12,6 +12,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle
 } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 export const FacultyRecordings: React.FC = () => {
   const navigate = useNavigate();
@@ -30,7 +31,11 @@ export const FacultyRecordings: React.FC = () => {
     const q = searchTerm.toLowerCase();
     return recordings.filter((rec: any) => {
       const title = rec.title || rec.classSession?.title || "";
-      const course = rec.classSession?.batch?.course?.name || "";
+      const course =
+        getSessionSubjectLabel({
+          title: rec.classSession?.title,
+          batch: rec.classSession?.batch,
+        }) || "";
       const batch = rec.classSession?.batch?.name || rec.classSession?.batch?.code || "";
       return (
         title.toLowerCase().includes(q) ||
@@ -115,7 +120,11 @@ export const FacultyRecordings: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredRecordings.map((rec: any) => {
             const title = rec.title || rec.classSession?.title || "Class Recording";
-            const course = rec.classSession?.batch?.course?.name || "Course";
+            const course =
+              getSessionSubjectLabel({
+                title: rec.classSession?.title,
+                batch: rec.classSession?.batch,
+              }) || "Course";
             const batch = rec.classSession?.batch?.name || rec.classSession?.batch?.code || "";
             const date = rec.classSession?.scheduledDate || rec.createdAt;
             return (

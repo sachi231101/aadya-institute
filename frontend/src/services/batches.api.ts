@@ -1,5 +1,18 @@
 import { api } from "./api";
 
+export interface BatchCourseItem {
+  id?: string;
+  courseId: string;
+  facultyId?: string | null;
+  sequence?: number;
+  course?: { id: string; name: string; code: string };
+  faculty?: {
+    id: string;
+    employeeCode: string;
+    user?: { id: string; name: string; email?: string; phone?: string };
+  } | null;
+}
+
 export interface BatchData {
   id: string;
   name: string;
@@ -11,9 +24,12 @@ export interface BatchData {
   capacity?: number;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM" | string;
   timeSlot?: string;
+  timeslotMasterId?: string | null;
+  classroomMasterId?: string | null;
   status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   createdAt: string;
   course?: { id: string; name: string; code: string };
+  batchCourses?: BatchCourseItem[];
   faculty?: {
     id: string;
     employeeCode: string;
@@ -34,17 +50,26 @@ export interface BatchData {
   }>;
 }
 
+export interface BatchCoursePayload {
+  courseId: string;
+  facultyId?: string;
+  sequence?: number;
+}
+
 export interface CreateBatchPayload {
   name: string;
   code: string;
-  courseId: string;
-  branchId?: string;
+  courseId?: string;
   facultyId?: string;
+  courses?: BatchCoursePayload[];
+  branchId?: string;
   startDate: string;
   expectedEndDate?: string;
   capacity?: number;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
+  timeslotMasterId?: string;
+  classroomMasterId?: string;
 }
 
 export const batchesApi = {
@@ -80,7 +105,7 @@ export const batchesApi = {
     return response.data;
   },
 
-  update: async (id: string, data: Partial<CreateBatchPayload>) => {
+  update: async (id: string, data: Partial<CreateBatchPayload> & { status?: BatchData["status"] }) => {
     const response = await api.patch<{ success: boolean }>(`/batches/${id}`, data);
     return response.data;
   },

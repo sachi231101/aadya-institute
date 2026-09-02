@@ -150,6 +150,11 @@ export const createMasterService = async (
 
   let payload: CreateMasterRecordInput = { ...input, branchId };
 
+  // Code is only used for numbering series (document target). Ignore for all other masters.
+  if (input.entityType !== "numberingseries") {
+    payload = { ...payload, code: undefined };
+  }
+
   if (input.entityType === "numberingseries") {
     const target = (input.code || (input.data?.target as string) || "ADMISSION").toUpperCase();
     if (!NUMBERING_SERIES_TARGETS.includes(target as (typeof NUMBERING_SERIES_TARGETS)[number])) {
@@ -266,6 +271,12 @@ export const updateMasterService = async (
   }
 
   let updatePayload: UpdateMasterRecordInput = { ...input };
+
+  // Code is only used for numbering series; do not overwrite legacy codes on other masters from forms.
+  if (existing.entityType !== "numberingseries") {
+    const { code: _ignoredCode, ...rest } = updatePayload;
+    updatePayload = rest;
+  }
 
   if (existing.entityType === "numberingseries") {
     const target = (input.code || existing.code || (input.data?.target as string) || "").toUpperCase();

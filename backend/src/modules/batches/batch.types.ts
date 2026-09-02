@@ -1,3 +1,9 @@
+export interface BatchCourseItemDto {
+  courseId: string;
+  facultyId?: string;
+  sequence?: number;
+}
+
 export interface CreateBatchScheduleDto {
   dayOfWeek: number;
   startTime: string;
@@ -22,14 +28,17 @@ export interface GenerateSessionsDto {
 export interface CreateBatchDto {
   name: string;
   code: string;
-  courseId: string;
+  courseId?: string;
   facultyId?: string;
+  courses?: BatchCourseItemDto[];
   branchId?: string;
   startDate: string;
   expectedEndDate?: string;
   capacity?: number;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
+  timeslotMasterId?: string;
+  classroomMasterId?: string;
   schedules?: CreateBatchScheduleDto[];
 }
 
@@ -38,12 +47,15 @@ export interface UpdateBatchDto {
   code?: string;
   courseId?: string;
   facultyId?: string;
+  courses?: BatchCourseItemDto[];
   startDate?: string;
   expectedEndDate?: string;
   capacity?: number;
   status?: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
+  timeslotMasterId?: string;
+  classroomMasterId?: string;
 }
 
 export interface BatchQueryFilters {

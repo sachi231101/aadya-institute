@@ -33,6 +33,7 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
@@ -292,7 +293,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
           period,
           timeRange: `${raw.startTime} – ${raw.endTime}`,
           type: "CLASS",
-          courseName: raw.batch?.course?.name || raw.title || "Class",
+          courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }),
           batchCode: raw.batch?.code || raw.batch?.name || "",
           roomNo: raw.roomNo || "TBD",
           studentCount: raw.batch?._count?.enrollments,

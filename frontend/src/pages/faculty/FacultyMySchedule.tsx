@@ -30,7 +30,9 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
@@ -73,15 +75,15 @@ const DAYS_OF_WEEK = [
 ];
 
 const TIME_SLOTS = [
-  { id: 1, label: "09:00 – 10:00", title: "09:00", hour24: 9, isBreak: false },
-  { id: 2, label: "10:00 – 11:00", title: "10:00", hour24: 10, isBreak: false },
-  { id: 3, label: "11:00 – 12:00", title: "11:00", hour24: 11, isBreak: false },
-  { id: 4, label: "12:00 – 01:00", title: "12:00", hour24: 12, isBreak: false },
-  { id: 5, label: "01:00 – 02:00", title: "01:00", hour24: 13, isBreak: true, breakTitle: "Lunch Break" },
-  { id: 6, label: "02:00 – 03:00", title: "02:00", hour24: 14, isBreak: false },
-  { id: 7, label: "03:00 – 04:00", title: "03:00", hour24: 15, isBreak: false },
-  { id: 8, label: "04:00 – 05:00", title: "04:00", hour24: 16, isBreak: false },
-  { id: 9, label: "05:00 – 06:00", title: "05:00", hour24: 17, isBreak: false },
+  { id: "1", label: "09:00 – 10:00", title: "09:00", hour24: 9, isBreak: false },
+  { id: "2", label: "10:00 – 11:00", title: "10:00", hour24: 10, isBreak: false },
+  { id: "3", label: "11:00 – 12:00", title: "11:00", hour24: 11, isBreak: false },
+  { id: "4", label: "12:00 – 01:00", title: "12:00", hour24: 12, isBreak: false },
+  { id: "5", label: "01:00 – 02:00", title: "01:00", hour24: 13, isBreak: true, breakTitle: "Lunch Break" },
+  { id: "6", label: "02:00 – 03:00", title: "02:00", hour24: 14, isBreak: false },
+  { id: "7", label: "03:00 – 04:00", title: "03:00", hour24: 15, isBreak: false },
+  { id: "8", label: "04:00 – 05:00", title: "04:00", hour24: 16, isBreak: false },
+  { id: "9", label: "05:00 – 06:00", title: "05:00", hour24: 17, isBreak: false },
 ];
 
 const parseTimeTo24Hour = (timeStr: string): { hour: number; min: number } => {
@@ -112,6 +114,23 @@ export const FacultyMySchedule: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { activeLiveClass } = useSessionStore();
+  const { options: timeslotOptions } = useMasterDropdown("timeslot");
+
+  const scheduleSlots = useMemo(() => {
+    if (!timeslotOptions.length) return TIME_SLOTS;
+    return timeslotOptions.map((opt) => {
+      const start = String(opt.data?.startTime || opt.label || "09:00");
+      const end = String(opt.data?.endTime || "");
+      const { hour } = parseTimeTo24Hour(start);
+      return {
+        id: opt.value,
+        label: end ? `${start} – ${end}` : opt.label,
+        title: start.length > 5 ? start.slice(0, 5) : start,
+        hour24: hour,
+        isBreak: false,
+      };
+    });
+  }, [timeslotOptions]);
 
   const { data: dashRes, isLoading: isDashLoading, refetch: refetchDash } = useFacultyDashboard();
   const dashboard = dashRes?.data;
@@ -217,7 +236,7 @@ export const FacultyMySchedule: React.FC = () => {
       map.set(s.id, {
         id: s.id,
         title: s.title || s.batchModule?.courseModule?.name || "Class Session",
-        courseName: s.batch?.course?.name || "Assigned Course",
+        courseName: getSessionSubjectLabel({ title: s.title, batch: s.batch }),
         subjectName: s.batchModule?.courseModule?.name || s.title || "Subject Module",
         batchId: s.batchId,
         batchName: s.batch?.name || s.batch?.code || "Batch",
@@ -867,7 +886,7 @@ export const FacultyMySchedule: React.FC = () => {
                   <th className="p-3.5 border-r border-slate-200 dark:border-slate-800 w-36 text-center shrink-0">
                     DAY / DATE
                   </th>
-                  {TIME_SLOTS.map((slot) => (
+                  {scheduleSlots.map((slot) => (
                     <th
                       key={slot.id}
                       className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center ${
@@ -919,7 +938,7 @@ export const FacultyMySchedule: React.FC = () => {
                       </td>
 
                       {/* Time Slot Cells */}
-                      {TIME_SLOTS.map((slot) => {
+                      {scheduleSlots.map((slot) => {
                         if (slot.isBreak) {
                           return (
                             <td

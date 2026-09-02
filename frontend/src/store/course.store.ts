@@ -3,6 +3,7 @@ import type { Course, CourseModule, Topic } from "../types/course.types";
 import type { Batch } from "../types/batch.types";
 import { coursesApi } from "../services/courses.api";
 import { batchesApi } from "../services/batches.api";
+import { batchIncludesCourse, formatBatchSubjectNames } from "@/utils/batch.utils";
 
 interface CourseState {
   courses: Course[];
@@ -76,7 +77,7 @@ export const useCourseStore = create<CourseState>((set) => ({
           name: b.name,
           code: b.code,
           courseId: b.courseId,
-          courseName: b.course?.name || "General Course",
+          courseName: formatBatchSubjectNames(b),
           facultyId: b.facultyId || undefined,
           facultyName: b.faculty?.user?.name || "Unassigned",
           startDate: b.startDate ? new Date(b.startDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
@@ -113,7 +114,7 @@ export const useCourseStore = create<CourseState>((set) => ({
   deleteCourse: (id) =>
     set((state) => ({
       courses: state.courses.filter((c) => c.id !== id),
-      batches: state.batches.filter((b) => b.courseId !== id),
+      batches: state.batches.filter((b) => !batchIncludesCourse(b, id)),
       modules: state.modules.filter((m) => m.courseId !== id),
     })),
 

@@ -1,3 +1,10 @@
+export interface BatchCourseSubject {
+  courseId: string;
+  facultyId?: string | null;
+  course?: { id: string; name: string; code?: string };
+  faculty?: { id: string; user?: { name?: string } };
+}
+
 export interface Batch {
   id: string;
   name: string;
@@ -6,6 +13,7 @@ export interface Batch {
   courseName: string;
   facultyId?: string;
   facultyName?: string;
+  batchCourses?: BatchCourseSubject[];
   startDate: string;
   endDate?: string;
   schedulePattern: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";

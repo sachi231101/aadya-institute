@@ -71,6 +71,11 @@ import {
 } from "@/hooks/useLeads";
 import { useMyCurrentTargets } from "@/hooks/useTargets";
 import { batchesApi } from "@/services/batches.api";
+import type { BatchCoursePayload } from "@/services/batches.api";
+import {
+  BatchCourseSelector,
+  type BatchCourseFormRow,
+} from "@/components/batches/BatchCourseSelector";
 import { coursesApi } from "@/services/courses.api";
 import { facultyApi } from "@/services/faculty.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -360,7 +365,7 @@ export const CounselorDashboard: React.FC = () => {
   const [showCreateBatchModal, setShowCreateBatchModal] = useState(false);
   const [batchCode, setBatchCode] = useState("");
   const [batchName, setBatchName] = useState("");
-  const [batchCourseId, setBatchCourseId] = useState("");
+  const [batchSelectedCourses, setBatchSelectedCourses] = useState<BatchCourseFormRow[]>([]);
   const [batchFacultyId, setBatchFacultyId] = useState("");
   const [batchCapacity] = useState<number>(40);
   const [selectedBatchStudentIds, setSelectedBatchStudentIds] = useState<string[]>([]);
@@ -372,10 +377,6 @@ export const CounselorDashboard: React.FC = () => {
   const [batchRoomNo, setBatchRoomNo] = useState("");
   const [batchSuccessMsg, setBatchSuccessMsg] = useState<string | null>(null);
   const [batchSaving, setBatchSaving] = useState(false);
-
-  useEffect(() => {
-    if (!batchCourseId && courses.length > 0) setBatchCourseId(courses[0].id);
-  }, [courses, batchCourseId]);
 
   useEffect(() => {
     if (!batchFacultyId && facultyList.length > 0) setBatchFacultyId(facultyList[0].id);
@@ -397,8 +398,19 @@ export const CounselorDashboard: React.FC = () => {
       alert("Please provide both Batch Code and Batch Name.");
       return;
     }
-    const courseId = batchCourseId || courses[0]?.id;
-    const facultyId = batchFacultyId || facultyList[0]?.id;
+    if (batchSelectedCourses.length === 0) {
+      setBatchSuccessMsg("Select at least one course/subject for this batch.");
+      setTimeout(() => setBatchSuccessMsg(null), 4000);
+      return;
+    }
+    const missingFaculty = batchSelectedCourses.find((r) => !r.facultyId);
+    if (missingFaculty) {
+      setBatchSuccessMsg("Assign a faculty member for each selected subject.");
+      setTimeout(() => setBatchSuccessMsg(null), 4000);
+      return;
+    }
+    const courseId = batchSelectedCourses[0].courseId;
+    const facultyId = batchFacultyId || batchSelectedCourses[0].facultyId || facultyList[0]?.id;
     const branchId =
       user?.branchId ||
       facultyList.find((f) => f.id === facultyId)?.branchId ||
@@ -411,11 +423,17 @@ export const CounselorDashboard: React.FC = () => {
 
     setBatchSaving(true);
     try {
+      const coursesPayload: BatchCoursePayload[] = batchSelectedCourses.map((r, idx) => ({
+        courseId: r.courseId,
+        facultyId: r.facultyId,
+        sequence: idx + 1,
+      }));
       const created = await batchesApi.create({
         name: batchName.trim(),
         code: batchCode.trim(),
         courseId,
         facultyId,
+        courses: coursesPayload,
         branchId,
         capacity: batchCapacity,
         startDate: new Date().toISOString().slice(0, 10),
@@ -439,6 +457,7 @@ export const CounselorDashboard: React.FC = () => {
       setShowCreateBatchModal(false);
       setBatchCode("");
       setBatchName("");
+      setBatchSelectedCourses([]);
       setSelectedBatchStudentIds([]);
     } catch (err: any) {
       setBatchSuccessMsg(err?.response?.data?.message || "Failed to create batch");
@@ -2470,23 +2489,15 @@ export const CounselorDashboard: React.FC = () => {
                     className="h-9 text-xs"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-[11px] font-bold text-slate-700">Course *</Label>
-                  <select
-                    value={batchCourseId}
-                    onChange={(e) => setBatchCourseId(e.target.value)}
-                    className="w-full h-9 px-3 text-xs bg-white border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-[#1769AA]/30"
-                  >
-                    {courses.length === 0 ? (
-                      <option value="">No courses available</option>
-                    ) : (
-                      courses.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name} ({c.code})
-                        </option>
-                      ))
-                    )}
-                  </select>
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-[11px] font-bold text-slate-700">Courses / Subjects *</Label>
+                  <BatchCourseSelector
+                    courses={courses}
+                    facultyList={facultyList}
+                    selectedCourses={batchSelectedCourses}
+                    onChange={setBatchSelectedCourses}
+                    defaultFacultyId={batchFacultyId}
+                  />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[11px] font-bold text-slate-700">Branch</Label>

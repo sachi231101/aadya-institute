@@ -5,7 +5,8 @@ import * as repo from "./faculty.repository";
 export const assignFacultyToBatch = async (
   currentUser: AuthUser,
   batchId: string,
-  facultyId: string
+  facultyId: string,
+  courseId?: string
 ) => {
   const faculty = await repo.findFacultyById(facultyId);
   if (!faculty || faculty.instituteId !== currentUser.instituteId) {
@@ -36,5 +37,14 @@ export const assignFacultyToBatch = async (
     throw new AppError("Batch not found", 404);
   }
 
-  return repo.assignFacultyToBatch(batchId, facultyId);
+  const subjectCourseId = courseId || batch.courseId;
+  const subjectOnBatch =
+    batch.batchCourses?.some((bc) => bc.courseId === subjectCourseId) ||
+    batch.courseId === subjectCourseId;
+
+  if (!subjectOnBatch) {
+    throw new AppError("Selected subject is not part of this batch", 400);
+  }
+
+  return repo.assignFacultyToBatchSubject(batchId, facultyId, subjectCourseId);
 };

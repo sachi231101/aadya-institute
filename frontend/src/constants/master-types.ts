@@ -26,8 +26,8 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "classroom", name: "Class Room", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Classes", "Timetable", "Faculty Timetable", "Counselor Batches"] },
   { id: "designation", name: "Designation", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Faculty", "Edit Faculty", "Settings"] },
   { id: "education", name: "Education", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Add Faculty", "Edit Faculty", "Enquiries"] },
-  { id: "parentinfo", name: "Parent Info", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student"] },
-  { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Enquiries"] },
+  { id: "parentinfo", name: "Parent Info", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Direct Admission"] },
+  { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Enquiries", "Faculty Schedule"] },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Exam", "Edit Exam"] },
 
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Enquiries", "Admissions", "AI Calling"] },

@@ -11,6 +11,11 @@ import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./student.repository";
 import type { CreateStudentDto, UpdateStudentDto, ListStudentQuery } from "./student.validation";
 import { SequenceService } from "../masters/sequence.service";
+import {
+  formatBatchSubjectNames,
+  getBatchCourseRows,
+  getSessionSubjectLabel,
+} from "../../utils/batch-course.util";
 
 type AttendanceLike = {
   status: string;
@@ -479,26 +484,43 @@ export const getStudentPerformance = async (studentId: string, currentUser: Auth
     }));
 
   // ΓöÇΓöÇ Enrolled Courses Progress ΓöÇΓöÇ
-  const enrolledCourses = enrollments.map((enrollment) => {
+  const enrolledCourses = enrollments.flatMap((enrollment) => {
     const batch = enrollment.batch;
-    const totalModules = batch.batchModules.length;
-    const completedModules = batch.batchModules.filter(
-      (m) => m.status === "INACTIVE" // INACTIVE means completed for batch modules
-    ).length;
-    const completionPercentage = totalModules > 0
-      ? Math.round((completedModules / totalModules) * 100)
-      : 0;
+    const rows = getBatchCourseRows(batch);
+    const subjects =
+      rows.length > 0
+        ? rows
+        : batch.course
+          ? [{ courseId: batch.courseId, course: batch.course }]
+          : [];
 
-    return {
-      courseId: batch.course.id,
-      courseName: batch.course.name,
-      courseCode: batch.course.code,
-      batchName: batch.name,
-      batchCode: batch.code,
-      completionPercentage,
-      totalModules,
-      completedModules,
-    };
+    return subjects
+      .map((row) => {
+        const course = row.course ?? batch.course;
+        if (!course) return null;
+
+        const modulesForCourse = batch.batchModules.filter(
+          (m) => m.courseModule?.courseId === row.courseId
+        );
+        const scopedModules =
+          modulesForCourse.length > 0 ? modulesForCourse : batch.batchModules;
+        const totalModules = scopedModules.length;
+        const completedModules = scopedModules.filter((m) => m.status === "INACTIVE").length;
+        const completionPercentage =
+          totalModules > 0 ? Math.round((completedModules / totalModules) * 100) : 0;
+
+        return {
+          courseId: course.id,
+          courseName: course.name,
+          courseCode: course.code,
+          batchName: batch.name,
+          batchCode: batch.code,
+          completionPercentage,
+          totalModules,
+          completedModules,
+        };
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null);
   });
 
   return {
@@ -613,6 +635,13 @@ export const getMyDashboard = async (
                 },
               },
 
+              batchCourses: {
+                orderBy: { sequence: "asc" },
+                include: {
+                  course: { select: { id: true, name: true, code: true } },
+                },
+              },
+
               faculty: {
                 include: {
                   user: {
@@ -689,6 +718,10 @@ export const getMyDashboard = async (
             batch: {
               include: {
                 course: true,
+                batchCourses: {
+                  orderBy: { sequence: "asc" },
+                  include: { course: { select: { id: true, name: true, code: true } } },
+                },
               },
             },
 
@@ -733,6 +766,10 @@ export const getMyDashboard = async (
             batch: {
               include: {
                 course: true,
+                batchCourses: {
+                  orderBy: { sequence: "asc" },
+                  include: { course: { select: { id: true, name: true, code: true } } },
+                },
               },
             },
 
@@ -772,6 +809,10 @@ export const getMyDashboard = async (
             batch: {
               include: {
                 course: true,
+                batchCourses: {
+                  orderBy: { sequence: "asc" },
+                  include: { course: { select: { id: true, name: true, code: true } } },
+                },
               },
             },
 
@@ -880,6 +921,9 @@ export const getMyDashboard = async (
 
           batchName:
             primaryEnrollment.batch.name,
+
+          subjects:
+            formatBatchSubjectNames(primaryEnrollment.batch),
         }
       : null,
 
@@ -952,8 +996,10 @@ export const getMyDashboard = async (
           session.meetingUrl,
 
         courseName:
-          session.batch?.course?.name ??
-          null,
+          getSessionSubjectLabel({
+            title: session.title,
+            batch: session.batch,
+          }) || null,
 
         facultyName:
           session.faculty?.user?.name ??
@@ -983,8 +1029,10 @@ export const getMyDashboard = async (
           session.mode,
 
         courseName:
-          session.batch?.course?.name ??
-          null,
+          getSessionSubjectLabel({
+            title: session.title,
+            batch: session.batch,
+          }) || null,
 
         facultyName:
           session.faculty?.user?.name ??
@@ -1002,8 +1050,10 @@ export const getMyDashboard = async (
           session.meetingUrl,
 
         courseName:
-          session.batch?.course?.name ??
-          null,
+          getSessionSubjectLabel({
+            title: session.title,
+            batch: session.batch,
+          }) || null,
 
         facultyName:
           session.faculty?.user?.name ??
