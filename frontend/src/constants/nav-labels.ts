@@ -25,7 +25,6 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
 
   // Faculty
   "faculty.all": "All Faculty",
-  "faculty.faculty_allocation": "Assign Faculty to Batches",
   "faculty.attendance": "Faculty Attendance",
   "faculty.performance": "Faculty Ratings & Feedback",
 

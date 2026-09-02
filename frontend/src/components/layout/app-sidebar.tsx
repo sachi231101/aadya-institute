@@ -109,7 +109,6 @@ const data = {
       icon: Users,
       items: [
         { title: L["faculty.all"] ?? "All Faculty", url: A.FACULTY.ALL },
-        { title: L["faculty.faculty_allocation"] ?? "Assign Faculty to Batches", url: A.FACULTY.FACULTY_ALLOCATION },
         { title: L["faculty.attendance"] ?? "Faculty Attendance", url: A.FACULTY.ATTENDANCE },
         { title: L["faculty.performance"] ?? "Faculty Ratings & Feedback", url: A.FACULTY.PERFORMANCE },
       ],
@@ -130,7 +129,6 @@ const data = {
       icon: FolderOpen,
       items: [
         { title: "All Batches", url: A.BATCHES.ALL },
-        { title: "Create Batch", url: A.BATCHES.CREATE },
       ],
     },
     {

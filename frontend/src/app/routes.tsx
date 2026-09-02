@@ -25,7 +25,6 @@ import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
 import { EditFaculty } from "../pages/admin/faculty/EditFaculty";
 import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
 import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
-import { FacultyAllocation } from "../pages/admin/faculty/FacultyAllocation";
 import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
 import { FacultyRatings } from "../pages/admin/faculty/FacultyRatings";
 import { AllCourses } from "../pages/admin/courses/AllCourses";
@@ -90,7 +89,6 @@ import { StudentDocuments } from "../pages/admin/students/StudentDocuments";
 import { StudentAllocation } from "../pages/admin/students/StudentAllocation";
 import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments";
 import { AllBatches } from "../pages/admin/batches/AllBatches";
-import { CreateBatch } from "../pages/admin/batches/CreateBatch";
 import { BatchDetails } from "../pages/admin/batches/BatchDetails";
 import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
 import { AssignmentList } from "../pages/admin/assignments/AssignmentList";
@@ -192,7 +190,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
           <Route path="assign-students" element={<Navigate to="/center/students/student-allocation" replace />} />
-          <Route path="assign-faculty" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
+          <Route path="assign-faculty" element={<Navigate to="/center/courses/course-assignment" replace />} />
         </Route>
 
         {/* Faculty */}
@@ -200,8 +198,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllFaculty />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
-          <Route path="batch-assignment" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
-          <Route path="faculty-allocation" element={<FacultyAllocation />} />
+          <Route path="batch-assignment" element={<Navigate to="/center/courses/course-assignment" replace />} />
+          <Route path="faculty-allocation" element={<Navigate to="/center/courses/course-assignment" replace />} />
           <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<Navigate to="/center/courses/course-assignment" replace />} />
@@ -227,9 +225,9 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="batches">
           <Route index element={<AllBatches />} />
-          <Route path="create" element={<CreateBatch />} />
+          <Route path="create" element={<Navigate to="/center/batches" replace />} />
           <Route path="student-allocation" element={<Navigate to="/center/students/student-allocation" replace />} />
-          <Route path="faculty-allocation" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
+          <Route path="faculty-allocation" element={<Navigate to="/center/courses/course-assignment" replace />} />
           <Route path=":id" element={<BatchDetails />} />
         </Route>
 
