@@ -164,6 +164,7 @@ export const CounselorDashboard: React.FC = () => {
 
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
   const { options: leadStageOptions } = useMasterDropdown("leadstage");
+  const { options: timeslotOptions } = useMasterDropdown("timeslot");
 
   // AI Drawer state for Dashboard
   const [activeAiLead, setActiveAiLead] = useState<UnifiedLead | null>(null);
@@ -409,6 +410,12 @@ export const CounselorDashboard: React.FC = () => {
       setTimeout(() => setBatchSuccessMsg(null), 4000);
       return;
     }
+    const missingSchedule = batchSelectedCourses.find((r) => !r.startDate || !r.schedulePattern);
+    if (missingSchedule) {
+      setBatchSuccessMsg("Each selected subject needs a start date and schedule pattern.");
+      setTimeout(() => setBatchSuccessMsg(null), 4000);
+      return;
+    }
     const courseId = batchSelectedCourses[0].courseId;
     const facultyId = batchFacultyId || batchSelectedCourses[0].facultyId || facultyList[0]?.id;
     const branchId =
@@ -423,22 +430,56 @@ export const CounselorDashboard: React.FC = () => {
 
     setBatchSaving(true);
     try {
+      const fallbackPattern = inferPatternFromDays(batchDays);
+      const fallbackTimeSlot = `${batchStartTime} - ${batchEndTime}`;
+      const PATTERN_DAYS: Record<string, number[]> = {
+        MWF: [1, 3, 5],
+        TTS: [2, 4, 6],
+        WEEKEND: [0, 6],
+        CUSTOM: [1],
+      };
       const coursesPayload: BatchCoursePayload[] = batchSelectedCourses.map((r, idx) => ({
         courseId: r.courseId,
         facultyId: r.facultyId,
         sequence: idx + 1,
+        startDate: r.startDate,
+        expectedEndDate: r.expectedEndDate || undefined,
+        schedulePattern: r.schedulePattern || fallbackPattern,
+        timeSlot:
+          getMasterLabel(timeslotOptions, r.timeslotMasterId) ||
+          (r.timeslotMasterId ? undefined : fallbackTimeSlot),
+        timeslotMasterId: r.timeslotMasterId || undefined,
+        classroomMasterId: r.classroomMasterId || batchRoomNo || undefined,
       }));
+      const scheduleLines = coursesPayload.flatMap((c) => {
+        const days = PATTERN_DAYS[c.schedulePattern || fallbackPattern] || PATTERN_DAYS.MWF;
+        return days.map((dayOfWeek) => ({
+          courseId: c.courseId,
+          dayOfWeek,
+          timeSlot: c.timeSlot,
+          timeslotMasterId: c.timeslotMasterId,
+          classroomMasterId: c.classroomMasterId,
+          facultyId: c.facultyId,
+          status: "ACTIVE" as const,
+          attendanceEnabled: true,
+        }));
+      });
+      const starts = coursesPayload.map((c) => c.startDate!).filter(Boolean).sort();
+      const ends = coursesPayload
+        .map((c) => c.expectedEndDate)
+        .filter((d): d is string => Boolean(d))
+        .sort();
       const created = await batchesApi.create({
         name: batchName.trim(),
         code: batchCode.trim(),
         courseId,
         facultyId,
         courses: coursesPayload,
+        scheduleLines,
         branchId,
         capacity: batchCapacity,
-        startDate: new Date().toISOString().slice(0, 10),
-        schedulePattern: inferPatternFromDays(batchDays),
-        timeSlot: `${batchStartTime} - ${batchEndTime}`,
+        startDate: starts[0] || new Date().toISOString().slice(0, 10),
+        expectedEndDate: ends.length > 0 ? ends[ends.length - 1] : undefined,
       });
       if (created?.data?.id && selectedBatchStudentIds.length > 0) {
         await Promise.all(

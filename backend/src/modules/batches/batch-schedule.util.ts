@@ -56,3 +56,14 @@ export function eachDateInRange(start: Date, end: Date): Date[] {
 export function formatDateKey(date: Date): string {
   return date.toISOString().slice(0, 10);
 }
+
+/** Infer MWF/TTS/WEEKEND/CUSTOM from a set of dayOfWeek values (0=Sun .. 6=Sat). */
+export function derivePatternFromDays(days: number[]): "MWF" | "TTS" | "WEEKEND" | "CUSTOM" {
+  const unique = [...new Set(days)].sort((a, b) => a - b);
+  if (unique.length === 3 && unique[0] === 1 && unique[1] === 3 && unique[2] === 5) return "MWF";
+  if (unique.length === 3 && unique[0] === 2 && unique[1] === 4 && unique[2] === 6) return "TTS";
+  if (unique.length === 2 && unique[0] === 2 && unique[1] === 4) return "TTS";
+  if (unique.every((d) => d === 0 || d === 6) && unique.length > 0) return "WEEKEND";
+  return "CUSTOM";
+}
+

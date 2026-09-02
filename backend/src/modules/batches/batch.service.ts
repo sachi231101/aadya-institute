@@ -3,7 +3,6 @@ import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleD
 import { AppError } from "../../middlewares/error.middleware";
 import { prisma } from "../../config/database";
 import { eachDateInRange, formatDateKey } from "./batch-schedule.util";
-import { getBatchCourseRows } from "../../utils/batch-course.util";
 import * as studentAllocationService from "../students/student-allocation.service";
 import * as facultyAllocationService from "../faculty/faculty-allocation.service";
 import type { AuthUser } from "../auth/auth.types";
@@ -55,6 +54,7 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
     ...data,
     courseId: data.courseId || courseItems[0].courseId,
     courses: courseItems,
+    scheduleLines: data.scheduleLines,
   };
 
   const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
@@ -74,7 +74,9 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
     }
   }
 
-  if (data.courses && data.courses.length > 0) {
+  if (data.scheduleLines && data.scheduleLines.length > 0) {
+    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data));
+  } else if (data.courses && data.courses.length > 0) {
     await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data));
   } else if (data.courseId) {
     await validateBatchCourses(instituteId, [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }]);
@@ -174,19 +176,12 @@ export const generateClassSessionsFromSchedule = async (
 ) => {
   const batch = await getBatchById(batchId, instituteId);
   const coordinatorFacultyId = batch.facultyId;
-  const subjectFacultyId =
-    batch.batchCourses?.find((bc) => bc.facultyId)?.facultyId ?? null;
-  const sessionFacultyId = coordinatorFacultyId || subjectFacultyId;
-  if (!sessionFacultyId) {
-    throw new AppError(
-      "Assign faculty to the batch or at least one subject before generating class sessions",
-      400
-    );
-  }
+  const allSchedules = (batch.schedules || []).filter(
+    (s) => (s as { status?: string }).status !== "INACTIVE"
+  );
 
-  const schedules = batch.schedules || [];
-  if (schedules.length === 0) {
-    throw new AppError("No batch schedules defined. Add weekly schedule slots first.", 400);
+  if (allSchedules.length === 0) {
+    throw new AppError("No active schedule lines defined. Add weekly schedule slots first.", 400);
   }
 
   const rangeStart = options.startDate ? new Date(options.startDate) : new Date(batch.startDate);
@@ -201,58 +196,34 @@ export const generateClassSessionsFromSchedule = async (
       batchId,
       scheduledDate: { gte: rangeStart, lte: rangeEnd },
     },
-    select: { scheduledDate: true, startTime: true },
+    select: { scheduledDate: true, startTime: true, batchCourseId: true },
   });
   const existingKeys = new Set(
-    existingSessions.map((s) => `${formatDateKey(s.scheduledDate)}|${s.startTime}`)
+    existingSessions.map(
+      (s) => `${formatDateKey(s.scheduledDate)}|${s.startTime}|${s.batchCourseId ?? "none"}`
+    )
   );
 
-  const subjectRows = getBatchCourseRows(batch);
-  let subjectRotationIndex = 0;
-
-  const resolveSessionForSlot = (): { facultyId: string; title: string } | null => {
-    if (subjectRows.length === 0) {
-      return {
-        facultyId: sessionFacultyId,
-        title: `${batch.course?.name || batch.name} — Class`,
-      };
-    }
-    if (subjectRows.length === 1) {
-      const row = subjectRows[0];
-      const facultyId = row.facultyId || sessionFacultyId;
-      if (!facultyId) return null;
-      return {
-        facultyId,
-        title: `${row.course?.name || batch.name} — Class`,
-      };
-    }
-    const row = subjectRows[subjectRotationIndex % subjectRows.length];
-    subjectRotationIndex += 1;
-    const facultyId = row.facultyId || coordinatorFacultyId || sessionFacultyId;
-    if (!facultyId) return null;
-    return {
-      facultyId,
-      title: `${row.course?.name || batch.name} — Class`,
-    };
-  };
-
-  const dates = eachDateInRange(rangeStart, rangeEnd);
   const toCreate: Array<{
     batchId: string;
+    batchCourseId: string | null;
     facultyId: string;
     branchId: string;
     title: string;
     scheduledDate: Date;
     startTime: string;
     endTime: string;
+    classroomMasterId: string | null;
+    timeslotMasterId: string | null;
     sessionStatus: "UPCOMING";
     sessionType: "THEORY";
     mode: string;
   }> = [];
 
+  const dates = eachDateInRange(rangeStart, rangeEnd);
   for (const date of dates) {
     const dayOfWeek = date.getDay();
-    const matchingSlots = schedules.filter((slot) => {
+    const matchingSlots = allSchedules.filter((slot) => {
       if (slot.dayOfWeek !== dayOfWeek) return false;
       const effectiveFrom = new Date(slot.effectiveFrom);
       effectiveFrom.setHours(0, 0, 0, 0);
@@ -266,20 +237,42 @@ export const generateClassSessionsFromSchedule = async (
     });
 
     for (const slot of matchingSlots) {
-      const key = `${formatDateKey(date)}|${slot.startTime}`;
+      const lineFaculty =
+        (slot as { facultyId?: string | null }).facultyId ||
+        batch.batchCourses?.find((bc) => bc.id === slot.batchCourseId)?.facultyId ||
+        coordinatorFacultyId;
+      if (!lineFaculty) continue;
+
+      const batchCourseId = slot.batchCourseId ?? null;
+      const key = `${formatDateKey(date)}|${slot.startTime}|${batchCourseId ?? "none"}`;
       if (existingKeys.has(key)) continue;
 
-      const resolved = resolveSessionForSlot();
-      if (!resolved) continue;
+      const bc = batch.batchCourses?.find((c) => c.id === batchCourseId);
+      const courseName =
+        (slot as { batchCourse?: { course?: { name?: string } } }).batchCourse?.course?.name ||
+        bc?.course?.name ||
+        batch.course?.name ||
+        batch.name;
 
       toCreate.push({
         batchId,
-        facultyId: resolved.facultyId,
+        batchCourseId,
+        facultyId: lineFaculty,
         branchId: batch.branchId,
-        title: resolved.title,
+        title: `${courseName} — Class`,
         scheduledDate: new Date(date),
         startTime: slot.startTime,
         endTime: slot.endTime,
+        classroomMasterId:
+          (slot as { classroomMasterId?: string | null }).classroomMasterId ??
+          bc?.classroomMasterId ??
+          batch.classroomMasterId ??
+          null,
+        timeslotMasterId:
+          (slot as { timeslotMasterId?: string | null }).timeslotMasterId ??
+          bc?.timeslotMasterId ??
+          batch.timeslotMasterId ??
+          null,
         sessionStatus: "UPCOMING",
         sessionType: "THEORY",
         mode: "OFFLINE",
@@ -289,6 +282,16 @@ export const generateClassSessionsFromSchedule = async (
   }
 
   if (toCreate.length === 0) {
+    const hasAnyFaculty =
+      Boolean(coordinatorFacultyId) ||
+      Boolean(batch.batchCourses?.some((bc) => bc.facultyId)) ||
+      Boolean(allSchedules.some((s) => (s as { facultyId?: string | null }).facultyId));
+    if (!hasAnyFaculty) {
+      throw new AppError(
+        "Assign faculty on schedule lines (or batch/subjects) before generating class sessions",
+        400
+      );
+    }
     return { created: 0, skipped: existingSessions.length, sessions: [] };
   }
 
@@ -306,4 +309,11 @@ export const generateClassSessionsFromSchedule = async (
     skipped: existingSessions.length,
     sessions: createdSessions,
   };
+};
+
+export const getAvailableFaculty = async (
+  instituteId: string,
+  query: import("./batch.types").AvailableFacultyQuery
+) => {
+  return repository.findAvailableFaculty(instituteId, query);
 };

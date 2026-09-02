@@ -5,12 +5,27 @@ export interface BatchCourseItem {
   courseId: string;
   facultyId?: string | null;
   sequence?: number;
+  startDate?: string | null;
+  expectedEndDate?: string | null;
+  schedulePattern?: string | null;
+  timeSlot?: string | null;
+  timeslotMasterId?: string | null;
+  classroomMasterId?: string | null;
   course?: { id: string; name: string; code: string };
   faculty?: {
     id: string;
     employeeCode: string;
     user?: { id: string; name: string; email?: string; phone?: string };
   } | null;
+  timeslotMaster?: { id: string; name: string; code?: string | null } | null;
+  classroomMaster?: { id: string; name: string; code?: string | null } | null;
+  schedules?: Array<{
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    batchCourseId?: string | null;
+  }>;
 }
 
 export interface BatchData {
@@ -23,12 +38,14 @@ export interface BatchData {
   startDate: string;
   expectedEndDate?: string | null;
   capacity?: number;
+  remark?: string | null;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM" | string;
   timeSlot?: string;
   timeslotMasterId?: string | null;
   classroomMasterId?: string | null;
   status: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   createdAt: string;
+  updatedAt?: string;
   course?: { id: string; name: string; code: string };
   batchCourses?: BatchCourseItem[];
   faculty?: {
@@ -37,7 +54,30 @@ export interface BatchData {
     user?: { id: string; name: string; email?: string; phone?: string };
   } | null;
   branch?: { id: string; name: string; code: string };
-  schedules?: Array<{ id: string; dayOfWeek: number; startTime: string; endTime: string }>;
+  schedules?: Array<{
+    id: string;
+    dayOfWeek: number;
+    startTime: string;
+    endTime: string;
+    batchCourseId?: string | null;
+    facultyId?: string | null;
+    timeslotMasterId?: string | null;
+    classroomMasterId?: string | null;
+    status?: string;
+    attendanceEnabled?: boolean;
+    faculty?: {
+      id: string;
+      employeeCode?: string;
+      user?: { id?: string; name?: string };
+    } | null;
+    timeslotMaster?: { id: string; name: string } | null;
+    classroomMaster?: { id: string; name: string } | null;
+    batchCourse?: {
+      id: string;
+      courseId: string;
+      course?: { id: string; name: string; code: string };
+    } | null;
+  }>;
   _count?: { enrollments: number; classSessions: number };
   enrollments?: Array<{
     id: string;
@@ -51,10 +91,27 @@ export interface BatchData {
   }>;
 }
 
+export interface ScheduleLinePayload {
+  courseId: string;
+  dayOfWeek: number;
+  timeSlot?: string;
+  timeslotMasterId?: string;
+  classroomMasterId?: string;
+  facultyId?: string;
+  status?: "ACTIVE" | "INACTIVE";
+  attendanceEnabled?: boolean;
+}
+
 export interface BatchCoursePayload {
   courseId: string;
   facultyId?: string;
   sequence?: number;
+  startDate?: string;
+  expectedEndDate?: string;
+  schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
+  timeSlot?: string;
+  timeslotMasterId?: string;
+  classroomMasterId?: string;
 }
 
 export interface CreateBatchPayload {
@@ -63,10 +120,12 @@ export interface CreateBatchPayload {
   courseId?: string;
   facultyId?: string;
   courses?: BatchCoursePayload[];
+  scheduleLines?: ScheduleLinePayload[];
   branchId?: string;
-  startDate: string;
+  startDate?: string;
   expectedEndDate?: string;
   capacity?: number;
+  remark?: string;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
   timeslotMasterId?: string;
@@ -171,6 +230,27 @@ export const batchesApi = {
 
   generateSessions: async (batchId: string, data?: { startDate?: string; endDate?: string }) => {
     const response = await api.post(`/batches/${batchId}/generate-sessions`, data ?? {});
+    return response.data;
+  },
+
+  getAvailableFaculty: async (params: {
+    dayOfWeek: number;
+    startTime?: string;
+    endTime?: string;
+    timeslotMasterId?: string;
+    startDate?: string;
+    endDate?: string;
+    branchId?: string;
+    excludeBatchId?: string;
+  }) => {
+    const response = await api.get<{
+      success: boolean;
+      data: Array<{
+        id: string;
+        employeeCode?: string;
+        user?: { id?: string; name?: string; email?: string; phone?: string };
+      }>;
+    }>("/batches/faculty/available", { params });
     return response.data;
   },
 };
