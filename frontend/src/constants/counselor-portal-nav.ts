@@ -80,7 +80,6 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
       { title: L["admissions.enquiries"] ?? "Enquiries", url: "/counselor/admissions/enquiries", itemKey: "admissions.enquiries" },
       { title: L["admissions.applications"] ?? "Admission Applications", url: "/counselor/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/counselor/admissions/all", itemKey: "admissions.all" },
-      { title: "Direct Admission", url: "/counselor/admissions/direct-entry", itemKey: "admissions.direct" },
     ],
   },
   {

@@ -345,6 +345,9 @@ export const AdmissionsService = {
 
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
   async getAdmissions(currentUser: AuthUser, params: QueryAdmissionsDTO) {
+    // #region agent log
+    fetch('http://127.0.0.1:7913/ingest/73746203-13ab-48c1-bcb6-4becdf54f2cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ed66da'},body:JSON.stringify({sessionId:'ed66da',runId:'post-fix',hypothesisId:'H1',location:'admissions.service.ts:getAdmissions',message:'getAdmissions service entry',data:{hasRoles:Array.isArray(currentUser?.roles),roles:currentUser?.roles,instituteId:currentUser?.instituteId,paramsBranchId:params.branchId},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     const scope = getBranchScopeFilter(currentUser, params.branchId);
     return AdmissionsRepository.findAdmissions(scope.instituteId, params, scope.branchId);
   },

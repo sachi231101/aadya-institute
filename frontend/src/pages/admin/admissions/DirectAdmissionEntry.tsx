@@ -601,24 +601,34 @@ export const DirectAdmissionEntry: React.FC = () => {
     };
   };
 
-  // Auto-select course from Enquiry/Lead when available courses are ready
+  // Auto-select course from Enquiry/Lead/Application when available courses are ready
   useEffect(() => {
-    const rawData = location.state?.lead || location.state;
-    const courseTarget = rawData?.course || rawData?.courseName;
-    if (!courseTarget || allAvailableCourses.length === 0) return;
+    const rawData = location.state?.lead || location.state?.application || location.state;
+    if (!rawData || allAvailableCourses.length === 0 || selectedCoursesList.length > 0) return;
 
-    if (selectedCoursesList.length === 0) {
-      const targetLower = String(courseTarget).toLowerCase().trim();
-      const matched = allAvailableCourses.find(
+    const courseId = rawData?.courseId;
+    if (courseId) {
+      const matchedById = allAvailableCourses.find((c) => c.id === courseId);
+      if (matchedById) {
+        setSelectedCoursesList([buildSelectedCourseItem(matchedById)]);
+        return;
+      }
+    }
+
+    const courseTarget = rawData?.course || rawData?.courseName;
+    if (!courseTarget) return;
+
+    const targetLower = String(courseTarget).toLowerCase().trim();
+    const matched =
+      allAvailableCourses.find(
         (c) =>
           c.name.toLowerCase().includes(targetLower) ||
           targetLower.includes(c.name.toLowerCase()) ||
           c.code.toLowerCase() === targetLower
       ) || allAvailableCourses[0];
 
-      if (matched && !selectedCoursesList.some((item) => item.courseId === matched.id)) {
-        setSelectedCoursesList([buildSelectedCourseItem(matched)]);
-      }
+    if (matched && !selectedCoursesList.some((item) => item.courseId === matched.id)) {
+      setSelectedCoursesList([buildSelectedCourseItem(matched)]);
     }
   }, [location.state, allAvailableCourses]);
 

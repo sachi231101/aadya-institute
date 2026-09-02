@@ -120,6 +120,7 @@ import { FacultyRecordings } from "../pages/faculty/FacultyRecordings";
 import { FacultyAnnouncements } from "../pages/faculty/Announcements";
 import { FacultyMyStudents } from "../pages/faculty/MyStudents";
 import { FacultyFeedback } from "../pages/faculty/Feedback";
+import { FacultyMySchedule } from "../pages/faculty/FacultyMySchedule";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -430,12 +431,12 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<FacultyMyStudents />} />
         </Route>
         <Route path="feedback" element={<FacultyFeedback />} />
-        <Route path="timetable" element={<FacultyTimetable />} />
-        <Route path="classes" element={<FacultyTimetable />} />
+        <Route path="timetable" element={<FacultyMySchedule />} />
+        <Route path="classes" element={<FacultyMySchedule />} />
         <Route path="recordings" element={<FacultyRecordings />} />
         <Route path="schedule">
-          <Route path="classes" element={<FacultyTimetable />} />
-          <Route path="timetable" element={<FacultyTimetable />} />
+          <Route path="classes" element={<FacultyMySchedule />} />
+          <Route path="timetable" element={<FacultyMySchedule />} />
           <Route path="recordings" element={<FacultyRecordings />} />
         </Route>
         <Route path="reports">

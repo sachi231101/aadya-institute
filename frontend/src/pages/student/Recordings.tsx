@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { useSessionStore } from "@/store/session.store";
 import type { Recording } from "@/services/recordings.api";
 
 const formatDuration = (seconds?: number) => {
@@ -19,55 +20,93 @@ export const StudentRecordings: React.FC = () => {
   const academic = useStudentAcademicAccess();
   const { data: recordingsRes, isLoading, isError } = useRecordings({ limit: 50 });
   const accessMutation = useRecordingAccess();
+  const { recordings: localStoreRecordings } = useSessionStore();
 
-  const recordings: Recording[] = recordingsRes?.data ?? [];
-
-  const [activeRecording, setActiveRecording] = useState<Recording | null>(null);
+  const [activeRecording, setActiveRecording] = useState<any>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
   const [showWatchModal, setShowWatchModal] = useState(false);
 
   const enrichedRecordings = useMemo(() => {
-    const scoped = recordings.filter((rec) => {
-      const session = rec.classSession;
-      if (!session) return false;
-      return academic.isAuthorizedForSession(session);
-    });
+    const rawApiRecordings: Recording[] = recordingsRes?.data ?? [];
 
-    return scoped.map((rec) => ({
-      ...rec,
-      batchLabel: rec.classSession?.batch?.name || rec.classSession?.batch?.code || "Batch",
-      courseLabel:
-        rec.classSession?.batchModule?.courseModule?.name ||
-        rec.classSession?.title ||
-        "Class Session",
-      moduleLabel: rec.classSession?.batchModule?.courseModule?.name || "Class Session",
-      facultyName: rec.classSession?.faculty?.user?.name || "Faculty",
-      dateLabel: rec.classSession?.scheduledDate
-        ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })
-        : "—",
-      durationLabel: formatDuration(rec.duration),
-      expiresLabel: rec.expiresAt
-        ? new Date(rec.expiresAt).toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          })
-        : "—",
-      status:
-        (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
+    // Map store recordings (uploaded by faculty in browser)
+    const localMapped = localStoreRecordings.map((rec) => ({
+      id: rec.id,
+      classSessionId: rec.id,
+      storageKey: rec.videoUrl,
+      duration: parseInt(rec.duration, 10) * 60 || 3600,
+      recordingStatus: "READY",
+      status: "READY",
+      expiresAt: rec.expiresAt,
+      playbackUrl: rec.videoUrl,
+      batchLabel: rec.batch || rec.batchName || "Batch",
+      courseLabel: rec.course || "Assigned Course",
+      moduleLabel: rec.module || rec.title || "Lecture Recording",
+      facultyName: rec.facultyName || "Faculty",
+      dateLabel: rec.date || "Today",
+      durationLabel: rec.duration || "60 mins",
+      expiresLabel: "30 days",
+      isLocal: true,
+      classSession: {
+        id: rec.id,
+        title: rec.module || rec.title || "Class Recording",
+        scheduledDate: rec.date || new Date().toISOString(),
+        batch: { name: rec.batchName || rec.batch, code: rec.batch },
+        batchModule: { courseModule: { name: rec.module || rec.course } },
+        faculty: { user: { name: rec.facultyName } },
+      },
     }));
-  }, [recordings, academic]);
 
-  const handleWatchRecording = async (rec: Recording) => {
+    const scoped = rawApiRecordings
+      .filter((rec) => {
+        const session = rec.classSession;
+        if (!session) return false;
+        return academic.isAuthorizedForSession(session);
+      })
+      .map((rec) => ({
+        ...rec,
+        batchLabel: rec.classSession?.batch?.name || rec.classSession?.batch?.code || "Batch",
+        courseLabel:
+          rec.classSession?.batchModule?.courseModule?.name ||
+          rec.classSession?.title ||
+          "Class Session",
+        moduleLabel: rec.classSession?.batchModule?.courseModule?.name || "Class Session",
+        facultyName: rec.classSession?.faculty?.user?.name || "Faculty",
+        dateLabel: rec.classSession?.scheduledDate
+          ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—",
+        durationLabel: formatDuration(rec.duration),
+        expiresLabel: rec.expiresAt
+          ? new Date(rec.expiresAt).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : "—",
+        status:
+          (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
+        isLocal: false,
+      }));
+
+    return [...localMapped, ...scoped];
+  }, [recordingsRes, localStoreRecordings, academic]);
+
+  const handleWatchRecording = async (rec: any) => {
     setActiveRecording(rec);
     setPlaybackUrl(null);
     setPlayError(null);
     setShowWatchModal(true);
+
+    if (rec.isLocal || rec.playbackUrl) {
+      setPlaybackUrl(rec.playbackUrl || rec.storageKey || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+      return;
+    }
+
     try {
       const res = await accessMutation.mutateAsync(rec.id);
       const url = res?.data?.playbackUrl;
