@@ -10,6 +10,7 @@ import {
   Copy,
   Check,
   SlidersHorizontal,
+  Filter,
   FileText,
   UserCheck,
   XCircle,
@@ -342,7 +343,7 @@ export const AllAdmissions: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [batchTypeFilter, setBatchTypeFilter] = useState("ALL");
   const [feeStatusFilter, setFeeStatusFilter] = useState("ALL");
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -405,7 +406,11 @@ export const AllAdmissions: React.FC = () => {
   const totalAdmissionsCount = admissionsList.length;
   const confirmedCount = admissionsList.filter((a) => a.status === "Confirmed" || (a.status as string) === "CONFIRMED").length;
   const provisionalCount = admissionsList.filter((a) => a.status === "Provisional" || (a.status as string) === "PROVISIONAL").length;
-  const activeBatchesCount = new Set(admissionsList.map((a) => a.batchCode).filter(Boolean)).size;
+
+  const courseOptions = useMemo(() => {
+    const names = new Set(admissionsList.map((a) => a.courseName).filter((n) => n && n !== "—"));
+    return Array.from(names).sort();
+  }, [admissionsList]);
 
   // Filter Logic
   const filteredAdmissions = useMemo(() => {
@@ -592,36 +597,6 @@ export const AllAdmissions: React.FC = () => {
     showToast(`Batch updated to ${targetBatchId} for ${selectedAdmission.studentName}!`);
   };
 
-  // Helper for Batch Badge
-  const renderBatchBadge = (type: BatchType) => {
-    switch (type) {
-      case "Morning Batch":
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-[#1769AA] border border-blue-200/60">
-            Morning Batch
-          </span>
-        );
-      case "Evening Batch":
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200/60">
-            Evening Batch
-          </span>
-        );
-      case "Weekend Batch":
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200/60">
-            Weekend Batch
-          </span>
-        );
-      default:
-        return (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-slate-50 text-slate-700 border border-slate-200">
-            Regular Batch
-          </span>
-        );
-    }
-  };
-
   // Helper for Status Badge
   const renderAdmissionStatusBadge = (status: AdmissionRecordStatus | string) => {
     switch (status) {
@@ -664,7 +639,7 @@ export const AllAdmissions: React.FC = () => {
 
   return (
     <PermissionGate itemKey="admissions.all" mode="read">
-    <div className="p-4 sm:p-6 md:p-8 max-w-[1700px] w-full mx-auto space-y-6 bg-background min-h-screen text-foreground font-sans antialiased">
+    <div className="p-4 lg:p-6 max-w-[1400px] w-full mx-auto space-y-4 bg-background min-h-screen text-foreground font-sans">
       <ReadOnlyBanner itemKey="admissions.all" label="Admissions" />
 
       {/* ─── TOAST NOTIFICATION ─── */}
@@ -692,358 +667,134 @@ export const AllAdmissions: React.FC = () => {
         />
       ) : (
         <>
-          {/* ─── 1. BREADCRUMB & HEADER ─── */}
-          <div className="space-y-2">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-semibold">
-                <UserCheck className="h-4 w-4" />
-                <span>Counsellor Portal</span>
-              </div>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <span className="text-muted-foreground">Admissions & Counselling Desk</span>
-          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/60" />
-          <span className="text-foreground font-semibold">All Admissions</span>
-        </div>
-
-        {/* Title and Top Action */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
-              All Admissions
-            </h1>
-            <p className="text-sm text-muted-foreground font-normal mt-0.5">
-              View active student admissions, fee structures, and batch assignments across all institute departments.
-            </p>
-          </div>
-
-          <Button
-            onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground font-medium px-4.5 py-2.5 rounded-xl shadow-xs flex items-center gap-2 text-sm transition-all shrink-0 h-10 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Direct Admission Entry</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* ─── 2. KPI SUMMARY CARDS ─── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-
-        {/* Card 1: Total Admissions */}
-        <Card
-          onClick={() => { setStatusFilter("ALL"); setCourseFilter("ALL"); }}
-          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
-        >
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 flex items-center justify-center border border-blue-100 dark:border-sky-900/40 group-hover:scale-105 transition-transform">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Total Admissions</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                  {totalAdmissionsCount}
-                </h3>
-              </div>
+          {/* Header */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Admissions</h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {totalAdmissionsCount} total · {confirmedCount} confirmed · {provisionalCount} provisional
+              </p>
             </div>
-            <div className="self-end pb-1">
-              <span className="text-xs font-bold text-primary hover:underline flex items-center gap-0.5">
-                View all <ChevronRight className="h-3.5 w-3.5" />
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 2: Confirmed Seats */}
-        <Card
-          onClick={() => setStatusFilter("Confirmed")}
-          className="border border-border bg-card rounded-3xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
-        >
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-100 dark:border-emerald-900/40 group-hover:scale-105 transition-transform">
-                <CheckCircle2 className="h-6 w-6" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Confirmed Seats</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                  {confirmedCount}
-                </h3>
-              </div>
-            </div>
-            <div className="self-end pb-1">
-              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-0.5">
-                View confirmed <ChevronRight className="h-3.5 w-3.5" />
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 3: Provisional Seats */}
-        <Card
-          onClick={() => setStatusFilter("Provisional")}
-          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
-        >
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 flex items-center justify-center border border-amber-100 dark:border-amber-900/40 group-hover:scale-105 transition-transform">
-                <GraduationCap className="h-6 w-6" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Provisional Seats</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                  {provisionalCount}
-                </h3>
-              </div>
-            </div>
-            <div className="self-end pb-1">
-              <span className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-0.5">
-                View provisional <ChevronRight className="h-3.5 w-3.5" />
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Card 4: Active Batches Assigned */}
-        <Card
-          onClick={() => { setStatusFilter("ALL"); setShowAdvancedFilters(true); }}
-          className="border border-border bg-card rounded-2xl shadow-xs hover:border-primary/40 transition-all cursor-pointer group"
-        >
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center border border-purple-100 dark:border-purple-900/40 group-hover:scale-105 transition-transform">
-                <Layers className="h-6 w-6" />
-              </div>
-              <div className="space-y-0.5">
-                <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Active Batches Assigned</p>
-                <h3 className="text-2xl sm:text-3xl font-black text-foreground tracking-tight">
-                  {activeBatchesCount}
-                </h3>
-              </div>
-            </div>
-            <div className="self-end pb-1">
-              <span className="text-xs font-bold text-purple-600 dark:text-purple-400 hover:underline flex items-center gap-0.5">
-                View batches <ChevronRight className="h-3.5 w-3.5" />
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-      </div>
-
-      {/* ─── 3. SEARCH & FILTERS TOOLBAR ─── */}
-      <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-        {/* Search Input */}
-        <div className="relative flex-1">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by admission no, student name, email, or course..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="pl-10 h-10.5 bg-card border-border text-foreground placeholder:text-muted-foreground rounded-xl text-sm focus-visible:ring-1 focus-visible:ring-primary shadow-2xs"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground p-1"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Filter Dropdowns & Extra Filter Button */}
-        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          {/* Courses Dropdown */}
-          <div className="relative">
-            <select
-              value={courseFilter}
-              onChange={(e) => {
-                setCourseFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
-            >
-              <option value="ALL" className="bg-card text-foreground py-1.5">All Courses</option>
-              <option value="Full Stack Web Development" className="bg-card text-foreground py-1.5">Full Stack Web Development</option>
-              <option value="Data Science & Analytics" className="bg-card text-foreground py-1.5">Data Science & Analytics</option>
-              <option value="UI/UX Product Design" className="bg-card text-foreground py-1.5">UI/UX Product Design</option>
-              <option value="Artificial Intelligence & Python" className="bg-card text-foreground py-1.5">Artificial Intelligence & Python</option>
-              <option value="Digital Marketing" className="bg-card text-foreground py-1.5">Digital Marketing</option>
-              <option value="Advanced Excel" className="bg-card text-foreground py-1.5">Advanced Excel</option>
-              <option value="Tally Prime with GST" className="bg-card text-foreground py-1.5">Tally Prime with GST</option>
-              <option value="Web Designing" className="bg-card text-foreground py-1.5">Web Designing</option>
-              <option value="Python Programming" className="bg-card text-foreground py-1.5">Python Programming</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
-              <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
-                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Status Dropdown */}
-          <div className="relative">
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setCurrentPage(1);
-              }}
-              className="h-10.5 px-3.5 pr-8 bg-card border border-border rounded-xl text-xs font-semibold text-foreground appearance-none focus:outline-none focus:ring-1 focus:ring-primary shadow-2xs cursor-pointer hover:bg-muted/40"
-            >
-              <option value="ALL" className="bg-card text-foreground py-1.5">All Statuses</option>
-              <option value="Confirmed" className="bg-card text-foreground py-1.5">Confirmed</option>
-              <option value="Provisional" className="bg-card text-foreground py-1.5">Provisional</option>
-              <option value="Admission Pending" className="bg-card text-foreground py-1.5">Admission Pending</option>
-              <option value="Cancelled" className="bg-card text-foreground py-1.5">Cancelled</option>
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2.5 text-muted-foreground">
-              <svg className="h-3.5 w-3.5 fill-current" viewBox="0 0 20 20">
-                <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
-              </svg>
-            </div>
-          </div>
-
-          {/* Advanced Filters Button */}
-          <Button
-            variant="outline"
-            onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-            className={`h-10.5 px-3.5 border-border text-foreground bg-card hover:bg-muted/50 rounded-xl text-xs font-semibold gap-1.5 shadow-2xs transition-all cursor-pointer ${showAdvancedFilters || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL"
-                ? "border-primary text-primary bg-primary/10"
-                : ""
-              }`}
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5" />
-            <span>Filters</span>
-            {(batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL") && (
-              <span className="h-2 w-2 rounded-full bg-primary" />
-            )}
-          </Button>
-
-          {/* Reset Filters */}
-          {(searchTerm || courseFilter !== "ALL" || statusFilter !== "ALL" || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL") && (
             <Button
-              variant="ghost"
               size="sm"
-              onClick={() => {
-                setSearchTerm("");
-                setCourseFilter("ALL");
-                setStatusFilter("ALL");
-                setBatchTypeFilter("ALL");
-                setFeeStatusFilter("ALL");
-                setCurrentPage(1);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground h-10.5 px-2 cursor-pointer"
+              onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+              className="h-9 gap-1.5 shrink-0"
             >
-              Reset
+              <Plus className="h-3.5 w-3.5" />
+              New admission
             </Button>
-          )}
-        </div>
-      </div>
-
-      {/* ─── ADVANCED FILTER DRAWER / PANEL ─── */}
-      {showAdvancedFilters && (
-        <Card className="border border-border bg-muted/30 rounded-2xl p-5 animate-in fade-in slide-in-from-top-2 duration-150 shadow-2xs">
-          <div className="flex items-center justify-between pb-3 border-b border-border mb-3">
-            <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
-              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" /> Extended Filter Options
-            </span>
-            <button
-              onClick={() => setShowAdvancedFilters(false)}
-              className="text-xs text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Batch Schedule Type</label>
-              <select
-                value={batchTypeFilter}
-                onChange={(e) => {
-                  setBatchTypeFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
-              >
-                <option value="ALL" className="bg-card text-foreground py-1.5">All Batch Schedules</option>
-                <option value="Morning Batch" className="bg-card text-foreground py-1.5">Morning Batch</option>
-                <option value="Evening Batch" className="bg-card text-foreground py-1.5">Evening Batch</option>
-                <option value="Weekend Batch" className="bg-card text-foreground py-1.5">Weekend Batch</option>
-              </select>
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Fee Payment Status</label>
-              <select
-                value={feeStatusFilter}
-                onChange={(e) => {
-                  setFeeStatusFilter(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="w-full h-9.5 px-3 bg-card border border-border rounded-xl text-xs text-foreground font-medium"
-              >
-                <option value="ALL" className="bg-card text-foreground py-1.5">All Fee Statuses</option>
-                <option value="Paid" className="bg-card text-foreground py-1.5">Fully Paid</option>
-                <option value="Due" className="bg-card text-foreground py-1.5">Balance Due</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-muted-foreground mb-1">Quick Action</label>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setBatchTypeFilter("ALL");
-                    setFeeStatusFilter("ALL");
+          {/* Toolbar */}
+          <div className="rounded-xl border border-border bg-card p-3 shadow-xs space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="relative flex-1 min-w-[200px]">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  placeholder="Search name, admission no, phone..."
+                  value={searchTerm}
+                  onChange={(e) => {
+                    setSearchTerm(e.target.value);
+                    setCurrentPage(1);
                   }}
-                  variant="outline"
-                  className="w-full text-xs h-9.5 bg-card border-border text-foreground hover:bg-muted/50 cursor-pointer"
-                >
-                  Clear Extended
-                </Button>
+                  className="h-9 pl-8 text-xs rounded-lg"
+                />
               </div>
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
+              >
+                <option value="ALL">All statuses</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Provisional">Provisional</option>
+                <option value="Admission Pending">Pending</option>
+                <option value="Cancelled">Cancelled</option>
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowFilters((v) => !v)}
+                className="h-9 gap-1.5 text-xs shrink-0"
+              >
+                <Filter className="h-3.5 w-3.5" />
+                More
+              </Button>
             </div>
-          </div>
-        </Card>
-      )}
 
-      {/* ─── 4. ADMISSIONS DATA TABLE CARD ─── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
+            {showFilters && (
+              <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-border">
+                <select
+                  value={courseFilter}
+                  onChange={(e) => {
+                    setCourseFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
+                >
+                  <option value="ALL">All courses</option>
+                  {courseOptions.map((name) => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
+                <select
+                  value={feeStatusFilter}
+                  onChange={(e) => {
+                    setFeeStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="h-9 px-3 text-xs font-medium border border-border rounded-lg bg-background"
+                >
+                  <option value="ALL">All fees</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Due">Due</option>
+                </select>
+                {(searchTerm || courseFilter !== "ALL" || statusFilter !== "ALL" || batchTypeFilter !== "ALL" || feeStatusFilter !== "ALL") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setCourseFilter("ALL");
+                      setStatusFilter("ALL");
+                      setBatchTypeFilter("ALL");
+                      setFeeStatusFilter("ALL");
+                      setCurrentPage(1);
+                    }}
+                    className="h-9 text-xs text-muted-foreground"
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Table */}
+          <Card className="border border-border shadow-xs rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader className="bg-muted/50 border-b border-border">
+            <TableHeader className="bg-muted/40 border-b border-border">
               <TableRow className="hover:bg-transparent border-border">
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider pl-6">
-                  Adm No.
+                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground pl-5">
+                  Student
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
-                  Student Details
-                </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
+                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Course
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
-                  Assigned Batch
+                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden md:table-cell">
+                  Batch
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
-                  Fee Plan
-                </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
+                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Status
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider">
-                  Admission Date
+                <TableHead className="py-2.5 px-4 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground hidden sm:table-cell">
+                  Date
                 </TableHead>
-                <TableHead className="py-3.5 px-4 font-bold text-foreground text-[11px] uppercase tracking-wider text-right pr-6">
-                  Actions
-                </TableHead>
+                <TableHead className="py-2.5 px-4 w-10" />
               </TableRow>
             </TableHeader>
 
@@ -1053,242 +804,52 @@ export const AllAdmissions: React.FC = () => {
                   <TableRow
                     key={adm.id}
                     onClick={() => handleOpenDetails(adm)}
-                    className="hover:bg-muted/40 transition-colors cursor-pointer group border-border"
+                    className="hover:bg-muted/30 transition-colors cursor-pointer group border-border"
                   >
-                    {/* 1. Adm No */}
-                    <TableCell className="py-4 px-4 pl-6 align-middle">
-                      <div className="flex items-center gap-1.5 font-medium text-foreground text-xs">
-                        <span className="font-mono">{adm.admissionNo}</span>
-                        <button
-                          type="button"
-                          onClick={(e) => handleCopyAdmNo(adm.admissionNo, e)}
-                          className="text-muted-foreground hover:text-primary transition-colors p-1 rounded-sm hover:bg-muted/50 cursor-pointer"
-                          title="Copy Admission Number"
-                        >
-                          {copiedAdmNo === adm.admissionNo ? (
-                            <Check className="h-3.5 w-3.5 text-emerald-500" />
-                          ) : (
-                            <Copy className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      </div>
-                    </TableCell>
-
-                    {/* 2. Student Details */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9 border border-border shadow-2xs">
-                          <AvatarImage src={adm.avatar} alt={adm.studentName} className="object-cover" />
-                          <AvatarFallback className="bg-muted text-foreground font-semibold text-xs">
+                    <TableCell className="py-3 px-4 pl-5 align-middle">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <Avatar className="h-8 w-8 border border-border shrink-0">
+                          <AvatarImage src={adm.avatar} alt={adm.studentName} />
+                          <AvatarFallback className="text-[10px] font-semibold">
                             {adm.studentName.slice(0, 2).toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
-                        <div className="space-y-0.5">
-                          <h4 className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">
-                            {adm.studentName}
-                          </h4>
-                          <p className="text-xs text-muted-foreground font-normal">
-                            {adm.email}
-                          </p>
-                          <p className="text-xs text-muted-foreground font-normal">
-                            {adm.phone}
-                          </p>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{adm.studentName}</p>
+                          <p className="text-[11px] text-muted-foreground font-mono truncate">{adm.admissionNo}</p>
                         </div>
                       </div>
                     </TableCell>
 
-                    {/* 3. Course */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-bold text-foreground">
-                          {adm.courseName}
-                        </p>
-                        <p className="text-xs text-muted-foreground font-normal">
-                          {adm.programDuration}
-                        </p>
-                      </div>
+                    <TableCell className="py-3 px-4 align-middle">
+                      <p className="text-xs font-medium text-foreground truncate max-w-[140px]">{adm.courseName}</p>
+                      <p className="text-[11px] text-muted-foreground md:hidden truncate">{adm.batchCode}</p>
                     </TableCell>
 
-                    {/* 4. Assigned Batch */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-foreground font-mono">
-                          {adm.batchCode}
-                        </p>
-                        <div>
-                          {renderBatchBadge(adm.batchType)}
-                        </div>
-                        <p className="text-[11px] text-muted-foreground font-normal">
-                          {adm.batchTiming}
-                        </p>
-                      </div>
+                    <TableCell className="py-3 px-4 align-middle hidden md:table-cell">
+                      <p className="text-xs text-foreground font-mono">{adm.batchCode || "—"}</p>
                     </TableCell>
 
-                    {/* 5. Fee Plan */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="space-y-1">
-                        <p className="text-xs font-bold text-foreground">
-                          {adm.feePlan}
-                        </p>
-                        <div>
-                          {adm.feePaymentStatus === "Paid" ? (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-900/50">
-                              Paid
-                            </span>
-                          ) : (
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-200/60 dark:border-rose-900/50">
-                              Due
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs font-bold text-foreground">
-                          ₹{adm.finalFee.toLocaleString()}
-                        </p>
-                      </div>
-                    </TableCell>
-
-                    {/* 6. Status */}
-                    <TableCell className="py-4 px-4 align-middle">
+                    <TableCell className="py-3 px-4 align-middle">
                       {renderAdmissionStatusBadge(adm.status)}
                     </TableCell>
 
-                    {/* 7. Admission Date */}
-                    <TableCell className="py-4 px-4 align-middle">
-                      <div className="space-y-0.5">
-                        <p className="text-xs font-medium text-foreground">
-                          {adm.admissionDate}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {adm.admissionTime}
-                        </p>
-                      </div>
+                    <TableCell className="py-3 px-4 align-middle hidden sm:table-cell">
+                      <p className="text-xs text-muted-foreground">{adm.admissionDate}</p>
                     </TableCell>
 
-                    {/* 8. Actions */}
-                    <TableCell className="py-4 px-4 pr-6 align-middle text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenDetails(adm)}
-                          className="h-8 px-2.5 text-xs font-semibold border-border text-foreground hover:text-primary hover:bg-muted/50 rounded-lg gap-1 shadow-2xs transition-all cursor-pointer"
-                        >
-                          <Eye className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary" />
-                          <span>View</span>
-                        </Button>
-
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted/50 cursor-pointer"
-                            >
-                              <MoreVertical className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-56 bg-popover border border-border text-popover-foreground shadow-lg rounded-xl p-1.5 text-xs">
-                            <DropdownMenuLabel className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2 py-1">
-                              Admission Actions
-                            </DropdownMenuLabel>
-
-                            <DropdownMenuItem
-                              onClick={() => handleOpenDetails(adm)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <FileText className="h-3.5 w-3.5 mr-2 text-primary" />
-                              View Admission
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => handleOpenDetails(adm)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <Edit className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                              Edit Admission
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setSelectedAdmission(adm);
-                                setTargetBatchId(adm.batchCode);
-                                setIsChangeBatchOpen(true);
-                              }}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <RefreshCw className="h-3.5 w-3.5 mr-2 text-purple-500" />
-                              Change Batch
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => {
-                                handleOpenDetails(adm);
-                                setActiveTab("fee");
-                              }}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <CreditCard className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                              Update Fee Plan
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => handleUpdateAdmissionStatus(adm.id, adm.status === "Confirmed" ? "Provisional" : "Confirmed")}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5 mr-2 text-emerald-500" />
-                              Toggle Confirmed Status
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => window.print()}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <Printer className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                              Print Admission
-                            </DropdownMenuItem>
-
-                            <DropdownMenuItem
-                              onClick={() => showToast(`Downloading PDF dossier for ${adm.admissionNo}...`)}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-foreground hover:bg-muted/50"
-                            >
-                              <Download className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
-                              Download Admission Details
-                            </DropdownMenuItem>
-
-                            <DropdownMenuSeparator className="my-1 border-border" />
-
-                            <DropdownMenuItem
-                              onClick={() => handleUpdateAdmissionStatus(adm.id, "Cancelled")}
-                              className="cursor-pointer font-medium py-2 rounded-lg text-rose-500 hover:bg-rose-500/10"
-                            >
-                              <XCircle className="h-3.5 w-3.5 mr-2 text-rose-500" />
-                              Cancel Admission
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
+                    <TableCell className="py-3 px-4 pr-4 align-middle text-right">
+                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary inline-block" />
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={8} className="h-44 text-center">
-                    <div className="flex flex-col items-center justify-center gap-2 text-muted-foreground">
-                      <GraduationCap className="h-8 w-8 text-muted-foreground/60 stroke-[1.5]" />
-                      <p className="text-sm font-semibold text-foreground">No admission records found</p>
-                      <p className="text-xs text-muted-foreground">Try changing your search terms or filter selections.</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSearchTerm("");
-                          setCourseFilter("ALL");
-                          setStatusFilter("ALL");
-                        }}
-                        className="mt-2 text-xs border-border text-foreground hover:bg-muted/50 cursor-pointer"
-                      >
-                        Reset Filters
-                      </Button>
+                  <TableCell colSpan={6} className="h-32 text-center">
+                    <div className="flex flex-col items-center justify-center gap-1 text-muted-foreground py-6">
+                      <GraduationCap className="h-7 w-7 text-muted-foreground/50" />
+                      <p className="text-sm font-medium text-foreground">No admissions found</p>
+                      <p className="text-xs">Try adjusting search or filters.</p>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -1297,65 +858,30 @@ export const AllAdmissions: React.FC = () => {
           </Table>
         </div>
 
-        {/* ─── 5. PAGINATION FOOTER ─── */}
-        <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-4 bg-card text-muted-foreground">
-          <p className="text-xs font-medium">
-            Showing <span className="font-semibold text-foreground">{filteredAdmissions.length > 0 ? (currentPage - 1) * pageSize + 1 : 0}</span> to{" "}
-            <span className="font-semibold text-foreground">{Math.min(currentPage * pageSize, filteredAdmissions.length)}</span> of{" "}
-            <span className="font-semibold text-foreground">{totalAdmissionsCount}</span> admissions
-          </p>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center gap-1.5">
-            <button
-              onClick={() => setCurrentPage(1)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 1
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
-                }`}
+        <div className="px-4 py-3 border-t border-border flex items-center justify-between text-xs text-muted-foreground">
+          <span>
+            {(currentPage - 1) * pageSize + 1}–{Math.min(currentPage * pageSize, filteredAdmissions.length)} of {filteredAdmissions.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
             >
-              1
-            </button>
-
-            <button
-              onClick={() => setCurrentPage(2)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 2
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
-                }`}
+              <ChevronRight className="h-3.5 w-3.5 rotate-180" />
+            </Button>
+            <span className="text-foreground font-medium">Page {currentPage}</span>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={currentPage * pageSize >= filteredAdmissions.length}
+              onClick={() => setCurrentPage((p) => p + 1)}
             >
-              2
-            </button>
-
-            <button
-              onClick={() => setCurrentPage(3)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 3
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
-                }`}
-            >
-              3
-            </button>
-
-            <span className="px-1 text-muted-foreground text-xs">...</span>
-
-            <button
-              onClick={() => setCurrentPage(18)}
-              className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === 18
-                  ? "bg-primary text-primary-foreground shadow-xs"
-                  : "bg-card text-foreground hover:bg-muted/50 border border-border"
-                }`}
-            >
-              18
-            </button>
-
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(p + 1, 18))}
-              className="h-8 px-3 rounded-lg text-xs font-semibold text-foreground bg-card hover:bg-muted/50 border border-border transition-all flex items-center gap-1 ml-1 cursor-pointer"
-            >
-              <span>Next</span>
               <ChevronRight className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           </div>
         </div>
       </Card>

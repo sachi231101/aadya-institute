@@ -368,4 +368,11 @@ describe("Admissions Workflow Integration Tests", () => {
       (err: Error) => err.message.includes("not found")
     );
   });
+
+  test("getAdmissions accepts AuthUser and returns paginated list", async () => {
+    const result = await AdmissionsService.getAdmissions(adminUser, { page: 1, limit: 5 });
+    assert.ok(Array.isArray(result.data));
+    assert.ok(typeof result.total === "number");
+    assert.ok(result.total >= 1);
+  });
 });
