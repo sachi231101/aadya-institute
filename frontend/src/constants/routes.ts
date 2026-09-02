@@ -37,12 +37,20 @@ export const ROUTES = {
       PERFORMANCE: "/admin/students/performance",
       DISCONTINUATION: "/admin/students/discontinuation-risk",
     },
+    BATCHES: {
+      ALL: "/admin/batches",
+      CREATE: "/admin/batches",
+      DETAIL: (id: string) => `/admin/batches/${id}`,
+      /** @deprecated Use COURSES.COURSE_ASSIGNMENT or batch details */
+      FACULTY_ALLOCATION: "/admin/courses/course-assignment",
+    },
     FACULTY: {
       ALL: "/admin/faculty/all",
       DETAIL: (id: string) => `/admin/faculty/${id}`,
-      FACULTY_ALLOCATION: "/admin/faculty/faculty-allocation",
+      /** @deprecated Faculty assign at batch create / course assignment / batch details */
+      FACULTY_ALLOCATION: "/admin/courses/course-assignment",
       /** @deprecated Use FACULTY_ALLOCATION */
-      BATCH_ASSIGNMENT: "/admin/faculty/faculty-allocation",
+      BATCH_ASSIGNMENT: "/admin/courses/course-assignment",
       /** @deprecated moved to Course Management */
       COURSE_ASSIGNMENT: "/admin/courses/course-assignment",
       ATTENDANCE: "/admin/faculty/attendance",
@@ -54,13 +62,6 @@ export const ROUTES = {
       CURRICULUM: "/admin/courses/curriculum",
       MODULES: "/admin/courses/modules",
       COURSE_ASSIGNMENT: "/admin/courses/course-assignment",
-    },
-    BATCHES: {
-      ALL: "/admin/batches",
-      CREATE: "/admin/batches/create",
-      DETAIL: (id: string) => `/admin/batches/${id}`,
-      /** @deprecated Use FACULTY.FACULTY_ALLOCATION */
-      FACULTY_ALLOCATION: "/admin/faculty/faculty-allocation",
     },
     SCHEDULE: {
       TIMETABLE: "/admin/schedule/timetable",

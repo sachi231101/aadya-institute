@@ -97,11 +97,10 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "faculty_management",
     label: "Faculty Management",
-    description: "Faculty profiles, batch assignment, attendance, and ratings",
+    description: "Faculty profiles, attendance, and ratings (batch faculty is set when creating a batch)",
     category: "ERP Modules",
     items: [
       { key: "faculty.all", label: "All Faculty", readPermissions: ["faculty.read"], writePermissions: ["faculty.create", "faculty.update"] },
-      { key: "faculty.faculty_allocation", label: "Assign Faculty to Batches", readPermissions: ["faculty.read", "batch.read"], writePermissions: ["faculty.update", "batch.update"] },
       { key: "faculty.attendance", label: "Faculty Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
       { key: "faculty.performance", label: "Faculty Ratings & Feedback", readPermissions: ["feedback.read", "report.read"], writePermissions: [] },
     ],
@@ -115,17 +114,16 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "courses.all", label: "All Courses", readPermissions: ["course.read"], writePermissions: ["course.create", "course.update"] },
       { key: "courses.curriculum", label: "Course Curriculum", readPermissions: ["module.read", "course.read"], writePermissions: ["module.create", "module.update"] },
       { key: "courses.modules", label: "Course Curriculum", readPermissions: ["module.read"], writePermissions: ["module.create", "module.update"] },
-      { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: ["faculty.update"] },
+      { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: ["faculty.update", "batch.update"] },
     ],
   },
   {
     key: "batch_management",
     label: "Batch Management",
-    description: "Batches and scheduling",
+    description: "Batches and scheduling (create and assign faculty from All Batches)",
     category: "ERP Modules",
     items: [
       { key: "batches.all", label: "All Batches", readPermissions: ["batch.read"], writePermissions: ["batch.create", "batch.update"] },
-      { key: "batches.create", label: "Create Batch", readPermissions: ["batch.read"], writePermissions: ["batch.create"] },
     ],
   },
   {

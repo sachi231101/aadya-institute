@@ -111,7 +111,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/center/faculty/all", itemKey: "faculty.all" },
-      { title: L["faculty.faculty_allocation"] ?? "Assign Faculty to Batches", url: "/center/faculty/faculty-allocation", itemKey: "faculty.faculty_allocation" },
       { title: L["faculty.attendance"] ?? "Faculty Attendance", url: "/center/faculty/attendance", itemKey: "faculty.attendance" },
       { title: L["faculty.performance"] ?? "Faculty Ratings & Feedback", url: "/center/faculty/ratings", itemKey: "faculty.performance" },
     ],
@@ -134,7 +133,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "batches",
     items: [
       { title: "All Batches", url: "/center/batches", itemKey: "batches.all" },
-      { title: "Create Batch", url: "/center/batches/create", itemKey: "batches.create" },
     ],
   },
   {

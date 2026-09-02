@@ -1,23 +1,31 @@
-import React from "react";
-import { Link, useLocation } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
-import { Loader2, ExternalLink, UserCheck } from "lucide-react";
+import React, { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Loader2, UserCheck } from "lucide-react";
 import { batchesApi } from "@/services/batches.api";
-import { ROUTES } from "@/constants/routes";
+import { useFacultyAllocation } from "@/hooks/useFacultyAllocation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   batchId: string;
 }
 
 export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
-  const location = useLocation();
-  const isCenterPortal = location.pathname.startsWith("/center");
+  const queryClient = useQueryClient();
+  const { facultyList, loadingFaculty, assignFacultyToBatch, invalidateAllocation } =
+    useFacultyAllocation();
 
-  const allocationPath = isCenterPortal
-    ? `/center/faculty/faculty-allocation?batchId=${batchId}`
-    : `${ROUTES.ADMIN.FACULTY.FACULTY_ALLOCATION}?batchId=${batchId}`;
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [targetFacultyId, setTargetFacultyId] = useState("");
+  const [actionError, setActionError] = useState("");
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ["batches", batchId],
@@ -28,6 +36,29 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
   const batch = data?.data;
   const faculty = batch?.faculty;
 
+  const assignMutation = useMutation({
+    mutationFn: (facultyId: string) => assignFacultyToBatch(batchId, facultyId),
+    onSuccess: async () => {
+      await Promise.all([
+        invalidateAllocation(),
+        queryClient.invalidateQueries({ queryKey: ["batches", batchId] }),
+      ]);
+      setDialogOpen(false);
+      setActionError("");
+    },
+    onError: (err: unknown) => {
+      const message = (err as { response?: { data?: { message?: string } } })?.response?.data
+        ?.message;
+      setActionError(message || "Failed to assign faculty");
+    },
+  });
+
+  const openAssignDialog = () => {
+    setTargetFacultyId(faculty?.id || facultyList[0]?.id || "");
+    setActionError("");
+    setDialogOpen(true);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -37,14 +68,11 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
             Assigned Faculty
           </h3>
           <p className="text-sm text-text-secondary">
-            Faculty member responsible for delivering this batch.
+            Faculty is usually set when creating the batch. You can reassign here if needed.
           </p>
         </div>
-        <Button asChild>
-          <Link to={allocationPath}>
-            Manage in Assign Faculty to Batches
-            <ExternalLink className="w-4 h-4 ml-2" />
-          </Link>
+        <Button onClick={openAssignDialog} disabled={loadingFaculty}>
+          {faculty?.user?.name ? "Reassign Faculty" : "Assign Faculty"}
         </Button>
       </div>
 
@@ -77,11 +105,52 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
             </dl>
           ) : (
             <p className="text-sm text-text-secondary text-center py-4">
-              No faculty assigned yet. Use Assign Faculty to Batches to assign an instructor to this batch.
+              No faculty assigned yet. Assign an instructor from here or when creating the batch.
             </p>
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{faculty?.user?.name ? "Reassign Faculty" : "Assign Faculty"}</DialogTitle>
+            <DialogDescription>
+              Select the faculty member responsible for this batch.
+            </DialogDescription>
+          </DialogHeader>
+          {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+          <select
+            value={targetFacultyId}
+            onChange={(e) => setTargetFacultyId(e.target.value)}
+            className="w-full h-10 px-3 border rounded-md text-sm"
+          >
+            <option value="">Select faculty</option>
+            {facultyList.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.user?.name || "Unnamed"} ({f.employeeCode || "—"})
+              </option>
+            ))}
+          </select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={!targetFacultyId || assignMutation.isPending}
+              onClick={() => assignMutation.mutate(targetFacultyId)}
+            >
+              {assignMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...
+                </>
+              ) : (
+                "Save Assignment"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
