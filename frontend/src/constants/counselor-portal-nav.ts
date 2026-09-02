@@ -96,7 +96,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/counselor/faculty/all", itemKey: "faculty.all" },
-      { title: "Assigned Courses", url: "/counselor/faculty/courses", itemKey: "faculty.course_assignment" },
+      { title: "Assigned Courses", url: "/counselor/faculty/courses", itemKey: "courses.course_assignment" },
       { title: "Attendance", url: "/counselor/faculty/attendance", itemKey: "faculty.attendance" },
     ],
   },

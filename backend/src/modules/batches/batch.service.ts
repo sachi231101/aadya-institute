@@ -1,46 +1,11 @@
 import * as repository from "./batch.repository";
 import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto, GenerateSessionsDto } from "./batch.types";
 import { AppError } from "../../middlewares/error.middleware";
-import { triggerNotification } from "../whatsapp/whatsapp.service";
-import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { prisma } from "../../config/database";
-import { logger } from "../../config/logger";
 import { eachDateInRange, formatDateKey } from "./batch-schedule.util";
-
-const triggerBatchAssignedNotification = async (studentId: string, batchId: string) => {
-  try {
-    const student = await prisma.student.findUnique({
-      where: { id: studentId },
-      include: { user: true },
-    });
-    const batch = await prisma.batch.findUnique({
-      where: { id: batchId },
-      include: { course: true },
-    });
-
-    if (!student || !batch) return;
-
-    const idempotencyKey = buildIdempotencyKey.BATCH_ASSIGNED(studentId, batchId);
-
-    await triggerNotification({
-      instituteId: student.instituteId,
-      studentId: student.id,
-      event: NotificationEvent.BATCH_ASSIGNED,
-      idempotencyKey,
-      templateParams: {
-        student_name: student.user?.name ?? "Student",
-        batch_name: batch.name,
-        course_name: batch.course?.name ?? "Course",
-      },
-      metadata: {
-        batchId,
-        courseId: batch.courseId,
-      },
-    });
-  } catch (err) {
-    logger.error({ err, studentId, batchId }, "[batches] Failed to trigger batch assigned notification");
-  }
-};
+import * as studentAllocationService from "../students/student-allocation.service";
+import * as facultyAllocationService from "../faculty/faculty-allocation.service";
+import type { AuthUser } from "../auth/auth.types";
 
 export const getBatches = async (instituteId: string, branchId?: string, filters: BatchQueryFilters = {}) => {
   return repository.findAllBatches(instituteId, branchId, filters);
@@ -74,25 +39,32 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
   return repository.updateBatch(id, instituteId, data);
 };
 
-export const assignFaculty = async (id: string, instituteId: string, facultyId: string) => {
-  await getBatchById(id, instituteId);
-  return repository.assignFacultyToBatch(id, instituteId, facultyId);
+export const assignFaculty = async (id: string, currentUser: AuthUser, facultyId: string) => {
+  return facultyAllocationService.assignFacultyToBatch(currentUser, id, facultyId);
 };
 
 export const enrollStudent = async (batchId: string, instituteId: string, studentId: string, admissionId?: string) => {
-  await getBatchById(batchId, instituteId);
-  const enrollment = await repository.enrollStudentInBatch(batchId, studentId, admissionId);
-
-  setImmediate(() => {
-    triggerBatchAssignedNotification(studentId, batchId);
-  });
-
-  return enrollment;
+  return studentAllocationService.assignStudentToBatch(batchId, studentId, instituteId, admissionId);
 };
 
 export const removeStudent = async (batchId: string, instituteId: string, studentId: string) => {
-  await getBatchById(batchId, instituteId);
-  return repository.removeStudentFromBatch(batchId, studentId);
+  return studentAllocationService.removeStudentFromBatch(batchId, studentId, instituteId);
+};
+
+export const transferStudent = async (
+  studentId: string,
+  fromBatchId: string,
+  toBatchId: string,
+  instituteId: string,
+  admissionId?: string
+) => {
+  return studentAllocationService.transferStudent(
+    studentId,
+    fromBatchId,
+    toBatchId,
+    instituteId,
+    admissionId
+  );
 };
 
 export const getBatchStudents = async (batchId: string, instituteId: string) => {

@@ -103,6 +103,21 @@ export const batchesApi = {
     return response.data;
   },
 
+  transferStudent: async (
+    studentId: string,
+    fromBatchId: string,
+    toBatchId: string,
+    admissionId?: string
+  ) => {
+    const response = await api.post<{ success: boolean }>("/batches/transfer-student", {
+      studentId,
+      fromBatchId,
+      toBatchId,
+      admissionId,
+    });
+    return response.data;
+  },
+
   delete: async (id: string) => {
     const response = await api.delete<{ success: boolean; data: BatchData }>(`/batches/${id}`);
     return response.data;

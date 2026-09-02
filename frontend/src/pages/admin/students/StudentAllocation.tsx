@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   GraduationCap,
   Search,
@@ -26,9 +26,8 @@ import {
   Building2,
   BookOpen
 } from "lucide-react";
-import { batchesApi } from "../../../services/batches.api";
-import { studentsApi } from "../../../services/students.api";
 import { useBranches } from "@/hooks/useBranches";
+import { useStudentAllocation } from "@/hooks/useStudentAllocation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -56,19 +55,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface EnrolledBatchInfo {
-  batchId: string;
-  batchCode: string;
-  batchName: string;
-  courseName: string;
-  branchName?: string;
-  timeSlot?: string;
-  startDate?: string;
-  facultyName?: string;
-}
+export const StudentAllocation: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialBatchId = searchParams.get("batchId") ?? "";
 
-export const AssignStudents: React.FC = () => {
-  const queryClient = useQueryClient();
+  const {
+    batches,
+    students,
+    enrolledMap,
+    loadingBatches,
+    loadingStudents,
+    invalidateAllocation,
+    assignStudentsToBatch,
+    transferStudent,
+    removeStudentFromBatch,
+  } = useStudentAllocation();
 
   // Filter & Search States
   const [searchTerm, setSearchTerm] = useState("");
@@ -107,23 +108,16 @@ export const AssignStudents: React.FC = () => {
   } | null>(null);
   const [isRemoving, setIsRemoving] = useState(false);
 
-  // 1. Fetch Batches
-  const { data: batchesRes, isLoading: loadingBatches } = useQuery({
-    queryKey: ["batches"],
-    queryFn: () => batchesApi.getAll(),
-  });
-  const batches = batchesRes?.data || [];
-
-  // 2. Fetch Students
-  const { data: studentsRes, isLoading: loadingStudents } = useQuery({
-    queryKey: ["students"],
-    queryFn: () => studentsApi.getAll({ limit: 200 }),
-  });
-  const students = studentsRes?.data || [];
-
   // 3. Fetch Branches
   const { data: branchesRes } = useBranches({ limit: 50 });
   const branches = branchesRes?.data || [];
+
+  // Pre-select batch from URL deep-link
+  useEffect(() => {
+    if (initialBatchId && batches.some((b) => b.id === initialBatchId)) {
+      setSelectedTargetBatchId(initialBatchId);
+    }
+  }, [initialBatchId, batches]);
 
   // Default target batch selection
   const targetBatch = useMemo(() => {
@@ -132,30 +126,6 @@ export const AssignStudents: React.FC = () => {
     }
     return batches[0] || null;
   }, [batches, selectedTargetBatchId]);
-
-  // Map student ID to enrolled batch info directly from batches data
-  const enrolledMap = useMemo(() => {
-    const map = new Map<string, EnrolledBatchInfo>();
-    batches.forEach((b) => {
-      if (Array.isArray(b.enrollments)) {
-        b.enrollments.forEach((e) => {
-          if (e.studentId) {
-            map.set(e.studentId, {
-              batchId: b.id,
-              batchCode: b.code,
-              batchName: b.name,
-              courseName: b.course?.name || "Course",
-              branchName: b.branch?.name || "Aadya Central Branch",
-              timeSlot: b.timeSlot || "10:00 AM - 12:00 PM",
-              startDate: b.startDate,
-              facultyName: b.faculty?.user?.name || "Faculty",
-            });
-          }
-        });
-      }
-    });
-    return map;
-  }, [batches]);
 
   // Unique Courses for filter
   const uniqueCourses = useMemo(() => {
@@ -263,19 +233,8 @@ export const AssignStudents: React.FC = () => {
 
     try {
       const studentIdsArray = Array.from(selectedStudentIds);
-
-      // Sequential enrollments to ensure all succeed
-      await Promise.all(
-        studentIdsArray.map(async (sId) => {
-          const oldInfo = enrolledMap.get(sId);
-          if (oldInfo && oldInfo.batchId !== targetBatch.id) {
-            await batchesApi.removeStudent(oldInfo.batchId, sId);
-          }
-          await batchesApi.enrollStudent(targetBatch.id, sId);
-        })
-      );
-
-      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      await assignStudentsToBatch(targetBatch.id, studentIdsArray, enrolledMap);
+      await invalidateAllocation();
       setSuccessMsg(`Successfully assigned ${studentIdsArray.length} students to ${targetBatch.code} (${targetBatch.name}).`);
       setTimeout(() => setSuccessMsg(null), 4500);
       setSelectedStudentIds(new Set());
@@ -294,13 +253,14 @@ export const AssignStudents: React.FC = () => {
     setActionError(null);
 
     try {
-      if (transferModalStudent.currentBatchId && transferModalStudent.currentBatchId !== transferTargetBatchId) {
-        await batchesApi.removeStudent(transferModalStudent.currentBatchId, transferModalStudent.id);
-      }
-      await batchesApi.enrollStudent(transferTargetBatchId, transferModalStudent.id);
+      await transferStudent(
+        transferModalStudent.id,
+        transferModalStudent.currentBatchId,
+        transferTargetBatchId
+      );
 
       const targetB = batches.find((b) => b.id === transferTargetBatchId);
-      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      await invalidateAllocation();
 
       setSuccessMsg(`Successfully transferred ${transferModalStudent.name} to ${targetB?.code || "new batch"}.`);
       setTimeout(() => setSuccessMsg(null), 4500);
@@ -319,8 +279,8 @@ export const AssignStudents: React.FC = () => {
     setActionError(null);
 
     try {
-      await batchesApi.removeStudent(removeModalStudent.batchId, removeModalStudent.id);
-      await queryClient.invalidateQueries({ queryKey: ["batches"] });
+      await removeStudentFromBatch(removeModalStudent.batchId, removeModalStudent.id);
+      await invalidateAllocation();
 
       setSuccessMsg(`Removed ${removeModalStudent.name} from batch ${removeModalStudent.batchCode}.`);
       setTimeout(() => setSuccessMsg(null), 4500);

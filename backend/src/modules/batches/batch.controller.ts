@@ -116,8 +116,8 @@ export const assignFaculty = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    await service.assignFaculty(req.params.id as string, instituteId, req.body.facultyId);
+    const user = toAuthUser(req);
+    await service.assignFaculty(req.params.id as string, user, req.body.facultyId);
     res.json({
       success: true,
       message: "Faculty assigned to batch successfully",
@@ -180,6 +180,31 @@ export const removeStudent = async (
     res.json({
       success: true,
       message: "Student removed from batch successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const transferStudent = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const instituteId = req.user!.instituteId;
+    const { studentId, fromBatchId, toBatchId, admissionId } = req.body;
+    const enrollment = await service.transferStudent(
+      studentId,
+      fromBatchId,
+      toBatchId,
+      instituteId,
+      admissionId
+    );
+    res.json({
+      success: true,
+      message: "Student transferred successfully",
+      data: enrollment,
     });
   } catch (error) {
     next(error);

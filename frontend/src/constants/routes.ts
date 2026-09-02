@@ -24,14 +24,15 @@ export const ROUTES = {
     COUNSELLORS: {
       ALL: "/admin/counsellors",
       LEAD_ALLOCATION: "/admin/counsellors/lead-allocation",
-      STUDENT_ALLOCATION: "/admin/counsellors/student-allocation",
       PERFORMANCE: "/admin/counsellors/performance",
     },
     STUDENTS: {
       ALL: "/admin/students/all",
       DETAIL: (id: string) => `/admin/students/${id}`,
       DOCUMENTS: "/admin/students/documents",
-      BATCH_ALLOCATION: "/admin/students/batch-allocation",
+      STUDENT_ALLOCATION: "/admin/students/student-allocation",
+      /** @deprecated Use STUDENT_ALLOCATION */
+      BATCH_ALLOCATION: "/admin/students/student-allocation",
       ATTENDANCE: "/admin/students/attendance",
       PERFORMANCE: "/admin/students/performance",
       DISCONTINUATION: "/admin/students/discontinuation-risk",
@@ -39,8 +40,11 @@ export const ROUTES = {
     FACULTY: {
       ALL: "/admin/faculty/all",
       DETAIL: (id: string) => `/admin/faculty/${id}`,
-      COURSE_ASSIGNMENT: "/admin/faculty/course-assignment",
-      BATCH_ASSIGNMENT: "/admin/faculty/batch-assignment",
+      FACULTY_ALLOCATION: "/admin/faculty/faculty-allocation",
+      /** @deprecated Use FACULTY_ALLOCATION */
+      BATCH_ASSIGNMENT: "/admin/faculty/faculty-allocation",
+      /** @deprecated moved to Course Management */
+      COURSE_ASSIGNMENT: "/admin/courses/course-assignment",
       ATTENDANCE: "/admin/faculty/attendance",
       PERFORMANCE: "/admin/faculty/performance",
     },
@@ -49,13 +53,14 @@ export const ROUTES = {
       DETAIL: (id: string) => `/admin/courses/${id}`,
       CURRICULUM: "/admin/courses/curriculum",
       MODULES: "/admin/courses/modules",
+      COURSE_ASSIGNMENT: "/admin/courses/course-assignment",
     },
     BATCHES: {
       ALL: "/admin/batches",
       CREATE: "/admin/batches/create",
       DETAIL: (id: string) => `/admin/batches/${id}`,
-      STUDENT_ALLOCATION: "/admin/batches/student-allocation",
-      FACULTY_ALLOCATION: "/admin/batches/faculty-allocation",
+      /** @deprecated Use FACULTY.FACULTY_ALLOCATION */
+      FACULTY_ALLOCATION: "/admin/faculty/faculty-allocation",
     },
     SCHEDULE: {
       TIMETABLE: "/admin/schedule/timetable",
