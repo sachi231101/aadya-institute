@@ -174,231 +174,6 @@ const RATING_LABELS: Record<number, "Poor" | "Fair" | "Good" | "Very Good" | "Ex
 const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
-const generateMockAssignedClasses = (days: DayData[]): StudentClassSession[] => {
-  if (!days || days.length < 7) return [];
-  const mon = days[0]?.fullDate;
-  const tue = days[1]?.fullDate;
-  const wed = days[2]?.fullDate;
-  const thu = days[3]?.fullDate;
-  const fri = days[4]?.fullDate;
-
-  return [
-    // 31 Aug / Monday - Completed Java
-    {
-      id: "mock-mon-1",
-      title: "Java Programming",
-      courseCode: "JAVA-201",
-      courseName: "Java Full Stack Development",
-      batchCode: "FSD-01",
-      facultyName: "Ankit Singh",
-      date: mon || "2026-08-31",
-      startTime: "10:00 AM",
-      endTime: "12:00 PM",
-      startHour24: 10,
-      startMin: 0,
-      endHour24: 12,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-202",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "COMPLETED",
-      avatarText: "JP",
-      avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
-      avatarColor: "text-blue-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-      attendanceStatus: "PRESENT",
-      attendanceMarkedTime: "at 10:02 AM",
-    },
-    // 01 Sep / Tuesday - Completed Web Tech & Database
-    {
-      id: "mock-tue-1",
-      title: "Web Technologies",
-      courseCode: "WEB-101",
-      courseName: "Full Stack Web Development",
-      batchCode: "FSD-01",
-      facultyName: "Ramesh Kumar",
-      date: tue || "2026-09-01",
-      startTime: "10:00 AM",
-      endTime: "12:00 PM",
-      startHour24: 10,
-      startMin: 0,
-      endHour24: 12,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-204",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "COMPLETED",
-      avatarText: "WT",
-      avatarBg: "bg-indigo-500/20 text-indigo-500 border border-indigo-500/30",
-      avatarColor: "text-indigo-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-      attendanceStatus: "PRESENT",
-      attendanceMarkedTime: "at 10:00 AM",
-    },
-    {
-      id: "mock-tue-2",
-      title: "Database Systems",
-      courseCode: "DBMS-102",
-      courseName: "Database Systems & Design",
-      batchCode: "FSD-01",
-      facultyName: "Priya Sharma",
-      date: tue || "2026-09-01",
-      startTime: "02:00 PM",
-      endTime: "04:00 PM",
-      startHour24: 14,
-      startMin: 0,
-      endHour24: 16,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-203",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "COMPLETED",
-      avatarText: "DB",
-      avatarBg: "bg-teal-500/20 text-teal-500 border border-teal-500/30",
-      avatarColor: "text-teal-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-      attendanceStatus: "PRESENT",
-      attendanceMarkedTime: "at 02:04 PM",
-    },
-    // 02 Sep / Wednesday (Today) - Live React & Upcoming Database
-    {
-      id: "mock-wed-1",
-      title: "React Development",
-      courseCode: "REACT-301",
-      courseName: "Full Stack Web Development",
-      batchCode: "FSD-01",
-      facultyName: "Ramesh Kumar",
-      date: wed || "2026-09-02",
-      startTime: "10:00 AM",
-      endTime: "12:00 PM",
-      startHour24: 10,
-      startMin: 0,
-      endHour24: 12,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "Online",
-      block: "Campus",
-      mode: "Online",
-      forceStatus: "LIVE NOW",
-      avatarText: "RD",
-      avatarBg: "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30",
-      avatarColor: "text-emerald-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-      attendanceStatus: "PRESENT",
-      attendanceMarkedTime: "at 10:05 AM",
-    },
-    {
-      id: "mock-wed-2",
-      title: "Database Systems",
-      courseCode: "DBMS-102",
-      courseName: "Database Systems & Design",
-      batchCode: "FSD-01",
-      facultyName: "Priya Sharma",
-      date: wed || "2026-09-02",
-      startTime: "02:00 PM",
-      endTime: "04:00 PM",
-      startHour24: 14,
-      startMin: 0,
-      endHour24: 16,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-203",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "UPCOMING",
-      avatarText: "DB",
-      avatarBg: "bg-teal-500/20 text-teal-500 border border-teal-500/30",
-      avatarColor: "text-teal-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-    },
-    // 03 Sep / Thursday - Upcoming React
-    {
-      id: "mock-thu-1",
-      title: "React Development",
-      courseCode: "REACT-301",
-      courseName: "Full Stack Web Development",
-      batchCode: "FSD-01",
-      facultyName: "Ramesh Kumar",
-      date: thu || "2026-09-03",
-      startTime: "10:00 AM",
-      endTime: "12:00 PM",
-      startHour24: 10,
-      startMin: 0,
-      endHour24: 12,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-204",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "UPCOMING",
-      avatarText: "RD",
-      avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
-      avatarColor: "text-blue-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-    },
-    // 04 Sep / Friday - Upcoming Node & Mentorship
-    {
-      id: "mock-fri-1",
-      title: "Node.js & Express",
-      courseCode: "NODE-201",
-      courseName: "Full Stack Web Development",
-      batchCode: "FSD-01",
-      facultyName: "Rajesh Varma",
-      date: fri || "2026-09-04",
-      startTime: "09:00 AM",
-      endTime: "11:00 AM",
-      startHour24: 9,
-      startMin: 0,
-      endHour24: 11,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-202",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "UPCOMING",
-      avatarText: "NE",
-      avatarBg: "bg-purple-500/20 text-purple-500 border border-purple-500/30",
-      avatarColor: "text-purple-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-    },
-    {
-      id: "mock-fri-2",
-      title: "Fullstack Project Mentorship",
-      courseCode: "CAP-401",
-      courseName: "Full Stack Web Development",
-      batchCode: "FSD-01",
-      facultyName: "Ramesh Kumar",
-      date: fri || "2026-09-04",
-      startTime: "02:00 PM",
-      endTime: "04:00 PM",
-      startHour24: 14,
-      startMin: 0,
-      endHour24: 16,
-      endMin: 0,
-      joinAvailableMinutesBefore: 15,
-      duration: "2h 00m",
-      roomNo: "LAB-204",
-      block: "Campus",
-      mode: "Campus",
-      forceStatus: "UPCOMING",
-      avatarText: "PM",
-      avatarBg: "bg-indigo-500/20 text-indigo-500 border border-indigo-500/30",
-      avatarColor: "text-indigo-500",
-      meetingUrl: "https://meet.google.com/aad-yac-las",
-    },
-  ];
-};
-
 const buildWeekDays = (weekOffset = 0, sessions: StudentClassSession[] = []): DayData[] => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -445,24 +220,14 @@ export const StudentSchedule: React.FC = () => {
   const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
 
-  const studentId = academic.studentId || user?.studentId || user?.id || "std-current";
-  const studentName = academic.studentName || user?.name || "Rahul Verma";
-  const [apiSessions, setApiSessions] = useState<StudentClassSession[] | null>(null);
+  const studentId = academic.studentId || user?.studentId || user?.id || "";
+  const studentName = academic.studentName || user?.name || "Student";
+  const [apiSessions, setApiSessions] = useState<StudentClassSession[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
   const [isLoading, setIsLoading] = useState(true);
-  const [useMockPreview, setUseMockPreview] = useState(true);
 
-  // Initial base days for mock calculation
-  const rawWeekDays = useMemo(() => buildWeekDays(weekOffset, []), [weekOffset]);
-  const mockSessions = useMemo(() => generateMockAssignedClasses(rawWeekDays), [rawWeekDays]);
-
-  const effectiveSessions = useMemo(() => {
-    if (useMockPreview) {
-      return apiSessions && apiSessions.length > 0 ? apiSessions : mockSessions;
-    }
-    return apiSessions || [];
-  }, [useMockPreview, apiSessions, mockSessions]);
+  const effectiveSessions = apiSessions;
 
   const weekDays = useMemo(
     () => buildWeekDays(weekOffset, effectiveSessions),
@@ -713,6 +478,8 @@ export const StudentSchedule: React.FC = () => {
           </div>
         </div>
 
+        <div className="flex items-center gap-3 self-end md:self-center flex-wrap">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs">
         <div className="flex items-center gap-2.5 self-end md:self-center flex-wrap">
           <button
             type="button"

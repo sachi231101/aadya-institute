@@ -2,29 +2,23 @@ import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
-  Users,
   GraduationCap,
   Calendar,
   MapPin,
   DollarSign,
   CheckCircle2,
   TrendingUp,
-  Filter,
   ArrowRight,
   UserPlus,
   Trash2,
   Loader2,
   Briefcase,
   AlertTriangle,
-  Radio,
-  Video,
-  ClipboardList
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
-import { useFacultyList } from "@/hooks/useFaculty";
 import { useBatches } from "@/hooks/useBatches";
-import { useStudentReport, useFinancialReport, useFacultyReport } from "@/hooks/useReports";
+import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
 import { useLeadDashboard } from "@/hooks/useLeads";
 import { usePayments } from "@/hooks/useFees";
@@ -53,13 +47,11 @@ export const AdminDashboard: React.FC = () => {
   // Real PostgreSQL API data via React Query hooks
   const { data: branchesResponse, isLoading: isBranchesLoading } = useBranches({ limit: 100 });
   const { data: usersResponse } = useAdminUsers({ limit: 100 });
-  const { data: facultyResponse } = useFacultyList({ limit: 100 });
-  const { data: facultyReport } = useFacultyReport(activeBranchId);
   const { batches: allBatches } = useBatches();
   const { data: studentReport, isLoading: isStudentLoading } = useStudentReport(activeBranchId);
   const { data: financialReport, isLoading: isFinancialLoading } = useFinancialReport(activeBranchId);
   const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
-  const { data: scheduleSummary, isLoading: isScheduleLoading } = useScheduleSummary(activeBranchId);
+  const { data: scheduleSummary } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
   const { data: placementSummary } = usePlacementSummary();
 
@@ -140,9 +132,6 @@ export const AdminDashboard: React.FC = () => {
 
   // Global Real KPIs
   const kpiTotalStudents = studentReport?.summary?.totalStudents ?? filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
-  const kpiActiveStudents = kpiTotalStudents;
-  const kpiTotalFaculty = (facultyResponse?.data?.length ?? facultyResponse?.meta?.total) || facultyReport?.summary?.totalActiveFaculty || 0;
-  const kpiActiveFaculty = kpiTotalFaculty;
   const kpiActiveBatches = allBatches?.filter(b => b.status === "ACTIVE").length ?? filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
   const kpiTotalLeads = leadDashboardData?.totalLeads ?? 0;
   const kpiTotalRevenue = financialReport?.summary?.totalCollected ?? filteredBranches.reduce((acc, b) => acc + b.collected, 0);
@@ -276,95 +265,6 @@ export const AdminDashboard: React.FC = () => {
             <option>This Year</option>
           </select>
         </div>
-      </div>
-
-      {/* 2. GLOBAL KPI CARDS */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: "Total Students", val: kpiTotalStudents, sub: `${kpiActiveStudents} Active`, icon: GraduationCap, color: "text-indigo-600 dark:text-indigo-400", bg: "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/40" },
-          { label: "Total Faculty", val: kpiTotalFaculty, sub: `${kpiActiveFaculty} Active`, icon: Users, color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-50 dark:bg-purple-950/40 border-purple-100 dark:border-purple-900/40" },
-          { label: "Active Batches", val: kpiActiveBatches, sub: "Currently Running", icon: Briefcase, color: "text-orange-600 dark:text-amber-400", bg: "bg-orange-50 dark:bg-amber-950/40 border-orange-100 dark:border-amber-900/40" },
-          { label: "Total Leads", val: kpiTotalLeads, sub: "Registered Inquiries", icon: Filter, color: "text-pink-600 dark:text-pink-400", bg: "bg-pink-50 dark:bg-pink-950/40 border-pink-100 dark:border-pink-900/40" },
-          { label: "Total Revenue", val: formattedRevenue, sub: `Collection: ${financialReport?.summary?.collectionRate ?? 0}%`, icon: DollarSign, color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/40 border-emerald-100 dark:border-emerald-900/40" }
-        ].map((kpi, idx) => (
-          <Card key={idx} className="border-border bg-card shadow-xs hover:shadow-sm transition-all rounded-2xl">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex justify-between items-start">
-                <div className={`p-2.5 rounded-xl border ${kpi.bg}`}>
-                  <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-                <h3 className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight mt-0.5">{kpi.val}</h3>
-                <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
-                  <TrendingUp className="h-3 w-3" /> {kpi.sub}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Schedule & Operations KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          {
-            label: "Today's Classes",
-            val: isScheduleLoading ? "—" : (scheduleSummary?.todayClasses ?? 0),
-            sub: "Scheduled today",
-            icon: Calendar,
-            color: "text-sky-600 dark:text-sky-400",
-            bg: "bg-sky-50 dark:bg-sky-950/40 border-sky-100 dark:border-sky-900/40",
-          },
-          {
-            label: "Upcoming Classes",
-            val: isScheduleLoading ? "—" : (scheduleSummary?.upcomingClasses ?? 0),
-            sub: "Next 7 days",
-            icon: ClipboardList,
-            color: "text-indigo-600 dark:text-indigo-400",
-            bg: "bg-indigo-50 dark:bg-indigo-950/40 border-indigo-100 dark:border-indigo-900/40",
-          },
-          {
-            label: "Live Classes",
-            val: isScheduleLoading ? "—" : (scheduleSummary?.liveClasses ?? 0),
-            sub: "In session now",
-            icon: Radio,
-            color: "text-rose-600 dark:text-rose-400",
-            bg: "bg-rose-50 dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/40",
-          },
-          {
-            label: "Discontinuation Risk",
-            val: isScheduleLoading ? "—" : (scheduleSummary?.discontinuationRiskCount ?? 0),
-            sub: "Students at risk",
-            icon: AlertTriangle,
-            color: "text-amber-600 dark:text-amber-400",
-            bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-100 dark:border-amber-900/40",
-          },
-          {
-            label: "Recordings Expiring",
-            val: isScheduleLoading ? "—" : (scheduleSummary?.recordingsExpiringSoon ?? 0),
-            sub: "Within 7 days",
-            icon: Video,
-            color: "text-violet-600 dark:text-violet-400",
-            bg: "bg-violet-50 dark:bg-violet-950/40 border-violet-100 dark:border-violet-900/40",
-          },
-        ].map((kpi, idx) => (
-          <Card key={idx} className="border-border bg-card shadow-xs hover:shadow-sm transition-all rounded-2xl">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex justify-between items-start">
-                <div className={`p-2.5 rounded-xl border ${kpi.bg}`}>
-                  <kpi.icon className={`h-4 w-4 ${kpi.color}`} />
-                </div>
-              </div>
-              <div>
-                <p className="text-xs font-medium text-muted-foreground">{kpi.label}</p>
-                <h3 className="text-lg sm:text-xl font-extrabold text-foreground tracking-tight mt-0.5">{kpi.val}</h3>
-                <p className="text-[10px] font-semibold text-muted-foreground mt-1">{kpi.sub}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       {/* ERP Module Quick Access */}

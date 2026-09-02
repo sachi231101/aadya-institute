@@ -132,11 +132,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
                 required
               >
                 <option value="">Select Batch</option>
-                <option value="b-wd-a">WD-2026-A</option>
-                <option value="b-js-a">JS-2026-A</option>
-                <option value="b-re-a">RE-2026-A</option>
-                <option value="b-wd-b">WD-2026-B</option>
-                <option value="b-js-b">JS-2026-B</option>
                 {batches.map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.name} ({b.code})
@@ -156,11 +151,6 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
                 required
               >
                 <option value="">Select Faculty</option>
-                <option value="f-1">HM Adithya</option>
-                <option value="f-2">Ramesh Kumar</option>
-                <option value="f-3">Priya Sharma</option>
-                <option value="f-4">Suresh Babu</option>
-                <option value="f-5">Neha Patil</option>
                 {facultyList.map((f) => (
                   <option key={f.id} value={f.id}>
                     {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})

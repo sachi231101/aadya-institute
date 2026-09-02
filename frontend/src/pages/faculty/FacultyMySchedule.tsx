@@ -19,7 +19,6 @@ import {
   Loader2,
   CalendarDays,
   Coffee,
-  Sparkles,
   ExternalLink,
   ChevronDown,
 } from "lucide-react";
@@ -194,9 +193,6 @@ export const FacultyMySchedule: React.FC = () => {
     });
   }, [currentWeekMonday, todayIso]);
 
-  // Demo preview toggle (default true so faculty can explore interactive schedule)
-  const [showDemoData, setShowDemoData] = useState<boolean>(true);
-
   // Combine and normalize sessions strictly assigned to this faculty
   const assignedClasses: FormattedTimetableClass[] = useMemo(() => {
     const rawSessions = sessionsRes?.data || [];
@@ -304,246 +300,6 @@ export const FacultyMySchedule: React.FC = () => {
         });
       }
     });
-
-    // 3. Mock demo classes injection (for testing & previewing the full workflow)
-    if (showDemoData && map.size === 0 && weekDays.length >= 7) {
-      const [mon, tue, wed, thu, fri] = weekDays;
-      const mockItems: FormattedTimetableClass[] = [
-        {
-          id: "mock-mon-1",
-          title: "OOP & Multithreading",
-          courseName: "Java Fullstack Development",
-          subjectName: "Multithreading & JVM Architecture",
-          batchName: "Java Fullstack - Batch 01",
-          batchCode: "JAV-01",
-          date: mon.iso,
-          startTime: "09:00 AM",
-          endTime: "11:00 AM",
-          timeRange: "09:00 AM – 11:00 AM",
-          roomNo: "Room 301",
-          mode: "OFFLINE",
-          status: "COMPLETED",
-          studentCount: 30,
-          attendancePresent: 28,
-          attendanceTotal: 30,
-          startHour: 9,
-          startMin: 0,
-          endHour: 11,
-          endMin: 0,
-          hasRecording: true,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-mon-2",
-          title: "SQL & Query Optimization",
-          courseName: "Database Systems",
-          subjectName: "Indexes, Transactions & Views",
-          batchName: "Database - Batch 02",
-          batchCode: "DB-02",
-          date: mon.iso,
-          startTime: "02:00 PM",
-          endTime: "04:00 PM",
-          timeRange: "02:00 PM – 04:00 PM",
-          roomNo: "LAB-104",
-          mode: "OFFLINE",
-          status: "COMPLETED",
-          studentCount: 26,
-          attendancePresent: 25,
-          attendanceTotal: 26,
-          startHour: 14,
-          startMin: 0,
-          endHour: 16,
-          endMin: 0,
-          hasRecording: true,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-tue-1",
-          title: "Data Manipulation with Pandas",
-          courseName: "Python for Data Science",
-          subjectName: "Pandas, NumPy & Vectorization",
-          batchName: "Data Science - Batch 01",
-          batchCode: "DS-01",
-          date: tue.iso,
-          startTime: "10:00 AM",
-          endTime: "12:00 PM",
-          timeRange: "10:00 AM – 12:00 PM",
-          roomNo: "LAB-205",
-          mode: "OFFLINE",
-          status: "COMPLETED",
-          studentCount: 34,
-          attendancePresent: 32,
-          attendanceTotal: 34,
-          startHour: 10,
-          startMin: 0,
-          endHour: 12,
-          endMin: 0,
-          hasRecording: true,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-tue-2",
-          title: "Modern CSS Grid & Animations",
-          courseName: "React & Frontend Development",
-          subjectName: "Responsive Layouts & Tailwind",
-          batchName: "Full Stack - Batch 01",
-          batchCode: "FSD-01",
-          date: tue.iso,
-          startTime: "03:00 PM",
-          endTime: "05:00 PM",
-          timeRange: "03:00 PM – 05:00 PM",
-          roomNo: "LAB-204",
-          mode: "OFFLINE",
-          status: "COMPLETED",
-          studentCount: 32,
-          attendancePresent: 30,
-          attendanceTotal: 32,
-          startHour: 15,
-          startMin: 0,
-          endHour: 17,
-          endMin: 0,
-          hasRecording: true,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-wed-1",
-          title: "React Hooks & State Management",
-          courseName: "React & Frontend Development",
-          subjectName: "useEffect, useMemo & Context API",
-          batchName: "Full Stack - Batch 01",
-          batchCode: "FSD-01",
-          date: wed.iso,
-          startTime: "10:00 AM",
-          endTime: "12:00 PM",
-          timeRange: "10:00 AM – 12:00 PM",
-          roomNo: "LAB-204",
-          mode: "OFFLINE",
-          status: activeLiveClass?.status === "COMPLETED" ? "COMPLETED" : "LIVE",
-          studentCount: 32,
-          attendancePresent: 28,
-          attendanceTotal: 32,
-          startHour: 10,
-          startMin: 0,
-          endHour: 12,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-wed-2",
-          title: "RESTful API Architecture",
-          courseName: "Node.js & Backend Architecture",
-          subjectName: "Express Routing & Middleware",
-          batchName: "Full Stack - Batch 02",
-          batchCode: "FSD-02",
-          date: wed.iso,
-          startTime: "02:00 PM",
-          endTime: "04:00 PM",
-          timeRange: "02:00 PM – 04:00 PM",
-          roomNo: "LAB-202",
-          mode: "OFFLINE",
-          status: "UPCOMING",
-          studentCount: 28,
-          startHour: 14,
-          startMin: 0,
-          endHour: 16,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-thu-1",
-          title: "Custom React Hooks & Performance",
-          courseName: "React & Frontend Development",
-          subjectName: "useCallback & Virtual DOM Tuning",
-          batchName: "Full Stack - Batch 01",
-          batchCode: "FSD-01",
-          date: thu.iso,
-          startTime: "10:00 AM",
-          endTime: "12:00 PM",
-          timeRange: "10:00 AM – 12:00 PM",
-          roomNo: "LAB-204",
-          mode: "OFFLINE",
-          status: "UPCOMING",
-          studentCount: 32,
-          startHour: 10,
-          startMin: 0,
-          endHour: 12,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-thu-2",
-          title: "Docker Containers & Deployments",
-          courseName: "DevOps & Cloud Systems",
-          subjectName: "Dockerizing Node Apps & Compose",
-          batchName: "Cloud - Batch 01",
-          batchCode: "CLD-01",
-          date: thu.iso,
-          startTime: "03:00 PM",
-          endTime: "05:00 PM",
-          timeRange: "03:00 PM – 05:00 PM",
-          roomNo: "Online",
-          mode: "ONLINE",
-          meetingUrl: "https://meet.google.com/aady-cld-demo",
-          status: "UPCOMING",
-          studentCount: 40,
-          startHour: 15,
-          startMin: 0,
-          endHour: 17,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-fri-1",
-          title: "JWT Authentication & Security",
-          courseName: "Node.js & Backend Architecture",
-          subjectName: "bcrypt, Token Verification & RBAC",
-          batchName: "Full Stack - Batch 02",
-          batchCode: "FSD-02",
-          date: fri.iso,
-          startTime: "09:00 AM",
-          endTime: "11:00 AM",
-          timeRange: "09:00 AM – 11:00 AM",
-          roomNo: "LAB-202",
-          mode: "OFFLINE",
-          status: "UPCOMING",
-          studentCount: 28,
-          startHour: 9,
-          startMin: 0,
-          endHour: 11,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-        {
-          id: "mock-fri-2",
-          title: "Fullstack Project Mentorship",
-          courseName: "Capstone Project Mentorship",
-          subjectName: "Sprint Review & Code Walkthroughs",
-          batchName: "Full Stack - Batch 01",
-          batchCode: "FSD-01",
-          date: fri.iso,
-          startTime: "02:00 PM",
-          endTime: "04:00 PM",
-          timeRange: "02:00 PM – 04:00 PM",
-          roomNo: "LAB-204",
-          mode: "OFFLINE",
-          status: "UPCOMING",
-          studentCount: 32,
-          startHour: 14,
-          startMin: 0,
-          endHour: 16,
-          endMin: 0,
-          hasRecording: false,
-          hasMaterials: true,
-        },
-      ];
-
-      mockItems.forEach((m) => map.set(m.id, m));
-    }
 
     return Array.from(map.values());
   }, [sessionsRes, dashboard, user, activeLiveClass, todayIso]);
@@ -663,23 +419,8 @@ export const FacultyMySchedule: React.FC = () => {
           </p>
         </div>
 
-        {/* View Switcher, Demo Mode Toggle & Quick Refresh */}
+        {/* View Switcher & Quick Refresh */}
         <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setShowDemoData(!showDemoData)}
-            className={`h-9 text-xs rounded-xl font-bold transition-all ${
-              showDemoData
-                ? "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-300"
-                : "bg-slate-50 text-slate-600 border-slate-200"
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 mr-1.5 text-amber-500" />
-            {showDemoData ? "Sample Mock Active (Toggle)" : "Real Backend Only"}
-          </Button>
-
           <div className="bg-slate-100 dark:bg-slate-800 p-1 rounded-xl flex items-center text-xs font-semibold">
             <button
               type="button"

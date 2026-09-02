@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { useAnnouncementStore } from "@/store/announcement.store";
+import { useBatches } from "@/hooks/useBatches";
+import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { useFacultyCourses } from "@/hooks/useFaculty";
 import type {
   AnnouncementItem,
@@ -63,6 +65,11 @@ type FacultyCourseGroup = {
 
 export const FacultyAnnouncements: React.FC = () => {
   const { user } = useAuthStore();
+  const { data: dashboardRes } = useFacultyDashboard();
+  const facultyId = user?.facultyId || dashboardRes?.data?.profile?.id;
+  const { batches: assignedBatches, loading: batchesLoading } = useBatches(
+    facultyId ? { facultyId } : undefined
+  );
   const { announcements, addAnnouncement } = useAnnouncementStore();
   const { data: facultyCoursesRes, isLoading: loadingFacultyCourses } = useFacultyCourses({ limit: 100 });
 
@@ -95,6 +102,28 @@ export const FacultyAnnouncements: React.FC = () => {
       }
     }
 
+  const facultyName = user?.name || dashboardRes?.data?.profile?.name || "Faculty";
+  const facultyDesignation =
+    (user as { specialization?: string; department?: string })?.specialization ||
+    (user as { specialization?: string; department?: string })?.department ||
+    "Faculty";
+
+  const facultyCourses: FacultyCourseOption[] = React.useMemo(() => {
+    const byCourse = new Map<string, FacultyCourseOption>();
+    assignedBatches.forEach((b) => {
+      const courseId = b.courseId || b.course?.id || "unknown";
+      const courseName = b.course?.name || "Course";
+      if (!byCourse.has(courseId)) {
+        byCourse.set(courseId, { id: courseId, name: courseName, batches: [] });
+      }
+      byCourse.get(courseId)!.batches.push({
+        id: b.id,
+        name: `${b.name} (${b.code})`,
+        studentCount: b._count?.enrollments ?? 0,
+      });
+    });
+    return Array.from(byCourse.values());
+  }, [assignedBatches]);
     return Array.from(map.values());
   }, [facultyCoursesRes?.data]);
 
@@ -150,17 +179,26 @@ export const FacultyAnnouncements: React.FC = () => {
     );
   }, [currentCourseObj, selectedBatchId]);
 
+  React.useEffect(() => {
+    if (facultyCourses.length > 0 && !selectedCourse) {
+      setSelectedCourse(facultyCourses[0].name);
+      if (facultyCourses[0].batches[0]) {
+        setSelectedBatchId(facultyCourses[0].batches[0].id);
+      }
+    }
+  }, [facultyCourses, selectedCourse]);
+
   // Metrics
   const metrics = useMemo(() => {
     const publishedCount = announcements.filter((a) => a.status === "Published").length;
     const draftCount = announcements.filter((a) => a.status === "Draft").length;
     const totalCount = announcements.length;
-    const reachedCount = 312;
+    const reachedCount = announcements.reduce((sum, a) => sum + (a.sentCount || 0), 0);
 
     return {
-      total: totalCount >= 12 ? totalCount : 12,
-      published: publishedCount >= 9 ? publishedCount : 9,
-      drafts: draftCount >= 2 ? draftCount : 2,
+      total: totalCount,
+      published: publishedCount,
+      drafts: draftCount,
       reached: reachedCount,
     };
   }, [announcements]);
@@ -234,6 +272,11 @@ export const FacultyAnnouncements: React.FC = () => {
       return;
     }
 
+    if (!currentBatchObj) {
+      alert("No batch assigned. Contact admin to assign you to a batch first.");
+      return;
+    }
+
     addAnnouncement({
       title: title.trim(),
       message: message.trim(),
@@ -274,6 +317,11 @@ export const FacultyAnnouncements: React.FC = () => {
 
     if (!title.trim()) {
       alert("Please enter a title to save as draft.");
+      return;
+    }
+
+    if (!currentBatchObj) {
+      alert("No batch assigned. Contact admin to assign you to a batch first.");
       return;
     }
 
@@ -585,6 +633,14 @@ export const FacultyAnnouncements: React.FC = () => {
               </div>
 
               <form onSubmit={handlePublish} className="space-y-4 text-xs">
+                {batchesLoading ? (
+                  <p className="text-xs text-slate-500">Loading assigned courses...</p>
+                ) : facultyCourses.length === 0 ? (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600">
+                    No courses or batches assigned to you yet. Contact your center manager to get batch assignments.
+                  </div>
+                ) : (
+                  <>
                 {/* 1. Select Course */}
                 <div>
                   <label className="text-[11px] font-bold text-slate-700 block mb-1">
@@ -638,6 +694,8 @@ export const FacultyAnnouncements: React.FC = () => {
                     )}
                   </select>
                 </div>
+                  </>
+                )}
 
                 {/* 3. Announcement Title */}
                 <div>
