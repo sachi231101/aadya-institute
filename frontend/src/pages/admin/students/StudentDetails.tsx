@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
+import { batchIncludesCourse, formatBatchInstructorsSummary, formatBatchSubjectNames } from "@/utils/batch.utils";
 import { aiCallingApi } from "../../../services/ai-calling.api";
 import { studentsApi } from "../../../services/students.api";
 import {
@@ -99,7 +100,7 @@ export const StudentDetails: React.FC = () => {
   const availableBatches = useMemo(() => {
     if (!batches || batches.length === 0) return [];
     return batches.filter((b) => {
-      if (selectedCourseId && b.courseId && b.courseId !== selectedCourseId) return false;
+      if (selectedCourseId && !batchIncludesCourse(b, selectedCourseId)) return false;
       if (studentBranchId && b.branchId && b.branchId !== studentBranchId) return false;
       return true;
     });
@@ -381,12 +382,23 @@ Best regards,
   const hasAssignedBatch = !isDraftStudent && Boolean(
     activeBatch || (batchName && batchName !== "Not Assigned" && batchName !== "—" && !batchName.toLowerCase().includes("pending"))
   );
-  const courseName = isDraftStudent && !admission?.course?.name && !student.courseName ? "Not Assigned" : (activeBatch?.course?.name || student.courseName || admission?.course?.name || "Not Assigned");
+  const courseName =
+    isDraftStudent && !admission?.course?.name && !student.courseName
+      ? "Not Assigned"
+      : activeBatch
+        ? formatBatchSubjectNames(activeBatch)
+        : student.courseName || admission?.course?.name || "Not Assigned";
   const courseCode = activeBatch?.course?.code || admission?.course?.code || "—";
   const courseDuration = admission?.course?.duration ? `${admission.course.duration} Months` : "6 Months Program";
   const deliveryMode = "Classroom / Offline Mode";
   const batchTimeSlot = activeBatch?.timeSlot || student.batchTiming || "10:00 AM – 12:00 PM";
-  const facultyName = isDraftStudent || (!activeBatch?.faculty?.user?.name && !student.facultyName) ? "Not Assigned" : (activeBatch?.faculty?.user?.name || student.facultyName || "Not Assigned");
+  const facultyName =
+    isDraftStudent ||
+    (!activeBatch?.faculty?.user?.name && !student.facultyName && !activeBatch?.batchCourses?.length)
+      ? "Not Assigned"
+      : activeBatch
+        ? formatBatchInstructorsSummary(activeBatch)
+        : student.facultyName || "Not Assigned";
   const facultyAvatar = (activeBatch?.faculty?.user?.name)
     ? `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(activeBatch.faculty.user.name)}`
     : undefined;

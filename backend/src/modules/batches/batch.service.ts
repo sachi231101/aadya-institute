@@ -1,8 +1,9 @@
 import * as repository from "./batch.repository";
-import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto, GenerateSessionsDto } from "./batch.types";
+import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto, GenerateSessionsDto, BatchCourseItemDto } from "./batch.types";
 import { AppError } from "../../middlewares/error.middleware";
 import { prisma } from "../../config/database";
 import { eachDateInRange, formatDateKey } from "./batch-schedule.util";
+import { getBatchCourseRows } from "../../utils/batch-course.util";
 import * as studentAllocationService from "../students/student-allocation.service";
 import * as facultyAllocationService from "../faculty/faculty-allocation.service";
 import type { AuthUser } from "../auth/auth.types";
@@ -19,24 +20,71 @@ export const getBatchById = async (id: string, instituteId: string) => {
   return batch;
 };
 
-export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
-  const course = await prisma.course.findFirst({
-    where: { id: data.courseId, instituteId, status: "ACTIVE" },
-  });
-  if (!course) {
-    throw new AppError("Active course not found for this batch", 404);
+const validateBatchCourses = async (instituteId: string, items: BatchCourseItemDto[]) => {
+  if (items.length === 0) {
+    throw new AppError("Select at least one course", 400);
   }
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (seen.has(item.courseId)) {
+      throw new AppError("Duplicate course selected", 400);
+    }
+    seen.add(item.courseId);
+    const course = await prisma.course.findFirst({
+      where: { id: item.courseId, instituteId, status: "ACTIVE" },
+    });
+    if (!course) {
+      throw new AppError("Active course not found", 404);
+    }
+    if (item.facultyId && item.facultyId.trim() !== "") {
+      const faculty = await prisma.faculty.findFirst({
+        where: { id: item.facultyId, instituteId, status: "ACTIVE" },
+      });
+      if (!faculty) {
+        throw new AppError("Active faculty not found for course assignment", 404);
+      }
+    }
+  }
+};
+
+export const createBatch = async (instituteId: string, defaultBranchId: string, data: CreateBatchDto) => {
+  const courseItems = repository.normalizeBatchCourses(data);
+  await validateBatchCourses(instituteId, courseItems);
+
+  const payload: CreateBatchDto = {
+    ...data,
+    courseId: data.courseId || courseItems[0].courseId,
+    courses: courseItems,
+  };
 
   const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
   if (existing.some((b) => b.code.toLowerCase() === data.code.toLowerCase())) {
     throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);
   }
-  return repository.createBatch(instituteId, defaultBranchId, data);
+  return repository.createBatch(instituteId, defaultBranchId, payload);
 };
 
 export const updateBatch = async (id: string, instituteId: string, data: UpdateBatchDto) => {
   await getBatchById(id, instituteId);
-  return repository.updateBatch(id, instituteId, data);
+
+  if (data.code) {
+    const existing = await repository.findAllBatches(instituteId, undefined, { search: data.code });
+    if (existing.some((b) => b.id !== id && b.code.toLowerCase() === data.code!.toLowerCase())) {
+      throw new AppError(`Batch code '${data.code}' already exists for this institute.`, 400);
+    }
+  }
+
+  if (data.courses && data.courses.length > 0) {
+    await validateBatchCourses(instituteId, repository.normalizeBatchCourses(data));
+  } else if (data.courseId) {
+    await validateBatchCourses(instituteId, [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }]);
+  }
+
+  const result = await repository.updateBatch(id, instituteId, data);
+  if (result.count === 0) {
+    throw new AppError("Batch not found", 404);
+  }
+  return result;
 };
 
 export const assignFaculty = async (id: string, currentUser: AuthUser, facultyId: string) => {
@@ -74,7 +122,18 @@ export const getBatchStudents = async (batchId: string, instituteId: string) => 
 
 export const deleteBatch = async (id: string, instituteId: string) => {
   await getBatchById(id, instituteId);
-  return repository.deleteBatch(id, instituteId);
+
+  const result = await prisma.$transaction(async (tx) => {
+    // Admissions retain history; batchId is SetNull on delete via FK.
+    return tx.batch.deleteMany({
+      where: { id, instituteId },
+    });
+  });
+
+  if (result.count === 0) {
+    throw new AppError("Batch not found", 404);
+  }
+  return result;
 };
 
 export const getBatchSchedules = async (batchId: string, instituteId: string) => {
@@ -114,8 +173,15 @@ export const generateClassSessionsFromSchedule = async (
   options: GenerateSessionsDto = {}
 ) => {
   const batch = await getBatchById(batchId, instituteId);
-  if (!batch.facultyId) {
-    throw new AppError("Assign faculty to the batch before generating class sessions", 400);
+  const coordinatorFacultyId = batch.facultyId;
+  const subjectFacultyId =
+    batch.batchCourses?.find((bc) => bc.facultyId)?.facultyId ?? null;
+  const sessionFacultyId = coordinatorFacultyId || subjectFacultyId;
+  if (!sessionFacultyId) {
+    throw new AppError(
+      "Assign faculty to the batch or at least one subject before generating class sessions",
+      400
+    );
   }
 
   const schedules = batch.schedules || [];
@@ -141,7 +207,35 @@ export const generateClassSessionsFromSchedule = async (
     existingSessions.map((s) => `${formatDateKey(s.scheduledDate)}|${s.startTime}`)
   );
 
-  const courseName = batch.course?.name || batch.name;
+  const subjectRows = getBatchCourseRows(batch);
+  let subjectRotationIndex = 0;
+
+  const resolveSessionForSlot = (): { facultyId: string; title: string } | null => {
+    if (subjectRows.length === 0) {
+      return {
+        facultyId: sessionFacultyId,
+        title: `${batch.course?.name || batch.name} — Class`,
+      };
+    }
+    if (subjectRows.length === 1) {
+      const row = subjectRows[0];
+      const facultyId = row.facultyId || sessionFacultyId;
+      if (!facultyId) return null;
+      return {
+        facultyId,
+        title: `${row.course?.name || batch.name} — Class`,
+      };
+    }
+    const row = subjectRows[subjectRotationIndex % subjectRows.length];
+    subjectRotationIndex += 1;
+    const facultyId = row.facultyId || coordinatorFacultyId || sessionFacultyId;
+    if (!facultyId) return null;
+    return {
+      facultyId,
+      title: `${row.course?.name || batch.name} — Class`,
+    };
+  };
+
   const dates = eachDateInRange(rangeStart, rangeEnd);
   const toCreate: Array<{
     batchId: string;
@@ -174,11 +268,15 @@ export const generateClassSessionsFromSchedule = async (
     for (const slot of matchingSlots) {
       const key = `${formatDateKey(date)}|${slot.startTime}`;
       if (existingKeys.has(key)) continue;
+
+      const resolved = resolveSessionForSlot();
+      if (!resolved) continue;
+
       toCreate.push({
         batchId,
-        facultyId: batch.facultyId,
+        facultyId: resolved.facultyId,
         branchId: batch.branchId,
-        title: `${courseName} — Class`,
+        title: resolved.title,
         scheduledDate: new Date(date),
         startTime: slot.startTime,
         endTime: slot.endTime,

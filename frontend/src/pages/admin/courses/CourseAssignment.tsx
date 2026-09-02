@@ -21,6 +21,7 @@ import { useCourses } from "@/hooks/useCourses";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -81,6 +82,7 @@ export const CourseAssignment: React.FC = () => {
   // Modal Form state (Admin/Manager/Counsellor only)
   const [newFacultyId, setNewFacultyId] = useState<string>("");
   const [newBatchId, setNewBatchId] = useState<string>("");
+  const [newCourseId, setNewCourseId] = useState<string>("");
 
   // Fetch data from backend
   const coursesParams = {
@@ -123,22 +125,45 @@ export const CourseAssignment: React.FC = () => {
 
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newFacultyId || !newBatchId) return;
+    if (!newFacultyId || !newBatchId || !newCourseId) return;
 
     try {
       setAssignError(null);
       await assignMutation.mutateAsync({
         batchId: newBatchId,
         facultyId: newFacultyId,
+        courseId: newCourseId,
       });
       setNewFacultyId("");
       setNewBatchId("");
+      setNewCourseId("");
       setShowAssignModal(false);
       refetch();
     } catch (error: any) {
       setAssignError(error?.response?.data?.message || "Failed to assign faculty to batch");
     }
   };
+
+  const assignSubjectOptions = useMemo(() => {
+    const batch = liveBatches.find((b) => b.id === newBatchId);
+    if (!batch) return [];
+    return getBatchCourseRows(batch);
+  }, [liveBatches, newBatchId]);
+
+  useEffect(() => {
+    if (!newBatchId) {
+      setNewCourseId("");
+      return;
+    }
+    const rows = assignSubjectOptions;
+    if (rows.length === 0) {
+      setNewCourseId("");
+      return;
+    }
+    if (!rows.some((r) => r.courseId === newCourseId)) {
+      setNewCourseId(rows[0].courseId);
+    }
+  }, [newBatchId, assignSubjectOptions, newCourseId]);
 
   return (
     <div className="p-6 md:p-8 max-w-[1680px] mx-auto space-y-6 min-h-screen relative overflow-x-hidden animate-in fade-in duration-300">
@@ -325,6 +350,7 @@ export const CourseAssignment: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {assignments.map((item) => {
             const courseName = item.course?.name || "Course";
+            const batchName = item.name;
             const batchCode = item.code;
             const branchName = item.branch?.name || "Aadya Central Branch";
             const studentCount = item._count?.enrollments ?? 0;
@@ -355,6 +381,9 @@ export const CourseAssignment: React.FC = () => {
                       </div>
                       <p className="text-xs font-mono text-muted-foreground font-medium">
                         Batch: <strong className="text-foreground">{batchCode}</strong>
+                        {batchName && batchName !== batchCode ? (
+                          <span className="font-sans font-normal"> · {batchName}</span>
+                        ) : null}
                       </p>
                     </div>
 
@@ -462,15 +491,37 @@ export const CourseAssignment: React.FC = () => {
                 <label className="font-bold text-foreground">Select Batch *</label>
                 <select
                   value={newBatchId}
-                  onChange={(e) => setNewBatchId(e.target.value)}
+                  onChange={(e) => {
+                    setNewBatchId(e.target.value);
+                    setNewCourseId("");
+                  }}
                   required
                   className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer"
                 >
                   <option value="">-- Choose Batch --</option>
                   {liveBatches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.code} – {b.name} ({b.course?.name || "Course"})
-                      {b.facultyId ? " · already assigned" : ""}
+                      {b.code} – {b.name} ({formatBatchSubjectNames(b)})
+                      {b.facultyId ? " · coordinator set" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="font-bold text-foreground">Select Subject *</label>
+                <select
+                  value={newCourseId}
+                  onChange={(e) => setNewCourseId(e.target.value)}
+                  required
+                  disabled={!newBatchId || assignSubjectOptions.length === 0}
+                  className="w-full h-9.5 px-3 rounded-xl border border-border bg-muted/30 font-medium text-foreground focus:bg-background focus:border-primary outline-none cursor-pointer disabled:opacity-60"
+                >
+                  <option value="">-- Choose Subject --</option>
+                  {assignSubjectOptions.map((row) => (
+                    <option key={row.courseId} value={row.courseId}>
+                      {row.course?.name || row.courseId}
+                      {row.faculty?.user?.name ? ` · ${row.faculty.user.name}` : " · unassigned"}
                     </option>
                   ))}
                 </select>
@@ -488,7 +539,7 @@ export const CourseAssignment: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={assignMutation.isPending || !newFacultyId || !newBatchId}
+                  disabled={assignMutation.isPending || !newFacultyId || !newBatchId || !newCourseId}
                   className="bg-primary hover:bg-primary/90 text-white text-xs font-bold rounded-xl cursor-pointer"
                 >
                   {assignMutation.isPending ? "Assigning..." : "Assign Faculty"}

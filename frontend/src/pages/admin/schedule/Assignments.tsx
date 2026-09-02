@@ -45,6 +45,7 @@ import {
 } from "@/hooks/useAssignments";
 import { useQuery } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import type { Assignment } from "@/services/assignments.api";
 
 interface BatchOption {
@@ -129,7 +130,9 @@ export const AdminAssignments: React.FC = () => {
       id: string;
       name: string;
       code: string;
+      courseId?: string;
       course?: { name: string };
+      batchCourses?: Array<{ courseId: string; course?: { name: string } }>;
       _count?: { enrollments: number };
       enrollments?: unknown[];
       capacity?: number;
@@ -137,7 +140,7 @@ export const AdminAssignments: React.FC = () => {
       id: b.id,
       name: b.name,
       code: b.code || "BATCH",
-      courseName: b.course?.name || "Course",
+      courseName: formatBatchSubjectNames(b),
       studentCount: b._count?.enrollments || (Array.isArray(b.enrollments) ? b.enrollments.length : 0) || b.capacity || 0,
     }));
   }, [batchesRes]);

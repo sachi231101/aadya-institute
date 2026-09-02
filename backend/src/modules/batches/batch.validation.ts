@@ -1,34 +1,51 @@
 import { z } from "zod";
 
-export const createBatchSchema = z.object({
-  name: z.string().min(1, "Batch name is required"),
-  code: z.string().min(1, "Batch code is required"),
-  courseId: z.string().min(1, "Course is required"),
+const batchCourseItemSchema = z.object({
+  courseId: z.string().min(1),
   facultyId: z.string().optional().or(z.literal("")),
-  branchId: z.string().optional().or(z.literal("")),
-  startDate: z.string().min(1, "Start date is required"),
-  expectedEndDate: z.string().optional().or(z.literal("")),
-  capacity: z.coerce.number().int().positive().optional(),
-  schedulePattern: z.enum(["MWF", "TTS", "WEEKEND", "CUSTOM"]).optional().or(z.literal("")),
-  timeSlot: z.string().optional().or(z.literal("")),
-  schedules: z
-    .array(
-      z.object({
-        dayOfWeek: z.coerce.number().int().min(0).max(6),
-        startTime: z.string().min(1),
-        endTime: z.string().min(1),
-        effectiveFrom: z.string().optional(),
-        effectiveTo: z.string().optional(),
-      })
-    )
-    .optional(),
+  sequence: z.coerce.number().int().positive().optional(),
 });
+
+export const createBatchSchema = z
+  .object({
+    name: z.string().min(1, "Batch name is required"),
+    code: z.string().min(1, "Batch code is required"),
+    courseId: z.string().optional().or(z.literal("")),
+    facultyId: z.string().optional().or(z.literal("")),
+    courses: z.array(batchCourseItemSchema).optional(),
+    branchId: z.string().optional().or(z.literal("")),
+    startDate: z.string().min(1, "Start date is required"),
+    expectedEndDate: z.string().optional().or(z.literal("")),
+    capacity: z.coerce.number().int().positive().optional(),
+    schedulePattern: z.enum(["MWF", "TTS", "WEEKEND", "CUSTOM"]).optional().or(z.literal("")),
+    timeSlot: z.string().optional().or(z.literal("")),
+    timeslotMasterId: z.string().optional().or(z.literal("")),
+    classroomMasterId: z.string().optional().or(z.literal("")),
+    schedules: z
+      .array(
+        z.object({
+          dayOfWeek: z.coerce.number().int().min(0).max(6),
+          startTime: z.string().min(1),
+          endTime: z.string().min(1),
+          effectiveFrom: z.string().optional(),
+          effectiveTo: z.string().optional(),
+        })
+      )
+      .optional(),
+  })
+  .refine(
+    (data) =>
+      (data.courses && data.courses.length > 0) ||
+      (data.courseId && data.courseId.trim() !== ""),
+    { message: "Select at least one course", path: ["courses"] }
+  );
 
 export const updateBatchSchema = z.object({
   name: z.string().min(1).optional(),
   code: z.string().min(1).optional(),
   courseId: z.string().optional(),
   facultyId: z.string().optional().or(z.literal("")),
+  courses: z.array(batchCourseItemSchema).optional(),
   branchId: z.string().optional().or(z.literal("")),
   startDate: z.string().optional(),
   expectedEndDate: z.string().optional().or(z.literal("")),
@@ -36,6 +53,8 @@ export const updateBatchSchema = z.object({
   status: z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "CANCELLED"]).optional(),
   schedulePattern: z.enum(["MWF", "TTS", "WEEKEND", "CUSTOM"]).optional().or(z.literal("")),
   timeSlot: z.string().optional().or(z.literal("")),
+  timeslotMasterId: z.string().optional().or(z.literal("")),
+  classroomMasterId: z.string().optional().or(z.literal("")),
 });
 
 export const assignFacultySchema = z.object({

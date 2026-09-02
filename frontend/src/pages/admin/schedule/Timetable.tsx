@@ -216,6 +216,14 @@ import { useFacultyList } from "@/hooks/useFaculty";
 import { useBatches } from "@/hooks/useBatches";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
+import {
+  batchIncludesFaculty,
+  formatBatchSubjectNames,
+  getBatchCourseRows,
+  getCourseNameInBatch,
+  getFacultyForCourseInBatch,
+  getSessionSubjectLabel,
+} from "@/utils/batch.utils";
 
 export const Timetable: React.FC = () => {
   const { user } = useAuthStore();
@@ -304,7 +312,7 @@ export const Timetable: React.FC = () => {
       period,
       timeRange: col?.label || `${raw.startTime} – ${raw.endTime}`,
       type: "CLASS",
-      courseName: raw.batch?.course?.name || raw.title || "Class",
+      courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }),
       batchCode: raw.batch?.code || raw.batch?.name || "",
       batchId: raw.batchId,
       roomNo: raw.roomNo || "TBD",
@@ -380,6 +388,7 @@ export const Timetable: React.FC = () => {
   const [modalSessionId, setModalSessionId] = useState<string | null>(null);
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalBatchId, setModalBatchId] = useState<string>("");
+  const [modalSubjectCourseId, setModalSubjectCourseId] = useState<string>("");
   const [modalRoomNo, setModalRoomNo] = useState<string>("Room 201");
   const [modalSlotType, setModalSlotType] = useState<SlotType>("CLASS");
 
@@ -410,8 +419,33 @@ export const Timetable: React.FC = () => {
 
   const facultyBatches = useMemo(() => {
     if (!modalFacultyId) return batches;
-    return batches.filter((b) => !b.facultyId || b.facultyId === modalFacultyId);
+    return batches.filter((b) => batchIncludesFaculty(b, modalFacultyId));
   }, [batches, modalFacultyId]);
+
+  const modalBatch = useMemo(
+    () => batches.find((b) => b.id === modalBatchId),
+    [batches, modalBatchId]
+  );
+
+  const modalSubjectOptions = useMemo(() => {
+    if (!modalBatch || !modalFacultyId) return getBatchCourseRows(modalBatch ?? { courseId: "" });
+    return getBatchCourseRows(modalBatch).filter(
+      (row) => row.facultyId === modalFacultyId || row.faculty?.id === modalFacultyId
+    );
+  }, [modalBatch, modalFacultyId]);
+
+  useEffect(() => {
+    if (!modalBatchId) {
+      setModalSubjectCourseId("");
+      return;
+    }
+    const options = modalSubjectOptions;
+    if (options.length === 1) {
+      setModalSubjectCourseId(options[0].courseId);
+    } else if (!options.some((o) => o.courseId === modalSubjectCourseId)) {
+      setModalSubjectCourseId(options[0]?.courseId || "");
+    }
+  }, [modalBatchId, modalSubjectOptions, modalSubjectCourseId]);
 
   // Current Selected Day Config
   const currentDayConfig = useMemo(() => {
@@ -555,11 +589,23 @@ export const Timetable: React.FC = () => {
       return;
     }
 
+    const subjectCourseId =
+      modalSubjectCourseId || modalSubjectOptions[0]?.courseId || batch.courseId;
+    if (!subjectCourseId) {
+      setNotificationMsg("Select a subject for this class session.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
+
+    const subjectFaculty = getFacultyForCourseInBatch(batch, subjectCourseId);
+    const sessionFacultyId = subjectFaculty?.id || fac.id;
+    const subjectName = getCourseNameInBatch(batch, subjectCourseId) || batch.name;
+
     const { start, end } = periodToTimes(modalPeriod);
     const payload = {
-      title: modalTitle || batch.course?.name || batch.name || "Class Session",
+      title: modalTitle || subjectName || batch.name || "Class Session",
       batchId: batch.id,
-      facultyId: fac.id,
+      facultyId: sessionFacultyId,
       branchId: fac.branchId || batch.branchId,
       scheduledDate: getDateForDayKey(modalDayKey),
       startTime: start,
@@ -1213,11 +1259,28 @@ export const Timetable: React.FC = () => {
                     {facultyBatches.map((batch) => (
                       <option key={batch.id} value={batch.id}>
                         {batch.code} — {batch.name}
-                        {batch.course?.name ? ` (${batch.course.name})` : ""}
+                        {` (${formatBatchSubjectNames(batch)})`}
                       </option>
                     ))}
                   </select>
                 </div>
+
+                {modalBatch && modalSubjectOptions.length > 0 && (
+                  <div>
+                    <Label className="text-[11px] font-bold text-slate-700">Subject *</Label>
+                    <select
+                      value={modalSubjectCourseId}
+                      onChange={(e) => setModalSubjectCourseId(e.target.value)}
+                      className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                    >
+                      {modalSubjectOptions.map((row) => (
+                        <option key={row.courseId} value={row.courseId}>
+                          {row.course?.name || "Subject"}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
 
                 <div>
                   <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab</Label>

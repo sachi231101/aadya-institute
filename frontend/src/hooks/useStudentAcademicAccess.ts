@@ -5,6 +5,7 @@ import { studentsApi } from "@/services/students.api";
 import { coursesApi } from "@/services/courses.api";
 import { useStudentDashboard } from "./useStudentDashboard";
 import type { StudentDetail } from "@/types/student.types";
+import { getBatchCourseRows } from "@/utils/batch.utils";
 
 export interface StudentAssignedCourse {
   id: string;
@@ -147,12 +148,15 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
             facultyName: be.batch.faculty?.user?.name,
           });
 
-          if (be.batch.course) {
-            coursesMap.set(be.batch.course.id, {
-              id: be.batch.course.id,
-              name: be.batch.course.name,
-              code: be.batch.course.code,
-            });
+          const subjectRows = getBatchCourseRows(be.batch as Parameters<typeof getBatchCourseRows>[0]);
+          for (const row of subjectRows) {
+            if (row.course) {
+              coursesMap.set(row.course.id, {
+                id: row.course.id,
+                name: row.course.name,
+                code: row.course.code ?? "",
+              });
+            }
           }
         }
       });
@@ -256,13 +260,23 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       courseId?: string | null;
       batchId?: string | null;
       courseName?: string | null;
-      batch?: { id?: string; code?: string; courseId?: string };
+      batch?: {
+        id?: string;
+        code?: string;
+        courseId?: string;
+        batchCourses?: Array<{ courseId: string }>;
+      };
     }): boolean => {
       if (session.batchId && assignedBatchIds.includes(session.batchId)) return true;
       if (session.batch?.id && assignedBatchIds.includes(session.batch.id)) return true;
       if (session.batch?.code && assignedBatchCodes.includes(session.batch.code)) return true;
       if (session.courseId && assignedCourseIds.includes(session.courseId)) return true;
       if (session.batch?.courseId && assignedCourseIds.includes(session.batch.courseId)) return true;
+      if (
+        session.batch?.batchCourses?.some((bc) => assignedCourseIds.includes(bc.courseId))
+      ) {
+        return true;
+      }
       if (session.courseName && isAuthorizedForCourse(session.courseName)) return true;
       return false;
     };
@@ -271,7 +285,12 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       courseId?: string | null;
       batchId?: string | null;
       courseName?: string | null;
-      batch?: { id?: string; code?: string; courseId?: string };
+      batch?: {
+        id?: string;
+        code?: string;
+        courseId?: string;
+        batchCourses?: Array<{ courseId: string }>;
+      };
       status?: string;
       meetingUrl?: string | null;
     }): boolean => {

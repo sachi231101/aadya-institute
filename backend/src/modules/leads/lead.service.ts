@@ -111,7 +111,11 @@ export const LeadService = {
       createdById: lead.createdById,
     });
 
-    return LeadRepository.findLeadById(lead.id, instituteId) ?? lead;
+    const refreshed = await LeadRepository.findLeadById(lead.id, instituteId);
+    if (!refreshed) {
+      throw new AppError("Failed to load created lead", 500);
+    }
+    return refreshed;
   },
 
   // ─── List Leads ─────────────────────────────────────────────────────────────

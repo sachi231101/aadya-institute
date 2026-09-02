@@ -11,6 +11,7 @@ export const masterListQuerySchema = z.object({
 export const createMasterRecordSchema = z.object({
   entityType: z.string().min(1, "entityType is required").trim(),
   name: z.string().min(1, "Name is required").trim(),
+  /** Optional; only used for numbering series (document target). Ignored for other masters. */
   code: z.string().trim().optional(),
   description: z.string().trim().optional(),
   branchId: z.string().optional(),
@@ -21,6 +22,7 @@ export const createMasterRecordSchema = z.object({
 
 export const updateMasterRecordSchema = z.object({
   name: z.string().min(1).trim().optional(),
+  /** Optional; only used for numbering series (document target). */
   code: z.string().trim().optional(),
   description: z.string().trim().optional(),
   branchId: z.string().nullable().optional(),

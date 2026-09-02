@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { FileText, Loader2, AlertCircle } from "lucide-react";
 import { useCreateAssignment } from "@/hooks/useAssignments";
-import { batchesApi } from "@/services/batches.api";
+import { batchesApi, type BatchData } from "@/services/batches.api";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -60,8 +61,10 @@ export const CreateAssignment: React.FC = () => {
               <Label>Batch *</Label>
               <select required value={batchId} onChange={(e) => setBatchId(e.target.value)} className="w-full h-10 px-3 border rounded-md text-sm">
                 <option value="">Select batch</option>
-                {batches.map((b: { id: string; name: string; code: string }) => (
-                  <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
+                {batches.map((b: BatchData) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code}) — {formatBatchSubjectNames(b)}
+                  </option>
                 ))}
               </select>
             </div>

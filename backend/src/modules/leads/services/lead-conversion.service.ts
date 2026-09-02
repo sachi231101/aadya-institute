@@ -92,6 +92,13 @@ export const LeadConversionService = {
 
     const updatedLead = await prisma.lead.findUnique({ where: { id: leadId } });
 
+    if (!student) {
+      throw new AppError("Student record was not created during lead conversion", 500);
+    }
+    if (!updatedLead) {
+      throw new AppError("Lead record missing after conversion", 500);
+    }
+
     const conversionResult = {
       lead: updatedLead,
       student,

@@ -166,10 +166,13 @@ export class ReportRepository {
       include: {
         user: { select: { name: true, email: true } },
         batches: { select: { id: true, name: true } },
+        batchCourses: {
+          where: { status: "ACTIVE" },
+          select: { batchId: true, batch: { select: { id: true, name: true, status: true } } },
+        },
         classSessions: { select: { id: true, startTime: true, endTime: true, status: true } },
       },
     });
-
     const totalActiveFaculty = faculty.filter((f) => f.status === "ACTIVE").length;
 
     // Fetch Feedback ratings from database
@@ -223,8 +226,10 @@ export class ReportRepository {
 
     const facultyRows = faculty.map((f) => {
       const name = f.user?.name || `Faculty ${f.employeeCode}`;
-      const batchesCount = f.batches.length;
-
+      const batchIds = new Set<string>();
+      f.batches.forEach((b) => batchIds.add(b.id));
+      f.batchCourses.forEach((bc) => batchIds.add(bc.batchId));
+      const batchesCount = batchIds.size;
       let hours = 0;
       f.classSessions.forEach((cs) => {
         if (cs.startTime && cs.endTime) {
@@ -293,12 +298,22 @@ export class ReportRepository {
             enrollments: true,
           },
         },
+        batchCourses: {
+          where: { status: "ACTIVE" },
+          include: {
+            batch: {
+              include: {
+                enrollments: true,
+              },
+            },
+          },
+        },
         admissions: true,
       },
     });
 
     const totalCourses = courses.length;
-    let activeBatches = 0;
+    const uniqueActiveBatchIds = new Set<string>();
     let totalCapacity = 0;
     let totalEnrolled = 0;
     let totalModules = 0;
@@ -306,9 +321,15 @@ export class ReportRepository {
     const courseComparison: { course: string; students: number; capacity: number }[] = [];
 
     const courseRows = courses.map((c) => {
-      const cBatches = c.batches || [];
-      const activeBatchesCount = cBatches.filter((b) => b.status === "ACTIVE").length;
-      activeBatches += activeBatchesCount;
+      const batchMap = new Map<string, (typeof c.batches)[number] | (typeof c.batchCourses)[number]["batch"]>();
+      for (const b of c.batches || []) {
+        batchMap.set(b.id, b);
+      }
+      for (const bc of c.batchCourses || []) {
+        if (bc.batch) batchMap.set(bc.batch.id, bc.batch);
+      }
+      const cBatches = Array.from(batchMap.values());
+      cBatches.filter((b) => b.status === "ACTIVE").forEach((b) => uniqueActiveBatchIds.add(b.id));
 
       let cEnrolled = 0;
       let cCapacity = 0;
@@ -345,6 +366,7 @@ export class ReportRepository {
       };
     });
 
+    const activeBatches = uniqueActiveBatchIds.size;
     const avgOccupancy = totalCapacity > 0 ? Math.round((totalEnrolled / totalCapacity) * 100) : 0;
 
     const structureOverview = [

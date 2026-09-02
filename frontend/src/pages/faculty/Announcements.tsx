@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from "react";
+import React, { useState, useMemo, useRef, useEffect } from "react";
 import {
   Megaphone,
   CheckCircle,
@@ -43,57 +43,68 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { useAnnouncementStore } from "@/store/announcement.store";
+import { useFacultyCourses } from "@/hooks/useFaculty";
 import type {
   AnnouncementItem,
   AnnouncementType,
   AnnouncementStatus,
 } from "@/store/announcement.store";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MOCK DATA FOR FACULTY ASSIGNED COURSES & BATCHES
-// ─────────────────────────────────────────────────────────────────────────────
-
-const FACULTY_COURSES = [
-  {
-    id: "c-java",
-    name: "Java Programming",
-    batches: [
-      { id: "b-java-a", name: "Batch A – Java Programming", studentCount: 28 },
-      { id: "b-java-b", name: "Batch B – Java Programming", studentCount: 30 },
-      { id: "b-java-c", name: "Batch C – Java Programming", studentCount: 24 },
-    ],
-  },
-  {
-    id: "c-python",
-    name: "Python Data Science",
-    batches: [
-      { id: "b-py-a", name: "Batch 1 – Python Data Science", studentCount: 32 },
-      { id: "b-py-b", name: "Batch 2 – Python Data Science", studentCount: 26 },
-    ],
-  },
-  {
-    id: "c-spring",
-    name: "Spring Boot Microservices",
-    batches: [
-      { id: "b-sb-a", name: "Batch Alpha – Spring Boot", studentCount: 22 },
-    ],
-  },
-];
+type FacultyCourseGroup = {
+  id: string;
+  name: string;
+  batches: {
+    id: string;
+    name: string;
+    batchCode: string;
+    studentCount: number;
+  }[];
+};
 
 export const FacultyAnnouncements: React.FC = () => {
   const { user } = useAuthStore();
   const { announcements, addAnnouncement } = useAnnouncementStore();
+  const { data: facultyCoursesRes, isLoading: loadingFacultyCourses } = useFacultyCourses({ limit: 100 });
 
-  const facultyName = user?.name || "Ramesh Kumar";
-  const facultyDesignation = (user as any)?.specialization || (user as any)?.department || "Java Faculty";
+  const facultyName = user?.name || "Faculty";
+  const facultyDesignation = (user as { specialization?: string; department?: string })?.specialization || (user as { department?: string })?.department || "Faculty";
+
+  const facultyCourseGroups = useMemo((): FacultyCourseGroup[] => {
+    const assignments = facultyCoursesRes?.data ?? [];
+    const map = new Map<string, FacultyCourseGroup>();
+
+    for (const assignment of assignments) {
+      const courseId = assignment.courseId;
+      if (!map.has(courseId)) {
+        map.set(courseId, {
+          id: courseId,
+          name: assignment.course.name,
+          batches: [],
+        });
+      }
+
+      const group = map.get(courseId)!;
+      const batchLabel = `${assignment.code} – ${assignment.name}`;
+      if (!group.batches.some((b) => b.id === assignment.id)) {
+        group.batches.push({
+          id: assignment.id,
+          name: batchLabel,
+          batchCode: assignment.code,
+          studentCount: assignment._count?.enrollments ?? 0,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  }, [facultyCoursesRes?.data]);
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"All" | "Published" | "Draft">("All");
 
   // Form State
-  const [selectedCourse, setSelectedCourse] = useState("Java Programming");
-  const [selectedBatchId, setSelectedBatchId] = useState("b-java-a");
+  const [selectedCourse, setSelectedCourse] = useState("");
+  const [selectedBatchId, setSelectedBatchId] = useState("");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [attachedFile, setAttachedFile] = useState<{ name: string; size: string } | null>(null);
@@ -108,10 +119,31 @@ export const FacultyAnnouncements: React.FC = () => {
 
   // Available batches for current course
   const currentCourseObj = useMemo(() => {
-    return FACULTY_COURSES.find((c) => c.name === selectedCourse) || FACULTY_COURSES[0];
-  }, [selectedCourse]);
+    if (facultyCourseGroups.length === 0) {
+      return { id: "", name: "", batches: [] as FacultyCourseGroup["batches"] };
+    }
+    return facultyCourseGroups.find((c) => c.name === selectedCourse) || facultyCourseGroups[0];
+  }, [facultyCourseGroups, selectedCourse]);
+
+  useEffect(() => {
+    if (facultyCourseGroups.length === 0) return;
+    const courseExists = facultyCourseGroups.some((c) => c.name === selectedCourse);
+    if (!courseExists) {
+      const first = facultyCourseGroups[0];
+      setSelectedCourse(first.name);
+      setSelectedBatchId(first.batches[0]?.id ?? "");
+      return;
+    }
+    const course = facultyCourseGroups.find((c) => c.name === selectedCourse);
+    if (course && !course.batches.some((b) => b.id === selectedBatchId)) {
+      setSelectedBatchId(course.batches[0]?.id ?? "");
+    }
+  }, [facultyCourseGroups, selectedCourse, selectedBatchId]);
 
   const currentBatchObj = useMemo(() => {
+    if (currentCourseObj.batches.length === 0) {
+      return { id: "", name: "No batch assigned", batchCode: "—", studentCount: 0 };
+    }
     return (
       currentCourseObj.batches.find((b) => b.id === selectedBatchId) ||
       currentCourseObj.batches[0]
@@ -188,6 +220,11 @@ export const FacultyAnnouncements: React.FC = () => {
   const handlePublish = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
+    if (!selectedCourse || !selectedBatchId) {
+      alert("Please select a course and batch.");
+      return;
+    }
+
     if (!title.trim()) {
       alert("Please enter an announcement title.");
       return;
@@ -203,7 +240,7 @@ export const FacultyAnnouncements: React.FC = () => {
       type: "Important Notice",
       authorRole: "Faculty",
       courseName: selectedCourse,
-      batchCode: currentBatchObj.name.split("–")[0].trim(),
+      batchCode: currentBatchObj.batchCode,
       batchName: currentBatchObj.name,
       facultyName: facultyName,
       facultyDesignation: facultyDesignation,
@@ -230,6 +267,11 @@ export const FacultyAnnouncements: React.FC = () => {
 
   // Save as Draft
   const handleSaveDraft = () => {
+    if (!selectedCourse || !selectedBatchId) {
+      alert("Please select a course and batch.");
+      return;
+    }
+
     if (!title.trim()) {
       alert("Please enter a title to save as draft.");
       return;
@@ -241,7 +283,7 @@ export const FacultyAnnouncements: React.FC = () => {
       type: "General Announcement",
       authorRole: "Faculty",
       courseName: selectedCourse,
-      batchCode: currentBatchObj.name.split("–")[0].trim(),
+      batchCode: currentBatchObj.batchCode,
       batchName: currentBatchObj.name,
       facultyName: facultyName,
       facultyDesignation: facultyDesignation,
@@ -552,18 +594,25 @@ export const FacultyAnnouncements: React.FC = () => {
                     value={selectedCourse}
                     onChange={(e) => {
                       setSelectedCourse(e.target.value);
-                      const course = FACULTY_COURSES.find((c) => c.name === e.target.value);
-                      if (course && course.batches[0]) {
+                      const course = facultyCourseGroups.find((c) => c.name === e.target.value);
+                      if (course?.batches[0]) {
                         setSelectedBatchId(course.batches[0].id);
                       }
                     }}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8]"
+                    disabled={loadingFacultyCourses || facultyCourseGroups.length === 0}
+                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
                   >
-                    {FACULTY_COURSES.map((course) => (
-                      <option key={course.id} value={course.name}>
-                        {course.name}
+                    {facultyCourseGroups.length === 0 ? (
+                      <option value="">
+                        {loadingFacultyCourses ? "Loading courses..." : "No assigned courses"}
                       </option>
-                    ))}
+                    ) : (
+                      facultyCourseGroups.map((course) => (
+                        <option key={course.id} value={course.name}>
+                          {course.name}
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 
@@ -575,13 +624,18 @@ export const FacultyAnnouncements: React.FC = () => {
                   <select
                     value={selectedBatchId}
                     onChange={(e) => setSelectedBatchId(e.target.value)}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8]"
+                    disabled={currentCourseObj.batches.length === 0}
+                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
                   >
-                    {currentCourseObj.batches.map((batch) => (
-                      <option key={batch.id} value={batch.id}>
-                        {batch.name} ({batch.studentCount} Students)
-                      </option>
-                    ))}
+                    {currentCourseObj.batches.length === 0 ? (
+                      <option value="">No batches for this subject</option>
+                    ) : (
+                      currentCourseObj.batches.map((batch) => (
+                        <option key={batch.id} value={batch.id}>
+                          {batch.name} ({batch.studentCount} Students)
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
 

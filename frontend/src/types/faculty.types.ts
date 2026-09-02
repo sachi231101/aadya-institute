@@ -240,6 +240,8 @@ export interface MyStudentsParams {
 export interface AssignCoursePayload {
   batchId: string;
   facultyId: string;
+  /** Subject within a multi-course batch; updates BatchCourse.facultyId. */
+  courseId?: string;
 }
 
 export interface MarkAttendancePayload {

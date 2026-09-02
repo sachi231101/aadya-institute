@@ -6,6 +6,10 @@ const sessionInclude = {
   batch: {
     include: {
       course: true,
+      batchCourses: {
+        orderBy: { sequence: "asc" },
+        include: { course: { select: { id: true, name: true, code: true } } },
+      },
       _count: {
         select: {
           enrollments: {

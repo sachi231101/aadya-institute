@@ -54,6 +54,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 
 export const StudentAllocation: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -135,7 +136,9 @@ export const StudentAllocation: React.FC = () => {
       if (s.courseName) set.add(s.courseName);
     });
     batches.forEach((b) => {
-      if (b.course?.name) set.add(b.course.name);
+      getBatchCourseRows(b).forEach((row) => {
+        if (row.course?.name) set.add(row.course.name);
+      });
     });
     return Array.from(set);
   }, [students, batches]);
@@ -716,7 +719,7 @@ export const StudentAllocation: React.FC = () => {
                 >
                   {batches.map((b) => (
                     <option key={b.id} value={b.id} className="font-medium text-slate-800">
-                      {b.code} — {b.name} ({b.course?.name || "Course"})
+                      {b.code} — {b.name} ({formatBatchSubjectNames(b)})
                     </option>
                   ))}
                 </select>
@@ -732,7 +735,7 @@ export const StudentAllocation: React.FC = () => {
                     <span className="text-[11px] font-bold font-mono text-primary">{targetBatch.code}</span>
                   </div>
                   <Badge className="bg-primary/10 text-primary border-primary/20 font-bold text-[10px]">
-                    {targetBatch.course?.name || "Active Course"}
+                    {formatBatchSubjectNames(targetBatch)}
                   </Badge>
                 </div>
 
@@ -989,7 +992,7 @@ export const StudentAllocation: React.FC = () => {
                     .filter((b) => b.id !== transferModalStudent.currentBatchId)
                     .map((b) => (
                       <option key={b.id} value={b.id}>
-                        {b.code} – {b.name} ({b.course?.name || "Course"})
+                        {b.code} – {b.name} ({formatBatchSubjectNames(b)})
                       </option>
                     ))}
                 </select>

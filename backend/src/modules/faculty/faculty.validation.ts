@@ -42,6 +42,8 @@ export const myStudentsQuerySchema = z.object({
 export const assignCourseSchema = z.object({
   batchId: z.string().min(1, "Batch ID is required"),
   facultyId: z.string().min(1, "Faculty ID is required"),
+  /** When set, assigns faculty to that subject row on the batch (BatchCourse). */
+  courseId: z.string().min(1).optional(),
 });
 
 export const markAttendanceSchema = z.object({

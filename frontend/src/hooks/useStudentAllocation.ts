@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { batchesApi, type BatchData } from "@/services/batches.api";
 import { studentsApi } from "@/services/students.api";
 import type { Student } from "@/types/student.types";
+import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 
 export interface EnrolledBatchInfo {
   batchId: string;
@@ -47,7 +48,7 @@ export function useStudentAllocation() {
               batchId: b.id,
               batchCode: b.code,
               batchName: b.name,
-              courseName: b.course?.name || "Course",
+              courseName: formatBatchSubjectNames(b),
               branchName: b.branch?.name || "Aadya Central Branch",
               timeSlot: b.timeSlot || "10:00 AM - 12:00 PM",
               startDate: b.startDate,

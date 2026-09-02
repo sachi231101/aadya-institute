@@ -21,7 +21,6 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
-import type { AuthUser } from "../auth/auth.types";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 
 const triggerAdmissionNotification = async (admissionId: string) => {

@@ -31,6 +31,7 @@ import {
 import { useAssignments, useSubmitAssignment } from "@/hooks/useAssignments";
 import { useAuthStore } from "@/store/auth.store";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type { Assignment, AssignmentSubmission } from "@/services/assignments.api";
 
 interface EnrichedAssignment {
@@ -113,7 +114,9 @@ export const StudentAssignments: React.FC = () => {
     const scopedAssignments = apiAssignments.filter((asg) => {
       const session = asg.classSession as any;
       const courseId = session?.batch?.courseId || session?.batchModule?.courseModule?.courseId;
-      const courseName = session?.batch?.course?.name || session?.title;
+      const courseName =
+        getSessionSubjectLabel({ title: session?.title, batch: session?.batch }) ||
+        session?.batchModule?.courseModule?.course?.name;
       const batchId = session?.batchId || session?.batch?.id;
       const batchCode = session?.batch?.code;
 
@@ -130,7 +133,10 @@ export const StudentAssignments: React.FC = () => {
       return {
         id: asg.id,
         title: asg.title,
-        courseName: session?.batch?.course?.name || session?.title || academic.primaryCourse?.name || "Course Assignment",
+        courseName:
+          getSessionSubjectLabel({ title: session?.title, batch: session?.batch }) ||
+          academic.primaryCourse?.name ||
+          "Course Assignment",
         batchName: session?.batch?.name || academic.primaryBatch?.name || "",
         batchCode: session?.batch?.code || academic.primaryBatch?.code || "",
         instructions: asg.description || "",

@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { attendanceApi } from "@/services/attendance.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 interface SubjectAttendanceData {
   id: string;
@@ -170,7 +171,11 @@ export const StudentAttendance: React.FC = () => {
         topic: item.classSession?.title || item.remarks || "Class Session",
         moduleName: item.classSession?.batchModule?.courseModule?.name || academic.primaryCourse?.name || "Curriculum",
         batchCode: item.classSession?.batch?.code || academic.primaryBatch?.code || "BATCH-01",
-        courseName: item.classSession?.batch?.course?.name || academic.primaryCourse?.name || "Enrolled Course",
+        courseName:
+          getSessionSubjectLabel({
+            title: item.classSession?.title,
+            batch: item.classSession?.batch,
+          }) || academic.primaryCourse?.name || "Enrolled Course",
         facultyName: item.classSession?.faculty?.user?.name || "Faculty",
         status: (item.status === "PRESENT" ? "PRESENT" : item.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
         remarks: item.remarks || (item.status === "PRESENT" ? "Marked Present" : "Marked Absent"),

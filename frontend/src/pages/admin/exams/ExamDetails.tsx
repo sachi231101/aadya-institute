@@ -42,6 +42,7 @@ import {
 import { useQuestions } from "@/hooks/useQuestions";
 import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useBatches } from "@/hooks/useBatches";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import { useStudentList } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -906,7 +907,7 @@ export const ExamDetails: React.FC = () => {
                           <Badge variant="outline">{eb.batch?.code}</Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {eb.batch?.course?.name || "—"}
+                          {formatBatchSubjectNames(eb.batch ?? { courseId: eb.batch?.courseId ?? "" })}
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="text-xs">

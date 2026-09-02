@@ -40,6 +40,7 @@ import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
@@ -74,7 +75,7 @@ const parseTimeParts = (time: string): { hour24: number; min: number; label: str
 const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
   const start = parseTimeParts(raw.startTime || "00:00");
   const end = parseTimeParts(raw.endTime || "00:00");
-  const title = raw.title || raw.batch?.course?.name || "Class Session";
+  const title = getSessionSubjectLabel({ title: raw.title, batch: raw.batch });
   const initials = title
     .split(/\s+/)
     .slice(0, 2)
@@ -96,7 +97,7 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     courseCode: raw.batch?.course?.code || raw.batch?.code || "CLASS",
     courseId: raw.batch?.courseId || raw.courseId || raw.batch?.course?.id,
     batchId: raw.batchId || raw.batch?.id,
-    courseName: raw.batch?.course?.name || raw.courseName || title,
+    courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }) || raw.courseName || title,
     batchCode: raw.batch?.code,
     facultyName: raw.faculty?.user?.name || "Faculty",
     date: raw.scheduledDate
@@ -486,7 +487,7 @@ export const StudentSchedule: React.FC = () => {
           return academic.isAuthorizedForSession({
             courseId: raw.batch?.courseId || raw.courseId,
             batchId: raw.batchId || raw.batch?.id,
-            courseName: raw.batch?.course?.name || raw.courseName || raw.title,
+            courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }) || raw.courseName,
             batch: raw.batch,
           });
         });
