@@ -546,10 +546,10 @@ export const Batches: React.FC = () => {
 
       {/* Modal Dialog for Creating / Editing Batch */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-200">
-          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xl text-foreground overflow-hidden animate-in zoom-in-95 duration-200 my-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 sm:p-6 animate-in fade-in duration-200">
+          <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-2xl text-foreground overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[90vh] my-auto">
             {/* Modal Header */}
-            <div className="bg-muted/30 border-b border-border px-6 py-4 flex items-center justify-between">
+            <div className="shrink-0 bg-muted/30 border-b border-border px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2.5 rounded-xl bg-primary/10 text-primary border border-primary/20 shrink-0">
                   {editingBatch ? <Pencil className="h-5 w-5" /> : <GraduationCap className="h-5 w-5" />}
@@ -575,8 +575,8 @@ export const Batches: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleFormSubmit}>
-              <div className="p-6 space-y-4 max-h-[75vh] overflow-y-auto">
+            <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                 {formError && (
                   <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold flex items-center gap-2">
                     <AlertTriangle className="h-4 w-4 shrink-0" />
@@ -732,7 +732,7 @@ export const Batches: React.FC = () => {
               </div>
 
               {/* Modal Footer Actions */}
-              <div className="bg-muted/20 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
+              <div className="shrink-0 bg-muted/20 border-t border-border px-6 py-4 flex items-center justify-end gap-3">
                 <Button
                   type="button"
                   variant="outline"
