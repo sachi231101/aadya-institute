@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { 
   GraduationCap, 
@@ -14,13 +14,13 @@ import {
   Loader2,
   AlertTriangle,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useBatches } from "../../../hooks/useBatches";
 import type { BatchData, BatchCoursePayload } from "../../../services/batches.api";
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
-import { useBranches } from "@/hooks/useBranches";
 import { batchesApi } from "@/services/batches.api";
 import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,10 +85,8 @@ export const Batches: React.FC = () => {
   };
 
   const { courses } = useCourses();
-  const { data: branchesResponse } = useBranches({ limit: 100 });
-  const branches = branchesResponse?.data ?? [];
   const queryClient = useQueryClient();
-  const { batches, loading, createBatch, deleteBatch, refetch } = useBatches({
+  const { batches, loading, createBatch, updateBatch, deleteBatch, refetch } = useBatches({
     search: searchTerm,
     courseId: courseFilter !== "ALL" ? courseFilter : undefined,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
@@ -134,11 +132,6 @@ export const Batches: React.FC = () => {
   const [generateEndDate, setGenerateEndDate] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
-
-  const branchFacultyList = useMemo(() => {
-    if (!branchId) return facultyList;
-    return facultyList.filter((f) => f.branchId === branchId);
-  }, [facultyList, branchId]);
 
   const canGenerateSessions = (batch: typeof batchToGenerate) => {
     if (!batch) return false;
@@ -239,6 +232,7 @@ export const Batches: React.FC = () => {
     setSelectedCourses([]);
     setFacultyId("");
     setStartDate("2026-04-01");
+    setExpectedEndDate("");
     setSchedulePattern("MWF");
     setTimeSlotMasterId("");
     setClassroomMasterId("");
@@ -269,6 +263,7 @@ export const Batches: React.FC = () => {
     );
     setFacultyId(batch.facultyId || batch.faculty?.id || "");
     setStartDate(batch.startDate ? batch.startDate.split("T")[0] : "2026-04-01");
+    setExpectedEndDate(batch.expectedEndDate ? batch.expectedEndDate.split("T")[0] : "");
     setSchedulePattern((batch.schedulePattern as "MWF" | "TTS" | "WEEKEND" | "CUSTOM") || "MWF");
     setTimeSlotMasterId(
       batch.timeslotMasterId || findMasterIdByLabel(timeslotOptions, batch.timeSlot) || ""
@@ -313,13 +308,6 @@ export const Batches: React.FC = () => {
         timeslotMasterId: timeSlotMasterId || undefined,
         classroomMasterId: classroomMasterId || undefined,
         capacity,
-      });
-
-      setName("");
-      setCode("");
-      setBranchId("");
-      setFacultyId("");
-      setExpectedEndDate("");
       };
 
       if (editingBatch) {
@@ -397,14 +385,8 @@ export const Batches: React.FC = () => {
           </p>
         </div>
 
-        <Button 
+        <Button
           className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
-          onClick={() => {
-            if (courses.length > 0 && !courseId) setCourseId(courses[0].id);
-            if (branches.length > 0 && !branchId) setBranchId(branches[0].id);
-            setCreateError(null);
-            setShowModal(true);
-          }}
           onClick={handleOpenCreateModal}
         >
           <Plus className="mr-1.5 h-4 w-4" />
@@ -695,42 +677,6 @@ export const Batches: React.FC = () => {
               </button>
             </div>
 
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Branch / Center *</label>
-                <select
-                  value={branchId}
-                  onChange={(e) => {
-                    setBranchId(e.target.value);
-                    setFacultyId("");
-                  }}
-                  className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  required
-                >
-                  <option value="">Select branch</option>
-                  {branches.map((b) => (
-                    <option key={b.id} value={b.id}>
-                      {b.name} ({b.code})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">Assigned Instructor</label>
-                <select
-                  value={facultyId}
-                  onChange={(e) => setFacultyId(e.target.value)}
-                  className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
-                  disabled={!branchId}
-                >
-                  <option value="">{branchId ? "Unassigned" : "Select branch first"}</option>
-                  {branchFacultyList.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
-                    </option>
-                  ))}
-                </select>
-              </div>
             <form onSubmit={handleFormSubmit} className="flex flex-col min-h-0 flex-1 overflow-hidden">
               <div className="p-6 space-y-4 overflow-y-auto flex-1 min-h-0">
                 {formError && (
@@ -748,7 +694,6 @@ export const Batches: React.FC = () => {
                   defaultFacultyId={facultyId}
                 />
 
-                {/* Batch Name & Code */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
@@ -778,7 +723,6 @@ export const Batches: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Assigned Instructor & Capacity */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
@@ -811,7 +755,6 @@ export const Batches: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Schedule Pattern & Start Date */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
@@ -819,7 +762,7 @@ export const Batches: React.FC = () => {
                     </label>
                     <select
                       value={schedulePattern}
-                      onChange={(e) => setSchedulePattern(e.target.value as any)}
+                      onChange={(e) => setSchedulePattern(e.target.value as typeof schedulePattern)}
                       className="w-full h-10 px-3 py-2 bg-slate-50/80 dark:bg-slate-900/60 border border-border rounded-xl text-xs font-medium text-foreground focus:bg-background focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors cursor-pointer"
                     >
                       <option value="MWF">Mon, Wed, Fri (MWF)</option>
@@ -836,32 +779,27 @@ export const Batches: React.FC = () => {
                       type="date"
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
+                      required
                       className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
                     />
                   </div>
                 </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Start Date *</label>
-                  <Input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    required
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Expected End Date
+                    </label>
+                    <Input
+                      type="date"
+                      value={expectedEndDate}
+                      onChange={(e) => setExpectedEndDate(e.target.value)}
+                      min={startDate}
+                      className="h-10 bg-slate-50/80 dark:bg-slate-900/60 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Expected End Date</label>
-                  <Input
-                    type="date"
-                    value={expectedEndDate}
-                    onChange={(e) => setExpectedEndDate(e.target.value)}
-                    min={startDate}
-                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
-                  />
-                {/* Time Slot & Classroom with Master Quick-Add */}
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-foreground mb-1.5">
