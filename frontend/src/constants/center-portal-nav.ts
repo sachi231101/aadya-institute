@@ -71,7 +71,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Enquiries", url: "/center/admissions/enquiries", itemKey: "admissions.enquiries" },
       { title: "Applications", url: "/center/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/center/admissions/all", itemKey: "admissions.all" },
-      { title: "Direct Admission", url: "/center/admissions/direct-entry", itemKey: "admissions.direct" },
       { title: "Admission Documents", url: "/center/admissions/documents", itemKey: "admissions.documents" },
     ],
   },

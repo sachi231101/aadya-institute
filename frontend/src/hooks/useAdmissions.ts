@@ -37,6 +37,41 @@ export const useApplications = (params?: {
   });
 };
 
+export const useApplicationById = (id: string) => {
+  return useQuery({
+    queryKey: ["applications", id],
+    queryFn: () => admissionsApi.getApplicationById(id),
+    enabled: !!id,
+  });
+};
+
+export const useCreateApplication = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: admissionsApi.createApplication,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+    },
+  });
+};
+
+export const useUpdateApplication = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Parameters<typeof admissionsApi.updateApplication>[1];
+    }) => admissionsApi.updateApplication(id, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["applications"] });
+      queryClient.invalidateQueries({ queryKey: ["applications", variables.id] });
+    },
+  });
+};
+
 export const useCreateAdmission = () => {
   const queryClient = useQueryClient();
   return useMutation({
