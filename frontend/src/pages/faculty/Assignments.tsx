@@ -39,6 +39,11 @@ import { useAssignments, useCreateAssignment, useGradeSubmission } from "@/hooks
 import { useAuthStore } from "@/store/auth.store";
 import { useQuery } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
+import {
+  batchIncludesFaculty,
+  formatBatchSubjectNames,
+  getSessionSubjectLabel,
+} from "@/utils/batch.utils";
 
 interface FacultyBatchOption {
   id: string;
@@ -88,23 +93,30 @@ export const FacultyAssignments: React.FC = () => {
   // Filter batches assigned to this faculty
   const assignedBatches: FacultyBatchOption[] = useMemo(() => {
     const liveBatches = batchesRes?.data;
+    const facultyId = user?.facultyId;
     if (Array.isArray(liveBatches) && liveBatches.length > 0) {
-      return liveBatches.map((b: any) => ({
-        id: b.id,
-        name: b.name,
-        code: b.code || "BATCH-01",
-        courseName: b.course?.name || "Academy Course",
-        studentCount: b._count?.enrollments || b.enrollments?.length || b.capacity || 0,
-      }));
+      return liveBatches
+        .filter((b: any) => !facultyId || batchIncludesFaculty(b, facultyId))
+        .map((b: any) => ({
+          id: b.id,
+          name: b.name,
+          code: b.code || "BATCH-01",
+          courseName: formatBatchSubjectNames(b),
+          studentCount: b._count?.enrollments || b.enrollments?.length || b.capacity || 0,
+        }));
     }
     return [];
-  }, [batchesRes]);
+  }, [batchesRes, user?.facultyId]);
   // Combined assignment list — prefer live API, keep local optimistic creates
   const allAssignments = useMemo(() => {
     const fromApi = (apiAssignments || []).map((a: any) => ({
       id: a.id,
       title: a.title,
-      courseName: a.classSession?.batch?.course?.name || a.classSession?.title || "Course",
+      courseName:
+        getSessionSubjectLabel({
+          title: a.classSession?.title,
+          batch: a.classSession?.batch,
+        }) || "Course",
       batchName: a.classSession?.batch?.name || "",
       batchCode: a.classSession?.batch?.code || "",
       instructions: a.description || "",

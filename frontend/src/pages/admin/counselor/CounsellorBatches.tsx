@@ -28,7 +28,13 @@ import {
   AlertCircle,
   Loader2,
 } from "lucide-react";
-import { batchesApi, type BatchData, type CreateBatchPayload } from "../../../services/batches.api";
+import { batchesApi, type BatchData, type CreateBatchPayload, type BatchCoursePayload } from "../../../services/batches.api";
+import { formatBatchSubjectNames, formatBatchInstructorsSummary } from "@/utils/batch.utils";
+import { BatchSubjectChips } from "@/components/batches/BatchSubjectFacultyDisplay";
+import {
+  BatchCourseSelector,
+  type BatchCourseFormRow,
+} from "@/components/batches/BatchCourseSelector";
 import { coursesApi } from "../../../services/courses.api";
 import { facultyApi } from "../../../services/faculty.api";
 import { studentsApi } from "../../../services/students.api";
@@ -201,6 +207,7 @@ export const CounsellorBatches: React.FC = () => {
   const [editTimeSlotMasterId, setEditTimeSlotMasterId] = useState<string>("");
   const [editClassroomMasterId, setEditClassroomMasterId] = useState<string>("");
   const [editEnrolledStudentIds, setEditEnrolledStudentIds] = useState<string[]>([]);
+  const [editSelectedCourses, setEditSelectedCourses] = useState<BatchCourseFormRow[]>([]);
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
   const [selectedNewStudentIdToAdd, setSelectedNewStudentIdToAdd] = useState<string>("");
 
@@ -210,9 +217,21 @@ export const CounsellorBatches: React.FC = () => {
     setEditFacultyId(batch.facultyId || batch.faculty?.id || "");
     setEditStartDate(batch.startDate ? batch.startDate.split("T")[0] : "");
     setEditCapacity(batch.capacity || 30);
-    setEditTimeSlotMasterId(findMasterIdByLabel(timeslotOptions, batch.timeSlot));
-    setEditClassroomMasterId("");
+    setEditTimeSlotMasterId(
+      batch.timeslotMasterId || findMasterIdByLabel(timeslotOptions, batch.timeSlot) || ""
+    );
+    setEditClassroomMasterId(batch.classroomMasterId || "");
     setEditEnrolledStudentIds(getBatchEnrolledStudentIds(batch));
+    setEditSelectedCourses(
+      batch.batchCourses && batch.batchCourses.length > 0
+        ? batch.batchCourses.map((bc) => ({
+            courseId: bc.courseId,
+            facultyId: bc.facultyId || bc.faculty?.id || "",
+          }))
+        : batch.courseId
+          ? [{ courseId: batch.courseId, facultyId: batch.facultyId || batch.faculty?.id || "" }]
+          : []
+    );
     setSelectedNewStudentIdToAdd("");
   };
 
@@ -231,7 +250,7 @@ export const CounsellorBatches: React.FC = () => {
   // Form State for Create / Assign Batch
   const [newBatchName, setNewBatchName] = useState<string>("");
   const [newBatchCode, setNewBatchCode] = useState<string>("");
-  const [newCourseId, setNewCourseId] = useState<string>("");
+  const [newSelectedCourses, setNewSelectedCourses] = useState<BatchCourseFormRow[]>([]);
   const [newStartDate, setNewStartDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
@@ -252,12 +271,6 @@ export const CounsellorBatches: React.FC = () => {
     queryFn: () => coursesApi.getAll(),
   });
   const courses = coursesRes?.data || [];
-
-  useEffect(() => {
-    if (!newCourseId && courses.length > 0) {
-      setNewCourseId(courses[0].id);
-    }
-  }, [courses, newCourseId]);
 
   const { data: facultyRes } = useQuery({
     queryKey: ["faculty"],
@@ -341,8 +354,19 @@ export const CounsellorBatches: React.FC = () => {
 
   const handleSaveEditBatch = async () => {
     if (!editModalBatch) return;
-    if (!editBatchName.trim() || !editFacultyId) {
-      setSuccessMsg("Batch name and faculty are required.");
+    if (!editBatchName.trim()) {
+      setSuccessMsg("Batch name is required.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      return;
+    }
+    if (editSelectedCourses.length === 0) {
+      setSuccessMsg("Select at least one course/subject for this batch.");
+      setTimeout(() => setSuccessMsg(null), 3500);
+      return;
+    }
+    const missingFaculty = editSelectedCourses.find((r) => !r.facultyId);
+    if (missingFaculty) {
+      setSuccessMsg("Assign a faculty member for each selected subject.");
       setTimeout(() => setSuccessMsg(null), 3500);
       return;
     }
@@ -353,12 +377,22 @@ export const CounsellorBatches: React.FC = () => {
       const toAdd = nextIds.filter((id) => !previousIds.includes(id));
       const toRemove = previousIds.filter((id) => !nextIds.includes(id));
 
+      const coursesPayload: BatchCoursePayload[] = editSelectedCourses.map((r, idx) => ({
+        courseId: r.courseId,
+        facultyId: r.facultyId,
+        sequence: idx + 1,
+      }));
+
       await batchesApi.update(editModalBatch.id, {
         name: editBatchName.trim(),
-        facultyId: editFacultyId,
+        courseId: editSelectedCourses[0].courseId,
+        facultyId: editFacultyId || editSelectedCourses[0].facultyId,
+        courses: coursesPayload,
         startDate: editStartDate || undefined,
         capacity: editCapacity,
         timeSlot: getMasterLabel(timeslotOptions, editTimeSlotMasterId) || undefined,
+        timeslotMasterId: editTimeSlotMasterId || undefined,
+        classroomMasterId: editClassroomMasterId || undefined,
       });
 
       await Promise.all([
@@ -445,6 +479,7 @@ export const CounsellorBatches: React.FC = () => {
         (b) =>
           b.name.toLowerCase().includes(q) ||
           b.code.toLowerCase().includes(q) ||
+          formatBatchSubjectNames(b).toLowerCase().includes(q) ||
           (b.course?.name && b.course.name.toLowerCase().includes(q)) ||
           (b.faculty?.user?.name && b.faculty.user.name.toLowerCase().includes(q))
       );
@@ -912,7 +947,7 @@ export const CounsellorBatches: React.FC = () => {
                   </TableRow>
                 ) : (
                   displayBatches.map((batch) => {
-                    const facultyName = batch.faculty?.user?.name || "—";
+                    const facultyName = formatBatchInstructorsSummary(batch);
                     const facultyInitials = facultyName
                       .split(" ")
                       .map((p) => p[0])
@@ -936,9 +971,9 @@ export const CounsellorBatches: React.FC = () => {
                           {batch.name}
                         </TableCell>
 
-                        {/* Course */}
+                        {/* Subjects / Courses */}
                         <TableCell className="text-slate-600 font-medium">
-                          {batch.course?.name || "—"}
+                          <BatchSubjectChips batch={batch} maxVisible={2} />
                         </TableCell>
 
                         {/* Assigned Faculty */}
@@ -1114,19 +1149,14 @@ export const CounsellorBatches: React.FC = () => {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[11px] font-bold text-slate-700">Course *</label>
-              <select
-                value={newCourseId}
-                onChange={(e) => setNewCourseId(e.target.value)}
-                className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
-              >
-                <option value="">Select course…</option>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.code})
-                  </option>
-                ))}
-              </select>
+              <label className="text-[11px] font-bold text-slate-700">Courses / Subjects *</label>
+              <BatchCourseSelector
+                courses={courses}
+                facultyList={facultyList}
+                selectedCourses={newSelectedCourses}
+                onChange={setNewSelectedCourses}
+                defaultFacultyId={selectedFaculty?.id || ""}
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1193,7 +1223,6 @@ export const CounsellorBatches: React.FC = () => {
             <Button
               disabled={createBatchMutation.isPending}
               onClick={() => {
-                const targetCourseId = newCourseId || courses[0]?.id;
                 const targetFacultyId = selectedFaculty?.id || facultyList[0]?.id;
                 const targetBranchId =
                   facultyList.find((f) => f.id === targetFacultyId)?.branchId ||
@@ -1203,21 +1232,40 @@ export const CounsellorBatches: React.FC = () => {
                   setTimeout(() => setSuccessMsg(null), 3500);
                   return;
                 }
-                if (!targetCourseId || !targetFacultyId || !targetBranchId) {
-                  setSuccessMsg("Select a course, faculty member, and ensure a branch exists.");
+                if (newSelectedCourses.length === 0) {
+                  setSuccessMsg("Select at least one course/subject for this batch.");
                   setTimeout(() => setSuccessMsg(null), 3500);
                   return;
                 }
+                const missingFaculty = newSelectedCourses.find((r) => !r.facultyId);
+                if (missingFaculty) {
+                  setSuccessMsg("Assign a faculty member for each selected subject.");
+                  setTimeout(() => setSuccessMsg(null), 3500);
+                  return;
+                }
+                if (!targetFacultyId || !targetBranchId) {
+                  setSuccessMsg("Select a faculty member and ensure a branch exists.");
+                  setTimeout(() => setSuccessMsg(null), 3500);
+                  return;
+                }
+                const coursesPayload: BatchCoursePayload[] = newSelectedCourses.map((r, idx) => ({
+                  courseId: r.courseId,
+                  facultyId: r.facultyId,
+                  sequence: idx + 1,
+                }));
                 createBatchMutation.mutate({
                   name: newBatchName.trim(),
                   code: newBatchCode.trim(),
-                  courseId: targetCourseId,
+                  courseId: newSelectedCourses[0].courseId,
                   facultyId: targetFacultyId,
+                  courses: coursesPayload,
                   branchId: targetBranchId,
                   capacity: newCapacity,
                   startDate: newStartDate,
                   schedulePattern: inferSchedulePattern(newScheduleDays),
                   timeSlot: getMasterLabel(timeslotOptions, newTimeSlotMasterId) || undefined,
+                  timeslotMasterId: newTimeSlotMasterId || undefined,
+                  classroomMasterId: newClassroomMasterId || undefined,
                 });
               }}
               className="w-full sm:flex-1 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9 gap-1.5 cursor-pointer"
@@ -1265,14 +1313,27 @@ export const CounsellorBatches: React.FC = () => {
                 />
               </div>
 
-              {/* Assigned Faculty */}
+              {/* Subjects & per-subject faculty */}
               <div className="space-y-1">
-                <label className="font-bold text-slate-700">Assigned Faculty (1 Only) *</label>
+                <label className="font-bold text-slate-700">Courses / Subjects *</label>
+                <BatchCourseSelector
+                  courses={courses}
+                  facultyList={facultyList}
+                  selectedCourses={editSelectedCourses}
+                  onChange={setEditSelectedCourses}
+                  defaultFacultyId={editFacultyId}
+                />
+              </div>
+
+              {/* Batch coordinator (optional) */}
+              <div className="space-y-1">
+                <label className="font-bold text-slate-700">Batch Coordinator (optional)</label>
                 <select
                   value={editFacultyId}
                   onChange={(e) => setEditFacultyId(e.target.value)}
                   className="w-full h-9 px-3 border border-slate-200 rounded-xl bg-white text-slate-800 text-xs font-semibold outline-none focus:border-[#1769AA]"
                 >
+                  <option value="">None — use subject instructors only</option>
                   {allFacultyList.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.name} — {f.expertise}

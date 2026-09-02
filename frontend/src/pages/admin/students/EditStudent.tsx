@@ -7,6 +7,7 @@ import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
 import { useBranches } from "../../../hooks/useBranches";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
+import { batchIncludesCourse } from "@/utils/batch.utils";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
@@ -51,6 +52,7 @@ const studentSchema = z.object({
   bloodGroup: z.string().optional().or(z.literal("")),
   guardianName: z.string().optional().or(z.literal("")),
   guardianPhone: z.string().optional().or(z.literal("")),
+  guardianRelationMasterId: z.string().optional().or(z.literal("")),
   address: z.string().optional().or(z.literal("")),
   city: z.string().optional().or(z.literal("")),
   pincode: z.string().optional().or(z.literal("")),
@@ -107,6 +109,7 @@ export const EditStudent: React.FC = () => {
       bloodGroup: "",
       guardianName: "",
       guardianPhone: "",
+      guardianRelationMasterId: "",
       address: "",
       city: "Bengaluru",
       pincode: "",
@@ -129,7 +132,7 @@ export const EditStudent: React.FC = () => {
   const filteredBatches = useMemo(() => {
     if (!batches || batches.length === 0) return [];
     return batches.filter((b) => {
-      if (selectedCourseId && b.courseId && b.courseId !== selectedCourseId) return false;
+      if (selectedCourseId && !batchIncludesCourse(b, selectedCourseId)) return false;
       if (selectedBranchId && b.branchId && b.branchId !== selectedBranchId) return false;
       return true;
     });
@@ -858,6 +861,28 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <Input placeholder="e.g. 9845012345" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="guardianRelationMasterId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-xs font-semibold uppercase text-slate-600">
+                        Relationship
+                      </FormLabel>
+                      <FormControl>
+                        <MasterSelect
+                          entityType="parentinfo"
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="Select relationship"
+                          className="mt-0 rounded-md h-10"
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

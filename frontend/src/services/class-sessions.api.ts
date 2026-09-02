@@ -1,4 +1,5 @@
 import { api } from "./api";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import type {
   ClassSession,
   CreateClassSessionPayload,
@@ -35,6 +36,11 @@ export interface BackendClassSession {
       name: string;
       code: string;
     };
+    batchCourses?: Array<{
+      courseId: string;
+      sequence?: number;
+      course?: { id: string; name: string; code?: string };
+    }>;
   };
   faculty?: {
     id: string;
@@ -89,7 +95,7 @@ export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
     batchCode: raw.batch?.code || "—",
     branchId: raw.branchId,
     courseId: raw.batch?.courseId || raw.batch?.course?.id || "",
-    courseName: raw.batch?.course?.name || "—",
+    courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }),
     facultyId: raw.facultyId,
     facultyName: raw.faculty?.user?.name || "—",
     facultyDesignation: "",

@@ -10,8 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BatchEnrolledStudents } from "./BatchEnrolledStudents";
 import { BatchAssignedFaculty } from "./BatchAssignedFaculty";
+import { BatchSubjectsFacultyTable } from "@/components/batches/BatchSubjectFacultyDisplay";
+import { formatBatchSubjectNames, formatBatchInstructorsSummary, getBatchCourseRows } from "@/utils/batch.utils";
 
-type Tab = "info" | "students" | "faculty";
+type Tab = "info" | "subjects" | "students" | "faculty";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -33,6 +35,7 @@ export const BatchDetails: React.FC = () => {
   });
 
   const batch = data?.data;
+  const subjectCount = getBatchCourseRows(batch ?? { courseId: "" }).length;
 
   const canGenerate =
     !!batch?.facultyId && Array.isArray(batch.schedules) && batch.schedules.length > 0;
@@ -94,9 +97,10 @@ export const BatchDetails: React.FC = () => {
   }
 
   const tabs: { key: Tab; label: string }[] = [
-    { key: "info", label: "Info" },
-    { key: "students", label: "Enrolled Students" },
-    { key: "faculty", label: "Assigned Faculty" },
+    { key: "info", label: "Overview" },
+    { key: "subjects", label: `Subjects (${subjectCount})` },
+    { key: "students", label: "Students" },
+    { key: "faculty", label: "Faculty" },
   ];
 
   return (
@@ -104,17 +108,22 @@ export const BatchDetails: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
         <div>
           <h2 className="text-2xl font-bold text-text-primary">{batch.name}</h2>
-          <p className="text-sm text-text-secondary">{batch.code} · {batch.course?.name}</p>
+          <p className="text-sm text-text-secondary mt-1">
+            {batch.code} · {formatBatchSubjectNames(batch)}
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Instructors: {formatBatchInstructorsSummary(batch)}
+          </p>
         </div>
         <Badge variant="outline">{batch.status}</Badge>
       </div>
 
-      <div className="flex gap-2 border-b">
+      <div className="flex gap-2 border-b overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               tab === t.key ? "border-[#1769AA] text-[#1769AA]" : "border-transparent text-text-secondary"
             }`}
           >
@@ -242,6 +251,10 @@ export const BatchDetails: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {tab === "subjects" && (
+        <BatchSubjectsFacultyTable batchCourses={batch.batchCourses} batch={batch} />
       )}
 
       {tab === "students" && id && <BatchEnrolledStudents batchId={id} />}

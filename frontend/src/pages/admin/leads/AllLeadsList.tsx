@@ -5,6 +5,7 @@ import { useLeads } from "@/hooks/useLeads";
 import { useAdminUsers } from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { MasterSelect } from "@/components/common/MasterSelect";
 import { useAuthStore } from "@/store/auth.store";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
@@ -38,6 +39,8 @@ export const AllLeadsList: React.FC = () => {
   const [stageFilter, setStageFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ACTIVE");
   const [sourceFilter, setSourceFilter] = useState("ALL");
+  const [sourceMasterId, setSourceMasterId] = useState("");
+  const [stageMasterId, setStageMasterId] = useState("");
   const [counsellorFilter, setCounsellorFilter] = useState("ALL");
   const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
@@ -52,11 +55,9 @@ export const AllLeadsList: React.FC = () => {
   const branches = branchesResponse?.data || [];
 
   const stagePipeline = useMemo(() => {
-    const known = new Set([...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"]);
-    const fromMasters = stageOptions
-      .map((opt) => opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"))
-      .filter((code) => known.has(code));
-    if (fromMasters.length >= 4) return fromMasters;
+    if (stageOptions.length > 0) {
+      return stageOptions.map((opt) => opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"));
+    }
     return [...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"];
   }, [stageOptions]);
 
@@ -134,16 +135,24 @@ export const AllLeadsList: React.FC = () => {
                 className="pl-9"
               />
             </div>
-            <select
-              value={stageFilter}
-              onChange={(e) => { setStageFilter(e.target.value); setPage(1); }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
-            >
-              <option value="ALL">All Stages</option>
-              {stagePipeline.map((code) => (
-                <option key={code} value={code}>{code.replace(/_/g, " ")}</option>
-              ))}
-            </select>
+            <div className="min-w-[160px]">
+              <MasterSelect
+                entityType="leadstage"
+                value={stageMasterId}
+                onChange={(id) => {
+                  setStageMasterId(id);
+                  setPage(1);
+                  if (!id) {
+                    setStageFilter("ALL");
+                    return;
+                  }
+                  const opt = stageOptions.find((o) => o.value === id);
+                  setStageFilter(opt?.code || opt?.label.toUpperCase().replace(/\s+/g, "_") || "ALL");
+                }}
+                placeholder="All Stages"
+                className="mt-0"
+              />
+            </div>
             <select
               value={statusFilter}
               onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
@@ -154,19 +163,24 @@ export const AllLeadsList: React.FC = () => {
               <option value="CONVERTED">Converted</option>
               <option value="LOST">Lost</option>
             </select>
-            <select
-              value={sourceFilter}
-              onChange={(e) => { setSourceFilter(e.target.value); setPage(1); }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
-            >
-              <option value="ALL">All Sources</option>
-              {sourceOptions.map((opt) => (
-                <option key={opt.value} value={opt.code || opt.label}>{opt.label}</option>
-              ))}
-              <option value="WALK_IN">Walk-in</option>
-              <option value="ONLINE">Online</option>
-              <option value="WHATSAPP">WhatsApp</option>
-            </select>
+            <div className="min-w-[160px]">
+              <MasterSelect
+                entityType="leadsource"
+                value={sourceMasterId}
+                onChange={(id) => {
+                  setSourceMasterId(id);
+                  setPage(1);
+                  if (!id) {
+                    setSourceFilter("ALL");
+                    return;
+                  }
+                  const opt = sourceOptions.find((o) => o.value === id);
+                  setSourceFilter(opt?.code || opt?.label || id);
+                }}
+                placeholder="All Sources"
+                className="mt-0"
+              />
+            </div>
             <select
               value={counsellorFilter}
               onChange={(e) => { setCounsellorFilter(e.target.value); setPage(1); }}

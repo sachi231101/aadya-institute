@@ -61,12 +61,17 @@ export const assertFacultyOwnsBatch = async (
 
   const batch = await prisma.batch.findFirst({
     where: { id: batchId, instituteId: currentUser.instituteId },
-    select: { facultyId: true },
+    select: {
+      facultyId: true,
+      batchCourses: { where: { facultyId }, select: { id: true } },
+    },
   });
   if (!batch) {
     throw new AppError("Batch not found", 404);
   }
-  if (batch.facultyId !== facultyId) {
+  const isCoordinator = batch.facultyId === facultyId;
+  const teachesSubject = batch.batchCourses.length > 0;
+  if (!isCoordinator && !teachesSubject) {
     throw new AppError("You do not have access to this batch", 403);
   }
 };
@@ -108,8 +113,12 @@ export const assertFacultyCanAccessStudent = async (
       studentId,
       status: "ACTIVE",
       batch: {
-        facultyId,
         instituteId: currentUser.instituteId,
+        OR: [
+          { facultyId },
+          { batchCourses: { some: { facultyId } } },
+          { classSessions: { some: { facultyId } } },
+        ],
       },
     },
     select: { id: true },

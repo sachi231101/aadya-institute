@@ -15,6 +15,10 @@ export const findSessionWithBatchAndFaculty = async (classSessionId: string) => 
       batch: {
         include: {
           course: true,
+          batchCourses: {
+            orderBy: { sequence: "asc" },
+            include: { course: { select: { id: true, name: true, code: true } } },
+          },
           enrollments: {
             where: { status: "ACTIVE" },
             include: {

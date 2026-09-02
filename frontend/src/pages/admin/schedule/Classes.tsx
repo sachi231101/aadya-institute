@@ -122,7 +122,11 @@ const mapSessionToScheduledClassItem = (
   branchesList: Array<{ id: string; name: string }>
 ): ScheduledClassItem => {
   const branchObj = branchesList.find((b) => b.id === session.branchId);
-  const courseName = session.batch?.course?.name || "General Course";
+  const batchSubjects = formatBatchSubjectNames(
+    session.batch ?? { courseId: session.batch?.courseId ?? "" }
+  );
+  const courseName =
+    batchSubjects !== "N/A" ? batchSubjects : session.batch?.course?.name || "General Course";
   const topicName = session.title || courseName;
   const dateStr = session.scheduledDate
     ? new Date(session.scheduledDate).toISOString().split("T")[0]
@@ -172,6 +176,7 @@ import {
 } from "../../../hooks/useClassSessions";
 import { useQueryClient } from "@tanstack/react-query";
 import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import { batchesApi } from "../../../services/batches.api";
 
 export const Classes: React.FC = () => {

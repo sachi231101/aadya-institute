@@ -10,6 +10,7 @@ interface ClassroomDropdownProps {
   includeEmpty?: boolean;
   branchId?: string;
   disabled?: boolean;
+  allowCreate?: boolean;
 }
 
 /**
@@ -23,6 +24,7 @@ export const ClassroomDropdown: React.FC<ClassroomDropdownProps> = ({
   includeEmpty = true,
   branchId,
   disabled = false,
+  allowCreate = true,
 }) => (
   <MasterSelect
     entityType="classroom"
@@ -34,6 +36,7 @@ export const ClassroomDropdown: React.FC<ClassroomDropdownProps> = ({
     entityLabel="Classroom"
     branchId={branchId}
     disabled={disabled}
+    allowCreate={allowCreate}
   />
 );
 

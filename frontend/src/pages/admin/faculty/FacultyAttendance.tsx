@@ -46,6 +46,7 @@ import { useBranchStore } from "@/store/branch.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useQuery } from "@tanstack/react-query";
 import type { FacultyAttendanceRecord } from "@/types/faculty.types";
+import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 export const FacultyAttendance: React.FC = () => {
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
@@ -120,7 +121,11 @@ export const FacultyAttendance: React.FC = () => {
       const code = rec.faculty?.employeeCode?.toLowerCase() || "";
       const batchName = rec.classSession?.batch?.name?.toLowerCase() || "";
       const batchCode = rec.classSession?.batch?.code?.toLowerCase() || "";
-      const courseName = rec.classSession?.batch?.course?.name?.toLowerCase() || "";
+      const courseName =
+        getSessionSubjectLabel({
+          title: rec.classSession?.title,
+          batch: rec.classSession?.batch,
+        }).toLowerCase() || "";
       return (
         name.includes(q) ||
         code.includes(q) ||
@@ -448,7 +453,10 @@ export const FacultyAttendance: React.FC = () => {
                   const facultyCode = rec.faculty?.employeeCode || "FA";
                   const branchName = rec.faculty?.branch?.name || "Aadya Branch";
                   const batchName = rec.classSession?.batch?.name || "Cohort";
-                  const courseName = rec.classSession?.batch?.course?.name || "Curriculum";
+                  const courseName = getSessionSubjectLabel({
+                    title: rec.classSession?.title,
+                    batch: rec.classSession?.batch,
+                  }) || "Curriculum";
                   const room = rec.classSession?.roomNo || "Room 101";
 
                   const isLoggedIn = rec.loginAt !== null;
@@ -617,7 +625,12 @@ export const FacultyAttendance: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground font-bold">Course:</span>
-                  <span className="text-foreground">{selectedRecordForView.classSession?.batch?.course?.name || "Curriculum"}</span>
+                  <span className="text-foreground">
+                    {getSessionSubjectLabel({
+                      title: selectedRecordForView.classSession?.title,
+                      batch: selectedRecordForView.classSession?.batch,
+                    }) || "Curriculum"}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground font-bold">Scheduled Date:</span>
@@ -719,7 +732,7 @@ export const FacultyAttendance: React.FC = () => {
                   <option value="">Select Scheduled Session...</option>
                   {facultySessionsList.map((cs) => {
                     const batchName = cs.batch?.name || "Cohort";
-                    const courseName = cs.batch?.course?.name || cs.title || "Lecture";
+                    const courseName = getSessionSubjectLabel({ title: cs.title, batch: cs.batch }) || "Lecture";
                     const timeSlot = `${cs.startTime} - ${cs.endTime}`;
                     const sessionDate = formatDateDisplay(cs.scheduledDate);
                     return (

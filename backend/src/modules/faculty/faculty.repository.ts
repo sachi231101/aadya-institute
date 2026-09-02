@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database";
+import { formatBatchSubjectNames } from "../../utils/batch-course.util";
 
 export interface FindAllFacultyParams {
   instituteId: string;
@@ -275,18 +276,20 @@ export interface FindFacultyCoursesParams {
 }
 
 /**
- * Fetch batches assigned to faculty members, joined with Course and enrollment counts.
+ * Fetch per-subject faculty assignments via BatchCourse (multi-course batches).
  */
-export const findFacultyCourses = (params: FindFacultyCoursesParams) => {
-  const where: Record<string, unknown> = {
-    instituteId: params.instituteId,
-    facultyId: { not: null },
-  };
+export const findFacultyCourses = async (params: FindFacultyCoursesParams) => {
+  const batchWhere: Record<string, unknown> = { instituteId: params.instituteId };
+  if (params.branchId) batchWhere.branchId = params.branchId;
 
-  if (params.branchId) where.branchId = params.branchId;
+  const where: Record<string, unknown> = {
+    status: "ACTIVE",
+    facultyId: { not: null },
+    batch: batchWhere,
+  };
   if (params.facultyId) where.facultyId = params.facultyId;
 
-  return prisma.batch.findMany({
+  const rows = await prisma.batchCourse.findMany({
     where,
     include: {
       course: { select: { id: true, name: true, code: true } },
@@ -295,31 +298,122 @@ export const findFacultyCourses = (params: FindFacultyCoursesParams) => {
           user: { select: { id: true, name: true, email: true } },
         },
       },
-      branch: { select: { id: true, name: true, code: true } },
-      schedules: { select: { dayOfWeek: true, startTime: true, endTime: true } },
-      classSessions: { select: { sessionStatus: true } },
-      _count: { select: { enrollments: true } },
+      batch: {
+        include: {
+          branch: { select: { id: true, name: true, code: true } },
+          schedules: { select: { dayOfWeek: true, startTime: true, endTime: true } },
+          classSessions: { select: { sessionStatus: true } },
+          _count: { select: { enrollments: true } },
+        },
+      },
     },
     orderBy: { createdAt: "desc" },
     skip: params.skip,
     take: params.take,
   });
+
+  return rows
+    .filter((bc) => bc.facultyId && bc.faculty)
+    .map((bc) => ({
+      id: bc.id,
+      instituteId: bc.batch.instituteId,
+      branchId: bc.batch.branchId,
+      courseId: bc.courseId,
+      facultyId: bc.facultyId!,
+      name: bc.batch.name,
+      code: bc.batch.code,
+      startDate: bc.batch.startDate,
+      expectedEndDate: bc.batch.expectedEndDate,
+      status: bc.batch.status,
+      createdAt: bc.batch.createdAt,
+      course: bc.course,
+      faculty: bc.faculty,
+      branch: bc.batch.branch,
+      schedules: bc.batch.schedules,
+      classSessions: bc.batch.classSessions,
+      _count: bc.batch._count,
+    }));
 };
 
 export const countFacultyCourses = (params: Omit<FindFacultyCoursesParams, "skip" | "take">) => {
+  const batchWhere: Record<string, unknown> = { instituteId: params.instituteId };
+  if (params.branchId) batchWhere.branchId = params.branchId;
+
   const where: Record<string, unknown> = {
-    instituteId: params.instituteId,
+    status: "ACTIVE",
     facultyId: { not: null },
+    batch: batchWhere,
   };
-  if (params.branchId) where.branchId = params.branchId;
   if (params.facultyId) where.facultyId = params.facultyId;
 
-  return prisma.batch.count({ where });
+  return prisma.batchCourse.count({ where });
 };
 
 /**
  * Assign a faculty member to a batch (update batch.facultyId).
  */
+/**
+ * Assign faculty to a subject on the batch (BatchCourse).
+ * Sets Batch.facultyId only when unset or when assigning the primary subject.
+ */
+export const assignFacultyToBatchSubject = async (
+  batchId: string,
+  facultyId: string,
+  courseId: string
+) => {
+  return prisma.$transaction(async (tx) => {
+    const current = await tx.batch.findUnique({
+      where: { id: batchId },
+      select: { courseId: true, facultyId: true },
+    });
+    if (!current) {
+      throw new Error("Batch not found");
+    }
+
+    const shouldSetCoordinator =
+      !current.facultyId || current.courseId === courseId;
+
+    const batch = await tx.batch.update({
+      where: { id: batchId },
+      data: shouldSetCoordinator ? { facultyId } : {},
+      include: {
+        course: { select: { id: true, name: true, code: true } },
+        faculty: {
+          include: {
+            user: { select: { id: true, name: true, email: true } },
+          },
+        },
+        branch: { select: { id: true, name: true, code: true } },
+        _count: { select: { enrollments: true } },
+      },
+    });
+
+    const existing = await tx.batchCourse.findUnique({
+      where: { batchId_courseId: { batchId, courseId } },
+    });
+
+    if (existing) {
+      await tx.batchCourse.update({
+        where: { id: existing.id },
+        data: { facultyId, status: "ACTIVE" },
+      });
+    } else {
+      await tx.batchCourse.create({
+        data: {
+          batchId,
+          courseId,
+          facultyId,
+          sequence: 1,
+          status: "ACTIVE",
+        },
+      });
+    }
+
+    return batch;
+  });
+};
+
+/** @deprecated Prefer assignFacultyToBatchSubject — kept for callers that only set coordinator. */
 export const assignFacultyToBatch = (batchId: string, facultyId: string) =>
   prisma.batch.update({
     where: { id: batchId },
@@ -339,7 +433,14 @@ export const assignFacultyToBatch = (batchId: string, facultyId: string) =>
 export const findBatchForAssign = (batchId: string, instituteId: string) =>
   prisma.batch.findFirst({
     where: { id: batchId, instituteId },
-    select: { id: true, branchId: true, instituteId: true, facultyId: true },
+    select: {
+      id: true,
+      branchId: true,
+      instituteId: true,
+      facultyId: true,
+      courseId: true,
+      batchCourses: { select: { courseId: true, facultyId: true } },
+    },
   });
 
 // ─── Faculty Attendance ─────────────────────────────────────────────────
@@ -529,7 +630,12 @@ const sessionCardSelect = {
       id: true,
       name: true,
       code: true,
+      courseId: true,
       course: { select: { id: true, name: true, code: true } },
+      batchCourses: {
+        orderBy: { sequence: "asc" as const },
+        include: { course: { select: { id: true, name: true, code: true } } },
+      },
       _count: { select: { enrollments: true } },
     },
   },
@@ -578,13 +684,21 @@ export const countFacultySessionsByStatus = async (facultyId: string, weekStart:
 
 export const findFacultyBatchesSummary = (facultyId: string) =>
   prisma.batch.findMany({
-    where: { facultyId, status: { in: ["ACTIVE", "UPCOMING"] } },
+    where: {
+      status: { in: ["ACTIVE", "UPCOMING"] },
+      OR: [{ facultyId }, { batchCourses: { some: { facultyId } } }],
+    },
     select: {
       id: true,
       name: true,
       code: true,
       status: true,
+      courseId: true,
       course: { select: { id: true, name: true, code: true } },
+      batchCourses: {
+        orderBy: { sequence: "asc" as const },
+        include: { course: { select: { id: true, name: true, code: true } } },
+      },
       _count: { select: { enrollments: true } },
     },
     orderBy: { name: "asc" },
@@ -692,8 +806,11 @@ export const findMyStudents = async (params: {
   const enrollmentWhere = {
     status: "ACTIVE" as const,
     batch: {
-      facultyId: params.facultyId,
       instituteId: params.instituteId,
+      OR: [
+        { facultyId: params.facultyId },
+        { batchCourses: { some: { facultyId: params.facultyId } } },
+      ],
       ...(params.batchId ? { id: params.batchId } : {}),
     },
     ...(params.search
@@ -720,7 +837,12 @@ export const findMyStudents = async (params: {
           id: true,
           name: true,
           code: true,
+          courseId: true,
           course: { select: { id: true, name: true, code: true } },
+          batchCourses: {
+            orderBy: { sequence: "asc" },
+            include: { course: { select: { id: true, name: true, code: true } } },
+          },
         },
       },
       student: {
@@ -750,11 +872,13 @@ export const findMyStudents = async (params: {
 
   for (const e of enrollments) {
     const existing = byStudent.get(e.studentId);
+    const subjectsLabel = formatBatchSubjectNames(e.batch);
     const batchInfo = {
       id: e.batch.id,
       name: e.batch.name,
       code: e.batch.code,
-      courseName: e.batch.course?.name ?? null,
+      courseName:
+        subjectsLabel !== "N/A" ? subjectsLabel : e.batch.course?.name ?? null,
     };
     if (existing) {
       if (!existing.batches.some((b) => b.id === batchInfo.id)) {

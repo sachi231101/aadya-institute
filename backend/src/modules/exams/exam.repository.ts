@@ -327,6 +327,19 @@ export const getExamBatches = async (examId: string) => {
           code: true,
           status: true,
           course: { select: { id: true, name: true } },
+          batchCourses: {
+            orderBy: { sequence: "asc" },
+            include: {
+              course: { select: { id: true, name: true, code: true } },
+              faculty: {
+                select: {
+                  id: true,
+                  employeeCode: true,
+                  user: { select: { name: true } },
+                },
+              },
+            },
+          },
           _count: { select: { enrollments: true } },
         },
       },

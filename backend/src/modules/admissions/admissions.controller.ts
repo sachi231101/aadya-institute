@@ -1,7 +1,7 @@
 import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { AdmissionsService } from "./admissions.service";
-import type { AuthUser } from "../auth/auth.types";
+import { toAuthUser } from "../../utils/auth-user.util";
 import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import {
   createEnquirySchema,
@@ -17,17 +17,6 @@ import {
   convertApplicationSchema,
 } from "./admissions.validation";
 import type { EnquirySource, EnquiryStatus, ApplicationStatus, FeeStatus, AdmissionStatus } from "./admissions.types";
-
-const toAuthUser = (req: AuthenticatedRequest): AuthUser => ({
-  id: req.user!.userId,
-  userId: req.user!.userId,
-  name: req.user!.name || "User",
-  email: req.user!.email,
-  instituteId: req.user!.instituteId,
-  branchId: req.user!.branchId,
-  roles: req.user!.roles || [],
-  permissions: req.user!.permissions || [],
-});
 
 export const AdmissionsController = {
   // ─── ENQUIRIES ─────────────────────────────────────────────────────────────

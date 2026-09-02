@@ -418,6 +418,7 @@ model Faculty {
   qualificationMaster   MasterRecord? @relation("FacultyQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
 
   batches           Batch[]
+  batchCourses      BatchCourse[]
   classSessions     ClassSession[]
   facultyAttendance FacultyAttendance[]
   assignments       Assignment[]
@@ -453,6 +454,7 @@ model Course {
   applications Application[]
 
   batches    Batch[]
+  batchCourses BatchCourse[]
   leads      Lead[]
   exams      Exam[]
   questions  Question[]
@@ -603,6 +605,8 @@ model Batch {
   expectedEndDate DateTime?
   schedulePattern String?     @default("MWF")
   timeSlot        String?     @default("10:00 AM - 12:00 PM")
+  timeslotMasterId  String?
+  classroomMasterId String?
   capacity        Int         @default(35)
   status          BatchStatus @default(UPCOMING)
   createdAt       DateTime    @default(now())
@@ -612,9 +616,12 @@ model Batch {
   branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
   course    Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
   faculty   Faculty?  @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  timeslotMaster  MasterRecord? @relation("BatchTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
+  classroomMaster MasterRecord? @relation("BatchClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
 
   schedules     BatchSchedule[]
   batchModules  BatchModule[]
+  batchCourses  BatchCourse[]
   enrollments   BatchEnrollment[]
   classSessions ClassSession[]
   admissions    Admission[]
@@ -625,6 +632,26 @@ model Batch {
   @@index([instituteId])
   @@index([branchId])
   @@index([instituteId, branchId])
+  @@index([courseId])
+  @@index([facultyId])
+}
+
+model BatchCourse {
+  id        String   @id @default(cuid())
+  batchId   String
+  courseId  String
+  facultyId String?
+  sequence  Int      @default(1)
+  status    Status   @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  batch   Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  course  Course   @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  faculty Faculty? @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+
+  @@unique([batchId, courseId])
+  @@index([batchId])
   @@index([courseId])
   @@index([facultyId])
 }
@@ -1416,6 +1443,8 @@ model MasterRecord {
   facultyAsQualification     Faculty[]      @relation("FacultyQualificationMaster")
   classSessionsAsClassroom   ClassSession[] @relation("ClassSessionClassroomMaster")
   classSessionsAsTimeslot    ClassSession[] @relation("ClassSessionTimeslotMaster")
+  batchesAsClassroom         Batch[]        @relation("BatchClassroomMaster")
+  batchesAsTimeslot          Batch[]        @relation("BatchTimeslotMaster")
   paymentsAsMode             Payment[]      @relation("PaymentModeMaster")
   paymentsAsBankAccount      Payment[]      @relation("PaymentBankAccountMaster")
   paymentsAsFeeHead          Payment[]      @relation("PaymentFeeHeadMaster")

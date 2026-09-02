@@ -13,6 +13,7 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { getMasterLabel } from "@/utils/master.utils";
+import { batchIncludesCourse } from "@/utils/batch.utils";
 
 import {
   Form,
@@ -192,7 +193,7 @@ export const AddStudent: React.FC = () => {
   const selectedCourseId = form.watch("courseId");
   const filteredBatches = React.useMemo(() => {
     if (!selectedCourseId) return batches;
-    return batches.filter((b) => b.courseId === selectedCourseId);
+    return batches.filter((b) => batchIncludesCourse(b, selectedCourseId));
   }, [batches, selectedCourseId]);
 
   const onSubmit = async (data: StudentFormValues) => {

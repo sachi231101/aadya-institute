@@ -13,6 +13,10 @@ import { prisma } from "../../config/database";
 import type { AuthUser } from "../auth/auth.types";
 import * as repo from "./faculty.repository";
 import * as facultyAllocationService from "./faculty-allocation.service";
+import {
+  formatBatchSubjectNames,
+  getSessionSubjectLabel,
+} from "../../utils/batch-course.util";
 import type {
   CreateFacultyDto,
   UpdateFacultyDto,
@@ -58,7 +62,7 @@ const mapSessionCard = (s: Awaited<ReturnType<typeof repo.findFacultySessionsInR
   return {
     id: s.id,
     title: s.title,
-    courseName: s.batch?.course?.name ?? null,
+    courseName: getSessionSubjectLabel({ title: s.title, batch: s.batch }),
     courseCode: s.batch?.course?.code ?? null,
     subjectName: s.batchModule?.courseModule?.name ?? s.title,
     batchId: s.batch?.id ?? null,
@@ -331,9 +335,10 @@ export const getAllFacultyCourses = async (
 export const assignFacultyToBatch = async (
   currentUser: AuthUser,
   batchId: string,
-  facultyId: string
+  facultyId: string,
+  courseId?: string
 ) => {
-  return facultyAllocationService.assignFacultyToBatch(currentUser, batchId, facultyId);
+  return facultyAllocationService.assignFacultyToBatch(currentUser, batchId, facultyId, courseId);
 };
 
 // ─── Faculty Attendance ─────────────────────────────────────────────────
@@ -492,7 +497,7 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
       name: b.name,
       code: b.code,
       status: b.status,
-      courseName: b.course?.name ?? null,
+      courseName: formatBatchSubjectNames(b),
       courseCode: b.course?.code ?? null,
       studentCount: b._count.enrollments,
     })),

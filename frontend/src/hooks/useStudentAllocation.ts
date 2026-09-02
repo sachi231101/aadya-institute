@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { batchesApi, type BatchData } from "@/services/batches.api";
 import { studentsApi } from "@/services/students.api";
 import type { Student } from "@/types/student.types";
+import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 
 export interface EnrolledBatchInfo {
   batchId: string;

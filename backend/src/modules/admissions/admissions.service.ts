@@ -4,9 +4,9 @@ import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import { sendStudentCredentialsWhatsAppService } from "../students/student.service";
-import type { 
-  CreateEnquiryDTO, 
-  UpdateEnquiryDTO, 
+import type {
+  CreateEnquiryDTO,
+  UpdateEnquiryDTO,
   QueryEnquiriesDTO,
   CreateApplicationDTO,
   UpdateApplicationDTO,
@@ -21,7 +21,6 @@ import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
-import type { AuthUser } from "../auth/auth.types";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
 
 const triggerAdmissionNotification = async (admissionId: string) => {

@@ -1,5 +1,5 @@
 import { prisma } from "../../config/database";
-import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto } from "./batch.types";
+import { CreateBatchDto, UpdateBatchDto, BatchQueryFilters, CreateBatchScheduleDto, UpdateBatchScheduleDto, BatchCourseItemDto } from "./batch.types";
 import { buildDefaultSchedules } from "./batch-schedule.util";
 
 const batchInclude = {
@@ -59,6 +59,82 @@ const batchInclude = {
       classSessions: true,
     },
   },
+  batchCourses: {
+    orderBy: { sequence: "asc" as const },
+    include: {
+      course: { select: { id: true, name: true, code: true } },
+      faculty: {
+        select: {
+          id: true,
+          employeeCode: true,
+          user: { select: { id: true, name: true, email: true, phone: true } },
+        },
+      },
+    },
+  },
+};
+
+export const normalizeBatchCourses = (data: {
+  courseId?: string;
+  facultyId?: string;
+  courses?: BatchCourseItemDto[];
+}): BatchCourseItemDto[] => {
+  if (data.courses && data.courses.length > 0) {
+    return data.courses.map((c, idx) => ({
+      courseId: c.courseId,
+      facultyId: c.facultyId,
+      sequence: c.sequence ?? idx + 1,
+    }));
+  }
+  if (data.courseId && data.courseId.trim() !== "") {
+    return [{ courseId: data.courseId, facultyId: data.facultyId, sequence: 1 }];
+  }
+  return [];
+};
+
+const syncBatchCourseRows = async (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  batchId: string,
+  items: BatchCourseItemDto[]
+) => {
+  await tx.batchCourse.deleteMany({ where: { batchId } });
+  if (items.length === 0) return;
+  await tx.batchCourse.createMany({
+    data: items.map((item, idx) => ({
+      batchId,
+      courseId: item.courseId,
+      facultyId: item.facultyId && item.facultyId.trim() !== "" ? item.facultyId : null,
+      sequence: item.sequence ?? idx + 1,
+      status: "ACTIVE" as const,
+    })),
+  });
+};
+
+const syncBatchModulesForCourses = async (
+  tx: Parameters<Parameters<typeof prisma.$transaction>[0]>[0],
+  batchId: string,
+  courseIds: string[]
+) => {
+  await tx.batchModule.deleteMany({ where: { batchId } });
+  let sequenceOffset = 0;
+  for (const courseId of courseIds) {
+    const courseModules = await tx.courseModule.findMany({
+      where: { courseId, status: "ACTIVE" },
+      orderBy: { sequence: "asc" },
+    });
+    if (courseModules.length > 0) {
+      await tx.batchModule.createMany({
+        data: courseModules.map((cm, idx) => ({
+          batchId,
+          courseModuleId: cm.id,
+          sequence: sequenceOffset + (cm.sequence || idx + 1),
+          status: "ACTIVE" as const,
+        })),
+        skipDuplicates: true,
+      });
+      sequenceOffset += courseModules.length;
+    }
+  }
 };
 
 export const findAllBatches = async (instituteId: string, branchId?: string, filters: BatchQueryFilters = {}) => {
@@ -75,11 +151,27 @@ export const findAllBatches = async (instituteId: string, branchId?: string, fil
   }
 
   if (filters.courseId) {
-    where.courseId = filters.courseId;
+    where.AND = [
+      ...((where.AND as object[]) || []),
+      {
+        OR: [
+          { courseId: filters.courseId },
+          { batchCourses: { some: { courseId: filters.courseId } } },
+        ],
+      },
+    ];
   }
 
   if (filters.facultyId) {
-    where.facultyId = filters.facultyId;
+    where.AND = [
+      ...((where.AND as object[]) || []),
+      {
+        OR: [
+          { facultyId: filters.facultyId },
+          { batchCourses: { some: { facultyId: filters.facultyId } } },
+        ],
+      },
+    ];
   }
 
   if (filters.search) {
@@ -138,40 +230,40 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
   }
 
   return prisma.$transaction(async (tx) => {
+    const courseItems = normalizeBatchCourses(data);
+    const primaryCourseId = data.courseId?.trim() || courseItems[0]?.courseId;
+    if (!primaryCourseId) throw new Error("At least one course is required");
+
+    const coordinatorFacultyId =
+      data.facultyId && data.facultyId.trim() !== ""
+        ? data.facultyId
+        : courseItems.find((c) => c.facultyId)?.facultyId || null;
+
     const batch = await tx.batch.create({
       data: {
         instituteId,
         branchId,
-        courseId: data.courseId,
-        facultyId: data.facultyId && data.facultyId.trim() !== "" ? data.facultyId : null,
+        courseId: primaryCourseId,
+        facultyId: coordinatorFacultyId,
         name: data.name,
         code: data.code,
         startDate: new Date(data.startDate),
         expectedEndDate: data.expectedEndDate ? new Date(data.expectedEndDate) : null,
         schedulePattern: data.schedulePattern || "MWF",
         timeSlot: data.timeSlot || "10:00 AM - 12:00 PM",
+        timeslotMasterId: data.timeslotMasterId && data.timeslotMasterId.trim() !== "" ? data.timeslotMasterId : null,
+        classroomMasterId: data.classroomMasterId && data.classroomMasterId.trim() !== "" ? data.classroomMasterId : null,
         capacity: data.capacity || 35,
         status: "UPCOMING",
       },
     });
 
-    // Automatically clone active CourseModules into BatchModules
-    const courseModules = await tx.courseModule.findMany({
-      where: { courseId: data.courseId, status: "ACTIVE" },
-      orderBy: { sequence: "asc" },
-    });
-
-    if (courseModules.length > 0) {
-      await tx.batchModule.createMany({
-        data: courseModules.map((cm, idx) => ({
-          batchId: batch.id,
-          courseModuleId: cm.id,
-          sequence: cm.sequence || idx + 1,
-          status: "ACTIVE",
-        })),
-        skipDuplicates: true,
-      });
-    }
+    await syncBatchCourseRows(tx, batch.id, courseItems);
+    await syncBatchModulesForCourses(
+      tx,
+      batch.id,
+      courseItems.map((c) => c.courseId)
+    );
 
     const pattern = data.schedulePattern || "MWF";
     const timeSlot = data.timeSlot || "10:00 AM - 12:00 PM";
@@ -203,18 +295,64 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
 };
 
 export const updateBatch = async (id: string, instituteId: string, data: UpdateBatchDto) => {
+  const existing = await prisma.batch.findFirst({ where: { id, instituteId } });
+  if (!existing) {
+    return { count: 0 };
+  }
+
   const updateData: Record<string, unknown> = {};
 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.code !== undefined) updateData.code = data.code;
   if (data.courseId !== undefined) updateData.courseId = data.courseId;
-  if (data.facultyId !== undefined) updateData.facultyId = data.facultyId;
+  if (data.facultyId !== undefined) {
+    updateData.facultyId = data.facultyId && String(data.facultyId).trim() !== "" ? data.facultyId : null;
+  }
   if (data.status !== undefined) updateData.status = data.status;
   if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
   if (data.expectedEndDate !== undefined) updateData.expectedEndDate = data.expectedEndDate ? new Date(data.expectedEndDate) : null;
   if (data.schedulePattern !== undefined) updateData.schedulePattern = data.schedulePattern;
   if (data.timeSlot !== undefined) updateData.timeSlot = data.timeSlot;
+  if (data.timeslotMasterId !== undefined) {
+    updateData.timeslotMasterId = data.timeslotMasterId && data.timeslotMasterId.trim() !== "" ? data.timeslotMasterId : null;
+  }
+  if (data.classroomMasterId !== undefined) {
+    updateData.classroomMasterId = data.classroomMasterId && data.classroomMasterId.trim() !== "" ? data.classroomMasterId : null;
+  }
   if (data.capacity !== undefined) updateData.capacity = data.capacity;
+
+  const courseItems = data.courses && data.courses.length > 0 ? normalizeBatchCourses(data) : null;
+  const coursesChanged = courseItems !== null;
+  const primaryCourseId =
+    data.courseId !== undefined && data.courseId.trim() !== ""
+      ? data.courseId
+      : courseItems?.[0]?.courseId;
+
+  if (primaryCourseId) {
+    updateData.courseId = primaryCourseId;
+  }
+
+  if (coursesChanged || (data.courseId !== undefined && data.courseId !== existing.courseId)) {
+    return prisma.$transaction(async (tx) => {
+      const items =
+        courseItems ??
+        normalizeBatchCourses({ courseId: data.courseId || existing.courseId, facultyId: data.facultyId });
+
+      const result = await tx.batch.updateMany({
+        where: { id, instituteId },
+        data: updateData,
+      });
+
+      await syncBatchCourseRows(tx, id, items);
+      await syncBatchModulesForCourses(
+        tx,
+        id,
+        items.map((c) => c.courseId)
+      );
+
+      return result;
+    });
+  }
 
   return prisma.batch.updateMany({
     where: { id, instituteId },
