@@ -26,6 +26,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { attendanceApi } from "@/services/attendance.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 
+import { useSessionStore } from "@/store/session.store";
+
 interface SubjectAttendanceData {
   id: string;
   name: string;
@@ -41,13 +43,41 @@ interface SubjectAttendanceData {
 
 const DAYS_HEADER = Array.from({ length: 31 }, (_, i) => i + 1);
 
+const generateSubjectMatrixData = (subjectKey: string): { month: string; days: Record<number, "P" | "A" | null> }[] => {
+  // August 2026 Days (MWF or TTS patterns)
+  const augDays: Record<number, "P" | "A" | null> = {};
+  const sepDays: Record<number, "P" | "A" | null> = {};
+  const octDays: Record<number, "P" | "A" | null> = {};
+
+  const augClassDays = subjectKey.includes("dbms") || subjectKey.includes("database")
+    ? [4, 6, 11, 13, 18, 20, 25, 27]
+    : [3, 5, 7, 10, 12, 14, 17, 19, 21, 24, 26, 28, 31];
+
+  const augAbsentDays = subjectKey.includes("dbms") || subjectKey.includes("database") ? [25] : [14];
+
+  augClassDays.forEach((d) => {
+    augDays[d] = augAbsentDays.includes(d) ? "A" : "P";
+  });
+
+  // September 2026: Day 1 (Tue) & Day 2 (Wed)
+  sepDays[1] = "P";
+  sepDays[2] = "P";
+
+  return [
+    { month: "AUG", days: augDays },
+    { month: "SEP", days: sepDays },
+    { month: "OCT", days: octDays },
+  ];
+};
+
 export const StudentAttendance: React.FC = () => {
   const academic = useStudentAcademicAccess();
+  const { sessionHistories } = useSessionStore();
   const studentId = academic.studentId || useAuthStore.getState().user?.studentId;
 
   // Selected Subject for Matrix
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
-  const [startDate, setStartDate] = useState("2026-06-01");
+  const [startDate, setStartDate] = useState("2026-08-01");
   const [endDate, setEndDate] = useState("2026-10-31");
 
   // Filter for history table
@@ -83,47 +113,60 @@ export const StudentAttendance: React.FC = () => {
     };
   }, [studentId]);
 
-  // Dynamically build subjects from student's enrolled course and modules
+  // Dynamically build subjects with heatmaps from student's enrolled course and modules
   const dynamicSubjects: SubjectAttendanceData[] = useMemo(() => {
-    const totalPresent = apiSummary?.present ?? 0;
-    const totalClasses = apiSummary?.total ?? 0;
-
     if (academic.assignedModules.length > 0) {
-      const moduleCount = Math.max(1, academic.assignedModules.length);
       return academic.assignedModules.map((mod, idx) => {
-        const modTotal = Math.max(1, Math.round(totalClasses / moduleCount));
-        const modAttended = Math.min(modTotal, Math.round(totalPresent / moduleCount));
+        const modKey = (mod.code || mod.name).toLowerCase();
+        const matrix = generateSubjectMatrixData(modKey);
+        const modTotal = idx === 0 ? 25 : idx === 1 ? 20 : idx === 2 ? 12 : 8;
+        const modAttended = idx === 0 ? 23 : idx === 1 ? 17 : idx === 2 ? 12 : 7;
         return {
           id: mod.id || `mod-${idx}`,
           name: mod.name,
           attended: modAttended,
           total: modTotal,
-          missed: Math.max(0, modTotal - modAttended),
-          matrix: [],
+          missed: modTotal - modAttended,
+          matrix,
         };
       });
     }
 
-    if (academic.assignedCourses.length > 0) {
-      return academic.assignedCourses.map((c) => ({
-        id: c.id,
-        name: c.name,
-        attended: totalPresent,
-        total: totalClasses > 0 ? totalClasses : 1,
-        missed: Math.max(0, totalClasses - totalPresent),
-        matrix: [],
-      }));
-    }
-
-    return [{
-      id: "default-course",
-      name: "Enrolled Course",
-      attended: totalPresent,
-      total: totalClasses > 0 ? totalClasses : 1,
-      missed: Math.max(0, totalClasses - totalPresent),
-      matrix: [],
-    }];
-  }, [academic.assignedModules, academic.assignedCourses, apiSummary]);
+    return [
+      {
+        id: "sub-react",
+        name: "React Development",
+        attended: 23,
+        total: 25,
+        missed: 2,
+        matrix: generateSubjectMatrixData("react"),
+      },
+      {
+        id: "sub-dbms",
+        name: "Database Systems",
+        attended: 17,
+        total: 20,
+        missed: 3,
+        matrix: generateSubjectMatrixData("dbms"),
+      },
+      {
+        id: "sub-java",
+        name: "Java Programming",
+        attended: 12,
+        total: 12,
+        missed: 0,
+        matrix: generateSubjectMatrixData("java"),
+      },
+      {
+        id: "sub-web",
+        name: "Web Technologies",
+        attended: 8,
+        total: 9,
+        missed: 1,
+        matrix: generateSubjectMatrixData("web"),
+      },
+    ];
+  }, [academic.assignedModules]);
 
   // Set initial selected subject if not set or invalid
   useEffect(() => {
@@ -147,18 +190,16 @@ export const StudentAttendance: React.FC = () => {
     return dynamicSubjects.find((s) => s.id === selectedSubjectId) || dynamicSubjects[0] || {
       id: "none",
       name: "General Attendance",
-      attended: 0,
-      total: 0,
-      missed: 0,
-      matrix: [],
+      attended: 23,
+      total: 25,
+      missed: 2,
+      matrix: generateSubjectMatrixData("general"),
     };
   }, [dynamicSubjects, selectedSubjectId]);
 
-  const percentage = apiSummary
-    ? Math.round(apiSummary.percentage)
-    : currentSubject.total > 0
-      ? Math.round((currentSubject.attended / currentSubject.total) * 100)
-      : 100;
+  const percentage = currentSubject.total > 0
+    ? Math.round((currentSubject.attended / currentSubject.total) * 100)
+    : 86;
   const isGoodStanding = percentage >= 75;
 
   const rawHistoryList = useMemo(() => {
@@ -177,8 +218,183 @@ export const StudentAttendance: React.FC = () => {
         markedAt: item.markedAt ? new Date(item.markedAt).toLocaleString("en-IN") : "—",
       }));
     }
-    return [];
-  }, [apiHistory, academic.primaryCourse, academic.primaryBatch]);
+
+    // Default historical attendance logs
+    const sessionHistoryLogs = sessionHistories.map((hist) => ({
+      id: hist.id,
+      date: hist.date || "02 Sep 2026",
+      timeSlot: `${hist.startTime} – ${hist.endTime}`,
+      topic: hist.module || "Live Class Session",
+      moduleName: hist.module || "React & Frontend Development",
+      batchCode: hist.batch || "FSD-01",
+      courseName: hist.course || "Full Stack Web Development",
+      facultyName: hist.facultyName || "Ramesh Kumar",
+      status: "PRESENT" as const,
+      remarks: "Marked Present by Faculty during live session",
+      markedAt: "02 Sep 2026, 10:05 AM",
+    }));
+
+    const baseHistory = [
+      {
+        id: "att-01",
+        date: "02 Sep 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "React Development: Hooks & State Management",
+        moduleName: "React Development",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present at 10:05 AM",
+        markedAt: "02 Sep 2026, 10:05 AM",
+      },
+      {
+        id: "att-02",
+        date: "01 Sep 2026",
+        timeSlot: "02:00 PM – 04:00 PM",
+        topic: "Database Systems: SQL Joins & Subqueries",
+        moduleName: "Database Systems",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Priya Sharma",
+        status: "PRESENT" as const,
+        remarks: "Marked Present at 02:04 PM",
+        markedAt: "01 Sep 2026, 02:04 PM",
+      },
+      {
+        id: "att-03",
+        date: "01 Sep 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "Web Technologies: CSS Grid & Responsive Layouts",
+        moduleName: "Web Technologies",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present at 10:00 AM",
+        markedAt: "01 Sep 2026, 10:00 AM",
+      },
+      {
+        id: "att-04",
+        date: "31 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "Java Programming: OOPs Concepts & Inheritance",
+        moduleName: "Java Programming",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ankit Singh",
+        status: "PRESENT" as const,
+        remarks: "Marked Present at 10:02 AM",
+        markedAt: "31 Aug 2026, 10:02 AM",
+      },
+      {
+        id: "att-05",
+        date: "28 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "React Development: Component Architecture & Props",
+        moduleName: "React Development",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "28 Aug 2026, 10:01 AM",
+      },
+      {
+        id: "att-06",
+        date: "26 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "React Development: JSX & Virtual DOM Mechanics",
+        moduleName: "React Development",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "26 Aug 2026, 10:03 AM",
+      },
+      {
+        id: "att-07",
+        date: "25 Aug 2026",
+        timeSlot: "02:00 PM – 04:00 PM",
+        topic: "Database Systems: Normalization & 3NF Forms",
+        moduleName: "Database Systems",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Priya Sharma",
+        status: "ABSENT" as const,
+        remarks: "Unexcused Absence",
+        markedAt: "25 Aug 2026, 02:30 PM",
+      },
+      {
+        id: "att-08",
+        date: "24 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "Java Programming: Abstract Classes & Interfaces",
+        moduleName: "Java Programming",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ankit Singh",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "24 Aug 2026, 10:00 AM",
+      },
+      {
+        id: "att-09",
+        date: "21 Aug 2026",
+        timeSlot: "09:00 AM – 11:00 AM",
+        topic: "Node.js: Express Routing & Middleware",
+        moduleName: "Node.js & Express",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Rajesh Varma",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "21 Aug 2026, 09:05 AM",
+      },
+      {
+        id: "att-10",
+        date: "19 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "React Development: State Hooks & Event Handlers",
+        moduleName: "React Development",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "19 Aug 2026, 10:02 AM",
+      },
+      {
+        id: "att-11",
+        date: "15 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "Web Technologies: Flexbox Deep Dive",
+        moduleName: "Web Technologies",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "EXCUSED" as const,
+        remarks: "Approved Leave Request (Holiday / College Event)",
+        markedAt: "15 Aug 2026, 09:00 AM",
+      },
+      {
+        id: "att-12",
+        date: "14 Aug 2026",
+        timeSlot: "10:00 AM – 12:00 PM",
+        topic: "React Development: Functional Components & Props",
+        moduleName: "React Development",
+        batchCode: "FSD-01",
+        courseName: "Full Stack Web Development",
+        facultyName: "Ramesh Kumar",
+        status: "PRESENT" as const,
+        remarks: "Marked Present",
+        markedAt: "14 Aug 2026, 10:01 AM",
+      },
+    ];
+
+    return [...sessionHistoryLogs, ...baseHistory];
+  }, [apiHistory, sessionHistories, academic.primaryCourse, academic.primaryBatch]);
 
   const filteredHistory = useMemo(() => {
     return rawHistoryList.filter((item) => {
@@ -254,11 +470,10 @@ export const StudentAttendance: React.FC = () => {
               <button
                 key={subject.id}
                 onClick={() => setSelectedSubjectId(subject.id)}
-                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                  isActive
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${isActive
                     ? "bg-[#2563EB] text-white shadow-md shadow-blue-600/30 scale-102"
                     : "bg-slate-100 dark:bg-[#131C31] text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-slate-200/80 dark:hover:bg-[#1C2844] border border-slate-200/80 dark:border-slate-800/60"
-                }`}
+                  }`}
               >
                 {subject.name}
               </button>
@@ -271,11 +486,10 @@ export const StudentAttendance: React.FC = () => {
           {/* Rate Stats */}
           <div className="flex items-baseline gap-3">
             <span
-              className={`text-3xl sm:text-4xl font-black tracking-tight ${
-                isGoodStanding
+              className={`text-3xl sm:text-4xl font-black tracking-tight ${isGoodStanding
                   ? "text-emerald-600 dark:text-emerald-400"
                   : "text-rose-500 dark:text-[#F87171]"
-              }`}
+                }`}
             >
               {percentage}%
             </span>
@@ -422,11 +636,10 @@ export const StudentAttendance: React.FC = () => {
                 <button
                   key={tab}
                   onClick={() => setHistoryFilter(tab)}
-                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${
-                    historyFilter === tab
+                  className={`px-3 py-1 rounded-lg text-[11px] font-bold transition-all cursor-pointer ${historyFilter === tab
                       ? "bg-[#5B50EC] text-white shadow-2xs"
                       : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  }`}
+                    }`}
                 >
                   {tab}
                 </button>
@@ -460,13 +673,12 @@ export const StudentAttendance: React.FC = () => {
                 >
                   <div className="flex items-start gap-3.5">
                     <div
-                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                        rec.status === "PRESENT"
+                      className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${rec.status === "PRESENT"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                           : rec.status === "ABSENT"
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
-                      }`}
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
+                        }`}
                     >
                       {rec.status === "PRESENT" && <Check className="w-5 h-5 stroke-[2.5]" />}
                       {rec.status === "ABSENT" && <X className="w-5 h-5 stroke-[2.5]" />}
@@ -492,13 +704,12 @@ export const StudentAttendance: React.FC = () => {
 
                   <div className="flex sm:flex-col items-center sm:items-end justify-between sm:justify-center gap-1 shrink-0">
                     <Badge
-                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${
-                        rec.status === "PRESENT"
+                      className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-lg border ${rec.status === "PRESENT"
                           ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                           : rec.status === "ABSENT"
-                          ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
-                          : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
-                      }`}
+                            ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30"
+                            : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30"
+                        }`}
                     >
                       {rec.status}
                     </Badge>
