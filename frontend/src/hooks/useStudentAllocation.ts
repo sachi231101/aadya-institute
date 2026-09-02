@@ -48,10 +48,10 @@ export function useStudentAllocation() {
               batchCode: b.code,
               batchName: b.name,
               courseName: b.course?.name || "Course",
-              branchName: b.branch?.name || "Aadya Central Branch",
-              timeSlot: b.timeSlot || "10:00 AM - 12:00 PM",
+              branchName: b.branch?.name || "—",
+              timeSlot: b.timeSlot || "",
               startDate: b.startDate,
-              facultyName: b.faculty?.user?.name || "Faculty",
+              facultyName: b.faculty?.user?.name || "—",
             });
           }
         });

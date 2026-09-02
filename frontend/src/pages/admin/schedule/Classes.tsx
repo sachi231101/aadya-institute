@@ -348,7 +348,7 @@ export const Classes: React.FC = () => {
 
   const handleOpenAssignFaculty = (classItem: ScheduledClassItem) => {
     setSelectedClassItem(classItem);
-    setTargetFacultyId(classItem.facultyId || "f-1");
+    setTargetFacultyId(classItem.facultyId || "");
     setIsAssignFacultyModalOpen(true);
   };
 

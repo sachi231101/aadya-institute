@@ -76,8 +76,6 @@ const data = {
         { title: L["admissions.enquiries"] ?? "Enquiries", url: A.ADMISSIONS.ENQUIRIES },
         { title: L["admissions.applications"] ?? "Admission Applications", url: A.ADMISSIONS.APPLICATIONS },
         { title: L["admissions.all"] ?? "Admissions", url: A.ADMISSIONS.ALL },
-        { title: L["admissions.direct"] ?? "Direct Admission", url: A.ADMISSIONS.DIRECT },
-        { title: L["admissions.documents"] ?? "Admission Documents", url: A.ADMISSIONS.DOCUMENTS },
       ],
     },
     {

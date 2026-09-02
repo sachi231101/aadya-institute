@@ -114,11 +114,55 @@ const TIME_SLOT_COLUMNS = [
 
 const DAY_KEYS: DayKey[] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
+const formatLocalDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
+
+const sessionDateKey = (scheduledDate: string | Date): string => {
+  if (typeof scheduledDate === "string" && scheduledDate.length >= 10) {
+    return scheduledDate.slice(0, 10);
+  }
+  return formatLocalDateKey(new Date(scheduledDate));
+};
+
+const parseTimeToHour24 = (time: string): number | null => {
+  const trimmed = String(time).trim();
+  const ampm = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (ampm) {
+    let hour = parseInt(ampm[1], 10) % 12;
+    if (ampm[3].toUpperCase() === "PM") hour += 12;
+    return hour;
+  }
+  const hhmm = trimmed.match(/^(\d{1,2}):(\d{2})/);
+  if (hhmm) return parseInt(hhmm[1], 10);
+  return null;
+};
+
 const periodFromStartTime = (startTime: string): number | null => {
-  const hour = parseInt(String(startTime).slice(0, 2), 10);
-  if (Number.isNaN(hour)) return null;
-  const map: Record<number, number> = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 7, 16: 8 };
-  return map[hour] ?? null;
+  const hour = parseTimeToHour24(startTime);
+  if (hour === null) return null;
+
+  const hourToPeriod: Record<number, number> = {
+    9: 1,
+    10: 2,
+    11: 3,
+    12: 4,
+    13: 5,
+    14: 6,
+    15: 7,
+    16: 8,
+  };
+  if (hourToPeriod[hour]) return hourToPeriod[hour];
+
+  for (const col of TIME_SLOT_COLUMNS) {
+    if (col.isBreak || col.isLunch) continue;
+    const colHour = parseTimeToHour24(col.start);
+    if (colHour === hour) return col.period;
+  }
+  return null;
 };
 
 const periodToTimes = (period: number): { start: string; end: string } => {
@@ -135,8 +179,8 @@ const getWeekRange = (weekOffset: number) => {
   const sunday = new Date(monday);
   sunday.setDate(monday.getDate() + 6);
   sunday.setHours(23, 59, 59, 999);
-  const from = monday.toISOString().split("T")[0];
-  const to = sunday.toISOString().split("T")[0];
+  const from = formatLocalDateKey(monday);
+  const to = formatLocalDateKey(sunday);
   const startLabel = monday.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
   const endLabel = sunday.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
   return { from, to, monday, sunday, label: `${startLabel} – ${endLabel}` };
@@ -327,26 +371,36 @@ export const Timetable: React.FC = () => {
   };
 
   const facultyRoster = useMemo((): FacultyRosterItem[] => {
-    return facultyMembers.map((f, fIdx) => {
+    const facultyById = new Map(facultyMembers.map((f) => [f.id, f]));
+
+    classSessions.forEach((raw: BackendClassSession) => {
+      if (raw.facultyId && raw.faculty && !facultyById.has(raw.facultyId)) {
+        facultyById.set(raw.facultyId, {
+          id: raw.faculty.id,
+          employeeCode: raw.faculty.employeeCode,
+          branchId: raw.branchId,
+          specialization: "Instruction",
+          user: raw.faculty.user,
+          branch: undefined,
+        } as (typeof facultyMembers)[0]);
+      }
+    });
+
+    return Array.from(facultyById.values()).map((f, fIdx) => {
       const weeklySchedule = {} as Record<DayKey, Record<number, TimetableCellItem>>;
 
       DAY_KEYS.forEach((dayKey, idx) => {
         const date = new Date(weekRange.monday);
         date.setDate(weekRange.monday.getDate() + idx);
+        const dayKeyStr = formatLocalDateKey(date);
         const slots = createDefaultDaySlots();
 
         classSessions.forEach((raw: BackendClassSession) => {
           if (raw.facultyId !== f.id) return;
-          const sched = new Date(raw.scheduledDate);
-          if (
-            sched.getFullYear() !== date.getFullYear() ||
-            sched.getMonth() !== date.getMonth() ||
-            sched.getDate() !== date.getDate()
-          ) {
-            return;
-          }
+          if (sessionDateKey(raw.scheduledDate) !== dayKeyStr) return;
+
           const period = periodFromStartTime(raw.startTime);
-          if (!period || slots[period]?.type === "BREAK" || slots[period]?.type === "LUNCH") return;
+          if (!period) return;
           slots[period] = mapSessionToCell(raw, period);
         });
 
@@ -360,7 +414,7 @@ export const Timetable: React.FC = () => {
         department: f.specialization || "Instruction",
         specialization: f.specialization || "Technical Instructor",
         branchId: f.branchId || branches[0]?.id || "",
-        branchName: f.branch?.name || branches.find((b: { id: string }) => b.id === f.branchId)?.name || "Aadya Branch",
+        branchName: f.branch?.name || branches.find((b: { id: string }) => b.id === f.branchId)?.name || "—",
         avatar: "",
         liveStatus: "Available" as const,
         weeklySchedule,
@@ -380,7 +434,7 @@ export const Timetable: React.FC = () => {
   const [modalSessionId, setModalSessionId] = useState<string | null>(null);
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalBatchId, setModalBatchId] = useState<string>("");
-  const [modalRoomNo, setModalRoomNo] = useState<string>("Room 201");
+  const [modalRoomNo, setModalRoomNo] = useState<string>("");
   const [modalSlotType, setModalSlotType] = useState<SlotType>("CLASS");
 
   // Move Slot Modal State
@@ -506,19 +560,19 @@ export const Timetable: React.FC = () => {
       setModalSessionId(existingSlot.sessionId || existingSlot.id);
       setModalTitle(existingSlot.courseName || "");
       setModalBatchId(existingSlot.batchId || "");
-      setModalRoomNo(existingSlot.roomNo || "Room 201");
+      setModalRoomNo(existingSlot.roomNo || "");
     } else if (existingSlot) {
       setModalSlotType(existingSlot.type);
       setModalSessionId(null);
       setModalTitle("");
       setModalBatchId("");
-      setModalRoomNo("Room 201");
+      setModalRoomNo("");
     } else {
       setModalSlotType("CLASS");
       setModalSessionId(null);
       setModalTitle("");
       setModalBatchId("");
-      setModalRoomNo("Room 201");
+      setModalRoomNo("");
     }
 
     setIsEditModalOpen(true);

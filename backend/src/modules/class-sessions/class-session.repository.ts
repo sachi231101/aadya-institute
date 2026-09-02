@@ -74,16 +74,16 @@ function buildWhere(
 
   if (filters?.startDate && filters?.endDate) {
     where.scheduledDate = {
-      gte: new Date(filters.startDate),
-      lte: new Date(filters.endDate),
+      gte: new Date(`${filters.startDate}T00:00:00.000Z`),
+      lte: new Date(`${filters.endDate}T23:59:59.999Z`),
     };
   } else if (filters?.startDate) {
     where.scheduledDate = {
-      gte: new Date(filters.startDate),
+      gte: new Date(`${filters.startDate}T00:00:00.000Z`),
     };
   } else if (filters?.endDate) {
     where.scheduledDate = {
-      lte: new Date(filters.endDate),
+      lte: new Date(`${filters.endDate}T23:59:59.999Z`),
     };
   }
 

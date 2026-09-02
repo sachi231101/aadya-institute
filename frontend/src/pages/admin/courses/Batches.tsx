@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import { 
   GraduationCap, 
   Plus, 
@@ -11,11 +11,16 @@ import {
   Trash2,
   UserCheck,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Sparkles,
 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useBatches } from "../../../hooks/useBatches";
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
+import { useBranches } from "@/hooks/useBranches";
+import { batchesApi } from "@/services/batches.api";
+import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -66,7 +71,10 @@ export const Batches: React.FC = () => {
   };
 
   const { courses } = useCourses();
-  const { batches, loading, createBatch, deleteBatch } = useBatches({
+  const { data: branchesResponse } = useBranches({ limit: 100 });
+  const branches = branchesResponse?.data ?? [];
+  const queryClient = useQueryClient();
+  const { batches, loading, createBatch, deleteBatch, refetch } = useBatches({
     search: searchTerm,
     courseId: courseFilter !== "ALL" ? courseFilter : undefined,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
@@ -79,8 +87,10 @@ export const Batches: React.FC = () => {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [courseId, setCourseId] = useState("");
+  const [branchId, setBranchId] = useState("");
   const [facultyId, setFacultyId] = useState("");
   const [startDate, setStartDate] = useState("2026-04-01");
+  const [expectedEndDate, setExpectedEndDate] = useState("");
   const [schedulePattern, setSchedulePattern] = useState<"MWF" | "TTS" | "WEEKEND" | "CUSTOM">("MWF");
   const [timeSlotMasterId, setTimeSlotMasterId] = useState("");
   const [classroomMasterId, setClassroomMasterId] = useState("");
@@ -94,6 +104,85 @@ export const Batches: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Generate sessions modal
+  const [batchToGenerate, setBatchToGenerate] = useState<{
+    id: string;
+    name: string;
+    code: string;
+    facultyId?: string | null;
+    startDate: string;
+    expectedEndDate?: string | null;
+    schedules?: Array<{ id: string; dayOfWeek: number; startTime: string; endTime: string }>;
+  } | null>(null);
+  const [generateStartDate, setGenerateStartDate] = useState("");
+  const [generateEndDate, setGenerateEndDate] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  const branchFacultyList = useMemo(() => {
+    if (!branchId) return facultyList;
+    return facultyList.filter((f) => f.branchId === branchId);
+  }, [facultyList, branchId]);
+
+  const canGenerateSessions = (batch: typeof batchToGenerate) => {
+    if (!batch) return false;
+    if (!batch.facultyId) return false;
+    if (!batch.schedules || batch.schedules.length === 0) return false;
+    return true;
+  };
+
+  const openGenerateModal = (batch: (typeof batches)[0]) => {
+    const start = batch.startDate ? new Date(batch.startDate).toISOString().split("T")[0] : "";
+    const end = batch.expectedEndDate
+      ? new Date(batch.expectedEndDate).toISOString().split("T")[0]
+      : start
+        ? (() => {
+            const d = new Date(start);
+            d.setDate(d.getDate() + 90);
+            return d.toISOString().split("T")[0];
+          })()
+        : "";
+    setBatchToGenerate({
+      id: batch.id,
+      name: batch.name,
+      code: batch.code,
+      facultyId: batch.facultyId,
+      startDate: batch.startDate,
+      expectedEndDate: batch.expectedEndDate,
+      schedules: batch.schedules,
+    });
+    setGenerateStartDate(start);
+    setGenerateEndDate(end);
+    setGenerateError(null);
+  };
+
+  const handleGenerateSessions = async () => {
+    if (!batchToGenerate) return;
+    try {
+      setIsGenerating(true);
+      setGenerateError(null);
+      const result = await batchesApi.generateSessions(batchToGenerate.id, {
+        startDate: generateStartDate || undefined,
+        endDate: generateEndDate || undefined,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await refetch();
+      setSuccessMsg(
+        `Generated ${(result as { data?: { created?: number } }).data?.created ?? 0} class session(s) for "${batchToGenerate.code}".`
+      );
+      setTimeout(() => setSuccessMsg(null), 4000);
+      setBatchToGenerate(null);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Failed to generate class sessions";
+      setGenerateError(message);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   const filteredBatches = batches.filter((b) => {
     const facultyName = b.faculty?.user?.name || "";
@@ -120,7 +209,7 @@ export const Batches: React.FC = () => {
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !code || !courseId) return;
+    if (!name || !code || !courseId || !branchId) return;
 
     try {
       setSubmitting(true);
@@ -129,8 +218,10 @@ export const Batches: React.FC = () => {
         name,
         code,
         courseId,
+        branchId,
         facultyId: facultyId || undefined,
         startDate,
+        expectedEndDate: expectedEndDate || undefined,
         schedulePattern,
         timeSlot: getMasterLabel(timeslotOptions, timeSlotMasterId) || undefined,
         capacity,
@@ -138,6 +229,9 @@ export const Batches: React.FC = () => {
 
       setName("");
       setCode("");
+      setBranchId("");
+      setFacultyId("");
+      setExpectedEndDate("");
       setShowModal(false);
       setSuccessMsg(`Batch "${code} - ${name}" created successfully.`);
       setTimeout(() => setSuccessMsg(null), 3500);
@@ -205,6 +299,7 @@ export const Batches: React.FC = () => {
           className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
           onClick={() => {
             if (courses.length > 0 && !courseId) setCourseId(courses[0].id);
+            if (branches.length > 0 && !branchId) setBranchId(branches[0].id);
             setCreateError(null);
             setShowModal(true);
           }}
@@ -403,6 +498,25 @@ export const Batches: React.FC = () => {
                               <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
                                 <DropdownMenuLabel className="text-xs font-bold">Batch Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-border" />
+                                <DropdownMenuItem asChild className="cursor-pointer text-xs font-bold">
+                                  <Link to={`${ROUTES.ADMIN.BATCHES.ALL}/${batch.id}`}>View Details</Link>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  className="cursor-pointer text-xs font-bold"
+                                  disabled={!canGenerateSessions({
+                                    id: batch.id,
+                                    name: batch.name,
+                                    code: batch.code,
+                                    facultyId: batch.facultyId,
+                                    startDate: batch.startDate,
+                                    expectedEndDate: batch.expectedEndDate,
+                                    schedules: batch.schedules,
+                                  })}
+                                  onClick={() => openGenerateModal(batch)}
+                                >
+                                  <Sparkles className="mr-2 h-4 w-4" /> Generate Class Sessions
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator className="bg-border" />
                                 <DropdownMenuItem 
                                   className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
                                   onClick={() => {
@@ -495,14 +609,35 @@ export const Batches: React.FC = () => {
               </div>
 
               <div>
+                <label className="block text-xs font-bold text-foreground mb-1">Branch / Center *</label>
+                <select
+                  value={branchId}
+                  onChange={(e) => {
+                    setBranchId(e.target.value);
+                    setFacultyId("");
+                  }}
+                  className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  required
+                >
+                  <option value="">Select branch</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
                 <label className="block text-xs font-bold text-foreground mb-1">Assigned Instructor</label>
                 <select
                   value={facultyId}
                   onChange={(e) => setFacultyId(e.target.value)}
                   className="w-full h-10 px-3 py-2 bg-muted/30 border border-border rounded-xl text-xs font-bold text-foreground focus:bg-background focus:outline-none focus:ring-1 focus:ring-primary cursor-pointer"
+                  disabled={!branchId}
                 >
-                  <option value="">Unassigned</option>
-                  {facultyList.map((f) => (
+                  <option value="">{branchId ? "Unassigned" : "Select branch first"}</option>
+                  {branchFacultyList.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || (f as any).name} ({f.employeeCode || (f as any).facultyCode})
                     </option>
@@ -558,11 +693,22 @@ export const Batches: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-foreground mb-1">Start Date</label>
+                  <label className="block text-xs font-bold text-foreground mb-1">Start Date *</label>
                   <Input
                     type="date"
                     value={startDate}
                     onChange={(e) => setStartDate(e.target.value)}
+                    required
+                    className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1">Expected End Date</label>
+                  <Input
+                    type="date"
+                    value={expectedEndDate}
+                    onChange={(e) => setExpectedEndDate(e.target.value)}
+                    min={startDate}
                     className="bg-muted/30 border-border text-foreground focus:bg-background rounded-xl text-xs"
                   />
                 </div>
@@ -594,6 +740,85 @@ export const Batches: React.FC = () => {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Generate Class Sessions Modal */}
+      {batchToGenerate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
+            <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Generate Class Sessions
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Create class sessions from the weekly schedule for{" "}
+              <span className="font-bold text-foreground">{batchToGenerate.code} – {batchToGenerate.name}</span>.
+            </p>
+
+            {!canGenerateSessions(batchToGenerate) && (
+              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs">
+                {!batchToGenerate.facultyId
+                  ? "Assign faculty to this batch before generating sessions."
+                  : "No weekly schedule slots found. Create the batch with a schedule pattern first."}
+              </div>
+            )}
+
+            {generateError && (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold">
+                {generateError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">From Date</label>
+                <Input
+                  type="date"
+                  value={generateStartDate}
+                  onChange={(e) => setGenerateStartDate(e.target.value)}
+                  className="bg-muted/30 border-border rounded-xl text-xs"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1">To Date</label>
+                <Input
+                  type="date"
+                  value={generateEndDate}
+                  onChange={(e) => setGenerateEndDate(e.target.value)}
+                  min={generateStartDate}
+                  className="bg-muted/30 border-border rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-border">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setBatchToGenerate(null)}
+                disabled={isGenerating}
+                className="rounded-xl text-xs font-bold"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={handleGenerateSessions}
+                disabled={isGenerating || !canGenerateSessions(batchToGenerate)}
+                className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold"
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  "Generate Sessions"
+                )}
+              </Button>
+            </div>
           </div>
         </div>
       )}

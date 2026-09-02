@@ -8,6 +8,7 @@ export interface BatchData {
   branchId?: string;
   facultyId?: string | null;
   startDate: string;
+  expectedEndDate?: string | null;
   capacity?: number;
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM" | string;
   timeSlot?: string;
