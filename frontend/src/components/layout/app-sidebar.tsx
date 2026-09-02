@@ -84,7 +84,6 @@ const data = {
       items: [
         { title: "All Counsellors", url: A.COUNSELLORS.ALL },
         { title: "Lead Allocation", url: A.COUNSELLORS.LEAD_ALLOCATION },
-        { title: "Student Allocation", url: A.COUNSELLORS.STUDENT_ALLOCATION },
         { title: "Performance", url: A.COUNSELLORS.PERFORMANCE },
       ],
     },
@@ -95,7 +94,7 @@ const data = {
       items: [
         { title: "All Students", url: A.STUDENTS.ALL },
         { title: "Student Documents", url: A.STUDENTS.DOCUMENTS },
-        { title: "Batch Allocation", url: A.STUDENTS.BATCH_ALLOCATION },
+        { title: "Student Allocation", url: A.STUDENTS.STUDENT_ALLOCATION },
         { title: "Attendance", url: A.STUDENTS.ATTENDANCE },
         { title: "Performance", url: A.STUDENTS.PERFORMANCE },
         { title: "Discontinuation Risk", url: A.STUDENTS.DISCONTINUATION },
@@ -107,8 +106,7 @@ const data = {
       icon: Users,
       items: [
         { title: "All Faculty", url: A.FACULTY.ALL },
-        { title: "Course Assignment", url: A.FACULTY.COURSE_ASSIGNMENT },
-        { title: "Batch Assignment", url: A.FACULTY.BATCH_ASSIGNMENT },
+        { title: "Faculty Allocation", url: A.FACULTY.FACULTY_ALLOCATION },
         { title: "Attendance", url: A.FACULTY.ATTENDANCE },
         { title: "Performance", url: A.FACULTY.PERFORMANCE },
       ],
@@ -121,6 +119,7 @@ const data = {
         { title: "All Courses", url: A.COURSES.ALL },
         { title: "Curriculum", url: A.COURSES.CURRICULUM },
         { title: "Modules", url: A.COURSES.MODULES },
+        { title: "Course Assignment", url: A.COURSES.COURSE_ASSIGNMENT },
       ],
     },
     {
@@ -130,8 +129,6 @@ const data = {
       items: [
         { title: "All Batches", url: A.BATCHES.ALL },
         { title: "Create Batch", url: A.BATCHES.CREATE },
-        { title: "Student Allocation", url: A.BATCHES.STUDENT_ALLOCATION },
-        { title: "Faculty Allocation", url: A.BATCHES.FACULTY_ALLOCATION },
       ],
     },
     {

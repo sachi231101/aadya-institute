@@ -25,12 +25,13 @@ import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
 import { EditFaculty } from "../pages/admin/faculty/EditFaculty";
 import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
 import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
-import { FacultyCourses } from "../pages/admin/faculty/FacultyCourses";
+import { FacultyAllocation } from "../pages/admin/faculty/FacultyAllocation";
 import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
 import { FacultyRatings } from "../pages/admin/faculty/FacultyRatings";
 import { AllCourses } from "../pages/admin/courses/AllCourses";
 import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { EditCourse } from "../pages/admin/courses/EditCourse";
+import { CourseAssignment } from "../pages/admin/courses/CourseAssignment";
 import { Batches } from "../pages/admin/courses/Batches";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
 import { UsersManagement } from "../pages/admin/administration/UsersManagement";
@@ -43,8 +44,6 @@ import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionE
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
 import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
-import { AssignStudents } from "../pages/admin/counselor/AssignStudents";
-import { AssignFaculty } from "../pages/admin/counselor/AssignFaculty";
 import { Classes } from "../pages/admin/schedule/Classes";
 import { ExamManagement } from "../pages/admin/exams/ExamManagement";
 import { CreateExam } from "../pages/admin/exams/CreateExam";
@@ -85,11 +84,11 @@ import { IncentiveManagement } from "../pages/admin/targets/IncentiveManagement"
 import { CounselorPerformance } from "../pages/counselor/CounselorPerformance";
 import { CallHistory } from "../pages/admin/leads/CallHistory";
 import { StudentDocuments } from "../pages/admin/students/StudentDocuments";
+import { StudentAllocation } from "../pages/admin/students/StudentAllocation";
 import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments";
 import { AllBatches } from "../pages/admin/batches/AllBatches";
 import { CreateBatch } from "../pages/admin/batches/CreateBatch";
 import { BatchDetails } from "../pages/admin/batches/BatchDetails";
-import { BatchStudentAllocationPage, BatchFacultyAllocationPage } from "../pages/admin/batches/BatchAllocationPages";
 import { Modules } from "../pages/admin/courses/Modules";
 import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
 import { AssignmentList } from "../pages/admin/assignments/AssignmentList";
@@ -173,7 +172,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllStudents />} />
           <Route path="add" element={<AddStudent />} />
           <Route path="documents" element={<StudentDocuments />} />
-          <Route path="batch-allocation" element={<BatchStudentAllocationPage />} />
+          <Route path="student-allocation" element={<StudentAllocation />} />
+          <Route path="batch-allocation" element={<Navigate to="/center/students/student-allocation" replace />} />
           <Route path=":id" element={<StudentDetails />} />
           <Route path=":id/edit" element={<EditStudent />} />
           <Route path="attendance" element={<StudentAttendance />} />
@@ -186,8 +186,8 @@ export const AppRoutes: React.FC = () => {
           <Route path="overview" element={<CounsellorOverview />} />
           <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
-          <Route path="assign-students" element={<AssignStudents />} />
-          <Route path="assign-faculty" element={<AssignFaculty />} />
+          <Route path="assign-students" element={<Navigate to="/center/students/student-allocation" replace />} />
+          <Route path="assign-faculty" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
         </Route>
 
         {/* Faculty */}
@@ -195,10 +195,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllFaculty />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="add" element={<AddFaculty />} />
-          <Route path="batch-assignment" element={<BatchFacultyAllocationPage />} />
+          <Route path="batch-assignment" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
+          <Route path="faculty-allocation" element={<FacultyAllocation />} />
           <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
-          <Route path="courses" element={<FacultyCourses />} />
+          <Route path="courses" element={<Navigate to="/center/courses/course-assignment" replace />} />
           <Route path="attendance" element={<FacultyAttendance />} />
           <Route path="ratings" element={<FacultyRatings />} />
         </Route>
@@ -222,8 +223,8 @@ export const AppRoutes: React.FC = () => {
         <Route path="batches">
           <Route index element={<AllBatches />} />
           <Route path="create" element={<CreateBatch />} />
-          <Route path="student-allocation" element={<BatchStudentAllocationPage />} />
-          <Route path="faculty-allocation" element={<BatchFacultyAllocationPage />} />
+          <Route path="student-allocation" element={<Navigate to="/center/students/student-allocation" replace />} />
+          <Route path="faculty-allocation" element={<Navigate to="/center/faculty/faculty-allocation" replace />} />
           <Route path=":id" element={<BatchDetails />} />
         </Route>
 
@@ -254,6 +255,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="batches" element={<Batches />} />
           <Route path="curriculum" element={<Curriculum />} />
           <Route path="modules" element={<Modules />} />
+          <Route path="course-assignment" element={<CourseAssignment />} />
         </Route>
 
         {/* Reports */}
@@ -353,7 +355,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="add" element={<AddFaculty />} />
           <Route path=":id/edit" element={<EditFaculty />} />
           <Route path=":id" element={<FacultyDetails />} />
-          <Route path="courses" element={<FacultyCourses />} />
+          <Route path="courses" element={<CourseAssignment />} />
           <Route path="attendance" element={<FacultyAttendance />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="ratings" element={<FacultyRatings />} />
@@ -415,7 +417,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<FacultyDashboard />} />
         <Route path="ask-me" element={<AskMe />} />
-        <Route path="courses" element={<FacultyCourses />} />
+        <Route path="courses" element={<CourseAssignment />} />
         <Route path="class-session" element={<FacultyClassSession />} />
         <Route path="classes/:id" element={<FacultyClassSession />} />
         <Route path="attendance" element={<FacultyClassSession />} />

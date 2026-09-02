@@ -1,5 +1,6 @@
-import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
 import {
   Users,
   Search,
@@ -8,8 +9,7 @@ import {
   Loader2,
   AlertCircle
 } from "lucide-react";
-import { batchesApi } from "../../../services/batches.api";
-import { facultyApi } from "../../../services/faculty.api";
+import { useFacultyAllocation } from "@/hooks/useFacultyAllocation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -31,36 +31,39 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 
-export const AssignFaculty: React.FC = () => {
-  const queryClient = useQueryClient();
+export const FacultyAllocation: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const initialBatchId = searchParams.get("batchId");
+
+  const {
+    batches,
+    facultyList,
+    loadingBatches,
+    loadingFaculty,
+    invalidateAllocation,
+    assignFacultyToBatch,
+  } = useFacultyAllocation();
 
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [targetFacultyId, setTargetFacultyId] = useState<string>("");
   const [actionError, setActionError] = useState("");
 
-  // Queries
-  const { data: batchesRes, isLoading: loadingBatches } = useQuery({
-    queryKey: ["batches"],
-    queryFn: () => batchesApi.getAll(),
-  });
-
-  const { data: facultyRes, isLoading: loadingFaculty } = useQuery({
-    queryKey: ["faculty"],
-    queryFn: () => facultyApi.getAll({ limit: 100 }),
-  });
-
-  const batches = batchesRes?.data || [];
-  const facultyList = facultyRes?.data || [];
-
   const selectedBatch = batches.find((b) => b.id === selectedBatchId);
 
-  // Faculty Assignment Mutation
+  useEffect(() => {
+    if (initialBatchId && batches.some((b) => b.id === initialBatchId)) {
+      const batch = batches.find((b) => b.id === initialBatchId);
+      setSelectedBatchId(initialBatchId);
+      setTargetFacultyId(batch?.facultyId || facultyList[0]?.id || "");
+    }
+  }, [initialBatchId, batches, facultyList]);
+
   const assignFacultyMutation = useMutation({
     mutationFn: ({ batchId, facultyId }: { batchId: string; facultyId: string }) =>
-      batchesApi.assignFaculty(batchId, facultyId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["batches"] });
+      assignFacultyToBatch(batchId, facultyId),
+    onSuccess: async () => {
+      await invalidateAllocation();
       setSelectedBatchId(null);
       setActionError("");
     },
@@ -100,10 +103,10 @@ export const AssignFaculty: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
             <UserCheck className="h-6 w-6 text-[#1769AA]" />
-            Assign Faculty to Batches
+            Faculty Allocation
           </h1>
           <p className="text-muted-foreground mt-1">
-            Allocate qualified faculty instructors (collected live from Faculty Store) to lead specific training batches.
+            Assign faculty instructors to training batches across the institute.
           </p>
         </div>
       </div>

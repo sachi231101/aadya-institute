@@ -83,7 +83,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Counsellors", url: "/center/counselor/all", itemKey: "counsellor.all" },
       { title: "Lead Allocation", url: "/center/counselor/overview", itemKey: "counsellor.lead_allocation" },
-      { title: "Student Allocation", url: "/center/counselor/assign-students", itemKey: "counsellor.student_allocation" },
       { title: "Performance", url: "/center/performance", itemKey: "counsellor.performance" },
     ],
   },
@@ -95,7 +94,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Students", url: "/center/students/all", itemKey: "students.all" },
       { title: "Student Documents", url: "/center/students/documents", itemKey: "students.documents" },
-      { title: "Batch Allocation", url: "/center/students/batch-allocation", itemKey: "students.batch_allocation" },
+      { title: "Student Allocation", url: "/center/students/student-allocation", itemKey: "students.student_allocation" },
       { title: "Attendance", url: "/center/students/attendance", itemKey: "students.attendance" },
       { title: "Performance", url: "/center/students/performance", itemKey: "students.performance" },
       { title: "Discontinuation Risk", url: "/center/students/discontinuation-risk", itemKey: "students.discontinuation" },
@@ -108,8 +107,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/center/faculty/all", itemKey: "faculty.all" },
-      { title: "Course Assignment", url: "/center/faculty/courses", itemKey: "faculty.course_assignment" },
-      { title: "Batch Assignment", url: "/center/faculty/batch-assignment", itemKey: "faculty.batch_assignment" },
+      { title: "Faculty Allocation", url: "/center/faculty/faculty-allocation", itemKey: "faculty.faculty_allocation" },
       { title: "Attendance", url: "/center/faculty/attendance", itemKey: "faculty.attendance" },
       { title: "Performance", url: "/center/faculty/ratings", itemKey: "faculty.performance" },
     ],
@@ -123,6 +121,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "All Courses", url: "/center/courses/all", itemKey: "courses.all" },
       { title: "Curriculum", url: "/center/courses/curriculum", itemKey: "courses.curriculum" },
       { title: "Modules", url: "/center/courses/modules", itemKey: "courses.modules" },
+      { title: "Course Assignment", url: "/center/courses/course-assignment", itemKey: "courses.course_assignment" },
     ],
   },
   {
@@ -133,8 +132,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Batches", url: "/center/batches", itemKey: "batches.all" },
       { title: "Create Batch", url: "/center/batches/create", itemKey: "batches.create" },
-      { title: "Student Allocation", url: "/center/batches/student-allocation", itemKey: "batches.student_allocation" },
-      { title: "Faculty Allocation", url: "/center/batches/faculty-allocation", itemKey: "batches.faculty_allocation" },
     ],
   },
   {

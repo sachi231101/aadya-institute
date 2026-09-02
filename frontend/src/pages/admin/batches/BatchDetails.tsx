@@ -7,8 +7,8 @@ import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { StudentAllocation } from "./StudentAllocation";
-import { FacultyAllocation } from "./FacultyAllocation";
+import { BatchEnrolledStudents } from "./BatchEnrolledStudents";
+import { BatchAssignedFaculty } from "./BatchAssignedFaculty";
 
 type Tab = "info" | "students" | "faculty";
 
@@ -44,8 +44,8 @@ export const BatchDetails: React.FC = () => {
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "info", label: "Info" },
-    { key: "students", label: "Student Allocation" },
-    { key: "faculty", label: "Faculty Allocation" },
+    { key: "students", label: "Enrolled Students" },
+    { key: "faculty", label: "Assigned Faculty" },
   ];
 
   return (
@@ -91,8 +91,8 @@ export const BatchDetails: React.FC = () => {
         </Card>
       )}
 
-      {tab === "students" && id && <StudentAllocation batchId={id} />}
-      {tab === "faculty" && id && <FacultyAllocation batchId={id} />}
+      {tab === "students" && id && <BatchEnrolledStudents batchId={id} />}
+      {tab === "faculty" && id && <BatchAssignedFaculty batchId={id} />}
     </div>
   );
 };

@@ -67,3 +67,10 @@ export const generateSessionsSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });
+
+export const transferStudentSchema = z.object({
+  studentId: z.string().min(1, "Student ID is required"),
+  fromBatchId: z.string().min(1, "Source batch ID is required"),
+  toBatchId: z.string().min(1, "Target batch ID is required"),
+  admissionId: z.string().optional(),
+});

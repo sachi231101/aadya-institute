@@ -11,6 +11,7 @@ import {
   createBatchScheduleSchema,
   updateBatchScheduleSchema,
   generateSessionsSchema,
+  transferStudentSchema,
 } from "./batch.validation";
 import { requirePermission } from "../../middlewares/permission.middleware";
 
@@ -41,6 +42,13 @@ router.post(
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
   validate(createBatchSchema),
   controller.create
+);
+
+router.post(
+  "/transfer-student",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  validate(transferStudentSchema),
+  controller.transferStudent
 );
 
 router.patch(

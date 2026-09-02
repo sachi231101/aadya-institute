@@ -31,7 +31,7 @@ const formatSchedules = (schedules: { dayOfWeek: number; startTime: string; endT
     .join(", ");
 };
 
-export const FacultyCourses: React.FC = () => {
+export const CourseAssignment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
