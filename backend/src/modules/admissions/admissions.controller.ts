@@ -2,7 +2,6 @@ import { Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { AdmissionsService } from "./admissions.service";
 import type { AuthUser } from "../auth/auth.types";
-import { toAuthUser } from "../../utils/auth-user.util";
 import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import {
   createEnquirySchema,
@@ -268,11 +267,12 @@ export const AdmissionsController = {
     try {
       const user = toAuthUser(req);
       const parsedQuery = queryAdmissionsSchema.parse(req.query);
-      const branchId = resolveEffectiveBranchId(user);
-      const result = await AdmissionsService.getAdmissions(user.instituteId, {
+      // #region agent log
+      fetch('http://127.0.0.1:7913/ingest/73746203-13ab-48c1-bcb6-4becdf54f2cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ed66da'},body:JSON.stringify({sessionId:'ed66da',runId:'post-fix',hypothesisId:'H1',location:'admissions.controller.ts:getAdmissions',message:'getAdmissions controller args',data:{userId:user.userId,roles:user.roles,instituteId:user.instituteId,queryBranchId:parsedQuery.branchId},timestamp:Date.now()})}).catch(()=>{});
+      // #endregion
+      const result = await AdmissionsService.getAdmissions(user, {
         ...parsedQuery,
         status: parsedQuery.status as AdmissionStatus | "ALL" | undefined,
-        branchId,
       });
       res.json({
         success: true,
@@ -294,7 +294,7 @@ export const AdmissionsController = {
     try {
       const user = toAuthUser(req);
       const id = req.params.id as string;
-      const data = await AdmissionsService.getAdmissionById(id, user.instituteId, user);
+      const data = await AdmissionsService.getAdmissionById(id, user);
       res.json({
         success: true,
         message: "Admission fetched successfully",

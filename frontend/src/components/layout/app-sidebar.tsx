@@ -73,7 +73,6 @@ const data = {
       items: [
         { title: "Applications", url: A.ADMISSIONS.APPLICATIONS },
         { title: "Admissions", url: A.ADMISSIONS.ALL },
-        { title: "Direct Admission", url: A.ADMISSIONS.DIRECT },
         { title: "Admission Documents", url: A.ADMISSIONS.DOCUMENTS },
       ],
     },
