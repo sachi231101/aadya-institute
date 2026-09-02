@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -22,6 +23,7 @@ import {
   Eye,
   AlertCircle,
   Sparkle,
+  BookOpen,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -92,6 +94,10 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     id: raw.id,
     title,
     courseCode: raw.batch?.course?.code || raw.batch?.code || "CLASS",
+    courseId: raw.batch?.courseId || raw.courseId || raw.batch?.course?.id,
+    batchId: raw.batchId || raw.batch?.id,
+    courseName: raw.batch?.course?.name || raw.courseName || title,
+    batchCode: raw.batch?.code,
     facultyName: raw.faculty?.user?.name || "Faculty",
     date: raw.scheduledDate
       ? toLocalDateString(new Date(raw.scheduledDate))
@@ -119,6 +125,10 @@ interface StudentClassSession {
   id: string;
   title: string;
   courseCode: string;
+  courseId?: string;
+  batchId?: string;
+  courseName?: string;
+  batchCode?: string;
   facultyName: string;
   date: string; // YYYY-MM-DD
   startTime: string; // e.g. "02:00 PM"
@@ -136,6 +146,8 @@ interface StudentClassSession {
   avatarText: string;
   avatarBg: string;
   avatarColor: string;
+  attendanceStatus?: "PRESENT" | "ABSENT" | "LATE";
+  attendanceMarkedTime?: string;
   meetingUrl?: string;
   submittedRating?: number;
   submittedAtFormatted?: string;
@@ -160,6 +172,231 @@ const RATING_LABELS: Record<number, "Poor" | "Fair" | "Good" | "Very Good" | "Ex
 
 const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 const MONTH_NAMES = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+
+const generateMockAssignedClasses = (days: DayData[]): StudentClassSession[] => {
+  if (!days || days.length < 7) return [];
+  const mon = days[0]?.fullDate;
+  const tue = days[1]?.fullDate;
+  const wed = days[2]?.fullDate;
+  const thu = days[3]?.fullDate;
+  const fri = days[4]?.fullDate;
+
+  return [
+    // 31 Aug / Monday - Completed Java
+    {
+      id: "mock-mon-1",
+      title: "Java Programming",
+      courseCode: "JAVA-201",
+      courseName: "Java Full Stack Development",
+      batchCode: "FSD-01",
+      facultyName: "Ankit Singh",
+      date: mon || "2026-08-31",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      startHour24: 10,
+      startMin: 0,
+      endHour24: 12,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-202",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "COMPLETED",
+      avatarText: "JP",
+      avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
+      avatarColor: "text-blue-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+      attendanceStatus: "PRESENT",
+      attendanceMarkedTime: "at 10:02 AM",
+    },
+    // 01 Sep / Tuesday - Completed Web Tech & Database
+    {
+      id: "mock-tue-1",
+      title: "Web Technologies",
+      courseCode: "WEB-101",
+      courseName: "Full Stack Web Development",
+      batchCode: "FSD-01",
+      facultyName: "Ramesh Kumar",
+      date: tue || "2026-09-01",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      startHour24: 10,
+      startMin: 0,
+      endHour24: 12,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-204",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "COMPLETED",
+      avatarText: "WT",
+      avatarBg: "bg-indigo-500/20 text-indigo-500 border border-indigo-500/30",
+      avatarColor: "text-indigo-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+      attendanceStatus: "PRESENT",
+      attendanceMarkedTime: "at 10:00 AM",
+    },
+    {
+      id: "mock-tue-2",
+      title: "Database Systems",
+      courseCode: "DBMS-102",
+      courseName: "Database Systems & Design",
+      batchCode: "FSD-01",
+      facultyName: "Priya Sharma",
+      date: tue || "2026-09-01",
+      startTime: "02:00 PM",
+      endTime: "04:00 PM",
+      startHour24: 14,
+      startMin: 0,
+      endHour24: 16,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-203",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "COMPLETED",
+      avatarText: "DB",
+      avatarBg: "bg-teal-500/20 text-teal-500 border border-teal-500/30",
+      avatarColor: "text-teal-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+      attendanceStatus: "PRESENT",
+      attendanceMarkedTime: "at 02:04 PM",
+    },
+    // 02 Sep / Wednesday (Today) - Live React & Upcoming Database
+    {
+      id: "mock-wed-1",
+      title: "React Development",
+      courseCode: "REACT-301",
+      courseName: "Full Stack Web Development",
+      batchCode: "FSD-01",
+      facultyName: "Ramesh Kumar",
+      date: wed || "2026-09-02",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      startHour24: 10,
+      startMin: 0,
+      endHour24: 12,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "Online",
+      block: "Campus",
+      mode: "Online",
+      forceStatus: "LIVE NOW",
+      avatarText: "RD",
+      avatarBg: "bg-emerald-500/20 text-emerald-500 border border-emerald-500/30",
+      avatarColor: "text-emerald-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+      attendanceStatus: "PRESENT",
+      attendanceMarkedTime: "at 10:05 AM",
+    },
+    {
+      id: "mock-wed-2",
+      title: "Database Systems",
+      courseCode: "DBMS-102",
+      courseName: "Database Systems & Design",
+      batchCode: "FSD-01",
+      facultyName: "Priya Sharma",
+      date: wed || "2026-09-02",
+      startTime: "02:00 PM",
+      endTime: "04:00 PM",
+      startHour24: 14,
+      startMin: 0,
+      endHour24: 16,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-203",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "UPCOMING",
+      avatarText: "DB",
+      avatarBg: "bg-teal-500/20 text-teal-500 border border-teal-500/30",
+      avatarColor: "text-teal-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+    },
+    // 03 Sep / Thursday - Upcoming React
+    {
+      id: "mock-thu-1",
+      title: "React Development",
+      courseCode: "REACT-301",
+      courseName: "Full Stack Web Development",
+      batchCode: "FSD-01",
+      facultyName: "Ramesh Kumar",
+      date: thu || "2026-09-03",
+      startTime: "10:00 AM",
+      endTime: "12:00 PM",
+      startHour24: 10,
+      startMin: 0,
+      endHour24: 12,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-204",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "UPCOMING",
+      avatarText: "RD",
+      avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
+      avatarColor: "text-blue-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+    },
+    // 04 Sep / Friday - Upcoming Node & Mentorship
+    {
+      id: "mock-fri-1",
+      title: "Node.js & Express",
+      courseCode: "NODE-201",
+      courseName: "Full Stack Web Development",
+      batchCode: "FSD-01",
+      facultyName: "Rajesh Varma",
+      date: fri || "2026-09-04",
+      startTime: "09:00 AM",
+      endTime: "11:00 AM",
+      startHour24: 9,
+      startMin: 0,
+      endHour24: 11,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-202",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "UPCOMING",
+      avatarText: "NE",
+      avatarBg: "bg-purple-500/20 text-purple-500 border border-purple-500/30",
+      avatarColor: "text-purple-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+    },
+    {
+      id: "mock-fri-2",
+      title: "Fullstack Project Mentorship",
+      courseCode: "CAP-401",
+      courseName: "Full Stack Web Development",
+      batchCode: "FSD-01",
+      facultyName: "Ramesh Kumar",
+      date: fri || "2026-09-04",
+      startTime: "02:00 PM",
+      endTime: "04:00 PM",
+      startHour24: 14,
+      startMin: 0,
+      endHour24: 16,
+      endMin: 0,
+      joinAvailableMinutesBefore: 15,
+      duration: "2h 00m",
+      roomNo: "LAB-204",
+      block: "Campus",
+      mode: "Campus",
+      forceStatus: "UPCOMING",
+      avatarText: "PM",
+      avatarBg: "bg-indigo-500/20 text-indigo-500 border border-indigo-500/30",
+      avatarColor: "text-indigo-500",
+      meetingUrl: "https://meet.google.com/aad-yac-las",
+    },
+  ];
+};
 
 const buildWeekDays = (weekOffset = 0, sessions: StudentClassSession[] = []): DayData[] => {
   const today = new Date();
@@ -202,6 +439,7 @@ const formatDayHeader = (day: DayData): string => {
 };
 
 export const StudentSchedule: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
@@ -212,10 +450,22 @@ export const StudentSchedule: React.FC = () => {
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
   const [isLoading, setIsLoading] = useState(true);
+  const [useMockPreview, setUseMockPreview] = useState(true);
+
+  // Initial base days for mock calculation
+  const rawWeekDays = useMemo(() => buildWeekDays(weekOffset, []), [weekOffset]);
+  const mockSessions = useMemo(() => generateMockAssignedClasses(rawWeekDays), [rawWeekDays]);
+
+  const effectiveSessions = useMemo(() => {
+    if (useMockPreview) {
+      return apiSessions && apiSessions.length > 0 ? apiSessions : mockSessions;
+    }
+    return apiSessions || [];
+  }, [useMockPreview, apiSessions, mockSessions]);
 
   const weekDays = useMemo(
-    () => buildWeekDays(weekOffset, apiSessions ?? []),
-    [weekOffset, apiSessions]
+    () => buildWeekDays(weekOffset, effectiveSessions),
+    [weekOffset, effectiveSessions]
   );
 
   const selectedDay = useMemo(
@@ -295,9 +545,8 @@ export const StudentSchedule: React.FC = () => {
 
   // Filter sessions for the active selected day — prefer live API data once loaded
   const daySessions = useMemo(() => {
-    const source = apiSessions !== null ? apiSessions : [];
-    return source.filter((s) => s.date === selectedDay.fullDate);
-  }, [selectedDay, apiSessions]);
+    return effectiveSessions.filter((s) => s.date === selectedDay.fullDate);
+  }, [selectedDay, effectiveSessions]);
 
   // Determine real-time lifecycle status of a session
   const getSessionLifecycle = (session: StudentClassSession) => {
@@ -463,7 +712,19 @@ export const StudentSchedule: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-3 self-end md:self-center">
+        <div className="flex items-center gap-3 self-end md:self-center flex-wrap">
+          <button
+            type="button"
+            onClick={() => setUseMockPreview((prev) => !prev)}
+            className={`px-3 py-2 rounded-2xl text-xs font-black transition-all cursor-pointer border shadow-2xs ${
+              useMockPreview
+                ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white border-amber-600 shadow-amber-500/20"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+            }`}
+          >
+            {useMockPreview ? "★ Sample Mock Active (Toggle)" : "☆ Real Backend Data (Toggle)"}
+          </button>
+
           <div className="flex items-center gap-2.5 px-4 py-2.5 bg-slate-50 dark:bg-[#0D1527] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl text-xs font-bold text-slate-700 dark:text-slate-300 shadow-2xs">
             <CalendarDays className="h-4 w-4 text-[#1D4ED8] dark:text-sky-400" />
             <div>
@@ -723,7 +984,21 @@ export const StudentSchedule: React.FC = () => {
 
                       {/* ── 2. LIVE NOW CLASS ──────────────────────────────── */}
                       {lifecycle.stage === "LIVE_NOW" && (
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-4 flex-wrap">
+                          {session.attendanceStatus === "PRESENT" && (
+                            <div className="text-right hidden sm:block border-r border-slate-200 dark:border-slate-800 pr-4">
+                              <span className="block text-[10px] font-bold text-red-500 uppercase tracking-wider">Attendance</span>
+                              <span className="block text-[11px] text-slate-500 dark:text-slate-400">Marked</span>
+                              <div className="flex items-center justify-end gap-1 text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>PRESENT</span>
+                              </div>
+                              {session.attendanceMarkedTime && (
+                                <span className="block text-[10px] text-slate-400">{session.attendanceMarkedTime}</span>
+                              )}
+                            </div>
+                          )}
+
                           <div className="text-right hidden sm:block">
                             <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                               <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -735,18 +1010,24 @@ export const StudentSchedule: React.FC = () => {
                           </div>
 
                           <Button
-                            onClick={() => setLiveJoiningSession(session)}
+                            onClick={() => {
+                              if (!academic.isAuthorizedForSession(session)) {
+                                alert("Access denied. This class is not assigned to you.");
+                                return;
+                              }
+                              setLiveJoiningSession(session);
+                            }}
                             className="h-10 px-6 text-xs font-black text-white bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 rounded-2xl shadow-md shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-105"
                           >
                             <Video className="w-4 h-4 text-white" />
-                            <span>🎥 Join Class</span>
+                            <span>🎥 Join Class Now</span>
                           </Button>
                         </div>
                       )}
 
                       {/* ── 3. CLASS COMPLETED & MANDATORY FEEDBACK REQUIRED ─── */}
                       {lifecycle.stage === "FEEDBACK_REQUIRED" && (
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <div className="text-right hidden sm:block">
                             <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-purple-600 dark:text-purple-400">
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -757,22 +1038,29 @@ export const StudentSchedule: React.FC = () => {
                             </span>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1">
+                          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate("/student/recordings")}
+                              className="h-9 px-3 text-xs font-bold text-[#1769AA] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            >
+                              <Video className="w-3.5 h-3.5 mr-1" />
+                              <span>Watch Recording</span>
+                            </Button>
                             <Button
                               onClick={() => handleOpenFeedbackModal(session)}
-                              className="h-10 px-5 text-xs font-bold text-white bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] rounded-2xl shadow-md shadow-indigo-500/20 flex items-center gap-2 cursor-pointer transition-all hover:scale-102"
+                              className="h-9 px-4 text-xs font-bold text-white bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] rounded-xl shadow-md shadow-indigo-500/20 flex items-center gap-1.5 cursor-pointer transition-all hover:scale-102"
                             >
                               <Star className="w-3.5 h-3.5 fill-amber-300 text-amber-300" />
-                              <span>★ Give Feedback</span>
+                              <span>★ Feedback</span>
                             </Button>
-                            <span className="text-[10px] text-slate-400 font-medium">Feedback is mandatory</span>
                           </div>
                         </div>
                       )}
 
                       {/* ── 4. CLASS COMPLETED & FEEDBACK SUBMITTED ─────────── */}
                       {lifecycle.stage === "FEEDBACK_SUBMITTED" && (
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-3">
                           <div className="text-right hidden sm:block">
                             <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400">
                               <CheckCircle2 className="w-3.5 h-3.5" />
@@ -781,12 +1069,25 @@ export const StudentSchedule: React.FC = () => {
                             <span className="block text-[11px] text-slate-500 dark:text-slate-400">
                               ✓ Feedback Submitted
                             </span>
-                            <span className="block text-[10px] text-slate-400 mt-0.5">
-                              Submitted on: {lifecycle.submittedAt}
-                            </span>
                           </div>
 
-                          <div className="flex flex-col items-end gap-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate("/student/recordings")}
+                              className="h-9 px-3 text-xs font-bold text-[#1769AA] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            >
+                              <Video className="w-3.5 h-3.5 mr-1" />
+                              <span>Recording</span>
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate("/student/study-materials")}
+                              className="h-9 px-3 text-xs font-bold text-indigo-600 border-indigo-200 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 rounded-xl"
+                            >
+                              <BookOpen className="w-3.5 h-3.5 mr-1" />
+                              <span>Materials</span>
+                            </Button>
                             <Button
                               variant="outline"
                               onClick={() =>
@@ -812,10 +1113,10 @@ export const StudentSchedule: React.FC = () => {
                                   }
                                 )
                               }
-                              className="h-9 px-4 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#0D1527] hover:bg-slate-50 dark:hover:bg-[#152342] border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer"
+                              className="h-9 px-3 text-xs font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-[#0D1527] hover:bg-slate-50 dark:hover:bg-[#152342] border-slate-200 dark:border-slate-700 rounded-xl cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5 mr-1" />
-                              <span>View Feedback</span>
+                              <span>Feedback</span>
                             </Button>
                           </div>
                         </div>
@@ -1151,9 +1452,16 @@ export const StudentSchedule: React.FC = () => {
                 </Button>
                 <Button
                   onClick={() => {
-                    if (liveJoiningSession.meetingUrl) {
-                      window.open(liveJoiningSession.meetingUrl, "_blank", "noopener,noreferrer");
-                    }
+                    academic.verifyAndJoinMeeting(
+                      {
+                        courseId: liveJoiningSession.courseId,
+                        batchId: liveJoiningSession.batchId,
+                        courseName: liveJoiningSession.courseName,
+                        meetingUrl: liveJoiningSession.meetingUrl,
+                        status: liveJoiningSession.forceStatus || "LIVE",
+                      },
+                      (errMsg) => alert(errMsg)
+                    );
                     setLiveJoiningSession(null);
                   }}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl h-10 flex-1 gap-2 cursor-pointer shadow-md shadow-emerald-600/20"

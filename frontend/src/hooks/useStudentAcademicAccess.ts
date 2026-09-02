@@ -60,6 +60,31 @@ export interface StudentAcademicAccess {
     courseName?: string | null;
     batch?: { id?: string; code?: string; courseId?: string };
   }) => boolean;
+  canJoinSession: (session: {
+    courseId?: string | null;
+    batchId?: string | null;
+    courseName?: string | null;
+    batch?: { id?: string; code?: string; courseId?: string };
+    status?: string;
+    meetingUrl?: string | null;
+  }) => boolean;
+  verifyAndJoinMeeting: (
+    session: {
+      courseId?: string | null;
+      batchId?: string | null;
+      courseName?: string | null;
+      batch?: { id?: string; code?: string; courseId?: string };
+      status?: string;
+      meetingUrl?: string | null;
+    },
+    onError?: (message: string) => void
+  ) => boolean;
+  getStudentAssignedClasses: <T extends {
+    courseId?: string | null;
+    batchId?: string | null;
+    courseName?: string | null;
+    batch?: { id?: string; code?: string; courseId?: string };
+  }>(sessions: T[]) => T[];
 }
 
 export const useStudentAcademicAccess = (): StudentAcademicAccess => {
@@ -242,6 +267,69 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       return false;
     };
 
+    const canJoinSession = (session: {
+      courseId?: string | null;
+      batchId?: string | null;
+      courseName?: string | null;
+      batch?: { id?: string; code?: string; courseId?: string };
+      status?: string;
+      meetingUrl?: string | null;
+    }): boolean => {
+      if (!isAuthorizedForSession(session)) return false;
+      const status = (session.status || "").toUpperCase();
+      const isLiveOrAvailable =
+        status === "LIVE" ||
+        status === "AVAILABLE" ||
+        status === "IN_PROGRESS" ||
+        status === "STARTED" ||
+        status === "LIVE_NOW";
+      const hasUrl = Boolean(session.meetingUrl && session.meetingUrl.trim().length > 0);
+      return isLiveOrAvailable && hasUrl;
+    };
+
+    const verifyAndJoinMeeting = (
+      session: {
+        courseId?: string | null;
+        batchId?: string | null;
+        courseName?: string | null;
+        batch?: { id?: string; code?: string; courseId?: string };
+        status?: string;
+        meetingUrl?: string | null;
+      },
+      onError?: (message: string) => void
+    ): boolean => {
+      // 1. Strict student assignment check
+      if (!isAuthorizedForSession(session)) {
+        const errorMsg = "Access denied. This class is not assigned to you.";
+        if (onError) onError(errorMsg);
+        else alert(errorMsg);
+        return false;
+      }
+
+      // 2. Validate join URL
+      const url = session.meetingUrl?.trim();
+      if (!url) {
+        const errorMsg = "No valid meeting link found for this class.";
+        if (onError) onError(errorMsg);
+        else alert(errorMsg);
+        return false;
+      }
+
+      // 3. Launch Google Meet
+      window.open(url, "_blank", "noopener,noreferrer");
+      return true;
+    };
+
+    const getStudentAssignedClasses = <T extends {
+      courseId?: string | null;
+      batchId?: string | null;
+      courseName?: string | null;
+      batch?: { id?: string; code?: string; courseId?: string };
+    }>(sessions: T[]): T[] => {
+      if (!Array.isArray(sessions)) return [];
+      return sessions.filter((s) => isAuthorizedForSession(s));
+    };
+
     return {
       isLoading: isDashLoading || (!!resolvedStudentId && isStudentDetailLoading) || isCoursesLoading,
       studentId: resolvedStudentId,
@@ -263,6 +351,9 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       isAuthorizedForBatch,
       isAuthorizedForModule,
       isAuthorizedForSession,
+      canJoinSession,
+      verifyAndJoinMeeting,
+      getStudentAssignedClasses,
     };
   }, [
     user,

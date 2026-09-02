@@ -88,9 +88,15 @@ export const StudentDashboard: React.FC = () => {
   const scheduleItems = [...todaySessions, ...upcomingSessions].slice(0, 6);
 
   const handleJoinGoogleMeet = () => {
-    if (currentLive?.meetUrl) {
-      window.open(currentLive.meetUrl, "_blank", "noopener,noreferrer");
-    }
+    if (!currentLive) return;
+    academic.verifyAndJoinMeeting(
+      {
+        courseName: currentLive.courseName,
+        meetingUrl: currentLive.meetUrl,
+        status: "LIVE",
+      },
+      (errMsg) => alert(errMsg)
+    );
   };
 
   const studentBatchCode = batchName || (user?.branchId ? `BRANCH-${user.branchId.slice(-4).toUpperCase()}` : "AADYA INSTITUTE");
