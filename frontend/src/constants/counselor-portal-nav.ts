@@ -14,6 +14,10 @@ import {
   Settings,
 } from "lucide-react";
 
+import { NAV_ITEM_LABELS } from "./nav-labels";
+
+const L = NAV_ITEM_LABELS;
+
 export interface CounselorNavSubItem {
   title: string;
   url: string;
@@ -73,8 +77,8 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     icon: Target,
     moduleKey: "admissions",
     items: [
-      { title: "Enquiries", url: "/counselor/admissions/enquiries", itemKey: "admissions.enquiries" },
-      { title: "Applications", url: "/counselor/admissions/applications", itemKey: "admissions.applications" },
+      { title: L["admissions.enquiries"] ?? "Enquiries", url: "/counselor/admissions/enquiries", itemKey: "admissions.enquiries" },
+      { title: L["admissions.applications"] ?? "Admission Applications", url: "/counselor/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/counselor/admissions/all", itemKey: "admissions.all" },
       { title: "Direct Admission", url: "/counselor/admissions/direct-entry", itemKey: "admissions.direct" },
     ],
@@ -86,7 +90,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "students",
     items: [
       { title: "All Students", url: "/counselor/students/all", itemKey: "students.all" },
-      { title: "Attendance", url: "/counselor/students/attendance", itemKey: "students.attendance" },
+      { title: L["students.attendance"] ?? "Student Attendance", url: "/counselor/students/attendance", itemKey: "students.attendance" },
     ],
   },
   {
@@ -96,8 +100,8 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/counselor/faculty/all", itemKey: "faculty.all" },
-      { title: "Assigned Courses", url: "/counselor/faculty/courses", itemKey: "courses.course_assignment" },
-      { title: "Attendance", url: "/counselor/faculty/attendance", itemKey: "faculty.attendance" },
+      { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: "/counselor/faculty/courses", itemKey: "courses.course_assignment" },
+      { title: L["faculty.attendance"] ?? "Faculty Attendance", url: "/counselor/faculty/attendance", itemKey: "faculty.attendance" },
     ],
   },
   {
@@ -127,7 +131,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     items: [
       { title: "Payments", url: "/counselor/fees/payments", itemKey: "fees.payments" },
       { title: "Pending Fees", url: "/counselor/fees/pending", itemKey: "fees.pending" },
-      { title: "Fee Reports", url: "/counselor/fees/reports", itemKey: "fees.reports" },
+      { title: L["fees.reports"] ?? "Fee Collection Reports", url: "/counselor/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {
@@ -139,7 +143,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
       { title: "Student Reports", url: "/counselor/reports/students", itemKey: "reports.students" },
       { title: "Faculty Reports", url: "/counselor/reports/faculty", itemKey: "reports.faculty" },
       { title: "Course Reports", url: "/counselor/reports/courses", itemKey: "reports.courses" },
-      { title: "Financial Reports", url: "/counselor/reports/financial", itemKey: "reports.financial" },
+      { title: L["reports.financial"] ?? "Revenue & Finance Reports", url: "/counselor/reports/financial", itemKey: "reports.financial" },
     ],
   },
   {

@@ -62,7 +62,7 @@ export const Applications: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-start">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary">Applications</h2>
+          <h2 className="text-2xl font-bold text-text-primary">Job Applications</h2>
           <p className="text-sm text-text-secondary">Student job applications and status.</p>
         </div>
         <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>

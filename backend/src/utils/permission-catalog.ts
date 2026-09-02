@@ -63,7 +63,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update"] },
-      { key: "admissions.applications", label: "Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
+      { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.direct", label: "Direct Admission", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.documents", label: "Admission Documents", readPermissions: ["document.read"], writePermissions: ["document.create", "document.verify", "document.update"] },
@@ -72,38 +72,38 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "counsellor_management",
     label: "Counsellor Management",
-    description: "Counsellor staff, lead allocation, and performance",
+    description: "Counsellor staff, lead assignment, and performance",
     category: "ERP Modules",
     items: [
       { key: "counsellor.all", label: "All Counsellors", readPermissions: ["user.read"], writePermissions: ["user.create", "user.update"] },
-      { key: "counsellor.lead_allocation", label: "Lead Allocation", readPermissions: ["lead.read"], writePermissions: ["lead.assign", "lead.update"] },
-      { key: "counsellor.performance", label: "Performance", readPermissions: ["target.read", "report.read"], writePermissions: [] },
+      { key: "counsellor.lead_allocation", label: "Assign Leads to Counsellors", readPermissions: ["lead.read"], writePermissions: ["lead.assign", "lead.update"] },
+      { key: "counsellor.performance", label: "Counsellor Performance", readPermissions: ["target.read", "report.read"], writePermissions: [] },
     ],
   },
   {
     key: "student_management",
     label: "Student Management",
-    description: "Student registry, documents, batch allocation, attendance, and performance",
+    description: "Student registry, documents, batch assignment, attendance, and academic performance",
     category: "ERP Modules",
     items: [
       { key: "students.all", label: "All Students", readPermissions: ["student.read"], writePermissions: ["student.create", "student.update"] },
       { key: "students.documents", label: "Student Documents", readPermissions: ["document.read"], writePermissions: ["document.create", "document.verify", "document.update"] },
-      { key: "students.student_allocation", label: "Student Allocation", readPermissions: ["batch.read", "student.read"], writePermissions: ["batch.update"] },
-      { key: "students.attendance", label: "Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
-      { key: "students.performance", label: "Performance", readPermissions: ["student.read", "report.read"], writePermissions: [] },
+      { key: "students.student_allocation", label: "Assign Students to Batches", readPermissions: ["batch.read", "student.read"], writePermissions: ["batch.update"] },
+      { key: "students.attendance", label: "Student Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
+      { key: "students.performance", label: "Academic Performance", readPermissions: ["student.read", "report.read"], writePermissions: [] },
       { key: "students.discontinuation", label: "Discontinuation Risk", readPermissions: ["student.read"], writePermissions: ["student.update"] },
     ],
   },
   {
     key: "faculty_management",
     label: "Faculty Management",
-    description: "Faculty profiles, allocation, attendance, and ratings",
+    description: "Faculty profiles, batch assignment, attendance, and ratings",
     category: "ERP Modules",
     items: [
       { key: "faculty.all", label: "All Faculty", readPermissions: ["faculty.read"], writePermissions: ["faculty.create", "faculty.update"] },
-      { key: "faculty.faculty_allocation", label: "Faculty Allocation", readPermissions: ["faculty.read", "batch.read"], writePermissions: ["faculty.update", "batch.update"] },
-      { key: "faculty.attendance", label: "Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
-      { key: "faculty.performance", label: "Performance", readPermissions: ["feedback.read", "report.read"], writePermissions: [] },
+      { key: "faculty.faculty_allocation", label: "Assign Faculty to Batches", readPermissions: ["faculty.read", "batch.read"], writePermissions: ["faculty.update", "batch.update"] },
+      { key: "faculty.attendance", label: "Faculty Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark", "attendance.update"] },
+      { key: "faculty.performance", label: "Faculty Ratings & Feedback", readPermissions: ["feedback.read", "report.read"], writePermissions: [] },
     ],
   },
   {
@@ -113,9 +113,9 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "courses.all", label: "All Courses", readPermissions: ["course.read"], writePermissions: ["course.create", "course.update"] },
-      { key: "courses.curriculum", label: "Curriculum", readPermissions: ["module.read", "course.read"], writePermissions: ["module.create", "module.update"] },
-      { key: "courses.modules", label: "Modules", readPermissions: ["module.read"], writePermissions: ["module.create", "module.update"] },
-      { key: "courses.course_assignment", label: "Course Assignment", readPermissions: ["faculty.read", "course.read"], writePermissions: ["faculty.update"] },
+      { key: "courses.curriculum", label: "Course Curriculum", readPermissions: ["module.read", "course.read"], writePermissions: ["module.create", "module.update"] },
+      { key: "courses.modules", label: "Course Curriculum", readPermissions: ["module.read"], writePermissions: ["module.create", "module.update"] },
+      { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: ["faculty.update"] },
     ],
   },
   {
@@ -148,8 +148,8 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "assignments.all", label: "All Assignments", readPermissions: ["assignment.read"], writePermissions: ["assignment.create", "assignment.update", "assignment.delete"] },
       { key: "assignments.create", label: "Create Assignment", readPermissions: ["assignment.read"], writePermissions: ["assignment.create"] },
-      { key: "assignments.submissions", label: "Submissions", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade"] },
-      { key: "assignments.reviews", label: "Reviews", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade", "assignment.update"] },
+      { key: "assignments.submissions", label: "Submissions Queue", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade"] },
+      { key: "assignments.reviews", label: "Grading Queue", readPermissions: ["assignment.read"], writePermissions: ["assignment.grade", "assignment.update"] },
     ],
   },
   {
@@ -175,7 +175,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
       { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: [] },
-      { key: "fees.reports", label: "Fee Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
+      { key: "fees.reports", label: "Fee Collection Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
     ],
   },
   {
@@ -184,8 +184,8 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     description: "Targets, assignments, leaderboard, and incentives",
     category: "ERP Modules",
     items: [
-      { key: "targets.all", label: "Targets", readPermissions: ["target.read"], writePermissions: ["target.manage", "target.assign"] },
-      { key: "targets.assignments", label: "Target Assignments", readPermissions: ["target.read"], writePermissions: ["target.assign"] },
+      { key: "targets.all", label: "Target Plans & Assignments", readPermissions: ["target.read"], writePermissions: ["target.manage", "target.assign"] },
+      { key: "targets.assignments", label: "Target Plans & Assignments", readPermissions: ["target.read"], writePermissions: ["target.assign"] },
       { key: "targets.leaderboard", label: "Leaderboard", readPermissions: ["target.read", "incentive.read"], writePermissions: [] },
       { key: "targets.incentives", label: "Incentive Approvals", readPermissions: ["incentive.read"], writePermissions: ["target.approve"] },
     ],
@@ -202,7 +202,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "reports.faculty", label: "Faculty Reports", readPermissions: ["report.read"], writePermissions: [] },
       { key: "reports.courses", label: "Course Reports", readPermissions: ["report.read"], writePermissions: [] },
       { key: "reports.examinations", label: "Examination Reports", readPermissions: ["report.read", "exam.read"], writePermissions: [] },
-      { key: "reports.financial", label: "Finance Reports", readPermissions: ["report.read", "fee.read"], writePermissions: [] },
+      { key: "reports.financial", label: "Revenue & Finance Reports", readPermissions: ["report.read", "fee.read"], writePermissions: [] },
     ],
   },
   {
@@ -214,7 +214,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "communication.notifications", label: "Notifications", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
       { key: "communication.whatsapp", label: "WhatsApp", readPermissions: ["notification.read"], writePermissions: ["notification.resend", "notification.manage"] },
       { key: "communication.email", label: "Email", readPermissions: ["email.read"], writePermissions: ["email.manage"] },
-      { key: "communication.automation", label: "Automation", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
+      { key: "communication.automation", label: "Message Automation Rules", readPermissions: ["notification.read"], writePermissions: ["notification.manage"] },
     ],
   },
   {
@@ -226,7 +226,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "placement.eligible", label: "Eligible Students", readPermissions: ["placement.read"], writePermissions: [] },
       { key: "placement.companies", label: "Companies", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
       { key: "placement.jobs", label: "Jobs", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
-      { key: "placement.applications", label: "Applications", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
+      { key: "placement.applications", label: "Job Applications", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
       { key: "placement.interviews", label: "Interviews", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
       { key: "placement.placements", label: "Placements", readPermissions: ["placement.read"], writePermissions: ["placement.create", "placement.update"] },
     ],
@@ -267,7 +267,7 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update"] },
-      { key: "admissions.applications", label: "Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
+      { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.direct", label: "Direct Admission", readPermissions: ["admission.read"], writePermissions: ["admission.create"] },
     ],
@@ -279,7 +279,7 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "students.all", label: "All Students", readPermissions: ["student.read"], writePermissions: ["student.update"] },
-      { key: "students.attendance", label: "Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark"] },
+      { key: "students.attendance", label: "Student Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark"] },
     ],
   },
   {
@@ -289,8 +289,8 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "faculty.all", label: "All Faculty", readPermissions: ["faculty.read"], writePermissions: [] },
-      { key: "courses.course_assignment", label: "Course Assignment", readPermissions: ["faculty.read", "course.read"], writePermissions: [] },
-      { key: "faculty.attendance", label: "Attendance", readPermissions: ["attendance.read"], writePermissions: [] },
+      { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: [] },
+      { key: "faculty.attendance", label: "Faculty Attendance", readPermissions: ["attendance.read"], writePermissions: [] },
     ],
   },
   {
@@ -320,7 +320,7 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
       { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: [] },
-      { key: "fees.reports", label: "Fee Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
+      { key: "fees.reports", label: "Fee Collection Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
     ],
   },
   {
@@ -332,7 +332,7 @@ const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
       { key: "reports.students", label: "Student Reports", readPermissions: ["report.read"], writePermissions: [] },
       { key: "reports.faculty", label: "Faculty Reports", readPermissions: ["report.read"], writePermissions: [] },
       { key: "reports.courses", label: "Course Reports", readPermissions: ["report.read"], writePermissions: [] },
-      { key: "reports.financial", label: "Finance Reports", readPermissions: ["report.read"], writePermissions: [] },
+      { key: "reports.financial", label: "Revenue & Finance Reports", readPermissions: ["report.read"], writePermissions: [] },
     ],
   },
   {

@@ -41,8 +41,11 @@ import { AddAdmin } from "../pages/admin/administration/AddAdmin";
 import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
+import { Enquiries } from "../pages/admin/admissions/Enquiries";
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { CounsellorOverview } from "../pages/admin/counselor/CounsellorOverview";
+import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
+import { CounsellorPerformance } from "../pages/admin/counsellors/CounsellorPerformance";
 import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
 import { Classes } from "../pages/admin/schedule/Classes";
 import { ExamManagement } from "../pages/admin/exams/ExamManagement";
@@ -89,7 +92,6 @@ import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments
 import { AllBatches } from "../pages/admin/batches/AllBatches";
 import { CreateBatch } from "../pages/admin/batches/CreateBatch";
 import { BatchDetails } from "../pages/admin/batches/BatchDetails";
-import { Modules } from "../pages/admin/courses/Modules";
 import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
 import { AssignmentList } from "../pages/admin/assignments/AssignmentList";
 import { CreateAssignment } from "../pages/admin/assignments/CreateAssignment";
@@ -184,6 +186,8 @@ export const AppRoutes: React.FC = () => {
         {/* Counsellor */}
         <Route path="counselor">
           <Route path="overview" element={<CounsellorOverview />} />
+          <Route path="lead-allocation" element={<LeadAllocation />} />
+          <Route path="performance" element={<CounsellorPerformance />} />
           <Route path="all" element={<AllCounsellors />} />
           <Route path="batches" element={<CounsellorBatches />} />
           <Route path="assign-students" element={<Navigate to="/center/students/student-allocation" replace />} />
@@ -243,7 +247,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
           <Route path="documents" element={<AdmissionDocuments />} />
         </Route>
 
@@ -254,7 +258,7 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id/edit" element={<EditCourse />} />
           <Route path="batches" element={<Batches />} />
           <Route path="curriculum" element={<Curriculum />} />
-          <Route path="modules" element={<Modules />} />
+          <Route path="modules" element={<Navigate to="/center/courses/curriculum" replace />} />
           <Route path="course-assignment" element={<CourseAssignment />} />
         </Route>
 
@@ -295,7 +299,7 @@ export const AppRoutes: React.FC = () => {
           <Route index element={<AllLeadsList />} />
           <Route path="all" element={<AllLeadsList />} />
           <Route path="call-history" element={<CallHistory />} />
-          <Route path="enquiries" element={<Navigate to="/center/leads" replace />} />
+          <Route path="enquiries" element={<Navigate to="/center/admissions/enquiries" replace />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />
@@ -304,8 +308,9 @@ export const AppRoutes: React.FC = () => {
 
         {/* Target & Incentive Management System */}
         <Route path="targets" element={<TargetManagement />} />
-        <Route path="targets/assignments" element={<TargetManagement />} />
-        <Route path="performance" element={<TargetPerformance />} />
+        <Route path="targets/assignments" element={<Navigate to="/center/targets" replace />} />
+        <Route path="targets/leaderboard" element={<TargetPerformance />} />
+        <Route path="performance" element={<Navigate to="/center/targets/leaderboard" replace />} />
         <Route path="incentives" element={<IncentiveManagement />} />
 
         {/* Examination Management System (Branch Scoped) */}
@@ -336,7 +341,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
           <Route path="applications" element={<Applications />} />
-          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
         {/* Students */}
@@ -388,7 +393,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="leads">
           <Route index element={<AllLeadsList />} />
           <Route path="all" element={<AllLeadsList />} />
-          <Route path="enquiries" element={<Navigate to="/counselor/leads" replace />} />
+          <Route path="enquiries" element={<Enquiries />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
           <Route path="add" element={<AddLead />} />

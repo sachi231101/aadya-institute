@@ -150,19 +150,19 @@ export const CourseAssignment: React.FC = () => {
           <span>Faculty Portal</span>
           <ChevronRight className="h-3.5 w-3.5" />
           <span className="text-primary font-bold">
-            {isFacultyOnly ? "My Batches & Courses" : "Faculty Course Allocations"}
+            {isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
           </span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
-              {isFacultyOnly ? "My Batches & Courses" : "Faculty Course Allocations"}
+              {isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
             </h1>
             <p className="text-xs md:text-sm text-muted-foreground font-medium mt-0.5">
               {isFacultyOnly
                 ? "View and manage the courses and batches assigned to you."
-                : "Manage faculty assignments across courses, batches, and academic cohorts."}
+                : "Assign faculty instructors to courses and batches across the institute."}
             </p>
           </div>
 

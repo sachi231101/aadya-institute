@@ -154,7 +154,7 @@ export const Curriculum: React.FC = () => {
     <div className="space-y-6 animate-in fade-in duration-300">
       {/* Header */}
       <div>
-        <h2 className="text-2xl font-black tracking-tight text-foreground">Curriculum Builder</h2>
+        <h2 className="text-2xl font-black tracking-tight text-foreground">Course Curriculum</h2>
         <p className="text-xs text-muted-foreground font-medium mt-0.5">
           Structure course syllabi, module sequences, topic hours, and learning progress.
         </p>

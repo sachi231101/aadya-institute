@@ -42,7 +42,7 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
         </div>
         <Button asChild>
           <Link to={allocationPath}>
-            Manage in Faculty Allocation
+            Manage in Assign Faculty to Batches
             <ExternalLink className="w-4 h-4 ml-2" />
           </Link>
         </Button>
@@ -77,7 +77,7 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
             </dl>
           ) : (
             <p className="text-sm text-text-secondary text-center py-4">
-              No faculty assigned yet. Use Faculty Allocation to assign an instructor to this batch.
+              No faculty assigned yet. Use Assign Faculty to Batches to assign an instructor to this batch.
             </p>
           )}
         </CardContent>
