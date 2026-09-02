@@ -275,7 +275,7 @@ export const StudentAttendance: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black tracking-tight text-foreground">
-              Attendance Sheet
+              Student Attendance
             </h1>
             <ShieldCheck className="h-5 w-5 text-primary" />
           </div>

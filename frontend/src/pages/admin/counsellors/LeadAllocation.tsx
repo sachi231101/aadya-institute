@@ -60,7 +60,7 @@ export const LeadAllocation: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-text-primary">Lead Allocation</h2>
+        <h2 className="text-2xl font-bold text-text-primary">Assign Leads to Counsellors</h2>
         <p className="text-sm text-text-secondary">
           Assign counsellors after the AI qualification call has finished.
         </p>

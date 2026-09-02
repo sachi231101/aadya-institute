@@ -259,7 +259,7 @@ export const StudentPerformance: React.FC = () => {
             <ArrowLeft className="h-4 w-4" /> Back
           </Button>
           <div>
-            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Student Performance</h2>
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900">Academic Performance</h2>
             <p className="text-sm text-slate-500">
               View detailed academic analytics and progress for individual students.
             </p>

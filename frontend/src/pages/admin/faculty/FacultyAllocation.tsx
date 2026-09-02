@@ -103,7 +103,7 @@ export const FacultyAllocation: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
             <UserCheck className="h-6 w-6 text-[#1769AA]" />
-            Faculty Allocation
+            Assign Faculty to Batches
           </h1>
           <p className="text-muted-foreground mt-1">
             Assign faculty instructors to training batches across the institute.

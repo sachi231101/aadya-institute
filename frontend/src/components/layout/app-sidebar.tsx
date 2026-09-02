@@ -45,8 +45,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { useAuthStore } from "@/store/auth.store"
 import { InstallAppButton } from "@/components/common/InstallAppButton"
 import { ROUTES } from "@/constants/routes"
+import { NAV_ITEM_LABELS } from "@/constants/nav-labels"
 
 const { ADMIN: A } = ROUTES
+const L = NAV_ITEM_LABELS
 
 const data = {
   navMain: [
@@ -71,9 +73,11 @@ const data = {
       url: A.ADMISSIONS.ALL,
       icon: Target,
       items: [
-        { title: "Applications", url: A.ADMISSIONS.APPLICATIONS },
-        { title: "Admissions", url: A.ADMISSIONS.ALL },
-        { title: "Admission Documents", url: A.ADMISSIONS.DOCUMENTS },
+        { title: L["admissions.enquiries"] ?? "Enquiries", url: A.ADMISSIONS.ENQUIRIES },
+        { title: L["admissions.applications"] ?? "Admission Applications", url: A.ADMISSIONS.APPLICATIONS },
+        { title: L["admissions.all"] ?? "Admissions", url: A.ADMISSIONS.ALL },
+        { title: L["admissions.direct"] ?? "Direct Admission", url: A.ADMISSIONS.DIRECT },
+        { title: L["admissions.documents"] ?? "Admission Documents", url: A.ADMISSIONS.DOCUMENTS },
       ],
     },
     {
@@ -81,9 +85,9 @@ const data = {
       url: A.COUNSELLORS.ALL,
       icon: UserCheck,
       items: [
-        { title: "All Counsellors", url: A.COUNSELLORS.ALL },
-        { title: "Lead Allocation", url: A.COUNSELLORS.LEAD_ALLOCATION },
-        { title: "Performance", url: A.COUNSELLORS.PERFORMANCE },
+        { title: L["counsellor.all"] ?? "All Counsellors", url: A.COUNSELLORS.ALL },
+        { title: L["counsellor.lead_allocation"] ?? "Assign Leads to Counsellors", url: A.COUNSELLORS.LEAD_ALLOCATION },
+        { title: L["counsellor.performance"] ?? "Counsellor Performance", url: A.COUNSELLORS.PERFORMANCE },
       ],
     },
     {
@@ -91,12 +95,12 @@ const data = {
       url: A.STUDENTS.ALL,
       icon: GraduationCap,
       items: [
-        { title: "All Students", url: A.STUDENTS.ALL },
-        { title: "Student Documents", url: A.STUDENTS.DOCUMENTS },
-        { title: "Student Allocation", url: A.STUDENTS.STUDENT_ALLOCATION },
-        { title: "Attendance", url: A.STUDENTS.ATTENDANCE },
-        { title: "Performance", url: A.STUDENTS.PERFORMANCE },
-        { title: "Discontinuation Risk", url: A.STUDENTS.DISCONTINUATION },
+        { title: L["students.all"] ?? "All Students", url: A.STUDENTS.ALL },
+        { title: L["students.documents"] ?? "Student Documents", url: A.STUDENTS.DOCUMENTS },
+        { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: A.STUDENTS.STUDENT_ALLOCATION },
+        { title: L["students.attendance"] ?? "Student Attendance", url: A.STUDENTS.ATTENDANCE },
+        { title: L["students.performance"] ?? "Academic Performance", url: A.STUDENTS.PERFORMANCE },
+        { title: L["students.discontinuation"] ?? "Discontinuation Risk", url: A.STUDENTS.DISCONTINUATION },
       ],
     },
     {
@@ -104,10 +108,10 @@ const data = {
       url: A.FACULTY.ALL,
       icon: Users,
       items: [
-        { title: "All Faculty", url: A.FACULTY.ALL },
-        { title: "Faculty Allocation", url: A.FACULTY.FACULTY_ALLOCATION },
-        { title: "Attendance", url: A.FACULTY.ATTENDANCE },
-        { title: "Performance", url: A.FACULTY.PERFORMANCE },
+        { title: L["faculty.all"] ?? "All Faculty", url: A.FACULTY.ALL },
+        { title: L["faculty.faculty_allocation"] ?? "Assign Faculty to Batches", url: A.FACULTY.FACULTY_ALLOCATION },
+        { title: L["faculty.attendance"] ?? "Faculty Attendance", url: A.FACULTY.ATTENDANCE },
+        { title: L["faculty.performance"] ?? "Faculty Ratings & Feedback", url: A.FACULTY.PERFORMANCE },
       ],
     },
     {
@@ -115,10 +119,9 @@ const data = {
       url: A.COURSES.ALL,
       icon: BookOpen,
       items: [
-        { title: "All Courses", url: A.COURSES.ALL },
-        { title: "Curriculum", url: A.COURSES.CURRICULUM },
-        { title: "Modules", url: A.COURSES.MODULES },
-        { title: "Course Assignment", url: A.COURSES.COURSE_ASSIGNMENT },
+        { title: L["courses.all"] ?? "All Courses", url: A.COURSES.ALL },
+        { title: L["courses.curriculum"] ?? "Course Curriculum", url: A.COURSES.CURRICULUM },
+        { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: A.COURSES.COURSE_ASSIGNMENT },
       ],
     },
     {
@@ -146,10 +149,10 @@ const data = {
       url: A.ASSIGNMENTS.ALL,
       icon: ClipboardList,
       items: [
-        { title: "All Assignments", url: A.ASSIGNMENTS.ALL },
-        { title: "Create Assignment", url: A.ASSIGNMENTS.CREATE },
-        { title: "Submissions", url: A.ASSIGNMENTS.SUBMISSIONS },
-        { title: "Reviews", url: A.ASSIGNMENTS.REVIEWS },
+        { title: L["assignments.all"] ?? "All Assignments", url: A.ASSIGNMENTS.ALL },
+        { title: L["assignments.create"] ?? "Create Assignment", url: A.ASSIGNMENTS.CREATE },
+        { title: L["assignments.submissions"] ?? "Submissions Queue", url: A.ASSIGNMENTS.SUBMISSIONS },
+        { title: L["assignments.reviews"] ?? "Grading Queue", url: A.ASSIGNMENTS.REVIEWS },
       ],
     },
     {
@@ -173,7 +176,7 @@ const data = {
         { title: "Payments", url: A.FEES.PAYMENTS },
         { title: "Pending Fees", url: A.FEES.PENDING },
         { title: "Receipts", url: A.FEES.RECEIPTS },
-        { title: "Fee Reports", url: A.FEES.REPORTS },
+        { title: L["fees.reports"] ?? "Fee Collection Reports", url: A.FEES.REPORTS },
       ],
     },
     {
@@ -181,10 +184,9 @@ const data = {
       url: A.TARGETS.ALL,
       icon: Award,
       items: [
-        { title: "Targets", url: A.TARGETS.ALL },
-        { title: "Target Assignments", url: A.TARGETS.ASSIGNMENTS },
-        { title: "Leaderboard", url: A.TARGETS.LEADERBOARD },
-        { title: "Incentive Approvals", url: A.TARGETS.INCENTIVES },
+        { title: L["targets.all"] ?? "Target Plans & Assignments", url: A.TARGETS.ALL },
+        { title: L["targets.leaderboard"] ?? "Leaderboard", url: A.TARGETS.LEADERBOARD },
+        { title: L["targets.incentives"] ?? "Incentive Approvals", url: A.TARGETS.INCENTIVES },
       ],
     },
     {
@@ -198,7 +200,7 @@ const data = {
         { title: "Faculty Reports", url: A.REPORTS.FACULTY },
         { title: "Course Reports", url: A.REPORTS.COURSES },
         { title: "Examination Reports", url: A.REPORTS.EXAMINATIONS },
-        { title: "Finance Reports", url: A.REPORTS.FINANCE },
+        { title: L["reports.financial"] ?? "Revenue & Finance Reports", url: A.REPORTS.FINANCE },
       ],
     },
     {
@@ -209,7 +211,7 @@ const data = {
         { title: "Notifications", url: A.COMMUNICATION.NOTIFICATIONS },
         { title: "WhatsApp", url: A.COMMUNICATION.WHATSAPP },
         { title: "Email", url: A.COMMUNICATION.EMAIL },
-        { title: "Automation", url: A.COMMUNICATION.AUTOMATION },
+        { title: L["communication.automation"] ?? "Message Automation Rules", url: A.COMMUNICATION.AUTOMATION },
       ],
     },
     {
@@ -220,7 +222,7 @@ const data = {
         { title: "Eligible Students", url: A.PLACEMENT.ELIGIBLE },
         { title: "Companies", url: A.PLACEMENT.COMPANIES },
         { title: "Jobs", url: A.PLACEMENT.JOBS },
-        { title: "Applications", url: A.PLACEMENT.APPLICATIONS },
+        { title: L["placement.applications"] ?? "Job Applications", url: A.PLACEMENT.APPLICATIONS },
         { title: "Interviews", url: A.PLACEMENT.INTERVIEWS },
         { title: "Placements", url: A.PLACEMENT.PLACEMENTS },
       ],

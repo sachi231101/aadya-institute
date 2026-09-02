@@ -21,6 +21,10 @@ import {
   Settings,
 } from "lucide-react";
 
+import { NAV_ITEM_LABELS } from "./nav-labels";
+
+const L = NAV_ITEM_LABELS;
+
 export interface CenterNavSubItem {
   title: string;
   url: string;
@@ -68,8 +72,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     icon: Target,
     moduleKey: "admissions",
     items: [
-      { title: "Enquiries", url: "/center/admissions/enquiries", itemKey: "admissions.enquiries" },
-      { title: "Applications", url: "/center/admissions/applications", itemKey: "admissions.applications" },
+      { title: L["admissions.enquiries"] ?? "Enquiries", url: "/center/admissions/enquiries", itemKey: "admissions.enquiries" },
+      { title: L["admissions.applications"] ?? "Admission Applications", url: "/center/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/center/admissions/all", itemKey: "admissions.all" },
       { title: "Admission Documents", url: "/center/admissions/documents", itemKey: "admissions.documents" },
     ],
@@ -81,8 +85,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "counsellor",
     items: [
       { title: "All Counsellors", url: "/center/counselor/all", itemKey: "counsellor.all" },
-      { title: "Lead Allocation", url: "/center/counselor/overview", itemKey: "counsellor.lead_allocation" },
-      { title: "Performance", url: "/center/performance", itemKey: "counsellor.performance" },
+      { title: L["counsellor.lead_allocation"] ?? "Assign Leads to Counsellors", url: "/center/counselor/lead-allocation", itemKey: "counsellor.lead_allocation" },
+      { title: L["counsellor.performance"] ?? "Counsellor Performance", url: "/center/counselor/performance", itemKey: "counsellor.performance" },
     ],
   },
   {
@@ -93,9 +97,9 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Students", url: "/center/students/all", itemKey: "students.all" },
       { title: "Student Documents", url: "/center/students/documents", itemKey: "students.documents" },
-      { title: "Student Allocation", url: "/center/students/student-allocation", itemKey: "students.student_allocation" },
-      { title: "Attendance", url: "/center/students/attendance", itemKey: "students.attendance" },
-      { title: "Performance", url: "/center/students/performance", itemKey: "students.performance" },
+      { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: "/center/students/student-allocation", itemKey: "students.student_allocation" },
+      { title: L["students.attendance"] ?? "Student Attendance", url: "/center/students/attendance", itemKey: "students.attendance" },
+      { title: L["students.performance"] ?? "Academic Performance", url: "/center/students/performance", itemKey: "students.performance" },
       { title: "Discontinuation Risk", url: "/center/students/discontinuation-risk", itemKey: "students.discontinuation" },
     ],
   },
@@ -106,9 +110,9 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/center/faculty/all", itemKey: "faculty.all" },
-      { title: "Faculty Allocation", url: "/center/faculty/faculty-allocation", itemKey: "faculty.faculty_allocation" },
-      { title: "Attendance", url: "/center/faculty/attendance", itemKey: "faculty.attendance" },
-      { title: "Performance", url: "/center/faculty/ratings", itemKey: "faculty.performance" },
+      { title: L["faculty.faculty_allocation"] ?? "Assign Faculty to Batches", url: "/center/faculty/faculty-allocation", itemKey: "faculty.faculty_allocation" },
+      { title: L["faculty.attendance"] ?? "Faculty Attendance", url: "/center/faculty/attendance", itemKey: "faculty.attendance" },
+      { title: L["faculty.performance"] ?? "Faculty Ratings & Feedback", url: "/center/faculty/ratings", itemKey: "faculty.performance" },
     ],
   },
   {
@@ -118,9 +122,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "courses",
     items: [
       { title: "All Courses", url: "/center/courses/all", itemKey: "courses.all" },
-      { title: "Curriculum", url: "/center/courses/curriculum", itemKey: "courses.curriculum" },
-      { title: "Modules", url: "/center/courses/modules", itemKey: "courses.modules" },
-      { title: "Course Assignment", url: "/center/courses/course-assignment", itemKey: "courses.course_assignment" },
+      { title: L["courses.curriculum"] ?? "Course Curriculum", url: "/center/courses/curriculum", itemKey: "courses.curriculum" },
+      { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: "/center/courses/course-assignment", itemKey: "courses.course_assignment" },
     ],
   },
   {
@@ -153,8 +156,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     items: [
       { title: "All Assignments", url: "/center/assignments", itemKey: "assignments.all" },
       { title: "Create Assignment", url: "/center/assignments/create", itemKey: "assignments.create" },
-      { title: "Submissions", url: "/center/assignments/submissions", itemKey: "assignments.submissions" },
-      { title: "Reviews", url: "/center/assignments/reviews", itemKey: "assignments.reviews" },
+      { title: L["assignments.submissions"] ?? "Submissions Queue", url: "/center/assignments/submissions", itemKey: "assignments.submissions" },
+      { title: L["assignments.reviews"] ?? "Grading Queue", url: "/center/assignments/reviews", itemKey: "assignments.reviews" },
     ],
   },
   {
@@ -180,7 +183,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Payments", url: "/center/fees/payments", itemKey: "fees.payments" },
       { title: "Pending Fees", url: "/center/fees/pending", itemKey: "fees.pending" },
       { title: "Receipts", url: "/center/fees/receipts", itemKey: "fees.receipts" },
-      { title: "Fee Reports", url: "/center/fees/reports", itemKey: "fees.reports" },
+      { title: L["fees.reports"] ?? "Fee Collection Reports", url: "/center/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {
@@ -189,9 +192,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     icon: Award,
     moduleKey: "targets",
     items: [
-      { title: "Targets", url: "/center/targets", itemKey: "targets.all" },
-      { title: "Target Assignments", url: "/center/targets/assignments", itemKey: "targets.assignments" },
-      { title: "Leaderboard", url: "/center/performance", itemKey: "targets.leaderboard" },
+      { title: L["targets.all"] ?? "Target Plans & Assignments", url: "/center/targets", itemKey: "targets.all" },
+      { title: L["targets.leaderboard"] ?? "Leaderboard", url: "/center/targets/leaderboard", itemKey: "targets.leaderboard" },
       { title: "Incentive Approvals", url: "/center/incentives", itemKey: "targets.incentives" },
     ],
   },
@@ -207,7 +209,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Faculty Reports", url: "/center/reports/faculty", itemKey: "reports.faculty" },
       { title: "Course Reports", url: "/center/reports/courses", itemKey: "reports.courses" },
       { title: "Examination Reports", url: "/center/reports/examinations", itemKey: "reports.examinations" },
-      { title: "Finance Reports", url: "/center/reports/financial", itemKey: "reports.financial" },
+      { title: L["reports.financial"] ?? "Revenue & Finance Reports", url: "/center/reports/financial", itemKey: "reports.financial" },
     ],
   },
   {
@@ -219,7 +221,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Notifications", url: "/center/notifications", itemKey: "communication.notifications" },
       { title: "WhatsApp", url: "/center/notifications/whatsapp", itemKey: "communication.whatsapp" },
       { title: "Email", url: "/center/communication/email", itemKey: "communication.email" },
-      { title: "Automation", url: "/center/communication/automation", itemKey: "communication.automation" },
+      { title: L["communication.automation"] ?? "Message Automation Rules", url: "/center/communication/automation", itemKey: "communication.automation" },
     ],
   },
   {
@@ -231,7 +233,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: "Eligible Students", url: "/center/placement/eligible", itemKey: "placement.eligible" },
       { title: "Companies", url: "/center/placement/companies", itemKey: "placement.companies" },
       { title: "Jobs", url: "/center/placement/jobs", itemKey: "placement.jobs" },
-      { title: "Applications", url: "/center/placement/applications", itemKey: "placement.applications" },
+      { title: L["placement.applications"] ?? "Job Applications", url: "/center/placement/applications", itemKey: "placement.applications" },
       { title: "Interviews", url: "/center/placement/interviews", itemKey: "placement.interviews" },
       { title: "Placements", url: "/center/placement/placements", itemKey: "placement.placements" },
     ],

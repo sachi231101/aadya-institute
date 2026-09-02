@@ -30,7 +30,6 @@ import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { EditCourse } from "../pages/admin/courses/EditCourse";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
 import { CourseDetails } from "../pages/admin/courses/CourseDetails";
-import { Modules } from "../pages/admin/courses/Modules";
 import { CourseAssignment } from "../pages/admin/courses/CourseAssignment";
 
 import { AllBatches } from "../pages/admin/batches/AllBatches";
@@ -41,6 +40,7 @@ import { Applications } from "../pages/admin/admissions/Applications";
 import { AllAdmissions } from "../pages/admin/admissions/AllAdmissions";
 import { DirectAdmissionEntry } from "../pages/admin/admissions/DirectAdmissionEntry";
 import { AdmissionDocuments } from "../pages/admin/admissions/AdmissionDocuments";
+import { Enquiries } from "../pages/admin/admissions/Enquiries";
 
 import { AllCounsellors } from "../pages/admin/counselor/AllCounsellors";
 import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
@@ -140,7 +140,7 @@ export const adminChildRoutes = (
 
     {/* Admission Management */}
     <Route path="admissions">
-      <Route path="enquiries" element={<Navigate to="/admin/leads" replace />} />
+      <Route path="enquiries" element={<Enquiries />} />
       <Route path="applications" element={<Applications />} />
       <Route path="all" element={<AllAdmissions />} />
       <Route path="direct-entry" element={<DirectAdmissionEntry />} />
@@ -190,7 +190,7 @@ export const adminChildRoutes = (
       <Route path="all" element={<AllCourses />} />
       <Route path="add" element={<AddCourse />} />
       <Route path="curriculum" element={<Curriculum />} />
-      <Route path="modules" element={<Modules />} />
+      <Route path="modules" element={<Navigate to="/admin/courses/curriculum" replace />} />
       <Route path="course-assignment" element={<CourseAssignment />} />
       <Route path="batches" element={<Navigate to="/admin/batches" replace />} />
       <Route path=":id/edit" element={<EditCourse />} />
@@ -250,7 +250,7 @@ export const adminChildRoutes = (
     {/* Target & Incentive Management */}
     <Route path="targets">
       <Route index element={<TargetManagement />} />
-      <Route path="assignments" element={<TargetManagement />} />
+      <Route path="assignments" element={<Navigate to="/admin/targets" replace />} />
       <Route path="leaderboard" element={<TargetPerformance />} />
       <Route path="incentives" element={<IncentiveManagement />} />
     </Route>

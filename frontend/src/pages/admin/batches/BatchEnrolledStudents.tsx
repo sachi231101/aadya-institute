@@ -49,7 +49,7 @@ export const BatchEnrolledStudents: React.FC<Props> = ({ batchId }) => {
         </div>
         <Button asChild>
           <Link to={allocationPath}>
-            Manage in Student Allocation
+            Manage in Assign Students to Batches
             <ExternalLink className="w-4 h-4 ml-2" />
           </Link>
         </Button>
@@ -65,7 +65,7 @@ export const BatchEnrolledStudents: React.FC<Props> = ({ batchId }) => {
             <p className="py-8 text-center text-sm text-red-600">Failed to load enrolled students.</p>
           ) : enrollments.length === 0 ? (
             <p className="py-8 text-center text-sm text-text-secondary">
-              No students enrolled yet. Use Student Allocation to assign students to this batch.
+              No students enrolled yet. Use Assign Students to Batches to assign students to this batch.
             </p>
           ) : (
             <Table>
