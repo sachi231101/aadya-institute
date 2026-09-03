@@ -10,6 +10,10 @@ export interface MasterFormField {
   key: string;
   label: string;
   required?: boolean;
+  /** HTML input type when rendered in create/edit forms */
+  inputType?: "text" | "time" | "number";
+  /** When true, field is derived (e.g. timeslot name from start/end). */
+  readOnly?: boolean;
 }
 
 /** Top-level payload keys (not nested under data) */
@@ -22,9 +26,8 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "pincode", label: "PIN Code" },
   ],
   classroom: [
-    { key: "name", label: "Room Name", required: true },
-    { key: "capacity", label: "Capacity" },
-    { key: "type", label: "Room Type" },
+    { key: "name", label: "Classroom/Lab Name", required: true },
+    { key: "capacity", label: "Capacity", required: true, inputType: "number" },
   ],
   designation: [
     { key: "name", label: "Designation Title", required: true },
@@ -41,10 +44,9 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "incomeBracket", label: "Income Bracket" },
   ],
   timeslot: [
-    { key: "name", label: "Slot Name", required: true },
-    { key: "startTime", label: "Start Time" },
-    { key: "endTime", label: "End Time" },
-    { key: "period", label: "Period" },
+    { key: "startTime", label: "Start Time", required: true, inputType: "time" },
+    { key: "endTime", label: "End Time", required: true, inputType: "time" },
+    { key: "name", label: "Time Slot", required: true, readOnly: true },
   ],
   examterm: [
     { key: "name", label: "Term Name", required: true },

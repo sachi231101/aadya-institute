@@ -95,6 +95,8 @@ export interface ScheduleLinePayload {
   courseId: string;
   dayOfWeek: number;
   timeSlot?: string;
+  startTime?: string;
+  endTime?: string;
   timeslotMasterId?: string;
   classroomMasterId?: string;
   facultyId?: string;
@@ -126,6 +128,7 @@ export interface CreateBatchPayload {
   expectedEndDate?: string;
   capacity?: number;
   remark?: string;
+  status?: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
   timeslotMasterId?: string;

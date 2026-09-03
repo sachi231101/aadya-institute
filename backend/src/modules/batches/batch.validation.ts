@@ -61,6 +61,7 @@ export const createBatchSchema = z
     expectedEndDate: z.string().optional().or(z.literal("")),
     capacity: z.coerce.number().int().positive().optional(),
     remark: z.string().optional().or(z.literal("")),
+    status: z.enum(["UPCOMING", "ACTIVE", "COMPLETED", "CANCELLED"]).optional(),
     schedulePattern: z.enum(["MWF", "TTS", "WEEKEND", "CUSTOM"]).optional().or(z.literal("")),
     timeSlot: z.string().optional().or(z.literal("")),
     timeslotMasterId: z.string().optional().or(z.literal("")),

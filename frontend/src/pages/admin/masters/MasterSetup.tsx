@@ -81,6 +81,15 @@ import {
   getDefaultPatternForTarget,
   getNextSequenceForPreview,
 } from "@/utils/numbering-series";
+import {
+  MASTER_QUICK_CREATE_FIELDS,
+  MASTER_TOP_LEVEL_KEYS,
+} from "@/constants/master-form-fields";
+import {
+  buildTimeslotName,
+  formatTimeToAmPm,
+  parseAmPmToTimeInput,
+} from "@/utils/master.utils";
 
 // ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
@@ -100,7 +109,7 @@ export interface MasterEntity {
   iconBgColor: string;
   iconColor: string;
   description: string;
-  columns: { key: string; label: string; required?: boolean }[];
+  columns: { key: string; label: string; required?: boolean; inputType?: "text" | "time" | "number"; readOnly?: boolean }[];
 }
 
 type MasterUiConfig = Pick<
@@ -124,12 +133,8 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     icon: School,
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
-    description: "Manage classrooms and locations",
-    columns: [
-      { key: "name", label: "Room Name", required: true },
-      { key: "capacity", label: "Capacity" },
-      { key: "type", label: "Room Type" },
-    ],
+    description: "Manage classrooms and labs",
+    columns: MASTER_QUICK_CREATE_FIELDS.classroom,
   },
   designation: {
     icon: Briefcase,
@@ -168,12 +173,7 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     iconBgColor: "bg-indigo-50 text-indigo-600 border-indigo-100",
     iconColor: "text-indigo-600",
     description: "Manage time slots for scheduling",
-    columns: [
-      { key: "name", label: "Slot Name", required: true },
-      { key: "startTime", label: "Start Time" },
-      { key: "endTime", label: "End Time" },
-      { key: "period", label: "Period" },
-    ],
+    columns: MASTER_QUICK_CREATE_FIELDS.timeslot,
   },
   examterm: {
     icon: FileCheck,
@@ -507,6 +507,19 @@ export const MasterSetup: React.FC = () => {
       formVals.resetFrequency = rec.data?.resetFrequency || "YEARLY";
       formVals.currentSequence = String(rec.data?.currentSequence ?? "0");
     }
+    if (entity.id === "timeslot") {
+      formVals.startTime = parseAmPmToTimeInput(
+        rec.data?.startTime || formVals.startTime || ""
+      );
+      formVals.endTime = parseAmPmToTimeInput(
+        rec.data?.endTime || formVals.endTime || ""
+      );
+      formVals.name =
+        buildTimeslotName(formVals.startTime, formVals.endTime) ||
+        formVals.name ||
+        rec.name ||
+        "";
+    }
     setRecordFormValues(formVals);
     setFormErrors({});
     setIsAddEditRecordOpen(true);
@@ -516,16 +529,23 @@ export const MasterSetup: React.FC = () => {
   const validateForm = (): boolean => {
     if (!selectedMasterEntity) return false;
     const errors: Record<string, string> = {};
+    const isTimeslot = selectedMasterEntity.id === "timeslot";
+    const autoName = isTimeslot
+      ? buildTimeslotName(recordFormValues.startTime, recordFormValues.endTime)
+      : "";
 
     for (const col of selectedMasterEntity.columns) {
+      if (col.readOnly) continue;
       if (col.required && !recordFormValues[col.key]?.trim()) {
         errors[col.key] = `${col.label} is required`;
       }
     }
 
-    // Name is always required
-    if (!recordFormValues.name?.trim()) {
-      errors.name = "Name is required";
+    // Name is always required (auto for timeslot)
+    if (!(autoName || recordFormValues.name?.trim())) {
+      errors.name = isTimeslot
+        ? "Start Time and End Time are required"
+        : "Name is required";
     }
 
     setFormErrors(errors);
@@ -538,8 +558,13 @@ export const MasterSetup: React.FC = () => {
     if (!validateForm()) return;
 
     const entityId = selectedMasterEntity.id;
+    const isTimeslot = entityId === "timeslot";
+    const autoTimeslotName = isTimeslot
+      ? buildTimeslotName(recordFormValues.startTime, recordFormValues.endTime)
+      : "";
 
     const recordName =
+      autoTimeslotName ||
       recordFormValues.name?.trim() ||
       recordFormValues.title?.trim() ||
       recordFormValues.qualification?.trim() ||
@@ -551,12 +576,17 @@ export const MasterSetup: React.FC = () => {
         : undefined;
     const recordDesc = recordFormValues.description?.trim() || undefined;
 
-    // Build data object from all form values (exclude unused top-level code for non-series)
+    // Nested `data` only — top-level keys (name/code/description) stay on MasterRecord
     const dataObj: Record<string, any> = {};
     selectedMasterEntity.columns.forEach((col) => {
+      if (MASTER_TOP_LEVEL_KEYS.has(col.key) && entityId !== "numberingseries") return;
       if (col.key === "code" && entityId !== "numberingseries") return;
       if (recordFormValues[col.key]?.trim()) {
-        dataObj[col.key] = recordFormValues[col.key].trim();
+        const raw = recordFormValues[col.key].trim();
+        dataObj[col.key] =
+          isTimeslot && (col.key === "startTime" || col.key === "endTime")
+            ? formatTimeToAmPm(raw)
+            : raw;
       }
     });
 
@@ -1135,7 +1165,10 @@ export const MasterSetup: React.FC = () => {
                               .filter((c) => c.key !== "name" && c.key !== "code")
                               .map((col) => (
                                 <td key={col.key} className="py-2.5 px-3 text-slate-600 font-medium">
-                                  {rec.data?.[col.key] || "—"}
+                                  {selectedMasterEntity.id === "timeslot" &&
+                                  (col.key === "startTime" || col.key === "endTime")
+                                    ? formatTimeToAmPm(String(rec.data?.[col.key] || "")) || "—"
+                                    : rec.data?.[col.key] || "—"}
                                 </td>
                               ))}
                             {selectedMasterEntity.id === "numberingseries" && (
@@ -1368,17 +1401,40 @@ export const MasterSetup: React.FC = () => {
                     <div key={col.key} className="space-y-1">
                       <Label className="text-[11px] font-bold text-slate-700">
                         {col.label}
-                        {(col.required || col.key === "name") && (
+                        {(col.required || col.key === "name") && !col.readOnly && (
                           <span className="text-rose-500 ml-0.5">*</span>
                         )}
                       </Label>
                       <Input
-                        value={recordFormValues[col.key] || ""}
+                        type={col.readOnly ? "text" : col.inputType || "text"}
+                        value={
+                          col.readOnly &&
+                          selectedMasterEntity.id === "timeslot" &&
+                          col.key === "name"
+                            ? buildTimeslotName(
+                                recordFormValues.startTime,
+                                recordFormValues.endTime
+                              )
+                            : recordFormValues[col.key] || ""
+                        }
+                        readOnly={col.readOnly}
+                        disabled={col.readOnly}
                         onChange={(e) => {
-                          setRecordFormValues((prev) => ({
-                            ...prev,
-                            [col.key]: e.target.value,
-                          }));
+                          if (col.readOnly) return;
+                          const nextValue = e.target.value;
+                          setRecordFormValues((prev) => {
+                            const next = { ...prev, [col.key]: nextValue };
+                            if (
+                              selectedMasterEntity.id === "timeslot" &&
+                              (col.key === "startTime" || col.key === "endTime")
+                            ) {
+                              next.name = buildTimeslotName(
+                                col.key === "startTime" ? nextValue : next.startTime,
+                                col.key === "endTime" ? nextValue : next.endTime
+                              );
+                            }
+                            return next;
+                          });
                           // Clear error when user types
                           if (formErrors[col.key]) {
                             setFormErrors((prev) => {
@@ -1388,9 +1444,16 @@ export const MasterSetup: React.FC = () => {
                             });
                           }
                         }}
-                        placeholder={`Enter ${col.label.toLowerCase()}...`}
-                        className={`h-9 text-xs rounded-xl bg-slate-50 ${formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
-                          }`}
+                        placeholder={
+                          col.readOnly && selectedMasterEntity.id === "timeslot"
+                            ? "Auto from start & end time"
+                            : `Enter ${col.label.toLowerCase()}...`
+                        }
+                        className={`h-9 text-xs rounded-xl ${
+                          col.readOnly
+                            ? "bg-slate-100 text-slate-700 font-medium"
+                            : "bg-slate-50"
+                        } ${formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""}`}
                       />
                       {formErrors[col.key] && (
                         <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>

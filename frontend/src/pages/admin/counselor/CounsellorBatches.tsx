@@ -44,7 +44,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
+import { findMasterIdByLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
   Table,
   TableBody,
@@ -191,17 +191,23 @@ export const CounsellorBatches: React.FC = () => {
   const [selectedNewStudentIdToAdd, setSelectedNewStudentIdToAdd] = useState<string>("");
 
   const mapCourseRowsToPayload = (rows: BatchCourseFormRow[]): BatchCoursePayload[] =>
-    rows.map((r, idx) => ({
-      courseId: r.courseId,
-      facultyId: r.facultyId || undefined,
-      sequence: idx + 1,
-      startDate: r.startDate,
-      expectedEndDate: r.expectedEndDate || undefined,
-      schedulePattern: r.schedulePattern,
-      timeSlot: getMasterLabel(timeslotOptions, r.timeslotMasterId) || undefined,
-      timeslotMasterId: r.timeslotMasterId || undefined,
-      classroomMasterId: r.classroomMasterId || undefined,
-    }));
+    rows.map((r, idx) => {
+      const times = getTimeslotTimes(timeslotOptions, r.timeslotMasterId);
+      return {
+        courseId: r.courseId,
+        facultyId: r.facultyId || undefined,
+        sequence: idx + 1,
+        startDate: r.startDate,
+        expectedEndDate: r.expectedEndDate || undefined,
+        schedulePattern: r.schedulePattern,
+        timeSlot:
+          times.startTime && times.endTime
+            ? `${times.startTime} - ${times.endTime}`
+            : times.label || undefined,
+        timeslotMasterId: r.timeslotMasterId || undefined,
+        classroomMasterId: r.classroomMasterId || undefined,
+      };
+    });
 
   const PATTERN_DAYS: Record<string, number[]> = {
     MWF: [1, 3, 5],
@@ -213,11 +219,17 @@ export const CounsellorBatches: React.FC = () => {
   const mapCourseRowsToScheduleLines = (rows: BatchCourseFormRow[]): ScheduleLinePayload[] =>
     rows.flatMap((r) => {
       const days = PATTERN_DAYS[r.schedulePattern] || PATTERN_DAYS.MWF;
-      const timeSlot = getMasterLabel(timeslotOptions, r.timeslotMasterId) || undefined;
+      const times = getTimeslotTimes(timeslotOptions, r.timeslotMasterId);
+      const timeSlot =
+        times.startTime && times.endTime
+          ? `${times.startTime} - ${times.endTime}`
+          : times.label || undefined;
       return days.map((dayOfWeek) => ({
         courseId: r.courseId,
         dayOfWeek,
         timeSlot,
+        startTime: times.startTime,
+        endTime: times.endTime,
         timeslotMasterId: r.timeslotMasterId || undefined,
         classroomMasterId: r.classroomMasterId || undefined,
         facultyId: r.facultyId || undefined,

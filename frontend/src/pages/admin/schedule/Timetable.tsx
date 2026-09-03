@@ -71,6 +71,7 @@ export interface TimetableCellItem {
   batchCode?: string;
   batchId?: string;
   roomNo?: string;
+  classroomMasterId?: string;
   studentCount?: number;
   category?: "Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Communication" | "Others";
   status?: "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
@@ -360,6 +361,7 @@ export const Timetable: React.FC = () => {
       batchCode: raw.batch?.code || raw.batch?.name || "",
       batchId: raw.batchId,
       roomNo: raw.roomNo || "TBD",
+      classroomMasterId: raw.classroomMasterId || undefined,
       studentCount: raw.enrolledStudentsCount ?? (raw.batch as { _count?: { enrollments?: number } })?._count?.enrollments,
       status:
         raw.sessionStatus === "COMPLETED"
@@ -443,7 +445,7 @@ export const Timetable: React.FC = () => {
   const [modalTitle, setModalTitle] = useState<string>("");
   const [modalBatchId, setModalBatchId] = useState<string>("");
   const [modalSubjectCourseId, setModalSubjectCourseId] = useState<string>("");
-  const [modalRoomNo, setModalRoomNo] = useState<string>("Room 201");
+  const [modalClassroomMasterId, setModalClassroomMasterId] = useState<string>("");
   const [modalSlotType, setModalSlotType] = useState<SlotType>("CLASS");
 
   // Move Slot Modal State
@@ -594,19 +596,19 @@ export const Timetable: React.FC = () => {
       setModalSessionId(existingSlot.sessionId || existingSlot.id);
       setModalTitle(existingSlot.courseName || "");
       setModalBatchId(existingSlot.batchId || "");
-      setModalRoomNo(existingSlot.roomNo || "");
+      setModalClassroomMasterId(existingSlot.classroomMasterId || "");
     } else if (existingSlot) {
       setModalSlotType(existingSlot.type);
       setModalSessionId(null);
       setModalTitle("");
       setModalBatchId("");
-      setModalRoomNo("");
+      setModalClassroomMasterId("");
     } else {
       setModalSlotType("CLASS");
       setModalSessionId(null);
       setModalTitle("");
       setModalBatchId("");
-      setModalRoomNo("");
+      setModalClassroomMasterId("");
     }
 
     setIsEditModalOpen(true);
@@ -664,7 +666,7 @@ export const Timetable: React.FC = () => {
       scheduledDate: getDateForDayKey(modalDayKey),
       startTime: start,
       endTime: end,
-      roomNo: modalRoomNo || undefined,
+      classroomMasterId: modalClassroomMasterId || undefined,
       mode: "OFFLINE" as const,
     };
 
@@ -1338,7 +1340,7 @@ export const Timetable: React.FC = () => {
 
                 <div>
                   <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab</Label>
-                  <ClassroomDropdown value={modalRoomNo} onChange={setModalRoomNo} />
+                  <ClassroomDropdown value={modalClassroomMasterId} onChange={setModalClassroomMasterId} />
                 </div>
               </>
             )}

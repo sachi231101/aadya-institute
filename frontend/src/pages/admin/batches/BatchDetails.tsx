@@ -343,9 +343,9 @@ export const BatchDetails: React.FC = () => {
       </div>
 
       {tab === "overview" && (
-        <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
           {/* Left attribute panel */}
-          <Card className="xl:col-span-5 border-border shadow-xs rounded-xl overflow-hidden">
+          <Card className="lg:col-span-4 xl:col-span-4 border-border shadow-xs rounded-xl overflow-hidden">
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
                 Batch Information
@@ -356,9 +356,9 @@ export const BatchDetails: React.FC = () => {
                 {attributeRows.map((row) => (
                   <div
                     key={row.label}
-                    className="grid grid-cols-5 text-xs min-h-[2.5rem]"
+                    className="grid grid-cols-5 text-xs min-h-[2.5rem] border-b border-border last:border-b-0"
                   >
-                    <dt className="col-span-2 bg-muted/50 px-3.5 py-2.5 font-semibold text-muted-foreground flex items-center">
+                    <dt className="col-span-2 bg-muted/50 px-3.5 py-2.5 font-semibold text-muted-foreground flex items-center border-r border-border">
                       {row.label}
                     </dt>
                     <dd className="col-span-3 px-3.5 py-2.5 text-foreground font-medium flex items-center break-words">
@@ -386,7 +386,7 @@ export const BatchDetails: React.FC = () => {
           </Card>
 
           {/* Right Time Table Details */}
-          <Card className="xl:col-span-7 border-border shadow-xs rounded-xl overflow-hidden">
+          <Card className="lg:col-span-8 xl:col-span-8 border-border shadow-xs rounded-xl overflow-hidden">
             <div className="bg-muted/50 border-b border-border px-4 py-2.5">
               <h3 className="text-xs font-bold uppercase tracking-wide text-foreground">
                 Time Table Details
@@ -394,37 +394,37 @@ export const BatchDetails: React.FC = () => {
             </div>
             <CardContent className="p-0 overflow-x-auto">
               {batch.schedules && batch.schedules.length > 0 ? (
-                <table className="w-full text-xs min-w-[640px]">
-                  <thead className="bg-muted/30 border-b border-border">
-                    <tr className="text-left">
-                      <th className="px-3.5 py-2.5 font-bold whitespace-nowrap">Day</th>
-                      <th className="px-3.5 py-2.5 font-bold whitespace-nowrap">Time Slot</th>
-                      <th className="px-3.5 py-2.5 font-bold whitespace-nowrap">Class Room</th>
-                      <th className="px-3.5 py-2.5 font-bold whitespace-nowrap">Lecturer/Instructor/Trainer</th>
-                      <th className="px-3.5 py-2.5 font-bold text-center whitespace-nowrap">Status</th>
-                      <th className="px-3.5 py-2.5 font-bold text-center whitespace-nowrap">Attendance Applicable</th>
+                <table className="w-full text-xs border-collapse">
+                  <thead className="bg-muted/40 border-b border-border">
+                    <tr className="text-left border-b border-border">
+                      <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Day</th>
+                      <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Time Slot</th>
+                      <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Class Room</th>
+                      <th className="px-3 py-2.5 font-bold whitespace-nowrap border-r border-border">Lecturer/Instructor/Trainer</th>
+                      <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap border-r border-border">Status</th>
+                      <th className="px-3 py-2.5 font-bold text-center whitespace-nowrap pr-3.5">Attendance Applicable</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-border/70">
+                  <tbody className="divide-y divide-border">
                     {[...batch.schedules]
                       .sort((a, b) => a.dayOfWeek - b.dayOfWeek)
                       .map((s) => (
-                        <tr key={s.id} className="hover:bg-muted/20 transition-colors">
-                          <td className="px-3.5 py-2.5 font-medium whitespace-nowrap">
+                        <tr key={s.id} className="hover:bg-muted/20 transition-colors border-b border-border last:border-b-0">
+                          <td className="px-3 py-2.5 font-medium whitespace-nowrap border-r border-border">
                             {DAY_NAMES[s.dayOfWeek] || `Day ${s.dayOfWeek}`}
                           </td>
-                          <td className="px-3.5 py-2.5 font-mono whitespace-nowrap text-muted-foreground">
+                          <td className="px-3 py-2.5 font-mono whitespace-nowrap text-muted-foreground border-r border-border">
                             {s.timeslotMaster?.name || (s.startTime ? `${s.startTime} - ${s.endTime}` : "—")}
                           </td>
-                          <td className="px-3.5 py-2.5 whitespace-nowrap">
+                          <td className="px-3 py-2.5 whitespace-nowrap border-r border-border">
                             {s.classroomMaster?.name || "—"}
                           </td>
-                          <td className="px-3.5 py-2.5 whitespace-nowrap font-medium">
+                          <td className="px-3 py-2.5 whitespace-nowrap font-medium border-r border-border">
                             {s.faculty?.user?.name ||
                               batch.faculty?.user?.name ||
                               "—"}
                           </td>
-                          <td className="px-3.5 py-2.5 text-center">
+                          <td className="px-3 py-2.5 text-center border-r border-border">
                             <Badge
                               variant={s.status === "INACTIVE" ? "secondary" : "outline"}
                               className="text-[10px] font-bold px-2 py-0.5"
@@ -432,7 +432,7 @@ export const BatchDetails: React.FC = () => {
                               {s.status === "INACTIVE" ? "I" : "A"}
                             </Badge>
                           </td>
-                          <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
+                          <td className="px-3 py-2.5 text-center whitespace-nowrap pr-3.5">
                             {s.attendanceEnabled === false ? (
                               <span className="text-muted-foreground">No</span>
                             ) : (
@@ -502,79 +502,79 @@ export const BatchDetails: React.FC = () => {
 
       {tab === "generate" && (
         <Card className="border-border">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2">
+            <CardContent className="p-6 space-y-4">
+              <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
               <h3 className="font-semibold text-foreground">Generate Class Sessions</h3>
-            </div>
+              </div>
             <p className="text-xs text-muted-foreground">
               Materialize class sessions from the weekly timetable for the portal and attendance views.
-            </p>
+              </p>
 
-            {!canGenerate && (
-              <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs">
+              {!canGenerate && (
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-700 text-xs">
                 {!hasSubjectFaculty
                   ? "Assign faculty on at least one schedule line before generating sessions."
-                  : "No weekly schedule slots found for this batch."}
-              </div>
-            )}
+                    : "No weekly schedule slots found for this batch."}
+                </div>
+              )}
 
-            {generateError && (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs">
-                {generateError}
-              </div>
-            )}
+              {generateError && (
+                <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs">
+                  {generateError}
+                </div>
+              )}
 
-            {generateSuccess && (
-              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs">
-                {generateSuccess}
-              </div>
-            )}
+              {generateSuccess && (
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs">
+                  {generateSuccess}
+                </div>
+              )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-              <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
+                <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1">
                   From Date
                 </label>
-                <Input
-                  type="date"
-                  value={generateStartDate}
-                  onChange={(e) => setGenerateStartDate(e.target.value)}
-                  className="text-xs"
-                />
-              </div>
-              <div>
+                  <Input
+                    type="date"
+                    value={generateStartDate}
+                    onChange={(e) => setGenerateStartDate(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
+                <div>
                 <label className="block text-xs font-semibold text-muted-foreground mb-1">
                   To Date
                 </label>
-                <Input
-                  type="date"
-                  value={generateEndDate}
-                  onChange={(e) => setGenerateEndDate(e.target.value)}
-                  className="text-xs"
-                />
+                  <Input
+                    type="date"
+                    value={generateEndDate}
+                    onChange={(e) => setGenerateEndDate(e.target.value)}
+                    className="text-xs"
+                  />
+                </div>
               </div>
-            </div>
 
-            <Button
-              onClick={handleGenerateSessions}
-              disabled={!canGenerate || isGenerating}
+              <Button
+                onClick={handleGenerateSessions}
+                disabled={!canGenerate || isGenerating}
               className="bg-primary hover:bg-primary/90 text-white text-xs"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="mr-2 h-4 w-4" />
-                  Generate Class Sessions
-                </>
-              )}
-            </Button>
-          </CardContent>
-        </Card>
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    Generate Class Sessions
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
       )}
     </div>
   );

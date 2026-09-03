@@ -6,6 +6,7 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { getMasterTypeMeta } from "@/constants/master-types";
 import {
   getMasterQuickCreateFields,
+  MASTER_TOP_LEVEL_KEYS,
 } from "@/constants/master-form-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { formatMasterOptionLabel, buildTimeslotName, formatTimeToAmPm } from "@/utils/master.utils";
 
 interface MasterSelectProps {
   /** Master entityType key (e.g. "leadsource", "designation", "area") */
@@ -89,28 +91,42 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
   };
 
   const handleSave = async () => {
-    const required = fields.filter((f) => f.required);
+    const isTimeslot = entityType.toLowerCase() === "timeslot";
+    const autoName = isTimeslot
+      ? buildTimeslotName(formValues.startTime, formValues.endTime)
+      : "";
+
+    const values = isTimeslot
+      ? { ...formValues, name: autoName }
+      : formValues;
+
+    const required = fields.filter((f) => f.required && !f.readOnly);
     for (const field of required) {
-      if (!formValues[field.key]?.trim()) {
+      if (!values[field.key]?.trim()) {
         setFormError(`${field.label} is required`);
         return;
       }
     }
 
     const name =
-      formValues.name?.trim() ||
-      formValues.title?.trim() ||
+      values.name?.trim() ||
+      values.title?.trim() ||
+      autoName ||
       "";
     if (!name) {
-      setFormError("Name is required");
+      setFormError(isTimeslot ? "Start Time and End Time are required" : "Name is required");
       return;
     }
 
     const dataObj: Record<string, string> = {};
     for (const field of fields) {
-      if (field.key === "code" || field.key === "description") continue;
-      const raw = formValues[field.key]?.trim();
-      if (raw) dataObj[field.key] = raw;
+      if (MASTER_TOP_LEVEL_KEYS.has(field.key)) continue;
+      const raw = values[field.key]?.trim();
+      if (!raw) continue;
+      dataObj[field.key] =
+        isTimeslot && (field.key === "startTime" || field.key === "endTime")
+          ? formatTimeToAmPm(raw)
+          : raw;
     }
 
     try {
@@ -118,7 +134,7 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
         entityType,
         payload: {
           name,
-          description: formValues.description?.trim() || undefined,
+          description: values.description?.trim() || undefined,
           branchId: branchId || undefined,
           status: "ACTIVE",
           data: dataObj,
@@ -182,7 +198,7 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
           {includeEmpty && <option value="">{placeholder}</option>}
           {options.map((opt) => (
             <option key={opt.value} value={opt.value}>
-              {opt.label}
+              {formatMasterOptionLabel(entityType, opt)}
             </option>
           ))}
           {options.length === 0 && (
@@ -223,7 +239,7 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
       </div>
 
       <Dialog open={open} onOpenChange={(next) => { setOpen(next); if (!next) resetForm(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md z-[100]" overlayClassName="z-[90]">
           <DialogHeader>
             <DialogTitle>Add {label}</DialogTitle>
             <DialogDescription>
@@ -232,22 +248,53 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
           </DialogHeader>
 
           <div className="space-y-3 py-1">
-            {fields.map((field) => (
-              <div key={field.key}>
-                <Label className="text-xs">
-                  {field.label}
-                  {field.required ? " *" : ""}
-                </Label>
-                <Input
-                  value={formValues[field.key] || ""}
-                  onChange={(e) =>
-                    setFormValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-                  }
-                  className="mt-1 h-9 text-xs"
-                  placeholder={field.label}
-                />
-              </div>
-            ))}
+            {fields.map((field) => {
+              const isTimeslot = entityType.toLowerCase() === "timeslot";
+              const displayValue =
+                field.readOnly && isTimeslot && field.key === "name"
+                  ? buildTimeslotName(formValues.startTime, formValues.endTime)
+                  : formValues[field.key] || "";
+
+              return (
+                <div key={field.key}>
+                  <Label className="text-xs">
+                    {field.label}
+                    {field.required && !field.readOnly ? " *" : ""}
+                  </Label>
+                  <Input
+                    type={field.readOnly ? "text" : field.inputType || "text"}
+                    value={displayValue}
+                    readOnly={field.readOnly}
+                    disabled={field.readOnly}
+                    onChange={(e) => {
+                      if (field.readOnly) return;
+                      const nextValue = e.target.value;
+                      setFormValues((prev) => {
+                        const next = { ...prev, [field.key]: nextValue };
+                        if (
+                          isTimeslot &&
+                          (field.key === "startTime" || field.key === "endTime")
+                        ) {
+                          next.name = buildTimeslotName(
+                            field.key === "startTime" ? nextValue : next.startTime,
+                            field.key === "endTime" ? nextValue : next.endTime
+                          );
+                        }
+                        return next;
+                      });
+                    }}
+                    className={`mt-1 h-9 text-xs ${
+                      field.readOnly ? "bg-slate-100 text-slate-700 font-medium" : ""
+                    }`}
+                    placeholder={
+                      field.readOnly && isTimeslot
+                        ? "Auto from start & end time"
+                        : field.label
+                    }
+                  />
+                </div>
+              );
+            })}
             {formError && <p className="text-xs text-red-600">{formError}</p>}
           </div>
 
