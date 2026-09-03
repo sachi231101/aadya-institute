@@ -79,6 +79,7 @@ export interface CreateBatchDto {
   expectedEndDate?: string;
   capacity?: number;
   remark?: string;
+  status?: "UPCOMING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
   schedulePattern?: "MWF" | "TTS" | "WEEKEND" | "CUSTOM";
   timeSlot?: string;
   timeslotMasterId?: string;

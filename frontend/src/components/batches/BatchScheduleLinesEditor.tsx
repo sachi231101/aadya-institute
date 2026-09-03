@@ -3,6 +3,12 @@ import { Plus, Trash2, ChevronDown } from "lucide-react";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { batchesApi } from "@/services/batches.api";
 
 export type ScheduleLineFormRow = {
@@ -75,7 +81,6 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
   excludeBatchId,
   className = "",
 }) => {
-  const [actionOpenFor, setActionOpenFor] = useState<string | null>(null);
   const [availableByLine, setAvailableByLine] = useState<Record<string, FacultyOption[]>>({});
   const [loadingAvailable, setLoadingAvailable] = useState<string | null>(null);
 
@@ -124,7 +129,6 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
   const loadAvailable = async (line: ScheduleLineFormRow) => {
     try {
       setLoadingAvailable(line.key);
-      setActionOpenFor(null);
       const res = await batchesApi.getAvailableFaculty({
         dayOfWeek: line.dayOfWeek,
         timeslotMasterId: line.timeslotMasterId || undefined,
@@ -147,7 +151,6 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
       delete next[key];
       return next;
     });
-    setActionOpenFor(null);
   };
 
   const facultyOptionsFor = (line: ScheduleLineFormRow) =>
@@ -253,37 +256,38 @@ export const BatchScheduleLinesEditor: React.FC<Props> = ({
                   </td>
                   <td className="px-3 py-2.5">
                     <div className="space-y-1">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setActionOpenFor((k) => (k === line.key ? null : line.key))
-                          }
-                          className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-sky-600 text-white text-[10px] font-semibold"
-                        >
-                          Action <ChevronDown className="h-3 w-3" />
-                        </button>
-                        {actionOpenFor === line.key && (
-                          <div className="absolute z-20 mt-1 w-56 rounded-lg border border-border bg-card shadow-lg py-1">
+                      <div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
                             <button
                               type="button"
-                              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted"
+                              className="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-semibold transition-colors cursor-pointer"
+                            >
+                              Action <ChevronDown className="h-3 w-3" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent
+                            align="start"
+                            sideOffset={4}
+                            className="z-[70] min-w-[14rem] p-1 bg-popover text-popover-foreground border border-border shadow-xl rounded-xl"
+                          >
+                            <DropdownMenuItem
+                              className="w-full text-left px-3 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
                               onClick={() => clearAvailableFilter(line.key)}
                             >
                               Load All Lecturer/Instructor
-                            </button>
-                            <button
-                              type="button"
-                              className="w-full text-left px-3 py-1.5 text-[11px] hover:bg-muted"
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="w-full text-left px-3 py-2 text-xs font-medium cursor-pointer rounded-lg hover:bg-muted focus:bg-muted transition-colors"
                               onClick={() => loadAvailable(line)}
                               disabled={loadingAvailable === line.key}
                             >
                               {loadingAvailable === line.key
                                 ? "Loading available…"
                                 : "Load Available Lecturer/Instructor"}
-                            </button>
-                          </div>
-                        )}
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                       <select
                         value={line.facultyId}

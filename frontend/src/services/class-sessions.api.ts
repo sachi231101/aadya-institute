@@ -17,6 +17,7 @@ export interface BackendClassSession {
   startTime: string;
   endTime: string;
   roomNo?: string;
+  classroomMasterId?: string | null;
   mode?: "OFFLINE" | "ONLINE" | "HYBRID";
   sessionType?: "THEORY" | "PRACTICAL";
   meetingUrl?: string;
@@ -103,6 +104,7 @@ export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
     startTime: raw.startTime,
     endTime: raw.endTime,
     roomNo: raw.roomNo || "",
+    classroomMasterId: raw.classroomMasterId || undefined,
     mode: (raw.mode as any) || "OFFLINE",
     status: sessionStatus,
     attendanceMarked: sessionStatus === "COMPLETED",

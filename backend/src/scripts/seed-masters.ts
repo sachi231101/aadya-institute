@@ -14,10 +14,10 @@ interface MasterSeed {
 
 const TIER1_MASTERS: MasterSeed[] = [
   // Classrooms
-  { entityType: "classroom", name: "Lab 101 (Frontend Studio)", code: "LAB-101", data: { capacity: 35, type: "Lab" }, sortOrder: 1 },
-  { entityType: "classroom", name: "Lab 102 (Backend & AI Lab)", code: "LAB-102", data: { capacity: 30, type: "Lab" }, sortOrder: 2 },
-  { entityType: "classroom", name: "Room 101 - Lecture Hall", code: "ROOM-101", data: { capacity: 50, type: "Lecture" }, sortOrder: 3 },
-  { entityType: "classroom", name: "Seminar Hall A", code: "SEMINAR-A", data: { capacity: 80, type: "Seminar" }, sortOrder: 4 },
+  { entityType: "classroom", name: "Lab 101 (Frontend Studio)", code: "LAB-101", data: { capacity: 35 }, sortOrder: 1 },
+  { entityType: "classroom", name: "Lab 102 (Backend & AI Lab)", code: "LAB-102", data: { capacity: 30 }, sortOrder: 2 },
+  { entityType: "classroom", name: "Room 101 - Lecture Hall", code: "ROOM-101", data: { capacity: 50 }, sortOrder: 3 },
+  { entityType: "classroom", name: "Seminar Hall A", code: "SEMINAR-A", data: { capacity: 80 }, sortOrder: 4 },
 
   // Areas
   { entityType: "area", name: "Koramangala", code: "KORA", data: { city: "Bengaluru" }, sortOrder: 1 },

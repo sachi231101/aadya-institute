@@ -60,7 +60,7 @@ import { useFinancialReport } from "@/hooks/useReports";
 import { useDiscontinuationRisk } from "@/hooks/useDiscontinuationRisk";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { MasterSelect } from "@/components/common/MasterSelect";
-import { getMasterLabel } from "@/utils/master.utils";
+import { getMasterLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
   useLeads,
   useCreateLead,
@@ -438,25 +438,37 @@ export const CounselorDashboard: React.FC = () => {
         WEEKEND: [0, 6],
         CUSTOM: [1],
       };
-      const coursesPayload: BatchCoursePayload[] = batchSelectedCourses.map((r, idx) => ({
-        courseId: r.courseId,
-        facultyId: r.facultyId,
-        sequence: idx + 1,
-        startDate: r.startDate,
-        expectedEndDate: r.expectedEndDate || undefined,
-        schedulePattern: r.schedulePattern || fallbackPattern,
-        timeSlot:
-          getMasterLabel(timeslotOptions, r.timeslotMasterId) ||
-          (r.timeslotMasterId ? undefined : fallbackTimeSlot),
-        timeslotMasterId: r.timeslotMasterId || undefined,
-        classroomMasterId: r.classroomMasterId || batchRoomNo || undefined,
-      }));
+      const coursesPayload: BatchCoursePayload[] = batchSelectedCourses.map((r, idx) => {
+        const times = getTimeslotTimes(timeslotOptions, r.timeslotMasterId);
+        const resolvedTimeSlot =
+          times.startTime && times.endTime
+            ? `${times.startTime} - ${times.endTime}`
+            : getMasterLabel(timeslotOptions, r.timeslotMasterId) ||
+              (r.timeslotMasterId ? undefined : fallbackTimeSlot);
+        return {
+          courseId: r.courseId,
+          facultyId: r.facultyId,
+          sequence: idx + 1,
+          startDate: r.startDate,
+          expectedEndDate: r.expectedEndDate || undefined,
+          schedulePattern: r.schedulePattern || fallbackPattern,
+          timeSlot: resolvedTimeSlot,
+          timeslotMasterId: r.timeslotMasterId || undefined,
+          classroomMasterId: r.classroomMasterId || batchRoomNo || undefined,
+        };
+      });
       const scheduleLines = coursesPayload.flatMap((c) => {
         const days = PATTERN_DAYS[c.schedulePattern || fallbackPattern] || PATTERN_DAYS.MWF;
+        const times = getTimeslotTimes(
+          timeslotOptions,
+          c.timeslotMasterId
+        );
         return days.map((dayOfWeek) => ({
           courseId: c.courseId,
           dayOfWeek,
           timeSlot: c.timeSlot,
+          startTime: times.startTime,
+          endTime: times.endTime,
           timeslotMasterId: c.timeslotMasterId,
           classroomMasterId: c.classroomMasterId,
           facultyId: c.facultyId,

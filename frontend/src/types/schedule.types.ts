@@ -18,6 +18,7 @@ export interface ClassSession {
   startTime: string;
   endTime: string;
   roomNo: string;
+  classroomMasterId?: string;
   mode: ClassMode;
   sessionType?: SessionType;
   status: ClassStatus;

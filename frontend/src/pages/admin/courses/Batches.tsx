@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useSearchParams, Link, useNavigate } from "react-router-dom";
 import {
   GraduationCap,
@@ -29,7 +30,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
+import { getMasterLabel, findMasterIdByLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
   batchIncludesCourse,
   formatBatchSubjectNames,
@@ -345,10 +346,10 @@ export const Batches: React.FC = () => {
     if (!name || !code) return;
 
     const incomplete = scheduleLines.find(
-      (l) => !l.courseId || !l.facultyId || l.dayOfWeek === undefined
+      (l) => !l.courseId || !l.facultyId || !l.timeslotMasterId || l.dayOfWeek === undefined
     );
     if (scheduleLines.length === 0 || incomplete) {
-      setFormError("Add at least one complete schedule line (course, day, faculty).");
+      setFormError("Add at least one complete schedule line (course, day, time slot, faculty).");
       return;
     }
     if (!startDate) {
@@ -360,16 +361,26 @@ export const Batches: React.FC = () => {
       setSubmitting(true);
       setFormError(null);
 
-      const scheduleLinesPayload: ScheduleLinePayload[] = scheduleLines.map((l) => ({
-        courseId: l.courseId,
-        dayOfWeek: l.dayOfWeek,
-        timeSlot: getMasterLabel(timeslotOptions, l.timeslotMasterId) || undefined,
-        timeslotMasterId: l.timeslotMasterId || undefined,
-        classroomMasterId: l.classroomMasterId || undefined,
-        facultyId: l.facultyId || undefined,
-        status: l.status,
-        attendanceEnabled: l.attendanceEnabled,
-      }));
+      const scheduleLinesPayload: ScheduleLinePayload[] = scheduleLines.map((l) => {
+        const times = getTimeslotTimes(timeslotOptions, l.timeslotMasterId);
+        const startTime = times.startTime;
+        const endTime = times.endTime;
+        return {
+          courseId: l.courseId,
+          dayOfWeek: l.dayOfWeek,
+          startTime,
+          endTime,
+          timeSlot:
+            startTime && endTime
+              ? `${startTime} - ${endTime}`
+              : times.label || getMasterLabel(timeslotOptions, l.timeslotMasterId) || undefined,
+          timeslotMasterId: l.timeslotMasterId || undefined,
+          classroomMasterId: l.classroomMasterId || undefined,
+          facultyId: l.facultyId || undefined,
+          status: l.status,
+          attendanceEnabled: l.attendanceEnabled,
+        };
+      });
 
       const payload = {
         name,
@@ -381,13 +392,11 @@ export const Batches: React.FC = () => {
         expectedEndDate: expectedEndDate || undefined,
         capacity,
         remark: remark || undefined,
+        status: batchStatus,
       };
 
       if (editingBatch) {
-        await updateBatch(editingBatch.id, {
-          ...payload,
-          status: batchStatus,
-        });
+        await updateBatch(editingBatch.id, payload);
         setSuccessMsg(`Batch "${code} - ${name}" updated successfully.`);
       } else {
         await createBatch(payload);
@@ -424,13 +433,13 @@ export const Batches: React.FC = () => {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "ACTIVE":
-        return <Badge variant="success">Active</Badge>;
+        return <Badge variant="success" className="text-xs px-3 py-0.5 font-semibold">Active</Badge>;
       case "UPCOMING":
-        return <Badge variant="warning">Upcoming</Badge>;
+        return <Badge variant="warning" className="text-xs px-3 py-0.5 font-semibold">Upcoming</Badge>;
       case "COMPLETED":
-        return <Badge variant="secondary">Completed</Badge>;
+        return <Badge variant="secondary" className="text-xs px-3 py-0.5 font-semibold bg-[#104886] hover:bg-[#0b3869] text-white border-0">Completed</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return <Badge variant="outline" className="text-xs px-3 py-0.5 font-semibold">{status}</Badge>;
     }
   };
 
@@ -609,20 +618,20 @@ export const Batches: React.FC = () => {
           </div>
 
           {/* Table Container */}
-          <div className="rounded-2xl border border-border overflow-hidden bg-card shadow-2xs">
+          <div className="rounded-2xl border border-border overflow-x-auto bg-card shadow-2xs">
             {loading ? (
               <div className="py-12 flex justify-center items-center text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <span className="ml-2 text-xs font-bold">Loading batches...</span>
               </div>
             ) : (
-              <Table>
+              <Table className="w-full border-collapse">
                 <TableHeader className="bg-muted/50 border-b border-border">
-                  <TableRow className="text-xs uppercase tracking-wide">
-                    <TableHead className="w-10 pl-4">
+                  <TableRow className="text-[11px] uppercase tracking-wide border-b border-border">
+                    <TableHead className="w-10 pl-4 pr-3 py-3 text-center border-r border-border">
                       <input
                         type="checkbox"
-                        className="h-4 w-4 rounded border-border cursor-pointer"
+                        className="h-4 w-4 rounded border-border cursor-pointer align-middle"
                         checked={
                           filteredBatches.length > 0 &&
                           filteredBatches.every((b) => selectedIds.includes(b.id))
@@ -637,15 +646,15 @@ export const Batches: React.FC = () => {
                         aria-label="Select all batches"
                       />
                     </TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">Created Date</TableHead>
-                    <TableHead className="font-bold text-foreground min-w-[18rem] whitespace-nowrap">Batch Schedule Title</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">Start Date</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">End Date</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">Admission Batch</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">Module</TableHead>
-                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3">No. of Students</TableHead>
-                    <TableHead className="font-bold text-foreground whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-right font-bold text-foreground whitespace-nowrap pr-4">Actions</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">CREATED DATE</TableHead>
+                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">BATCH SCHEDULE TITLE</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">START DATE</TableHead>
+                    <TableHead className="font-bold text-foreground whitespace-nowrap px-3 py-3 text-xs border-r border-border">END DATE</TableHead>
+                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">ADMISSION BATCH</TableHead>
+                    <TableHead className="font-bold text-foreground px-3 py-3 text-xs border-r border-border">MODULE</TableHead>
+                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">NO. OF STUDENTS</TableHead>
+                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-3 py-3 text-xs border-r border-border">STATUS</TableHead>
+                    <TableHead className="font-bold text-foreground text-center whitespace-nowrap px-2 py-3 text-xs w-12 pr-3">ACTIONS</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -685,14 +694,14 @@ export const Batches: React.FC = () => {
                       return (
                         <TableRow
                           key={batch.id}
-                          className={`transition-colors border-b border-border/70 text-xs cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/40"
+                          className={`transition-colors border-b border-border text-xs cursor-pointer ${isSelected ? "bg-muted/60" : "hover:bg-muted/40"
                             }`}
                           onClick={() => setSelectedIds([batch.id])}
                         >
-                          <TableCell className="pl-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="w-10 pl-4 pr-3 py-3 text-center align-middle border-r border-border" onClick={(e) => e.stopPropagation()}>
                             <input
                               type="checkbox"
-                              className="h-4 w-4 rounded border-border cursor-pointer"
+                              className="h-4 w-4 rounded border-border cursor-pointer align-middle"
                               checked={isSelected}
                               onChange={(e) => {
                                 if (e.target.checked) {
@@ -704,33 +713,35 @@ export const Batches: React.FC = () => {
                               aria-label={`Select ${batch.name}`}
                             />
                           </TableCell>
-                          <TableCell className="py-3 whitespace-nowrap text-muted-foreground font-medium align-middle">
+                          <TableCell className="px-3 py-3 whitespace-nowrap text-muted-foreground font-medium text-xs align-middle border-r border-border">
                             {createdDate}
                           </TableCell>
-                          <TableCell className="py-3 align-middle">
+                          <TableCell className="px-3 py-3 align-middle max-w-[260px] border-r border-border">
                             <div className="space-y-0.5">
-                              <p className="font-semibold text-foreground text-[11px] leading-snug break-words">
+                              <p className="font-semibold text-foreground text-xs leading-snug break-words" title={scheduleTitle}>
                                 {scheduleTitle}
                               </p>
-                              <p className="text-[10px] text-muted-foreground font-mono">
+                              <p className="text-[11px] text-muted-foreground font-mono truncate">
                                 {batch.code} · {batch.name}
                               </p>
                             </div>
                           </TableCell>
-                          <TableCell className="py-3 whitespace-nowrap align-middle">{startDateLabel}</TableCell>
-                          <TableCell className="py-3 whitespace-nowrap align-middle">{endDateLabel}</TableCell>
-                          <TableCell className="py-3 whitespace-nowrap font-medium align-middle">{timeSlot}</TableCell>
-                          <TableCell className="py-3 max-w-[14rem] align-middle">
+                          <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{startDateLabel}</TableCell>
+                          <TableCell className="px-3 py-3 whitespace-nowrap text-xs font-medium align-middle border-r border-border">{endDateLabel}</TableCell>
+                          <TableCell className="px-3 py-3 text-xs font-medium align-middle max-w-[150px] leading-snug border-r border-border" title={timeSlot}>
+                            <span className="line-clamp-2">{timeSlot}</span>
+                          </TableCell>
+                          <TableCell className="px-3 py-3 max-w-[130px] text-xs font-medium align-middle leading-snug border-r border-border" title={formatBatchSubjectNames(batch)}>
                             <span className="line-clamp-2 font-medium">
                               {formatBatchSubjectNames(batch)}
                             </span>
                           </TableCell>
-                          <TableCell className="py-3 text-center font-bold whitespace-nowrap align-middle">{enrolledCount}</TableCell>
-                          <TableCell className="py-3 whitespace-nowrap align-middle">{getStatusBadge(batch.status)}</TableCell>
-                          <TableCell className="text-right pr-4 py-3 align-middle" onClick={(e) => e.stopPropagation()}>
+                          <TableCell className="px-3 py-3 text-center font-bold whitespace-nowrap text-xs align-middle border-r border-border">{enrolledCount}</TableCell>
+                          <TableCell className="px-3 py-3 text-center whitespace-nowrap align-middle border-r border-border">{getStatusBadge(batch.status)}</TableCell>
+                          <TableCell className="text-center px-2 py-3 align-middle w-12 pr-3" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer">
+                                <Button variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground rounded-lg cursor-pointer inline-flex items-center justify-center">
                                   <MoreVertical className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -790,8 +801,8 @@ export const Batches: React.FC = () => {
       </Card>
 
       {/* Modal Dialog for Creating / Editing Batch */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
+      {showModal && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-3 sm:p-4 animate-in fade-in duration-200">
           <div className="relative bg-card border border-border rounded-2xl shadow-2xl w-full max-w-[calc(100vw-2rem)] text-foreground overflow-hidden animate-in zoom-in-95 duration-200 flex flex-col max-h-[95vh] my-auto">
             {/* Modal Header */}
             <div className="shrink-0 bg-muted/30 border-b border-border px-6 py-4 flex items-center justify-between">
@@ -959,12 +970,13 @@ export const Batches: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Generate Class Sessions Modal */}
-      {batchToGenerate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+      {batchToGenerate && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground">
             <h3 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -1038,12 +1050,13 @@ export const Batches: React.FC = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ─── 2-STEP DELETE CONFIRMATION MODAL ───────────────────────── */}
-      {batchToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
+      {batchToDelete && createPortal(
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-150">
           <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md p-6 space-y-4 text-foreground animate-in zoom-in-95 duration-150">
             <div className="flex items-start gap-3.5">
               <div className="p-3 rounded-full bg-rose-500/10 text-rose-500 shrink-0 border border-rose-500/20">
@@ -1109,7 +1122,8 @@ export const Batches: React.FC = () => {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

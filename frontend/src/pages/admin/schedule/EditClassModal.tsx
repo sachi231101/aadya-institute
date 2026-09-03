@@ -38,7 +38,7 @@ export const EditClassModal: React.FC<EditClassModalProps> = ({ session, onClose
       setDate(session.date || "");
       setStartTime(session.startTime || "09:00");
       setEndTime(session.endTime || "17:00");
-      setClassroomMasterId("");
+      setClassroomMasterId(session.classroomMasterId || "");
       setMode(session.mode || "OFFLINE");
       setStatus(session.status || "UPCOMING");
     }

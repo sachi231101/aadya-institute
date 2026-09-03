@@ -111,6 +111,48 @@ const resolveLineTimes = (line: ScheduleLineDto) => {
   return parseTimeSlot(line.timeSlot);
 };
 
+/** Fill start/end from timeslot master `data` when the client only sent the master ID. */
+const enrichScheduleLinesWithMasterTimes = async (
+  lines: ScheduleLineDto[]
+): Promise<ScheduleLineDto[]> => {
+  const ids = [
+    ...new Set(
+      lines
+        .map((l) => l.timeslotMasterId)
+        .filter((id): id is string => Boolean(id && String(id).trim()))
+    ),
+  ];
+  if (ids.length === 0) return lines;
+
+  const masters = await prisma.masterRecord.findMany({
+    where: { id: { in: ids }, entityType: "timeslot" },
+    select: { id: true, name: true, data: true },
+  });
+  const byId = new Map(masters.map((m) => [m.id, m]));
+
+  return lines.map((line) => {
+    if (line.startTime && line.endTime) {
+      return {
+        ...line,
+        timeSlot: line.timeSlot || `${line.startTime} - ${line.endTime}`,
+      };
+    }
+    if (!line.timeslotMasterId) return line;
+    const master = byId.get(line.timeslotMasterId);
+    if (!master) return line;
+    const data = (master.data ?? {}) as Record<string, unknown>;
+    const startTime = typeof data.startTime === "string" ? data.startTime : undefined;
+    const endTime = typeof data.endTime === "string" ? data.endTime : undefined;
+    if (!startTime || !endTime) return line;
+    return {
+      ...line,
+      startTime,
+      endTime,
+      timeSlot: line.timeSlot || master.name || `${startTime} - ${endTime}`,
+    };
+  });
+};
+
 /** Derive BatchCourse items from Zenox scheduleLines (unique courses). */
 export const coursesFromScheduleLines = (
   lines: ScheduleLineDto[],
@@ -508,20 +550,25 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
     branchId = firstBranch.id;
   }
 
+  const enrichedLines = data.scheduleLines?.length
+    ? await enrichScheduleLinesWithMasterTimes(data.scheduleLines)
+    : undefined;
+  const payload = enrichedLines ? { ...data, scheduleLines: enrichedLines } : data;
+
   return prisma.$transaction(async (tx) => {
-    const lines = data.scheduleLines?.length ? data.scheduleLines : undefined;
-    const courseItems = normalizeBatchCourses(data);
-    const primaryCourseId = data.courseId?.trim() || courseItems[0]?.courseId;
+    const lines = payload.scheduleLines?.length ? payload.scheduleLines : undefined;
+    const courseItems = normalizeBatchCourses(payload);
+    const primaryCourseId = payload.courseId?.trim() || courseItems[0]?.courseId;
     if (!primaryCourseId) throw new Error("At least one course is required");
 
     const coordinatorFacultyId =
-      data.facultyId && data.facultyId.trim() !== ""
-        ? data.facultyId
+      payload.facultyId && payload.facultyId.trim() !== ""
+        ? payload.facultyId
         : lines?.find((l) => l.facultyId)?.facultyId ||
           courseItems.find((c) => c.facultyId)?.facultyId ||
           null;
 
-    const summary = deriveBatchSummary(courseItems, data, lines);
+    const summary = deriveBatchSummary(courseItems, payload, lines);
 
     const batch = await tx.batch.create({
       data: {
@@ -529,17 +576,17 @@ export const createBatch = async (instituteId: string, defaultBranchId: string, 
         branchId,
         courseId: primaryCourseId,
         facultyId: coordinatorFacultyId,
-        name: data.name,
-        code: data.code,
+        name: payload.name,
+        code: payload.code,
         startDate: summary.startDate,
         expectedEndDate: summary.expectedEndDate,
         schedulePattern: summary.schedulePattern,
         timeSlot: summary.timeSlot,
         timeslotMasterId: summary.timeslotMasterId,
         classroomMasterId: summary.classroomMasterId,
-        capacity: data.capacity || 35,
-        remark: emptyToNull(data.remark),
-        status: "UPCOMING",
+        capacity: payload.capacity || 35,
+        remark: emptyToNull(payload.remark),
+        status: payload.status || "UPCOMING",
       },
     });
 
@@ -576,32 +623,37 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
     return { count: 0 };
   }
 
-  const lines = data.scheduleLines?.length ? data.scheduleLines : undefined;
+  const enrichedLines = data.scheduleLines?.length
+    ? await enrichScheduleLinesWithMasterTimes(data.scheduleLines)
+    : undefined;
+  const payload = enrichedLines ? { ...data, scheduleLines: enrichedLines } : data;
+
+  const lines = payload.scheduleLines?.length ? payload.scheduleLines : undefined;
   const courseItems =
-    lines || (data.courses && data.courses.length > 0) ? normalizeBatchCourses(data) : null;
+    lines || (payload.courses && payload.courses.length > 0) ? normalizeBatchCourses(payload) : null;
   const coursesChanged = courseItems !== null;
   const primaryCourseId =
-    data.courseId !== undefined && data.courseId.trim() !== ""
-      ? data.courseId
+    payload.courseId !== undefined && payload.courseId.trim() !== ""
+      ? payload.courseId
       : courseItems?.[0]?.courseId;
 
   const updateData: Record<string, unknown> = {};
 
-  if (data.name !== undefined) updateData.name = data.name;
-  if (data.code !== undefined) updateData.code = data.code;
-  if (data.facultyId !== undefined) {
-    updateData.facultyId = emptyToNull(data.facultyId);
+  if (payload.name !== undefined) updateData.name = payload.name;
+  if (payload.code !== undefined) updateData.code = payload.code;
+  if (payload.facultyId !== undefined) {
+    updateData.facultyId = emptyToNull(payload.facultyId);
   }
-  if (data.status !== undefined) updateData.status = data.status;
-  if (data.capacity !== undefined) updateData.capacity = data.capacity;
-  if (data.remark !== undefined) updateData.remark = emptyToNull(data.remark);
+  if (payload.status !== undefined) updateData.status = payload.status;
+  if (payload.capacity !== undefined) updateData.capacity = payload.capacity;
+  if (payload.remark !== undefined) updateData.remark = emptyToNull(payload.remark);
 
   if (courseItems) {
     const summary = deriveBatchSummary(
       courseItems,
       {
-        ...data,
-        startDate: data.startDate || existing.startDate.toISOString(),
+        ...payload,
+        startDate: payload.startDate || existing.startDate.toISOString(),
       },
       lines
     );
@@ -612,17 +664,17 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
     updateData.timeslotMasterId = summary.timeslotMasterId;
     updateData.classroomMasterId = summary.classroomMasterId;
   } else {
-    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
-    if (data.expectedEndDate !== undefined) {
-      updateData.expectedEndDate = data.expectedEndDate ? new Date(data.expectedEndDate) : null;
+    if (payload.startDate !== undefined) updateData.startDate = new Date(payload.startDate);
+    if (payload.expectedEndDate !== undefined) {
+      updateData.expectedEndDate = payload.expectedEndDate ? new Date(payload.expectedEndDate) : null;
     }
-    if (data.schedulePattern !== undefined) updateData.schedulePattern = data.schedulePattern;
-    if (data.timeSlot !== undefined) updateData.timeSlot = data.timeSlot;
-    if (data.timeslotMasterId !== undefined) {
-      updateData.timeslotMasterId = emptyToNull(data.timeslotMasterId);
+    if (payload.schedulePattern !== undefined) updateData.schedulePattern = payload.schedulePattern;
+    if (payload.timeSlot !== undefined) updateData.timeSlot = payload.timeSlot;
+    if (payload.timeslotMasterId !== undefined) {
+      updateData.timeslotMasterId = emptyToNull(payload.timeslotMasterId);
     }
-    if (data.classroomMasterId !== undefined) {
-      updateData.classroomMasterId = emptyToNull(data.classroomMasterId);
+    if (payload.classroomMasterId !== undefined) {
+      updateData.classroomMasterId = emptyToNull(payload.classroomMasterId);
     }
   }
 
@@ -630,19 +682,19 @@ export const updateBatch = async (id: string, instituteId: string, data: UpdateB
     updateData.courseId = primaryCourseId;
   }
 
-  if (coursesChanged || (data.courseId !== undefined && data.courseId !== existing.courseId)) {
+  if (coursesChanged || (payload.courseId !== undefined && payload.courseId !== existing.courseId)) {
     return prisma.$transaction(async (tx) => {
       const items =
         courseItems ??
         normalizeBatchCourses({
-          courseId: data.courseId || existing.courseId,
-          facultyId: data.facultyId,
-          startDate: data.startDate || existing.startDate.toISOString(),
-          expectedEndDate: data.expectedEndDate ?? existing.expectedEndDate?.toISOString(),
-          schedulePattern: data.schedulePattern || existing.schedulePattern || undefined,
-          timeSlot: data.timeSlot || existing.timeSlot || undefined,
-          timeslotMasterId: data.timeslotMasterId ?? existing.timeslotMasterId ?? undefined,
-          classroomMasterId: data.classroomMasterId ?? existing.classroomMasterId ?? undefined,
+          courseId: payload.courseId || existing.courseId,
+          facultyId: payload.facultyId,
+          startDate: payload.startDate || existing.startDate.toISOString(),
+          expectedEndDate: payload.expectedEndDate ?? existing.expectedEndDate?.toISOString(),
+          schedulePattern: payload.schedulePattern || existing.schedulePattern || undefined,
+          timeSlot: payload.timeSlot || existing.timeSlot || undefined,
+          timeslotMasterId: payload.timeslotMasterId ?? existing.timeslotMasterId ?? undefined,
+          classroomMasterId: payload.classroomMasterId ?? existing.classroomMasterId ?? undefined,
         });
 
       const result = await tx.batch.updateMany({
