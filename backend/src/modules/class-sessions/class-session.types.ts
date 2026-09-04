@@ -6,6 +6,7 @@ export interface CreateClassSessionDto {
   title: string;
   batchId: string;
   batchModuleId?: string;
+  batchCourseId?: string;
   facultyId: string;
   branchId?: string;
   scheduledDate: string;
@@ -24,6 +25,7 @@ export interface UpdateClassSessionDto {
   title?: string;
   batchId?: string;
   batchModuleId?: string;
+  batchCourseId?: string | null;
   facultyId?: string;
   scheduledDate?: string;
   startTime?: string;

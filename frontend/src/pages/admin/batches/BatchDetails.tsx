@@ -185,6 +185,9 @@ export const BatchDetails: React.FC = () => {
         endDate: end,
       });
       await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
       await refetch();
       const created = (result as { data?: { created?: number } }).data?.created ?? 0;
       setGenerateSuccess(`Generated ${created} class session(s).`);
@@ -526,8 +529,30 @@ export const BatchDetails: React.FC = () => {
               )}
 
               {generateSuccess && (
-                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-xs">
-                  {generateSuccess}
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-700 text-xs space-y-2">
+                  <p>{generateSuccess}</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Link
+                      to={`${ROUTES.ADMIN.SCHEDULE.CLASSES}?batchId=${batch.id}`}
+                      className="underline font-semibold"
+                    >
+                      Open Classes & Sessions
+                    </Link>
+                    <span className="text-emerald-600/60">·</span>
+                    <Link
+                      to={ROUTES.ADMIN.SCHEDULE.TIMETABLE}
+                      className="underline font-semibold"
+                    >
+                      Open Timetable
+                    </Link>
+                    <span className="text-emerald-600/60">·</span>
+                    <Link
+                      to={`${ROUTES.ADMIN.SCHEDULE.RECORDINGS}?batchId=${batch.id}`}
+                      className="underline font-semibold"
+                    >
+                      Open Recordings
+                    </Link>
+                  </div>
                 </div>
               )}
 

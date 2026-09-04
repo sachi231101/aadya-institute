@@ -298,6 +298,55 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Today's scheduled classes — refreshed when Classes Management creates sessions */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-foreground">Today&apos;s Classes</h3>
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.ADMIN.SCHEDULE.TIMETABLE)}
+            className="text-xs font-semibold text-[#1769AA] hover:underline"
+          >
+            Open Timetable →
+          </button>
+        </div>
+        <Card className="border border-border bg-card shadow-sm rounded-2xl">
+          <CardContent className="p-0">
+            {(scheduleSummary?.todaySessions?.length ?? 0) === 0 ? (
+              <div className="p-6 text-center text-xs text-muted-foreground">
+                No classes scheduled for today. New classes created in Classes &amp; Sessions appear here automatically.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {(scheduleSummary?.todaySessions ?? []).slice(0, 8).map((s) => (
+                  <li
+                    key={s.id}
+                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold text-foreground truncate">
+                        {s.title || "Class Session"}
+                      </p>
+                      <p className="text-muted-foreground truncate">
+                        {s.batchName || "Batch"} · {s.facultyName || "Faculty"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="font-medium text-foreground">
+                        {s.startTime} – {s.endTime}
+                      </span>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                        {s.sessionStatus || "UPCOMING"}
+                      </span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* 3. MAIN SECTION - BRANCH REVENUE PERFORMANCE */}
       <div className="pt-3">
         <div className="flex justify-between items-end mb-4">

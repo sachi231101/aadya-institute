@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useRecordings, useDeleteRecording, useRecordingAccess } from "@/hooks/useRecordings";
+import { useBatches } from "@/hooks/useBatches";
 import type { Recording } from "@/services/recordings.api";
+import { ROUTES } from "@/constants/routes";
 
 const getDaysRemaining = (expiresAt: string) => {
   const now = new Date();
@@ -23,8 +26,11 @@ const formatDuration = (seconds?: number) => {
 };
 
 export const Recordings: React.FC = () => {
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [batchFilter, setBatchFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
 
@@ -32,13 +38,25 @@ export const Recordings: React.FC = () => {
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
   const [playError, setPlayError] = useState<string | null>(null);
 
+  const { batches } = useBatches();
+
+  useEffect(() => {
+    const batchIdFromUrl = searchParams.get("batchId");
+    if (batchIdFromUrl) setBatchFilter(batchIdFromUrl);
+  }, [searchParams]);
+
+  const classesPath = location.pathname.startsWith("/center")
+    ? "/center/schedule/classes"
+    : ROUTES.ADMIN.SCHEDULE.CLASSES;
+
   const queryParams = useMemo(
     () => ({
       page,
       limit,
       ...(statusFilter !== "ALL" ? { recordingStatus: statusFilter } : {}),
+      ...(batchFilter !== "ALL" ? { batchId: batchFilter } : {}),
     }),
-    [page, limit, statusFilter]
+    [page, limit, statusFilter, batchFilter]
   );
 
   const { data: recordingsResponse, isLoading } = useRecordings(queryParams);
@@ -111,6 +129,9 @@ export const Recordings: React.FC = () => {
             Manage class session recordings — 30 day retention policy
           </p>
         </div>
+        <Button asChild variant="outline" size="sm" className="text-xs">
+          <Link to={classesPath}>Open Classes & Sessions</Link>
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -178,6 +199,21 @@ export const Recordings: React.FC = () => {
             <option value="PROCESSING">Processing</option>
             <option value="EXPIRED">Expired</option>
             <option value="FAILED">Failed</option>
+          </select>
+          <select
+            value={batchFilter}
+            onChange={(e) => {
+              setBatchFilter(e.target.value);
+              setPage(1);
+            }}
+            className="h-9 px-3 border border-border rounded-md bg-background text-sm max-w-[16rem]"
+          >
+            <option value="ALL">All Batches</option>
+            {batches.map((b: { id: string; name: string; code: string }) => (
+              <option key={b.id} value={b.id}>
+                {b.code} — {b.name}
+              </option>
+            ))}
           </select>
         </CardContent>
       </Card>

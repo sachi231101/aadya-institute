@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
+import { AppError } from "../../middlewares/error.middleware";
 import { classSessionRepository } from "./class-session.repository";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
@@ -12,33 +13,65 @@ async function applyClassSessionMasters(
 ) {
   const result = { ...data } as CreateClassSessionDto & UpdateClassSessionDto;
 
-  if (data.classroomMasterId) {
-    const classroom = await resolveOptionalMasterFields({
-      instituteId,
-      entityType: "classroom",
-      masterRecordId: data.classroomMasterId,
-      branchId,
-    });
-    if (classroom) {
-      result.roomNo = classroom.label;
-      result.classroomMasterId = classroom.masterId;
+  if (data.classroomMasterId !== undefined) {
+    if (!data.classroomMasterId) {
+      result.classroomMasterId = undefined;
+      result.roomNo = result.roomNo;
+    } else {
+      const classroom = await resolveOptionalMasterFields({
+        instituteId,
+        entityType: "classroom",
+        masterRecordId: data.classroomMasterId,
+        branchId,
+      });
+      if (classroom) {
+        result.roomNo = classroom.label;
+        result.classroomMasterId = classroom.masterId;
+      }
     }
   }
 
-  if (data.timeslotMasterId) {
-    const timeslot = await resolveOptionalMasterFields({
-      instituteId,
-      entityType: "timeslot",
-      masterRecordId: data.timeslotMasterId,
-      branchId,
-    });
-    if (timeslot) {
-      result.timeslotMasterId = timeslot.masterId;
+  if (data.timeslotMasterId !== undefined) {
+    if (!data.timeslotMasterId) {
+      result.timeslotMasterId = undefined;
+    } else {
+      const timeslot = await resolveOptionalMasterFields({
+        instituteId,
+        entityType: "timeslot",
+        masterRecordId: data.timeslotMasterId,
+        branchId,
+      });
+      if (timeslot) {
+        result.timeslotMasterId = timeslot.masterId;
+      }
     }
   }
+
+  // Normalize empty optional FK strings
+  if (result.batchCourseId === "") result.batchCourseId = undefined;
+  if (result.batchModuleId === "") result.batchModuleId = undefined;
+  if (result.classroomMasterId === "") result.classroomMasterId = undefined;
+  if (result.timeslotMasterId === "") result.timeslotMasterId = undefined;
 
   return result;
 }
+
+const assertNoFacultyConflict = async (options: {
+  instituteId: string;
+  facultyId: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  excludeId?: string;
+}) => {
+  const conflict = await classSessionRepository.findFacultyConflict(options);
+  if (conflict) {
+    throw new AppError(
+      `Faculty already has a class at ${options.startTime}–${options.endTime} on this date`,
+      409
+    );
+  }
+};
 
 export const classSessionService = {
   getSessions: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
@@ -52,21 +85,71 @@ export const classSessionService = {
   getSessionById: async (id: string, instituteId: string) => {
     const session = await classSessionRepository.findById(id, instituteId);
     if (!session) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
     return session;
   },
 
   createSession: async (instituteId: string, data: CreateClassSessionDto) => {
-    const enriched = await applyClassSessionMasters(instituteId, data, data.branchId);
+    const batch = await prisma.batch.findFirst({
+      where: { id: data.batchId, instituteId },
+      select: { id: true, branchId: true, facultyId: true },
+    });
+    if (!batch) {
+      throw new AppError("Batch not found", 404);
+    }
+
+    const faculty = await prisma.faculty.findFirst({
+      where: { id: data.facultyId, instituteId },
+      select: { id: true, branchId: true },
+    });
+    if (!faculty) {
+      throw new AppError("Faculty not found", 404);
+    }
+
+    const branchId = data.branchId || faculty.branchId || batch.branchId;
+    if (!branchId) {
+      throw new AppError("Branch is required to schedule a class", 400);
+    }
+
+    await assertNoFacultyConflict({
+      instituteId,
+      facultyId: data.facultyId,
+      scheduledDate: data.scheduledDate,
+      startTime: data.startTime,
+      endTime: data.endTime,
+    });
+
+    const enriched = await applyClassSessionMasters(instituteId, { ...data, branchId }, branchId);
     return classSessionRepository.create(instituteId, enriched);
   },
 
   updateSession: async (id: string, instituteId: string, data: UpdateClassSessionDto) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
+
+    const facultyId = data.facultyId || existing.facultyId;
+    const scheduledDate =
+      data.scheduledDate ||
+      (existing.scheduledDate instanceof Date
+        ? existing.scheduledDate.toISOString().slice(0, 10)
+        : String(existing.scheduledDate).slice(0, 10));
+    const startTime = data.startTime || existing.startTime;
+    const endTime = data.endTime || existing.endTime;
+
+    if (data.facultyId || data.scheduledDate || data.startTime || data.endTime) {
+      await assertNoFacultyConflict({
+        instituteId,
+        facultyId,
+        scheduledDate,
+        startTime,
+        endTime,
+        excludeId: id,
+      });
+    }
+
     const enriched = await applyClassSessionMasters(instituteId, data, existing.branchId);
     return classSessionRepository.update(id, instituteId, enriched);
   },
@@ -74,7 +157,7 @@ export const classSessionService = {
   startLiveClass: async (id: string, instituteId: string, meetingUrl?: string) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
 
     const updatedSession = await classSessionRepository.startLive(id, instituteId, meetingUrl);
@@ -139,7 +222,7 @@ export const classSessionService = {
   endLiveClass: async (id: string, instituteId: string) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
 
     const session = await classSessionRepository.endLive(id, instituteId);
@@ -159,6 +242,7 @@ export const classSessionService = {
             endedAt: session.actualEndTime || new Date(),
             expiresAt,
             status: "ACTIVE",
+            recordingStatus: "PENDING",
           },
         });
       } catch (err) {
@@ -185,7 +269,7 @@ export const classSessionService = {
   cancelSession: async (id: string, instituteId: string) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
     return classSessionRepository.update(id, instituteId, { status: "CANCELLED" });
   },
@@ -193,7 +277,7 @@ export const classSessionService = {
   deleteSession: async (id: string, instituteId: string) => {
     const existing = await classSessionRepository.findById(id, instituteId);
     if (!existing) {
-      throw new Error("Class session not found");
+      throw new AppError("Class session not found", 404);
     }
     return classSessionRepository.delete(id);
   },

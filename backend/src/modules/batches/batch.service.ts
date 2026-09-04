@@ -215,6 +215,7 @@ export const generateClassSessionsFromSchedule = async (
     endTime: string;
     classroomMasterId: string | null;
     timeslotMasterId: string | null;
+    roomNo: string | null;
     sessionStatus: "UPCOMING";
     sessionType: "THEORY";
     mode: string;
@@ -273,6 +274,7 @@ export const generateClassSessionsFromSchedule = async (
           bc?.timeslotMasterId ??
           batch.timeslotMasterId ??
           null,
+        roomNo: null,
         sessionStatus: "UPCOMING",
         sessionType: "THEORY",
         mode: "OFFLINE",
@@ -293,6 +295,27 @@ export const generateClassSessionsFromSchedule = async (
       );
     }
     return { created: 0, skipped: existingSessions.length, sessions: [] };
+  }
+
+  // Denormalize classroom labels onto sessions so Timetable/Classes show rooms immediately
+  const classroomIds = [
+    ...new Set(
+      toCreate
+        .map((row) => row.classroomMasterId)
+        .filter((id): id is string => Boolean(id))
+    ),
+  ];
+  if (classroomIds.length > 0) {
+    const classrooms = await prisma.masterRecord.findMany({
+      where: { id: { in: classroomIds }, entityType: "classroom" },
+      select: { id: true, name: true },
+    });
+    const roomById = new Map(classrooms.map((c) => [c.id, c.name]));
+    for (const row of toCreate) {
+      if (row.classroomMasterId) {
+        row.roomNo = roomById.get(row.classroomMasterId) ?? null;
+      }
+    }
   }
 
   await prisma.classSession.createMany({ data: toCreate });
