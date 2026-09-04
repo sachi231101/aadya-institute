@@ -1,5 +1,6 @@
 import { api } from "./api";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { toDateKey } from "@/constants/timetable-slots";
 import type {
   ClassSession,
   CreateClassSessionPayload,
@@ -10,6 +11,7 @@ export interface BackendClassSession {
   id: string;
   batchId: string;
   batchModuleId?: string;
+  batchCourseId?: string | null;
   facultyId: string;
   branchId: string;
   title?: string;
@@ -38,6 +40,7 @@ export interface BackendClassSession {
       code: string;
     };
     batchCourses?: Array<{
+      id?: string;
       courseId: string;
       sequence?: number;
       course?: { id: string; name: string; code?: string };
@@ -100,7 +103,7 @@ export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
     facultyId: raw.facultyId,
     facultyName: raw.faculty?.user?.name || "—",
     facultyDesignation: "",
-    date: raw.scheduledDate ? new Date(raw.scheduledDate).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
+    date: raw.scheduledDate ? toDateKey(raw.scheduledDate) : new Date().toISOString().split("T")[0],
     startTime: raw.startTime,
     endTime: raw.endTime,
     roomNo: raw.roomNo || "",

@@ -2,6 +2,15 @@ import { prisma } from "../../config/database";
 import type { Prisma } from "@prisma/client";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
 
+/** Store calendar dates at UTC noon so list/Timetable keys never shift by timezone. */
+const parseCalendarDate = (value: string): Date => {
+  const match = String(value).trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0));
+  }
+  return new Date(value);
+};
+
 const sessionInclude = {
   batch: {
     include: {
@@ -119,7 +128,7 @@ export const classSessionRepository = {
   findMany: async (instituteId: string, branchId?: string, filters?: QueryClassSessionsDto) => {
     const where = buildWhere(instituteId, branchId, filters);
     const page = Math.max(1, filters?.page ?? 1);
-    const limit = Math.min(100, Math.max(1, filters?.limit ?? 20));
+    const limit = Math.min(500, Math.max(1, filters?.limit ?? 20));
     const skip = (page - 1) * limit;
 
     const [sessions, total] = await prisma.$transaction([
@@ -190,22 +199,28 @@ export const classSessionRepository = {
   },
 
   create: async (instituteId: string, data: CreateClassSessionDto) => {
-    // Lookup branch from batch if not explicitly passed
-    const batch = await prisma.batch.findUnique({
-      where: { id: data.batchId },
+    const batch = await prisma.batch.findFirst({
+      where: { id: data.batchId, instituteId },
       select: { branchId: true },
     });
+    if (!batch) {
+      throw new Error("Batch not found");
+    }
 
-    const branchId = data.branchId || batch?.branchId || "main";
+    const branchId = data.branchId || batch.branchId;
+    if (!branchId) {
+      throw new Error("Branch is required");
+    }
 
     return prisma.classSession.create({
       data: {
         batchId: data.batchId,
         batchModuleId: data.batchModuleId || undefined,
+        batchCourseId: data.batchCourseId || undefined,
         facultyId: data.facultyId,
         branchId,
         title: data.title,
-        scheduledDate: new Date(data.scheduledDate),
+        scheduledDate: parseCalendarDate(data.scheduledDate),
         startTime: data.startTime,
         endTime: data.endTime,
         roomNo: data.roomNo || undefined,
@@ -221,6 +236,10 @@ export const classSessionRepository = {
         batch: {
           include: {
             course: true,
+            batchCourses: {
+              orderBy: { sequence: "asc" },
+              include: { course: { select: { id: true, name: true, code: true } } },
+            },
           },
         },
         faculty: {
@@ -239,14 +258,48 @@ export const classSessionRepository = {
     });
   },
 
+  findFacultyConflict: async (options: {
+    instituteId: string;
+    facultyId: string;
+    scheduledDate: string;
+    startTime: string;
+    endTime: string;
+    excludeId?: string;
+  }) => {
+    const day = parseCalendarDate(options.scheduledDate);
+    const dayStart = new Date(day);
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const dayEnd = new Date(day);
+    dayEnd.setUTCHours(23, 59, 59, 999);
+
+    return prisma.classSession.findFirst({
+      where: {
+        status: "ACTIVE",
+        sessionStatus: { not: "CANCELLED" },
+        facultyId: options.facultyId,
+        scheduledDate: { gte: dayStart, lte: dayEnd },
+        startTime: options.startTime,
+        endTime: options.endTime,
+        batch: { instituteId: options.instituteId },
+        ...(options.excludeId ? { id: { not: options.excludeId } } : {}),
+      },
+      select: { id: true, title: true, startTime: true, endTime: true },
+    });
+  },
+
   update: async (id: string, instituteId: string, data: UpdateClassSessionDto) => {
     const updateData: Prisma.ClassSessionUpdateInput = {};
 
     if (data.title !== undefined) updateData.title = data.title;
     if (data.batchId !== undefined) updateData.batch = { connect: { id: data.batchId } };
     if (data.batchModuleId !== undefined) updateData.batchModule = data.batchModuleId ? { connect: { id: data.batchModuleId } } : { disconnect: true };
+    if (data.batchCourseId !== undefined) {
+      updateData.batchCourse = data.batchCourseId
+        ? { connect: { id: data.batchCourseId } }
+        : { disconnect: true };
+    }
     if (data.facultyId !== undefined) updateData.faculty = { connect: { id: data.facultyId } };
-    if (data.scheduledDate !== undefined) updateData.scheduledDate = new Date(data.scheduledDate);
+    if (data.scheduledDate !== undefined) updateData.scheduledDate = parseCalendarDate(data.scheduledDate);
     if (data.startTime !== undefined) updateData.startTime = data.startTime;
     if (data.endTime !== undefined) updateData.endTime = data.endTime;
     if (data.roomNo !== undefined) updateData.roomNo = data.roomNo;
@@ -266,6 +319,15 @@ export const classSessionRepository = {
     if (data.sessionType !== undefined) updateData.sessionType = data.sessionType;
     if (data.status !== undefined) updateData.sessionStatus = data.status;
 
+    // Scope update to institute via prior existence check + updateMany-style guard
+    const owned = await prisma.classSession.findFirst({
+      where: { id, batch: { instituteId } },
+      select: { id: true },
+    });
+    if (!owned) {
+      throw new Error("Class session not found");
+    }
+
     return prisma.classSession.update({
       where: { id },
       data: updateData,
@@ -273,6 +335,10 @@ export const classSessionRepository = {
         batch: {
           include: {
             course: true,
+            batchCourses: {
+              orderBy: { sequence: "asc" },
+              include: { course: { select: { id: true, name: true, code: true } } },
+            },
           },
         },
         faculty: {

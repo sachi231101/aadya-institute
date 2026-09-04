@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Calendar,
   Plus,
@@ -61,6 +62,7 @@ export interface ScheduledClassItem {
   courseName: string;
   moduleName: string;
   iconType: "java" | "python" | "marketing" | "excel" | "powerbi" | "web" | "general";
+  batchId: string;
   batchCode: string;
   batchName: string;
   branchId: string;
@@ -76,6 +78,7 @@ export interface ScheduledClassItem {
   endTime: string; // e.g. "11:30 AM"
   mode: ClassMode;
   locationOrLink: string;
+  classroomMasterId?: string;
   isOnlineLink?: boolean;
   status: ClassStatus;
   enrolledStudentsCount: number;
@@ -123,13 +126,13 @@ const mapSessionToScheduledClassItem = (
 ): ScheduledClassItem => {
   const branchObj = branchesList.find((b) => b.id === session.branchId);
   const batchSubjects = formatBatchSubjectNames(
-    session.batch ?? { courseId: session.batch?.courseId ?? "" }
+    (session.batch ?? { courseId: "" }) as any
   );
   const courseName =
     batchSubjects !== "N/A" ? batchSubjects : session.batch?.course?.name || "General Course";
   const topicName = session.title || courseName;
   const dateStr = session.scheduledDate
-    ? new Date(session.scheduledDate).toISOString().split("T")[0]
+    ? toDateKey(session.scheduledDate)
     : new Date().toISOString().split("T")[0];
   const mode = (session.mode || "OFFLINE") as ClassMode;
   const facultyName = session.faculty?.user?.name || session.faculty?.employeeCode;
@@ -141,6 +144,7 @@ const mapSessionToScheduledClassItem = (
     courseName,
     moduleName: session.batchModule?.courseModule?.name || "Core Module",
     iconType: inferIconType(`${topicName} ${courseName}`),
+    batchId: session.batchId,
     batchCode: session.batch?.code || "BATCH",
     batchName: session.batch?.name || "Batch",
     branchId: session.branchId,
@@ -156,7 +160,10 @@ const mapSessionToScheduledClassItem = (
     endTime: session.endTime,
     mode,
     locationOrLink:
-      mode === "ONLINE" ? session.meetingUrl || "Online" : session.roomNo || "TBD",
+      mode === "ONLINE"
+        ? session.meetingUrl || "Online"
+        : session.roomNo || "TBD",
+    classroomMasterId: session.classroomMasterId || undefined,
     isOnlineLink: mode === "ONLINE",
     status: isFacultyAssigned ? mapSessionStatusToUI(session.sessionStatus) : "UNASSIGNED",
     enrolledStudentsCount: (session as BackendClassSession & { enrolledStudentsCount?: number }).enrolledStudentsCount ?? 0,
@@ -178,6 +185,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import { batchesApi } from "../../../services/batches.api";
+import {
+  BOOKABLE_TIME_SLOTS,
+  findPeriodByTimes,
+  periodToTimes,
+  toDateKey,
+} from "@/constants/timetable-slots";
 
 export const Classes: React.FC = () => {
   const queryClient = useQueryClient();
@@ -187,19 +200,24 @@ export const Classes: React.FC = () => {
   const { courses } = useCourses();
   const { data: facultyData } = useFacultyList({ limit: 50 });
   const facultyMembers = facultyData?.data ?? [];
+  const [searchParams] = useSearchParams();
 
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedFaculty, setSelectedFaculty] = useState<string>("ALL");
-  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
-  const [selectedMode, setSelectedMode] = useState<string>("ALL");
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const batchIdFromUrl = searchParams.get("batchId");
+    if (!batchIdFromUrl || batches.length === 0) return;
+    const match = batches.find((b) => b.id === batchIdFromUrl);
+    if (match) setSelectedBatch(match.code);
+  }, [searchParams, batches]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -214,14 +232,10 @@ export const Classes: React.FC = () => {
       params.branchId = selectedBranchId;
     }
     if (searchQuery.trim()) params.search = searchQuery.trim();
-    if (selectedFaculty !== "ALL" && selectedFaculty !== "UNASSIGNED") {
-      params.facultyId = selectedFaculty;
-    }
     if (selectedBatch !== "ALL") {
       const batch = batches.find((b) => b.code === selectedBatch);
       if (batch) params.batchId = batch.id;
     }
-    if (selectedMode !== "ALL") params.mode = selectedMode;
     if (selectedStatus !== "ALL") {
       const statusMap: Record<string, string> = {
         LIVE: "LIVE",
@@ -242,9 +256,7 @@ export const Classes: React.FC = () => {
     currentPage,
     rowsPerPage,
     searchQuery,
-    selectedFaculty,
     selectedBatch,
-    selectedMode,
     selectedStatus,
     selectedDate,
     batches,
@@ -260,10 +272,6 @@ export const Classes: React.FC = () => {
     return sessions.map((session) => mapSessionToScheduledClassItem(session, branchesList));
   }, [sessionsResponse, branchesList]);
 
-  const uniqueCourses = useMemo(
-    () => [...new Set(classesList.map((c) => c.courseName))].sort(),
-    [classesList]
-  );
   const uniqueBatches = useMemo(
     () => [...new Set(classesList.map((c) => c.batchCode))].sort(),
     [classesList]
@@ -288,11 +296,14 @@ export const Classes: React.FC = () => {
   const [formBranch, setFormBranch] = useState("");
   const [formFacultyId, setFormFacultyId] = useState("");
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
-  const [formStartTime, setFormStartTime] = useState("10:00 AM");
-  const [formEndTime, setFormEndTime] = useState("12:00 PM");
+  const [formPeriod, setFormPeriod] = useState<number>(2);
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
   const [formClassroomMasterId, setFormClassroomMasterId] = useState("");
   const [formMeetingUrl, setFormMeetingUrl] = useState("");
+
+  const formTimes = periodToTimes(formPeriod);
+  const formStartTime = formTimes.start;
+  const formEndTime = formTimes.end;
 
   // Assign Faculty Target
   const [targetFacultyId, setTargetFacultyId] = useState("");
@@ -323,17 +334,8 @@ export const Classes: React.FC = () => {
     };
   }, [classesList, selectedBranchId, isViewAllBranches]);
 
-  // Filtered Classes (server handles most filters; course filter remains client-side)
-  const filteredClasses = useMemo(() => {
-    return classesList.filter((item) => {
-      if (selectedCourse !== "ALL" && item.courseName !== selectedCourse) return false;
-      if (selectedFaculty === "UNASSIGNED" && item.isFacultyAssigned) return false;
-      if (selectedFaculty !== "ALL" && selectedFaculty !== "UNASSIGNED") {
-        if (item.facultyId !== selectedFaculty) return false;
-      }
-      return true;
-    });
-  }, [classesList, selectedCourse, selectedFaculty]);
+  // Filtered Classes (server handles all filters now)
+  const filteredClasses = classesList;
 
   const paginatedClasses = filteredClasses;
   const totalPages = sessionsResponse?.meta?.totalPages ?? 1;
@@ -342,10 +344,7 @@ export const Classes: React.FC = () => {
   // Handlers
   const handleResetFilters = () => {
     setSearchQuery("");
-    setSelectedFaculty("ALL");
-    setSelectedCourse("ALL");
     setSelectedBatch("ALL");
-    setSelectedMode("ALL");
     setSelectedStatus("ALL");
     setSelectedDate("");
     setCurrentPage(1);
@@ -417,15 +416,20 @@ export const Classes: React.FC = () => {
       setIsScheduleModalOpen(false);
       setEditingSessionId(null);
       setTimeout(() => setNotificationMsg(null), 3500);
-    } catch {
-      setNotificationMsg("Failed to save class. Please check the form and try again.");
-      setTimeout(() => setNotificationMsg(null), 3500);
+    } catch (err: unknown) {
+      const apiMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as { message?: string })?.message;
+      setNotificationMsg(apiMessage || "Failed to save class. Please check the form and try again.");
+      setTimeout(() => setNotificationMsg(null), 4500);
     }
   };
 
   const handleOpenStudents = async (classItem: ScheduledClassItem) => {
     setSelectedClassItem(classItem);
-    const batch = batches.find((b) => b.code === classItem.batchCode);
+    const batch =
+      batches.find((b) => b.id === classItem.batchId) ||
+      batches.find((b) => b.code === classItem.batchCode);
     if (batch) {
       try {
         const res = await batchesApi.getStudents(batch.id);
@@ -457,8 +461,7 @@ export const Classes: React.FC = () => {
     setFormBranch(branchesList[0]?.id ?? "");
     setFormFacultyId(facultyMembers[0]?.id ?? "");
     setFormDate(new Date().toISOString().split("T")[0]);
-    setFormStartTime("10:00 AM");
-    setFormEndTime("12:00 PM");
+    setFormPeriod(2);
     setFormMode("OFFLINE");
     setFormClassroomMasterId("");
     setFormMeetingUrl("");
@@ -468,6 +471,9 @@ export const Classes: React.FC = () => {
     try {
       await classSessionsApi.cancel(classItem.id);
       await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
+      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
       setNotificationMsg(`✓ Class ${classItem.topicName} marked as Cancelled.`);
       setTimeout(() => setNotificationMsg(null), 3000);
     } catch {
@@ -698,13 +704,13 @@ export const Classes: React.FC = () => {
       </div>
 
       {/* ─── 4. FILTER TOOLBAR ──────────────────────────────────────────── */}
-      <div className="bg-card p-3.5 rounded-2xl border border-border shadow-xs space-y-3">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+      <div className="bg-card p-3.5 rounded-2xl border border-border shadow-xs">
+        <div className="flex flex-wrap items-center gap-2.5">
           {/* Search Field */}
-          <div className="relative sm:col-span-2 lg:col-span-2">
+          <div className="relative flex-1 min-w-[220px] max-w-[360px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search class, course, batch, faculty or room..."
+              placeholder="Search class, course, faculty or room..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
@@ -714,52 +720,14 @@ export const Classes: React.FC = () => {
             />
           </div>
 
-          {/* All Faculties */}
-          <select
-            value={selectedFaculty}
-            onChange={(e) => {
-              setSelectedFaculty(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
-          >
-            <option value="ALL">All Faculties</option>
-            <option value="UNASSIGNED">⚠ Faculty Not Assigned</option>
-            {facultyMembers.map((f: any) => {
-              const name = f.user?.name || f.employeeCode || "Faculty";
-              return (
-                <option key={f.id} value={f.id}>
-                  {name}
-                </option>
-              );
-            })}
-          </select>
-
-          {/* All Courses */}
-          <select
-            value={selectedCourse}
-            onChange={(e) => {
-              setSelectedCourse(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
-          >
-            <option value="ALL">All Courses</option>
-            {uniqueCourses.map((course) => (
-              <option key={course} value={course}>
-                {course}
-              </option>
-            ))}
-          </select>
-
-          {/* All Batches */}
+          {/* Batch Filter */}
           <select
             value={selectedBatch}
             onChange={(e) => {
               setSelectedBatch(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer min-w-[130px]"
           >
             <option value="ALL">All Batches</option>
             {uniqueBatches.map((batchCode) => (
@@ -769,55 +737,35 @@ export const Classes: React.FC = () => {
             ))}
           </select>
 
-          {/* All Modes */}
+          {/* Status Filter */}
           <select
-            value={selectedMode}
+            value={selectedStatus}
             onChange={(e) => {
-              setSelectedMode(e.target.value);
+              setSelectedStatus(e.target.value);
               setCurrentPage(1);
             }}
-            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
+            className="h-10 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer min-w-[130px]"
           >
-            <option value="ALL">All Modes</option>
-            <option value="OFFLINE">Offline</option>
-            <option value="ONLINE">Online</option>
-            <option value="HYBRID">Hybrid</option>
+            <option value="ALL">All Statuses</option>
+            <option value="LIVE">● Live</option>
+            <option value="SCHEDULED">● Scheduled</option>
+            <option value="UNASSIGNED">● Unassigned</option>
+            <option value="COMPLETED">● Completed</option>
+            <option value="CANCELLED">● Cancelled</option>
           </select>
-        </div>
 
-        {/* Second Filter Row */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1 border-t border-border">
-          <div className="flex flex-wrap items-center gap-3">
-            {/* All Statuses */}
-            <select
-              value={selectedStatus}
+          {/* Date Filter */}
+          <div className="flex items-center gap-1.5 bg-background border border-border rounded-xl px-3 h-10 text-xs">
+            <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <input
+              type="date"
+              value={selectedDate}
               onChange={(e) => {
-                setSelectedStatus(e.target.value);
+                setSelectedDate(e.target.value);
                 setCurrentPage(1);
               }}
-              className="h-9 px-3 bg-background border border-border rounded-xl text-xs font-bold text-foreground outline-none cursor-pointer"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="LIVE">● Live</option>
-              <option value="SCHEDULED">● Scheduled</option>
-              <option value="UNASSIGNED">● Unassigned</option>
-              <option value="COMPLETED">● Completed</option>
-              <option value="CANCELLED">● Cancelled</option>
-            </select>
-
-            {/* Date Input */}
-            <div className="flex items-center gap-1.5 bg-background border border-border rounded-xl px-2.5 h-9 text-xs">
-              <span className="text-muted-foreground font-medium">Select Date:</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
-                  setCurrentPage(1);
-                }}
-                className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer"
-              />
-            </div>
+              className="bg-transparent text-xs font-bold text-foreground outline-none cursor-pointer"
+            />
           </div>
 
           {/* Reset Filters Button */}
@@ -825,7 +773,7 @@ export const Classes: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleResetFilters}
-            className="h-9 text-xs font-bold text-foreground border-border hover:bg-muted rounded-xl gap-1.5 cursor-pointer"
+            className="h-10 text-xs font-bold text-foreground border-border hover:bg-muted rounded-xl gap-1.5 cursor-pointer ml-auto"
           >
             <RotateCcw className="h-3.5 w-3.5 text-muted-foreground" />
             <span>Reset Filters</span>
@@ -1008,10 +956,9 @@ export const Classes: React.FC = () => {
                               setFormBatch(item.batchCode);
                               setFormFacultyId(item.facultyId || "");
                               setFormDate(item.date);
-                              setFormStartTime(item.startTime);
-                              setFormEndTime(item.endTime);
+                              setFormPeriod(findPeriodByTimes(item.startTime, item.endTime) ?? 2);
                               setFormMode(item.mode);
-                              setFormClassroomMasterId("");
+                              setFormClassroomMasterId(item.classroomMasterId || "");
                               setFormMeetingUrl(item.mode === "ONLINE" ? item.locationOrLink : "");
                               setIsScheduleModalOpen(true);
                             }}
@@ -1198,7 +1145,12 @@ export const Classes: React.FC = () => {
                 <Label className="text-[11px] font-bold text-foreground">Batch Code *</Label>
                 <select
                   value={formBatch}
-                  onChange={(e) => setFormBatch(e.target.value)}
+                  onChange={(e) => {
+                    const code = e.target.value;
+                    setFormBatch(code);
+                    const matched = batches.find((b: any) => b.code === code || b.id === code);
+                    if (matched?.branchId) setFormBranch(matched.branchId);
+                  }}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="">Select batch</option>
@@ -1254,7 +1206,7 @@ export const Classes: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-2.5">
+            <div className="grid grid-cols-2 gap-2.5">
               <div>
                 <Label className="text-[11px] font-bold text-foreground">Date</Label>
                 <Input
@@ -1266,23 +1218,21 @@ export const Classes: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-foreground">Start Time</Label>
-                <Input
-                  value={formStartTime}
-                  onChange={(e) => setFormStartTime(e.target.value)}
-                  placeholder="10:00 AM"
-                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                />
-              </div>
-
-              <div>
-                <Label className="text-[11px] font-bold text-foreground">End Time</Label>
-                <Input
-                  value={formEndTime}
-                  onChange={(e) => setFormEndTime(e.target.value)}
-                  placeholder="11:30 AM"
-                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                />
+                <Label className="text-[11px] font-bold text-foreground">Time Slot</Label>
+                <select
+                  value={formPeriod}
+                  onChange={(e) => setFormPeriod(Number(e.target.value))}
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none text-xs"
+                >
+                  {BOOKABLE_TIME_SLOTS.map((slot) => (
+                    <option key={slot.period} value={slot.period}>
+                      {slot.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  Matches Timetable periods
+                </p>
               </div>
             </div>
 

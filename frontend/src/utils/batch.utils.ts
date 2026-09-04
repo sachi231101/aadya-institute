@@ -1,6 +1,7 @@
 /** Shared helpers for multi-course batch (BatchCourse) logic */
 
 export type BatchCourseLike = {
+  id?: string;
   courseId: string;
   facultyId?: string | null;
   sequence?: number;
@@ -14,6 +15,7 @@ export type BatchCourseLike = {
 
 export type BatchLike = {
   courseId: string;
+  facultyId?: string | null;
   course?: { id: string; name: string; code?: string } | null;
   faculty?: {
     id: string;
@@ -31,7 +33,7 @@ export const getBatchCourseRows = (batch: BatchLike): BatchCourseLike[] => {
     return [
       {
         courseId: batch.courseId,
-        facultyId: batch.faculty?.id ?? null,
+        facultyId: batch.facultyId ?? batch.faculty?.id ?? null,
         sequence: 1,
         course: batch.course ?? undefined,
         faculty: batch.faculty ?? null,
@@ -46,8 +48,11 @@ export const batchIncludesCourse = (batch: BatchLike, courseId: string): boolean
   (batch.batchCourses?.some((bc) => bc.courseId === courseId) ?? false);
 
 export const batchIncludesFaculty = (batch: BatchLike, facultyId: string): boolean =>
+  batch.facultyId === facultyId ||
   batch.faculty?.id === facultyId ||
-  (batch.batchCourses?.some((bc) => bc.facultyId === facultyId) ?? false);
+  (batch.batchCourses?.some(
+    (bc) => bc.facultyId === facultyId || bc.faculty?.id === facultyId
+  ) ?? false);
 
 export const getCourseNameInBatch = (batch: BatchLike, courseId: string): string | undefined => {
   const row = getBatchCourseRows(batch).find((r) => r.courseId === courseId);

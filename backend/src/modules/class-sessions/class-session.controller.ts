@@ -4,6 +4,7 @@ import { prisma } from "../../config/database";
 import { classSessionService } from "./class-session.service";
 import { sendSuccess, sendPaginated } from "../../utils/response";
 import { assertFacultyOwnsSession, toAuthUser } from "../../utils/auth-user.util";
+import { resolveEffectiveBranchId } from "../../utils/branch-isolation.util";
 import type { QueryClassSessionsDto } from "./class-session.types";
 
 export const getSessions = async (
@@ -12,9 +13,11 @@ export const getSessions = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const branchId = req.user!.branchId || (req.query.branchId as string) || undefined;
-    const roles = req.user?.roles || [];
+    const authUser = toAuthUser(req);
+    const instituteId = authUser.instituteId;
+    // ADMIN: optional query branchId only. Branch-locked roles: always user.branchId.
+    const branchId = resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
+    const roles = authUser.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
       !roles.includes("ADMIN") &&
       !roles.includes("CENTER_MANAGER") &&
@@ -186,9 +189,10 @@ export const getActiveLiveSessions = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const instituteId = req.user!.instituteId;
-    const branchId = req.user!.branchId || (req.query.branchId as string) || undefined;
-    const roles = req.user?.roles || [];
+    const authUser = toAuthUser(req);
+    const instituteId = authUser.instituteId;
+    const branchId = resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
+    const roles = authUser.roles || [];
     const isPureStudent = roles.includes("STUDENT") && !roles.includes("ADMIN") && !roles.includes("FACULTY");
     const isPureFaculty = roles.includes("FACULTY") && !roles.includes("ADMIN");
 

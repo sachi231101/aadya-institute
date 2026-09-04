@@ -9,6 +9,18 @@ import type {
 } from "../types/schedule.types";
 
 const SESSIONS_KEY = "class-sessions";
+const SCHEDULE_SUMMARY_KEY = "schedule-summary";
+
+/**
+ * Invalidates all queries that depend on class session data,
+ * ensuring Dashboard, Timetable, and Classes all stay in sync.
+ */
+const invalidateSessionRelatedQueries = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] });
+  queryClient.invalidateQueries({ queryKey: [SCHEDULE_SUMMARY_KEY] });
+  queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+};
 
 export const useClassSessions = (params?: Record<string, any>) => {
   return useQuery({
@@ -30,7 +42,7 @@ export const useCreateClassSession = () => {
   return useMutation({
     mutationFn: (payload: CreateClassSessionPayload) => classSessionsApi.create(payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] });
+      invalidateSessionRelatedQueries(queryClient);
     },
   });
 };
@@ -41,7 +53,7 @@ export const useUpdateClassSession = () => {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateClassSessionPayload }) =>
       classSessionsApi.update(id, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] });
+      invalidateSessionRelatedQueries(queryClient);
     },
   });
 };
@@ -51,7 +63,7 @@ export const useDeleteClassSession = () => {
   return useMutation({
     mutationFn: (id: string) => classSessionsApi.delete(id),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] });
+      invalidateSessionRelatedQueries(queryClient);
     },
   });
 };
