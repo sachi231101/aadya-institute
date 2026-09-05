@@ -71,6 +71,10 @@ export const updateUserPermissionsSchema = z
     message: "Either modulePermissions or permissions must be provided",
   });
 
+export const updateUserBranchAccessSchema = z.object({
+  branchIds: z.array(z.string().min(1)),
+});
+
 export const permissionCatalogQuerySchema = z.object({
   role: z.enum(["CENTER_MANAGER", "COUNSELLOR"]),
 });
@@ -102,4 +106,5 @@ export type CreateUserDto = z.infer<typeof createUserSchema>;
 export type UpdateUserDto = z.infer<typeof updateUserSchema>;
 export type UpdateUserStatusDto = z.infer<typeof updateUserStatusSchema>;
 export type UpdateUserPermissionsDto = z.infer<typeof updateUserPermissionsSchema>;
+export type UpdateUserBranchAccessDto = z.infer<typeof updateUserBranchAccessSchema>;
 export type UserListQueryDto = z.infer<typeof userListQuerySchema>;

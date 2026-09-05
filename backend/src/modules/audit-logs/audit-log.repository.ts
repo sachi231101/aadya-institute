@@ -4,6 +4,7 @@ import type { Prisma } from "@prisma/client";
 export const AuditLogRepository = {
   async findMany(instituteId: string, params: {
     userId?: string;
+    branchId?: string;
     entityType?: string;
     entityId?: string;
     action?: string;
@@ -16,6 +17,7 @@ export const AuditLogRepository = {
     const where: Prisma.ActivityLogWhereInput = {
       instituteId,
       ...(params.userId ? { userId: params.userId } : {}),
+      ...(params.branchId ? { branchId: params.branchId } : {}),
       ...(params.entityType ? { entityType: params.entityType } : {}),
       ...(params.entityId ? { entityId: params.entityId } : {}),
       ...(params.action ? { action: { contains: params.action, mode: "insensitive" } } : {}),

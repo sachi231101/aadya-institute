@@ -96,4 +96,14 @@ export const settingsApi = {
     const response = await api.delete(`/settings/security/sessions/${sessionId}`);
     return response.data.data;
   },
+
+  getSystemConfig: async (category: string) => {
+    const response = await api.get(`/administration/system-settings/${category}`);
+    return response.data.data;
+  },
+
+  updateSystemConfig: async (category: string, settings: Record<string, unknown>) => {
+    const response = await api.put(`/administration/system-settings/${category}`, { settings });
+    return response.data.data;
+  },
 };

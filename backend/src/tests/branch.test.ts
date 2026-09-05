@@ -84,6 +84,54 @@ describe("Branch Isolation Helper Unit Tests", () => {
     assert.strictEqual(hasBranchAccess(counsellor, "branch-a"), true);
     assert.strictEqual(hasBranchAccess(counsellor, "branch-b"), false);
   });
+
+  test("hasBranchAccess uses allowedBranchIds when present", () => {
+    const multi: AuthUser = {
+      id: "manager-multi",
+      name: "Multi Manager",
+      email: "multi@aadya.in",
+      instituteId: "inst-1",
+      branchId: "branch-a",
+      allowedBranchIds: ["branch-a", "branch-c"],
+      roles: ["CENTER_MANAGER"],
+      permissions: ["branch.read"],
+    };
+    assert.strictEqual(hasBranchAccess(multi, "branch-a"), true);
+    assert.strictEqual(hasBranchAccess(multi, "branch-c"), true);
+    assert.strictEqual(hasBranchAccess(multi, "branch-b"), false);
+  });
+
+  test("getBranchScopeFilter with multiple allowedBranchIds omits single branchId", () => {
+    const multi: AuthUser = {
+      id: "manager-multi",
+      name: "Multi Manager",
+      email: "multi@aadya.in",
+      instituteId: "inst-1",
+      branchId: "branch-a",
+      allowedBranchIds: ["branch-a", "branch-c"],
+      roles: ["CENTER_MANAGER"],
+      permissions: ["branch.read"],
+    };
+    const filter = getBranchScopeFilter(multi);
+    assert.strictEqual(filter.branchId, undefined);
+    assert.deepStrictEqual(filter.branchIds, ["branch-a", "branch-c"]);
+  });
+
+  test("getBranchScopeFilter with single allowedBranchId sets branchId", () => {
+    const single: AuthUser = {
+      id: "manager-one",
+      name: "One Manager",
+      email: "one@aadya.in",
+      instituteId: "inst-1",
+      branchId: null,
+      allowedBranchIds: ["branch-x"],
+      roles: ["CENTER_MANAGER"],
+      permissions: ["branch.read"],
+    };
+    const filter = getBranchScopeFilter(single);
+    assert.strictEqual(filter.branchId, "branch-x");
+    assert.strictEqual(filter.branchIds, undefined);
+  });
 });
 
 describe("Branch Zod Validation Schemas", () => {

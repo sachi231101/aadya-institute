@@ -10,6 +10,9 @@ const SENSITIVE_KEYS = new Set([
   "secret",
   "clientSecret",
   "jwtSecret",
+  "tokenHash",
+  "token",
+  "inviteLink",
 ]);
 
 /**
@@ -39,12 +42,14 @@ export const maskSensitiveData = (data: any): any => {
 export interface CreateAuditLogParams {
   userId?: string | null;
   instituteId: string;
+  branchId?: string | null;
   action: string;
   entityType: string;
   entityId: string;
   oldData?: any;
   newData?: any;
   ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 /**
@@ -57,12 +62,14 @@ export const createAuditLog = async (params: CreateAuditLogParams): Promise<void
       data: {
         userId: params.userId || undefined,
         instituteId: params.instituteId,
+        branchId: params.branchId || undefined,
         action: params.action,
         entityType: params.entityType,
         entityId: params.entityId,
         oldData: params.oldData ? maskSensitiveData(params.oldData) : undefined,
         newData: params.newData ? maskSensitiveData(params.newData) : undefined,
         ipAddress: params.ipAddress || undefined,
+        userAgent: params.userAgent || undefined,
       },
     });
   } catch (err) {

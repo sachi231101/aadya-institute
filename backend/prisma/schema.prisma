@@ -146,15 +146,25 @@ enum AssignmentSubmissionStatus {
 }
 
 model Institute {
-  id        String   @id @default(cuid())
-  name      String
-  code      String   @unique
-  email     String?
-  phone     String?
-  address   String?
-  status    Status   @default(ACTIVE)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  name       String
+  code       String   @unique
+  email      String?
+  phone      String?
+  address    String?
+  website    String?
+  city       String?
+  state      String?
+  country    String?
+  postalCode String?
+  gstNumber  String?
+  timezone   String?  @default("Asia/Kolkata")
+  currency   String?  @default("INR")
+  dateFormat String?  @default("DD/MM/YYYY")
+  logoUrl    String?
+  status     Status   @default(ACTIVE)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   branches   Branch[]
   users      User[]
@@ -194,20 +204,34 @@ model Institute {
   emailLogs            EmailLog[]
   subscriptions        Subscription[]
   invoices             Invoice[]
+  invitations          UserInvitation[]
+  securityPolicy       InstituteSecurityPolicy?
+  loginHistories       LoginHistory[]
+  securityAlerts       SecurityAlert[]
+  allowedIps           AllowedIp[]
+  systemSettings       SystemSetting[]
+  dataImportJobs       DataImportJob[]
+  dataExportJobs       DataExportJob[]
+  backupStatuses        BackupStatus[]
 }
 
 model Branch {
-  id          String   @id @default(cuid())
-  instituteId String
-  name        String
-  code        String
-  address     String?
-  phone       String?
-  status      Status   @default(ACTIVE)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  instituteId   String
+  name          String
+  code          String
+  address       String?
+  phone         String?
+  email         String?
+  timezone      String?
+  workingHours  Json?
+  managerUserId String?
+  status        Status   @default(ACTIVE)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  manager   User?     @relation("BranchManager", fields: [managerUserId], references: [id], onDelete: SetNull)
 
   users      User[]
   students   Student[]
@@ -235,9 +259,14 @@ model Branch {
   feePlanTemplates      FeePlanTemplate[]
   placementApplications PlacementApplication[]
   placementRecords      PlacementRecord[]
+  userBranchAccesses    UserBranchAccess[]
+  invitations           UserInvitation[]
+  activityLogs          ActivityLog[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
+  @@index([managerUserId])
+  @@index([instituteId, status])
 }
 
 model Role {
@@ -315,6 +344,14 @@ model User {
   documentsUploaded    Document[]     @relation("DocumentUploadedBy")
   documentsVerified    Document[]     @relation("DocumentVerifiedBy")
   emailLogsSent        EmailLog[]     @relation("EmailLogSentBy")
+  managedBranches      Branch[]       @relation("BranchManager")
+  branchAccesses       UserBranchAccess[]
+  invitationsSent      UserInvitation[] @relation("InvitationInvitedBy")
+  loginHistories       LoginHistory[]
+  totpSecret           UserTotpSecret?
+  recoveryCodes        UserRecoveryCode[]
+  dataImportJobs       DataImportJob[]  @relation("DataImportCreatedBy")
+  dataExportJobs       DataExportJob[]  @relation("DataExportCreatedBy")
 
   @@index([instituteId])
   @@index([branchId])
@@ -338,12 +375,15 @@ model UserRole {
 }
 
 model RefreshToken {
-  id        String    @id @default(cuid())
-  userId    String
-  tokenHash String    @unique
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  ipAddress  String?
+  userAgent  String?
+  lastSeenAt DateTime?
+  createdAt  DateTime  @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1035,20 +1075,26 @@ model ActivityLog {
   id          String   @id @default(cuid())
   userId      String?
   instituteId String
+  branchId    String?
   action      String
   entityType  String
   entityId    String
   oldData     Json?
   newData     Json?
   ipAddress   String?
+  userAgent   String?
   createdAt   DateTime @default(now())
 
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([instituteId])
+  @@index([branchId])
   @@index([entityType, entityId])
+  @@index([instituteId, createdAt])
+  @@index([instituteId, action])
 }
 
 // ─── Notification System ────────────────────────────────────────────────────
@@ -2492,5 +2538,255 @@ model Invoice {
   @@index([subscriptionId])
   @@index([status])
   @@index([dueDate])
+}
+
+// ─── Administration: multi-branch access, invitations, security, data mgmt ───
+
+model UserBranchAccess {
+  id        String   @id @default(cuid())
+  userId    String
+  branchId  String
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  branch Branch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, branchId])
+  @@index([userId])
+  @@index([branchId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+model UserInvitation {
+  id          String           @id @default(cuid())
+  instituteId String
+  branchId    String?
+  email       String
+  phone       String?
+  name        String
+  roleName    String
+  tokenHash   String           @unique
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  invitedById String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  invitedBy User      @relation("InvitationInvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([instituteId])
+  @@index([instituteId, status])
+  @@index([email])
+  @@index([expiresAt])
+}
+
+model InstituteSecurityPolicy {
+  id                      String   @id @default(cuid())
+  instituteId             String   @unique
+  maxLoginAttempts        Int      @default(5)
+  lockDurationMinutes     Int      @default(30)
+  loginRateLimitPerMinute Int      @default(10)
+  minPasswordLength       Int      @default(8)
+  requireUppercase        Boolean  @default(true)
+  requireLowercase        Boolean  @default(true)
+  requireNumber           Boolean  @default(true)
+  requireSpecialChar      Boolean  @default(false)
+  passwordExpiryDays      Int?
+  preventPasswordReuse    Int?
+  ipRestrictionEnabled    Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+}
+
+enum LoginEventStatus {
+  SUCCESS
+  FAILED
+  LOGOUT
+  PASSWORD_RESET
+  PASSWORD_CHANGE
+  LOCKED
+}
+
+model LoginHistory {
+  id          String           @id @default(cuid())
+  instituteId String
+  userId      String?
+  emailOrPhone String?
+  status      LoginEventStatus
+  ipAddress   String?
+  userAgent   String?
+  message     String?
+  createdAt   DateTime         @default(now())
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([instituteId, createdAt])
+  @@index([userId])
+  @@index([status])
+}
+
+enum SecurityAlertType {
+  MULTIPLE_FAILED_LOGINS
+  SUSPICIOUS_AUTH
+  PERMISSION_CHANGED
+  ROLE_CHANGED
+  INTEGRATION_CREDENTIAL_CHANGED
+  DATA_EXPORTED
+  SECURITY_SETTING_CHANGED
+  SESSION_REVOKED
+}
+
+model SecurityAlert {
+  id          String            @id @default(cuid())
+  instituteId String
+  type        SecurityAlertType
+  severity    String            @default("MEDIUM")
+  title       String
+  message     String
+  metadata    Json?
+  resolvedAt  DateTime?
+  createdAt   DateTime          @default(now())
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@index([instituteId, createdAt])
+  @@index([type])
+}
+
+model AllowedIp {
+  id          String   @id @default(cuid())
+  instituteId String
+  cidr        String
+  label       String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, cidr])
+  @@index([instituteId])
+}
+
+model UserTotpSecret {
+  id                   String   @id @default(cuid())
+  userId               String   @unique
+  encryptedSecret      String
+  enabled              Boolean  @default(false)
+  verifiedAt           DateTime?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SystemSetting {
+  id          String   @id @default(cuid())
+  instituteId String
+  category    String
+  key         String
+  value       Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, category, key])
+  @@index([instituteId, category])
+}
+
+enum DataJobStatus {
+  PENDING
+  VALIDATING
+  PREVIEW
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model DataImportJob {
+  id            String        @id @default(cuid())
+  instituteId   String
+  createdById   String
+  entityType    String
+  status        DataJobStatus @default(PENDING)
+  fileName      String?
+  totalRows     Int           @default(0)
+  successRows   Int           @default(0)
+  errorRows     Int           @default(0)
+  previewData   Json?
+  errorReport   Json?
+  resultSummary Json?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  completedAt   DateTime?
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("DataImportCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([instituteId, createdAt])
+  @@index([status])
+}
+
+model DataExportJob {
+  id            String        @id @default(cuid())
+  instituteId   String
+  createdById   String
+  entityType    String
+  status        DataJobStatus @default(PENDING)
+  filters       Json?
+  filePath      String?
+  downloadToken String?       @unique
+  expiresAt     DateTime?
+  rowCount      Int           @default(0)
+  errorMessage  String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  completedAt   DateTime?
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("DataExportCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([instituteId, createdAt])
+  @@index([status])
+}
+
+model BackupStatus {
+  id                   String   @id @default(cuid())
+  instituteId          String
+  lastSuccessfulAt     DateTime?
+  status               String   @default("UNKNOWN")
+  message              String?
+  updatedAt            DateTime @updatedAt
+  createdAt            DateTime @default(now())
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId])
 }
 

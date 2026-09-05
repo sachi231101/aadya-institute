@@ -29,6 +29,26 @@ const addressValidation = z
   .nullable()
   .transform((val) => (val === "" || val === null ? undefined : val));
 
+const emailValidation = z.preprocess(
+  (val) => (val === "" || val === null ? undefined : val),
+  z.string().trim().email("Invalid email address").optional()
+);
+
+const timezoneValidation = z.preprocess(
+  (val) => (val === "" || val === null ? undefined : val),
+  z.string().trim().optional()
+);
+
+const workingHoursSchema = z
+  .record(z.string(), z.unknown())
+  .nullable()
+  .optional();
+
+const managerUserIdValidation = z.preprocess(
+  (val) => (val === "" ? null : val),
+  z.string().min(1).nullable().optional()
+);
+
 export const createBranchSchema = z.object({
   name: z.string().min(2, "Branch name must be at least 2 characters").trim(),
   code: z
@@ -39,6 +59,10 @@ export const createBranchSchema = z.object({
     .toUpperCase(),
   address: addressValidation,
   phone: phoneValidation,
+  email: emailValidation,
+  timezone: timezoneValidation,
+  workingHours: workingHoursSchema,
+  managerUserId: managerUserIdValidation,
 });
 
 export const updateBranchSchema = z.object({
@@ -46,7 +70,18 @@ export const updateBranchSchema = z.object({
   code: z.string().min(2).max(10).trim().toUpperCase().optional(),
   address: addressValidation,
   phone: phoneValidation,
+  email: emailValidation,
+  timezone: timezoneValidation,
+  workingHours: workingHoursSchema,
+  managerUserId: managerUserIdValidation,
   status: statusEnum.optional(),
+});
+
+export const updateBranchManagerSchema = z.object({
+  managerUserId: z.preprocess(
+    (val) => (val === "" ? null : val),
+    z.string().min(1).nullable()
+  ),
 });
 
 export const branchListQuerySchema = z.object({
@@ -58,4 +93,5 @@ export const branchListQuerySchema = z.object({
 
 export type CreateBranchDto = z.infer<typeof createBranchSchema>;
 export type UpdateBranchDto = z.infer<typeof updateBranchSchema>;
+export type UpdateBranchManagerDto = z.infer<typeof updateBranchManagerSchema>;
 export type BranchListQueryDto = z.infer<typeof branchListQuerySchema>;

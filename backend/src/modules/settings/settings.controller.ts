@@ -93,3 +93,34 @@ export const revokeSession = async (req: AuthenticatedRequest, res: Response): P
     sendError(res, err.message || "Failed to revoke session", 400);
   }
 };
+
+export const getSystemConfig = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const instituteId = req.user?.instituteId;
+    if (!instituteId) {
+      sendError(res, "Unauthorized", 401);
+      return;
+    }
+    const category = String(req.params.category);
+    const data = await SettingsService.getSystemConfig(instituteId, category);
+    sendSuccess(res, data, 200, "System settings retrieved successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to fetch system settings", 400);
+  }
+};
+
+export const updateSystemConfig = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const instituteId = req.user?.instituteId;
+    if (!instituteId) {
+      sendError(res, "Unauthorized", 401);
+      return;
+    }
+    const category = String(req.params.category);
+    const settings = (req.body?.settings ?? {}) as Record<string, unknown>;
+    const data = await SettingsService.updateSystemConfig(instituteId, category, settings);
+    sendSuccess(res, data, 200, "System settings updated successfully");
+  } catch (err: any) {
+    sendError(res, err.message || "Failed to update system settings", 400);
+  }
+};

@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { Login } from "../pages/auth/Login";
+import { AcceptInvite } from "../pages/auth/AcceptInvite";
 
 import { AdminLayout } from "../layouts/AdminLayout";
 import { CenterLayout } from "../layouts/CenterLayout";
@@ -145,13 +146,14 @@ export const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/accept-invite" element={<AcceptInvite />} />
 
       {/* Legacy Administration Routes — redirect to ERP paths */}
       <Route path="/administration" element={<AdminLayout />}>
         <Route index element={<Navigate to="/admin/administration/users" replace />} />
-        <Route path="admins/new" element={<AddAdmin />} />
-        <Route path="admins/:id" element={<ViewAdmin />} />
+        <Route path="admins/new" element={<Navigate to="/admin/administration/admins/new" replace />} />
         <Route path="admins/:id/edit" element={<EditAdmin />} />
+        <Route path="admins/:id" element={<ViewAdmin />} />
       </Route>
 
       {/* Admin Routes — ERP structure */}

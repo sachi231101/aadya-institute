@@ -93,14 +93,9 @@ export const AdminDashboard: React.FC = () => {
       const realManager = centerManagers.find(m => m.branchId === apiBranch.id);
       const branchStudents = studentReport?.students?.filter(s => s.branchId === apiBranch.id || s.branchName === apiBranch.name) || [];
       const branchBatches = allBatches?.filter(b => b.branchId === apiBranch.id || b.branch?.id === apiBranch.id) || [];
-      
-      // Calculate real branch revenue from payments if branch matches
-      const branchTotalCollected = selectedBranchId === apiBranch.id 
-        ? (financialReport?.summary?.totalCollected || 0)
-        : (financialReport?.summary ? Math.round(financialReport.summary.totalCollected / Math.max(apiBranches.length, 1)) : 0);
-      const branchPending = selectedBranchId === apiBranch.id
-        ? (financialReport?.summary?.totalPending || 0)
-        : (financialReport?.summary ? Math.round(financialReport.summary.totalPending / Math.max(apiBranches.length, 1)) : 0);
+      const branchFinance = financialReport?.branchBreakdown?.find((row) => row.branchId === apiBranch.id);
+      const branchTotalCollected = branchFinance?.collected ?? 0;
+      const branchPending = branchFinance?.pending ?? 0;
       const branchTotalRevenue = branchTotalCollected + branchPending;
       const collectionRate = branchTotalRevenue > 0 ? Math.round((branchTotalCollected / branchTotalRevenue) * 100) : 0;
 
@@ -128,7 +123,7 @@ export const AdminDashboard: React.FC = () => {
         accentBg: ACCENT_BG_LIGHT[index % ACCENT_BG_LIGHT.length],
       };
     });
-  }, [apiBranches, centerManagers, studentReport, allBatches, financialReport, selectedBranchId]);
+  }, [apiBranches, centerManagers, studentReport, allBatches, financialReport]);
 
   const filteredBranches = selectedBranchId === "all"
     ? branchesData

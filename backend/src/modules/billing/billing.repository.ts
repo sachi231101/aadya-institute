@@ -90,4 +90,13 @@ export const BillingRepository = {
     const year = new Date().getFullYear();
     return `INV-${year}-${String(count + 1).padStart(5, "0")}`;
   },
+
+  async countUsage(instituteId: string) {
+    const [students, branches, users] = await Promise.all([
+      prisma.student.count({ where: { instituteId } }),
+      prisma.branch.count({ where: { instituteId, status: { not: "DELETED" } } }),
+      prisma.user.count({ where: { instituteId, status: { not: "BLOCKED" } } }),
+    ]);
+    return { students, branches, users };
+  },
 };

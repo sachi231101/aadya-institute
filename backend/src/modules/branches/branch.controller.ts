@@ -6,6 +6,7 @@ import {
   getBranchService,
   createBranchService,
   updateBranchService,
+  updateBranchManagerService,
   deleteBranchService,
   getBranchStatsService,
 } from "./branch.service";
@@ -71,6 +72,23 @@ export const updateBranch = async (
       req.body
     );
     sendSuccess(res, branch, 200, "Branch updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateBranchManager = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const branch = await updateBranchManagerService(
+      req.user as unknown as AuthUser,
+      req.params.id as string,
+      req.body.managerUserId ?? null
+    );
+    sendSuccess(res, branch, 200, "Branch manager updated successfully");
   } catch (err) {
     next(err);
   }

@@ -1,25 +1,42 @@
 import { prisma } from "../../config/database";
-import type { Status, Prisma } from "@prisma/client";
+import { Prisma, type Status } from "@prisma/client";
+
+const managerSelect = {
+  id: true,
+  name: true,
+  email: true,
+} as const;
+
+const branchInclude = {
+  manager: { select: managerSelect },
+} as const;
 
 export const findBranches = async (params: {
   instituteId: string;
   branchId?: string;
+  /** IN filter for multi-branch access (UserBranchAccess). Prefer over branchId when listing. */
+  branchIds?: string[];
   search?: string;
   status?: Status;
   skip: number;
   take: number;
 }) => {
-  const { instituteId, branchId, search, status, skip, take } = params;
+  const { instituteId, branchId, branchIds, search, status, skip, take } = params;
 
   const where: Prisma.BranchWhereInput = {
     instituteId,
     status: status ? status : { not: "DELETED" },
-    ...(branchId && { id: branchId }),
+    ...(branchId
+      ? { id: branchId }
+      : branchIds && branchIds.length > 0
+        ? { id: { in: branchIds } }
+        : {}),
     ...(search && {
       OR: [
         { name: { contains: search, mode: "insensitive" } },
         { code: { contains: search, mode: "insensitive" } },
         { address: { contains: search, mode: "insensitive" } },
+        { email: { contains: search, mode: "insensitive" } },
       ],
     }),
   };
@@ -27,6 +44,7 @@ export const findBranches = async (params: {
   const [branches, total] = await prisma.$transaction([
     prisma.branch.findMany({
       where,
+      include: branchInclude,
       orderBy: { name: "asc" },
       skip,
       take,
@@ -40,6 +58,7 @@ export const findBranches = async (params: {
 export const findBranchById = async (id: string, instituteId: string) => {
   return prisma.branch.findFirst({
     where: { id, instituteId, status: { not: "DELETED" } },
+    include: branchInclude,
   });
 };
 
@@ -49,12 +68,30 @@ export const findBranchByCode = async (code: string, instituteId: string) => {
   });
 };
 
+export const findManagerCandidate = async (
+  userId: string,
+  instituteId: string
+) => {
+  return prisma.user.findFirst({
+    where: {
+      id: userId,
+      instituteId,
+      status: "ACTIVE",
+    },
+    select: { id: true, name: true, email: true, instituteId: true },
+  });
+};
+
 export const createBranch = async (data: {
   instituteId: string;
   name: string;
   code: string;
   address?: string | null;
   phone?: string | null;
+  email?: string | null;
+  timezone?: string | null;
+  workingHours?: Prisma.InputJsonValue | null;
+  managerUserId?: string | null;
 }) => {
   return prisma.branch.create({
     data: {
@@ -63,24 +100,56 @@ export const createBranch = async (data: {
       code: data.code,
       address: data.address ?? null,
       phone: data.phone ?? null,
+      email: data.email ?? null,
+      timezone: data.timezone ?? "Asia/Kolkata",
+      ...(data.workingHours !== undefined && data.workingHours !== null
+        ? { workingHours: data.workingHours }
+        : {}),
+      managerUserId: data.managerUserId ?? null,
     },
+    include: branchInclude,
   });
 };
 
 export const updateBranch = async (
   id: string,
-  instituteId: string,
+  _instituteId: string,
   data: {
     name?: string;
     code?: string;
     address?: string | null;
     phone?: string | null;
+    email?: string | null;
+    timezone?: string | null;
+    workingHours?: Prisma.InputJsonValue | null;
+    managerUserId?: string | null;
     status?: Status;
   }
 ) => {
+  const updateData: Prisma.BranchUpdateInput = {};
+
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.code !== undefined) updateData.code = data.code;
+  if (data.address !== undefined) updateData.address = data.address;
+  if (data.phone !== undefined) updateData.phone = data.phone;
+  if (data.email !== undefined) updateData.email = data.email;
+  if (data.timezone !== undefined) updateData.timezone = data.timezone;
+  if (data.status !== undefined) updateData.status = data.status;
+  if (data.workingHours !== undefined) {
+    updateData.workingHours =
+      data.workingHours === null ? Prisma.JsonNull : data.workingHours;
+  }
+  if (data.managerUserId !== undefined) {
+    updateData.manager =
+      data.managerUserId === null
+        ? { disconnect: true }
+        : { connect: { id: data.managerUserId } };
+  }
+
   return prisma.branch.update({
     where: { id },
-    data,
+    data: updateData,
+    include: branchInclude,
   });
 };
 

@@ -95,3 +95,10 @@ export const examActionRateLimiter: RequestHandler = safeRateLimit({
   max: 10,
   store: buildStore("exam-action"),
 });
+
+/** Invitation accept endpoints — limit token brute-force. */
+export const invitationRateLimiter: RequestHandler = safeRateLimit({
+  windowMs: 15 * 60_000,
+  max: 10,
+  store: buildStore("invitation"),
+});

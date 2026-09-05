@@ -52,4 +52,6 @@ export const env = {
    * Required in production. In development, localhost Vite ports are always allowed.
    */
   CORS_ORIGIN: process.env.CORS_ORIGIN || "",
+  /** Public frontend base URL for invite links (e.g. http://localhost:5173). */
+  FRONTEND_URL: process.env.FRONTEND_URL || "",
 };

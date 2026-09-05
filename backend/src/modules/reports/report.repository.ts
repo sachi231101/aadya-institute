@@ -533,6 +533,25 @@ export class ReportRepository {
         status: p.status,
       }));
 
+    const branchTotals = new Map<string, { collected: number; pending: number }>();
+    payments.forEach((p) => {
+      if (!p.branchId || p.status !== "SUCCESS") return;
+      const current = branchTotals.get(p.branchId) ?? { collected: 0, pending: 0 };
+      current.collected += p.amount;
+      branchTotals.set(p.branchId, current);
+    });
+    pendingFees.forEach((pf) => {
+      if (!pf.branchId) return;
+      const current = branchTotals.get(pf.branchId) ?? { collected: 0, pending: 0 };
+      current.pending += pf.dueAmount;
+      branchTotals.set(pf.branchId, current);
+    });
+    const branchBreakdown = Array.from(branchTotals.entries()).map(([id, totals]) => ({
+      branchId: id,
+      collected: totals.collected,
+      pending: totals.pending,
+    }));
+
     return {
       summary: {
         totalCollected,
@@ -544,6 +563,7 @@ export class ReportRepository {
       paymentMethodShare,
       monthlyBreakdown: monthlyTrend,
       recentPayments,
+      branchBreakdown,
     };
   }
 

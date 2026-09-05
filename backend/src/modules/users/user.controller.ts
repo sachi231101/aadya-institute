@@ -9,6 +9,7 @@ import {
   updateUserStatusService,
   updateWhatsappPreferenceService,
   updateUserPermissionsService,
+  updateUserBranchAccessService,
   deleteUserService,
   getPermissionCatalogService,
 } from "./user.service";
@@ -124,6 +125,23 @@ export const updateUserPermissions = async (
       req.body
     );
     sendSuccess(res, user, 200, "Module permissions updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateUserBranchAccess = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const user = await updateUserBranchAccessService(
+      req.user as unknown as AuthUser,
+      req.params.id as string,
+      req.body
+    );
+    sendSuccess(res, user, 200, "User branch access updated successfully");
   } catch (err) {
     next(err);
   }

@@ -102,6 +102,20 @@ export const useUpdateUserPermissions = () => {
 };
 
 /**
+ * Replace multi-branch access for a user.
+ */
+export const useUpdateUserBranchAccess = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { branchIds: string[] } }) =>
+      usersApi.updateUserBranchAccess(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+    },
+  });
+};
+
+/**
  * Delete a user (soft-delete).
  */
 export const useDeleteUser = () => {

@@ -268,6 +268,9 @@ export const Login: React.FC = () => {
       };
 
       setAuth(frontendUser, result.accessToken);
+      if (result.refreshToken) {
+        localStorage.setItem("refreshToken", result.refreshToken);
+      }
 
       switch (primaryRole) {
         case UserRole.ADMIN:

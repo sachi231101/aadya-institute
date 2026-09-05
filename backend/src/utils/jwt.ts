@@ -5,6 +5,8 @@ export interface JwtPayload {
   userId: string;
   instituteId: string;
   branchId?: string | null;
+  /** Extra branch IDs from UserBranchAccess (multi-branch scope). */
+  allowedBranchIds?: string[];
   roles: string[];
 }
 

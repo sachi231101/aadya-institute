@@ -1,7 +1,9 @@
 import { Router } from "express";
 import authRoutes from "../modules/auth/auth.routes";
 import instituteRoutes from "../modules/institutes/institute.routes";
+import administrationRoutes from "../modules/administration/administration.routes";
 import userRoutes from "../modules/users/user.routes";
+import invitationRoutes from "../modules/invitations/invitation.routes";
 import branchRoutes from "../modules/branches/branch.routes";
 import leadRoutes from "../modules/leads/lead.routes";
 import facultyRoutes from "../modules/faculty/faculty.routes";
@@ -32,6 +34,8 @@ import placementRoutes from "../modules/placement/placement.routes";
 import emailRoutes from "../modules/email/email.routes";
 import auditLogRoutes from "../modules/audit-logs/audit-log.routes";
 import billingRoutes from "../modules/billing/billing.routes";
+import securityRoutes from "../modules/security/security.routes";
+import dataManagementRoutes from "../modules/data-management/data-management.routes";
 
 const router = Router();
 
@@ -41,8 +45,14 @@ router.use("/auth", authRoutes);
 // Institutes
 router.use("/institutes", instituteRoutes);
 
+// Administration (tenant-scoped org settings, etc.)
+router.use("/administration", administrationRoutes);
+
 // Users
 router.use("/users", userRoutes);
+
+// Invitations
+router.use("/invitations", invitationRoutes);
 
 // Branches
 router.use("/branches", branchRoutes);
@@ -92,6 +102,12 @@ router.use("/email", emailRoutes);
 // Audit Logs
 router.use("/audit-logs", auditLogRoutes);
 router.use("/billing", billingRoutes);
+
+// Data Management (import / export / recycle / backup status)
+router.use("/data-management", dataManagementRoutes);
+
+// Security (policy, sessions, 2FA, IP allowlist, alerts)
+router.use("/security", securityRoutes);
 
 // Recordings
 router.use("/recordings", recordingRoutes);
