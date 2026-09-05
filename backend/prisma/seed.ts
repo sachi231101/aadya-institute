@@ -448,6 +448,7 @@ async function main() {
     "assignment.update",
     "assignment.delete",
     "assignment.grade",
+    "master.read",
     "recording.read",
     "recording.create",
     "recording.manage",

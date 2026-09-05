@@ -7,6 +7,7 @@ import {
   Users,
   UserCheck,
   Calendar,
+  CalendarDays,
   Clock,
   CalendarCheck,
   FileCheck,
@@ -193,6 +194,24 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
     columns: [
       { key: "name", label: "Package Name", required: true },
       { key: "description", label: "Description" },
+    ],
+  },
+  academicyear: {
+    icon: CalendarDays,
+    iconBgColor: "bg-cyan-50 text-cyan-600 border-cyan-100",
+    iconColor: "text-cyan-600",
+    description: "Manage academic years and sessions",
+    columns: [
+      { key: "name", label: "Academic Year", required: true },
+    ],
+  },
+  assignmenttype: {
+    icon: FileText,
+    iconBgColor: "bg-rose-50 text-rose-600 border-rose-100",
+    iconColor: "text-rose-600",
+    description: "Manage assignment types",
+    columns: [
+      { key: "name", label: "Assignment Type", required: true },
     ],
   },
   leadsource: {

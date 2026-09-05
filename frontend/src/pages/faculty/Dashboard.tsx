@@ -202,11 +202,57 @@ export const FacultyDashboard: React.FC = () => {
               onClick={() => navigate("/faculty/assignments")}
               className="bg-white/10 border-white/30 text-white hover:bg-white/20 font-bold text-xs h-11 px-4 rounded-2xl"
             >
-              <FileText className="w-4 h-4 mr-2" /> Assignments
+              <FileText className="w-4 h-4 mr-2" /> All Assignments
             </Button>
           </div>
         </div>
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          {
+            title: "All Assignments",
+            desc: "View and manage your assignments",
+            path: "/faculty/assignments",
+            icon: FileText,
+          },
+          {
+            title: "Create Assignment",
+            desc: "Assign work to your batches",
+            path: "/faculty/assignments/create",
+            icon: BookOpen,
+          },
+          {
+            title: "Submissions Queue",
+            desc: "See student submissions",
+            path: "/faculty/assignments/submissions",
+            icon: Users,
+          },
+          {
+            title: "Grading Queue",
+            desc: `${counts?.pendingSubmissions ?? 0} waiting to grade`,
+            path: "/faculty/assignments/reviews",
+            icon: CheckCircle2,
+          },
+        ].map((item) => (
+          <button
+            key={item.path}
+            type="button"
+            onClick={() => navigate(item.path)}
+            className="text-left rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1769AA]/40 hover:shadow-sm transition-all"
+          >
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0">
+                <item.icon className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-slate-900">{item.title}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
+              </div>
+            </div>
+          </button>
+        ))}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -295,7 +341,7 @@ export const FacultyDashboard: React.FC = () => {
                   <button
                     key={a.id}
                     type="button"
-                    onClick={() => navigate("/faculty/assignments")}
+                    onClick={() => navigate("/faculty/assignments/reviews")}
                     className="w-full text-left text-xs font-medium p-2.5 rounded-xl bg-white border border-amber-100 hover:border-amber-300"
                   >
                     <span className="font-bold text-slate-900">{a.title}</span>

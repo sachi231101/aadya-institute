@@ -21,6 +21,15 @@ export interface StudentDashboardData {
     pendingAssignments: number;
     availableRecordings: number;
   };
+  pendingAssignmentList?: Array<{
+    id: string;
+    title: string;
+    dueDate: string | null;
+    maxMarks: number;
+    assignedAt: string;
+    batchName: string | null;
+    batchCode: string | null;
+  }>;
   attendanceSummary: {
     attendancePercentage: number;
     totalClasses: number;

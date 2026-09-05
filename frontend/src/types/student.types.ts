@@ -167,7 +167,9 @@ export interface StudentAssignmentItem {
   submittedAt: string | null;
   marks: number | null;
   feedback: string | null;
-  status: "PENDING" | "SUBMITTED" | "GRADED";
+  maxMarks?: number;
+  submissionStatus?: string;
+  status: "PENDING" | "SUBMITTED" | "GRADED" | "LATE";
 }
 
 export interface StudentPaymentRecord {

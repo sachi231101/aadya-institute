@@ -29,9 +29,28 @@ export class ReportRepository {
         },
         studentAttendances: true,
         assignmentSubmissions: true,
+        batchEnrollments: {
+          where: { status: "ACTIVE" },
+          select: { batchId: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
+
+    const allBatchIds = [
+      ...new Set(students.flatMap((s) => s.batchEnrollments.map((e) => e.batchId))),
+    ];
+    const assignmentCountsByBatch = new Map<string, number>();
+    if (allBatchIds.length > 0) {
+      const grouped = await prisma.assignment.groupBy({
+        by: ["batchId"],
+        where: { batchId: { in: allBatchIds }, status: "ACTIVE" },
+        _count: { _all: true },
+      });
+      for (const row of grouped) {
+        assignmentCountsByBatch.set(row.batchId, row._count._all);
+      }
+    }
 
     const totalStudents = students.length;
 
@@ -53,7 +72,7 @@ export class ReportRepository {
             ? { id: a.course.id, name: a.course.name, code: a.course.code || undefined }
             : null
         )
-        .filter((c): c is { id: string; name: string; code?: string } => !!c);
+        .filter((c): c is NonNullable<typeof c> => c !== null);
       const courseName =
         courses.length > 0 ? courses.map((c) => c.name).join(", ") : "Unassigned";
       const branchName = s.branch?.name || "Aadya Central Branch";
@@ -71,8 +90,17 @@ export class ReportRepository {
       else if (attendancePct >= 50 && totalClasses > 0) countRange50_74++;
       else if (totalClasses > 0) countRangeBelow50++;
 
-      const submittedCount = s.assignmentSubmissions.length;
-      const totalCount = submittedCount;
+      const submittedCount = s.assignmentSubmissions.filter(
+        (sub) =>
+          sub.submittedAt != null ||
+          sub.submissionStatus === "SUBMITTED" ||
+          sub.submissionStatus === "LATE" ||
+          sub.submissionStatus === "GRADED"
+      ).length;
+      const totalCount = s.batchEnrollments.reduce(
+        (sum, e) => sum + (assignmentCountsByBatch.get(e.batchId) ?? 0),
+        0
+      );
       totalAssignmentsCompleted += submittedCount;
       totalAssignmentsAvailable += totalCount;
 

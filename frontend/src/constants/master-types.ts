@@ -30,6 +30,8 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Enquiries", "Faculty Schedule"] },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Exam", "Edit Exam"] },
   { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Direct Admission"] },
+  { id: "academicyear", name: "Academic Year", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
+  { id: "assignmenttype", name: "Assignment Type", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
 
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Enquiries", "Admissions", "AI Calling"] },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Lead Management", "Lead Details", "Counselor Dashboard"] },

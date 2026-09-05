@@ -1363,10 +1363,14 @@ Best regards,
                     <div key={item.id} className="p-4 rounded-xl border border-border bg-card space-y-2 shadow-2xs">
                       <div className="flex items-start justify-between gap-2">
                         <h4 className="font-bold text-foreground text-xs">{item.title}</h4>
-                        <Badge variant="default" className="text-[10px] shrink-0">{item.status}</Badge>
+                        <Badge variant="default" className="text-[10px] shrink-0">{item.submissionStatus || item.status}</Badge>
                       </div>
                       <p className="text-xs font-mono font-bold text-primary">
-                        {item.marks !== null ? `${item.marks} / 100` : item.submittedAt ? "Pending Grading" : "Not submitted"}
+                        {item.marks !== null
+                          ? `${item.marks} / ${item.maxMarks ?? 100}`
+                          : item.submittedAt
+                            ? "Pending Grading"
+                            : "Not submitted"}
                       </p>
                       <p className="text-[11px] text-muted-foreground">{item.feedback || "—"}</p>
                     </div>

@@ -56,6 +56,12 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "name", label: "Package Name", required: true },
     { key: "description", label: "Description" },
   ],
+  academicyear: [
+    { key: "name", label: "Academic Year", required: true },
+  ],
+  assignmenttype: [
+    { key: "name", label: "Assignment Type", required: true },
+  ],
   leadsource: [
     { key: "name", label: "Source Channel", required: true },
     { key: "channelType", label: "Channel Type" },

@@ -753,6 +753,7 @@ export const findPendingGrading = async (facultyId: string, take = 10) => {
         some: {
           submittedAt: { not: null },
           marks: null,
+          submissionStatus: { in: ["SUBMITTED", "LATE"] },
         },
       },
     },
@@ -761,13 +762,18 @@ export const findPendingGrading = async (facultyId: string, take = 10) => {
       title: true,
       dueDate: true,
       batchId: true,
+      batch: { select: { id: true, name: true, code: true } },
       classSession: {
         select: {
           batch: { select: { id: true, name: true, code: true } },
         },
       },
       submissions: {
-        where: { submittedAt: { not: null }, marks: null },
+        where: {
+          submittedAt: { not: null },
+          marks: null,
+          submissionStatus: { in: ["SUBMITTED", "LATE"] },
+        },
         select: { id: true },
       },
     },
@@ -780,8 +786,8 @@ export const findPendingGrading = async (facultyId: string, take = 10) => {
     title: a.title,
     dueDate: a.dueDate,
     batchId: a.batchId,
-    batchName: a.classSession?.batch?.name ?? null,
-    batchCode: a.classSession?.batch?.code ?? null,
+    batchName: a.batch?.name ?? a.classSession?.batch?.name ?? null,
+    batchCode: a.batch?.code ?? a.classSession?.batch?.code ?? null,
     pendingCount: a.submissions.length,
   }));
 };
@@ -791,6 +797,7 @@ export const countPendingSubmissions = (facultyId: string) =>
     where: {
       submittedAt: { not: null },
       marks: null,
+      submissionStatus: { in: ["SUBMITTED", "LATE"] },
       assignment: { facultyId, status: "ACTIVE" },
     },
   });

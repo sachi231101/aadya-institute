@@ -47,6 +47,11 @@ import { useQuery } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import type { Assignment } from "@/services/assignments.api";
+import { MasterSelect } from "@/components/common/MasterSelect";
+
+const ALLOWED_ATTACHMENT_EXTS = [".zip", ".png", ".jpeg", ".jpg", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".txt", ".mp4"];
+const ALLOWED_ATTACHMENT_ACCEPT = ALLOWED_ATTACHMENT_EXTS.join(",");
+const ALLOWED_ATTACHMENT_LABEL = "zip, png, jpeg, jpg, pdf, doc, docx, xls, xlsx, ppt, txt, mp4";
 
 interface BatchOption {
   id: string;
@@ -96,7 +101,10 @@ export const AdminAssignments: React.FC = () => {
   const [dueTime, setDueTime] = useState("23:59");
   const [editStatus, setEditStatus] = useState("ACTIVE");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [successToast, setSuccessToast] = useState<string | null>(null);
+  const [academicYearMasterId, setAcademicYearMasterId] = useState("");
+  const [assignmentTypeMasterId, setAssignmentTypeMasterId] = useState("");
 
   const queryParams = useMemo(
     () => ({
@@ -176,6 +184,8 @@ export const AdminAssignments: React.FC = () => {
     setDueTime("23:59");
     setEditStatus("ACTIVE");
     setUploadedFile(null);
+    setAcademicYearMasterId("");
+    setAssignmentTypeMasterId("");
     setShowCreateDialog(false);
     setEditTarget(null);
   };
@@ -185,15 +195,20 @@ export const AdminAssignments: React.FC = () => {
     (editTarget || selectedBatchId.length > 0) &&
     instructions.trim().length > 0 &&
     dueDate.length > 0 &&
-    dueTime.length > 0;
+    dueTime.length > 0 &&
+    (!!editTarget || academicYearMasterId.length > 0);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
       const file = e.target.files[0];
-      if (file.name.match(/\.(pdf|doc|docx)$/i)) {
+      const ext = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+      if (ALLOWED_ATTACHMENT_EXTS.includes(ext)) {
         setUploadedFile(file);
+        setFileError(null);
       } else {
-        alert("Please upload a valid PDF, DOC, or DOCX document.");
+        setFileError(`File type "${ext}" is not allowed. Allowed: ${ALLOWED_ATTACHMENT_LABEL}`);
+        setUploadedFile(null);
+        e.target.value = "";
       }
     }
   };
@@ -203,12 +218,27 @@ export const AdminAssignments: React.FC = () => {
     if (!isFormValid || !selectedBatch) return;
 
     const combinedDueDateTime = `${dueDate}T${dueTime}:00`;
+    const batch = (batchesRes?.data || []).find((b: any) => b.id === selectedBatch.id) as any;
+    if (!academicYearMasterId) {
+      alert("Please select an academic year.");
+      return;
+    }
     createMutation.mutate(
       {
         title: title.trim(),
         description: instructions.trim(),
         batchId: selectedBatch.id,
-        dueDate: combinedDueDateTime,
+        dueDate: new Date(combinedDueDateTime).toISOString(),
+        maxMarks: 100,
+        allowLate: false,
+        academicYearMasterId,
+        assignmentTypeMasterId: assignmentTypeMasterId || null,
+        targets: [
+          {
+            courseId: batch?.courseId || batch?.course?.id,
+            batchId: selectedBatch.id,
+          },
+        ],
       },
       {
         onSuccess: () => {
@@ -216,7 +246,11 @@ export const AdminAssignments: React.FC = () => {
           handleResetForm();
           setTimeout(() => setSuccessToast(null), 4000);
         },
-        onError: () => alert("Failed to create assignment."),
+        onError: (err: unknown) =>
+          alert(
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+              "Failed to create assignment."
+          ),
       }
     );
   };
@@ -550,6 +584,27 @@ export const AdminAssignments: React.FC = () => {
                 ))}
               </select>
             </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Academic year *</Label>
+                <MasterSelect
+                  entityType="academicyear"
+                  value={academicYearMasterId}
+                  onChange={setAcademicYearMasterId}
+                  placeholder="Select year"
+                  includeEmpty={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <MasterSelect
+                  entityType="assignmenttype"
+                  value={assignmentTypeMasterId}
+                  onChange={setAssignmentTypeMasterId}
+                  placeholder="Select type"
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label>Instructions *</Label>
               <textarea
@@ -565,17 +620,18 @@ export const AdminAssignments: React.FC = () => {
               {uploadedFile ? (
                 <div className="p-3 border rounded-lg flex items-center justify-between">
                   <span className="text-xs font-medium truncate">{uploadedFile.name}</span>
-                  <button type="button" onClick={() => setUploadedFile(null)}>
+                  <button type="button" onClick={() => { setUploadedFile(null); setFileError(null); }}>
                     <X className="h-4 w-4" />
                   </button>
                 </div>
               ) : (
                 <label className="border-2 border-dashed rounded-lg p-4 flex flex-col items-center cursor-pointer">
-                  <input type="file" accept=".pdf,.doc,.docx" onChange={handleFileChange} className="hidden" />
+                  <input type="file" accept={ALLOWED_ATTACHMENT_ACCEPT} onChange={handleFileChange} className="hidden" />
                   <Upload className="h-5 w-5 text-slate-400 mb-1" />
-                  <span className="text-xs text-slate-500">PDF, DOC, DOCX</span>
+                  <span className="text-xs text-slate-500">Allowed: {ALLOWED_ATTACHMENT_LABEL} (max 10MB)</span>
                 </label>
               )}
+              {fileError && <p className="text-xs text-red-600 mt-1">{fileError}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

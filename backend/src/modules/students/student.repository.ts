@@ -701,6 +701,7 @@ export const findStudentAssignmentSubmissions = (studentId: string) =>
           title: true,
           dueDate: true,
           batchId: true,
+          maxMarks: true,
         },
       },
     },
