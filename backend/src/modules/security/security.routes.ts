@@ -15,10 +15,6 @@ import {
   removeAllowedIp,
   listAlerts,
   resolveAlert,
-  setup2fa,
-  verify2fa,
-  disable2fa,
-  recovery2fa,
 } from "./security.controller";
 import {
   updateSecurityPolicySchema,
@@ -26,9 +22,6 @@ import {
   securityAlertsQuerySchema,
   createAllowedIpSchema,
   logoutOtherSessionsSchema,
-  verify2faSchema,
-  disable2faSchema,
-  recovery2faSchema,
   idParamSchema,
 } from "./security.validation";
 
@@ -100,11 +93,5 @@ router.patch(
   validate(idParamSchema, "params"),
   resolveAlert
 );
-
-// 2FA — self-service for authenticated user
-router.post("/2fa/setup", setup2fa);
-router.post("/2fa/verify", validate(verify2faSchema), verify2fa);
-router.post("/2fa/disable", validate(disable2faSchema), disable2fa);
-router.post("/2fa/recovery", validate(recovery2faSchema), recovery2fa);
 
 export default router;

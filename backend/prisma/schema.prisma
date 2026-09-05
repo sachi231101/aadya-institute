@@ -349,8 +349,6 @@ model User {
   branchAccesses       UserBranchAccess[]
   invitationsSent      UserInvitation[] @relation("InvitationInvitedBy")
   loginHistories       LoginHistory[]
-  totpSecret           UserTotpSecret?
-  recoveryCodes        UserRecoveryCode[]
   dataImportJobs       DataImportJob[]  @relation("DataImportCreatedBy")
   dataExportJobs       DataExportJob[]  @relation("DataExportCreatedBy")
 
@@ -2679,30 +2677,6 @@ model AllowedIp {
 
   @@unique([instituteId, cidr])
   @@index([instituteId])
-}
-
-model UserTotpSecret {
-  id                   String   @id @default(cuid())
-  userId               String   @unique
-  encryptedSecret      String
-  enabled              Boolean  @default(false)
-  verifiedAt           DateTime?
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model UserRecoveryCode {
-  id        String    @id @default(cuid())
-  userId    String
-  codeHash  String
-  usedAt    DateTime?
-  createdAt DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId])
 }
 
 model SystemSetting {

@@ -49,7 +49,7 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
   },
   {
     title: "ASK ME",
-    url: "/center/ask-me",
+    url: "/center/home",
     icon: Sparkles,
     isAi: true,
   },

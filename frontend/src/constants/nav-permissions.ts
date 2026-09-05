@@ -28,14 +28,14 @@ export const isBaselineOnlyPermissions = (permissions: string[] | undefined): bo
 
 const CENTER_ALWAYS_ALLOWED = [
   "/center/dashboard",
-  "/center/ask-me",
+  "/center/home",
   "/center/settings",
 ];
 
 const COUNSELOR_ALWAYS_ALLOWED = [
   "/counselor/dashboard",
   "/counselor/home",
-  "/counselor/ask-me",
+  "/counselor/home",
   "/counselor/settings",
 ];
 
@@ -45,7 +45,7 @@ export const isAlwaysAllowedPortalPath = (
 ): boolean => {
   const paths = portal === "center" ? CENTER_ALWAYS_ALLOWED : COUNSELOR_ALWAYS_ALLOWED;
   return paths.some(
-    (p) => pathname === p || (p.endsWith("/ask-me") && pathname.startsWith(`${p}/`))
+    (p) => pathname === p || (p.endsWith("/home") && pathname.startsWith(`${p}/`))
   );
 };
 

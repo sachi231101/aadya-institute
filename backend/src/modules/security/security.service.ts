@@ -1,15 +1,6 @@
-import crypto from "crypto";
 import { AppError } from "../../middlewares/error.middleware";
-import { env } from "../../config/env";
-import { encrypt, decrypt } from "../../utils/encryption";
-import { comparePassword, hashPassword } from "../../utils/password";
 import { createAuditLog } from "../../utils/audit-log.util";
 import { buildMeta } from "../../utils/pagination";
-import {
-  generateTotpSecret,
-  verifyTotp,
-  buildOtpAuthUrl,
-} from "../../utils/totp.util";
 import { hashRefreshToken } from "../auth/auth.refresh-token.repository";
 import type { AuthUser } from "../auth/auth.types";
 import type {
@@ -22,9 +13,6 @@ import type {
   SecurityPolicyDto,
 } from "./security.types";
 import * as repo from "./security.repository";
-
-const getEncryptionSecret = () =>
-  env.GOOGLE_TOKEN_ENCRYPTION_KEY || env.JWT_SECRET;
 
 const maskTokenHash = (hash: string): string => {
   if (hash.length <= 12) return "••••••••";
@@ -400,98 +388,6 @@ export const resolveAlertService = async (
   );
   if (!alert) throw new AppError("Security alert not found", 404);
   return alert;
-};
-
-export const setup2faService = async (currentUser: AuthUser) => {
-  const secret = generateTotpSecret();
-  const encrypted = encrypt(secret, getEncryptionSecret());
-  await repo.upsertTotpSecret(currentUser.id, encrypted);
-
-  const account =
-    currentUser.email || currentUser.phone || currentUser.name || currentUser.id;
-  const otpauthUrl = buildOtpAuthUrl(secret, account);
-
-  return { secret, otpauthUrl };
-};
-
-export const verify2faService = async (
-  currentUser: AuthUser,
-  code: string
-) => {
-  const record = await repo.findTotpSecret(currentUser.id);
-  if (!record) {
-    throw new AppError("2FA setup not started — call setup first", 400);
-  }
-
-  const secret = decrypt(record.encryptedSecret, getEncryptionSecret());
-  if (!verifyTotp(secret, code)) {
-    throw new AppError("Invalid authenticator code", 400);
-  }
-
-  await repo.enableTotpSecret(currentUser.id);
-
-  const plainCodes: string[] = [];
-  const hashes: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    const codePlain = crypto.randomBytes(5).toString("hex").toUpperCase();
-    plainCodes.push(codePlain);
-    hashes.push(await hashPassword(codePlain));
-  }
-  await repo.replaceRecoveryCodes(currentUser.id, hashes);
-
-  return { enabled: true as const, recoveryCodes: plainCodes };
-};
-
-export const disable2faService = async (
-  currentUser: AuthUser,
-  input: { password?: string; code?: string }
-) => {
-  const record = await repo.findTotpSecret(currentUser.id);
-  if (!record || !record.enabled) {
-    throw new AppError("2FA is not enabled", 400);
-  }
-
-  const user = await repo.findUserPasswordHash(currentUser.id);
-  if (!user) throw new AppError("User not found", 404);
-
-  let ok = false;
-  if (input.password) {
-    ok = await comparePassword(input.password, user.passwordHash);
-  }
-  if (!ok && input.code) {
-    const secret = decrypt(record.encryptedSecret, getEncryptionSecret());
-    ok = verifyTotp(secret, input.code);
-  }
-
-  if (!ok) {
-    throw new AppError("Invalid password or authenticator code", 401);
-  }
-
-  await repo.deleteTotpSecret(currentUser.id);
-  await repo.deleteAllRecoveryCodes(currentUser.id);
-
-  return { disabled: true };
-};
-
-export const consumeRecoveryCodeService = async (
-  currentUser: AuthUser,
-  code: string
-) => {
-  const cleaned = code.replace(/\s|-/g, "").toUpperCase();
-  const codes = await repo.findUnusedRecoveryCodes(currentUser.id);
-  if (codes.length === 0) {
-    throw new AppError("No recovery codes available", 400);
-  }
-
-  for (const entry of codes) {
-    const match = await comparePassword(cleaned, entry.codeHash);
-    if (match) {
-      await repo.markRecoveryCodeUsed(entry.id);
-      return { consumed: true, remaining: codes.length - 1 };
-    }
-  }
-
-  throw new AppError("Invalid recovery code", 400);
 };
 
 /** Used by auth login to record history / alerts. */

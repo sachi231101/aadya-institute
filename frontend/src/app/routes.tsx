@@ -11,7 +11,6 @@ import { StudentLayout } from "../layouts/StudentLayout";
 
 import { adminChildRoutes } from "./admin.routes";
 import { AiHome } from "../pages/admin/ai/AiHome";
-import { AskMe } from "../pages/admin/ai/AskMe";
 
 // Shared admin pages (center/counselor portals)
 import { AllStudents } from "../pages/admin/students/AllStudents";
@@ -168,7 +167,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CenterDashboard />} />
-        <Route path="ask-me" element={<AskMe />} />
+        <Route path="ask-me" element={<Navigate to="/center/home" replace />} />
         <Route path="timetable" element={<Timetable />} />
 
         {/* Students */}
@@ -337,7 +336,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CounselorDashboard />} />
-        <Route path="ask-me" element={<AskMe />} />
+        <Route path="ask-me" element={<Navigate to="/counselor/home" replace />} />
 
         {/* Admissions / Leads */}
         <Route path="admissions">
@@ -424,7 +423,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<FacultyDashboard />} />
-        <Route path="ask-me" element={<AskMe />} />
+        <Route path="ask-me" element={<Navigate to="/faculty/home" replace />} />
         <Route path="courses" element={<CourseAssignment />} />
         <Route path="class-session" element={<FacultyClassSession />} />
         <Route path="classes/:id" element={<FacultyClassSession />} />
@@ -464,7 +463,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<StudentDashboard />} />
-        <Route path="ask-me" element={<AskMe />} />
+        <Route path="ask-me" element={<Navigate to="/student/home" replace />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
         <Route path="announcements" element={<StudentAnnouncements />} />
         <Route path="schedule" element={<StudentSchedule />} />

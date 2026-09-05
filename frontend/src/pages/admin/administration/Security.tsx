@@ -50,11 +50,6 @@ export const Security: React.FC = () => {
   const [policyForm, setPolicyForm] = useState<SecurityPolicy | null>(null);
   const [cidr, setCidr] = useState("");
   const [cidrLabel, setCidrLabel] = useState("");
-  const [totpCode, setTotpCode] = useState("");
-  const [setupSecret, setSetupSecret] = useState<string | null>(null);
-  const [otpauthUrl, setOtpauthUrl] = useState<string | null>(null);
-  const [recoveryCodes, setRecoveryCodes] = useState<string[] | null>(null);
-  const [disablePassword, setDisablePassword] = useState("");
   const [historyPage, setHistoryPage] = useState(1);
   const [alertsPage, setAlertsPage] = useState(1);
   const [toast, setToast] = useState<string | null>(null);
@@ -163,42 +158,6 @@ export const Security: React.FC = () => {
     },
   });
 
-  const setup2faMutation = useMutation({
-    mutationFn: securityApi.setup2fa,
-    onSuccess: (data) => {
-      setSetupSecret(data.secret);
-      setOtpauthUrl(data.otpauthUrl);
-      setRecoveryCodes(null);
-      showToast("Scan the secret in your authenticator app");
-    },
-  });
-
-  const verify2faMutation = useMutation({
-    mutationFn: () => securityApi.verify2fa(totpCode),
-    onSuccess: (data) => {
-      setRecoveryCodes(data.recoveryCodes);
-      setTotpCode("");
-      showToast("2FA enabled — save your recovery codes");
-    },
-    onError: (err: any) => {
-      showToast(err?.response?.data?.message || "Invalid code");
-    },
-  });
-
-  const disable2faMutation = useMutation({
-    mutationFn: () => securityApi.disable2fa({ password: disablePassword }),
-    onSuccess: () => {
-      setSetupSecret(null);
-      setOtpauthUrl(null);
-      setRecoveryCodes(null);
-      setDisablePassword("");
-      showToast("2FA disabled");
-    },
-    onError: (err: any) => {
-      showToast(err?.response?.data?.message || "Failed to disable 2FA");
-    },
-  });
-
   const setPolicyField = <K extends keyof SecurityPolicy>(
     key: K,
     value: SecurityPolicy[K]
@@ -261,7 +220,7 @@ export const Security: React.FC = () => {
             Security
           </h2>
           <p className="text-sm text-muted-foreground">
-            Login protection, password rules, 2FA, sessions, and alerts.
+            Login protection, password rules, sessions, and alerts.
           </p>
         </div>
         {toast && (
@@ -275,7 +234,6 @@ export const Security: React.FC = () => {
         <TabsList className="flex flex-wrap h-auto gap-1 w-full justify-start">
           <TabsTrigger value="login">Login Security</TabsTrigger>
           <TabsTrigger value="password">Password Policy</TabsTrigger>
-          <TabsTrigger value="2fa">2FA</TabsTrigger>
           <TabsTrigger value="sessions">Active Sessions</TabsTrigger>
           <TabsTrigger value="history">Login History</TabsTrigger>
           <TabsTrigger value="ips">IP Restrictions</TabsTrigger>
@@ -413,89 +371,6 @@ export const Security: React.FC = () => {
                 )}
                 Save password policy
               </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="2fa">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Enable authenticator-app 2FA for your account. Recovery codes are
-                shown once after verification.
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={() => setup2faMutation.mutate()}
-                  disabled={setup2faMutation.isPending}
-                >
-                  {setup2faMutation.isPending && (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  )}
-                  Start 2FA setup
-                </Button>
-              </div>
-              {setupSecret && (
-                <div className="space-y-3 rounded-lg border p-4 bg-muted/30">
-                  <p className="text-sm font-medium">Secret (enter in app)</p>
-                  <code className="block text-sm break-all">{setupSecret}</code>
-                  {otpauthUrl && (
-                    <p className="text-xs text-muted-foreground break-all">
-                      {otpauthUrl}
-                    </p>
-                  )}
-                  <div className="flex flex-wrap gap-2 items-end">
-                    <div className="space-y-1">
-                      <Label>Verification code</Label>
-                      <Input
-                        value={totpCode}
-                        onChange={(e) => setTotpCode(e.target.value)}
-                        placeholder="6-digit code"
-                        className="w-40"
-                      />
-                    </div>
-                    <Button
-                      onClick={() => verify2faMutation.mutate()}
-                      disabled={verify2faMutation.isPending || totpCode.length < 6}
-                    >
-                      Verify & enable
-                    </Button>
-                  </div>
-                </div>
-              )}
-              {recoveryCodes && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 p-4 space-y-2">
-                  <p className="text-sm font-semibold text-amber-900">
-                    Save these recovery codes now
-                  </p>
-                  <ul className="grid sm:grid-cols-2 gap-1 font-mono text-sm">
-                    {recoveryCodes.map((c) => (
-                      <li key={c}>{c}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              <div className="border-t pt-4 space-y-2">
-                <Label>Disable 2FA (enter password)</Label>
-                <div className="flex flex-wrap gap-2">
-                  <Input
-                    type="password"
-                    value={disablePassword}
-                    onChange={(e) => setDisablePassword(e.target.value)}
-                    placeholder="Current password"
-                    className="max-w-xs"
-                  />
-                  <Button
-                    variant="destructive"
-                    onClick={() => disable2faMutation.mutate()}
-                    disabled={
-                      !disablePassword || disable2faMutation.isPending
-                    }
-                  >
-                    Disable 2FA
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
