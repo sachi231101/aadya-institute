@@ -38,6 +38,8 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
+import { useOrganization } from "@/hooks/useOrganizationContext"
+import { DEFAULT_ORG_LOGO, DEFAULT_ORG_NAME } from "@/utils/organization-display"
 import { InstallAppButton } from "@/components/common/InstallAppButton"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 
@@ -140,6 +142,9 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { organization } = useOrganization()
+  const orgName = organization?.name || DEFAULT_ORG_NAME
+  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO
 
   const facultyName = user?.name || "Ramesh Kumar"
   const facultyDesignation = (user as any)?.specialization || (user as any)?.department || "Java Faculty"
@@ -153,11 +158,17 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
               <Link to="/faculty/dashboard" className="flex items-center gap-3">
-                <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#4F46E5] to-[#3B82F6] text-white shadow-xs">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
+                {organization?.branding.logoUrl ? (
+                  <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-border/60 shadow-2xs shrink-0 p-1 overflow-hidden">
+                    <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
+                  </div>
+                ) : (
+                  <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#4F46E5] to-[#3B82F6] text-white shadow-xs">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                )}
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-black text-slate-900 tracking-tight text-sm">Aadya Portal</span>
+                  <span className="truncate font-black text-slate-900 tracking-tight text-sm">{orgName}</span>
                   <span className="truncate text-[10px] font-extrabold text-[#4F46E5] tracking-wider uppercase">FACULTY MEMBER</span>
                 </div>
               </Link>

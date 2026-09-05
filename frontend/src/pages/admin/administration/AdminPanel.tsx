@@ -29,6 +29,17 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 type TabKey = "all" | "active" | "inactive" | "invitations" | "access";
+type RoleFilter = "all" | "CENTER_MANAGER" | "COUNSELLOR" | "FACULTY" | "ADMIN";
+
+const STAFF_ROLES = ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"] as const;
+const BRANCH_REQUIRED_ROLES = ["CENTER_MANAGER", "COUNSELLOR", "FACULTY"];
+
+const ROLE_LABELS: Record<string, string> = {
+  ADMIN: "Admin",
+  CENTER_MANAGER: "Center Manager",
+  COUNSELLOR: "Counsellor",
+  FACULTY: "Faculty",
+};
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: "all", label: "All" },
@@ -37,6 +48,25 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "invitations", label: "Pending Invitations" },
   { key: "access", label: "User Access" },
 ];
+
+const ROLE_FILTERS: { key: RoleFilter; label: string }[] = [
+  { key: "all", label: "All Roles" },
+  { key: "CENTER_MANAGER", label: "Center Manager" },
+  { key: "COUNSELLOR", label: "Counsellor" },
+  { key: "FACULTY", label: "Faculty" },
+  { key: "ADMIN", label: "Admin" },
+];
+
+const getPrimaryRoleLabel = (roles: string[]): string => {
+  if (roles.includes("ADMIN")) return ROLE_LABELS.ADMIN;
+  if (roles.includes("CENTER_MANAGER")) return ROLE_LABELS.CENTER_MANAGER;
+  if (roles.includes("COUNSELLOR")) return ROLE_LABELS.COUNSELLOR;
+  if (roles.includes("FACULTY")) return ROLE_LABELS.FACULTY;
+  return roles[0] || "Staff";
+};
+
+const isStaffUser = (user: UserResponse): boolean =>
+  user.roles.some((r) => (STAFF_ROLES as readonly string[]).includes(r));
 
 const getStatusColor = (status: string) => {
   if (status === "ACTIVE") return "bg-emerald-500";
@@ -83,7 +113,7 @@ const ManagerCard = ({
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-foreground leading-tight truncate tracking-tight">{manager.name}</h3>
                 <p className="text-xs font-semibold text-primary/80 dark:text-sky-400/90 mb-1">
-                  {manager.roles.includes("ADMIN") ? "Admin" : "Center Manager"}
+                  {getPrimaryRoleLabel(manager.roles)}
                 </p>
                 <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5 truncate">
@@ -210,11 +240,21 @@ export const AdminPanel: React.FC = () => {
   const allBranches = branchesResponse?.data ?? [];
   const invitations = invitationsResponse?.data ?? [];
 
-  const centerManagers = useMemo(() => {
-    return allUsers.filter((u) => u.roles.includes("CENTER_MANAGER") || u.roles.includes("ADMIN"));
-  }, [allUsers]);
+  const staffUsers = useMemo(() => allUsers.filter(isStaffUser), [allUsers]);
+
+  const accessUsers = useMemo(
+    () =>
+      staffUsers.filter(
+        (u) =>
+          u.roles.includes("CENTER_MANAGER") ||
+          u.roles.includes("COUNSELLOR") ||
+          u.roles.includes("ADMIN")
+      ),
+    [staffUsers]
+  );
 
   const [tab, setTab] = useState<TabKey>("all");
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({
@@ -236,23 +276,24 @@ export const AdminPanel: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [newBranchId, setNewBranchId] = useState("");
 
-  const selectedManager = centerManagers.find((a) => a.id === selectedManagerId);
+  const selectedManager = staffUsers.find((a) => a.id === selectedManagerId);
 
-  const filteredManagers = useMemo(() => {
-    return centerManagers.filter((m) => {
+  const filteredStaff = useMemo(() => {
+    return staffUsers.filter((m) => {
       const matchesSearch =
         m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         m.phone?.toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
+      if (roleFilter !== "all" && !m.roles.includes(roleFilter)) return false;
       if (tab === "active") return m.status === "ACTIVE";
       if (tab === "inactive") return m.status === "INACTIVE" || m.status === "BLOCKED";
       return true;
     });
-  }, [centerManagers, searchQuery, tab]);
+  }, [staffUsers, searchQuery, tab, roleFilter]);
 
-  const activeManagersCount = centerManagers.filter((m) => m.status === "ACTIVE").length;
-  const assignedBranchesCount = new Set(centerManagers.map((m) => m.branchId).filter(Boolean)).size;
+  const activeStaffCount = staffUsers.filter((m) => m.status === "ACTIVE").length;
+  const assignedBranchesCount = new Set(staffUsers.map((m) => m.branchId).filter(Boolean)).size;
 
   const handleAction = (id: string, action: string) => {
     setSelectedManagerId(id);
@@ -265,7 +306,7 @@ export const AdminPanel: React.FC = () => {
       setDeleteConfirmText("");
       setNewPassword("");
       setConfirmPassword("");
-      setNewBranchId(centerManagers.find((m) => m.id === id)?.branchId || "");
+      setNewBranchId(staffUsers.find((m) => m.id === id)?.branchId || "");
     }
   };
 
@@ -282,7 +323,7 @@ export const AdminPanel: React.FC = () => {
     if (selectedManagerId && deleteConfirmText === "DELETE") {
       deleteUserMutation.mutate(selectedManagerId, {
         onSuccess: () => {
-          addNotification("Manager deleted successfully.", "success");
+          addNotification("User deleted successfully.", "success");
           closeModal();
         },
         onError: (err: any) =>
@@ -294,6 +335,13 @@ export const AdminPanel: React.FC = () => {
   const handleInvite = () => {
     if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
       addNotification("Name and email are required.", "error");
+      return;
+    }
+    if (
+      BRANCH_REQUIRED_ROLES.includes(inviteForm.roleName) &&
+      !inviteForm.branchId.trim()
+    ) {
+      addNotification("Branch assignment is required for this role.", "error");
       return;
     }
     createInvitationMutation.mutate(
@@ -389,7 +437,7 @@ export const AdminPanel: React.FC = () => {
             onClick={() => navigate("/admin/administration/admins/new")}
             className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer"
           >
-            <Plus className="h-4 w-4 mr-2" /> Add Center Manager
+            <Plus className="h-4 w-4 mr-2" /> Add User
           </Button>
         </div>
       </div>
@@ -401,8 +449,8 @@ export const AdminPanel: React.FC = () => {
               <Users className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Managers</p>
-              <h3 className="text-2xl font-black text-foreground">{centerManagers.length}</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Staff</p>
+              <h3 className="text-2xl font-black text-foreground">{staffUsers.length}</h3>
             </div>
           </CardContent>
         </Card>
@@ -412,8 +460,8 @@ export const AdminPanel: React.FC = () => {
               <UserCheck className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Active Managers</p>
-              <h3 className="text-2xl font-black text-foreground">{activeManagersCount}</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Active Staff</p>
+              <h3 className="text-2xl font-black text-foreground">{activeStaffCount}</h3>
             </div>
           </CardContent>
         </Card>
@@ -441,36 +489,55 @@ export const AdminPanel: React.FC = () => {
         </Card>
       </div>
 
-      <div className="flex flex-col md:flex-row items-center gap-4">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input
-            type="text"
-            placeholder="Search by name, email or phone..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-medium border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-card text-foreground placeholder:text-muted-foreground shadow-xs"
-          />
+      <div className="flex flex-col gap-3">
+        <div className="flex flex-col md:flex-row items-center gap-4">
+          <div className="relative flex-1 max-w-md w-full">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Search by name, email or phone..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-medium border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-card text-foreground placeholder:text-muted-foreground shadow-xs"
+            />
+          </div>
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar self-start md:self-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap border cursor-pointer ${
+                  tab === t.key
+                    ? "bg-primary text-white border-primary shadow-xs"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/40 hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar self-start md:self-auto">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap border cursor-pointer ${
-                tab === t.key
-                  ? "bg-primary text-white border-primary shadow-xs"
-                  : "bg-card text-muted-foreground border-border hover:bg-muted/40 hover:text-foreground"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+        {(tab === "all" || tab === "active" || tab === "inactive") && (
+          <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar">
+            {ROLE_FILTERS.map((f) => (
+              <button
+                key={f.key}
+                onClick={() => setRoleFilter(f.key)}
+                className={`px-3 py-1 text-[11px] font-bold rounded-full transition-all whitespace-nowrap border cursor-pointer ${
+                  roleFilter === f.key
+                    ? "bg-sky-50 dark:bg-sky-950/40 text-primary border-primary/40"
+                    : "bg-card text-muted-foreground border-border hover:bg-muted/40 hover:text-foreground"
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {(tab === "all" || tab === "active" || tab === "inactive") && (
-        filteredManagers.length === 0 ? (
+        filteredStaff.length === 0 ? (
           <Card className="border border-border bg-card rounded-2xl shadow-xs py-16 text-center">
             <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
               <div className="h-16 w-16 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
@@ -478,7 +545,9 @@ export const AdminPanel: React.FC = () => {
               </div>
               <h3 className="text-base font-bold text-foreground mb-1">No Users Found</h3>
               <p className="text-xs text-muted-foreground mb-6">
-                {searchQuery ? "No users match your search criteria." : "Invite or add a center manager to get started."}
+                {searchQuery || roleFilter !== "all"
+                  ? "No users match your search criteria."
+                  : "Invite or add a staff user to get started."}
               </p>
               <Button onClick={() => setInviteOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
                 <UserPlus className="h-4 w-4 mr-2" /> Invite User
@@ -487,7 +556,7 @@ export const AdminPanel: React.FC = () => {
           </Card>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-            {filteredManagers.map((manager) => (
+            {filteredStaff.map((manager) => (
               <ManagerCard
                 key={manager.id}
                 manager={manager}
@@ -599,7 +668,7 @@ export const AdminPanel: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {centerManagers
+                  {accessUsers
                     .filter((u) => {
                       if (!searchQuery) return true;
                       const q = searchQuery.toLowerCase();
@@ -614,7 +683,9 @@ export const AdminPanel: React.FC = () => {
                           <div className="font-semibold text-foreground">{user.name}</div>
                           <div className="text-xs text-muted-foreground">{user.email}</div>
                         </td>
-                        <td className="px-4 py-3 text-xs font-semibold">{user.roles.join(", ")}</td>
+                        <td className="px-4 py-3 text-xs font-semibold">
+                          {user.roles.map((r) => ROLE_LABELS[r] || r).join(", ")}
+                        </td>
                         <td className="px-4 py-3 text-muted-foreground">
                           {user.branch?.name || "—"}
                         </td>
@@ -689,11 +760,13 @@ export const AdminPanel: React.FC = () => {
                 <option value="CENTER_MANAGER">Center Manager</option>
                 <option value="COUNSELLOR">Counsellor</option>
                 <option value="FACULTY">Faculty</option>
-                <option value="ADMIN">Admin</option>
               </select>
             </div>
             <div className="space-y-1.5">
-              <Label>Branch</Label>
+              <Label>
+                Branch
+                {BRANCH_REQUIRED_ROLES.includes(inviteForm.roleName) ? " *" : ""}
+              </Label>
               <select
                 value={inviteForm.branchId}
                 onChange={(e) => setInviteForm((f) => ({ ...f, branchId: e.target.value }))}
@@ -784,7 +857,7 @@ export const AdminPanel: React.FC = () => {
         <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-red-600 dark:text-red-400 flex items-center gap-2">
-              <Trash2 className="h-5 w-5" /> Delete Manager?
+              <Trash2 className="h-5 w-5" /> Delete User?
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">
               This action cannot be undone. All data will be permanently removed.
@@ -811,7 +884,7 @@ export const AdminPanel: React.FC = () => {
               disabled={deleteConfirmText !== "DELETE"}
               className="rounded-xl"
             >
-              Delete Manager
+              Delete User
             </Button>
           </DialogFooter>
         </DialogContent>

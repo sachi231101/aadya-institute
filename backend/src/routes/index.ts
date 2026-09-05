@@ -2,6 +2,7 @@ import { Router } from "express";
 import authRoutes from "../modules/auth/auth.routes";
 import instituteRoutes from "../modules/institutes/institute.routes";
 import administrationRoutes from "../modules/administration/administration.routes";
+import organizationRoutes from "../modules/organization/organization.routes";
 import userRoutes from "../modules/users/user.routes";
 import invitationRoutes from "../modules/invitations/invitation.routes";
 import branchRoutes from "../modules/branches/branch.routes";
@@ -27,6 +28,7 @@ import settingsRoutes from "../modules/settings/settings.routes";
 import aiAgentRoutes from "../modules/ai-agent/ai-agent.routes";
 import masterRoutes from "../modules/masters/master.routes";
 import googleWorkspaceRoutes from "../modules/google-workspace/google-workspace.routes";
+import integrationRoutes from "../modules/integrations/integration.routes";
 import chatRoutes from "../modules/chat/chat.routes";
 import feedbackRoutes from "../modules/feedback/feedback.routes";
 import documentRoutes from "../modules/documents/document.routes";
@@ -47,6 +49,9 @@ router.use("/institutes", instituteRoutes);
 
 // Administration (tenant-scoped org settings, etc.)
 router.use("/administration", administrationRoutes);
+
+// Organization context (safe branding for all authenticated portal roles)
+router.use("/organization", organizationRoutes);
 
 // Users
 router.use("/users", userRoutes);
@@ -133,6 +138,9 @@ router.use("/masters", masterRoutes);
 
 // Google Workspace & Google Meet Integration
 router.use("/integrations/google", googleWorkspaceRoutes);
+
+// Institute Integrations catalog (must be after /integrations/google)
+router.use("/integrations", integrationRoutes);
 
 // Internal Team Chat (Staff only)
 router.use("/chat", chatRoutes);

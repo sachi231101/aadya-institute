@@ -213,6 +213,7 @@ model Institute {
   dataImportJobs       DataImportJob[]
   dataExportJobs       DataExportJob[]
   backupStatuses        BackupStatus[]
+  integrations         Integration[]
 }
 
 model Branch {
@@ -2788,5 +2789,56 @@ model BackupStatus {
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
   @@unique([instituteId])
+}
+
+// ─── External Integrations (per-institute credentials) ───────────────────────
+
+enum IntegrationType {
+  AI
+  WHATSAPP
+  AI_CALLING
+  GOOGLE_WORKSPACE
+  GOOGLE_SHEETS
+  PAYMENT
+  EMAIL
+}
+
+enum IntegrationStatus {
+  NOT_CONFIGURED
+  CONFIGURED
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum IntegrationTestStatus {
+  SUCCESS
+  FAILED
+  PENDING
+}
+
+model Integration {
+  id                   String                 @id @default(cuid())
+  instituteId          String
+  type                 IntegrationType
+  provider             String
+  status               IntegrationStatus      @default(NOT_CONFIGURED)
+  isEnabled            Boolean                @default(true)
+  configuration        Json?
+  encryptedCredentials String?
+  credentialFingerprint String?
+  lastTestedAt         DateTime?
+  lastTestStatus       IntegrationTestStatus?
+  lastError            String?
+  connectedById        String?
+  connectedAt          DateTime?
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, type])
+  @@index([instituteId])
+  @@index([type])
 }
 

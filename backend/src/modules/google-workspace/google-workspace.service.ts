@@ -133,6 +133,21 @@ export const handleOAuthCallback = async (
     },
   });
 
+  try {
+    const { syncGoogleWorkspaceIntegration } = await import(
+      "../integrations/integration.service"
+    );
+    await syncGoogleWorkspaceIntegration({
+      instituteId: statePayload.instituteId,
+      userId: statePayload.userId,
+      email: userProfile.email,
+      scopes: tokens.scopes,
+      connected: true,
+    });
+  } catch {
+    // Non-blocking catalog sync
+  }
+
   return {
     success: true,
     email: userProfile.email,
@@ -196,6 +211,21 @@ export const disconnectGoogleWorkspace = async (
     entityId: conn.id,
     oldData: { email: conn.email },
   });
+
+  try {
+    const { syncGoogleWorkspaceIntegration } = await import(
+      "../integrations/integration.service"
+    );
+    await syncGoogleWorkspaceIntegration({
+      instituteId: currentUser.instituteId,
+      userId,
+      email: conn.email,
+      scopes: conn.scopes || [],
+      connected: false,
+    });
+  } catch {
+    // Non-blocking catalog sync
+  }
 
   return {
     success: true,

@@ -12,13 +12,12 @@ import {
 const USERS_KEY = "users";
 
 /**
- * Fetch users with admin/management roles for the Admin Panel.
- * Fetches both ADMIN and CENTER_MANAGER users.
+ * Fetch staff users for the Admin Panel (all roles; filter client-side).
  */
 export const useAdminUsers = (params?: UserListParams) => {
   return useQuery({
     queryKey: [USERS_KEY, "admin", params],
-    queryFn: () => usersApi.getUsers({ limit: 50, ...params }),
+    queryFn: () => usersApi.getUsers({ limit: 100, ...params }),
   });
 };
 

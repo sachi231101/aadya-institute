@@ -13,10 +13,10 @@ export class UniversalLLMClient implements LLMProvider {
   private baseURL: string;
   private model: string;
 
-  constructor() {
-    this.apiKey = process.env.LLM_API_KEY || process.env.OPENAI_API_KEY;
-    this.baseURL = process.env.LLM_BASE_URL || "https://api.openai.com/v1";
-    this.model = process.env.LLM_MODEL || "gpt-4o-mini";
+  constructor(options?: { apiKey?: string; baseURL?: string; model?: string }) {
+    this.apiKey = options?.apiKey ?? process.env.LLM_API_KEY ?? process.env.OPENAI_API_KEY;
+    this.baseURL = options?.baseURL ?? process.env.LLM_BASE_URL ?? "https://api.openai.com/v1";
+    this.model = options?.model ?? process.env.LLM_MODEL ?? "gpt-4o-mini";
   }
 
   async generateChatCompletion(

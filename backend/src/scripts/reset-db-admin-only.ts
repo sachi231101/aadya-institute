@@ -245,6 +245,8 @@ async function main() {
     // Email
     { name: "email.read", description: "View email templates and logs" },
     { name: "email.manage", description: "Manage email templates and send test emails" },
+    { name: "integration.read", description: "View integration status and safe configuration" },
+    { name: "integration.manage", description: "Configure, test, and disconnect integrations" },
 
     // Audit
     { name: "audit.read", description: "View audit logs" },

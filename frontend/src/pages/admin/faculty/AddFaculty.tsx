@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -6,8 +6,11 @@ import * as z from "zod";
 import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
+import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
 
 import {
   Form,
@@ -22,19 +25,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ArrowLeft, UserPlus, Save, Loader2, RefreshCw } from "lucide-react";
 
-const facultySchema = z.object({
-  employeeCode: z.string().max(20).optional().or(z.literal("")),
-  name: z.string().min(2, "Full Name is required"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  specialization: z.string().optional().or(z.literal("")),
-  branchId: z.string().min(1, "Branch is required"),
-  designationMasterId: z.string().optional().or(z.literal("")),
-  qualificationMasterId: z.string().optional().or(z.literal("")),
-});
+const buildFacultySchema = (
+  policy: Parameters<typeof validatePasswordAgainstPolicy>[1]
+) =>
+  z.object({
+    employeeCode: z.string().max(20).optional().or(z.literal("")),
+    name: z.string().min(2, "Full Name is required"),
+    email: z.string().email("Invalid email address").optional().or(z.literal("")),
+    phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .superRefine((val, ctx) => {
+        const err = validatePasswordAgainstPolicy(val, policy);
+        if (err) {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: err });
+        }
+      }),
+    specialization: z.string().optional().or(z.literal("")),
+    branchId: z.string().min(1, "Branch is required"),
+    designationMasterId: z.string().optional().or(z.literal("")),
+    qualificationMasterId: z.string().optional().or(z.literal("")),
+  });
 
-type FacultyFormValues = z.infer<typeof facultySchema>;
+type FacultyFormValues = z.infer<ReturnType<typeof buildFacultySchema>>;
 
 export const AddFaculty: React.FC = () => {
   const navigate = useNavigate();
@@ -43,6 +57,8 @@ export const AddFaculty: React.FC = () => {
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
+  const { policy } = usePasswordRequirements();
+  const facultySchema = useMemo(() => buildFacultySchema(policy), [policy]);
 
   const { data: employeeSeriesData, refetch: refetchEmployeePreview, isLoading: isEmployeePreviewLoading } =
     useNumberingSeriesPreview("EMPLOYEE");
@@ -250,12 +266,15 @@ export const AddFaculty: React.FC = () => {
                     <FormItem>
                       <FormLabel>Password *</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Min. 8 characters" {...field} />
+                        <Input type="password" placeholder="Must meet security policy" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <div className="md:col-span-2">
+                  <PasswordRequirementsHint />
+                </div>
 
                 <FormField
                   control={form.control}

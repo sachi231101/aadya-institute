@@ -72,7 +72,7 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "admin.organization": ["institute.read"],
   "admin.branches": ["branch.read"],
   "admin.masters": ["master.read"],
-  "admin.integrations": ["google_meet.read"],
+  "admin.integrations": ["integration.read", "google_meet.read"],
   "admin.settings": ["institute.read"],
 };
 
@@ -146,7 +146,7 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "admin.organization": [],
   "admin.branches": ["branch.update"],
   "admin.masters": ["master.create", "master.update", "master.delete"],
-  "admin.integrations": ["google_meet.connect"],
+  "admin.integrations": ["integration.manage", "google_meet.connect"],
   "admin.settings": ["institute.update"],
 };
 

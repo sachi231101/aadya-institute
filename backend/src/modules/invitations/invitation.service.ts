@@ -6,6 +6,7 @@ import { createAuditLog } from "../../utils/audit-log.util";
 import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 import { sendEmail } from "../../integrations/email/email.client";
+import { prisma } from "../../config/database";
 import type { AuthUser } from "../auth/auth.types";
 import type {
   CreateInvitationDto,
@@ -264,6 +265,48 @@ export const acceptInvitationService = async (input: AcceptInvitationDto) => {
 
   const passwordHash = await hashPassword(input.password);
 
+  let facultyEmployeeCode: string | undefined;
+  if (invitation.roleName === "FACULTY") {
+    if (!invitation.branchId) {
+      throw new AppError(
+        "Faculty invitation is missing a branch assignment",
+        400
+      );
+    }
+
+    const branch = await prisma.branch.findFirst({
+      where: { id: invitation.branchId, instituteId: invitation.instituteId },
+      select: { code: true },
+    });
+    if (!branch) {
+      throw new AppError("Invitation branch is invalid", 400);
+    }
+
+    const { SequenceService } = await import("../masters/sequence.service");
+    const { findFacultyByEmployeeCode } = await import(
+      "../faculty/faculty.repository"
+    );
+
+    for (let attempt = 0; attempt < 20; attempt++) {
+      facultyEmployeeCode = await SequenceService.getNextNumber(
+        invitation.instituteId,
+        "EMPLOYEE",
+        { branchCode: branch.code }
+      );
+      const taken = await findFacultyByEmployeeCode(
+        invitation.instituteId,
+        facultyEmployeeCode
+      );
+      if (!taken) break;
+      if (attempt === 19) {
+        throw new AppError(
+          "Unable to generate a unique employee code for Faculty invitation",
+          500
+        );
+      }
+    }
+  }
+
   const user = await acceptInvitationTransaction({
     invitationId: invitation.id,
     name: invitation.name,
@@ -273,7 +316,9 @@ export const acceptInvitationService = async (input: AcceptInvitationDto) => {
     instituteId: invitation.instituteId,
     branchId: invitation.branchId,
     roleId: role.id,
+    roleName: invitation.roleName,
     branchAccessIds,
+    facultyEmployeeCode,
   });
 
   if (!user) {

@@ -20,20 +20,31 @@ export const createInvitationSchema = z
     name: z.string().min(2, "Name must be at least 2 characters").trim(),
     email: z.string().email("Invalid email").trim().toLowerCase(),
     phone: phoneSchema,
-    roleName: z.string().min(1, "Role is required").trim(),
+    roleName: z
+      .string()
+      .min(1, "Role is required")
+      .trim()
+      .transform((v) => v.toUpperCase())
+      .refine(
+        (v) => ["CENTER_MANAGER", "COUNSELLOR", "FACULTY"].includes(v),
+        {
+          message: "Role must be Center Manager, Counsellor, or Faculty",
+        }
+      ),
     branchId: z.string().min(1).optional(),
     branchIds: z.array(z.string().min(1)).optional(),
   })
   .refine(
     (data) => {
-      const needsBranch = ["CENTER_MANAGER", "COUNSELLOR"].includes(
-        data.roleName.toUpperCase()
+      const needsBranch = ["CENTER_MANAGER", "COUNSELLOR", "FACULTY"].includes(
+        data.roleName
       );
       if (!needsBranch) return true;
       return Boolean(data.branchId?.trim()) || Boolean(data.branchIds?.length);
     },
     {
-      message: "Branch assignment is required for Center Manager and Counsellor",
+      message:
+        "Branch assignment is required for Center Manager, Counsellor, and Faculty",
       path: ["branchId"],
     }
   );

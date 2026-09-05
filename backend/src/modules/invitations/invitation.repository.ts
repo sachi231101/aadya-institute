@@ -1,4 +1,5 @@
 import { prisma } from "../../config/database";
+import { AppError } from "../../middlewares/error.middleware";
 import type { InvitationStatus, Prisma } from "@prisma/client";
 
 const invitationSelect = {
@@ -163,7 +164,9 @@ export const acceptInvitationTransaction = async (params: {
   instituteId: string;
   branchId?: string | null;
   roleId: string;
+  roleName: string;
   branchAccessIds: string[];
+  facultyEmployeeCode?: string;
 }) => {
   const {
     invitationId,
@@ -174,7 +177,9 @@ export const acceptInvitationTransaction = async (params: {
     instituteId,
     branchId,
     roleId,
+    roleName,
     branchAccessIds,
+    facultyEmployeeCode,
   } = params;
 
   return prisma.$transaction(async (tx) => {
@@ -192,6 +197,21 @@ export const acceptInvitationTransaction = async (params: {
         data: { status: "EXPIRED" },
       });
       return null;
+    }
+
+    if (roleName === "FACULTY") {
+      if (!branchId) {
+        throw new AppError(
+          "Branch is required when accepting a Faculty invitation",
+          400
+        );
+      }
+      if (!facultyEmployeeCode) {
+        throw new AppError(
+          "Employee code is required when accepting a Faculty invitation",
+          400
+        );
+      }
     }
 
     const user = await tx.user.create({
@@ -220,6 +240,17 @@ export const acceptInvitationTransaction = async (params: {
         branchAccesses: { include: { branch: true } },
       },
     });
+
+    if (roleName === "FACULTY" && branchId && facultyEmployeeCode) {
+      await tx.faculty.create({
+        data: {
+          userId: user.id,
+          instituteId,
+          branchId,
+          employeeCode: facultyEmployeeCode,
+        },
+      });
+    }
 
     await tx.userInvitation.update({
       where: { id: invitationId },

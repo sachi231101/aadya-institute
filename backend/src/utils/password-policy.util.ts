@@ -1,3 +1,6 @@
+import { AppError } from "../middlewares/error.middleware";
+import { loadInstitutePolicy } from "../modules/security/security.service";
+
 export interface PasswordPolicyFields {
   minPasswordLength: number;
   requireUppercase: boolean;
@@ -41,4 +44,28 @@ export const validatePasswordAgainstPolicy = (
   }
 
   return null;
+};
+
+/** Load institute policy and throw 400 if password does not comply. */
+export const assertPasswordMeetsInstitutePolicy = async (
+  instituteId: string,
+  password: string
+): Promise<void> => {
+  const policy = await loadInstitutePolicy(instituteId);
+  const error = validatePasswordAgainstPolicy(password, policy);
+  if (error) {
+    throw new AppError(error, 400);
+  }
+};
+
+export const buildPasswordRequirementsSummary = (
+  policy: Partial<PasswordPolicyFields> | null | undefined
+): string[] => {
+  const p = { ...DEFAULT_PASSWORD_POLICY, ...(policy ?? {}) };
+  const rules = [`At least ${p.minPasswordLength} characters`];
+  if (p.requireUppercase) rules.push("One uppercase letter");
+  if (p.requireLowercase) rules.push("One lowercase letter");
+  if (p.requireNumber) rules.push("One number");
+  if (p.requireSpecialChar) rules.push("One special character");
+  return rules;
 };

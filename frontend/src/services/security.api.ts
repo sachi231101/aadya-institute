@@ -16,6 +16,14 @@ export interface SecurityPolicy {
   ipRestrictionEnabled: boolean;
 }
 
+export interface PasswordRequirements {
+  minPasswordLength: number;
+  requireUppercase: boolean;
+  requireLowercase: boolean;
+  requireNumber: boolean;
+  requireSpecialChar: boolean;
+}
+
 export type UpdateSecurityPolicyPayload = Partial<
   Omit<SecurityPolicy, "id" | "instituteId">
 >;
@@ -79,6 +87,11 @@ export const securityApi = {
   getPolicy: async () => {
     const res = await api.get("/security/policy");
     return res.data.data as SecurityPolicy;
+  },
+
+  getPasswordRequirements: async () => {
+    const res = await api.get("/security/password-requirements");
+    return res.data.data as PasswordRequirements;
   },
 
   updatePolicy: async (payload: UpdateSecurityPolicyPayload) => {

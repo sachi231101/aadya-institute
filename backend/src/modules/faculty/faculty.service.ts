@@ -1,5 +1,6 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
+import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.util";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { SequenceService } from "../masters/sequence.service";
 import { buildMeta } from "../../utils/pagination";
@@ -183,9 +184,8 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
     }
   }
 
+  await assertPasswordMeetsInstitutePolicy(instituteId, dto.password);
   const passwordHash = await hashPassword(dto.password);
-
-  let designation: string | undefined;
   let designationMasterId: string | undefined;
   if (dto.designationMasterId) {
     const resolved = await resolveOptionalMasterFields({

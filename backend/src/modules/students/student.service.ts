@@ -1,5 +1,6 @@
 ﻿import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
+import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.util";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
@@ -342,7 +343,8 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     }
   }
 
-  // Hash password for the new User
+  // Hash password for the new User (must meet institute password policy)
+  await assertPasswordMeetsInstitutePolicy(instituteId, dto.password);
   const passwordHash = await hashPassword(dto.password);
 
   let qualification = dto.qualification || undefined;

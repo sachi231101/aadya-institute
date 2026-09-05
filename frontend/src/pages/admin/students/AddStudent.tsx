@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -9,11 +9,14 @@ import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { getMasterLabel } from "@/utils/master.utils";
 import { batchIncludesCourse } from "@/utils/batch.utils";
+import { validatePasswordAgainstPolicy } from "@/utils/password-policy";
 
 import {
   Form,
@@ -44,13 +47,24 @@ import {
   Sparkles,
 } from "lucide-react";
 
-const studentSchema = z.object({
+const buildStudentSchema = (
+  policy: Parameters<typeof validatePasswordAgainstPolicy>[1]
+) =>
+  z.object({
   // Core Required
   studentCode: z.string().optional().or(z.literal("")),
   name: z.string().min(2, "Full Name is required"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone number must be at least 10 digits").optional().or(z.literal("")),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z
+    .string()
+    .min(1, "Password is required")
+    .superRefine((val, ctx) => {
+      const err = validatePasswordAgainstPolicy(val, policy);
+      if (err) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: err });
+      }
+    }),
   branchId: z.string().min(1, "Branch selection is required"),
 
   // Demographics
@@ -99,7 +113,7 @@ const studentSchema = z.object({
   whatsappEnabled: z.boolean().default(true),
 });
 
-type StudentFormValues = z.infer<typeof studentSchema>;
+type StudentFormValues = z.infer<ReturnType<typeof buildStudentSchema>>;
 
 export const AddStudent: React.FC = () => {
   const navigate = useNavigate();
@@ -109,6 +123,8 @@ export const AddStudent: React.FC = () => {
   const { selectedBranchId } = useBranchStore();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const [showPassword, setShowPassword] = useState(false);
+  const { policy } = usePasswordRequirements();
+  const studentSchema = useMemo(() => buildStudentSchema(policy), [policy]);
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
@@ -527,7 +543,7 @@ export const AddStudent: React.FC = () => {
                         <div className="relative">
                           <Input
                             type={showPassword ? "text" : "password"}
-                            placeholder="Min. 8 characters (Default: Aadya@123)"
+                            placeholder="Must meet institute security policy"
                             {...field}
                             className="pr-9"
                           />
@@ -545,12 +561,15 @@ export const AddStudent: React.FC = () => {
                         </div>
                       </FormControl>
                       <p className="text-[11px] text-slate-500 mt-1">
-                        Default initial password: <span className="font-semibold text-slate-700 font-mono">Aadya@123</span> (Students can log in with Admission No / ID / Mobile and this password)
+                        Password must meet the institute security policy shown below.
                       </p>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+                <div className="md:col-span-2">
+                  <PasswordRequirementsHint />
+                </div>
 
                 {/* Date of Birth */}
                 <FormField

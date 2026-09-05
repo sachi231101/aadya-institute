@@ -25,6 +25,7 @@ import {
   Loader2,
   ShieldCheck,
   Sparkles,
+  GraduationCap,
 } from "lucide-react";
 import {
   Card,
@@ -44,6 +45,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
+const ROLE_DISPLAY: Record<string, string> = {
+  ADMIN: "Admin",
+  CENTER_MANAGER: "Center Manager",
+  COUNSELLOR: "Counsellor",
+  FACULTY: "Faculty",
+  STUDENT: "Student",
+};
+
 const editAdminSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters."),
   email: z.string().email("Invalid email address."),
@@ -61,10 +70,12 @@ const editAdminSchema = z.object({
         message: "Phone must be a valid phone number (7-15 digits)",
       }
     ),
-    branchId: z.string().min(1, "Assigned branch is required"),
+  branchId: z.string().min(1, "Assigned branch is required"),
 });
 
 type EditAdminFormValues = z.infer<typeof editAdminSchema>;
+
+const USERS_PATH = "/admin/administration/users";
 
 export const EditAdmin: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -78,10 +89,18 @@ export const EditAdmin: React.FC = () => {
   const admin = userResponse?.data;
   const branches = branchesResponse?.data ?? [];
 
+  const isCenterManager = Boolean(admin?.roles.includes("CENTER_MANAGER"));
+  const isCounsellor = Boolean(admin?.roles.includes("COUNSELLOR"));
+  const isFaculty = Boolean(admin?.roles.includes("FACULTY"));
+  const hasPermissionMatrix = isCenterManager || isCounsellor;
+  const permissionRoleScope: "CENTER_MANAGER" | "COUNSELLOR" = isCounsellor
+    ? "COUNSELLOR"
+    : "CENTER_MANAGER";
+
   const { data: catalogRes } = useQuery({
-    queryKey: ["permission-catalog", "CENTER_MANAGER"],
-    queryFn: () => usersApi.getPermissionCatalog("CENTER_MANAGER"),
-    enabled: Boolean(admin?.roles.includes("CENTER_MANAGER")),
+    queryKey: ["permission-catalog", permissionRoleScope],
+    queryFn: () => usersApi.getPermissionCatalog(permissionRoleScope),
+    enabled: hasPermissionMatrix,
   });
   const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
 
@@ -126,7 +145,7 @@ export const EditAdmin: React.FC = () => {
       <div className="p-6 max-w-4xl mx-auto">
         <div className="flex items-center justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
-          <span className="ml-3 text-slate-600 font-medium">Loading administrator...</span>
+          <span className="ml-3 text-slate-600 font-medium">Loading user...</span>
         </div>
       </div>
     );
@@ -137,24 +156,23 @@ export const EditAdmin: React.FC = () => {
       <div className="p-6 max-w-4xl mx-auto space-y-6">
         <Button
           variant="ghost"
-          onClick={() => navigate("/administration")}
+          onClick={() => navigate(USERS_PATH)}
           className="mb-4"
         >
-          <ArrowLeft size={16} className="mr-2" /> Back to Administrators
+          <ArrowLeft size={16} className="mr-2" /> Back to User Management
         </Button>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <h2 className="text-2xl font-bold text-text-primary">
-            Administrator Not Found
+            User Not Found
           </h2>
           <p className="text-muted-foreground mt-2">
-            The administrator you are trying to edit does not exist.
+            The staff user you are trying to edit does not exist.
           </p>
         </div>
       </div>
     );
   }
 
-  const isCenterManager = admin.roles.includes("CENTER_MANAGER");
   const isSaving =
     updateUserMutation.isPending || updatePermissionsMutation.isPending;
 
@@ -172,7 +190,7 @@ export const EditAdmin: React.FC = () => {
         },
       });
 
-      if (isCenterManager) {
+      if (hasPermissionMatrix) {
         const permissions = buildPermissionsFromAccess(itemAccess, catalog);
         await updatePermissionsMutation.mutateAsync({
           id,
@@ -180,14 +198,14 @@ export const EditAdmin: React.FC = () => {
         });
       }
 
-      addNotification("Administrator & permissions updated successfully.", "success");
-      navigate("/administration");
+      addNotification("User updated successfully.", "success");
+      navigate(USERS_PATH);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } }; message?: string })
           ?.response?.data?.message ||
         (err as { message?: string })?.message ||
-        "Failed to update administrator.";
+        "Failed to update user.";
       addNotification(message, "error");
     }
   };
@@ -197,17 +215,18 @@ export const EditAdmin: React.FC = () => {
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate("/administration")}
+          onClick={() => navigate(USERS_PATH)}
           size="icon"
         >
           <ArrowLeft size={20} />
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-            Edit Administrator
+            Edit User
           </h1>
           <p className="text-muted-foreground mt-1">
-            Update profile information and module permissions for {admin.name}
+            Update profile information
+            {hasPermissionMatrix ? " and module permissions" : ""} for {admin.name}
           </p>
         </div>
       </div>
@@ -218,7 +237,7 @@ export const EditAdmin: React.FC = () => {
             <CardHeader>
               <CardTitle>Profile Details</CardTitle>
               <CardDescription>
-                Make changes to the administrator's profile here. Password resets are handled separately in the View screen.
+                Make changes to the user profile here. Password resets are handled separately in the View screen.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -244,7 +263,7 @@ export const EditAdmin: React.FC = () => {
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="admin@aadya.in"
+                          placeholder="staff@aadya.in"
                           type="email"
                           {...field}
                         />
@@ -280,7 +299,9 @@ export const EditAdmin: React.FC = () => {
                           className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
                           {...field}
                         >
-                          <option value="" disabled>Select a branch</option>
+                          <option value="" disabled>
+                            Select a branch
+                          </option>
                           {branches.map((branch) => (
                             <option key={branch.id} value={branch.id}>
                               {branch.name} ({branch.code})
@@ -300,7 +321,8 @@ export const EditAdmin: React.FC = () => {
                     Current Role
                   </label>
                   <div className="mt-1.5 px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold text-slate-800">
-                    {admin.roles.join(", ") || "No role assigned"}
+                    {admin.roles.map((r) => ROLE_DISPLAY[r] || r).join(", ") ||
+                      "No role assigned"}
                   </div>
                 </div>
                 <div>
@@ -315,7 +337,7 @@ export const EditAdmin: React.FC = () => {
             </CardContent>
           </Card>
 
-          {isCenterManager && (
+          {hasPermissionMatrix && (
             <Card className="border-blue-100/80 shadow-xs">
               <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
                 <div className="flex items-center gap-2.5">
@@ -327,7 +349,8 @@ export const EditAdmin: React.FC = () => {
                       Module & Submodule Permissions
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500">
-                      By default, managers see only Dashboard, ASK ME, and Settings. Enable Show/Editable per submodule to grant portal access.
+                      By default, users see only Dashboard, ASK ME, and Settings. Enable
+                      Show/Editable per submodule to grant portal access.
                     </CardDescription>
                   </div>
                 </div>
@@ -337,12 +360,13 @@ export const EditAdmin: React.FC = () => {
                 <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2">
                   <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                   <span>
-                    <strong>Default access:</strong> Unchecked modules stay hidden until you enable Show. Changes apply live to the manager&apos;s portal.
+                    <strong>Default access:</strong> Unchecked modules stay hidden until
+                    you enable Show. Changes apply live to the user&apos;s portal.
                   </span>
                 </div>
 
                 <PermissionMatrix
-                  role="CENTER_MANAGER"
+                  role={permissionRoleScope}
                   value={itemAccess}
                   onChange={setItemAccess}
                   disabled={isSaving}
@@ -351,11 +375,30 @@ export const EditAdmin: React.FC = () => {
             </Card>
           )}
 
+          {isFaculty && (
+            <Card className="border-border shadow-xs">
+              <CardContent className="pt-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Faculty HR details (employee code, specialization, designation) are
+                  managed in the Faculty module.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/admin/faculty/all")}
+                  className="shrink-0"
+                >
+                  <GraduationCap className="h-4 w-4 mr-2" /> Faculty Module
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <div className="flex justify-end gap-4 pt-4 border-t border-border">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate("/administration")}
+              onClick={() => navigate(USERS_PATH)}
             >
               Cancel
             </Button>

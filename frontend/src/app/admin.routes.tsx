@@ -98,6 +98,7 @@ import { UsersManagement } from "../pages/admin/administration/UsersManagement";
 import { RolesPermissions } from "../pages/admin/administration/RolesPermissions";
 import { MastersHub } from "../pages/admin/administration/MastersHub";
 import { Integrations } from "../pages/admin/administration/Integrations";
+import { IntegrationDetail } from "../pages/admin/administration/IntegrationDetail";
 import { Billing } from "../pages/admin/administration/Billing";
 import { AuditLogs } from "../pages/admin/administration/AuditLogs";
 import { SettingsHub } from "../pages/admin/administration/SettingsHub";
@@ -299,6 +300,7 @@ export const adminChildRoutes = (
       <Route path="masters" element={<MastersHub />} />
       <Route path="security" element={<Security />} />
       <Route path="integrations" element={<Integrations />} />
+      <Route path="integrations/:type" element={<IntegrationDetail />} />
       <Route path="billing" element={<Billing />} />
       <Route path="data-management" element={<DataManagement />} />
       <Route path="audit-logs" element={<AuditLogs />} />

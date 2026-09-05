@@ -84,11 +84,27 @@ export const ViewAdmin: React.FC = () => {
   const branches = branchesResponse?.data ?? [];
   const assignedBranch = branches.find((b) => b.id === admin?.branchId);
 
+  const getPrimaryRoleLabel = (roles: string[] = []): string => {
+    if (roles.includes("ADMIN")) return ROLE_DISPLAY.ADMIN;
+    if (roles.includes("CENTER_MANAGER")) return ROLE_DISPLAY.CENTER_MANAGER;
+    if (roles.includes("COUNSELLOR")) return ROLE_DISPLAY.COUNSELLOR;
+    if (roles.includes("FACULTY")) return ROLE_DISPLAY.FACULTY;
+    return roles[0] ? ROLE_DISPLAY[roles[0]] || roles[0] : "Staff";
+  };
+
   const isCenterManager = admin?.roles.includes("CENTER_MANAGER");
+  const isCounsellor = admin?.roles.includes("COUNSELLOR");
+  const isFaculty = admin?.roles.includes("FACULTY");
+  const hasPermissionMatrix = Boolean(isCenterManager || isCounsellor);
+  const permissionRoleScope: "CENTER_MANAGER" | "COUNSELLOR" = isCounsellor
+    ? "COUNSELLOR"
+    : "CENTER_MANAGER";
+  const primaryRoleLabel = getPrimaryRoleLabel(admin?.roles);
+
   const { data: catalogRes } = useQuery({
-    queryKey: ["permission-catalog", "CENTER_MANAGER"],
-    queryFn: () => usersApi.getPermissionCatalog("CENTER_MANAGER"),
-    enabled: Boolean(isCenterManager),
+    queryKey: ["permission-catalog", permissionRoleScope],
+    queryFn: () => usersApi.getPermissionCatalog(permissionRoleScope),
+    enabled: hasPermissionMatrix,
   });
   const permissionCatalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
   const permissionAccess = useMemo(() => {
@@ -112,12 +128,14 @@ export const ViewAdmin: React.FC = () => {
   const [newPassword, setNewPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
 
+  const USERS_PATH = "/admin/administration/users";
+
   if (isLoading) {
     return (
       <div className="p-6 max-w-7xl mx-auto">
         <div className="flex flex-col items-center justify-center py-24 min-h-[50vh]">
           <Loader2 className="h-10 w-10 animate-spin text-[#1769AA] mb-4" />
-          <span className="text-slate-600 font-medium">Loading manager details...</span>
+          <span className="text-slate-600 font-medium">Loading user details...</span>
         </div>
       </div>
     );
@@ -126,15 +144,15 @@ export const ViewAdmin: React.FC = () => {
   if (isError || !admin) {
     return (
       <div className="p-6 max-w-7xl mx-auto space-y-6">
-        <Button variant="ghost" onClick={() => navigate("/administration")} className="mb-4">
-          <ArrowLeft size={16} className="mr-2" /> Back to Center Managers
+        <Button variant="ghost" onClick={() => navigate(USERS_PATH)} className="mb-4">
+          <ArrowLeft size={16} className="mr-2" /> Back to User Management
         </Button>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <AlertTriangle className="h-12 w-12 text-amber-500 mb-3" />
-          <h2 className="text-2xl font-bold text-slate-900">Center Manager Not Found</h2>
-          <p className="text-slate-500 mt-2">The center manager account you are looking for does not exist or has been removed.</p>
-          <Button onClick={() => navigate("/administration")} className="mt-6 bg-[#1769AA] text-white">
-            Return to Center Managers
+          <h2 className="text-2xl font-bold text-slate-900">User Not Found</h2>
+          <p className="text-slate-500 mt-2">The staff account you are looking for does not exist or has been removed.</p>
+          <Button onClick={() => navigate(USERS_PATH)} className="mt-6 bg-[#1769AA] text-white">
+            Return to User Management
           </Button>
         </div>
       </div>
@@ -150,12 +168,12 @@ export const ViewAdmin: React.FC = () => {
       { id: admin.id, data: { status: nextStatus } },
       {
         onSuccess: () => {
-          addNotification(`Manager ${nextStatus === "ACTIVE" ? "activated" : "deactivated"} successfully.`, "success");
+          addNotification(`User ${nextStatus === "ACTIVE" ? "activated" : "deactivated"} successfully.`, "success");
           setModalType(null);
           refetch();
         },
         onError: (err: any) => {
-          addNotification(err?.response?.data?.message || "Failed to update manager status.", "error");
+          addNotification(err?.response?.data?.message || "Failed to update user status.", "error");
         },
       }
     );
@@ -205,7 +223,7 @@ export const ViewAdmin: React.FC = () => {
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
-            onClick={() => navigate("/administration")}
+            onClick={() => navigate(USERS_PATH)}
             size="icon"
             className="rounded-xl border-slate-200 hover:bg-white shadow-sm"
           >
@@ -227,7 +245,7 @@ export const ViewAdmin: React.FC = () => {
               </span>
             </div>
             <p className="text-sm text-slate-500 font-medium mt-0.5">
-              Center Manager Profile & Branch Operations
+              {primaryRoleLabel} Profile & Branch Operations
             </p>
           </div>
         </div>
@@ -270,9 +288,17 @@ export const ViewAdmin: React.FC = () => {
             {isActive ? "Deactivate Account" : "Activate Account"}
           </Button>
 
+          {isFaculty && (
+            <Link to="/admin/faculty/all">
+              <Button variant="outline" className="border-slate-200 text-slate-700 hover:bg-white text-xs font-bold h-9">
+                <GraduationCap className="h-3.5 w-3.5 mr-1.5 text-slate-500" /> Faculty Module
+              </Button>
+            </Link>
+          )}
+
           <Link to={`/admin/administration/admins/${admin.id}/edit`}>
             <Button className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 shadow-sm">
-              <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit Manager
+              <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit User
             </Button>
           </Link>
         </div>
@@ -292,7 +318,7 @@ export const ViewAdmin: React.FC = () => {
               
               <h2 className="text-xl font-bold text-slate-900">{admin.name}</h2>
               <p className="text-xs font-bold text-[#1769AA] uppercase tracking-wider mt-0.5 mb-2">
-                Center Manager
+                {primaryRoleLabel}
               </p>
               
               <div className="flex flex-wrap justify-center gap-1.5 mb-6">
@@ -517,10 +543,26 @@ export const ViewAdmin: React.FC = () => {
                       <Shield className="h-4 w-4 text-[#1769AA]" /> Operational Authority
                     </h4>
                     <p className="text-xs text-slate-500 mb-4 leading-relaxed">
-                      As a Center Manager, this user is restricted to branch-level data isolation for{" "}
-                      <strong>{assignedBranch ? assignedBranch.name : "assigned center"}</strong>. They can oversee
-                      admissions, batch schedules, faculty assignments, attendance compliance, and branch revenue.
+                      {isFaculty
+                        ? "As Faculty, this user can manage assigned batches, attendance, assignments, and class sessions for their branch."
+                        : isCounsellor
+                          ? "As a Counsellor, this user handles leads, follow-ups, and counselling workflows within their assigned branch."
+                          : <>
+                              As a {primaryRoleLabel}, this user is restricted to branch-level data isolation for{" "}
+                              <strong>{assignedBranch ? assignedBranch.name : "assigned center"}</strong>. They can oversee
+                              admissions, batch schedules, faculty assignments, attendance compliance, and branch revenue.
+                            </>}
                     </p>
+                    {isFaculty && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate("/admin/faculty/all")}
+                        className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50"
+                      >
+                        <GraduationCap className="h-3.5 w-3.5 mr-1" /> Open Faculty Module
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
@@ -528,13 +570,15 @@ export const ViewAdmin: React.FC = () => {
               {/* TAB 2: PERMISSIONS */}
               {activeTab === "permissions" && (
                 <div className="space-y-4">
+                  {hasPermissionMatrix ? (
+                    <>
                   <div className="flex items-center justify-between">
                     <div>
                       <h4 className="text-sm font-bold text-slate-800 flex items-center gap-2">
                         <Shield className="h-4 w-4 text-[#1769AA]" /> ERP Module Access
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Submodule Show/Editable settings for this Center Manager account
+                        Submodule Show/Editable settings for this {primaryRoleLabel} account
                       </p>
                     </div>
                     <Button
@@ -549,14 +593,23 @@ export const ViewAdmin: React.FC = () => {
 
                   {isBaselineOnlyPermissions(admin.permissions ?? []) ? (
                     <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-sm">
-                      <strong>Baseline access only.</strong> This manager can use Dashboard, ASK ME, and Settings. No operational ERP modules are assigned yet.
+                      <strong>Baseline access only.</strong> This user can use Dashboard, ASK ME, and Settings. No operational ERP modules are assigned yet.
                     </div>
                   ) : (
                     <p className="text-xs text-slate-500">
                       {enabledModuleCount} of {permissionCatalog.length} ERP modules have at least one enabled submodule.
                     </p>
                   )}
+                    </>
+                  ) : (
+                    <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-600">
+                      {isFaculty
+                        ? "Faculty access is controlled by the Faculty role and teaching assignments. Manage detailed faculty profile data in the Faculty module."
+                        : "This account does not use granular module permissions."}
+                    </div>
+                  )}
 
+                  {hasPermissionMatrix && (
                   <div className="space-y-3 pt-1">
                     {permissionCatalog.map((mod: PermissionModuleDefinition) => {
                       const enabledItems = mod.items.filter((item) => permissionAccess[item.key]?.show);
@@ -596,6 +649,7 @@ export const ViewAdmin: React.FC = () => {
                       );
                     })}
                   </div>
+                  )}
                 </div>
               )}
 
@@ -624,7 +678,7 @@ export const ViewAdmin: React.FC = () => {
       <Dialog open={modalType === "status"} onOpenChange={(open) => !open && setModalType(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{isActive ? "Deactivate Center Manager?" : "Activate Center Manager?"}</DialogTitle>
+            <DialogTitle>{isActive ? "Deactivate User?" : "Activate User?"}</DialogTitle>
             <DialogDescription>
               {isActive
                 ? `Deactivating ${admin.name} will suspend their login access to the Aadya Institute portal immediately.`

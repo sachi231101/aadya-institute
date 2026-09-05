@@ -238,7 +238,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "admin.organization", label: "Organization", readPermissions: ["institute.read"], writePermissions: [] },
       { key: "admin.branches", label: "Centers & Branches", readPermissions: ["branch.read"], writePermissions: ["branch.update"] },
       { key: "admin.masters", label: "Masters", readPermissions: ["master.read"], writePermissions: ["master.create", "master.update", "master.delete"] },
-      { key: "admin.integrations", label: "Integrations", readPermissions: ["google_meet.read"], writePermissions: ["google_meet.connect"] },
+      { key: "admin.integrations", label: "Integrations", readPermissions: ["integration.read", "google_meet.read"], writePermissions: ["integration.manage", "google_meet.connect"] },
       { key: "admin.settings", label: "Settings", readPermissions: ["institute.read"], writePermissions: ["institute.update"] },
     ],
   },

@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { useAuthStore } from "@/store/auth.store";
+import { useOrganization } from "@/hooks/useOrganizationContext";
+import { DEFAULT_ORG_LOGO, DEFAULT_ORG_NAME } from "@/utils/organization-display";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import {
   COUNSELOR_PORTAL_NAV,
@@ -36,6 +38,9 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
+  const { organization } = useOrganization();
+  const orgName = organization?.name || DEFAULT_ORG_NAME;
+  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO;
   const { data: branchResponse } = useBranch(user?.branchId ?? undefined);
 
   const counsellorName = user?.name || "Counsellor";
@@ -83,9 +88,9 @@ export function CounselorSidebar({ ...props }: React.ComponentProps<typeof Sideb
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link to="/counselor/dashboard">
-                <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
+                <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
                 <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold text-text-primary">Aadya Portal</span>
+                  <span className="font-semibold text-text-primary">{orgName}</span>
                   <span className="text-xs text-emerald-600 font-bold">COUNSELLOR</span>
                 </div>
               </Link>

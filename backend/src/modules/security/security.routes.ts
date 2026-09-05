@@ -4,6 +4,7 @@ import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   getPolicy,
+  getPasswordRequirements,
   updatePolicy,
   listLoginHistory,
   listSessions,
@@ -37,6 +38,8 @@ router.use(authMiddleware);
 
 // Policy
 router.get("/policy", requirePermission("security.read"), getPolicy);
+/** Safe password rules for user-creation forms (any authenticated user). */
+router.get("/password-requirements", getPasswordRequirements);
 router.patch(
   "/policy",
   requirePermission("security.update"),

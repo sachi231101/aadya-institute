@@ -23,6 +23,8 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
+import { useOrganization } from "@/hooks/useOrganizationContext";
+import { DEFAULT_ORG_NAME } from "@/utils/organization-display";
 import { NotificationPopover } from "../components/notifications/NotificationPopover";
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
@@ -42,6 +44,9 @@ import {
 
 export const StudentLayout: React.FC = () => {
   const { user, token, logout } = useAuthStore();
+  const { organization } = useOrganization();
+  const orgName = organization?.name || DEFAULT_ORG_NAME;
+  const orgLogo = organization?.branding.logoUrl;
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -132,12 +137,16 @@ export const StudentLayout: React.FC = () => {
             onClick={() => setMobileMenuOpen(false)}
             className="flex items-center gap-3 px-2 py-1.5 no-underline group"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white shadow-xs">
-              <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6366F1] to-[#8B5CF6] flex items-center justify-center text-white shadow-xs overflow-hidden">
+              {orgLogo ? (
+                <img src={orgLogo} alt={orgName} className="w-full h-full object-contain bg-white p-1" />
+              ) : (
+                <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
+              )}
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground leading-none tracking-tight group-hover:text-[#5B50EC] dark:group-hover:text-indigo-400 transition-colors">
-                Aadya Student
+                {orgName}
               </h2>
               <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 tracking-wider uppercase mt-1 block">
                 LEARNER PORTAL

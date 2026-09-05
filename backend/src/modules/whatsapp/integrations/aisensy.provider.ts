@@ -15,13 +15,28 @@ export class AiSensyProvider implements IWhatsAppProvider {
       ? normalized.slice(1)
       : normalized;
 
-    const result = await aiSensySendMessage({
-      campaignName: options.campaignName,
-      destination,
-      userName: options.name,
-      templateParams: options.templateParams,
-      ...(options.media ? { media: options.media } : {}),
-    });
+    let apiKey: string | undefined;
+    if (options.instituteId) {
+      try {
+        const { resolveWhatsappApiKey } = await import(
+          "../../integrations/integration.service"
+        );
+        apiKey = await resolveWhatsappApiKey(options.instituteId);
+      } catch {
+        apiKey = undefined;
+      }
+    }
+
+    const result = await aiSensySendMessage(
+      {
+        campaignName: options.campaignName,
+        destination,
+        userName: options.name,
+        templateParams: options.templateParams,
+        ...(options.media ? { media: options.media } : {}),
+      },
+      apiKey ? { apiKey } : undefined
+    );
 
     if (!result.success || !result.msgId) {
       const code = result.code ?? "SEND_FAILED";
