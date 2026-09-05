@@ -9,9 +9,22 @@ import {
 import { sendSuccess } from "../../utils/response";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 
+const clientMeta = (req: Request) => ({
+  ipAddress:
+    req.ip ||
+    (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ||
+    null,
+  userAgent: (req.headers["user-agent"] as string) || null,
+});
+
 export const login = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const { user, tokens } = await loginService(req.body);
+    const meta = clientMeta(req);
+    const { user, tokens } = await loginService({
+      ...req.body,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+    });
     sendSuccess(res, { user, ...tokens }, 200, "Login successful");
   } catch (err) {
     next(err);
@@ -20,7 +33,7 @@ export const login = async (req: Request, res: Response, next: NextFunction): Pr
 
 export const refreshToken = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
   try {
-    const tokens = await refreshTokenService(req.body.refreshToken);
+    const tokens = await refreshTokenService(req.body.refreshToken, clientMeta(req));
     sendSuccess(res, tokens, 200, "Tokens refreshed");
   } catch (err) {
     next(err);

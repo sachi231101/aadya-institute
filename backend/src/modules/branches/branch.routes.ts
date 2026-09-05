@@ -8,12 +8,14 @@ import {
   getBranch,
   createBranch,
   updateBranch,
+  updateBranchManager,
   deleteBranch,
   getBranchStats,
 } from "./branch.controller";
 import {
   createBranchSchema,
   updateBranchSchema,
+  updateBranchManagerSchema,
   branchListQuerySchema,
 } from "./branch.validation";
 
@@ -45,7 +47,16 @@ router.post(
   createBranch
 );
 
-// PATCH /api/v1/branches/:id — Update branch details
+// PATCH /api/v1/branches/:id/manager — Assign / clear branch manager
+router.patch(
+  "/:id/manager",
+  requirePermission("branch.update"),
+  requireBranchAccess("id"),
+  validate(updateBranchManagerSchema),
+  updateBranchManager
+);
+
+// PATCH /api/v1/branches/:id — Update branch details (incl. ACTIVE/INACTIVE status)
 router.patch(
   "/:id",
   requirePermission("branch.update"),

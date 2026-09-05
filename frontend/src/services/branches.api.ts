@@ -1,5 +1,17 @@
 import { api } from "./api";
 
+export interface BranchManagerSummary {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+export interface BranchWorkingHours {
+  open?: string;
+  close?: string;
+  [key: string]: unknown;
+}
+
 export interface BranchResponse {
   id: string;
   instituteId: string;
@@ -7,6 +19,11 @@ export interface BranchResponse {
   code: string;
   address: string | null;
   phone: string | null;
+  email: string | null;
+  timezone: string | null;
+  workingHours: BranchWorkingHours | null;
+  managerUserId: string | null;
+  manager?: BranchManagerSummary | null;
   status: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
   createdAt: string;
   updatedAt: string;
@@ -41,6 +58,10 @@ export interface CreateBranchPayload {
   code: string;
   address?: string;
   phone?: string;
+  email?: string;
+  timezone?: string;
+  workingHours?: BranchWorkingHours | null;
+  managerUserId?: string | null;
 }
 
 export interface UpdateBranchPayload {
@@ -48,6 +69,10 @@ export interface UpdateBranchPayload {
   code?: string;
   address?: string;
   phone?: string;
+  email?: string;
+  timezone?: string;
+  workingHours?: BranchWorkingHours | null;
+  managerUserId?: string | null;
   status?: "ACTIVE" | "INACTIVE" | "SUSPENDED" | "DELETED";
 }
 
@@ -78,6 +103,16 @@ export const branchesApi = {
 
   updateBranch: async (id: string, data: UpdateBranchPayload): Promise<SingleResponse<BranchResponse>> => {
     const response = await api.patch<SingleResponse<BranchResponse>>(`/branches/${id}`, data);
+    return response.data;
+  },
+
+  updateBranchManager: async (
+    id: string,
+    managerUserId: string | null
+  ): Promise<SingleResponse<BranchResponse>> => {
+    const response = await api.patch<SingleResponse<BranchResponse>>(`/branches/${id}/manager`, {
+      managerUserId,
+    });
     return response.data;
   },
 

@@ -102,3 +102,12 @@ export const updateInvoice = async (req: AuthenticatedRequest, res: Response, ne
     next(err);
   }
 };
+
+export const getUsage = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  try {
+    const data = await BillingService.getUsage(toAuthUser(req));
+    sendSuccess(res, data, 200, "Usage retrieved successfully");
+  } catch (err) {
+    next(err);
+  }
+};

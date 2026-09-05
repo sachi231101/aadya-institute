@@ -1,6 +1,8 @@
 export interface LoginInput {
   emailOrPhone: string;
   password: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
 }
 
 export interface TokenPair {
@@ -16,6 +18,8 @@ export interface AuthUser {
   phone?: string | null;
   instituteId: string;
   branchId?: string | null;
+  /** Extra branch IDs from UserBranchAccess (multi-branch scope). */
+  allowedBranchIds?: string[];
   roles: string[];
   permissions: string[];
   modulePermissions?: string[];

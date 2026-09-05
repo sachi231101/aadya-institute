@@ -12,6 +12,11 @@ const userInclude = {
     },
   },
   branch: true,
+  branchAccesses: {
+    include: {
+      branch: { select: { id: true, name: true, code: true } },
+    },
+  },
   userPermissions: {
     include: {
       permission: true,
@@ -42,6 +47,13 @@ export const mapUserToResponse = (user: UserWithRoles) => {
     instituteId: user.instituteId,
     branchId: user.branchId,
     branch: user.branch ? { id: user.branch.id, name: user.branch.name, code: user.branch.code } : null,
+    branchAccesses: (user.branchAccesses ?? []).map((ba) => ({
+      id: ba.id,
+      branchId: ba.branchId,
+      branch: ba.branch
+        ? { id: ba.branch.id, name: ba.branch.name, code: ba.branch.code }
+        : null,
+    })),
     whatsappEnabled: user.whatsappEnabled,
     roles,
     modulePermissions: resolvePermissionsToModules(permissionNames, roleScope),
@@ -241,6 +253,37 @@ export const updateUserStatus = async (
     include: userInclude,
   });
   return mapUserToResponse(user);
+};
+
+export const replaceUserBranchAccess = async (
+  userId: string,
+  instituteId: string,
+  branchIds: string[]
+) => {
+  const uniqueIds = [...new Set(branchIds.filter(Boolean))];
+
+  if (uniqueIds.length > 0) {
+    const branches = await prisma.branch.findMany({
+      where: { id: { in: uniqueIds }, instituteId },
+      select: { id: true },
+    });
+    if (branches.length !== uniqueIds.length) {
+      return null;
+    }
+  }
+
+  await prisma.$transaction([
+    prisma.userBranchAccess.deleteMany({ where: { userId } }),
+    ...(uniqueIds.length > 0
+      ? [
+          prisma.userBranchAccess.createMany({
+            data: uniqueIds.map((branchId) => ({ userId, branchId })),
+          }),
+        ]
+      : []),
+  ]);
+
+  return findUserById(userId, instituteId);
 };
 
 export const deleteUser = async (id: string, instituteId: string) => {

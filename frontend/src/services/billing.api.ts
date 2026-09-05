@@ -62,4 +62,9 @@ export const billingApi = {
     const response = await api.patch(`/billing/invoices/${id}`, data);
     return response.data;
   },
+
+  getUsage: async () => {
+    const response = await api.get("/billing/usage");
+    return response.data;
+  },
 };

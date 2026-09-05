@@ -32,9 +32,6 @@ export class SettingsService {
     if (!payload.currentPassword || !payload.newPassword) {
       throw new Error("Current password and new password are required");
     }
-    if (payload.newPassword.length < 6) {
-      throw new Error("New password must be at least 6 characters long");
-    }
     return SettingsRepository.changePassword(userId, payload);
   }
 
@@ -57,5 +54,17 @@ export class SettingsService {
    */
   static async revokeSession(userId: string, sessionId: string) {
     return SettingsRepository.revokeSession(userId, sessionId);
+  }
+
+  static async getSystemConfig(instituteId: string, category: string) {
+    return SettingsRepository.getSystemSettingsByCategory(instituteId, category);
+  }
+
+  static async updateSystemConfig(
+    instituteId: string,
+    category: string,
+    settings: Record<string, unknown>
+  ) {
+    return SettingsRepository.upsertSystemSettings(instituteId, category, settings);
   }
 }

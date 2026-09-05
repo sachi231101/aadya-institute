@@ -9,6 +9,11 @@ export interface UserResponse {
   instituteId: string;
   branchId: string | null;
   branch?: { id: string; name: string; code: string } | null;
+  branchAccesses?: Array<{
+    id: string;
+    branchId: string;
+    branch?: { id: string; name: string; code: string } | null;
+  }>;
   roles: string[];
   modulePermissions: string[];
   permissions?: string[];
@@ -100,6 +105,17 @@ export const usersApi = {
     data: UpdateUserPermissionsPayload
   ): Promise<SingleResponse<UserResponse>> => {
     const response = await api.patch<SingleResponse<UserResponse>>(`/users/${id}/permissions`, data);
+    return response.data;
+  },
+
+  updateUserBranchAccess: async (
+    id: string,
+    data: { branchIds: string[] }
+  ): Promise<SingleResponse<UserResponse>> => {
+    const response = await api.patch<SingleResponse<UserResponse>>(
+      `/users/${id}/branch-access`,
+      data
+    );
     return response.data;
   },
 

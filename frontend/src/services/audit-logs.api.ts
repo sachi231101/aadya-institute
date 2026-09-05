@@ -3,16 +3,15 @@ import { api } from "./api";
 export interface AuditLog {
   id: string;
   instituteId: string;
-  branchId?: string;
-  userId?: string;
+  branchId?: string | null;
+  userId?: string | null;
   action: string;
-  module: string;
-  entityType?: string;
-  entityId?: string;
-  description?: string;
-  metadata?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
+  entityType: string;
+  entityId: string;
+  oldData?: unknown;
+  newData?: unknown;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   createdAt: string;
   user?: { id: string; name: string; email?: string };
 }
@@ -21,10 +20,11 @@ export interface AuditLogQueryParams {
   page?: number;
   limit?: number;
   search?: string;
-  module?: string;
+  entityType?: string;
   action?: string;
   userId?: string;
   branchId?: string;
+  entityId?: string;
   dateFrom?: string;
   dateTo?: string;
 }

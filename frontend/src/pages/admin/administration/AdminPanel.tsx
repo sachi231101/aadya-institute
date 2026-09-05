@@ -1,20 +1,26 @@
 import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MoreVertical, Eye, Edit, Shield, Key, Power, Trash2, Loader2,
-  Users, Building2, MapPin, Search, Plus, Mail, Phone, GraduationCap, 
-  BookOpen, UserCheck, AlertTriangle
+  MoreVertical, Eye, Edit, Shield, Key, Trash2, Loader2,
+  Users, Building2, MapPin, Search, Plus, Mail, Phone,
+  UserCheck, AlertTriangle, UserPlus, Ban, Save,
 } from "lucide-react";
 
 import { useNotificationStore } from "@/store/notification.store";
-import { useAdminUsers, useDeleteUser } from "@/hooks/useUsers";
+import { useAdminUsers, useDeleteUser, useUpdateUserBranchAccess } from "@/hooks/useUsers";
 import { useBranches, useBranchStats } from "@/hooks/useBranches";
+import {
+  useInvitations,
+  useCreateInvitation,
+  useRevokeInvitation,
+} from "@/hooks/useInvitations";
 import type { UserResponse } from "@/services/users.api";
 import type { BranchResponse } from "@/services/branches.api";
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -22,7 +28,15 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// ─── HELPER COMPONENTS ───────────────────────────────────────────────────────
+type TabKey = "all" | "active" | "inactive" | "invitations" | "access";
+
+const TABS: { key: TabKey; label: string }[] = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "inactive", label: "Inactive" },
+  { key: "invitations", label: "Pending Invitations" },
+  { key: "access", label: "User Access" },
+];
 
 const getStatusColor = (status: string) => {
   if (status === "ACTIVE") return "bg-emerald-500";
@@ -38,34 +52,28 @@ const getStatusText = (status: string) => {
   return "text-slate-600 dark:text-slate-400 bg-muted/40 border-border";
 };
 
-// ─── MANAGER CARD COMPONENT ──────────────────────────────────────────────────
-
-const ManagerCard = ({ 
-  manager, 
-  branch, 
+const ManagerCard = ({
+  manager,
+  branch,
   onAction,
-  onViewBranch
-}: { 
-  manager: UserResponse; 
-  branch?: BranchResponse; 
+  onViewBranch,
+}: {
+  manager: UserResponse;
+  branch?: BranchResponse;
   onAction: (id: string, action: string) => void;
   onViewBranch: (manager: UserResponse, branch: BranchResponse) => void;
 }) => {
-  // Fetch live stats for this branch using existing hook
   const { data: statsResponse } = useBranchStats(branch?.id);
   const stats = statsResponse?.data;
 
-  // Use backend stats or fallback to 0
   const studentCount = stats?.totalStudents || 0;
   const facultyCount = stats?.totalFaculty || 0;
   const batchCount = stats?.totalBatches || 0;
-  const counsellorCount = 0; 
+  const counsellorCount = 0;
 
   return (
     <Card className="border border-border bg-card shadow-xs hover:shadow-md hover:border-primary/40 transition-all rounded-2xl overflow-hidden flex flex-col h-full group">
       <CardContent className="p-0 flex flex-col h-full">
-        
-        {/* Profile Header */}
         <div className="p-5 pb-3.5">
           <div className="flex justify-between items-start gap-2">
             <div className="flex items-center gap-3.5 min-w-0">
@@ -74,27 +82,58 @@ const ManagerCard = ({
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-foreground leading-tight truncate tracking-tight">{manager.name}</h3>
-                <p className="text-xs font-semibold text-primary/80 dark:text-sky-400/90 mb-1">Center Manager</p>
+                <p className="text-xs font-semibold text-primary/80 dark:text-sky-400/90 mb-1">
+                  {manager.roles.includes("ADMIN") ? "Admin" : "Center Manager"}
+                </p>
                 <div className="flex flex-col gap-0.5 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1.5 truncate">
-                    <Mail className="h-3 w-3 text-muted-foreground shrink-0" /> <span className="truncate">{manager.email || "No Email"}</span>
+                    <Mail className="h-3 w-3 text-muted-foreground shrink-0" />{" "}
+                    <span className="truncate">{manager.email || "No Email"}</span>
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Phone className="h-3 w-3 text-muted-foreground shrink-0" /> <span>{manager.phone || "No Phone"}</span>
+                    <Phone className="h-3 w-3 text-muted-foreground shrink-0" />{" "}
+                    <span>{manager.phone || "No Phone"}</span>
                   </span>
                 </div>
               </div>
             </div>
-            <div className="shrink-0">
+            <div className="shrink-0 flex items-start gap-1">
               <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex items-center gap-1.5 uppercase tracking-wider ${getStatusText(manager.status)}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${getStatusColor(manager.status)} animate-pulse`} />
                 {manager.status}
               </span>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="rounded-xl">
+                  <DropdownMenuItem onClick={() => onAction(manager.id, "viewManager")}>
+                    <Eye className="h-4 w-4 mr-2" /> View
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAction(manager.id, "editManager")}>
+                    <Edit className="h-4 w-4 mr-2" /> Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAction(manager.id, "changeBranch")}>
+                    <Building2 className="h-4 w-4 mr-2" /> Change Branch
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => onAction(manager.id, "resetPassword")}>
+                    <Key className="h-4 w-4 mr-2" /> Reset Password
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-red-600 focus:text-red-600"
+                    onClick={() => onAction(manager.id, "delete")}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
 
-        {/* Assigned Branch Section */}
         <div className="px-3.5 py-3 mx-4 rounded-xl bg-muted/40 border border-border/70 flex-1 space-y-1">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Assigned Branch</p>
           {branch ? (
@@ -117,7 +156,6 @@ const ManagerCard = ({
           )}
         </div>
 
-        {/* Branch Statistics (Bottom) */}
         <div className="p-4 pt-3.5 mt-auto">
           <div className="grid grid-cols-4 gap-1.5 mb-3.5 text-center">
             <div className="flex flex-col items-center p-2 rounded-xl bg-muted/30 border border-border/60">
@@ -140,44 +178,15 @@ const ManagerCard = ({
 
           <div className="flex items-center gap-2">
             {branch ? (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 className="flex-1 text-primary border-border hover:bg-primary/10 font-bold text-xs h-8.5 rounded-xl transition-colors cursor-pointer"
                 onClick={() => onViewBranch(manager, branch)}
               >
                 <Eye className="h-3.5 w-3.5 mr-1.5" /> View Branch
               </Button>
-            ) : (
-              <Button 
-                variant="outline" 
-                size="sm"
-                className="flex-1 text-amber-600 dark:text-amber-400 border-amber-200/60 dark:border-amber-900/40 hover:bg-amber-50 dark:hover:bg-amber-950/40 font-bold text-xs h-8.5 rounded-xl transition-colors cursor-pointer"
-                onClick={() => onAction(manager.id, "changeBranch")}
-              >
-                Assign Branch
-              </Button>
-            )}
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="px-2.5 h-8.5 border-border bg-card hover:bg-muted/40 rounded-xl cursor-pointer">
-                  <MoreVertical className="h-3.5 w-3.5 text-muted-foreground" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 font-medium bg-card border-border rounded-xl shadow-lg">
-                <DropdownMenuItem onClick={() => onAction(manager.id, "viewManager")} className="cursor-pointer">
-                  <Eye className="mr-2 h-4 w-4 text-primary" /> View Manager Details
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onAction(manager.id, "changeBranch")} className="cursor-pointer">
-                  <MapPin className="mr-2 h-4 w-4 text-muted-foreground" /> Change Branch
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-border" />
-                <DropdownMenuItem onClick={() => onAction(manager.id, "delete")} className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/40 cursor-pointer">
-                  <Trash2 className="mr-2 h-4 w-4" /> Delete Manager
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            ) : null}
           </div>
         </div>
       </CardContent>
@@ -185,54 +194,43 @@ const ManagerCard = ({
   );
 };
 
-// ─── MAIN COMPONENT ──────────────────────────────────────────────────────────
-
 export const AdminPanel: React.FC = () => {
   const navigate = useNavigate();
-  const addNotification = useNotificationStore((state) => state.addNotification);
+  const { addNotification } = useNotificationStore();
 
-  // Fetch all admins
   const { data: usersResponse, isLoading: usersLoading } = useAdminUsers({ limit: 100 });
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100 });
-  
+  const { data: invitationsResponse, isLoading: invitationsLoading } = useInvitations({ limit: 50 });
   const deleteUserMutation = useDeleteUser();
+  const createInvitationMutation = useCreateInvitation();
+  const revokeInvitationMutation = useRevokeInvitation();
+  const updateBranchAccessMutation = useUpdateUserBranchAccess();
 
-  // Extract Center Managers only
   const allUsers = usersResponse?.data ?? [];
   const allBranches = branchesResponse?.data ?? [];
-  
+  const invitations = invitationsResponse?.data ?? [];
+
   const centerManagers = useMemo(() => {
-    return allUsers.filter(u => u.roles.includes("CENTER_MANAGER") || u.roles.includes("ADMIN"));
+    return allUsers.filter((u) => u.roles.includes("CENTER_MANAGER") || u.roles.includes("ADMIN"));
   }, [allUsers]);
 
-  const activeManagersCount = centerManagers.filter(m => m.status === "ACTIVE").length;
-  // Unique assigned branches
-  const assignedBranchesCount = new Set(centerManagers.map(m => m.branchId).filter(Boolean)).size;
+  const [tab, setTab] = useState<TabKey>("all");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteForm, setInviteForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    roleName: "CENTER_MANAGER",
+    branchId: "",
+  });
+  const [accessUserId, setAccessUserId] = useState<string | null>(null);
+  const [accessBranchIds, setAccessBranchIds] = useState<string[]>([]);
 
-  // Modals State
   const [activeModal, setActiveModal] = useState<
     "delete" | "resetPassword" | "changeBranch" | null
   >(null);
   const [selectedManagerId, setSelectedManagerId] = useState<string | null>(null);
-
-  // Filters
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("All");
-
-  const filteredManagers = useMemo(() => {
-    return centerManagers.filter((m) => {
-      const matchesSearch =
-        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.phone?.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesStatus =
-        statusFilter === "All" ||
-        (statusFilter === "Unassigned" ? !m.branchId : m.status === "ACTIVE");
-      return matchesSearch && matchesStatus;
-    });
-  }, [centerManagers, searchQuery, statusFilter]);
-
-  // Form states
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -240,19 +238,34 @@ export const AdminPanel: React.FC = () => {
 
   const selectedManager = centerManagers.find((a) => a.id === selectedManagerId);
 
-  // Handlers
+  const filteredManagers = useMemo(() => {
+    return centerManagers.filter((m) => {
+      const matchesSearch =
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.phone?.toLowerCase().includes(searchQuery.toLowerCase());
+      if (!matchesSearch) return false;
+      if (tab === "active") return m.status === "ACTIVE";
+      if (tab === "inactive") return m.status === "INACTIVE" || m.status === "BLOCKED";
+      return true;
+    });
+  }, [centerManagers, searchQuery, tab]);
+
+  const activeManagersCount = centerManagers.filter((m) => m.status === "ACTIVE").length;
+  const assignedBranchesCount = new Set(centerManagers.map((m) => m.branchId).filter(Boolean)).size;
+
   const handleAction = (id: string, action: string) => {
     setSelectedManagerId(id);
     if (action === "viewManager") {
-      navigate(`/administration/admins/${id}`);
+      navigate(`/admin/administration/admins/${id}`);
     } else if (action === "editManager") {
-      navigate(`/administration/admins/${id}/edit`);
+      navigate(`/admin/administration/admins/${id}/edit`);
     } else {
       setActiveModal(action as any);
       setDeleteConfirmText("");
       setNewPassword("");
       setConfirmPassword("");
-      setNewBranchId(selectedManager?.branchId || "");
+      setNewBranchId(centerManagers.find((m) => m.id === id)?.branchId || "");
     }
   };
 
@@ -272,52 +285,115 @@ export const AdminPanel: React.FC = () => {
           addNotification("Manager deleted successfully.", "success");
           closeModal();
         },
-        onError: (err: any) => addNotification(err?.response?.data?.message || "Deletion failed.", "error"),
+        onError: (err: any) =>
+          addNotification(err?.response?.data?.message || "Deletion failed.", "error"),
       });
     }
   };
 
-  const handleChangeBranch = () => {
-    addNotification("Branch reassigned successfully.", "success");
-    closeModal();
+  const handleInvite = () => {
+    if (!inviteForm.name.trim() || !inviteForm.email.trim()) {
+      addNotification("Name and email are required.", "error");
+      return;
+    }
+    createInvitationMutation.mutate(
+      {
+        name: inviteForm.name.trim(),
+        email: inviteForm.email.trim(),
+        phone: inviteForm.phone.trim() || undefined,
+        roleName: inviteForm.roleName,
+        branchId: inviteForm.branchId || undefined,
+        branchIds: inviteForm.branchId ? [inviteForm.branchId] : undefined,
+      },
+      {
+        onSuccess: (res) => {
+          const link = res.data?.inviteLink;
+          addNotification(
+            link
+              ? "Invitation sent. Invite link available in response."
+              : "Invitation created successfully.",
+            "success"
+          );
+          if (link) {
+            void navigator.clipboard?.writeText(link).catch(() => undefined);
+          }
+          setInviteOpen(false);
+          setInviteForm({
+            name: "",
+            email: "",
+            phone: "",
+            roleName: "CENTER_MANAGER",
+            branchId: "",
+          });
+          setTab("invitations");
+        },
+        onError: (err: any) =>
+          addNotification(err?.response?.data?.message || "Invite failed.", "error"),
+      }
+    );
   };
 
-  const handleResetPassword = () => {
-    addNotification("Password reset link sent.", "success");
-    closeModal();
+  const openAccessEditor = (user: UserResponse) => {
+    setAccessUserId(user.id);
+    const ids =
+      user.branchAccesses?.map((b) => b.branchId) ??
+      (user.branchId ? [user.branchId] : []);
+    setAccessBranchIds(ids);
+  };
+
+  const saveAccess = () => {
+    if (!accessUserId) return;
+    updateBranchAccessMutation.mutate(
+      { id: accessUserId, data: { branchIds: accessBranchIds } },
+      {
+        onSuccess: () => {
+          addNotification("Branch access updated.", "success");
+          setAccessUserId(null);
+        },
+        onError: (err: any) =>
+          addNotification(err?.response?.data?.message || "Update failed.", "error"),
+      }
+    );
   };
 
   if (usersLoading || branchesLoading) {
     return (
       <div className="p-6 flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="h-10 w-10 animate-spin text-primary mb-4" />
-        <h3 className="text-lg font-bold text-foreground">Loading Manager Data...</h3>
+        <h3 className="text-lg font-bold text-foreground">Loading User Data...</h3>
       </div>
     );
   }
 
   return (
     <div className="p-6 sm:p-8 max-w-screen-2xl mx-auto bg-background min-h-screen relative overflow-x-hidden space-y-8">
-      
-      {/* PAGE HEADER */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground flex items-center gap-2.5">
             <Shield className="h-7 w-7 sm:h-8 sm:w-8 text-primary" />
-            Center Manager
+            User Management
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-1">
-            Manage center managers and their assigned branches.
+            Manage staff users, invitations, and branch access.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button onClick={() => navigate("/administration/admins/new")} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
+          <Button
+            variant="outline"
+            onClick={() => setInviteOpen(true)}
+            className="font-bold h-10 px-5 rounded-xl cursor-pointer"
+          >
+            <UserPlus className="h-4 w-4 mr-2" /> Invite User
+          </Button>
+          <Button
+            onClick={() => navigate("/admin/administration/admins/new")}
+            className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer"
+          >
             <Plus className="h-4 w-4 mr-2" /> Add Center Manager
           </Button>
         </div>
       </div>
 
-      {/* KPI SUMMARY CARDS */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
@@ -354,77 +430,356 @@ export const AdminPanel: React.FC = () => {
         </Card>
         <Card className="border border-border/80 shadow-xs hover:shadow-sm rounded-2xl bg-card transition-all">
           <CardContent className="p-5 flex items-center gap-4">
-            <div className="p-3 bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 rounded-xl">
-              <GraduationCap className="h-6 w-6" />
+            <div className="p-3 bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400 border border-violet-100 dark:border-violet-900/40 rounded-xl">
+              <Mail className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Total Students</p>
-              <h3 className="text-2xl font-black text-foreground">--</h3>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-0.5">Pending Invites</p>
+              <h3 className="text-2xl font-black text-foreground">{invitations.length}</h3>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* FILTERS */}
       <div className="flex flex-col md:flex-row items-center gap-4">
         <div className="relative flex-1 max-w-md w-full">
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <input 
-            type="text" 
-            placeholder="Search manager by name, email or phone..." 
+          <input
+            type="text"
+            placeholder="Search by name, email or phone..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-4 py-2 text-xs sm:text-sm font-medium border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all bg-card text-foreground placeholder:text-muted-foreground shadow-xs"
           />
         </div>
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar self-start md:self-auto">
-          {["All", "Active", "Unassigned"].map((status) => (
+          {TABS.map((t) => (
             <button
-              key={status}
-              onClick={() => setStatusFilter(status)}
+              key={t.key}
+              onClick={() => setTab(t.key)}
               className={`px-4 py-1.5 text-xs font-bold rounded-full transition-all whitespace-nowrap border cursor-pointer ${
-                statusFilter === status 
-                  ? "bg-primary text-white border-primary shadow-xs" 
+                tab === t.key
+                  ? "bg-primary text-white border-primary shadow-xs"
                   : "bg-card text-muted-foreground border-border hover:bg-muted/40 hover:text-foreground"
               }`}
             >
-              {status}
+              {t.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* MANAGERS GRID */}
-      {filteredManagers.length === 0 ? (
-        <Card className="border border-border bg-card rounded-2xl shadow-xs py-16 text-center">
-          <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
-            <div className="h-16 w-16 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
-              <Users className="h-8 w-8" />
-            </div>
-            <h3 className="text-base font-bold text-foreground mb-1">No Center Managers Found</h3>
-            <p className="text-xs text-muted-foreground mb-6">
-              {searchQuery ? "No managers match your search criteria." : "Get started by adding your first center manager."}
-            </p>
-            <Button onClick={() => navigate("/administration/admins/new")} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
-              <Plus className="h-4 w-4 mr-2" /> Add Center Manager
-            </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filteredManagers.map((manager) => (
-            <ManagerCard 
-              key={manager.id}
-              manager={manager} 
-              branch={allBranches.find(b => b.id === manager.branchId)}
-              onAction={handleAction}
-              onViewBranch={handleViewBranch}
-            />
-          ))}
-        </div>
+      {(tab === "all" || tab === "active" || tab === "inactive") && (
+        filteredManagers.length === 0 ? (
+          <Card className="border border-border bg-card rounded-2xl shadow-xs py-16 text-center">
+            <CardContent className="flex flex-col items-center justify-center max-w-sm mx-auto">
+              <div className="h-16 w-16 rounded-2xl bg-muted/60 text-muted-foreground flex items-center justify-center mb-4 border border-border">
+                <Users className="h-8 w-8" />
+              </div>
+              <h3 className="text-base font-bold text-foreground mb-1">No Users Found</h3>
+              <p className="text-xs text-muted-foreground mb-6">
+                {searchQuery ? "No users match your search criteria." : "Invite or add a center manager to get started."}
+              </p>
+              <Button onClick={() => setInviteOpen(true)} className="bg-primary hover:bg-primary/90 text-white font-bold h-10 px-5 rounded-xl shadow-xs cursor-pointer">
+                <UserPlus className="h-4 w-4 mr-2" /> Invite User
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+            {filteredManagers.map((manager) => (
+              <ManagerCard
+                key={manager.id}
+                manager={manager}
+                branch={allBranches.find((b) => b.id === manager.branchId)}
+                onAction={handleAction}
+                onViewBranch={handleViewBranch}
+              />
+            ))}
+          </div>
+        )
       )}
 
-      {/* ─── MODALS ─── */}
+      {tab === "invitations" && (
+        <Card className="border border-border rounded-2xl shadow-xs overflow-hidden">
+          <CardContent className="p-0">
+            {invitationsLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+              </div>
+            ) : invitations.length === 0 ? (
+              <div className="py-16 text-center space-y-3">
+                <Mail className="h-10 w-10 mx-auto text-muted-foreground" />
+                <p className="font-bold text-foreground">No pending invitations</p>
+                <Button onClick={() => setInviteOpen(true)} className="rounded-xl font-bold">
+                  <UserPlus className="h-4 w-4 mr-2" /> Invite User
+                </Button>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/40 border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3 font-bold">Name</th>
+                      <th className="px-4 py-3 font-bold">Email</th>
+                      <th className="px-4 py-3 font-bold">Role</th>
+                      <th className="px-4 py-3 font-bold">Branch</th>
+                      <th className="px-4 py-3 font-bold">Expires</th>
+                      <th className="px-4 py-3 font-bold text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invitations
+                      .filter((inv) => {
+                        if (!searchQuery) return true;
+                        const q = searchQuery.toLowerCase();
+                        return (
+                          inv.name.toLowerCase().includes(q) ||
+                          inv.email.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((inv) => (
+                        <tr key={inv.id} className="border-b border-border/60 hover:bg-muted/20">
+                          <td className="px-4 py-3 font-semibold text-foreground">{inv.name}</td>
+                          <td className="px-4 py-3 text-muted-foreground">{inv.email}</td>
+                          <td className="px-4 py-3">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border border-border bg-muted/40">
+                              {inv.roleName}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {inv.branch?.name || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-muted-foreground">
+                            {new Date(inv.expiresAt).toLocaleDateString()}
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
+                              disabled={revokeInvitationMutation.isPending}
+                              onClick={() =>
+                                revokeInvitationMutation.mutate(inv.id, {
+                                  onSuccess: () =>
+                                    addNotification("Invitation revoked.", "success"),
+                                  onError: (err: any) =>
+                                    addNotification(
+                                      err?.response?.data?.message || "Revoke failed.",
+                                      "error"
+                                    ),
+                                })
+                              }
+                            >
+                              <Ban className="h-3.5 w-3.5 mr-1.5" /> Revoke
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {tab === "access" && (
+        <Card className="border border-border rounded-2xl shadow-xs overflow-hidden">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted/40 border-b border-border text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3 font-bold">User</th>
+                    <th className="px-4 py-3 font-bold">Roles</th>
+                    <th className="px-4 py-3 font-bold">Primary Branch</th>
+                    <th className="px-4 py-3 font-bold">Extra Branches</th>
+                    <th className="px-4 py-3 font-bold text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {centerManagers
+                    .filter((u) => {
+                      if (!searchQuery) return true;
+                      const q = searchQuery.toLowerCase();
+                      return (
+                        u.name.toLowerCase().includes(q) ||
+                        u.email?.toLowerCase().includes(q)
+                      );
+                    })
+                    .map((user) => (
+                      <tr key={user.id} className="border-b border-border/60 hover:bg-muted/20">
+                        <td className="px-4 py-3">
+                          <div className="font-semibold text-foreground">{user.name}</div>
+                          <div className="text-xs text-muted-foreground">{user.email}</div>
+                        </td>
+                        <td className="px-4 py-3 text-xs font-semibold">{user.roles.join(", ")}</td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {user.branch?.name || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {(user.branchAccesses ?? [])
+                            .map((b) => b.branch?.name || b.branchId)
+                            .join(", ") || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="rounded-xl"
+                            onClick={() => openAccessEditor(user)}
+                          >
+                            <Building2 className="h-3.5 w-3.5 mr-1.5" /> Edit Access
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-primary" /> Invite User
+            </DialogTitle>
+            <DialogDescription>
+              Send a 7-day invitation. The invitee sets their own password.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Name</Label>
+              <Input
+                value={inviteForm.name}
+                onChange={(e) => setInviteForm((f) => ({ ...f, name: e.target.value }))}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={inviteForm.email}
+                onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Phone (optional)</Label>
+              <Input
+                value={inviteForm.phone}
+                onChange={(e) => setInviteForm((f) => ({ ...f, phone: e.target.value }))}
+                className="rounded-xl"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Role</Label>
+              <select
+                value={inviteForm.roleName}
+                onChange={(e) => setInviteForm((f) => ({ ...f, roleName: e.target.value }))}
+                className="flex h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="CENTER_MANAGER">Center Manager</option>
+                <option value="COUNSELLOR">Counsellor</option>
+                <option value="FACULTY">Faculty</option>
+                <option value="ADMIN">Admin</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Branch</Label>
+              <select
+                value={inviteForm.branchId}
+                onChange={(e) => setInviteForm((f) => ({ ...f, branchId: e.target.value }))}
+                className="flex h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select branch…</option>
+                {allBranches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setInviteOpen(false)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-white rounded-xl"
+              onClick={handleInvite}
+              disabled={createInvitationMutation.isPending}
+            >
+              {createInvitationMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Mail className="h-4 w-4 mr-2" />
+              )}
+              Send Invite
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Branch access editor */}
+      <Dialog open={!!accessUserId} onOpenChange={(open) => !open && setAccessUserId(null)}>
+        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle>Edit Branch Access</DialogTitle>
+            <DialogDescription>
+              Select all branches this user can access.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-64 overflow-y-auto space-y-2 py-2">
+            {allBranches.map((b) => {
+              const checked = accessBranchIds.includes(b.id);
+              return (
+                <label
+                  key={b.id}
+                  className="flex items-center gap-3 rounded-xl border border-border px-3 py-2 cursor-pointer hover:bg-muted/30"
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() =>
+                      setAccessBranchIds((prev) =>
+                        checked ? prev.filter((id) => id !== b.id) : [...prev, b.id]
+                      )
+                    }
+                  />
+                  <span className="text-sm font-semibold">{b.name}</span>
+                  <span className="text-xs text-muted-foreground font-mono">{b.code}</span>
+                </label>
+              );
+            })}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setAccessUserId(null)} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-white rounded-xl"
+              onClick={saveAccess}
+              disabled={updateBranchAccessMutation.isPending}
+            >
+              {updateBranchAccessMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <Save className="h-4 w-4 mr-2" />
+              )}
+              Save Access
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={activeModal === "delete"} onOpenChange={(open) => !open && closeModal()}>
         <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
           <DialogHeader>
@@ -436,12 +791,28 @@ export const AdminPanel: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2 py-4">
-            <label className="text-xs font-semibold text-foreground">Type <strong className="text-red-600 dark:text-red-400">DELETE</strong> to confirm</label>
-            <Input value={deleteConfirmText} onChange={(e) => setDeleteConfirmText(e.target.value)} placeholder="DELETE" className="bg-background text-foreground border-border" />
+            <label className="text-xs font-semibold text-foreground">
+              Type <strong className="text-red-600 dark:text-red-400">DELETE</strong> to confirm
+            </label>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="bg-background text-foreground border-border"
+            />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeModal} className="rounded-xl">Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteConfirmText !== "DELETE"} className="rounded-xl">Delete Manager</Button>
+            <Button variant="outline" onClick={closeModal} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleteConfirmText !== "DELETE"}
+              className="rounded-xl"
+            >
+              Delete Manager
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -450,44 +821,82 @@ export const AdminPanel: React.FC = () => {
         <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
           <DialogHeader>
             <DialogTitle className="text-foreground">Reset Password</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Set a new password for {selectedManager?.name}.</DialogDescription>
+            <DialogDescription className="text-muted-foreground">
+              Set a new password for {selectedManager?.name}.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New Password" className="bg-background text-foreground border-border" />
-            <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm Password" className="bg-background text-foreground border-border" />
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="New Password"
+              className="bg-background text-foreground border-border"
+            />
+            <Input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm Password"
+              className="bg-background text-foreground border-border"
+            />
           </div>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeModal} className="rounded-xl">Cancel</Button>
-            <Button className="bg-primary text-white rounded-xl" onClick={handleResetPassword} disabled={!newPassword || newPassword !== confirmPassword}>Reset Password</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={activeModal === "changeBranch"} onOpenChange={(open) => !open && closeModal()}>
-        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Assign/Change Branch</DialogTitle>
-            <DialogDescription className="text-muted-foreground">Select a new branch for {selectedManager?.name}.</DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <select 
-              value={newBranchId} 
-              onChange={(e) => setNewBranchId(e.target.value)}
-              className="flex h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+            <Button variant="outline" onClick={closeModal} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-white rounded-xl"
+              onClick={() => {
+                addNotification("Password reset link sent.", "success");
+                closeModal();
+              }}
+              disabled={!newPassword || newPassword !== confirmPassword}
             >
-              <option value="">Select Branch...</option>
-              {allBranches.map(b => (
-                <option key={b.id} value={b.id}>{b.name} ({b.code})</option>
-              ))}
-            </select>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={closeModal} className="rounded-xl">Cancel</Button>
-            <Button className="bg-primary text-white rounded-xl" onClick={handleChangeBranch}>Update Branch</Button>
+              Reset Password
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={activeModal === "changeBranch"} onOpenChange={(open) => !open && closeModal()}>
+        <DialogContent className="bg-card border-border text-foreground rounded-2xl shadow-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Assign/Change Branch</DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Select a new branch for {selectedManager?.name}.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <select
+              value={newBranchId}
+              onChange={(e) => setNewBranchId(e.target.value)}
+              className="flex h-10 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer"
+            >
+              <option value="">Select Branch...</option>
+              {allBranches.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name} ({b.code})
+                </option>
+              ))}
+            </select>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={closeModal} className="rounded-xl">
+              Cancel
+            </Button>
+            <Button
+              className="bg-primary text-white rounded-xl"
+              onClick={() => {
+                addNotification("Branch reassigned successfully.", "success");
+                closeModal();
+              }}
+            >
+              Update Branch
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

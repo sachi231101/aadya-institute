@@ -31,6 +31,10 @@ import {
   useUpdateNotifications,
   useUpdateSystem,
   useRevokeSession,
+  useSystemConfig,
+  useUpdateSystemConfig,
+  SYSTEM_SETTING_CATEGORIES,
+  type SystemSettingCategory,
 } from "../../../hooks/useSettings";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -62,7 +66,7 @@ export const Settings: React.FC = () => {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<
-    "personal" | "security" | "notifications" | "system" | "sessions" | "permissions"
+    "personal" | "security" | "notifications" | "system" | "system-config" | "sessions" | "permissions"
   >("personal");
 
   // Personal Information State (matching exact mockup defaults)
@@ -245,10 +249,10 @@ export const Settings: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
-            Admin Profile Settings
+            System Settings
           </h1>
           <p className="text-sm text-slate-500 font-medium mt-0.5">
-            Manage your personal profile, security, notifications and portal preferences.
+            Manage your personal profile, institute system configuration, security, and portal preferences.
           </p>
         </div>
       </div>
@@ -309,6 +313,18 @@ export const Settings: React.FC = () => {
         >
           <Sliders className="h-4 w-4" />
           <span>System Preferences</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("system-config")}
+          className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === "system-config"
+              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Building2 className="h-4 w-4" />
+          <span>System Config</span>
         </button>
 
         <button
@@ -955,6 +971,15 @@ export const Settings: React.FC = () => {
         </Card>
       )}
 
+      {activeTab === "system-config" && (
+        <SystemConfigTab
+          onToast={(msg) => {
+            setToastMessage(msg);
+            setTimeout(() => setToastMessage(null), 3000);
+          }}
+        />
+      )}
+
       {/* ─── TAB 5: ACTIVE SESSIONS ─────────────────────────────────────── */}
       {activeTab === "sessions" && (
         <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-6 max-w-3xl">
@@ -1228,3 +1253,105 @@ export const Settings: React.FC = () => {
     </div>
   );
 };
+
+const CATEGORY_DEFAULTS: Record<SystemSettingCategory, Record<string, string>> = {
+  GENERAL: { instituteDisplayName: "", supportEmail: "", academicYear: "" },
+  LOCALIZATION: { defaultLanguage: "en", timezone: "Asia/Kolkata", dateFormat: "DD/MM/YYYY" },
+  ACADEMIC: { attendanceGraceMinutes: "15", maxBatchSize: "40" },
+  EXAMINATION: { passingPercentage: "40", allowRetake: "false" },
+  FEES: { currency: "INR", lateFeeEnabled: "false" },
+  COMMUNICATION: { whatsappEnabled: "true", emailEnabled: "true" },
+  PORTAL: { studentPortalEnabled: "true", facultyPortalEnabled: "true" },
+};
+
+function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
+  const [category, setCategory] = useState<SystemSettingCategory>("GENERAL");
+  const { data, isLoading, isError, refetch } = useSystemConfig(category);
+  const updateMutation = useUpdateSystemConfig();
+  const [draft, setDraft] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const settings = (data?.settings || {}) as Record<string, unknown>;
+    const defaults = CATEGORY_DEFAULTS[category];
+    const next: Record<string, string> = { ...defaults };
+    for (const [key, value] of Object.entries(settings)) {
+      next[key] = typeof value === "string" ? value : JSON.stringify(value);
+    }
+    setDraft(next);
+  }, [data, category]);
+
+  const handleSave = () => {
+    const settings: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(draft)) {
+      if (value === "true" || value === "false") settings[key] = value === "true";
+      else if (value !== "" && !Number.isNaN(Number(value)) && /^-?\d+(\.\d+)?$/.test(value)) {
+        settings[key] = Number(value);
+      } else settings[key] = value;
+    }
+    updateMutation.mutate(
+      { category, settings },
+      {
+        onSuccess: () => onToast("✓ System config saved."),
+        onError: () => onToast("⚠ Failed to save system config."),
+      }
+    );
+  };
+
+  return (
+    <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-6 space-y-5 max-w-3xl">
+      <div>
+        <h3 className="text-base font-extrabold text-slate-900">Institute System Config</h3>
+        <p className="text-xs text-slate-500 mt-0.5">
+          Configure institute-wide settings by category. Values are stored as JSON.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {SYSTEM_SETTING_CATEGORIES.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setCategory(c)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
+              category === c
+                ? "bg-[#1769AA] text-white border-[#1769AA]"
+                : "bg-white text-slate-600 border-slate-200"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
+      {isLoading ? (
+        <p className="text-sm text-slate-500">Loading...</p>
+      ) : isError ? (
+        <div className="text-sm text-red-600">
+          Failed to load.{" "}
+          <button type="button" className="underline" onClick={() => refetch()}>
+            Retry
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {Object.keys(draft).map((key) => (
+            <div key={key} className="space-y-1">
+              <Label className="text-[11px] font-bold text-slate-700">{key}</Label>
+              <Input
+                value={draft[key] ?? ""}
+                onChange={(e) => setDraft((prev) => ({ ...prev, [key]: e.target.value }))}
+                className="h-10 bg-slate-50 rounded-xl text-xs"
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      <Button
+        onClick={handleSave}
+        disabled={updateMutation.isPending}
+        className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 px-4 rounded-xl"
+      >
+        {updateMutation.isPending ? "Saving..." : "Save System Config"}
+      </Button>
+    </Card>
+  );
+}
+

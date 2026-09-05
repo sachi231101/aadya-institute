@@ -270,7 +270,7 @@ export const ViewAdmin: React.FC = () => {
             {isActive ? "Deactivate Account" : "Activate Account"}
           </Button>
 
-          <Link to={`/administration/admins/${admin.id}/edit`}>
+          <Link to={`/admin/administration/admins/${admin.id}/edit`}>
             <Button className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 shadow-sm">
               <Edit className="h-3.5 w-3.5 mr-1.5" /> Edit Manager
             </Button>
@@ -540,7 +540,7 @@ export const ViewAdmin: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/administration/admins/${id}/edit`)}
+                      onClick={() => navigate(`/admin/administration/admins/${id}/edit`)}
                       className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50"
                     >
                       <Edit className="h-3.5 w-3.5 mr-1" /> Edit Permissions

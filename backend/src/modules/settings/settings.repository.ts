@@ -147,6 +147,16 @@ export class SettingsRepository {
       throw new Error("Invalid current password");
     }
 
+    const { loadInstitutePolicy } = await import("../security/security.service");
+    const { validatePasswordAgainstPolicy } = await import(
+      "../../utils/password-policy.util"
+    );
+    const policy = await loadInstitutePolicy(user.instituteId);
+    const policyError = validatePasswordAgainstPolicy(newPassword, policy);
+    if (policyError) {
+      throw new Error(policyError);
+    }
+
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
@@ -222,5 +232,44 @@ export class SettingsRepository {
     });
 
     return { success: true, message: "Session revoked successfully" };
+  }
+
+  static async getSystemSettingsByCategory(instituteId: string, category: string) {
+    const rows = await prisma.systemSetting.findMany({
+      where: { instituteId, category },
+      orderBy: { key: "asc" },
+    });
+    const settings: Record<string, unknown> = {};
+    for (const row of rows) {
+      settings[row.key] = row.value;
+    }
+    return { category, settings, rows };
+  }
+
+  static async upsertSystemSettings(
+    instituteId: string,
+    category: string,
+    settings: Record<string, unknown>
+  ) {
+    const entries = Object.entries(settings);
+    await prisma.$transaction(
+      entries.map(([key, value]) =>
+        prisma.systemSetting.upsert({
+          where: {
+            instituteId_category_key: { instituteId, category, key },
+          },
+          create: {
+            instituteId,
+            category,
+            key,
+            value: value as import("@prisma/client").Prisma.InputJsonValue,
+          },
+          update: {
+            value: value as import("@prisma/client").Prisma.InputJsonValue,
+          },
+        })
+      )
+    );
+    return this.getSystemSettingsByCategory(instituteId, category);
   }
 }
