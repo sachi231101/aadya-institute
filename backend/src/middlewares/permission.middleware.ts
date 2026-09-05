@@ -137,100 +137,24 @@ export const requireAnyPermission = (...permissions: string[]) => {
       return;
     }
 
-    for (const permission of permissions) {
-      const allowed = await userHasPermission(userId, userRoles, permission);
-      if (allowed) {
-        next();
-        return;
+    try {
+      for (const permission of permissions) {
+        const allowed = await userHasPermission(userId, userRoles, permission);
+        if (allowed) {
+          next();
+          return;
+        }
       }
-      next();
+
+      logger.warn(
+        { userId, roles: userRoles, requiredPermissions: permissions },
+        "Permission check failed (any-of)"
+      );
+      sendError(res, "Forbidden — insufficient permissions", 403);
     } catch (err) {
-      logger.error({ err, userId, permission }, "Error during permission check");
+      logger.error({ err, userId, permissions }, "Error during permission check");
       sendError(res, "Internal error during permission check", 500);
     }
   };
 };
 
-    logger.warn(
-      { userId, roles: userRoles, requiredPermissions: permissions },
-      "Permission check failed (any-of)"
-    );
-    sendError(res, "Forbidden — insufficient permissions", 403);
-  };
-};
-
-async function userHasPermission(
-  userId: string,
-  userRoles: string[],
-  permission: string
-): Promise<boolean> {
-  try {
-    if (userRoles.includes("CENTER_MANAGER") || userRoles.includes("COUNSELLOR")) {
-      const userPermission = await prisma.userPermission.findFirst({
-        where: {
-          userId,
-          permission: { name: permission },
-        },
-      });
-      if (userPermission) return true;
-
-      const roleMatch = await prisma.rolePermission.findFirst({
-        where: {
-          role: { name: { in: userRoles } },
-          permission: { name: permission },
-        },
-      });
-      if (roleMatch) return true;
-
-      if (userRoles.includes("COUNSELLOR")) {
-        const anyUserPerm = await prisma.userPermission.count({ where: { userId } });
-        if (
-          anyUserPerm === 0 &&
-          [
-            "lead.read",
-            "lead.create",
-            "lead.update",
-            "lead.convert",
-            "branch.read",
-            "dashboard.read",
-            "master.read",
-            "course.read",
-          ].includes(permission)
-        ) {
-          return true;
-        }
-      }
-      return false;
-    }
-
-    const match = await prisma.rolePermission.findFirst({
-      where: {
-        role: { name: { in: userRoles } },
-        permission: { name: permission },
-      },
-    });
-    if (match) return true;
-
-    if (
-      userRoles.includes("STUDENT") &&
-      [
-        "exam.take",
-        "exam.read",
-        "schedule.read",
-        "attendance.read",
-        "assignment.read",
-        "assignment.submit",
-        "recording.read",
-        "student.read",
-        "feedback.create",
-      ].includes(permission)
-    ) {
-      return true;
-    }
-
-    return false;
-  } catch (err) {
-    logger.error({ err, userId, permission }, "Error during permission check");
-    return false;
-  }
-}
