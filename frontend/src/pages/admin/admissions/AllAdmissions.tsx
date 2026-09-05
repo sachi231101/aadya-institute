@@ -58,6 +58,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ViewAdmissionInfo } from "./ViewAdmissionInfo";
+import { CourseChips } from "@/components/common/CourseChips";
+import {
+  groupAdmissionsByStudent,
+  type PackageCourseRef,
+} from "@/utils/admission-package.utils";
 
 // ─── TYPES & DATA STRUCTURES ──────────────────────────────────────────────────
 
@@ -97,6 +102,8 @@ export interface PaymentTransactionItem {
   status: "Completed" | "Pending";
 }
 
+export type PackageCourseItem = PackageCourseRef;
+
 export interface EnrichedAdmission {
   id: string;
   admissionNo: string;
@@ -127,6 +134,9 @@ export interface EnrichedAdmission {
   courseId: string;
   courseName: string;
   programDuration: string;
+  /** All package courses for this student (one row may cover multiple admissions) */
+  courses?: PackageCourseItem[];
+  admissionIds?: string[];
 
   // Batch
   batchId: string;
@@ -154,6 +164,9 @@ export interface EnrichedAdmission {
   workflowStep: number; // 1: Admission Created, 2: Fee Setup, 3: Batch Assigned, 4: Confirmed
   admissionDate: string;
   admissionTime: string;
+  /** Raw sort key for picking primary among package siblings */
+  _sortAt?: number;
+  sortAt?: number;
 
   // Documents & Notes
   documents: AdmissionDocument[];
@@ -218,6 +231,18 @@ export const AllAdmissions: React.FC = () => {
       courseId: adm.courseId || "",
       courseName: adm.course?.name || "—",
       programDuration: adm.course?.duration ? `(${adm.course.duration} Months)` : "—",
+      courses: adm.course
+        ? [
+            {
+              id: adm.courseId || adm.course.id,
+              name: adm.course.name,
+              code: adm.course.code || "",
+              admissionId: adm.id,
+              batchCode: adm.batch?.code || adm.batch?.name || undefined,
+            },
+          ]
+        : [],
+      admissionIds: [adm.id],
       batchId: adm.batchId || "",
       batchCode: adm.batch?.code || adm.batch?.name || "—",
       batchType: "Morning Batch",
@@ -246,6 +271,9 @@ export const AllAdmissions: React.FC = () => {
       workflowStep: adm.status === "CONFIRMED" ? 4 : 3,
       admissionDate: new Date(adm.admissionDate || adm.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
       admissionTime: new Date(adm.admissionDate || adm.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      _sortAt: new Date(adm.admissionDate || adm.createdAt || 0).getTime(),
+      sortAt: new Date(adm.admissionDate || adm.createdAt || 0).getTime(),
+      paymentCount: (adm.payments || []).length,
       documents: (adm.documents || []).map((d: any) => ({
         id: d.id,
         title: d.title || d.name,
@@ -258,12 +286,40 @@ export const AllAdmissions: React.FC = () => {
       counsellorNotes: adm.notes ? [{ id: `n-${adm.id}`, author: adm.counselorName || "Counsellor", role: "Counsellor", date: "Today", time: "Now", text: adm.notes }] : [],
     }));
 
-    setAdmissionsList(mappedDbAdmissions);
+    // One list row per student — package multi-course admissions collapse together
+    const groupedList = groupAdmissionsByStudent(
+      mappedDbAdmissions.map((a) => ({
+        ...a,
+        paymentCount: a.paymentHistory?.length || 0,
+        sortAt: a._sortAt,
+      }))
+    ).map((g) => ({
+      ...g,
+      feePaymentStatus: (g.amountPaid > 0 ? "Paid" : g.feePaymentStatus) as FeePaymentStatus,
+      documents: g.documents || [],
+      counsellorNotes: g.counsellorNotes || [],
+      paymentHistory: g.paymentHistory || [],
+    })) as EnrichedAdmission[];
+
+    setAdmissionsList(groupedList);
   }, [dbAdmissionsRes]);
 
   useEffect(() => {
     const detail = preselectedAdmissionRes?.data;
     if (!detail) return;
+
+    // Prefer already-grouped list row so package courses stay together
+    const fromList = admissionsList.find(
+      (a) =>
+        a.id === detail.id ||
+        a.admissionIds?.includes(detail.id) ||
+        (!!detail.studentId && a.studentId === detail.studentId)
+    );
+    if (fromList) {
+      setSelectedAdmission(fromList);
+      return;
+    }
+
     const extractNote = (notes: string | undefined | null, pattern: RegExp) => {
       if (!notes) return null;
       const match = notes.match(pattern);
@@ -295,6 +351,18 @@ export const AllAdmissions: React.FC = () => {
       courseId: detail.courseId,
       courseName: detail.course?.name || "—",
       programDuration: "—",
+      courses: detail.course
+        ? [
+            {
+              id: detail.courseId || detail.course.id,
+              name: detail.course.name,
+              code: detail.course.code || "",
+              admissionId: detail.id,
+              batchCode: detail.batch?.code || detail.batch?.name || undefined,
+            },
+          ]
+        : [],
+      admissionIds: [detail.id],
       batchId: detail.batchId || "",
       batchCode: detail.batch?.code || detail.batch?.name || "—",
       batchType: "Morning Batch",
@@ -335,7 +403,7 @@ export const AllAdmissions: React.FC = () => {
       counsellorNotes: detail.notes ? [{ id: `n-${detail.id}`, author: "Counsellor", role: "Counsellor", date: "Today", time: "Now", text: detail.notes }] : [],
     };
     setSelectedAdmission(mapped);
-  }, [preselectedAdmissionRes]);
+  }, [preselectedAdmissionRes, admissionsList]);
 
   // Search & Filter state
   const [searchTerm, setSearchTerm] = useState("");
@@ -408,7 +476,19 @@ export const AllAdmissions: React.FC = () => {
   const provisionalCount = admissionsList.filter((a) => a.status === "Provisional" || (a.status as string) === "PROVISIONAL").length;
 
   const courseOptions = useMemo(() => {
-    const names = new Set(admissionsList.map((a) => a.courseName).filter((n) => n && n !== "—"));
+    const names = new Set<string>();
+    for (const a of admissionsList) {
+      if (a.courses?.length) {
+        a.courses.forEach((c) => {
+          if (c.name) names.add(c.name);
+        });
+      } else if (a.courseName && a.courseName !== "—") {
+        a.courseName.split(",").forEach((part) => {
+          const cleaned = part.replace(/\+\d+$/, "").trim();
+          if (cleaned) names.add(cleaned);
+        });
+      }
+    }
     return Array.from(names).sort();
   }, [admissionsList]);
 
@@ -416,17 +496,22 @@ export const AllAdmissions: React.FC = () => {
   const filteredAdmissions = useMemo(() => {
     return admissionsList.filter((adm) => {
       const q = searchTerm.toLowerCase().trim();
+      const packageCourseText = (adm.courses || []).map((c) => `${c.name} ${c.code}`).join(" ").toLowerCase();
       const matchesSearch =
         !q ||
         adm.admissionNo.toLowerCase().includes(q) ||
         adm.studentName.toLowerCase().includes(q) ||
+        (adm.studentCode || "").toLowerCase().includes(q) ||
         adm.email.toLowerCase().includes(q) ||
         adm.phone.includes(q) ||
         adm.courseName.toLowerCase().includes(q) ||
+        packageCourseText.includes(q) ||
         adm.batchCode.toLowerCase().includes(q);
 
       const matchesCourse =
-        courseFilter === "ALL" || adm.courseName.toLowerCase() === courseFilter.toLowerCase();
+        courseFilter === "ALL" ||
+        adm.courseName.toLowerCase().includes(courseFilter.toLowerCase()) ||
+        (adm.courses || []).some((c) => c.name.toLowerCase() === courseFilter.toLowerCase());
 
       const matchesStatus =
         statusFilter === "ALL" || adm.status === statusFilter;
@@ -802,7 +887,7 @@ export const AllAdmissions: React.FC = () => {
               {currentRows.length > 0 ? (
                 currentRows.map((adm) => (
                   <TableRow
-                    key={adm.id}
+                    key={adm.studentId || adm.admissionIds?.join("-") || adm.id}
                     onClick={() => handleOpenDetails(adm)}
                     className="hover:bg-muted/30 transition-colors cursor-pointer group border-border"
                   >
@@ -822,8 +907,14 @@ export const AllAdmissions: React.FC = () => {
                     </TableCell>
 
                     <TableCell className="py-3 px-4 align-middle">
-                      <p className="text-xs font-medium text-foreground truncate max-w-[140px]">{adm.courseName}</p>
-                      <p className="text-[11px] text-muted-foreground md:hidden truncate">{adm.batchCode}</p>
+                      <CourseChips
+                        courses={adm.courses}
+                        fallback={adm.courseName}
+                        maxVisible={3}
+                      />
+                      {(adm.courses?.length || 0) <= 1 && (
+                        <p className="text-[11px] text-muted-foreground md:hidden truncate">{adm.batchCode}</p>
+                      )}
                     </TableCell>
 
                     <TableCell className="py-3 px-4 align-middle hidden md:table-cell">

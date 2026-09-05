@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import { useStudentReport } from "../../../hooks/useReports";
 import { downloadCsv } from "../../../utils/csvExporter";
+import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
+import { CourseChips } from "@/components/common/CourseChips";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,10 +59,14 @@ export const StudentReports: React.FC = () => {
   const studentList = data?.students || [];
 
   const filteredStudents = studentList.filter((s) => {
+    const courses = coursesFromStudent(s);
+    const courseLabel = formatPackageCourseLabel(courses, s.courseName || "");
+    const q = searchTerm.toLowerCase();
     return (
-      (s.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.studentCode || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.courseName || "").toLowerCase().includes(searchTerm.toLowerCase())
+      (s.name || "").toLowerCase().includes(q) ||
+      (s.studentCode || "").toLowerCase().includes(q) ||
+      courseLabel.toLowerCase().includes(q) ||
+      courses.some((c) => c.name.toLowerCase().includes(q))
     );
   });
 
@@ -69,15 +75,18 @@ export const StudentReports: React.FC = () => {
       alert("No student report data available to export.");
       return;
     }
-    const exportData = studentList.map((s) => ({
-      "Roll Code": s.studentCode,
-      "Student Name": s.name,
-      "Branch": s.branchName,
-      "Course": s.courseName,
-      "Attendance %": `${s.attendancePercentage}%`,
-      "Assignments": `${s.assignmentsSubmitted}/${s.totalAssignments}`,
-      "Risk Level": s.riskFlag,
-    }));
+    const exportData = studentList.map((s) => {
+      const courses = coursesFromStudent(s);
+      return {
+        "Roll Code": s.studentCode,
+        "Student Name": s.name,
+        "Branch": s.branchName,
+        "Course": formatPackageCourseLabel(courses, s.courseName || "—"),
+        "Attendance %": `${s.attendancePercentage}%`,
+        "Assignments": `${s.assignmentsSubmitted}/${s.totalAssignments}`,
+        "Risk Level": s.riskFlag,
+      };
+    });
     downloadCsv("Student_Analytics_Report", exportData);
   };
 
@@ -372,7 +381,13 @@ export const StudentReports: React.FC = () => {
                           </span>
                         </div>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-600">{student.courseName}</TableCell>
+                      <TableCell className="text-xs text-slate-600 max-w-[220px]">
+                        <CourseChips
+                          courses={coursesFromStudent(student)}
+                          fallback={student.courseName}
+                          maxVisible={3}
+                        />
+                      </TableCell>
                       <TableCell className="text-xs font-bold text-emerald-700">
                         {student.attendancePercentage}%
                       </TableCell>

@@ -127,11 +127,19 @@ export const StudentProfile: React.FC = () => {
                   ID: {academic.studentCode}
                 </Badge>
               )}
-              {academic.primaryCourse && (
-                <Badge className="bg-white/25 text-white border-white/40 font-semibold text-[11px]">
-                  {academic.primaryCourse.name}
+              {(academic.assignedCourses.length > 0
+                ? academic.assignedCourses
+                : academic.primaryCourse
+                  ? [academic.primaryCourse]
+                  : []
+              ).map((course) => (
+                <Badge
+                  key={course.id}
+                  className="bg-white/25 text-white border-white/40 font-semibold text-[11px]"
+                >
+                  {course.name}
                 </Badge>
-              )}
+              ))}
             </div>
           </div>
         </div>
@@ -149,7 +157,13 @@ export const StudentProfile: React.FC = () => {
             {[
               { label: "Full Name", value: academic.studentName || user?.name },
               { label: "Student Code / ID", value: academic.studentCode || user?.id },
-              { label: "Enrolled Program", value: academic.primaryCourse?.name || "Enrolled Course" },
+              {
+                label: academic.assignedCourses.length > 1 ? "Enrolled Courses" : "Enrolled Program",
+                value:
+                  academic.assignedCourses.length > 0
+                    ? academic.assignedCourses.map((c) => c.name).join(", ")
+                    : academic.primaryCourse?.name || "Enrolled Course",
+              },
               { label: "Assigned Batch", value: academic.primaryBatch?.name || academic.primaryBatch?.code || "Current Batch" },
               { label: "Email", value: user?.email },
               { label: "Phone", value: user?.phone },
@@ -160,6 +174,23 @@ export const StudentProfile: React.FC = () => {
                 <p className="text-sm font-medium text-foreground">{value || "—"}</p>
               </div>
             ))}
+            {academic.assignedCourses.length > 1 && (
+              <div className="p-2.5 bg-primary/5 rounded-lg border border-primary/20 space-y-2">
+                <p className="text-xs font-semibold text-muted-foreground">Package Courses</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {academic.assignedCourses.map((course) => (
+                    <Badge
+                      key={course.id}
+                      variant="outline"
+                      className="text-[11px] font-semibold border-primary/30 text-primary bg-card"
+                    >
+                      {course.name}
+                      {course.code ? ` (${course.code})` : ""}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -179,7 +210,9 @@ export const StudentProfile: React.FC = () => {
               </div>
               <div className="p-3 bg-blue-500/10 rounded-lg text-center border border-blue-500/20">
                 <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400 mx-auto mb-1" />
-                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">{academic.assignedCourses.length || 1}</p>
+                <p className="text-lg font-bold text-blue-700 dark:text-blue-300">
+                  {Math.max(academic.assignedCourses.length, academic.primaryCourse ? 1 : 0)}
+                </p>
                 <p className="text-xs text-blue-600 dark:text-blue-400 font-medium">Enrolled Courses</p>
               </div>
               <div className="p-3 bg-amber-500/10 rounded-lg text-center border border-amber-500/20">

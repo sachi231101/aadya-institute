@@ -77,11 +77,14 @@ import { usersApi } from "@/services/users.api";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { useNumberingSeriesPreview } from "@/hooks/useMasters";
+import { useNumberingSeriesPreview, useActiveMasterRecords, useCreateMasterRecord } from "@/hooks/useMasters";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
+
+const COURSE_PACKAGE_ENTITY = "coursepackage";
+const MIN_PACKAGE_COURSES = 2;
 
 export interface CourseCatalogItem {
   id: string;
@@ -273,6 +276,15 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [selectedPackageId, setSelectedPackageId] = useState("");
   const [availableSearchQuery, setAvailableSearchQuery] = useState("");
   const [selectedSearchQuery, setSelectedSearchQuery] = useState("");
+  const [showCreatePackageModal, setShowCreatePackageModal] = useState(false);
+  const [newPackageName, setNewPackageName] = useState("");
+  const [newPackageDescription, setNewPackageDescription] = useState("");
+  const [newPackageCourseIds, setNewPackageCourseIds] = useState<string[]>([]);
+  const [packageCourseSearch, setPackageCourseSearch] = useState("");
+  const [packageFormError, setPackageFormError] = useState<string | null>(null);
+
+  const { data: packageMastersRes, isLoading: packagesLoading } = useActiveMasterRecords(COURSE_PACKAGE_ENTITY);
+  const createPackageMutation = useCreateMasterRecord();
 
   // Track single selected course in Available panel
   const [selectedAvailableCourseId, setSelectedAvailableCourseId] = useState<string | null>(null);
@@ -492,7 +504,40 @@ export const DirectAdmissionEntry: React.FC = () => {
       });
   }, [dbCoursesRes]);
 
-  const availablePackages = useMemo(() => [] as Array<CoursePackageItem & { matchedCourses: typeof allAvailableCourses }>, []);
+  const availablePackages = useMemo(() => {
+    const records = packageMastersRes?.data || [];
+    return records
+      .map((rec) => {
+        const rawIds = rec.data?.courseIds;
+        const courseIds: string[] = Array.isArray(rawIds)
+          ? rawIds.filter((id): id is string => typeof id === "string")
+          : typeof rawIds === "string"
+            ? rawIds.split(",").map((s) => s.trim()).filter(Boolean)
+            : [];
+        const matchedCourses = courseIds
+          .map((id) => allAvailableCourses.find((c) => c.id === id))
+          .filter((c): c is (typeof allAvailableCourses)[number] => !!c);
+        return {
+          id: rec.id,
+          name: rec.name,
+          courseIds,
+          description: rec.description || "",
+          matchedCourses,
+        } satisfies CoursePackageItem & { matchedCourses: typeof allAvailableCourses };
+      })
+      .filter((pkg) => pkg.matchedCourses.length > 0);
+  }, [packageMastersRes, allAvailableCourses]);
+
+  const packageDialogCourses = useMemo(() => {
+    if (!packageCourseSearch.trim()) return allAvailableCourses;
+    const q = packageCourseSearch.toLowerCase();
+    return allAvailableCourses.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.code.toLowerCase().includes(q) ||
+        c.category.toLowerCase().includes(q)
+    );
+  }, [allAvailableCourses, packageCourseSearch]);
 
   const existingStudents = useMemo(() => {
     return (studentsRes?.data || []).map((s: any) => {
@@ -600,14 +645,17 @@ export const DirectAdmissionEntry: React.FC = () => {
     return [];
   };
 
-  const buildSelectedCourseItem = (cObj: (typeof allAvailableCourses)[number]): SelectedCourseItem => {
+  const buildSelectedCourseItem = (
+    cObj: (typeof allAvailableCourses)[number],
+    packageName?: string
+  ): SelectedCourseItem => {
     const courseBatches = getCourseBatches(cObj.id, cObj.name, cObj.code);
     const defaultBatch = courseBatches[0];
     return {
-      id: `sel-${cObj.id}-${Date.now()}`,
+      id: `sel-${cObj.id}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       courseId: cObj.id,
       courseName: cObj.name,
-      packageProgram: cObj.packageProgram,
+      packageProgram: packageName || cObj.packageProgram,
       batchId: defaultBatch?.id || "",
       batchCode: defaultBatch?.code || "Unassigned",
       facultyName: defaultBatch?.facultyName || "To be assigned",
@@ -689,29 +737,117 @@ export const DirectAdmissionEntry: React.FC = () => {
     setSelectedCoursesList((prev) => prev.filter((c) => c.id !== itemId));
   };
 
-  // Apply a Course Package
-  const handleApplyPackage = (pkgId?: string) => {
-    const idToApply = pkgId || selectedPackageId;
-    if (!idToApply) return;
-
-    const pkg = availablePackages.find((p) => p.id === idToApply);
-    if (!pkg) {
-      setFormError("This package has no matching courses in the current catalog.");
-      return;
-    }
-
+  const applyPackageCourses = (
+    pkg: CoursePackageItem & { matchedCourses: typeof allAvailableCourses }
+  ) => {
     const existingCourseIds = new Set(selectedCoursesList.map((c) => c.courseId));
     const newItems = pkg.matchedCourses
       .filter((cObj) => !existingCourseIds.has(cObj.id))
-      .map((cObj) => buildSelectedCourseItem(cObj));
+      .map((cObj) => buildSelectedCourseItem(cObj, pkg.name));
 
     if (newItems.length === 0) {
       setFormError("All courses in this package are already selected.");
-      return;
+      return false;
     }
 
     setSelectedCoursesList((prev) => [...prev, ...newItems]);
     setFormError(null);
+    setFormSuccess(`Added ${newItems.length} course(s) from package "${pkg.name}".`);
+    setTimeout(() => setFormSuccess(null), 3500);
+    return true;
+  };
+
+  // Apply an existing Course Package from the dropdown
+  const handleApplyPackage = (pkgId?: string) => {
+    const idToApply = pkgId || selectedPackageId;
+    if (!idToApply) {
+      setFormError("Select a course package first, or create a new one.");
+      return;
+    }
+
+    const pkg = availablePackages.find((p) => p.id === idToApply);
+    if (!pkg || pkg.matchedCourses.length === 0) {
+      setFormError("This package has no matching courses in the current catalog.");
+      return;
+    }
+
+    applyPackageCourses(pkg);
+  };
+
+  const resetCreatePackageForm = () => {
+    setNewPackageName("");
+    setNewPackageDescription("");
+    setNewPackageCourseIds([]);
+    setPackageCourseSearch("");
+    setPackageFormError(null);
+  };
+
+  const handleOpenCreatePackage = () => {
+    resetCreatePackageForm();
+    setShowCreatePackageModal(true);
+  };
+
+  const togglePackageCourse = (courseId: string) => {
+    setNewPackageCourseIds((prev) =>
+      prev.includes(courseId) ? prev.filter((id) => id !== courseId) : [...prev, courseId]
+    );
+  };
+
+  const handleSaveCoursePackage = async () => {
+    const name = newPackageName.trim();
+    if (!name) {
+      setPackageFormError("Enter a package name.");
+      return;
+    }
+    if (newPackageCourseIds.length < MIN_PACKAGE_COURSES) {
+      setPackageFormError(`Select at least ${MIN_PACKAGE_COURSES} courses to build a package.`);
+      return;
+    }
+
+    const matchedCourses = newPackageCourseIds
+      .map((id) => allAvailableCourses.find((c) => c.id === id))
+      .filter((c): c is (typeof allAvailableCourses)[number] => !!c);
+
+    if (matchedCourses.length < MIN_PACKAGE_COURSES) {
+      setPackageFormError("Some selected courses are no longer available. Refresh and try again.");
+      return;
+    }
+
+    let createdId = "";
+    try {
+      setPackageFormError(null);
+      const res = await createPackageMutation.mutateAsync({
+        entityType: COURSE_PACKAGE_ENTITY,
+        payload: {
+          name,
+          description: newPackageDescription.trim() || undefined,
+          data: { courseIds: newPackageCourseIds },
+        },
+      });
+      createdId = res.data?.id || "";
+    } catch (err: any) {
+      // Still apply courses to this admission even if master.create is denied
+      const status = err?.response?.status;
+      if (status !== 403 && status !== 401) {
+        setPackageFormError(
+          err?.response?.data?.message || err?.message || "Failed to create course package."
+        );
+        return;
+      }
+    }
+
+    const pkg = {
+      id: createdId || `pkg-local-${Date.now()}`,
+      name,
+      courseIds: newPackageCourseIds,
+      description: newPackageDescription.trim(),
+      matchedCourses,
+    };
+
+    if (createdId) setSelectedPackageId(createdId);
+    applyPackageCourses(pkg);
+    setShowCreatePackageModal(false);
+    resetCreatePackageForm();
   };
 
   // ─── BATCH & COURSE CONFIGURATION HANDLERS ──────────────────────────────
@@ -1739,6 +1875,9 @@ export const DirectAdmissionEntry: React.FC = () => {
                 {/* Course Package Dropdown Selector */}
                 <div className="space-y-1.5">
                   <label className="text-xs font-bold text-foreground block">Course Package (Optional)</label>
+                  <p className="text-[11px] text-muted-foreground">
+                    Create a package by combining 2–4+ courses, or apply an existing package in one click.
+                  </p>
                   <div className="flex items-center gap-3">
                     <div className="flex-1">
                       <select
@@ -1748,16 +1887,19 @@ export const DirectAdmissionEntry: React.FC = () => {
                           if (e.target.value) handleApplyPackage(e.target.value);
                         }}
                         className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
+                        disabled={packagesLoading}
                       >
-                        <option value="">Select Course Package...</option>
+                        <option value="">
+                          {packagesLoading ? "Loading packages..." : "Select Course Package..."}
+                        </option>
                         {availablePackages.map((pkg) => (
                           <option key={pkg.id} value={pkg.id}>
                             {pkg.name} ({pkg.matchedCourses.map((c) => c.name).join(" + ")})
                           </option>
                         ))}
-                        {availablePackages.length === 0 && (
+                        {!packagesLoading && availablePackages.length === 0 && (
                           <option value="" disabled>
-                            No packages match the current course catalog
+                            No packages yet — click Add Package to create one
                           </option>
                         )}
                       </select>
@@ -1766,10 +1908,10 @@ export const DirectAdmissionEntry: React.FC = () => {
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => handleApplyPackage()}
+                      onClick={handleOpenCreatePackage}
                       className="text-xs text-primary border-primary/30 hover:bg-primary/10 font-bold h-9 px-3.5 gap-1.5 shrink-0"
                     >
-                      <Plus className="h-3.5 w-3.5" /> Add Package
+                      <PackagePlus className="h-3.5 w-3.5" /> Add Package
                     </Button>
                   </div>
                 </div>
@@ -2810,6 +2952,153 @@ export const DirectAdmissionEntry: React.FC = () => {
                 <>
                   <CheckCircle2 className="h-4 w-4" />
                   <span>Proceed to Final Confirmation →</span>
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Course Package — combine multiple courses into one package */}
+      <Dialog
+        open={showCreatePackageModal}
+        onOpenChange={(open) => {
+          setShowCreatePackageModal(open);
+          if (!open) resetCreatePackageForm();
+        }}
+      >
+        <DialogContent className="max-w-lg rounded-2xl p-0 overflow-hidden gap-0">
+          <DialogHeader className="px-6 pt-5 pb-3 border-b border-border bg-muted/30">
+            <DialogTitle className="text-base font-bold flex items-center gap-2">
+              <PackagePlus className="h-4 w-4 text-primary" />
+              Create Course Package
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Combine 2 or more courses into one package (e.g. Full Stack = HTML + CSS + React + Node).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 py-4 space-y-4 max-h-[70vh] overflow-y-auto">
+            {packageFormError && (
+              <div className="p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-600 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+                {packageFormError}
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">
+                Package Name <span className="text-rose-500">*</span>
+              </label>
+              <Input
+                value={newPackageName}
+                onChange={(e) => setNewPackageName(e.target.value)}
+                placeholder="e.g. Full Stack Developer Package"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-foreground">Description</label>
+              <Input
+                value={newPackageDescription}
+                onChange={(e) => setNewPackageDescription(e.target.value)}
+                placeholder="Optional short note for counsellors"
+                className="h-9 text-xs"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <label className="text-xs font-bold text-foreground">
+                  Courses in package <span className="text-rose-500">*</span>
+                </label>
+                <Badge variant="outline" className="text-[10px] font-bold">
+                  {newPackageCourseIds.length} selected
+                </Badge>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
+                <Input
+                  value={packageCourseSearch}
+                  onChange={(e) => setPackageCourseSearch(e.target.value)}
+                  placeholder="Search courses to include..."
+                  className="pl-8 h-8 text-xs"
+                />
+              </div>
+              <div className="border border-border rounded-xl max-h-56 overflow-y-auto divide-y divide-border bg-card">
+                {packageDialogCourses.length === 0 ? (
+                  <div className="p-6 text-center text-xs text-muted-foreground">
+                    No courses available to add.
+                  </div>
+                ) : (
+                  packageDialogCourses.map((course) => {
+                    const checked = newPackageCourseIds.includes(course.id);
+                    return (
+                      <label
+                        key={course.id}
+                        className={`flex items-start gap-3 p-3 cursor-pointer transition-colors ${
+                          checked ? "bg-primary/5" : "hover:bg-muted/40"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => togglePackageCourse(course.id)}
+                          className="mt-0.5 h-4 w-4 rounded border-border accent-primary"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold text-foreground truncate">{course.name}</div>
+                          <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
+                            <span className="font-mono">{course.code}</span>
+                            <span>•</span>
+                            <span>{course.category}</span>
+                            <span>•</span>
+                            <span>₹{course.fee.toLocaleString("en-IN")}</span>
+                          </div>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              {newPackageCourseIds.length > 0 && (
+                <p className="text-[11px] text-muted-foreground">
+                  Selected:{" "}
+                  {newPackageCourseIds
+                    .map((id) => allAvailableCourses.find((c) => c.id === id)?.name)
+                    .filter(Boolean)
+                    .join(" + ")}
+                </p>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="px-6 py-4 border-t border-border bg-muted/20 gap-2 sm:gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowCreatePackageModal(false);
+                resetCreatePackageForm();
+              }}
+              disabled={createPackageMutation.isPending}
+              className="text-xs font-semibold"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveCoursePackage}
+              disabled={createPackageMutation.isPending}
+              className="text-xs font-bold bg-primary hover:bg-primary/90 text-white gap-1.5"
+            >
+              {createPackageMutation.isPending ? (
+                "Saving..."
+              ) : (
+                <>
+                  <Check className="h-3.5 w-3.5" />
+                  Save &amp; Apply Package
                 </>
               )}
             </Button>

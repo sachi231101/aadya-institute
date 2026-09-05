@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Loader2, AlertCircle, GraduationCap } from "lucide-react";
 import { useAdmissionsReport } from "@/hooks/useReports";
 import { Card, CardContent } from "@/components/ui/card";
@@ -12,10 +12,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+import { CourseChips } from "@/components/common/CourseChips";
+import { groupAdmissionsByStudent } from "@/utils/admission-package.utils";
 
 export const AdmissionReports: React.FC = () => {
   const { data, isLoading, isError, refetch } = useAdmissionsReport();
   const summary = data?.summary || { totalAdmissions: 0, confirmedAdmissions: 0, provisionalAdmissions: 0, cancelledAdmissions: 0, conversionRate: 0 };
+
+  const recentGrouped = useMemo(() => {
+    const rows = (data?.recentAdmissions || []).map((a) => ({
+      id: a.id,
+      admissionNo: a.admissionNo,
+      studentId: (a as { studentId?: string }).studentId,
+      studentName: a.studentName,
+      phone: "",
+      courseId: a.id,
+      courseName: a.courseName,
+      branchName: a.branchName,
+      status: a.status,
+      sortAt: a.createdAt || null,
+    }));
+    return groupAdmissionsByStudent(rows);
+  }, [data?.recentAdmissions]);
 
   if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
@@ -68,14 +86,16 @@ export const AdmissionReports: React.FC = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(data?.recentAdmissions || []).length === 0 ? (
+              {recentGrouped.length === 0 ? (
                 <TableRow><TableCell colSpan={5} className="text-center py-6 text-text-secondary">No recent admissions.</TableCell></TableRow>
               ) : (
-                data!.recentAdmissions.map((a) => (
-                  <TableRow key={a.id}>
+                recentGrouped.map((a) => (
+                  <TableRow key={a.studentId || a.admissionIds?.join("-") || a.id}>
                     <TableCell className="font-mono">{a.admissionNo}</TableCell>
                     <TableCell>{a.studentName}</TableCell>
-                    <TableCell>{a.courseName}</TableCell>
+                    <TableCell>
+                      <CourseChips courses={a.courses} fallback={a.courseName || "—"} />
+                    </TableCell>
                     <TableCell>{a.branchName}</TableCell>
                     <TableCell>{a.status}</TableCell>
                   </TableRow>

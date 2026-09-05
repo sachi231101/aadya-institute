@@ -9,7 +9,7 @@ export interface MasterEntityTypeDef {
   category: string;
 }
 
-/** 15 master types actively used across the application */
+/** Master types actively used across the application */
 export const MASTER_ENTITY_TYPES: MasterEntityTypeDef[] = [
   // Academic & Organization
   { id: "area", name: "Area", category: "ACADEMIC_ORG" },
@@ -19,6 +19,7 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeDef[] = [
   { id: "parentinfo", name: "Parent Info", category: "ACADEMIC_ORG" },
   { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG" },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG" },
+  { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG" },
   // Admissions & Leads
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS" },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS" },

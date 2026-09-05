@@ -24,7 +24,7 @@ export class ReportRepository {
         branch: { select: { name: true } },
         admissions: {
           include: {
-            course: { select: { name: true, code: true } },
+            course: { select: { id: true, name: true, code: true } },
           },
         },
         studentAttendances: true,
@@ -47,7 +47,15 @@ export class ReportRepository {
 
     const studentRows = students.map((s) => {
       const studentName = s.user?.name || `Student ${s.studentCode}`;
-      const courseName = s.admissions[0]?.course?.name || "Unassigned";
+      const courses = s.admissions
+        .map((a) =>
+          a.course
+            ? { id: a.course.id, name: a.course.name, code: a.course.code || undefined }
+            : null
+        )
+        .filter((c): c is { id: string; name: string; code?: string } => !!c);
+      const courseName =
+        courses.length > 0 ? courses.map((c) => c.name).join(", ") : "Unassigned";
       const branchName = s.branch?.name || "Aadya Central Branch";
 
       const totalClasses = s.studentAttendances.length;
@@ -83,6 +91,7 @@ export class ReportRepository {
         branchId: s.branchId,
         branchName,
         courseName,
+        courses,
         attendancePercentage: attendancePct,
         assignmentsSubmitted: submittedCount,
         totalAssignments: totalCount,
@@ -123,11 +132,19 @@ export class ReportRepository {
       { range: "Below 50% (Risk)", count: countRangeBelow50, color: "#ef4444" },
     ];
 
-    // Course Share strictly from DB
+    // Course Share — count each package course (student may appear in multiple courses)
     const courseMap = new Map<string, number>();
     students.forEach((s) => {
-      const cName = s.admissions[0]?.course?.name || "Unassigned";
-      courseMap.set(cName, (courseMap.get(cName) || 0) + 1);
+      const names = s.admissions
+        .map((a) => a.course?.name)
+        .filter((n): n is string => !!n);
+      if (names.length === 0) {
+        courseMap.set("Unassigned", (courseMap.get("Unassigned") || 0) + 1);
+      } else {
+        names.forEach((cName) => {
+          courseMap.set(cName, (courseMap.get(cName) || 0) + 1);
+        });
+      }
     });
 
     const colors = ["#1769AA", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#3b82f6"];

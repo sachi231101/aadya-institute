@@ -31,6 +31,8 @@ import {
 import { batchesApi, type BatchData, type CreateBatchPayload, type BatchCoursePayload, type ScheduleLinePayload } from "../../../services/batches.api";
 import { formatBatchSubjectNames, formatBatchInstructorsSummary } from "@/utils/batch.utils";
 import { BatchSubjectChips } from "@/components/batches/BatchSubjectFacultyDisplay";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 import {
   BatchCourseSelector,
   createEmptyCourseRow,
@@ -75,6 +77,7 @@ interface StudentItem {
   name: string;
   studentId: string;
   course: string;
+  courses: Array<{ id: string; name: string; code?: string }>;
   initials: string;
   avatarBg: string;
 }
@@ -114,15 +117,18 @@ const mapStudentToItem = (student: {
   id: string;
   studentCode: string;
   courseName?: string;
+  courses?: Array<{ id: string; name: string; code?: string }>;
   batchName?: string;
   user?: { name?: string } | null;
 }, index: number): StudentItem => {
   const name = student.user?.name || "Unknown Student";
+  const courses = coursesFromStudent(student);
   return {
     id: student.id,
     name,
     studentId: student.studentCode,
-    course: student.courseName || student.batchName || "—",
+    course: formatPackageCourseLabel(courses, student.courseName || student.batchName || "—"),
+    courses,
     initials: getInitials(name),
     avatarBg: AVATAR_COLORS[index % AVATAR_COLORS.length],
   };
@@ -673,8 +679,14 @@ export const CounsellorBatches: React.FC = () => {
                             {student.name}
                           </span>
                           <span className="text-[11px] text-slate-500 font-medium truncate block">
-                            {student.studentId} • {student.course}
+                            {student.studentId}
                           </span>
+                          <CourseChips
+                            courses={student.courses}
+                            fallback={student.course}
+                            maxVisible={2}
+                            className="mt-0.5"
+                          />
                         </div>
                       </div>
 

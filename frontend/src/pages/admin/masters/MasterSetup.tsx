@@ -185,6 +185,16 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "academicYear", label: "Academic Year" },
     ],
   },
+  coursepackage: {
+    icon: PackageOpen,
+    iconBgColor: "bg-violet-50 text-violet-600 border-violet-100",
+    iconColor: "text-violet-600",
+    description: "Combine multiple courses into admission packages",
+    columns: [
+      { key: "name", label: "Package Name", required: true },
+      { key: "description", label: "Description" },
+    ],
+  },
   leadsource: {
     icon: PhoneCall,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",

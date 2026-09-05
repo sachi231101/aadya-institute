@@ -22,6 +22,8 @@ import { useStudentList } from "@/hooks/useStudents";
 import { useStudentReport } from "@/hooks/useReports";
 import { useCourses } from "@/hooks/useCourses";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent } from "@/utils/admission-package.utils";
 
 const getFeeDetails = (fees?: any) => {
   const total = Number(fees?.totalFee ?? fees?.total ?? 0);
@@ -98,6 +100,7 @@ export const AllStudents: React.FC = () => {
         email: s.user?.email || "—",
         phone: s.user?.phone || "—",
         course: s.courseName || "Not assigned",
+        courses: (s as any).courses as Array<{ id: string; name: string; code: string }> | undefined,
         batch: s.batchName || "Not assigned",
         faculty: s.facultyName || "—",
         branch: s.branch?.name || "—",
@@ -135,11 +138,16 @@ export const AllStudents: React.FC = () => {
         student.studentCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.phone.includes(searchTerm) ||
-        student.counsellor.toLowerCase().includes(searchTerm.toLowerCase());
+        student.counsellor.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        student.course.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (student.courses || []).some((c) => c.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-      // Course Filter
+      // Course Filter — match any package course, not only the joined string
       const matchesCourse =
-        selectedCourseFilter === "All Courses" || student.course === selectedCourseFilter;
+        selectedCourseFilter === "All Courses" ||
+        student.course === selectedCourseFilter ||
+        (student.courses || []).some((c) => c.name === selectedCourseFilter) ||
+        student.course.toLowerCase().includes(selectedCourseFilter.toLowerCase());
 
       // Tab Filter
       const matchesTab =
@@ -412,9 +420,12 @@ export const AllStudents: React.FC = () => {
 
                     {/* Program & Batch */}
                     <td className="p-3.5">
-                      <p className="font-semibold text-slate-800 max-w-[200px] truncate" title={s.course}>
-                        {s.course}
-                      </p>
+                      <CourseChips
+                        courses={coursesFromStudent({ courses: s.courses, courseName: s.course })}
+                        fallback={s.course}
+                        maxVisible={3}
+                        className="max-w-[220px]"
+                      />
                       <p className="text-[11px] text-slate-500 font-mono mt-0.5">{s.batch}</p>
                       <p className="text-[10px] text-slate-400">Faculty: {s.faculty}</p>
                     </td>

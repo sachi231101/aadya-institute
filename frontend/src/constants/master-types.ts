@@ -20,7 +20,7 @@ export const MASTER_CATEGORY_LABELS: Record<string, string> = {
   SYSTEM_AUTOMATION: "System & Automation",
 };
 
-/** 15 master types actively used across the application */
+/** Master types actively used across the application */
 export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "area", name: "Area", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Direct Admission"] },
   { id: "classroom", name: "Class Room", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Classes", "Timetable", "Faculty Timetable", "Counselor Batches"] },
@@ -29,6 +29,7 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "parentinfo", name: "Parent Info", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Add Student", "Edit Student", "Direct Admission"] },
   { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Batches", "Timetable", "Enquiries", "Faculty Schedule"] },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Exam", "Edit Exam"] },
+  { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Direct Admission"] },
 
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Enquiries", "Admissions", "AI Calling"] },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Lead Management", "Lead Details", "Counselor Dashboard"] },

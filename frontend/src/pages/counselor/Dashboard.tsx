@@ -105,6 +105,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { countUniqueAdmissionStudents } from "@/utils/admission-package.utils";
 
 // Donut colors for Lead Sources
 const LEAD_SOURCE_COLORS = [
@@ -542,7 +543,18 @@ export const CounselorDashboard: React.FC = () => {
   const counsellingSessionsCount = combinedLeadsList.filter((l) =>
     ["CONTACTED", "INTERESTED", "FOLLOW_UP"].includes(l.stage)
   ).length;
-  const confirmedAdmissionsCount = admissions.length;
+  const confirmedAdmissionsCount = useMemo(
+    () =>
+      countUniqueAdmissionStudents(
+        admissions.map((a) => ({
+          id: a.id,
+          studentId: (a as { studentId?: string }).studentId,
+          phone: (a as { phone?: string }).phone,
+          studentName: a.studentName,
+        }))
+      ),
+    [admissions]
+  );
   const registeredStudentsCount = students.length;
 
   // Revenue overview metrics

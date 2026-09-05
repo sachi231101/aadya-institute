@@ -36,7 +36,6 @@ const studentInclude = {
       batch: { select: { id: true, name: true, code: true, timeSlot: true } },
     },
     orderBy: { createdAt: "desc" as const },
-    take: 1,
   },
   batchEnrollments: {
     include: {
@@ -60,7 +59,6 @@ const studentInclude = {
       },
     },
     where: { status: "ACTIVE" as any },
-    take: 1,
   },
   payments: {
     select: {
