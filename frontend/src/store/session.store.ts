@@ -88,7 +88,6 @@ export interface SessionMaterialItem {
   pagesOrDuration: string;
   uploadedAt: string;
   facultyName: string;
-  facultyAvatar?: string;
   downloadUrl: string;
   topics: string[];
 }

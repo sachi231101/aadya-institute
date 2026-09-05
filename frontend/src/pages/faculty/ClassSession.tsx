@@ -208,68 +208,6 @@ export const FacultyClassSession: React.FC = () => {
   const [matDescription, setMatDescription] = useState("Complete classroom presentation and code exercises.");
   const [matType, setMatType] = useState<"pdf" | "slides" | "code" | "doc">("pdf");
   const [matFileUrl, setMatFileUrl] = useState("https://example.com/materials.pdf");
-  const [uploadedMaterialFile, setUploadedMaterialFile] = useState<{
-    name: string;
-    size: string;
-    type: "pdf" | "slides" | "code" | "doc";
-    url: string;
-  } | null>(null);
-  const materialFileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const handleMaterialFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const sizeFormatted =
-      file.size > 1024 * 1024
-        ? `${(file.size / (1024 * 1024)).toFixed(1)} MB`
-        : `${Math.round(file.size / 1024)} KB`;
-
-    const fileNameLower = file.name.toLowerCase();
-    let detectedType: "pdf" | "slides" | "code" | "doc" = "pdf";
-    if (fileNameLower.endsWith(".ppt") || fileNameLower.endsWith(".pptx")) {
-      detectedType = "slides";
-    } else if (
-      fileNameLower.endsWith(".java") ||
-      fileNameLower.endsWith(".py") ||
-      fileNameLower.endsWith(".js") ||
-      fileNameLower.endsWith(".ts") ||
-      fileNameLower.endsWith(".cpp") ||
-      fileNameLower.endsWith(".zip")
-    ) {
-      detectedType = "code";
-    } else if (
-      fileNameLower.endsWith(".doc") ||
-      fileNameLower.endsWith(".docx") ||
-      fileNameLower.endsWith(".txt")
-    ) {
-      detectedType = "doc";
-    }
-
-    setMatType(detectedType);
-    const objectUrl = URL.createObjectURL(file);
-    setUploadedMaterialFile({
-      name: file.name,
-      size: sizeFormatted,
-      type: detectedType,
-      url: objectUrl,
-    });
-    setMatFileUrl(objectUrl);
-
-    // Auto-fill title if empty or default
-    const cleanName = file.name.replace(/\.[^/.]+$/, "");
-    if (!matTitle || matTitle.includes("Lecture Notes")) {
-      setMatTitle(cleanName);
-    }
-  };
-
-  const handleRemoveMaterialFile = () => {
-    setUploadedMaterialFile(null);
-    setMatFileUrl("https://example.com/materials.pdf");
-    if (materialFileInputRef.current) {
-      materialFileInputRef.current.value = "";
-    }
-  };
 
   // Notes State
   const [classNotesText, setClassNotesText] = useState("");
@@ -430,7 +368,7 @@ export const FacultyClassSession: React.FC = () => {
   // ─── CONFIRM END CLASS ──────────────────────────────────────────────────────
   const handleConfirmEndClass = async () => {
     setShowEndConfirmModal(false);
-    
+
     // LIVE -> COMPLETED
     setWorkflowStep("COMPLETED");
     setSessionStatus(sessionId, "COMPLETED");
@@ -539,17 +477,17 @@ export const FacultyClassSession: React.FC = () => {
     const newMaterial: SessionMaterialItem = {
       id: matId,
       sessionId,
-      title: matTitle.trim() || uploadedMaterialFile?.name || `${subjectName} Lecture Material`,
-      description: matDescription.trim() || "Uploaded class study material and reference notes.",
+      title: matTitle.trim() || `${subjectName} Lecture Material`,
+      description: matDescription.trim(),
       moduleName: subjectName,
       batchCode,
       courseName,
       fileType: matType,
-      fileSize: uploadedMaterialFile?.size || "2.4 MB",
-      pagesOrDuration: matType === "pdf" ? "18 pages" : matType === "slides" ? "32 slides" : matType === "code" ? "Source Code" : "Document",
+      fileSize: "2.4 MB",
+      pagesOrDuration: matType === "pdf" ? "18 pages" : matType === "slides" ? "32 slides" : "Source Code",
       uploadedAt: new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
       facultyName,
-      downloadUrl: uploadedMaterialFile?.url || matFileUrl.trim() || "https://example.com/material.pdf",
+      downloadUrl: matFileUrl.trim() || "https://example.com/material.pdf",
       topics: [subjectName, courseName],
     };
 
@@ -672,13 +610,11 @@ export const FacultyClassSession: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("attendance")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-              activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
-            }`}
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+              }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-              activeTab === "attendance" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
-            }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "attendance" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
+              }`}>
               1
             </div>
             <div>
@@ -691,17 +627,15 @@ export const FacultyClassSession: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("live_classroom")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-              activeTab === "live_classroom" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
-            }`}
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "live_classroom" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+              }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-              workflowStep === "LIVE"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${workflowStep === "LIVE"
                 ? "bg-rose-600 text-white animate-pulse"
                 : activeTab === "live_classroom"
-                ? "bg-[#1769AA] text-white"
-                : "bg-slate-100 text-slate-700"
-            }`}>
+                  ? "bg-[#1769AA] text-white"
+                  : "bg-slate-100 text-slate-700"
+              }`}>
               2
             </div>
             <div>
@@ -719,13 +653,11 @@ export const FacultyClassSession: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("session_history")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${
-              activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
-            }`}
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+              }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${
-              activeTab === "session_history" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
-            }`}>
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "session_history" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
+              }`}>
               3
             </div>
             <div>
@@ -738,13 +670,12 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── TOAST / BANNER NOTIFICATION ─── */}
       {toastMsg && (
-        <div className={`p-3.5 px-5 rounded-2xl text-white flex items-center justify-between gap-3 text-xs font-bold shadow-md animate-in slide-in-from-top-2 ${
-          toastMsg.type === "success"
+        <div className={`p-3.5 px-5 rounded-2xl text-white flex items-center justify-between gap-3 text-xs font-bold shadow-md animate-in slide-in-from-top-2 ${toastMsg.type === "success"
             ? "bg-[#0A2540] border border-slate-800"
             : toastMsg.type === "error"
-            ? "bg-rose-900 border border-rose-800"
-            : "bg-[#1769AA] border border-blue-900"
-        }`}>
+              ? "bg-rose-900 border border-rose-800"
+              : "bg-[#1769AA] border border-blue-900"
+          }`}>
           <div className="flex items-center gap-2.5">
             {toastMsg.type === "success" ? (
               <CheckCircle2 className="h-5 w-5 text-emerald-400 shrink-0" />
@@ -850,33 +781,30 @@ export const FacultyClassSession: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => handleToggleAttendance(st.id, "PRESENT")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                                    st.status === "PRESENT"
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "PRESENT"
                                       ? "bg-[#00832D] text-white shadow-xs"
                                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                  }`}
+                                    }`}
                                 >
                                   <Check className="w-3.5 h-3.5" /> Present
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleAttendance(st.id, "ABSENT")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                                    st.status === "ABSENT"
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "ABSENT"
                                       ? "bg-rose-600 text-white shadow-xs"
                                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                  }`}
+                                    }`}
                                 >
                                   <X className="w-3.5 h-3.5" /> Absent
                                 </button>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleAttendance(st.id, "LEAVE")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                                    st.status === "LEAVE"
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "LEAVE"
                                       ? "bg-amber-500 text-white shadow-xs"
                                       : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                  }`}
+                                    }`}
                                 >
                                   <Clock className="w-3.5 h-3.5" /> Leave
                                 </button>
@@ -1279,13 +1207,12 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 text-slate-400" /> Class Status
                 </span>
-                <Badge className={`text-[11px] font-extrabold px-2.5 py-0.5 ${
-                  workflowStep === "LIVE"
+                <Badge className={`text-[11px] font-extrabold px-2.5 py-0.5 ${workflowStep === "LIVE"
                     ? "bg-rose-100 text-rose-700 border-rose-200"
                     : workflowStep === "COMPLETED"
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                    : "bg-blue-50 text-[#1769AA] border-blue-200"
-                }`}>
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                      : "bg-blue-50 text-[#1769AA] border-blue-200"
+                  }`}>
                   {workflowStep === "LIVE" ? "🔴 LIVE NOW" : workflowStep === "COMPLETED" ? "✓ Completed" : "Upcoming Slot"}
                 </Badge>
               </div>
@@ -1508,7 +1435,7 @@ export const FacultyClassSession: React.FC = () => {
 
       {/* ─── MODAL 4: UPLOAD MATERIALS ─── */}
       <Dialog open={showUploadMaterialsModal} onOpenChange={setShowUploadMaterialsModal}>
-        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
             <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-600" /> Upload Class Study Materials
@@ -1518,121 +1445,13 @@ export const FacultyClassSession: React.FC = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={materialFileInputRef}
-            onChange={handleMaterialFileChange}
-            accept=".pdf,.ppt,.pptx,.doc,.docx,.txt,.java,.py,.js,.ts,.cpp,.zip"
-            className="hidden"
-          />
-
-          <div className="space-y-4 py-2 text-xs">
-            {/* ─── UPLOAD DOCUMENT / FILE DROPZONE BOX ─── */}
-            <div>
-              <label className="font-bold text-slate-700 block mb-1.5 flex items-center justify-between">
-                <span>Upload Document File</span>
-                {uploadedMaterialFile && (
-                  <span className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> File Selected
-                  </span>
-                )}
-              </label>
-
-              {!uploadedMaterialFile ? (
-                <div
-                  onClick={() => materialFileInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      const file = e.dataTransfer.files[0];
-                      const syntheticEvent = {
-                        target: { files: [file] },
-                      } as unknown as React.ChangeEvent<HTMLInputElement>;
-                      handleMaterialFileChange(syntheticEvent);
-                    }
-                  }}
-                  className="group relative border-2 border-dashed border-slate-300 hover:border-[#1769AA] hover:bg-blue-50/40 rounded-2xl p-5 text-center cursor-pointer transition-all duration-200 bg-slate-50/60 flex flex-col items-center justify-center gap-2"
-                >
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 group-hover:bg-[#1769AA]/10 group-hover:scale-105 flex items-center justify-center text-[#1769AA] transition-all">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-slate-800 text-xs group-hover:text-[#1769AA] transition-colors">
-                      Click to browse or drag & drop files here
-                    </p>
-                    <p className="text-[11px] text-slate-600 mt-0.5">
-                      Supports PDF, PPT, Word Doc, Source Code or ZIP (up to 50MB)
-                    </p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 px-3 text-[11px] font-bold rounded-lg border-slate-200 bg-white shadow-xs group-hover:border-[#1769AA] group-hover:text-[#1769AA] pointer-events-none mt-1"
-                  >
-                    Select Document
-                  </Button>
-                </div>
-              ) : (
-                <div className="border border-blue-200 bg-blue-50/40 rounded-2xl p-3.5 flex items-center justify-between gap-3 transition-all">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-white border border-blue-200 shadow-xs flex items-center justify-center text-[#1769AA] shrink-0">
-                      {uploadedMaterialFile.type === "pdf" && <FileText className="w-5 h-5 text-rose-600" />}
-                      {uploadedMaterialFile.type === "slides" && <Presentation className="w-5 h-5 text-amber-600" />}
-                      {uploadedMaterialFile.type === "code" && <FileCode className="w-5 h-5 text-indigo-600" />}
-                      {uploadedMaterialFile.type === "doc" && <BookOpen className="w-5 h-5 text-blue-600" />}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-800 text-xs truncate max-w-[220px]">
-                        {uploadedMaterialFile.name}
-                      </p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className="h-4 px-1.5 text-[9px] font-bold bg-[#1769AA] text-white uppercase">
-                          {uploadedMaterialFile.type}
-                        </Badge>
-                        <span className="text-[11px] font-medium text-slate-600">
-                          {uploadedMaterialFile.size}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => materialFileInputRef.current?.click()}
-                      className="h-8 px-2 text-[11px] font-bold text-slate-600 hover:text-slate-900 rounded-lg"
-                    >
-                      Change
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleRemoveMaterialFile}
-                      className="h-8 w-8 p-0 text-slate-600 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer"
-                      title="Remove file"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-
+          <div className="space-y-3.5 py-2 text-xs">
             <div>
               <label className="font-bold text-slate-700 block mb-1">Document Title</label>
               <Input
                 value={matTitle}
                 onChange={(e) => setMatTitle(e.target.value)}
-                placeholder="e.g. Java Class - Lecture Notes & PPT"
+                placeholder="e.g. Module 1 Summary Notes & Code Snippets"
                 className="h-10 text-xs rounded-xl bg-slate-50 border-slate-200"
               />
             </div>
@@ -1642,7 +1461,7 @@ export const FacultyClassSession: React.FC = () => {
               <Input
                 value={matDescription}
                 onChange={(e) => setMatDescription(e.target.value)}
-                placeholder="Complete classroom presentation and code exercises."
+                placeholder="Brief summary or homework exercises for students"
                 className="h-10 text-xs rounded-xl bg-slate-50 border-slate-200"
               />
             </div>
@@ -1660,11 +1479,10 @@ export const FacultyClassSession: React.FC = () => {
                     key={t.key}
                     type="button"
                     onClick={() => setMatType(t.key as any)}
-                    className={`p-2 rounded-xl text-center font-bold text-[11px] border transition-all cursor-pointer ${
-                      matType === t.key
+                    className={`p-2 rounded-xl text-center font-bold text-[11px] border transition-all cursor-pointer ${matType === t.key
                         ? "border-[#1769AA] bg-blue-50 text-[#1769AA]"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
-                    }`}
+                      }`}
                   >
                     {t.label}
                   </button>
@@ -1677,7 +1495,7 @@ export const FacultyClassSession: React.FC = () => {
               <Input
                 value={matFileUrl}
                 onChange={(e) => setMatFileUrl(e.target.value)}
-                placeholder="https://example.com/materials.pdf"
+                placeholder="https://example.com/notes.pdf"
                 className="h-10 text-xs font-mono rounded-xl bg-slate-50 border-slate-200"
               />
             </div>
@@ -1695,9 +1513,9 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleSaveMaterial}
-              className="h-10 text-xs font-extrabold bg-[#1769AA] hover:bg-[#125386] text-white rounded-xl shadow-md cursor-pointer flex items-center gap-1.5"
+              className="h-10 text-xs font-extrabold bg-[#1769AA] text-white rounded-xl shadow-md cursor-pointer"
             >
-              <Upload className="w-3.5 h-3.5" /> Upload Material
+              Upload Material
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1745,13 +1563,12 @@ export const FacultyClassSession: React.FC = () => {
             {students.map((st) => (
               <div key={st.id} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between text-xs">
                 <span className="font-extrabold text-slate-900">{st.name} ({st.studentId})</span>
-                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                  st.status === "PRESENT"
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${st.status === "PRESENT"
                     ? "bg-emerald-100 text-emerald-700"
                     : st.status === "LEAVE"
-                    ? "bg-amber-100 text-amber-700"
-                    : "bg-rose-100 text-rose-700"
-                }`}>
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-rose-100 text-rose-700"
+                  }`}>
                   {st.status}
                 </span>
               </div>
