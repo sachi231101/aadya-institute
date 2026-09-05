@@ -84,11 +84,43 @@ const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any)
   };
 };
 
+const collectStudentCourses = (s: any): Array<{ id: string; name: string; code: string }> => {
+  const byId = new Map<string, { id: string; name: string; code: string }>();
+
+  const addCourse = (course?: { id?: string; name?: string; code?: string } | null) => {
+    if (!course?.id || !course.name) return;
+    if (byId.has(course.id)) return;
+    byId.set(course.id, {
+      id: course.id,
+      name: course.name,
+      code: course.code || "",
+    });
+  };
+
+  for (const enrollment of s.batchEnrollments || []) {
+    const batch = enrollment?.batch;
+    if (!batch) continue;
+    const batchCourses = batch.batchCourses || [];
+    if (batchCourses.length > 0) {
+      for (const bc of batchCourses) addCourse(bc.course);
+    } else {
+      addCourse(batch.course);
+    }
+  }
+
+  for (const admission of s.admissions || []) {
+    addCourse(admission?.course);
+  }
+
+  return Array.from(byId.values());
+};
+
 const mapStudentSummary = (s: any) => {
   const admission = s.admissions?.[0];
   const enrollment = s.batchEnrollments?.[0];
   const batch = enrollment?.batch;
-  const course = batch?.course || admission?.course;
+  const courses = collectStudentCourses(s);
+  const course = courses[0] || batch?.course || admission?.course;
   const faculty = batch?.faculty?.user?.name;
   const attendances = s.studentAttendances || [];
 
@@ -125,7 +157,8 @@ const mapStudentSummary = (s: any) => {
     user: s.user,
     displayName: s.user?.name || admission?.studentName || s.studentCode,
     branch: s.branch,
-    courseName: course?.name ?? null,
+    courseName: courses.length > 0 ? courses.map((c) => c.name).join(", ") : course?.name ?? null,
+    courses,
     batchName: batch?.name ?? null,
     facultyName: faculty ?? null,
     batchTiming: batch?.timeSlot ?? null,
@@ -619,6 +652,19 @@ export const getMyDashboard = async (
         },
       },
 
+      admissions: {
+        orderBy: { createdAt: "desc" },
+        include: {
+          course: {
+            select: {
+              id: true,
+              name: true,
+              code: true,
+            },
+          },
+        },
+      },
+
       batchEnrollments: {
         where: {
           status: "ACTIVE",
@@ -892,6 +938,8 @@ export const getMyDashboard = async (
   const primaryEnrollment =
     student.batchEnrollments[0];
 
+  const dashboardCourses = collectStudentCourses(student);
+
   return {
     profile: {
       id: student.id,
@@ -925,7 +973,17 @@ export const getMyDashboard = async (
           subjects:
             formatBatchSubjectNames(primaryEnrollment.batch),
         }
-      : null,
+      : dashboardCourses[0]
+        ? {
+            id: dashboardCourses[0].id,
+            name: dashboardCourses[0].name,
+            code: dashboardCourses[0].code,
+            batchName: null,
+            subjects: dashboardCourses.map((c) => c.name).join(", "),
+          }
+        : null,
+
+    courses: dashboardCourses,
 
     instructor:
       primaryEnrollment?.batch.faculty

@@ -29,6 +29,7 @@ export interface StudentPerformanceRow {
   branchId?: string;
   branchName: string;
   courseName: string;
+  courses?: Array<{ id: string; name: string; code?: string }>;
   attendancePercentage: number;
   assignmentsSubmitted: number;
   totalAssignments: number;

@@ -97,6 +97,8 @@ export interface Student {
   leadSource?: string;
   counsellorName?: string;
   courseName?: string;
+  /** All courses from admissions / package enrollments */
+  courses?: Array<{ id: string; name: string; code: string }>;
   batchName?: string;
   batchTiming?: string;
   facultyName?: string;
@@ -116,6 +118,7 @@ export interface StudentAdmission {
   feePlan?: string;
   notes?: string;
   course: { id: string; name: string; code: string };
+  batch?: { id: string; name: string; code: string; timeSlot?: string } | null;
 }
 
 export interface StudentBatchEnrollment {
@@ -130,8 +133,16 @@ export interface StudentBatchEnrollment {
     status: string;
     timeSlot?: string;
     schedulePattern?: string;
+    courseId?: string;
     faculty?: { id: string; user?: { name: string } };
     course: { id: string; name: string; code: string };
+    batchCourses?: Array<{
+      id?: string;
+      courseId?: string;
+      sequence?: number;
+      course?: { id: string; name: string; code?: string } | null;
+      faculty?: { id: string; user?: { name: string } } | null;
+    }>;
   };
 }
 

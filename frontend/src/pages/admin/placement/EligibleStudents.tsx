@@ -13,6 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 
 function exportEligibleToCSV(
   students: Array<{
@@ -20,6 +22,7 @@ function exportEligibleToCSV(
     studentName?: string;
     name?: string;
     courseName?: string;
+    courses?: Array<{ id: string; name: string; code?: string }>;
     batchName?: string;
     email?: string;
     phone?: string;
@@ -32,7 +35,7 @@ function exportEligibleToCSV(
     s.studentName || s.name || "",
     s.email || "",
     s.phone || "",
-    s.courseName || "",
+    formatPackageCourseLabel(coursesFromStudent(s), s.courseName || ""),
     s.batchName || "",
     s.attendancePercentage != null ? String(s.attendancePercentage) : "N/A",
     s.status || "ELIGIBLE",
@@ -130,12 +133,19 @@ export const EligibleStudents: React.FC = () => {
                     studentName?: string;
                     name?: string;
                     courseName?: string;
+                    courses?: Array<{ id: string; name: string; code?: string }>;
                     batchName?: string;
                     status?: string;
                   }) => (
                     <TableRow key={s.id}>
                       <TableCell className="font-medium">{s.studentName || s.name}</TableCell>
-                      <TableCell>{s.courseName || "—"}</TableCell>
+                      <TableCell>
+                        <CourseChips
+                          courses={coursesFromStudent(s)}
+                          fallback={s.courseName || "—"}
+                          maxVisible={3}
+                        />
+                      </TableCell>
                       <TableCell>{s.batchName || "—"}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{s.status || "ELIGIBLE"}</Badge>

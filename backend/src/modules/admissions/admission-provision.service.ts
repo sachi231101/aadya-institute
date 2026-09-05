@@ -263,12 +263,15 @@ export async function provisionAdmissionInTransaction(
   const paymentMethod = dto.paymentMethod || "UPI";
   const admissionStatus = dto.status || "CONFIRMED";
 
+  // Scope PENDING reuse by course so multi-course / package admissions
+  // create one row per course instead of overwriting a single draft.
   const existingPending =
     dto.applicationId || finalStudentId
       ? await tx.admission.findFirst({
           where: {
             instituteId,
             status: "PENDING",
+            courseId: course.id,
             OR: [
               ...(dto.applicationId ? [{ applicationId: dto.applicationId }] : []),
               ...(finalStudentId ? [{ studentId: finalStudentId }] : []),

@@ -343,9 +343,26 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
           </div>
           <CardContent className="p-5 space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Selected Course</span>
-                <span className="text-primary font-bold text-sm mt-0.5 block">{admission.courseName}</span>
+              <div className={(admission.courses?.length || 0) > 1 ? "sm:col-span-2" : undefined}>
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                  Selected Course{(admission.courses?.length || 0) > 1 ? "s" : ""}
+                </span>
+                {(admission.courses?.length || 0) > 1 ? (
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {admission.courses!.map((c) => (
+                      <Badge
+                        key={c.admissionId || c.id}
+                        variant="outline"
+                        className="text-[11px] font-semibold border-primary/30 text-primary bg-primary/5"
+                      >
+                        {c.name}
+                        {c.code ? ` (${c.code})` : ""}
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-primary font-bold text-sm mt-0.5 block">{admission.courseName}</span>
+                )}
               </div>
               <div>
                 <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Course Duration</span>

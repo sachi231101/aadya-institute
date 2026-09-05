@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStudent, useUpdateStudent } from "../../../hooks/useStudents";
 import { useCourses } from "../../../hooks/useCourses";
 import { useBatches } from "../../../hooks/useBatches";
-import { batchIncludesCourse, formatBatchInstructorsSummary, formatBatchSubjectNames } from "@/utils/batch.utils";
+import { batchIncludesCourse, formatBatchInstructorsSummary, formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
 import { aiCallingApi } from "../../../services/ai-calling.api";
 import { studentsApi } from "../../../services/students.api";
 import {
@@ -382,13 +382,54 @@ Best regards,
   const hasAssignedBatch = !isDraftStudent && Boolean(
     activeBatch || (batchName && batchName !== "Not Assigned" && batchName !== "—" && !batchName.toLowerCase().includes("pending"))
   );
+
+  const enrolledCourses = (() => {
+    const byId = new Map<string, { id: string; name: string; code: string; batchName?: string }>();
+    const add = (course?: { id?: string; name?: string; code?: string } | null, batchLabel?: string) => {
+      if (!course?.id || !course.name) return;
+      if (byId.has(course.id)) return;
+      byId.set(course.id, {
+        id: course.id,
+        name: course.name,
+        code: course.code || "",
+        batchName: batchLabel,
+      });
+    };
+
+    for (const enrollment of student.batchEnrollments || []) {
+      const batch = enrollment.batch;
+      if (!batch) continue;
+      const rows = getBatchCourseRows(batch as Parameters<typeof getBatchCourseRows>[0]);
+      if (rows.length > 0) {
+        for (const row of rows) add(row.course, batch.name);
+      } else {
+        add(batch.course, batch.name);
+      }
+    }
+
+    for (const adm of student.admissions || []) {
+      add(adm.course, adm.batch?.name);
+    }
+
+    if (student.courses?.length) {
+      for (const c of student.courses) add(c);
+    }
+
+    return Array.from(byId.values());
+  })();
+
   const courseName =
-    isDraftStudent && !admission?.course?.name && !student.courseName
+    isDraftStudent && enrolledCourses.length === 0 && !student.courseName
       ? "Not Assigned"
-      : activeBatch
-        ? formatBatchSubjectNames(activeBatch)
-        : student.courseName || admission?.course?.name || "Not Assigned";
-  const courseCode = activeBatch?.course?.code || admission?.course?.code || "—";
+      : enrolledCourses.length > 0
+        ? enrolledCourses.map((c) => c.name).join(", ")
+        : activeBatch
+          ? formatBatchSubjectNames(activeBatch)
+          : student.courseName || admission?.course?.name || "Not Assigned";
+  const courseCode =
+    enrolledCourses.length > 1
+      ? `${enrolledCourses.length} courses`
+      : enrolledCourses[0]?.code || activeBatch?.course?.code || admission?.course?.code || "—";
   const courseDuration = admission?.course?.duration ? `${admission.course.duration} Months` : "6 Months Program";
   const deliveryMode = "Classroom / Offline Mode";
   const batchTimeSlot = activeBatch?.timeSlot || student.batchTiming || "10:00 AM – 12:00 PM";
@@ -935,9 +976,26 @@ Best regards,
                 </CardHeader>
                 <CardContent className="p-5 space-y-3.5 text-xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                    <div>
-                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Selected Course</span>
-                      <span className="text-primary font-bold text-sm mt-0.5 block">{courseName}</span>
+                    <div className="sm:col-span-2">
+                      <span className="text-muted-foreground block text-[10px] uppercase font-semibold">
+                        Selected Course{enrolledCourses.length > 1 ? "s" : ""}
+                      </span>
+                      {enrolledCourses.length > 1 ? (
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {enrolledCourses.map((c) => (
+                            <Badge
+                              key={c.id}
+                              variant="outline"
+                              className="text-[11px] font-semibold border-primary/30 text-primary bg-primary/5"
+                            >
+                              {c.name}
+                              {c.code ? ` (${c.code})` : ""}
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-primary font-bold text-sm mt-0.5 block">{courseName}</span>
+                      )}
                     </div>
                     <div>
                       <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Course Duration</span>
@@ -1050,11 +1108,31 @@ Best regards,
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <span className="text-[11px] font-bold uppercase text-primary tracking-wider">Active Enrollment</span>
-                  <h3 className="text-lg font-bold text-foreground mt-0.5">{courseName}</h3>
+                  <h3 className="text-lg font-bold text-foreground mt-0.5">
+                    {enrolledCourses.length > 1
+                      ? `${enrolledCourses.length} Courses Package`
+                      : courseName}
+                  </h3>
+                  {enrolledCourses.length > 1 && (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {enrolledCourses.map((c) => (
+                        <Badge
+                          key={c.id}
+                          variant="outline"
+                          className="text-[11px] font-semibold border-primary/30 text-primary bg-card"
+                        >
+                          {c.name}
+                          {c.code ? ` · ${c.code}` : ""}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
-                    Batch: <strong className="text-foreground">{batchName}</strong> ({courseCode}) • Assigned Faculty: <strong className="text-foreground">{facultyName}</strong>
+                    Batch: <strong className="text-foreground">{batchName}</strong>
+                    {enrolledCourses.length <= 1 ? ` (${courseCode})` : ""} • Assigned Faculty:{" "}
+                    <strong className="text-foreground">{facultyName}</strong>
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

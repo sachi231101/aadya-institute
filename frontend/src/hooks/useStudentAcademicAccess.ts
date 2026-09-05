@@ -96,12 +96,18 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
   // 1. Resolve student ID from authStore or dashboard profile
   const resolvedStudentId = user?.studentId || dashData?.profile?.id || null;
 
-  // 2. Fetch full student details if ID is available
+  // 2. Fetch full student details when staff APIs allow it (students use dashboard.courses)
+  const canFetchStudentDetail =
+    !!resolvedStudentId &&
+    !!user?.role &&
+    !["STUDENT"].includes(String(user.role).toUpperCase());
+
   const { data: studentDetailRes, isLoading: isStudentDetailLoading } = useQuery({
     queryKey: ["student", "academic-access", resolvedStudentId],
     queryFn: () => studentsApi.getById(resolvedStudentId!),
-    enabled: !!resolvedStudentId,
+    enabled: canFetchStudentDetail,
     staleTime: 5 * 60 * 1000,
+    retry: false,
   });
 
   const studentDetail: StudentDetail | null = studentDetailRes?.data ?? null;
@@ -162,8 +168,18 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       });
     }
 
-    // C. Extract from dashboard fallback if admissions not loaded
-    if (dashData?.course) {
+    // C. Extract from dashboard fallback (all package courses + primary)
+    if (dashData?.courses?.length) {
+      dashData.courses.forEach((c) => {
+        if (!coursesMap.has(c.id)) {
+          coursesMap.set(c.id, {
+            id: c.id,
+            name: c.name,
+            code: c.code,
+          });
+        }
+      });
+    } else if (dashData?.course) {
       if (!coursesMap.has(dashData.course.id)) {
         coursesMap.set(dashData.course.id, {
           id: dashData.course.id,
@@ -171,18 +187,19 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
           code: dashData.course.code,
         });
       }
-      if (dashData.course.batchName) {
-        const matchingBatch = Array.from(batchesMap.values()).find(
-          (b) => b.name === dashData.course?.batchName || b.code === dashData.course?.batchName
-        );
-        if (!matchingBatch) {
-          batchesMap.set("dash-batch", {
-            id: "dash-batch",
-            name: dashData.course.batchName,
-            code: dashData.course.batchName,
-            courseId: dashData.course.id,
-          });
-        }
+    }
+
+    if (dashData?.course?.batchName) {
+      const matchingBatch = Array.from(batchesMap.values()).find(
+        (b) => b.name === dashData.course?.batchName || b.code === dashData.course?.batchName
+      );
+      if (!matchingBatch) {
+        batchesMap.set("dash-batch", {
+          id: "dash-batch",
+          name: dashData.course.batchName,
+          code: dashData.course.batchName,
+          courseId: dashData.course.id,
+        });
       }
     }
 

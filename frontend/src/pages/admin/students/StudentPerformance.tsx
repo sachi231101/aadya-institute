@@ -27,6 +27,8 @@ import {
 import { useStudentList } from "../../../hooks/useStudents";
 import { useStudentReport } from "../../../hooks/useReports";
 import { useBranchStore } from "@/store/branch.store";
+import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
+import { CourseChips } from "@/components/common/CourseChips";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
@@ -76,8 +78,18 @@ export const StudentPerformance: React.FC = () => {
   const allAvailableStudents = useMemo(() => {
     return apiStudents.map((apiS: any) => {
       const reportRow = reportStudents.find((r) => r.id === apiS.id);
+      const packageCourses = coursesFromStudent({
+        courses: apiS.courses,
+        courseName:
+          reportRow?.courseName ||
+          (apiS.admissions || []).map((a: any) => a.course?.name).filter(Boolean).join(", ") ||
+          apiS.courseName,
+      });
       const courseName =
-        reportRow?.courseName || apiS.admissions?.[0]?.course?.name || "Full Stack Web Development";
+        formatPackageCourseLabel(packageCourses) ||
+        reportRow?.courseName ||
+        apiS.admissions?.[0]?.course?.name ||
+        "Full Stack Web Development";
       const branchName = reportRow?.branchName || apiS.branch?.name || "Aadya Branch";
       const attPct =
         reportRow?.attendancePercentage ??
@@ -93,6 +105,14 @@ export const StudentPerformance: React.FC = () => {
       const assignmentPct =
         totalAssignments > 0 ? Math.round((submissionsCount / totalAssignments) * 100) : 75;
 
+      const batchLabel =
+        (apiS.admissions || [])
+          .map((a: any) => a.batch?.name || a.batch?.code)
+          .filter(Boolean)
+          .join(", ") ||
+        apiS.admissions?.[0]?.batch?.name ||
+        "Active Batch";
+
       return {
         id: apiS.id,
         name: reportRow?.name || apiS.user?.name || `Student ${apiS.studentCode}`,
@@ -100,7 +120,8 @@ export const StudentPerformance: React.FC = () => {
         email: apiS.user?.email || "student@aadya.in",
         phone: apiS.user?.phone || "+91 98765 43210",
         course: courseName,
-        batch: apiS.admissions?.[0]?.batch?.name || "Active Batch",
+        courses: packageCourses,
+        batch: batchLabel,
         faculty: "Faculty Instructor",
         center: branchName,
         admissionNo: `ADM-${apiS.studentCode}`,
@@ -115,21 +136,31 @@ export const StudentPerformance: React.FC = () => {
         avatar: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=250`,
         attendance: attPct,
         progress: assignmentPct,
-        coursesCount: 1,
+        coursesCount: Math.max(packageCourses.length, 1),
         assignmentsCompleted: `${submissionsCount}/${totalAssignments}`,
         performanceGrade: attPct >= 80 ? "Good" : attPct >= 60 ? "Average" : "Needs Improvement",
         performanceMessage: reportRow?.riskFlag === "At Risk" ? "Attendance risk flagged" : "Academic progress active",
         assessments: [] as any[],
-        enrolledCourses: [
-          {
-            name: courseName,
-            batch: apiS.admissions?.[0]?.batch?.name || "Active Batch",
-            progress: assignmentPct,
-            status: "In Progress",
-            icon: Code2,
-            iconBg: "bg-blue-50 text-blue-600",
-          },
-        ],
+        enrolledCourses:
+          packageCourses.length > 0
+            ? packageCourses.map((c, idx) => ({
+                name: c.name,
+                batch: batchLabel,
+                progress: assignmentPct,
+                status: "In Progress",
+                icon: Code2,
+                iconBg: idx % 2 === 0 ? "bg-blue-50 text-blue-600" : "bg-indigo-50 text-indigo-600",
+              }))
+            : [
+                {
+                  name: courseName,
+                  batch: batchLabel,
+                  progress: assignmentPct,
+                  status: "In Progress",
+                  icon: Code2,
+                  iconBg: "bg-blue-50 text-blue-600",
+                },
+              ],
         attendanceHistory:
           instituteAttendanceHistory.length > 0
             ? instituteAttendanceHistory.map((p) => ({ ...p, attendance: attPct }))
@@ -336,7 +367,11 @@ export const StudentPerformance: React.FC = () => {
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">
                   <BookOpen className="h-3.5 w-3.5 text-slate-400" /> Course
                 </p>
-                <p className="text-[13px] font-bold text-slate-800">{currentStudent.course}</p>
+                <CourseChips
+                  courses={(currentStudent as any).courses}
+                  fallback={currentStudent.course}
+                  maxVisible={4}
+                />
               </div>
               <div>
                 <p className="text-[11px] font-medium text-slate-400 flex items-center gap-1.5 mb-1">

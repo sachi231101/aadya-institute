@@ -32,6 +32,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent, formatPackageCourseLabel } from "@/utils/admission-package.utils";
 import {
   Table,
   TableBody,
@@ -133,7 +135,15 @@ export const StudentAllocation: React.FC = () => {
     const set = new Set<string>();
     students.forEach((s) => {
       if (s.qualification) set.add(s.qualification);
-      if (s.courseName) set.add(s.courseName);
+      if (s.courseName) {
+        s.courseName.split(",").forEach((part) => {
+          const name = part.replace(/\+\d+\s*$/, "").trim();
+          if (name) set.add(name);
+        });
+      }
+      (s.courses || []).forEach((c) => {
+        if (c.name) set.add(c.name);
+      });
     });
     batches.forEach((b) => {
       getBatchCourseRows(b).forEach((row) => {
@@ -161,13 +171,18 @@ export const StudentAllocation: React.FC = () => {
       const isEnrolled = enrolledMap.has(s.id);
       const enrolledBatch = enrolledMap.get(s.id);
 
+      const packageCourses = coursesFromStudent(s);
+      const packageLabel = formatPackageCourseLabel(packageCourses, s.courseName || "");
+
       const matchesSearch =
         !searchTerm ||
         studentName.toLowerCase().includes(term) ||
         s.studentCode.toLowerCase().includes(term) ||
         studentEmail.toLowerCase().includes(term) ||
         studentPhone.toLowerCase().includes(term) ||
-        (s.qualification && s.qualification.toLowerCase().includes(term));
+        (s.qualification && s.qualification.toLowerCase().includes(term)) ||
+        packageLabel.toLowerCase().includes(term) ||
+        packageCourses.some((c) => c.name.toLowerCase().includes(term));
 
       const matchesTab =
         activeTab === "ALL" ||
@@ -177,7 +192,9 @@ export const StudentAllocation: React.FC = () => {
       const matchesCourse =
         selectedCourseFilter === "ALL" ||
         (s.qualification && s.qualification === selectedCourseFilter) ||
-        (enrolledBatch && enrolledBatch.courseName === selectedCourseFilter);
+        (enrolledBatch && enrolledBatch.courseName === selectedCourseFilter) ||
+        packageCourses.some((c) => c.name === selectedCourseFilter) ||
+        (s.courseName && s.courseName.includes(selectedCourseFilter));
 
       const matchesBranch =
         selectedBranchFilter === "ALL" ||
@@ -552,7 +569,12 @@ export const StudentAllocation: React.FC = () => {
                     const name = student.user?.name || "Student";
                     const email = student.user?.email || "—";
                     const phone = student.user?.phone || "—";
-                    const courseDisplay = enrolledBatch?.courseName || student.qualification || student.courseName || "—";
+                    const packageCourses = coursesFromStudent(student);
+                    const courseDisplay =
+                      formatPackageCourseLabel(packageCourses, student.courseName || "") ||
+                      enrolledBatch?.courseName ||
+                      student.qualification ||
+                      "—";
 
                     return (
                       <TableRow
@@ -590,8 +612,12 @@ export const StudentAllocation: React.FC = () => {
                         </TableCell>
 
                         {/* Course */}
-                        <TableCell className="text-xs font-bold text-slate-700">
-                          {courseDisplay}
+                        <TableCell className="text-xs font-bold text-slate-700 max-w-[200px]">
+                          <CourseChips
+                            courses={packageCourses}
+                            fallback={courseDisplay}
+                            maxVisible={3}
+                          />
                         </TableCell>
 
                         {/* Status */}

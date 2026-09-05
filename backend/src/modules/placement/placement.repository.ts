@@ -330,7 +330,7 @@ export const PlacementRepository = {
       include: {
         user: { select: { id: true, name: true, email: true, phone: true } },
         branch: { select: { id: true, name: true } },
-        admissions: { include: { course: { select: { id: true, name: true } } }, take: 1 },
+        admissions: { include: { course: { select: { id: true, name: true, code: true } } } },
         studentAttendances: { select: { status: true } },
         placementRecords: { where: { status: "JOINED" }, take: 1 },
       },
@@ -342,6 +342,13 @@ export const PlacementRepository = {
         const total = s.studentAttendances.length;
         const present = s.studentAttendances.filter((a) => a.status === "PRESENT").length;
         const attendancePct = total > 0 ? Math.round((present / total) * 100) : 0;
+        const courses = s.admissions
+          .map((a) =>
+            a.course ? { id: a.course.id, name: a.course.name, code: a.course.code || undefined } : null
+          )
+          .filter((c): c is { id: string; name: string; code?: string } => !!c);
+        const courseName =
+          courses.length > 0 ? courses.map((c) => c.name).join(", ") : "Unassigned";
         return {
           id: s.id,
           studentCode: s.studentCode,
@@ -349,7 +356,8 @@ export const PlacementRepository = {
           email: s.user?.email,
           phone: s.user?.phone,
           branch: s.branch,
-          courseName: s.admissions[0]?.course?.name || "Unassigned",
+          courseName,
+          courses,
           attendancePercentage: attendancePct,
         };
       })

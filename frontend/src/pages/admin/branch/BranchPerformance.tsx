@@ -23,6 +23,8 @@ import { Badge } from "@/components/ui/badge";
 import { useBranches, useBranch, useBranchStats } from "@/hooks/useBranches";
 import { useStudentReport, useFinancialReport, useFacultyReport } from "@/hooks/useReports";
 import { useAdminUsers } from "@/hooks/useUsers";
+import { CourseChips } from "@/components/common/CourseChips";
+import { coursesFromStudent } from "@/utils/admission-package.utils";
 import {
   LineChart,
   Line,
@@ -620,7 +622,12 @@ export const BranchPerformance: React.FC = () => {
                           {student.studentCode}
                         </Badge>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-0.5 block">{student.courseName}</span>
+                      <CourseChips
+                        courses={coursesFromStudent(student)}
+                        fallback={student.courseName}
+                        maxVisible={3}
+                        className="mt-0.5"
+                      />
                     </div>
                   </div>
                   <div className="flex items-center gap-3 self-end sm:self-auto">
