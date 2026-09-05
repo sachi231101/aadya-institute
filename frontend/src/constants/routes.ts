@@ -4,7 +4,7 @@ export const ROUTES = {
   },
   ADMIN: {
     DASHBOARD: "/admin/dashboard",
-    ASK_ME: "/admin/ask-me",
+    ASK_ME: "/admin/home",
     HOME: "/admin/home",
     LEADS: {
       ROOT: "/admin/leads",

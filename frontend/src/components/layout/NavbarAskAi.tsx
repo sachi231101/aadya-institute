@@ -1,8 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Sparkles, Command } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useAuthStore } from "@/store/auth.store";
-import { Button } from "@/components/ui/button";
 
 export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }) => {
   const navigate = useNavigate();
@@ -15,18 +14,18 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
 
   const getAiPath = () => {
     if (location.pathname.startsWith("/center") || userRoles.includes("CENTER_MANAGER")) {
-      return "/center/ask-me";
+      return "/center/home";
     }
     if (location.pathname.startsWith("/counselor") || userRoles.includes("COUNSELLOR")) {
-      return "/counselor/ask-me";
+      return "/counselor/home";
     }
     if (location.pathname.startsWith("/faculty") || userRoles.includes("FACULTY")) {
-      return "/faculty/ask-me";
+      return "/faculty/home";
     }
     if (location.pathname.startsWith("/student") || userRoles.includes("STUDENT")) {
-      return "/student/ask-me";
+      return "/student/home";
     }
-    return "/admin/ask-me";
+    return "/admin/home";
   };
 
   const aiPath = getAiPath();
@@ -36,7 +35,7 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
     navigate(aiPath);
   };
 
-  // Keyboard shortcut Ctrl+K / Cmd+K to launch Ask AI
+  // Keyboard shortcut Ctrl+K / Cmd+K opens AI Home
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {

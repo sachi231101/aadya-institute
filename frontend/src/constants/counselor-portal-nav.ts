@@ -42,7 +42,7 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
   },
   {
     title: "ASK ME",
-    url: "/counselor/ask-me",
+    url: "/counselor/home",
     icon: Sparkles,
     isAi: true,
   },

@@ -111,7 +111,7 @@ router.use("/billing", billingRoutes);
 // Data Management (import / export / recycle / backup status)
 router.use("/data-management", dataManagementRoutes);
 
-// Security (policy, sessions, 2FA, IP allowlist, alerts)
+// Security (policy, sessions, IP allowlist, alerts)
 router.use("/security", securityRoutes);
 
 // Recordings

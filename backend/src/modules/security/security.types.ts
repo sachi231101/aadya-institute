@@ -55,16 +55,6 @@ export interface CreateAllowedIpInput {
   isActive?: boolean;
 }
 
-export interface Setup2faResult {
-  secret: string;
-  otpauthUrl: string;
-}
-
-export interface Verify2faResult {
-  enabled: true;
-  recoveryCodes: string[];
-}
-
 export interface SessionView {
   id: string;
   userId: string;

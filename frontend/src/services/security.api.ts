@@ -163,24 +163,4 @@ export const securityApi = {
     const res = await api.patch(`/security/alerts/${id}/resolve`);
     return res.data.data as SecurityAlert;
   },
-
-  setup2fa: async () => {
-    const res = await api.post("/security/2fa/setup");
-    return res.data.data as { secret: string; otpauthUrl: string };
-  },
-
-  verify2fa: async (code: string) => {
-    const res = await api.post("/security/2fa/verify", { code });
-    return res.data.data as { enabled: true; recoveryCodes: string[] };
-  },
-
-  disable2fa: async (payload: { password?: string; code?: string }) => {
-    const res = await api.post("/security/2fa/disable", payload);
-    return res.data.data as { disabled: true };
-  },
-
-  consumeRecovery: async (code: string) => {
-    const res = await api.post("/security/2fa/recovery", { code });
-    return res.data.data as { consumed: true; remaining: number };
-  },
 };

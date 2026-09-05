@@ -3,7 +3,6 @@ import { Route, Navigate } from "react-router-dom";
 
 import { AdminDashboard } from "../pages/admin/Dashboard";
 import { AiHome } from "../pages/admin/ai/AiHome";
-import { AskMe } from "../pages/admin/ai/AskMe";
 import { BranchPerformance } from "../pages/admin/branch/BranchPerformance";
 import { BranchRevenueDetails } from "../pages/admin/branch/BranchRevenueDetails";
 
@@ -124,7 +123,7 @@ export const adminChildRoutes = (
     <Route index element={<Navigate to="dashboard" replace />} />
     <Route path="home" element={<AiHome />} />
     <Route path="dashboard" element={<AdminDashboard />} />
-    <Route path="ask-me" element={<AskMe />} />
+    <Route path="ask-me" element={<Navigate to="/admin/home" replace />} />
     <Route path="branch/:id/performance" element={<BranchPerformance />} />
     <Route path="branch/:id/revenue" element={<BranchRevenueDetails />} />
 

@@ -125,7 +125,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
   ];
 
-  const isAiActive = location.pathname === "/student/ask-me";
+  const isAiActive = location.pathname === "/student/home";
 
   const renderSidebarContent = () => (
     <div className="flex flex-col justify-between h-full space-y-4">
@@ -166,7 +166,7 @@ export const StudentLayout: React.FC = () => {
         {/* AI Ask Me Button */}
         <div>
           <Link
-            to="/student/ask-me"
+            to="/student/home"
             onClick={() => setMobileMenuOpen(false)}
             className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${isAiActive
                 ? "bg-[#5B50EC] text-white border-[#5B50EC] shadow-xs"
@@ -381,7 +381,7 @@ export const StudentLayout: React.FC = () => {
               </Link>
 
               <Link
-                to="/student/ask-me"
+                to="/student/home"
                 onClick={() => setMobileMoreOpen(false)}
                 className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
               >

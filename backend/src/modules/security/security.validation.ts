@@ -73,23 +73,6 @@ export const logoutOtherSessionsSchema = z.preprocess(
   })
 );
 
-export const verify2faSchema = z.object({
-  code: z.string().trim().min(6).max(8),
-});
-
-export const disable2faSchema = z
-  .object({
-    password: z.string().min(1).optional(),
-    code: z.string().trim().min(6).max(8).optional(),
-  })
-  .refine((d) => Boolean(d.password) || Boolean(d.code), {
-    message: "Password or TOTP code is required",
-  });
-
-export const recovery2faSchema = z.object({
-  code: z.string().trim().min(6).max(32),
-});
-
 export const idParamSchema = z.object({
   id: z.string().min(1),
 });

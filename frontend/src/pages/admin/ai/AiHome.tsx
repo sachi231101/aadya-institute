@@ -1,601 +1,671 @@
-import React, { useState, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Building2,
-  Users,
-  GraduationCap,
-  Calendar,
-  IndianRupee,
-  Wallet,
-  FileText,
-  BarChart2,
-  UserCheck,
-  RotateCw,
-  Plus,
-  Mic,
   ArrowUp,
-  ChevronDown,
+  BarChart2,
   BookOpen,
+  Building2,
+  Calendar,
   CheckCircle,
-  Video,
   ClipboardList,
+  FileText,
+  GraduationCap,
+  IndianRupee,
+  Loader2,
+  MessageSquare,
   MessageSquareQuote,
+  PanelLeftClose,
+  PanelLeft,
+  Plus,
+  Sparkles,
+  Trash2,
   TrendingUp,
-  ArrowLeft,
+  UserCheck,
+  Users,
+  Video,
+  Wallet,
 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranch } from "@/hooks/useBranches";
-import { resolveAiHomeRole, useAiHomeStats } from "@/hooks/useAiHomeStats";
+import { resolveAiHomeRole } from "@/hooks/useAiHomeStats";
+import {
+  aiAgentApi,
+  type AIConversation,
+  type AIMessage,
+} from "@/services/ai-agent.api";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/utils";
+
+type ChatBubble = {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  toolsUsed?: string[];
+  isError?: boolean;
+};
+
+type QuickAction = {
+  id: string;
+  label: string;
+  query: string;
+  icon: React.ComponentType<{ className?: string }>;
+};
+
+const CONVERSATIONS_KEY = ["ai", "conversations"] as const;
+
+function formatRelativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString();
+}
+
+function toBubbles(messages: AIMessage[]): ChatBubble[] {
+  return messages
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      id: m.id,
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      toolsUsed: m.toolName ? [m.toolName] : undefined,
+    }));
+}
 
 export const AiHome: React.FC = () => {
-  const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const [dateFilter, setDateFilter] = useState("This Month");
-  const [inputValue, setInputValue] = useState("");
-
   const { data: branchResponse } = useBranch(user?.branchId || undefined);
   const branchName = branchResponse?.data?.name || "Aadya Central Branch";
+
   const roleKey = useMemo(
     () => resolveAiHomeRole(location.pathname, user),
     [location.pathname, user]
   );
-  const { stats: liveStats, isLoading: statsLoading, refetch: refetchStats } = useAiHomeStats(
-    roleKey,
-    user,
-    branchName
-  );
 
-  // Determine current active role context & base path from current route and user
   const roleContext = useMemo(() => {
-    if (roleKey === "center") {
-      return {
-        roleKey: "center",
-        basePath: "/center",
-        displayName: "Center Manager",
-        greeting: `How can I help you today, ${user?.name ? user.name.split(" ")[0] : "Center Manager"}?`,
-        subtitle: `Ask anything about ${branchName} operations, students, batches, faculty, and fees.`,
-        placeholder: `Ask anything about ${branchName}...`,
+    const firstName = user?.name?.split(" ")[0];
+    const shared = {
+      center: {
+        greeting: `How can I help you today, ${firstName || "Center Manager"}?`,
+        subtitle: `Ask anything about ${branchName} operations.`,
+        placeholder: `Ask about ${branchName}...`,
         quickActions: [
           {
             id: "cm-1",
-            label: "View today's branch performance",
-            query: `View today's performance and operations summary for ${branchName}`,
+            label: "Today's branch performance",
+            query: `View today's performance for ${branchName}`,
             icon: BarChart2,
-            iconColor: "text-blue-600",
-            iconBg: "bg-blue-50",
           },
           {
             id: "cm-2",
-            label: "Branch revenue & fee collection",
-            query: `Show ${branchName} revenue collection status and pending fees`,
+            label: "Revenue & fee collection",
+            query: `Show ${branchName} revenue and pending fees`,
             icon: IndianRupee,
-            iconColor: "text-emerald-600",
-            iconBg: "bg-emerald-50",
           },
           {
             id: "cm-3",
             label: "Students needing attention",
-            query: `Show students with attendance below 75% or 3 consecutive absences in ${branchName}`,
+            query: `Show students with low attendance in ${branchName}`,
             icon: Users,
-            iconColor: "text-purple-600",
-            iconBg: "bg-purple-50",
           },
           {
             id: "cm-4",
-            label: "Pending fees & dues",
-            query: `Show pending fee dues list for students in ${branchName}`,
+            label: "Pending fees",
+            query: `Show pending fee dues in ${branchName}`,
             icon: Wallet,
-            iconColor: "text-amber-600",
-            iconBg: "bg-amber-50",
           },
-          {
-            id: "cm-5",
-            label: "Batch status overview",
-            query: `Show all active and upcoming batches running in ${branchName}`,
-            icon: BookOpen,
-            iconColor: "text-pink-600",
-            iconBg: "bg-pink-50",
-          },
-          {
-            id: "cm-6",
-            label: "Counsellor conversion report",
-            query: `Show counsellor conversion rates and lead performance for ${branchName}`,
-            icon: FileText,
-            iconColor: "text-teal-600",
-            iconBg: "bg-teal-50",
-          },
-        ],
-      };
-    }
-
-    if (roleKey === "faculty") {
-      return {
-        roleKey: "faculty",
-        basePath: "/faculty",
-        displayName: "Faculty",
-        greeting: `How can I help you today, ${user?.name ? "Prof. " + user.name.split(" ")[0] : "Faculty"}?`,
-        subtitle:
-          "Ask about your class schedules, student attendance, module progress, and doubt resolution.",
-        placeholder:
-          "Ask about your classes, attendance, or student progress...",
+        ] as QuickAction[],
+      },
+      faculty: {
+        greeting: `How can I help you today, ${firstName ? `Prof. ${firstName}` : "Faculty"}?`,
+        subtitle: "Ask about classes, attendance, and module progress.",
+        placeholder: "Ask about your classes...",
         quickActions: [
           {
-            id: "fa-1",
-            label: "Today's class timetable",
-            query:
-              "Show my scheduled classes, batch timings and room assignments for today",
+            id: "f-1",
+            label: "Today's schedule",
+            query: "Show my class schedule for today",
             icon: Calendar,
-            iconColor: "text-blue-600",
-            iconBg: "bg-blue-50",
           },
           {
-            id: "fa-2",
-            label: "Batch attendance report",
-            query:
-              "Show student attendance summary and identify students with low attendance",
-            icon: Users,
-            iconColor: "text-emerald-600",
-            iconBg: "bg-emerald-50",
-          },
-          {
-            id: "fa-3",
-            label: "Pending assignments to grade",
-            query:
-              "Show pending student assignment submissions waiting for review",
-            icon: ClipboardList,
-            iconColor: "text-purple-600",
-            iconBg: "bg-purple-50",
-          },
-          {
-            id: "fa-4",
-            label: "Curriculum module progress",
-            query:
-              "What is the completion percentage for my current active batches?",
-            icon: BookOpen,
-            iconColor: "text-amber-600",
-            iconBg: "bg-amber-50",
-          },
-          {
-            id: "fa-5",
-            label: "Student feedback summary",
-            query:
-              "Summarize recent student ratings and feedback comments for my classes",
-            icon: MessageSquareQuote,
-            iconColor: "text-pink-600",
-            iconBg: "bg-pink-50",
-          },
-          {
-            id: "fa-6",
-            label: "Generate attendance sheet",
-            query:
-              "Generate printable attendance desk sheet for my upcoming class",
-            icon: FileText,
-            iconColor: "text-teal-600",
-            iconBg: "bg-teal-50",
-          },
-        ],
-      };
-    }
-
-    if (roleKey === "counselor") {
-      return {
-        roleKey: "counselor",
-        basePath: "/counselor",
-        displayName: "Counsellor",
-        greeting: `How can I help you today, ${user?.name ? user.name.split(" ")[0] : "Counsellor"}?`,
-        subtitle:
-          "Ask about your student leads, walk-in enquiries, follow-up queues, and conversion metrics.",
-        placeholder: "Ask about leads, follow-ups, or admissions...",
-        quickActions: [
-          {
-            id: "co-1",
-            label: "High-priority follow-up leads",
-            query:
-              "Show leads requesting callback or marked as interested by AI caller",
-            icon: Users,
-            iconColor: "text-blue-600",
-            iconBg: "bg-blue-50",
-          },
-          {
-            id: "co-2",
-            label: "Today's new enquiries",
-            query:
-              "Show newly registered course enquiries and walk-ins received today",
-            icon: GraduationCap,
-            iconColor: "text-emerald-600",
-            iconBg: "bg-emerald-50",
-          },
-          {
-            id: "co-3",
-            label: "AI voice call summaries",
-            query:
-              "Show AI calling conversation transcripts and positive intent leads",
-            icon: MessageSquareQuote,
-            iconColor: "text-purple-600",
-            iconBg: "bg-purple-50",
-          },
-          {
-            id: "co-4",
-            label: "Pending admission forms",
-            query:
-              "Show students with pending documents or partial fee payments",
-            icon: FileText,
-            iconColor: "text-amber-600",
-            iconBg: "bg-amber-50",
-          },
-          {
-            id: "co-5",
-            label: "Batch seat availability",
-            query:
-              "Which upcoming batches have available seats and schedule timings?",
-            icon: BookOpen,
-            iconColor: "text-pink-600",
-            iconBg: "bg-pink-50",
-          },
-          {
-            id: "co-6",
-            label: "My monthly conversion report",
-            query:
-              "Generate my monthly lead-to-admission conversion performance summary",
-            icon: BarChart2,
-            iconColor: "text-teal-600",
-            iconBg: "bg-teal-50",
-          },
-        ],
-      };
-    }
-
-    if (roleKey === "student") {
-      return {
-        roleKey: "student",
-        basePath: "/student",
-        displayName: "Student",
-        greeting: `How can I help you today, ${user?.name ? user.name.split(" ")[0] : "Learner"}?`,
-        subtitle:
-          "Ask about your class schedule, attendance, assignments, recordings, or academic doubts.",
-        placeholder:
-          "Ask about your timetable, assignments, recordings, or doubts...",
-        quickActions: [
-          {
-            id: "st-1",
-            label: "View my class timetable",
-            query:
-              "What is my upcoming class schedule, timings, and faculty details?",
-            icon: Calendar,
-            iconColor: "text-blue-600",
-            iconBg: "bg-blue-50",
-          },
-          {
-            id: "st-2",
-            label: "My attendance percentage",
-            query:
-              "Show my overall attendance percentage and list any missed classes",
+            id: "f-2",
+            label: "Mark attendance",
+            query: "Help me mark attendance for today's class",
             icon: CheckCircle,
-            iconColor: "text-emerald-600",
-            iconBg: "bg-emerald-50",
           },
           {
-            id: "st-3",
-            label: "Watch recent class recordings",
-            query:
-              "List recent class session recordings available for my batch",
-            icon: Video,
-            iconColor: "text-purple-600",
-            iconBg: "bg-purple-50",
-          },
-          {
-            id: "st-4",
-            label: "Pending assignments & deadlines",
-            query:
-              "Show all active assignments, instructions, and submission deadlines",
+            id: "f-3",
+            label: "Pending submissions",
+            query: "Show pending assignment submissions",
             icon: ClipboardList,
-            iconColor: "text-amber-600",
-            iconBg: "bg-amber-50",
           },
           {
-            id: "st-5",
-            label: "Explain a coding topic",
-            query:
-              "Explain React useEffect dependencies and clean-up functions with an example",
-            icon: BookOpen,
-            iconColor: "text-pink-600",
-            iconBg: "bg-pink-50",
+            id: "f-4",
+            label: "Student doubts",
+            query: "Summarize open student doubts",
+            icon: MessageSquareQuote,
+          },
+        ] as QuickAction[],
+      },
+      counselor: {
+        greeting: `How can I help you today, ${firstName || "Counsellor"}?`,
+        subtitle: "Ask about leads, follow-ups, and conversions.",
+        placeholder: "Ask about leads and admissions...",
+        quickActions: [
+          {
+            id: "c-1",
+            label: "Leads to follow up",
+            query: "Show leads that need follow-up today",
+            icon: Users,
           },
           {
-            id: "st-6",
-            label: "Course syllabus progress",
-            query:
-              "How much of my course syllabus is completed and what is coming next?",
+            id: "c-2",
+            label: "Conversion summary",
+            query: "Show my conversion rate this month",
+            icon: TrendingUp,
+          },
+          {
+            id: "c-3",
+            label: "AI call results",
+            query: "Summarize recent AI calling results",
+            icon: Sparkles,
+          },
+          {
+            id: "c-4",
+            label: "Pending applications",
+            query: "Show pending admission applications",
             icon: FileText,
-            iconColor: "text-teal-600",
-            iconBg: "bg-teal-50",
           },
-        ],
-      };
-    }
-
-    // Default: ADMIN
-    return {
-      roleKey: "admin",
-      basePath: "/admin",
-      displayName: "Admin",
-      greeting: "How can I help you today, Admin?",
-      subtitle:
-        "Ask anything about your institute. Get insights, reports and smart recommendations instantly.",
-      placeholder: "Ask anything about your institute...",
-      quickActions: [
-        {
-          id: "perf",
-          label: "View today's performance",
-          query: "View today's performance summary across all academy branches",
-          icon: BarChart2,
-          iconColor: "text-blue-600",
-          iconBg: "bg-blue-50",
-        },
-        {
-          id: "rev",
-          label: "Show branch revenue",
-          query:
-            "Which branch has the highest revenue and show the revenue breakdown?",
-          icon: IndianRupee,
-          iconColor: "text-emerald-600",
-          iconBg: "bg-emerald-50",
-        },
-        {
-          id: "attention",
-          label: "Students needing attention",
-          query:
-            "Show students needing immediate academic attention or low attendance",
-          icon: Users,
-          iconColor: "text-purple-600",
-          iconBg: "bg-purple-50",
-        },
-        {
-          id: "fees",
-          label: "Pending fees",
-          query:
-            "Show the pending fees summary across all students and branches",
-          icon: Wallet,
-          iconColor: "text-amber-600",
-          iconBg: "bg-amber-50",
-        },
-        {
-          id: "adm",
-          label: "Today's admissions",
-          query: "Show today's admissions and new student enrollments",
-          icon: GraduationCap,
-          iconColor: "text-pink-600",
-          iconBg: "bg-pink-50",
-        },
-        {
-          id: "rep",
-          label: "Generate performance report",
-          query: "Generate monthly performance report for Aadya Institute",
-          icon: FileText,
-          iconColor: "text-teal-600",
-          iconBg: "bg-teal-50",
-        },
-      ],
+        ] as QuickAction[],
+      },
+      student: {
+        greeting: `How can I help you today, ${firstName || "Student"}?`,
+        subtitle: "Ask about schedule, attendance, and assignments.",
+        placeholder: "Ask about your course...",
+        quickActions: [
+          {
+            id: "s-1",
+            label: "My schedule",
+            query: "Show my class schedule this week",
+            icon: Calendar,
+          },
+          {
+            id: "s-2",
+            label: "My attendance",
+            query: "Show my attendance summary",
+            icon: UserCheck,
+          },
+          {
+            id: "s-3",
+            label: "Assignments due",
+            query: "Show my pending assignments",
+            icon: ClipboardList,
+          },
+          {
+            id: "s-4",
+            label: "Class recordings",
+            query: "Show recent class recordings I can watch",
+            icon: Video,
+          },
+        ] as QuickAction[],
+      },
+      admin: {
+        greeting: `How can I help you today, ${firstName || "Admin"}?`,
+        subtitle: "Ask anything about your institute.",
+        placeholder: "Ask anything about your institute...",
+        quickActions: [
+          {
+            id: "a-1",
+            label: "Institute overview",
+            query: "Give me today's institute operations overview",
+            icon: Building2,
+          },
+          {
+            id: "a-2",
+            label: "Revenue snapshot",
+            query: "Show fee collection and pending dues this month",
+            icon: IndianRupee,
+          },
+          {
+            id: "a-3",
+            label: "Student insights",
+            query: "Show students at risk of discontinuation",
+            icon: GraduationCap,
+          },
+          {
+            id: "a-4",
+            label: "Batch status",
+            query: "Summarize active batches across branches",
+            icon: BookOpen,
+          },
+        ] as QuickAction[],
+      },
     };
+    return shared[roleKey] || shared.admin;
   }, [roleKey, user, branchName]);
 
-  const handleSend = (queryText?: string) => {
-    const q = (queryText || inputValue).trim();
-    if (!q) return;
-    navigate(`${roleContext.basePath}/ask-me?q=${encodeURIComponent(q)}`);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatBubble[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const conversationsQuery = useQuery({
+    queryKey: CONVERSATIONS_KEY,
+    queryFn: () => aiAgentApi.listConversations(),
+  });
+
+  const conversations = conversationsQuery.data ?? [];
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSend();
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isProcessing]);
+
+  const loadConversation = useCallback(async (id: string) => {
+    setActiveConversationId(id);
+    setIsProcessing(false);
+    try {
+      const detail = await aiAgentApi.getConversation(id);
+      setMessages(toBubbles(detail.messages));
+    } catch {
+      setMessages([
+        {
+          id: "err-load",
+          role: "assistant",
+          content: "Could not load this conversation. Please try again.",
+          isError: true,
+        },
+      ]);
+    }
+  }, []);
+
+  const startNewChat = () => {
+    setActiveConversationId(null);
+    setMessages([]);
+    setInputValue("");
+    setIsProcessing(false);
+    textareaRef.current?.focus();
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => aiAgentApi.deleteConversation(id),
+    onSuccess: (_data, id) => {
+      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+      if (activeConversationId === id) startNewChat();
+    },
+  });
+
+  const handleSend = async (customQuery?: string) => {
+    const query = (customQuery || inputValue).trim();
+    if (!query || isProcessing) return;
+
+    const userBubble: ChatBubble = {
+      id: `local-user-${Date.now()}`,
+      role: "user",
+      content: query,
+    };
+    setMessages((prev) => [...prev, userBubble]);
+    setInputValue("");
+    setIsProcessing(true);
+    if (textareaRef.current) textareaRef.current.style.height = "auto";
+
+    try {
+      const response = await aiAgentApi.chat({
+        message: query,
+        conversationId: activeConversationId || undefined,
+      });
+      setActiveConversationId(response.conversationId);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `local-ai-${Date.now()}`,
+          role: "assistant",
+          content: response.message,
+          toolsUsed: response.toolsUsed,
+        },
+      ]);
+      queryClient.invalidateQueries({ queryKey: CONVERSATIONS_KEY });
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
+        (err as Error)?.message ||
+        "Something went wrong. Please try again.";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: `local-err-${Date.now()}`,
+          role: "assistant",
+          content: msg,
+          isError: true,
+        },
+      ]);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      void handleSend();
+    }
+  };
+
+  const onInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInputValue(e.target.value);
+    const el = e.target;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+  };
+
+  const hasMessages = messages.length > 0;
+
+  const groupedHistory = useMemo(() => {
+    const today: AIConversation[] = [];
+    const earlier: AIConversation[] = [];
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    for (const c of conversations) {
+      if (new Date(c.updatedAt) >= startOfDay) today.push(c);
+      else earlier.push(c);
+    }
+    return { today, earlier };
+  }, [conversations]);
+
   return (
-    <div className="p-6 md:p-8 max-w-[1500px] mx-auto bg-[#fafbfc] min-h-screen relative flex flex-col justify-between space-y-6">
-      {/* ─── TOP HEADER BAR WITH BACK BUTTON ─── */}
-      <div className="flex items-center justify-between gap-3 w-full">
-        {/* Back Button */}
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 px-3.5 py-2 bg-white border border-slate-200/80 hover:bg-slate-50 text-slate-700 hover:text-slate-900 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
-        >
-          <ArrowLeft className="w-4 h-4 text-slate-500" />
-          <span>Back</span>
-        </button>
-
-        {/* Right Controls */}
-        <div className="flex items-center gap-2.5">
-          {/* Date Filter */}
-          <div className="flex items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-slate-200/80 shadow-xs">
-            <Calendar className="h-4 w-4 text-slate-500" />
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-none cursor-pointer pr-1"
-            >
-              <option value="This Month">This Month</option>
-              <option value="Last Month">Last Month</option>
-              <option value="This Quarter">This Quarter</option>
-              <option value="This Year">This Year</option>
-            </select>
-          </div>
-
-          {/* Refresh Action */}
-          <button
-            onClick={() => {
-              setInputValue("");
-              refetchStats();
-            }}
-            title="Refresh live stats"
-            className="p-2.5 bg-white border border-slate-200/80 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-50 shadow-xs transition-colors cursor-pointer"
+    <div className="flex h-[calc(100vh-2.75rem)] bg-background text-foreground overflow-hidden">
+      {/* History sidebar */}
+      <aside
+        className={cn(
+          "shrink-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground flex flex-col transition-all duration-200",
+          sidebarOpen ? "w-[260px]" : "w-0 overflow-hidden border-0"
+        )}
+      >
+        <div className="p-3 border-b border-sidebar-border">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full justify-start gap-2 bg-transparent border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            onClick={startNewChat}
           >
-            <RotateCw className={`h-4 w-4 ${statsLoading ? "animate-spin" : ""}`} />
-          </button>
+            <Plus className="h-4 w-4" />
+            New chat
+          </Button>
         </div>
-      </div>
 
-      {/* ─── MAIN AI COMMAND CENTER HERO ─── */}
-      <div className="flex-1 flex flex-col items-center justify-center my-6 md:my-10 space-y-8 w-full max-w-5xl mx-auto">
-        {/* HERO TITLE AREA */}
-        <div className="text-center relative max-w-2xl mx-auto px-4">
-          {/* Subtle Decorative Star Sparkles */}
-          <div className="absolute -left-8 -top-3 text-blue-200 pointer-events-none hidden sm:block">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
-            </svg>
-          </div>
-          <div className="absolute -right-8 top-1 text-blue-200 pointer-events-none hidden sm:block">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
-            </svg>
-          </div>
+        <ScrollArea className="flex-1 px-2 py-3">
+          {conversationsQuery.isLoading ? (
+            <div className="flex justify-center py-8 text-muted-foreground">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
+          ) : conversations.length === 0 ? (
+            <p className="px-3 py-6 text-xs text-muted-foreground text-center">
+              No conversations yet. Start a new chat.
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {groupedHistory.today.length > 0 && (
+                <div>
+                  <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Today
+                  </p>
+                  <div className="space-y-0.5">
+                    {groupedHistory.today.map((c) => (
+                      <HistoryItem
+                        key={c.id}
+                        conversation={c}
+                        active={c.id === activeConversationId}
+                        onSelect={() => void loadConversation(c.id)}
+                        onDelete={() => deleteMutation.mutate(c.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+              {groupedHistory.earlier.length > 0 && (
+                <div>
+                  <p className="px-2 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Earlier
+                  </p>
+                  <div className="space-y-0.5">
+                    {groupedHistory.earlier.map((c) => (
+                      <HistoryItem
+                        key={c.id}
+                        conversation={c}
+                        active={c.id === activeConversationId}
+                        onSelect={() => void loadConversation(c.id)}
+                        onDelete={() => deleteMutation.mutate(c.id)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </ScrollArea>
+      </aside>
 
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            {roleContext.greeting.includes(",") ? (
-              <>
-                {roleContext.greeting.split(",")[0]},{" "}
-                <span className="text-[#1769AA]">
-                  {roleContext.greeting.split(",")[1]}
-                </span>
-              </>
+      {/* Main chat */}
+      <div className="flex-1 flex flex-col min-w-0 bg-background">
+        <header className="h-12 shrink-0 border-b border-border bg-card/80 backdrop-blur px-3 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground"
+            title={sidebarOpen ? "Hide history" : "Show history"}
+          >
+            {sidebarOpen ? (
+              <PanelLeftClose className="h-4 w-4" />
             ) : (
-              roleContext.greeting
+              <PanelLeft className="h-4 w-4" />
             )}
-          </h1>
-          <p className="text-slate-500 text-sm md:text-base font-medium mt-3 leading-relaxed">
-            {roleContext.subtitle}
-          </p>
-        </div>
-
-        {/* GEMINI-STYLE AI INPUT BOX */}
-        <div className="w-full max-w-4xl px-2">
-          <div className="bg-white border-2 border-blue-200/90 hover:border-[#1769AA]/60 focus-within:border-[#1769AA] focus-within:ring-4 focus-within:ring-blue-100/50 rounded-full px-5 py-3.5 shadow-[0_8px_30px_rgb(23,105,170,0.12)] flex items-center gap-3.5 transition-all">
-            {/* Left '+' action */}
-            <button
-              type="button"
-              className="p-1.5 text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition-colors shrink-0"
-              title="Add attachment"
-            >
-              <Plus className="h-5 w-5" />
-            </button>
-
-            {/* Main Input */}
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={roleContext.placeholder}
-              className="w-full text-sm sm:text-base font-medium text-slate-800 placeholder-slate-400 bg-transparent focus:outline-none"
-              autoFocus
-            />
-
-            {/* Right Controls */}
-            <div className="flex items-center gap-3 shrink-0">
-              {/* Model Tag */}
-              <div className="hidden sm:flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200/60">
-                <span className="w-2 h-2 rounded-full bg-[#1769AA]"></span>
-                <span>AADYA AI</span>
-                <ChevronDown className="h-3 w-3 text-slate-400" />
-              </div>
-
-              {/* Divider */}
-              <div className="w-px h-5 bg-slate-200 hidden sm:block"></div>
-
-              {/* Mic Icon */}
-              <button
-                type="button"
-                className="p-1.5 text-slate-400 hover:text-[#1769AA] transition-colors"
-                title="Voice input"
-              >
-                <Mic className="h-4 w-4" />
-              </button>
-
-              {/* Divider */}
-              <div className="w-px h-5 bg-slate-200"></div>
-
-              {/* Send Button */}
-              <button
-                type="button"
-                onClick={() => handleSend()}
-                className="w-9 h-9 rounded-full bg-[#1769AA] hover:bg-[#125890] active:scale-95 text-white flex items-center justify-center shadow-md transition-all shrink-0"
-                title="Send query"
-              >
-                <ArrowUp className="h-4 w-4 stroke-[2.5]" />
-              </button>
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="h-7 w-7 rounded-lg bg-primary flex items-center justify-center text-primary-foreground shrink-0">
+              <Sparkles className="h-3.5 w-3.5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold truncate text-foreground">Aadya AI</p>
+              <p className="text-[10px] text-muted-foreground truncate">
+                {activeConversationId
+                  ? conversations.find((c) => c.id === activeConversationId)?.title ||
+                    "Conversation"
+                  : "New conversation"}
+              </p>
             </div>
           </div>
-        </div>
+        </header>
 
-        {/* QUICK AI PROMPT SUGGESTIONS ("Try asking") */}
-        <div className="w-full max-w-5xl space-y-3 px-2">
-          <p className="text-xs font-bold text-slate-400 tracking-wide text-center uppercase">
-            Try asking
-          </p>
+        <div className="flex-1 overflow-y-auto">
+          {!hasMessages ? (
+            <div className="h-full flex flex-col items-center justify-center px-4 py-10 max-w-3xl mx-auto w-full">
+              <div className="h-14 w-14 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center shadow-lg mb-5">
+                <Sparkles className="h-7 w-7" />
+              </div>
+              <h1 className="text-2xl sm:text-3xl font-semibold text-center text-foreground tracking-tight">
+                {roleContext.greeting}
+              </h1>
+              <p className="mt-2 text-sm text-muted-foreground text-center max-w-md">
+                {roleContext.subtitle}
+              </p>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
-            {roleContext.quickActions.map((action) => {
-              const Icon = action.icon;
-              return (
-                <button
-                  key={action.id}
-                  type="button"
-                  onClick={() => handleSend(action.query)}
-                  className="bg-white border border-slate-200/80 hover:border-[#1769AA]/40 hover:shadow-md hover:-translate-y-0.5 transition-all p-3.5 rounded-xl text-left flex items-center gap-3 group"
-                >
-                  <div
-                    className={`w-8 h-8 rounded-lg ${action.iconBg} ${action.iconColor} flex items-center justify-center shrink-0`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-700 group-hover:text-[#1769AA] leading-snug line-clamp-2 transition-colors">
-                    {action.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ─── BOTTOM KPI SUMMARY STRIP ─── */}
-        <div className="w-full max-w-5xl mx-auto mt-4 px-2">
-          <Card className="border border-slate-200/80 shadow-sm bg-white rounded-2xl overflow-hidden">
-            <CardContent className="p-6">
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 text-center gap-y-4 sm:gap-y-0">
-                {liveStats.map((stat, idx) => {
-                  const Icon = stat.icon;
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full">
+                {roleContext.quickActions.map((action) => {
+                  const Icon = action.icon;
                   return (
-                    <div
-                      key={idx}
-                      className="p-2 sm:px-3 flex flex-col items-center"
+                    <button
+                      key={action.id}
+                      type="button"
+                      onClick={() => void handleSend(action.query)}
+                      className="flex items-start gap-3 text-left rounded-2xl border border-border bg-card px-4 py-3.5 hover:border-primary/40 hover:bg-muted/60 transition-colors"
                     >
-                      <Icon className={`h-5 w-5 ${stat.color} mb-2`} />
-                      <h3
-                        className={`${
-                          (stat as any).isText
-                            ? "text-base font-extrabold line-clamp-1"
-                            : "text-2xl font-black"
-                        } text-slate-900`}
-                      >
-                        {stat.value}
-                      </h3>
-                      <p className="text-xs font-bold text-slate-700 mt-0.5">
-                        {stat.label}
-                      </p>
-                      <p className="text-[11px] font-semibold text-slate-500 mt-1">
-                        {stat.sub}
-                      </p>
-                    </div>
+                      <div className="mt-0.5 h-8 w-8 rounded-lg bg-muted border border-border flex items-center justify-center text-primary shrink-0">
+                        <Icon className="h-4 w-4" />
+                      </div>
+                      <span className="text-sm font-medium text-foreground leading-snug">
+                        {action.label}
+                      </span>
+                    </button>
                   );
                 })}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          ) : (
+            <div className="max-w-3xl mx-auto w-full px-4 py-6 space-y-6">
+              {messages.map((m) => (
+                <div
+                  key={m.id}
+                  className={cn(
+                    "flex gap-3",
+                    m.role === "user" ? "justify-end" : "justify-start"
+                  )}
+                >
+                  {m.role === "assistant" && (
+                    <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0 mt-0.5">
+                      <Sparkles className="h-3.5 w-3.5" />
+                    </div>
+                  )}
+                  <div
+                    className={cn(
+                      "max-w-[85%] rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap",
+                      m.role === "user"
+                        ? "bg-primary text-primary-foreground rounded-br-md"
+                        : m.isError
+                          ? "bg-destructive/10 text-destructive border border-destructive/20 rounded-bl-md"
+                          : "bg-card text-card-foreground border border-border shadow-xs rounded-bl-md"
+                    )}
+                  >
+                    {m.content}
+                    {m.toolsUsed && m.toolsUsed.length > 0 && !m.isError ? (
+                      <p className="mt-2 text-[10px] font-medium text-muted-foreground">
+                        Used: {m.toolsUsed.join(", ")}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+              {isProcessing ? (
+                <div className="flex gap-3 items-center">
+                  <div className="h-8 w-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+                    <Sparkles className="h-3.5 w-3.5" />
+                  </div>
+                  <div className="bg-card border border-border rounded-2xl rounded-bl-md px-4 py-3 text-sm text-muted-foreground flex items-center gap-2">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Thinking…
+                  </div>
+                </div>
+              ) : null}
+              <div ref={messagesEndRef} />
+            </div>
+          )}
+        </div>
+
+        <div className="shrink-0 border-t border-border bg-card px-3 py-3 sm:px-4">
+          <div className="max-w-3xl mx-auto">
+            <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-muted/50 focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-ring/20 px-3 py-2">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={inputValue}
+                onChange={onInput}
+                onKeyDown={onKeyDown}
+                placeholder={roleContext.placeholder}
+                disabled={isProcessing}
+                className="flex-1 resize-none bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none max-h-40 py-2.5 leading-5"
+              />
+              <button
+                type="button"
+                onClick={() => void handleSend()}
+                disabled={!inputValue.trim() || isProcessing}
+                className={cn(
+                  "mb-0.5 h-9 w-9 rounded-xl flex items-center justify-center transition-colors shrink-0",
+                  inputValue.trim() && !isProcessing
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-muted text-muted-foreground cursor-not-allowed"
+                )}
+                title="Send"
+              >
+                {isProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowUp className="h-4 w-4 stroke-[2.5]" />
+                )}
+              </button>
+            </div>
+            <p className="mt-2 text-center text-[10px] text-muted-foreground">
+              Aadya AI can make mistakes. Verify important institute data.
+            </p>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+function HistoryItem({
+  conversation,
+  active,
+  onSelect,
+  onDelete,
+}: {
+  conversation: AIConversation;
+  active: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "group flex items-center gap-1 rounded-lg px-2 py-2 cursor-pointer",
+        active
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "hover:bg-sidebar-accent/70 text-sidebar-foreground"
+      )}
+    >
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex-1 min-w-0 flex items-start gap-2 text-left"
+      >
+        <MessageSquare className="h-3.5 w-3.5 mt-0.5 text-muted-foreground shrink-0" />
+        <div className="min-w-0">
+          <p className="text-xs font-medium truncate">
+            {conversation.title || "Untitled chat"}
+          </p>
+          <p className="text-[10px] text-muted-foreground">
+            {formatRelativeTime(conversation.updatedAt)}
+            {conversation.messageCount
+              ? ` · ${conversation.messageCount} msgs`
+              : ""}
+          </p>
+        </div>
+      </button>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          onDelete();
+        }}
+        className="opacity-0 group-hover:opacity-100 p-1 rounded text-muted-foreground hover:text-destructive hover:bg-muted transition-opacity"
+        title="Delete"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}
