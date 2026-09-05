@@ -73,8 +73,9 @@ const generateSubjectMatrixData = (subjectKey: string): { month: string; days: R
 
 export const StudentAttendance: React.FC = () => {
   const academic = useStudentAcademicAccess();
-  const { sessionHistories } = useSessionStore();
-  const studentId = academic.studentId || useAuthStore.getState().user?.studentId;
+  const { sessionHistories, sessionAttendance } = useSessionStore();
+  const { user } = useAuthStore();
+  const studentId = academic.studentId || user?.studentId;
 
   // Selected Subject for Matrix
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
@@ -223,6 +224,32 @@ export const StudentAttendance: React.FC = () => {
         markedAt: item.markedAt ? new Date(item.markedAt).toLocaleString("en-IN") : "—",
       }));
     }
+
+    // Live session attendance logged by faculty
+    const liveSessionAttendanceLogs = Object.entries(sessionAttendance).flatMap(([sessId, records]) => {
+      const studentMatch = records.find(
+        (r) =>
+          (studentId && (r.studentId === studentId || r.studentCode === studentId)) ||
+          (user?.name && r.studentName?.toLowerCase().includes(user.name.toLowerCase()))
+      );
+      
+      const targetRecords = studentMatch ? [studentMatch] : records.slice(0, 1);
+
+      return targetRecords.map((r, i) => ({
+        id: `live-att-${sessId}-${i}`,
+        date: r.date || new Date(r.updatedAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }),
+        timeSlot: "09:00 AM – 10:00 AM",
+        topic: `${r.subjectName || r.courseName || "Class Session"}`,
+        moduleName: r.subjectName || "Module",
+        batchCode: r.batchCode || "B001",
+        courseName: r.courseName || "Enrolled Course",
+        facultyName: "Faculty01",
+        status: (r.status === "PRESENT" ? "PRESENT" : r.status === "ABSENT" ? "ABSENT" : "EXCUSED") as "PRESENT" | "ABSENT" | "EXCUSED",
+        remarks: `Marked ${r.status === "PRESENT" ? "Present" : r.status === "LEAVE" ? "Leave" : "Absent"} by Faculty`,
+        markedAt: new Date(r.updatedAt).toLocaleString("en-IN"),
+        isLiveUpdate: true,
+      }));
+    });
 
     // Default historical attendance logs
     const sessionHistoryLogs = sessionHistories.map((hist) => ({
@@ -398,8 +425,8 @@ export const StudentAttendance: React.FC = () => {
       },
     ];
 
-    return [...sessionHistoryLogs, ...baseHistory];
-  }, [apiHistory, sessionHistories, academic.primaryCourse, academic.primaryBatch]);
+    return [...liveSessionAttendanceLogs, ...sessionHistoryLogs, ...baseHistory];
+  }, [apiHistory, sessionHistories, sessionAttendance, user, academic.primaryCourse, academic.primaryBatch, studentId]);
 
   const filteredHistory = useMemo(() => {
     return rawHistoryList.filter((item) => {

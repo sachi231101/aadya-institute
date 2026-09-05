@@ -101,31 +101,10 @@ export const FacultyAnnouncements: React.FC = () => {
         });
       }
     }
-
-  const facultyName = user?.name || dashboardRes?.data?.profile?.name || "Faculty";
-  const facultyDesignation =
-    (user as { specialization?: string; department?: string })?.specialization ||
-    (user as { specialization?: string; department?: string })?.department ||
-    "Faculty";
-
-  const facultyCourses: FacultyCourseOption[] = React.useMemo(() => {
-    const byCourse = new Map<string, FacultyCourseOption>();
-    assignedBatches.forEach((b) => {
-      const courseId = b.courseId || b.course?.id || "unknown";
-      const courseName = b.course?.name || "Course";
-      if (!byCourse.has(courseId)) {
-        byCourse.set(courseId, { id: courseId, name: courseName, batches: [] });
-      }
-      byCourse.get(courseId)!.batches.push({
-        id: b.id,
-        name: `${b.name} (${b.code})`,
-        studentCount: b._count?.enrollments ?? 0,
-      });
-    });
-    return Array.from(byCourse.values());
-  }, [assignedBatches]);
     return Array.from(map.values());
   }, [facultyCoursesRes?.data]);
+
+  const facultyCourses = facultyCourseGroups;
 
   // Filter & Search State
   const [searchQuery, setSearchQuery] = useState("");
