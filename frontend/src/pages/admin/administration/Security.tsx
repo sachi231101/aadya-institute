@@ -103,6 +103,7 @@ export const Security: React.FC = () => {
     onSuccess: (data) => {
       setPolicyForm(data);
       queryClient.invalidateQueries({ queryKey: ["security", "policy"] });
+      queryClient.invalidateQueries({ queryKey: ["security", "password-requirements"] });
       showToast("Security policy saved");
     },
     onError: (err: any) => {

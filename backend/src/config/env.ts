@@ -38,6 +38,12 @@ export const env = {
   GOOGLE_MEET_SCOPES: process.env.GOOGLE_MEET_SCOPES || "https://www.googleapis.com/auth/meetings.space.created https://www.googleapis.com/auth/meetings.space.readonly",
   GOOGLE_DRIVE_SCOPES: process.env.GOOGLE_DRIVE_SCOPES || "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly",
   GOOGLE_TOKEN_ENCRYPTION_KEY: process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || "aadya-google-token-encryption-secret-key-32",
+  /** Master key for encrypting Integration credentials (API keys, SMTP passwords, etc.). */
+  INTEGRATION_ENCRYPTION_KEY:
+    process.env.INTEGRATION_ENCRYPTION_KEY ||
+    process.env.GOOGLE_TOKEN_ENCRYPTION_KEY ||
+    process.env.JWT_SECRET ||
+    "aadya-integration-encryption-secret-key-32",
   /**
    * When false, BullMQ workers are not started in this process (API-only).
    * Defaults to true in development so `npm run dev` still processes jobs.

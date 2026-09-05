@@ -125,6 +125,7 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
       name,
       campaignName: template.providerTemplateName,
       templateParams,
+      instituteId: notification.instituteId,
     });
 
     await repo.updateNotificationStatus(notificationId, {

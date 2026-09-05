@@ -42,10 +42,11 @@ export interface AiSensySendResponse {
 }
 
 export const aiSensySendMessage = async (
-  payload: AiSensySendRequest
+  payload: AiSensySendRequest,
+  options?: { apiKey?: string }
 ): Promise<AiSensySendResponse> => {
   const body = {
-    apiKey: env.AISENSY_API_KEY,
+    apiKey: options?.apiKey || env.AISENSY_API_KEY,
     campaignName: payload.campaignName,
     destination: payload.destination,
     userName: payload.userName,

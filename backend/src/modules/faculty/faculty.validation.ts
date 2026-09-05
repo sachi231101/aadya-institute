@@ -4,7 +4,7 @@ export const createFacultySchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email").optional(),
   phone: z.string().min(10, "Phone must be at least 10 characters").optional(),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(1, "Password is required"),
   employeeCode: z.string().min(1).max(20).toUpperCase().optional().or(z.literal("")),
   specialization: z.string().optional(),
   designation: z.string().optional(),

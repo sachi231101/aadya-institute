@@ -4,7 +4,7 @@ export const createStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email").optional().or(z.literal("")),
   phone: z.string().min(10, "Phone must be at least 10 characters").optional().or(z.literal("")),
-  password: z.string().min(8, "Password must be at least 8 characters"),
+  password: z.string().min(1, "Password is required"),
   studentCode: z.string().max(30).toUpperCase().optional().or(z.literal("")),
   dateOfBirth: z.string().optional().or(z.literal("")),
   qualification: z.string().optional().or(z.literal("")),

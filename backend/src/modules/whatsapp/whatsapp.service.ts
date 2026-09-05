@@ -57,9 +57,10 @@ class WhatsAppService {
     phone: string,
     name: string,
     campaignName: string,
-    templateParams: string[]
+    templateParams: string[],
+    instituteId?: string
   ): Promise<SendWhatsAppResult> {
-    return this.sendTemplate({ phone, name, campaignName, templateParams });
+    return this.sendTemplate({ phone, name, campaignName, templateParams, instituteId });
   }
 }
 

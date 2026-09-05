@@ -6,6 +6,7 @@ const SENSITIVE_KEYS = new Set([
   "passwordHash",
   "refreshToken",
   "encryptedRefreshToken",
+  "encryptedCredentials",
   "accessToken",
   "secret",
   "clientSecret",
@@ -13,6 +14,10 @@ const SENSITIVE_KEYS = new Set([
   "tokenHash",
   "token",
   "inviteLink",
+  "apiKey",
+  "keySecret",
+  "webhookSecret",
+  "telephonyApiKey",
 ]);
 
 /**

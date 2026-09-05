@@ -1,20 +1,26 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNotificationStore } from "@/store/notification.store";
 import { useCreateUser } from "@/hooks/useUsers";
 import { useBranches } from "@/hooks/useBranches";
+import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
 import { usersApi } from "@/services/users.api";
+import { facultyApi } from "@/services/faculty.api";
 import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
+import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import {
   buildPermissionsFromAccess,
   createDefaultAccessState,
   type ItemAccessState,
   type PermissionModuleDefinition,
 } from "@/utils/permission-utils";
+import {
+  validatePasswordAgainstPolicy,
+} from "@/utils/password-policy";
 import {
   ArrowLeft,
   Loader2,
@@ -40,61 +46,76 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 
-const addAdminSchema = z
-  .object({
-    name: z.string().min(2, "Name must be at least 2 characters."),
-    email: z.string().email("Invalid email address."),
-    phone: z
-      .string()
-      .optional()
-      .or(z.literal(""))
-      .refine(
-        (val) => {
-          if (!val || val.trim() === "") return true;
-          const digits = val.replace(/\D/g, "");
-          return digits.length >= 7 && digits.length <= 15;
-        },
-        {
-          message: "Phone must be a valid phone number (7-15 digits)",
-        }
-      ),
-    branchId: z.string().min(1, "Assigned branch is required"),
-    role: z.string().default("CENTER_MANAGER"),
-    password: z
-      .string()
-      .min(8, "Password must be at least 8 characters.")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter.")
-      .regex(/[0-9]/, "Password must contain at least one number."),
-    confirmPassword: z.string().min(1, "Password confirmation is required."),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
+const STAFF_ROLE_OPTIONS = [
+  { value: "CENTER_MANAGER", label: "Center Manager" },
+  { value: "COUNSELLOR", label: "Counsellor" },
+  { value: "FACULTY", label: "Faculty" },
+] as const;
 
-type AddAdminFormValues = z.infer<typeof addAdminSchema>;
+const ROLE_SUCCESS_LABEL: Record<string, string> = {
+  CENTER_MANAGER: "Center Manager",
+  COUNSELLOR: "Counsellor",
+  FACULTY: "Faculty",
+};
+
+const buildAddAdminSchema = (
+  policy: Parameters<typeof validatePasswordAgainstPolicy>[1]
+) =>
+  z
+    .object({
+      name: z.string().min(2, "Name must be at least 2 characters."),
+      email: z.string().email("Invalid email address."),
+      phone: z
+        .string()
+        .optional()
+        .or(z.literal(""))
+        .refine(
+          (val) => {
+            if (!val || val.trim() === "") return true;
+            const digits = val.replace(/\D/g, "");
+            return digits.length >= 7 && digits.length <= 15;
+          },
+          {
+            message: "Phone must be a valid phone number (7-15 digits)",
+          }
+        ),
+      branchId: z.string().min(1, "Assigned branch is required"),
+      role: z.enum(["CENTER_MANAGER", "COUNSELLOR", "FACULTY"]),
+      password: z.string().min(1, "Password is required."),
+      confirmPassword: z.string().min(1, "Password confirmation is required."),
+    })
+    .superRefine((data, ctx) => {
+      const policyError = validatePasswordAgainstPolicy(data.password, policy);
+      if (policyError) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: policyError,
+          path: ["password"],
+        });
+      }
+      if (data.password !== data.confirmPassword) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Passwords do not match",
+          path: ["confirmPassword"],
+        });
+      }
+    });
+
+type AddAdminFormValues = z.infer<ReturnType<typeof buildAddAdminSchema>>;
+
+const USERS_PATH = "/admin/administration/users";
 
 export const AddAdmin: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const addNotification = useNotificationStore((state) => state.addNotification);
   const createUserMutation = useCreateUser();
   const { data: branchesResponse } = useBranches();
+  const { policy } = usePasswordRequirements();
 
   const branches = branchesResponse?.data ?? [];
-
-  const { data: catalogRes } = useQuery({
-    queryKey: ["permission-catalog", "CENTER_MANAGER"],
-    queryFn: () => usersApi.getPermissionCatalog("CENTER_MANAGER"),
-  });
-  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
-
-  const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
-
-  useEffect(() => {
-    if (catalog.length > 0 && Object.keys(itemAccess).length === 0) {
-      setItemAccess(createDefaultAccessState(catalog));
-    }
-  }, [catalog, itemAccess]);
+  const addAdminSchema = useMemo(() => buildAddAdminSchema(policy), [policy]);
 
   const form = useForm<AddAdminFormValues>({
     resolver: zodResolver(addAdminSchema) as any,
@@ -109,9 +130,91 @@ export const AddAdmin: React.FC = () => {
     },
   });
 
+  useEffect(() => {
+    form.clearErrors("password");
+  }, [policy, form]);
+
+  // Keep resolver in sync when institute password policy loads/changes
+  useEffect(() => {
+    form.clearErrors();
+  }, [addAdminSchema, form]);
+
+  const selectedRole = form.watch("role");
+  const showPermissions =
+    selectedRole === "CENTER_MANAGER" || selectedRole === "COUNSELLOR";
+
+  const { data: catalogRes } = useQuery({
+    queryKey: ["permission-catalog", selectedRole],
+    queryFn: () =>
+      usersApi.getPermissionCatalog(
+        selectedRole as "CENTER_MANAGER" | "COUNSELLOR"
+      ),
+    enabled: showPermissions,
+  });
+  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
+
+  const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
+
+  useEffect(() => {
+    if (catalog.length > 0) {
+      setItemAccess(createDefaultAccessState(catalog));
+    } else {
+      setItemAccess({});
+    }
+  }, [catalog, selectedRole]);
+
+  const createFacultyMutation = useMutation({
+    mutationFn: facultyApi.create,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["users"] });
+      void queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+      void queryClient.invalidateQueries({ queryKey: ["faculty"] });
+    },
+  });
+
+  const isSubmitting =
+    createUserMutation.isPending || createFacultyMutation.isPending;
+
   const onSubmit = (data: AddAdminFormValues) => {
     form.clearErrors("root");
     const sanitizedPhone = data.phone?.trim() ? data.phone.trim() : undefined;
+    const roleLabel = ROLE_SUCCESS_LABEL[data.role] || data.role;
+
+    const handleError = (err: any) => {
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Failed to create user.";
+
+      if (message.toLowerCase().includes("email")) {
+        form.setError("email", { type: "manual", message });
+      } else if (message.toLowerCase().includes("phone")) {
+        form.setError("phone", { type: "manual", message });
+      }
+
+      form.setError("root", { type: "manual", message });
+      addNotification(message, "error");
+    };
+
+    if (data.role === "FACULTY") {
+      createFacultyMutation.mutate(
+        {
+          name: data.name.trim(),
+          email: data.email.trim().toLowerCase(),
+          phone: sanitizedPhone,
+          password: data.password,
+          branchId: data.branchId,
+        },
+        {
+          onSuccess: () => {
+            addNotification(`${roleLabel} created successfully.`, "success");
+            navigate(USERS_PATH);
+          },
+          onError: handleError,
+        }
+      );
+      return;
+    }
 
     const permissions = buildPermissionsFromAccess(itemAccess, catalog);
 
@@ -127,24 +230,13 @@ export const AddAdmin: React.FC = () => {
       },
       {
         onSuccess: () => {
-          addNotification("Center Manager created successfully with module permissions.", "success");
-          navigate("/administration");
+          addNotification(
+            `${roleLabel} created successfully with module permissions.`,
+            "success"
+          );
+          navigate(USERS_PATH);
         },
-        onError: (err: any) => {
-          const message =
-            err?.response?.data?.message ||
-            err?.message ||
-            "Failed to create administrator.";
-
-          if (message.toLowerCase().includes("email")) {
-            form.setError("email", { type: "manual", message });
-          } else if (message.toLowerCase().includes("phone")) {
-            form.setError("phone", { type: "manual", message });
-          }
-
-          form.setError("root", { type: "manual", message });
-          addNotification(message, "error");
-        },
+        onError: handleError,
       }
     );
   };
@@ -154,17 +246,17 @@ export const AddAdmin: React.FC = () => {
       <div className="flex items-center gap-4 mb-6">
         <Button
           variant="ghost"
-          onClick={() => navigate("/administration")}
+          onClick={() => navigate(USERS_PATH)}
           size="icon"
         >
           <ArrowLeft size={20} />
         </Button>
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary">
-            Add Center Manager
+            Add User
           </h1>
           <p className="text-muted-foreground mt-1">
-            Create a new center manager account and configure their module access
+            Create a center manager, counsellor, or faculty account
           </p>
         </div>
       </div>
@@ -178,12 +270,11 @@ export const AddAdmin: React.FC = () => {
             </div>
           )}
 
-          {/* ─── Profile Details Card ─────────────────────────────────── */}
           <Card>
             <CardHeader>
               <CardTitle>Profile Details</CardTitle>
               <CardDescription>
-                Enter the personal and account credentials for the new center manager.
+                Enter personal details, role, branch, and account credentials.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -209,10 +300,60 @@ export const AddAdmin: React.FC = () => {
                       <FormLabel>Email Address</FormLabel>
                       <FormControl>
                         <Input
-                          placeholder="admin@aadya.in"
+                          placeholder="staff@aadya.in"
                           type="email"
                           {...field}
                         />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role *</FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          {...field}
+                        >
+                          {STAFF_ROLE_OPTIONS.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="branchId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Assigned Branch *</FormLabel>
+                      <FormControl>
+                        <select
+                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                          {...field}
+                        >
+                          <option value="" disabled>
+                            Select a branch
+                          </option>
+                          {branches.map((branch) => (
+                            <option key={branch.id} value={branch.id}>
+                              {branch.name} ({branch.code})
+                            </option>
+                          ))}
+                        </select>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -234,29 +375,7 @@ export const AddAdmin: React.FC = () => {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="branchId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Assigned Branch *</FormLabel>
-                      <FormControl>
-                        <select
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          {...field}
-                        >
-                          <option value="" disabled>Select a branch</option>
-                          {branches.map((branch) => (
-                            <option key={branch.id} value={branch.id}>
-                              {branch.name} ({branch.code})
-                            </option>
-                          ))}
-                        </select>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="hidden md:block" />
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -295,66 +414,80 @@ export const AddAdmin: React.FC = () => {
                   )}
                 />
               </div>
+              <PasswordRequirementsHint />
             </CardContent>
           </Card>
 
-          <Card className="border-blue-100/80 shadow-xs">
-            <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
-              <div className="flex items-center gap-2.5">
-                <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1769AA] flex items-center justify-center">
-                  <ShieldCheck className="h-5 w-5" />
+          {showPermissions && (
+            <Card className="border-blue-100/80 shadow-xs">
+              <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base font-bold text-slate-900">
+                      Module & Submodule Permissions
+                    </CardTitle>
+                    <CardDescription className="text-xs text-slate-500">
+                      By default, new users see only Dashboard, ASK ME, and Settings.
+                      Enable Show/Editable per submodule to grant access.
+                    </CardDescription>
+                  </div>
                 </div>
-                <div>
-                  <CardTitle className="text-base font-bold text-slate-900">
-                    Module & Submodule Permissions
-                  </CardTitle>
-                  <CardDescription className="text-xs text-slate-500">
-                    By default, new managers see only Dashboard, ASK ME, and Settings. Enable Show/Editable per submodule to grant access.
-                  </CardDescription>
+              </CardHeader>
+
+              <CardContent className="pt-5">
+                <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>
+                    <strong>Default access:</strong> Unchecked modules stay hidden
+                    until you enable Show. Use Grant all for full ERP access.
+                  </span>
                 </div>
-              </div>
-            </CardHeader>
 
-            <CardContent className="pt-5">
-              <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50/70 border border-amber-200/60 text-xs text-amber-800 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
-                <span>
-                  <strong>Default access:</strong> Unchecked modules stay hidden until you enable Show. Use Grant all for full ERP access.
-                </span>
-              </div>
+                <PermissionMatrix
+                  role={selectedRole as "CENTER_MANAGER" | "COUNSELLOR"}
+                  value={itemAccess}
+                  onChange={setItemAccess}
+                />
 
-              <PermissionMatrix
-                role="CENTER_MANAGER"
-                value={itemAccess}
-                onChange={setItemAccess}
-              />
+                <div className="mt-4 text-xs text-slate-400 font-medium">
+                  Dashboard, ASK ME, and Settings are always available to active staff.
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-              <div className="mt-4 text-xs text-slate-400 font-medium">
-                Dashboard, ASK ME, and Settings are always available to active managers.
-              </div>
-            </CardContent>
-          </Card>
+          {selectedRole === "FACULTY" && (
+            <Card className="border-border shadow-xs">
+              <CardContent className="pt-5 text-sm text-muted-foreground">
+                Faculty accounts get the Faculty role and a Faculty profile for
+                scheduling and attendance. Additional HR details can be edited later
+                from the Faculty module.
+              </CardContent>
+            </Card>
+          )}
 
-          {/* ─── Action Footer ────────────────────────────────────────── */}
           <div className="flex justify-end gap-4 pt-4 border-t border-border">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate("/administration")}
+              onClick={() => navigate(USERS_PATH)}
             >
               Cancel
             </Button>
             <Button
               type="submit"
               className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
-              disabled={createUserMutation.isPending}
+              disabled={isSubmitting}
             >
-              {createUserMutation.isPending ? (
+              {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating...
                 </>
               ) : (
-                "Create Center Manager"
+                `Create ${ROLE_SUCCESS_LABEL[selectedRole] || "User"}`
               )}
             </Button>
           </div>

@@ -1,6 +1,8 @@
 import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import { createAuditLog } from "../../utils/audit-log.util";
+import { toOrganizationContext } from "../organization/organization.mapper";
+import type { OrganizationContextDto } from "../organization/organization.types";
 import * as repo from "./institute.repository";
 import type { CreateInstituteDto, UpdateInstituteDto } from "./institute.validation";
 import type { OrganizationAuditMeta } from "./institute.types";
@@ -55,18 +57,22 @@ export const deleteInstitute = async (id: string, currentUser: AuthUser) => {
   return repo.deleteInstitute(id);
 };
 
-export const getOrganization = async (currentUser: AuthUser) => {
+export const getOrganization = async (
+  currentUser: AuthUser
+): Promise<OrganizationContextDto> => {
   const institute = await repo.findInstituteById(currentUser.instituteId);
   if (!institute) throw new AppError("Institute not found", 404);
-  return institute;
+  return toOrganizationContext(institute);
 };
 
 export const updateOrganization = async (
   currentUser: AuthUser,
   data: UpdateInstituteDto,
   auditMeta?: OrganizationAuditMeta
-) => {
-  const existing = await getOrganization(currentUser);
+): Promise<OrganizationContextDto> => {
+  const existingInstitute = await repo.findInstituteById(currentUser.instituteId);
+  if (!existingInstitute) throw new AppError("Institute not found", 404);
+
   const updated = await repo.updateInstitute(currentUser.instituteId, data);
 
   await createAuditLog({
@@ -76,11 +82,11 @@ export const updateOrganization = async (
     action: "ORGANIZATION_UPDATED",
     entityType: "Institute",
     entityId: currentUser.instituteId,
-    oldData: existing,
-    newData: updated,
+    oldData: toOrganizationContext(existingInstitute),
+    newData: toOrganizationContext(updated),
     ipAddress: auditMeta?.ipAddress,
     userAgent: auditMeta?.userAgent,
   });
 
-  return updated;
+  return toOrganizationContext(updated);
 };

@@ -18,6 +18,8 @@ export interface SendWhatsAppTemplateOptions {
     url: string;
     filename: string;
   };
+  /** When set, resolve AiSensy API key from institute Integration (else env). */
+  instituteId?: string;
 }
 
 export interface SendWhatsAppResult {

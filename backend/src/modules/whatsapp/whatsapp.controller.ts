@@ -21,7 +21,13 @@ export const sendTestMessage = async (
 ): Promise<void> => {
   try {
     const { phone, name, campaignName, templateParams } = sendTestMessageSchema.parse(req.body);
-    const result = await whatsAppService.sendTestMessage(phone, name, campaignName, templateParams);
+    const result = await whatsAppService.sendTestMessage(
+      phone,
+      name,
+      campaignName,
+      templateParams,
+      req.user?.instituteId
+    );
     sendSuccess(res, result, 200, "Test WhatsApp message sent successfully");
   } catch (err: any) {
     sendError(res, err.message || "Failed to send test WhatsApp message", 400);

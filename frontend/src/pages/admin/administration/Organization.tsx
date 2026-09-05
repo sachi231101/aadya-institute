@@ -1,96 +1,51 @@
-import React, { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import React, { useMemo, useState } from "react";
 import { Loader2, AlertCircle, Save } from "lucide-react";
-import { api } from "@/services/api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-
-type OrgFormState = {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  website: string;
-  city: string;
-  state: string;
-  country: string;
-  postalCode: string;
-  gstNumber: string;
-  timezone: string;
-  currency: string;
-  dateFormat: string;
-  logoUrl: string;
-};
-
-const emptyForm: OrgFormState = {
-  name: "",
-  email: "",
-  phone: "",
-  address: "",
-  website: "",
-  city: "",
-  state: "",
-  country: "",
-  postalCode: "",
-  gstNumber: "",
-  timezone: "",
-  currency: "",
-  dateFormat: "",
-  logoUrl: "",
-};
+import {
+  emptyOrganizationForm,
+  organizationContextToForm,
+  useAdministrationOrganization,
+  useOrganization,
+  useUpdateOrganization,
+  type OrganizationFormState,
+} from "@/hooks/useOrganizationContext";
+import { formatCurrency } from "@/utils/format";
+import { formatOrganizationDate } from "@/utils/date";
 
 export const Organization: React.FC = () => {
-  const queryClient = useQueryClient();
+  const { updateOrganizationContext } = useOrganization();
+  const { data, isLoading, isError, refetch } = useAdministrationOrganization();
+  const updateMutation = useUpdateOrganization();
 
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["administration", "organization"],
-    queryFn: async () => {
-      const res = await api.get("/administration/organization");
-      return res.data.data;
-    },
-  });
+  const serverForm = useMemo(
+    () => (data ? organizationContextToForm(data) : emptyOrganizationForm),
+    [data]
+  );
+  const [draft, setDraft] = useState<OrganizationFormState | null>(null);
+  const form = draft ?? serverForm;
 
-  const [form, setForm] = useState<OrgFormState>(emptyForm);
-
-  React.useEffect(() => {
-    if (data) {
-      setForm({
-        name: data.name || "",
-        email: data.email || "",
-        phone: data.phone || "",
-        address: data.address || "",
-        website: data.website || "",
-        city: data.city || "",
-        state: data.state || "",
-        country: data.country || "",
-        postalCode: data.postalCode || "",
-        gstNumber: data.gstNumber || "",
-        timezone: data.timezone || "",
-        currency: data.currency || "",
-        dateFormat: data.dateFormat || "",
-        logoUrl: data.logoUrl || "",
-      });
-    }
-  }, [data]);
-
-  const updateMutation = useMutation({
-    mutationFn: async (payload: OrgFormState) => {
-      const res = await api.patch("/administration/organization", payload);
-      return res.data;
-    },
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["administration", "organization"] }),
-  });
-
-  const setField = (key: keyof OrgFormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm((prev) => ({ ...prev, [key]: e.target.value }));
-  };
+  const setField =
+    (key: keyof OrganizationFormState) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setDraft((prev) => ({ ...(prev ?? serverForm), [key]: e.target.value }));
+    };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateMutation.mutateAsync(form);
+    const updated = await updateMutation.mutateAsync({
+      ...form,
+      dateFormat: (form.dateFormat || undefined) as
+        | "DD/MM/YYYY"
+        | "MM/DD/YYYY"
+        | "YYYY-MM-DD"
+        | ""
+        | undefined,
+    });
+    updateOrganizationContext(updated);
+    setDraft(null);
   };
 
   if (isLoading) {
@@ -112,6 +67,13 @@ export const Organization: React.FC = () => {
       </div>
     );
   }
+
+  const previewCurrency = form.currency || "INR";
+  const previewDate = formatOrganizationDate(
+    new Date(),
+    (form.dateFormat as "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD") || "DD/MM/YYYY",
+    form.timezone || "Asia/Kolkata"
+  );
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -204,6 +166,20 @@ export const Organization: React.FC = () => {
                 onChange={setField("logoUrl")}
               />
             </div>
+
+            <div className="rounded-lg border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground space-y-1">
+              <p>
+                Preview currency:{" "}
+                <span className="font-semibold text-foreground">
+                  {formatCurrency(12500, previewCurrency)}
+                </span>
+              </p>
+              <p>
+                Preview date:{" "}
+                <span className="font-semibold text-foreground">{previewDate}</span>
+              </p>
+            </div>
+
             {updateMutation.isError && (
               <p className="text-sm text-red-600">Failed to save. Please try again.</p>
             )}

@@ -43,6 +43,8 @@ import {
 } from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { useAuthStore } from "@/store/auth.store"
+import { useOrganization } from "@/hooks/useOrganizationContext"
+import { DEFAULT_ORG_LOGO, DEFAULT_ORG_NAME } from "@/utils/organization-display"
 import { InstallAppButton } from "@/components/common/InstallAppButton"
 import { ROUTES } from "@/constants/routes"
 import { NAV_ITEM_LABELS } from "@/constants/nav-labels"
@@ -255,6 +257,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const navigate = useNavigate()
   const { user, logout } = useAuthStore()
+  const { organization } = useOrganization()
+  const orgName = organization?.name || DEFAULT_ORG_NAME
+  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
@@ -264,10 +269,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             <SidebarMenuButton size="lg" asChild className="hover:bg-accent/60 rounded-xl transition-all">
               <Link to={A.DASHBOARD} className="flex items-center gap-3">
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-border/60 shadow-2xs shrink-0 p-1">
-                  <img src="/aadya-logo.png" alt="Aadya Institute" className="h-7 w-auto object-contain" />
+                  <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
                 </div>
                 <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
-                  <span className="font-bold text-sm tracking-tight text-text-primary truncate">Aadya Portal</span>
+                  <span className="font-bold text-sm tracking-tight text-text-primary truncate">{orgName}</span>
                   <div className="flex items-center gap-1.5">
                     <span className="text-[10px] text-[#1769AA] dark:text-sky-400 font-extrabold tracking-wider bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded">
                       ADMIN

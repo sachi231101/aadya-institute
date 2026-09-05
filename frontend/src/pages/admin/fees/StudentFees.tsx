@@ -9,6 +9,7 @@ import {
   Clock,
 } from "lucide-react";
 import { usePendingFees, usePayments, useFeeStats } from "@/hooks/useFees";
+import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ export const StudentFees: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"pending" | "payments">("pending");
+  const formatMoney = useFormatCurrency();
 
   const { data: statsData } = useFeeStats();
   const stats = statsData?.data;
@@ -82,7 +84,7 @@ export const StudentFees: React.FC = () => {
             </div>
             <div>
               <p className="text-lg font-bold">
-                ₹{(stats?.totalCollected ?? 0).toLocaleString("en-IN")}
+                {formatMoney(stats?.totalCollected ?? 0)}
               </p>
               <p className="text-xs text-text-secondary">Total Collected</p>
             </div>
@@ -95,7 +97,7 @@ export const StudentFees: React.FC = () => {
             </div>
             <div>
               <p className="text-lg font-bold">
-                ₹{(stats?.totalPendingDues ?? 0).toLocaleString("en-IN")}
+                {formatMoney(stats?.totalPendingDues ?? 0)}
               </p>
               <p className="text-xs text-text-secondary">Pending Dues</p>
             </div>

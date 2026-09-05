@@ -34,6 +34,26 @@ export const getPolicy = async (
   }
 };
 
+/** Password rules only — available to any authenticated user creating accounts. */
+export const getPasswordRequirements = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const policy = await securityService.getSecurityPolicyService(toAuthUser(req));
+    sendSuccess(res, {
+      minPasswordLength: policy.minPasswordLength,
+      requireUppercase: policy.requireUppercase,
+      requireLowercase: policy.requireLowercase,
+      requireNumber: policy.requireNumber,
+      requireSpecialChar: policy.requireSpecialChar,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 export const updatePolicy = async (
   req: AuthenticatedRequest,
   res: Response,

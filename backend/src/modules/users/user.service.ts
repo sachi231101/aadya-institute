@@ -1,5 +1,6 @@
 import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
+import { assertPasswordMeetsInstitutePolicy } from "../../utils/password-policy.util";
 import { buildMeta } from "../../utils/pagination";
 import {
   resolveModuleKeysToPermissions,
@@ -159,7 +160,9 @@ export const createUserService = async (
     );
   }
 
-  const passwordHash = await hashPassword(input.password || "Password@123");
+  const password = input.password || "Password@123";
+  await assertPasswordMeetsInstitutePolicy(instituteId, password);
+  const passwordHash = await hashPassword(password);
 
   const user = await createUser({
     name: input.name,
