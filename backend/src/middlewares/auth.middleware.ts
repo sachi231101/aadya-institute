@@ -7,6 +7,7 @@ export interface AuthenticatedRequest extends Request {
     userId: string;
     instituteId: string;
     branchId?: string | null;
+    allowedBranchIds?: string[];
     roles: string[];
   };
 }

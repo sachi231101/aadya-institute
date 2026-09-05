@@ -124,4 +124,46 @@ export const BillingService = {
     if (!invoice) throw new AppError("Invoice not found", 404);
     return invoice;
   },
+
+  async getUsage(currentUser: AuthUser) {
+    const instituteId = currentUser.instituteId;
+    const [counts, subscription] = await Promise.all([
+      BillingRepository.countUsage(instituteId),
+      BillingRepository.findSubscription(instituteId),
+    ]);
+
+    const features =
+      subscription?.billingPlan?.features &&
+      typeof subscription.billingPlan.features === "object" &&
+      !Array.isArray(subscription.billingPlan.features)
+        ? (subscription.billingPlan.features as Record<string, unknown>)
+        : {};
+
+    const limitOf = (key: string): number | null => {
+      const value = features[key];
+      if (typeof value === "number" && Number.isFinite(value)) return value;
+      if (typeof value === "string" && value.trim() !== "" && !Number.isNaN(Number(value))) {
+        return Number(value);
+      }
+      return null;
+    };
+
+    return {
+      instituteId,
+      usage: counts,
+      limits: {
+        students: limitOf("maxStudents") ?? limitOf("students") ?? null,
+        branches: limitOf("maxBranches") ?? limitOf("branches") ?? null,
+        users: limitOf("maxUsers") ?? limitOf("users") ?? null,
+      },
+      plan: subscription?.billingPlan
+        ? {
+            id: subscription.billingPlan.id,
+            name: subscription.billingPlan.name,
+            code: subscription.billingPlan.code,
+            features,
+          }
+        : null,
+    };
+  },
 };

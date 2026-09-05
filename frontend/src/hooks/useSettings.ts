@@ -61,3 +61,38 @@ export const useRevokeSession = () => {
     },
   });
 };
+
+export const SYSTEM_SETTING_CATEGORIES = [
+  "GENERAL",
+  "LOCALIZATION",
+  "ACADEMIC",
+  "EXAMINATION",
+  "FEES",
+  "COMMUNICATION",
+  "PORTAL",
+] as const;
+
+export type SystemSettingCategory = (typeof SYSTEM_SETTING_CATEGORIES)[number];
+
+export const useSystemConfig = (category: SystemSettingCategory) => {
+  return useQuery({
+    queryKey: ["settings", "system-config", category],
+    queryFn: () => settingsApi.getSystemConfig(category),
+  });
+};
+
+export const useUpdateSystemConfig = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      category,
+      settings,
+    }: {
+      category: SystemSettingCategory;
+      settings: Record<string, unknown>;
+    }) => settingsApi.updateSystemConfig(category, settings),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["settings", "system-config", vars.category] });
+    },
+  });
+};

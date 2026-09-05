@@ -32,15 +32,23 @@ const parseExpiresIn = (expiresIn: string): Date => {
  * Store a new refresh token for a user.
  * Accepts the raw token, hashes it before storing.
  */
-export const createRefreshToken = async (userId: string, rawToken: string) => {
+export const createRefreshToken = async (
+  userId: string,
+  rawToken: string,
+  meta?: { ipAddress?: string | null; userAgent?: string | null }
+) => {
   const tokenHash = hashRefreshToken(rawToken);
   const expiresAt = parseExpiresIn(env.JWT_REFRESH_EXPIRES_IN);
+  const now = new Date();
 
   return prisma.refreshToken.create({
     data: {
       userId,
       tokenHash,
       expiresAt,
+      ipAddress: meta?.ipAddress ?? undefined,
+      userAgent: meta?.userAgent ?? undefined,
+      lastSeenAt: now,
     },
   });
 };

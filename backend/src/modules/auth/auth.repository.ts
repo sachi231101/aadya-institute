@@ -21,6 +21,7 @@ const userInclude = {
   },
   student: { select: { id: true } },
   faculty: { select: { id: true } },
+  branchAccesses: { select: { branchId: true } },
 };
 
 export const findUserByEmailOrPhone = async (emailOrPhone: string) => {

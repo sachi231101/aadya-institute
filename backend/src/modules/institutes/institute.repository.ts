@@ -2,10 +2,15 @@ import { prisma } from "../../config/database";
 import type { CreateInstituteDto, UpdateInstituteDto } from "./institute.validation";
 
 export const findAllInstitutes = () =>
-  prisma.institute.findMany({ orderBy: { createdAt: "desc" } });
+  prisma.institute.findMany({
+    where: { status: { not: "DELETED" } },
+    orderBy: { createdAt: "desc" },
+  });
 
 export const findInstituteById = (id: string) =>
-  prisma.institute.findUnique({ where: { id } });
+  prisma.institute.findFirst({
+    where: { id, status: { not: "DELETED" } },
+  });
 
 export const createInstitute = (data: CreateInstituteDto) =>
   prisma.institute.create({ data });

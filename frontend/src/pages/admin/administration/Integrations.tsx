@@ -1,6 +1,6 @@
 import React from "react";
-import { Plug, Loader2, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Plug, Loader2, AlertCircle, CheckCircle2, XCircle, ExternalLink } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { whatsappApi } from "@/services/whatsapp.api";
 import { useEmailTemplates } from "@/hooks/useEmail";
@@ -37,6 +37,8 @@ function StatusBadge({ connected, label }: { connected: boolean; label?: string 
 }
 
 export const Integrations: React.FC = () => {
+  const queryClient = useQueryClient();
+
   const {
     data: googleResponse,
     isLoading: googleLoading,
@@ -51,6 +53,28 @@ export const Integrations: React.FC = () => {
       return response.data.data;
     },
     retry: 1,
+  });
+
+  const connectGoogleMutation = useMutation({
+    mutationFn: async () => {
+      const response = await api.get<{ success: boolean; data: { url?: string; authUrl?: string; connectUrl?: string } }>(
+        "/integrations/google/connect"
+      );
+      return response.data.data;
+    },
+    onSuccess: (data) => {
+      const url = data?.url || data?.authUrl || data?.connectUrl;
+      if (url) window.location.href = url;
+    },
+  });
+
+  const disconnectGoogleMutation = useMutation({
+    mutationFn: async () => {
+      await api.post("/integrations/google/disconnect");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["integrations", "google"] });
+    },
   });
 
   const {
@@ -93,6 +117,37 @@ export const Integrations: React.FC = () => {
         : googleResponse?.isConnected
           ? "Google Meet & Drive integration active"
           : "Connect Google account for Meet and recordings",
+      actions: (
+        <div className="flex gap-2">
+          {googleResponse?.isConnected ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={disconnectGoogleMutation.isPending}
+              onClick={() => disconnectGoogleMutation.mutate()}
+            >
+              {disconnectGoogleMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : null}
+              Disconnect
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="bg-[#1769AA] text-white"
+              disabled={connectGoogleMutation.isPending}
+              onClick={() => connectGoogleMutation.mutate()}
+            >
+              {connectGoogleMutation.isPending ? (
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              ) : (
+                <ExternalLink className="h-3 w-3 mr-1" />
+              )}
+              Connect
+            </Button>
+          )}
+        </div>
+      ),
     },
     {
       id: "whatsapp",
@@ -106,6 +161,7 @@ export const Integrations: React.FC = () => {
       detail: whatsappConnected
         ? `${whatsappTemplates.length} template(s) available`
         : "Unable to reach WhatsApp template API",
+      actions: null,
     },
     {
       id: "email",
@@ -119,6 +175,7 @@ export const Integrations: React.FC = () => {
       detail: emailConfigured
         ? `${Array.isArray(emailTemplates) ? emailTemplates.length : 0} email template(s) loaded`
         : "Email template service unavailable",
+      actions: null,
     },
     {
       id: "sarvam",
@@ -131,7 +188,8 @@ export const Integrations: React.FC = () => {
       statusLabel: sarvamConfigured ? "Configured" : "Not Configured",
       detail: sarvamConfigured
         ? "Sarvam voice agent enabled via server configuration"
-        : "Set VITE_SARVAM_CONFIGURED=true when backend Sarvam keys are active",
+        : "Configured on the server — no client secrets are shown here",
+      actions: null,
     },
   ];
 
@@ -140,17 +198,19 @@ export const Integrations: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Integrations</h2>
         <p className="text-sm text-text-secondary">
-          External service connections for the academy platform.
+          Connection status for external services. API keys and secrets are never displayed.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {integrations.map((i) => (
           <Card key={i.id} className="border-border/50">
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  <Plug className="w-5 h-5 text-[#1769AA] mt-0.5 shrink-0" />
+                  <div className="h-10 w-10 rounded-xl bg-slate-50 border border-border/60 flex items-center justify-center shrink-0">
+                    <Plug className="w-5 h-5 text-[#1769AA]" />
+                  </div>
                   <div>
                     <p className="font-medium">{i.name}</p>
                     <p className="text-xs text-text-secondary">{i.module}</p>
@@ -166,7 +226,12 @@ export const Integrations: React.FC = () => {
                         <AlertCircle className="h-3 w-3 mr-1 inline" />
                         Error
                       </Badge>
-                      <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => i.refetch()}>
+                      <Button
+                        variant="link"
+                        size="sm"
+                        className="h-auto p-0 text-xs"
+                        onClick={() => i.refetch()}
+                      >
                         Retry
                       </Button>
                     </>
@@ -175,6 +240,7 @@ export const Integrations: React.FC = () => {
                   )}
                 </div>
               </div>
+              {i.actions}
             </CardContent>
           </Card>
         ))}

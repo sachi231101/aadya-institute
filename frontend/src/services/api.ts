@@ -22,9 +22,12 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const token = localStorage.getItem("token");
       const isDemoToken = token?.startsWith("demo-");
-      const isLoginRequest = error.config?.url?.includes("/auth/login");
+      const url = error.config?.url || "";
+      const isLoginRequest = url.includes("/auth/login");
+      const isPublicInvite =
+        url.includes("/invitations/accept");
 
-      if (!isDemoToken && !isLoginRequest) {
+      if (!isDemoToken && !isLoginRequest && !isPublicInvite) {
         useAuthStore.getState().logout();
         if (typeof window !== "undefined" && window.location.pathname !== "/login") {
           window.location.href = "/login";

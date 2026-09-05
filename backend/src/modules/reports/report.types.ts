@@ -150,12 +150,19 @@ export interface RecentPaymentItem {
   status: string;
 }
 
+export interface FinancialBranchBreakdownItem {
+  branchId: string;
+  collected: number;
+  pending: number;
+}
+
 export interface FinancialReportResponse {
   summary: FinancialReportSummary;
   monthlyTrend: MonthlyFinancialItem[];
   paymentMethodShare: PaymentMethodItem[];
   monthlyBreakdown: MonthlyFinancialItem[];
   recentPayments: RecentPaymentItem[];
+  branchBreakdown: FinancialBranchBreakdownItem[];
 }
 
 export interface ScheduleSummaryResponse {

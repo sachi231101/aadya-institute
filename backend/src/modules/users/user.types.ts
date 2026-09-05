@@ -34,6 +34,10 @@ export interface UpdateUserPermissionsInput {
   permissions?: string[];
 }
 
+export interface UpdateUserBranchAccessInput {
+  branchIds: string[];
+}
+
 export interface UpdateWhatsappPreferenceInput {
   whatsappEnabled: boolean;
 }

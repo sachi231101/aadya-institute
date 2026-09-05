@@ -9,6 +9,7 @@ export const AuditLogService = {
     const limit = query.limit ?? 20;
     const { total, data } = await AuditLogRepository.findMany(currentUser.instituteId, {
       userId: query.userId,
+      branchId: query.branchId,
       entityType: query.entityType,
       entityId: query.entityId,
       action: query.action,

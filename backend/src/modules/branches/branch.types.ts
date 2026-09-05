@@ -1,4 +1,4 @@
-import type { Status } from "@prisma/client";
+import type { Status, Prisma } from "@prisma/client";
 
 export interface BranchListQuery {
   page?: number;
@@ -7,11 +7,21 @@ export interface BranchListQuery {
   status?: Status;
 }
 
+export interface BranchManagerSummary {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
 export interface CreateBranchInput {
   name: string;
   code: string;
   address?: string;
   phone?: string;
+  email?: string;
+  timezone?: string;
+  workingHours?: Prisma.InputJsonValue | null;
+  managerUserId?: string | null;
 }
 
 export interface UpdateBranchInput {
@@ -19,6 +29,10 @@ export interface UpdateBranchInput {
   code?: string;
   address?: string;
   phone?: string;
+  email?: string;
+  timezone?: string;
+  workingHours?: Prisma.InputJsonValue | null;
+  managerUserId?: string | null;
   status?: Status;
 }
 
@@ -29,6 +43,11 @@ export interface BranchResponse {
   code: string;
   address: string | null;
   phone: string | null;
+  email: string | null;
+  timezone: string | null;
+  workingHours: Prisma.JsonValue | null;
+  managerUserId: string | null;
+  manager?: BranchManagerSummary | null;
   status: Status;
   createdAt: Date;
   updatedAt: Date;

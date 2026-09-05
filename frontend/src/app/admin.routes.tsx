@@ -100,6 +100,8 @@ import { Integrations } from "../pages/admin/administration/Integrations";
 import { Billing } from "../pages/admin/administration/Billing";
 import { AuditLogs } from "../pages/admin/administration/AuditLogs";
 import { SettingsHub } from "../pages/admin/administration/SettingsHub";
+import { Security } from "../pages/admin/administration/Security";
+import { DataManagement } from "../pages/admin/administration/DataManagement";
 import { AddAdmin } from "../pages/admin/administration/AddAdmin";
 import { ViewAdmin } from "../pages/admin/administration/ViewAdmin";
 import { EditAdmin } from "../pages/admin/administration/EditAdmin";
@@ -293,8 +295,10 @@ export const adminChildRoutes = (
       <Route path="users" element={<UsersManagement />} />
       <Route path="roles" element={<RolesPermissions />} />
       <Route path="masters" element={<MastersHub />} />
+      <Route path="security" element={<Security />} />
       <Route path="integrations" element={<Integrations />} />
       <Route path="billing" element={<Billing />} />
+      <Route path="data-management" element={<DataManagement />} />
       <Route path="audit-logs" element={<AuditLogs />} />
       <Route path="settings" element={<SettingsHub />} />
       <Route path="admins/new" element={<AddAdmin />} />

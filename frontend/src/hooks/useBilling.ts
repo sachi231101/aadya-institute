@@ -22,6 +22,13 @@ export const useBillingInvoices = (params?: { status?: string }) => {
   });
 };
 
+export const useBillingUsage = () => {
+  return useQuery({
+    queryKey: ["billing", "usage"],
+    queryFn: () => billingApi.getUsage(),
+  });
+};
+
 export const useCreateBillingPlan = () => {
   const queryClient = useQueryClient();
   return useMutation({

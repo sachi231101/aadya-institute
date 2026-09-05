@@ -112,6 +112,7 @@ async function main() {
     { name: "branch.read", description: "View branches" },
     { name: "branch.create", description: "Create new branch" },
     { name: "branch.update", description: "Update branch" },
+    { name: "branch.delete", description: "Delete or deactivate branch" },
     { name: "institute.read", description: "View institute details" },
     { name: "institute.update", description: "Update institute configuration" },
 
@@ -120,6 +121,7 @@ async function main() {
     { name: "user.create", description: "Create staff users" },
     { name: "user.update", description: "Update staff details & roles" },
     { name: "user.delete", description: "Deactivate or delete users" },
+    { name: "user.invite", description: "Invite staff users" },
 
     // Students
     { name: "student.read", description: "View students" },
@@ -259,6 +261,18 @@ async function main() {
 
     // Audit
     { name: "audit.read", description: "View audit logs" },
+
+    // Administration settings & security
+    { name: "settings.read", description: "View institute settings" },
+    { name: "settings.update", description: "Update institute settings" },
+    { name: "subscription.read", description: "View subscription and billing plan" },
+    { name: "subscription.update", description: "Update subscription and billing plan" },
+    { name: "security.read", description: "View security policies" },
+    { name: "security.update", description: "Update security policies" },
+    { name: "data_import.read", description: "View data import jobs and history" },
+    { name: "data_import.manage", description: "Manage data import jobs" },
+    { name: "data_export.read", description: "View data export jobs and history" },
+    { name: "data_export.manage", description: "Manage data export jobs" },
   ];
 
   const permissions: Record<string, any> = {};

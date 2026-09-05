@@ -164,6 +164,7 @@ export interface FinancialReportData {
   paymentMethodShare: { name: string; value: number; color: string }[];
   monthlyBreakdown: { month: string; collected: number; pending: number }[];
   recentPayments?: RecentPaymentData[];
+  branchBreakdown?: Array<{ branchId: string; collected: number; pending: number }>;
 }
 
 export const reportsApi = {

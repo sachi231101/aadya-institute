@@ -10,6 +10,7 @@ import {
   updateUserStatus,
   updateWhatsappPreference,
   updateUserPermissions,
+  updateUserBranchAccess,
   deleteUser,
   getPermissionCatalog,
 } from "./user.controller";
@@ -19,6 +20,7 @@ import {
   updateUserStatusSchema,
   updateWhatsappPreferenceSchema,
   updateUserPermissionsSchema,
+  updateUserBranchAccessSchema,
   permissionCatalogQuerySchema,
   userListQuerySchema,
 } from "./user.validation";
@@ -81,6 +83,14 @@ router.patch(
   requirePermission("user.update"),
   validate(updateUserPermissionsSchema),
   updateUserPermissions
+);
+
+// PATCH /api/v1/users/:id/branch-access — Replace multi-branch access
+router.patch(
+  "/:id/branch-access",
+  requirePermission("user.update"),
+  validate(updateUserBranchAccessSchema),
+  updateUserBranchAccess
 );
 
 // PATCH /api/v1/users/:id/status — Activate / deactivate user

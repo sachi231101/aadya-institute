@@ -1,55 +1,117 @@
 import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Building, Loader2, AlertCircle, Save } from "lucide-react";
+import { Loader2, AlertCircle, Save } from "lucide-react";
 import { api } from "@/services/api";
-import { useAuthStore } from "@/store/auth.store";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 
+type OrgFormState = {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  website: string;
+  city: string;
+  state: string;
+  country: string;
+  postalCode: string;
+  gstNumber: string;
+  timezone: string;
+  currency: string;
+  dateFormat: string;
+  logoUrl: string;
+};
+
+const emptyForm: OrgFormState = {
+  name: "",
+  email: "",
+  phone: "",
+  address: "",
+  website: "",
+  city: "",
+  state: "",
+  country: "",
+  postalCode: "",
+  gstNumber: "",
+  timezone: "",
+  currency: "",
+  dateFormat: "",
+  logoUrl: "",
+};
+
 export const Organization: React.FC = () => {
   const queryClient = useQueryClient();
-  const instituteId = useAuthStore((s) => s.user?.instituteId);
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["institutes", instituteId],
+    queryKey: ["administration", "organization"],
     queryFn: async () => {
-      const res = await api.get(`/institutes/${instituteId}`);
+      const res = await api.get("/administration/organization");
       return res.data.data;
     },
-    enabled: !!instituteId,
   });
 
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  const [form, setForm] = useState<OrgFormState>(emptyForm);
 
   React.useEffect(() => {
     if (data) {
-      setName(data.name || "");
-      setEmail(data.email || "");
-      setPhone(data.phone || "");
-      setAddress(data.address || "");
+      setForm({
+        name: data.name || "",
+        email: data.email || "",
+        phone: data.phone || "",
+        address: data.address || "",
+        website: data.website || "",
+        city: data.city || "",
+        state: data.state || "",
+        country: data.country || "",
+        postalCode: data.postalCode || "",
+        gstNumber: data.gstNumber || "",
+        timezone: data.timezone || "",
+        currency: data.currency || "",
+        dateFormat: data.dateFormat || "",
+        logoUrl: data.logoUrl || "",
+      });
     }
   }, [data]);
 
   const updateMutation = useMutation({
-    mutationFn: async (payload: Record<string, string>) => {
-      const res = await api.patch(`/institutes/${instituteId}`, payload);
+    mutationFn: async (payload: OrgFormState) => {
+      const res = await api.patch("/administration/organization", payload);
       return res.data;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["institutes"] }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["administration", "organization"] }),
   });
+
+  const setField = (key: keyof OrgFormState) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, [key]: e.target.value }));
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateMutation.mutateAsync({ name, email, phone, address });
+    await updateMutation.mutateAsync(form);
   };
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
-  if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="text-center py-20 text-red-600">
+        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+        Failed to load.
+        <Button variant="link" onClick={() => refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-2xl">
@@ -60,12 +122,104 @@ export const Organization: React.FC = () => {
       <Card className="border-border/50">
         <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div><Label>Institute Name</Label><Input value={name} onChange={(e) => setName(e.target.value)} /></div>
-            <div><Label>Email</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></div>
-            <div><Label>Phone</Label><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
-            <div><Label>Address</Label><Input value={address} onChange={(e) => setAddress(e.target.value)} /></div>
-            <Button type="submit" className="bg-[#1769AA] text-white" disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+            <div>
+              <Label>Institute Name</Label>
+              <Input value={form.name} onChange={setField("name")} required />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Email</Label>
+                <Input type="email" value={form.email} onChange={setField("email")} />
+              </div>
+              <div>
+                <Label>Phone</Label>
+                <Input value={form.phone} onChange={setField("phone")} />
+              </div>
+            </div>
+            <div>
+              <Label>Website</Label>
+              <Input
+                type="url"
+                placeholder="https://"
+                value={form.website}
+                onChange={setField("website")}
+              />
+            </div>
+            <div>
+              <Label>Address</Label>
+              <Input value={form.address} onChange={setField("address")} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>City</Label>
+                <Input value={form.city} onChange={setField("city")} />
+              </div>
+              <div>
+                <Label>State</Label>
+                <Input value={form.state} onChange={setField("state")} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label>Country</Label>
+                <Input value={form.country} onChange={setField("country")} />
+              </div>
+              <div>
+                <Label>Postal Code</Label>
+                <Input value={form.postalCode} onChange={setField("postalCode")} />
+              </div>
+            </div>
+            <div>
+              <Label>GST Number</Label>
+              <Input value={form.gstNumber} onChange={setField("gstNumber")} />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <Label>Timezone</Label>
+                <Input
+                  placeholder="Asia/Kolkata"
+                  value={form.timezone}
+                  onChange={setField("timezone")}
+                />
+              </div>
+              <div>
+                <Label>Currency</Label>
+                <Input placeholder="INR" value={form.currency} onChange={setField("currency")} />
+              </div>
+              <div>
+                <Label>Date Format</Label>
+                <Input
+                  placeholder="DD/MM/YYYY"
+                  value={form.dateFormat}
+                  onChange={setField("dateFormat")}
+                />
+              </div>
+            </div>
+            <div>
+              <Label>Logo URL</Label>
+              <Input
+                type="url"
+                placeholder="https://"
+                value={form.logoUrl}
+                onChange={setField("logoUrl")}
+              />
+            </div>
+            {updateMutation.isError && (
+              <p className="text-sm text-red-600">Failed to save. Please try again.</p>
+            )}
+            {updateMutation.isSuccess && (
+              <p className="text-sm text-green-600">Organization updated successfully.</p>
+            )}
+            <Button
+              type="submit"
+              className="bg-[#1769AA] text-white"
+              disabled={updateMutation.isPending}
+            >
+              {updateMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
               Save Changes
             </Button>
           </form>

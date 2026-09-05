@@ -2,17 +2,13 @@ import { AppError } from "../../middlewares/error.middleware";
 import { hashPassword } from "../../utils/password";
 import { buildMeta } from "../../utils/pagination";
 import {
-  resolveModulePermissions,
-  resolvePermissionsToModules,
-} from "../../utils/module-permissions";
-import {
   resolveModuleKeysToPermissions,
-  getFullAccessPermissions,
   getBaselinePermissions,
   ALWAYS_ON_PERMISSIONS,
   getPermissionCatalog,
   type PermissionRoleScope,
 } from "../../utils/permission-catalog";
+import { createAuditLog } from "../../utils/audit-log.util";
 import type { AuthUser } from "../auth/auth.types";
 import { getBranchScopeFilter } from "../../utils/branch-isolation.util";
 import type {
@@ -21,6 +17,7 @@ import type {
   UpdateUserStatusInput,
   UpdateWhatsappPreferenceInput,
   UpdateUserPermissionsInput,
+  UpdateUserBranchAccessInput,
   UserListQuery,
 } from "./user.types";
 import {
@@ -36,6 +33,7 @@ import {
   updateUserStatus,
   updateWhatsappPreference,
   deleteUser,
+  replaceUserBranchAccess,
 } from "./user.repository";
 import type { UserStatus } from "@prisma/client";
 
@@ -53,6 +51,8 @@ const getInstituteId = (currentUser: AuthUser): string => {
 const getBranchFilter = (currentUser: AuthUser, requestedBranchId?: string): string | undefined => {
   return getBranchScopeFilter(currentUser, requestedBranchId).branchId;
 };
+
+const actorId = (currentUser: AuthUser) => currentUser.userId || currentUser.id;
 
 // ─── List Users ──────────────────────────────────────────────────────────────
 
@@ -172,6 +172,7 @@ export const createUserService = async (
   });
 
   // If creating a CENTER_MANAGER or COUNSELLOR, set granular permissions
+  let result = user;
   if (input.roles.includes("CENTER_MANAGER") || input.roles.includes("COUNSELLOR")) {
     const roleScope: PermissionRoleScope = input.roles.includes("COUNSELLOR")
       ? "COUNSELLOR"
@@ -188,10 +189,27 @@ export const createUserService = async (
 
     // Re-fetch to include the newly created permissions
     const refreshed = await findUserById(user.id, instituteId);
-    return refreshed ?? user;
+    result = refreshed ?? user;
   }
 
-  return user;
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: result.branchId,
+    action: "USER_CREATED",
+    entityType: "User",
+    entityId: result.id,
+    newData: {
+      id: result.id,
+      name: result.name,
+      email: result.email,
+      roles: result.roles,
+      branchId: result.branchId,
+      status: result.status,
+    },
+  });
+
+  return result;
 };
 
 // ─── Update User ─────────────────────────────────────────────────────────────
@@ -215,7 +233,30 @@ export const updateUserService = async (
     throw new AppError("User not found", 404);
   }
 
-  return updateUser(userId, instituteId, input);
+  const updated = await updateUser(userId, instituteId, input);
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: updated.branchId,
+    action: "USER_UPDATED",
+    entityType: "User",
+    entityId: userId,
+    oldData: {
+      name: existing.name,
+      email: existing.email,
+      phone: existing.phone,
+      branchId: existing.branchId,
+    },
+    newData: {
+      name: updated.name,
+      email: updated.email,
+      phone: updated.phone,
+      branchId: updated.branchId,
+    },
+  });
+
+  return updated;
 };
 
 // ─── Update User Permissions ─────────────────────────────────────────────────
@@ -247,6 +288,18 @@ export const updateUserPermissionsService = async (
   // Re-fetch to include updated permissions
   const refreshed = await findUserById(userId, instituteId);
   if (!refreshed) throw new AppError("User not found after update", 500);
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: refreshed.branchId,
+    action: "USER_PERMISSIONS_UPDATED",
+    entityType: "User",
+    entityId: userId,
+    oldData: { permissions: existing.permissions },
+    newData: { permissions: refreshed.permissions },
+  });
+
   return refreshed;
 };
 
@@ -276,7 +329,58 @@ export const updateUserStatusService = async (
     throw new AppError("Cannot change your own account status", 400);
   }
 
-  return updateUserStatus(userId, instituteId, input.status);
+  const updated = await updateUserStatus(userId, instituteId, input.status);
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: updated.branchId,
+    action: "USER_STATUS_UPDATED",
+    entityType: "User",
+    entityId: userId,
+    oldData: { status: existing.status },
+    newData: { status: updated.status },
+  });
+
+  return updated;
+};
+
+// ─── Update User Branch Access ────────────────────────────────────────────────
+
+export const updateUserBranchAccessService = async (
+  currentUser: AuthUser,
+  userId: string,
+  input: UpdateUserBranchAccessInput
+) => {
+  const instituteId = getInstituteId(currentUser);
+  const existing = await findUserById(userId, instituteId);
+  if (!existing) throw new AppError("User not found", 404);
+
+  const updated = await replaceUserBranchAccess(
+    userId,
+    instituteId,
+    input.branchIds
+  );
+  if (!updated) {
+    throw new AppError("One or more branches are invalid for this institute", 400);
+  }
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: updated.branchId,
+    action: "USER_BRANCH_ACCESS_UPDATED",
+    entityType: "User",
+    entityId: userId,
+    oldData: {
+      branchAccesses: existing.branchAccesses?.map((b) => b.branchId) ?? [],
+    },
+    newData: {
+      branchAccesses: updated.branchAccesses?.map((b) => b.branchId) ?? [],
+    },
+  });
+
+  return updated;
 };
 
 // ─── Delete User ──────────────────────────────────────────────────────────────
@@ -305,6 +409,21 @@ export const deleteUserService = async (
   }
 
   await deleteUser(userId, instituteId);
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId,
+    branchId: existing.branchId,
+    action: "USER_DELETED",
+    entityType: "User",
+    entityId: userId,
+    oldData: {
+      name: existing.name,
+      email: existing.email,
+      roles: existing.roles,
+    },
+  });
+
   return { id: userId, deleted: true };
 };
 

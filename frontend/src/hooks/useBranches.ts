@@ -79,6 +79,20 @@ export const useDeleteBranch = () => {
 };
 
 /**
+ * Assign or clear branch manager.
+ */
+export const useUpdateBranchManager = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, managerUserId }: { id: string; managerUserId: string | null }) =>
+      branchesApi.updateBranchManager(id, managerUserId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [BRANCHES_KEY] });
+    },
+  });
+};
+
+/**
  * Fetch branch stats (student count, faculty count, etc.)
  */
 export const useBranchStats = (id: string | undefined) => {
