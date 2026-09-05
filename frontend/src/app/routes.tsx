@@ -122,6 +122,7 @@ import { FacultyAnnouncements } from "../pages/faculty/Announcements";
 import { FacultyMyStudents } from "../pages/faculty/MyStudents";
 import { FacultyFeedback } from "../pages/faculty/Feedback";
 import { FacultyMySchedule } from "../pages/faculty/FacultyMySchedule";
+import { FacultyAttendance as FacultyPortalAttendance } from "../pages/faculty/FacultyAttendance";
 
 // Student Portal Expansion
 import { StudentRecordings } from "../pages/student/Recordings";
@@ -427,7 +428,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="courses" element={<CourseAssignment />} />
         <Route path="class-session" element={<FacultyClassSession />} />
         <Route path="classes/:id" element={<FacultyClassSession />} />
-        <Route path="attendance" element={<FacultyClassSession />} />
+        <Route path="attendance" element={<FacultyPortalAttendance />} />
         <Route path="students">
           <Route path="attendance" element={<FacultyMarkAttendance />} />
           <Route path="attendance-records" element={<FacultyMarkAttendance />} />

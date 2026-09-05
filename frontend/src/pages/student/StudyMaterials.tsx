@@ -364,7 +364,7 @@ export const StudentStudyMaterials: React.FC = () => {
                   {/* Faculty Uploader */}
                   <div className="flex items-center gap-2 pt-1">
                     <Avatar className="w-6 h-6 rounded-full border border-slate-200">
-                      <AvatarImage src={item.facultyAvatar} alt={item.facultyName} />
+                      <AvatarImage src={'facultyAvatar' in item ? (item as any).facultyAvatar : undefined} alt={item.facultyName} />
                       <AvatarFallback className="text-[9px] bg-indigo-100 text-indigo-700 font-bold">
                         {item.facultyName.substring(0, 2).toUpperCase()}
                       </AvatarFallback>
