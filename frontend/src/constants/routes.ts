@@ -72,6 +72,7 @@ export const ROUTES = {
     ASSIGNMENTS: {
       ALL: "/admin/assignments",
       CREATE: "/admin/assignments/create",
+      DETAIL: "/admin/assignments/:id",
       SUBMISSIONS: "/admin/assignments/submissions",
       REVIEWS: "/admin/assignments/reviews",
     },
@@ -144,7 +145,13 @@ export const ROUTES = {
     DASHBOARD: "/faculty/dashboard",
     CLASSES: "/faculty/classes",
     ATTENDANCE: "/faculty/attendance",
-    ASSIGNMENTS: "/faculty/assignments",
+    ASSIGNMENTS: {
+      ALL: "/faculty/assignments",
+      CREATE: "/faculty/assignments/create",
+      DETAIL: (id: string) => `/faculty/assignments/${id}`,
+      SUBMISSIONS: "/faculty/assignments/submissions",
+      REVIEWS: "/faculty/assignments/reviews",
+    },
   },
   STUDENT: {
     DASHBOARD: "/student/dashboard",

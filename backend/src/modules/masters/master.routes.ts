@@ -11,7 +11,7 @@ import {
   previewNumberingSeries,
 } from "./master.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requirePermission, requireAnyPermission } from "../../middlewares/permission.middleware";
 
 const router = Router();
 
@@ -31,10 +31,10 @@ router.get(
   previewNumberingSeries
 );
 
-// Get active-only records for dropdown consumption — must be before /:entityType/:id
+// Active dropdown data: assignment faculty need academicyear/assignmenttype without full master admin
 router.get(
   "/:entityType/active",
-  requirePermission("master.read"),
+  requireAnyPermission("master.read", "assignment.read", "assignment.create"),
   getActiveMasters
 );
 

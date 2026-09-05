@@ -203,12 +203,7 @@ const mapPaymentMethod = (label: string): CreateAdmissionPayload["paymentMethod"
   return "UPI";
 };
 
-const currentYear = new Date().getFullYear();
-const ACADEMIC_YEAR_OPTIONS = [
-  `${currentYear} - ${currentYear + 1}`,
-  `${currentYear - 1} - ${currentYear}`,
-  `${currentYear + 1} - ${currentYear + 2}`,
-];
+// Academic year is now fetched from the Master module (entityType: academicyear)
 
 export const DirectAdmissionEntry: React.FC = () => {
   const navigate = useNavigate();
@@ -259,7 +254,8 @@ export const DirectAdmissionEntry: React.FC = () => {
   const [admissionType, setAdmissionType] = useState("Regular Admission");
   const [branchId, setBranchId] = useState("");
   const [admissionDate, setAdmissionDate] = useState(new Date().toISOString().slice(0, 10));
-  const [academicYear, setAcademicYear] = useState(ACADEMIC_YEAR_OPTIONS[0]);
+  const [academicYearMasterId, setAcademicYearMasterId] = useState("");
+  const { options: academicYearOptions } = useMasterDropdown("academicyear");
   const [counsellorName, setCounsellorName] = useState(user?.name || "");
   const [sourceMasterId, setSourceMasterId] = useState("");
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
@@ -1050,7 +1046,7 @@ export const DirectAdmissionEntry: React.FC = () => {
     return [
       remarks.trim() || null,
       `Admission type: ${admissionType}`,
-      `Academic year: ${academicYear}`,
+      `Academic year: ${getMasterLabel(academicYearOptions, academicYearMasterId)}`,
       counsellorName ? `Counsellor: ${counsellorName}` : null,
       sourceMasterId
         ? `Lead source: ${getMasterLabel(leadSourceOptions, sourceMasterId)}`
@@ -1771,17 +1767,13 @@ export const DirectAdmissionEntry: React.FC = () => {
                     <label className="text-xs font-semibold text-foreground block mb-1">
                       Academic Year <span className="text-red-500">*</span>
                     </label>
-                    <select
-                      value={academicYear}
-                      onChange={(e) => setAcademicYear(e.target.value)}
-                      className="w-full px-3 py-2 text-sm rounded-md border border-border bg-background text-foreground"
-                    >
-                      {ACADEMIC_YEAR_OPTIONS.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
+                    <MasterSelect
+                      entityType="academicyear"
+                      value={academicYearMasterId}
+                      onChange={setAcademicYearMasterId}
+                      placeholder="Select academic year"
+                      includeEmpty
+                    />
                   </div>
 
                   <div>
@@ -2859,7 +2851,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Email</span><span className="font-semibold text-foreground truncate block">{email}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Gender & Blood Group</span><span className="font-semibold text-foreground">{gender}{bloodGroup ? ` • ${bloodGroup}` : ""}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Counsellor</span><span className="font-semibold text-foreground">{counsellorName}</span></div>
-                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold text-foreground">{academicYear}</span></div>
+                <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Academic Year</span><span className="font-semibold text-foreground">{getMasterLabel(academicYearOptions, academicYearMasterId)}</span></div>
                 <div><span className="text-muted-foreground block text-[10px] font-medium uppercase tracking-wider">Admission Date</span><span className="font-semibold text-foreground">{admissionDate}</span></div>
               </div>
             </div>

@@ -105,6 +105,17 @@ const TIER1_MASTERS: MasterSeed[] = [
   { entityType: "examterm", name: "Final Term", code: "FINAL", sortOrder: 2 },
   { entityType: "examterm", name: "Module Assessment", code: "MODULE", sortOrder: 3 },
 
+  // Academic years
+  { entityType: "academicyear", name: "2024-25", code: "AY-2024-25", sortOrder: 1 },
+  { entityType: "academicyear", name: "2025-26", code: "AY-2025-26", sortOrder: 2 },
+  { entityType: "academicyear", name: "2026-27", code: "AY-2026-27", sortOrder: 3 },
+
+  // Assignment types
+  { entityType: "assignmenttype", name: "Homework", code: "HOMEWORK", sortOrder: 1 },
+  { entityType: "assignmenttype", name: "Project", code: "PROJECT", sortOrder: 2 },
+  { entityType: "assignmenttype", name: "Lab Work", code: "LAB", sortOrder: 3 },
+  { entityType: "assignmenttype", name: "Assessment", code: "ASSESSMENT", sortOrder: 4 },
+
   // ─── Numbering Series (auto-generation patterns) ──────────────────────────
   {
     entityType: "numberingseries",

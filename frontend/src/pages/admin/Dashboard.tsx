@@ -14,6 +14,7 @@ import {
   Loader2,
   Briefcase,
   AlertTriangle,
+  FileText,
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
@@ -23,6 +24,7 @@ import { useScheduleSummary } from "@/hooks/useScheduleSummary";
 import { useLeadDashboard } from "@/hooks/useLeads";
 import { usePayments } from "@/hooks/useFees";
 import { usePlacementSummary } from "@/hooks/usePlacement";
+import { useAssignmentStats } from "@/hooks/useAssignments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -54,6 +56,8 @@ export const AdminDashboard: React.FC = () => {
   const { data: scheduleSummary } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
   const { data: placementSummary } = usePlacementSummary();
+  const { data: assignmentStatsRes } = useAssignmentStats();
+  const assignmentStats = assignmentStatsRes?.data;
 
   const centerManagers = usersResponse?.data?.filter((u) => u.roles.includes("CENTER_MANAGER")) || [];
 
@@ -283,6 +287,11 @@ export const AdminDashboard: React.FC = () => {
             { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "→" },
             { label: "Counsellors", path: ROUTES.ADMIN.COUNSELLORS.ALL, count: "→" },
             { label: "Batches", path: ROUTES.ADMIN.BATCHES.ALL, count: kpiActiveBatches },
+            {
+              label: "Assignments",
+              path: ROUTES.ADMIN.ASSIGNMENTS.ALL,
+              count: assignmentStats?.activeAssignments ?? 0,
+            },
             { label: "Administration", path: ROUTES.ADMIN.ADMINISTRATION.ORGANIZATION, count: apiBranches.length },
           ].map((mod) => (
             <button
@@ -295,6 +304,51 @@ export const AdminDashboard: React.FC = () => {
               <p className="text-lg font-extrabold text-[#1769AA] mt-1">{mod.count}</p>
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Assignment KPIs */}
+      <div className="pt-2">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-foreground">Assignment Overview</h3>
+          <button
+            type="button"
+            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
+            className="text-xs font-semibold text-[#1769AA] hover:underline"
+          >
+            Manage Assignments →
+          </button>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="border border-border bg-card shadow-sm rounded-2xl">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                <FileText className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.activeAssignments ?? 0}</p>
+                <p className="text-xs text-muted-foreground font-medium">Active assignments</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card
+            className="border border-border bg-card shadow-sm rounded-2xl cursor-pointer hover:border-amber-300"
+            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.SUBMISSIONS)}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingSubmissions ?? 0}</p>
+              <p className="text-xs text-muted-foreground font-medium">Pending submissions</p>
+            </CardContent>
+          </Card>
+          <Card
+            className="border border-border bg-card shadow-sm rounded-2xl cursor-pointer hover:border-emerald-300"
+            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.REVIEWS)}
+          >
+            <CardContent className="p-4">
+              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingGrading ?? 0}</p>
+              <p className="text-xs text-muted-foreground font-medium">Pending grading</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 

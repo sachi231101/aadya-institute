@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Calendar,
   UserCircle,
@@ -32,6 +33,7 @@ const formatSessionDate = (iso: string) => {
 };
 
 export const StudentDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const academic = useStudentAcademicAccess();
   const { activeLiveClass } = useSessionStore();
@@ -52,6 +54,7 @@ export const StudentDashboard: React.FC = () => {
   const displayAttendance = Math.round(attendanceSummary?.attendancePercentage ?? 0);
   const hasAttendanceData = Boolean(attendanceSummary && attendanceSummary.totalClasses > 0);
   const pendingAssignments = dashboard?.counts?.pendingAssignments ?? 0;
+  const pendingAssignmentList = dashboard?.pendingAssignmentList ?? [];
 
   const rawTodaySessions = dashboard?.todaySessions ?? [];
   const rawUpcomingSessions = dashboard?.upcomingSessions ?? [];
@@ -247,9 +250,47 @@ export const StudentDashboard: React.FC = () => {
                   <ClipboardList className="h-4 w-4 text-[#F39A16]" />
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold text-text-primary mt-2">{pendingAssignments}</div>
-                <p className="text-xs text-text-secondary mt-3">Assignments awaiting submission</p>
+              <CardContent className="space-y-3">
+                <div className="flex items-end justify-between gap-2">
+                  <div>
+                    <div className="text-4xl font-bold text-text-primary">{pendingAssignments}</div>
+                    <p className="text-xs text-text-secondary mt-1">Awaiting your submission</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="shrink-0"
+                    onClick={() => navigate("/student/assignments")}
+                  >
+                    View all
+                  </Button>
+                </div>
+                {pendingAssignmentList.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-1">No pending assignments right now.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {pendingAssignmentList.slice(0, 5).map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className="w-full text-left p-2.5 rounded-lg border border-border/60 bg-slate-50/60 hover:border-[#F39A16]/50 transition-colors"
+                        onClick={() => navigate(`/student/assignments?assignmentId=${item.id}`)}
+                      >
+                        <p className="text-sm font-semibold text-text-primary truncate">{item.title}</p>
+                        <p className="text-xs text-text-secondary mt-0.5">
+                          {item.dueDate
+                            ? `Due ${new Date(item.dueDate).toLocaleDateString("en-IN", {
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })}`
+                            : "No due date"}
+                          {item.batchName ? ` · ${item.batchName}` : ""}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>

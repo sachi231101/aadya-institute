@@ -51,6 +51,7 @@ import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
 
 import { AssignmentList } from "../pages/admin/assignments/AssignmentList";
 import { CreateAssignment } from "../pages/admin/assignments/CreateAssignment";
+import { AssignmentDetail } from "../pages/admin/assignments/AssignmentDetail";
 import { SubmissionsQueue } from "../pages/admin/assignments/SubmissionsQueue";
 import { ReviewsQueue } from "../pages/admin/assignments/ReviewsQueue";
 
@@ -219,6 +220,7 @@ export const adminChildRoutes = (
       <Route path="create" element={<CreateAssignment />} />
       <Route path="submissions" element={<SubmissionsQueue />} />
       <Route path="reviews" element={<ReviewsQueue />} />
+      <Route path=":id" element={<AssignmentDetail />} />
     </Route>
 
     {/* Examination Management */}

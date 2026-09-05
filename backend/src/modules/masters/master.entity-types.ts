@@ -20,6 +20,8 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeDef[] = [
   { id: "timeslot", name: "Time Slot", category: "ACADEMIC_ORG" },
   { id: "examterm", name: "Exam Term", category: "ACADEMIC_ORG" },
   { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG" },
+  { id: "academicyear", name: "Academic Year", category: "ACADEMIC_ORG" },
+  { id: "assignmenttype", name: "Assignment Type", category: "ACADEMIC_ORG" },
   // Admissions & Leads
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS" },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS" },

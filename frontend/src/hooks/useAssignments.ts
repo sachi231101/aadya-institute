@@ -1,5 +1,18 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { assignmentsApi, type AssignmentQueryParams } from "../services/assignments.api";
+import {
+  assignmentsApi,
+  type AssignmentQueryParams,
+  type SubmissionQueryParams,
+} from "../services/assignments.api";
+
+const invalidateAssignmentRelated = (queryClient: ReturnType<typeof useQueryClient>) => {
+  queryClient.invalidateQueries({ queryKey: ["assignments"] });
+  queryClient.invalidateQueries({ queryKey: ["assignment-submissions"] });
+  queryClient.invalidateQueries({ queryKey: ["assignment-stats"] });
+  queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
+  queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
+};
 
 export const useAssignments = (params?: AssignmentQueryParams) => {
   return useQuery({
@@ -16,24 +29,40 @@ export const useAssignmentById = (id: string) => {
   });
 };
 
+export const useAssignmentStats = (enabled = true) => {
+  return useQuery({
+    queryKey: ["assignment-stats"],
+    queryFn: () => assignmentsApi.getStats(),
+    enabled,
+  });
+};
+
+export const useAssignmentSubmissions = (params?: SubmissionQueryParams) => {
+  return useQuery({
+    queryKey: ["assignment-submissions", params],
+    queryFn: () => assignmentsApi.listSubmissions(params),
+  });
+};
+
 export const useCreateAssignment = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: assignmentsApi.createAssignment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-    },
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
   });
 };
 
 export const useUpdateAssignment = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof assignmentsApi.updateAssignment>[1] }) =>
-      assignmentsApi.updateAssignment(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-    },
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof assignmentsApi.updateAssignment>[1];
+    }) => assignmentsApi.updateAssignment(id, data),
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
   });
 };
 
@@ -41,9 +70,7 @@ export const useDeleteAssignment = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: assignmentsApi.deleteAssignment,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-    },
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
   });
 };
 
@@ -57,9 +84,7 @@ export const useGradeSubmission = () => {
       submissionId: string;
       data: { marks: number; feedback?: string };
     }) => assignmentsApi.gradeSubmission(submissionId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-    },
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
   });
 };
 
@@ -71,10 +96,32 @@ export const useSubmitAssignment = () => {
       data,
     }: {
       assignmentId: string;
-      data: { fileKey: string; notes?: string };
+      data: { fileKey: string; fileName?: string; notes?: string };
     }) => assignmentsApi.submitAssignment(assignmentId, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["assignments"] });
-    },
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
+  });
+};
+
+export const useUploadSubmissionFile = () => {
+  return useMutation({
+    mutationFn: ({ assignmentId, file }: { assignmentId: string; file: File }) =>
+      assignmentsApi.uploadSubmissionFile(assignmentId, file),
+  });
+};
+
+export const useUploadAssignmentAttachment = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ assignmentId, file }: { assignmentId: string; file: File }) =>
+      assignmentsApi.uploadAttachment(assignmentId, file),
+    onSuccess: () => invalidateAssignmentRelated(queryClient),
+  });
+};
+
+export const useEnrolledStudentsForBatches = (batchIds: string[]) => {
+  return useQuery({
+    queryKey: ["assignment-enrolled-students", batchIds],
+    queryFn: () => assignmentsApi.getEnrolledStudents(batchIds),
+    enabled: batchIds.length > 0,
   });
 };

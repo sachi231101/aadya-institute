@@ -18,6 +18,8 @@ import {
   FileText,
   Clock,
   Star,
+  Inbox,
+  CheckCircle2,
 } from "lucide-react"
 
 import {
@@ -68,10 +70,32 @@ const facultyNavItems: NavItem[] = [
         url: "/faculty/recordings",
         icon: FileVideo,
       },
+    ],
+  },
+  {
+    title: "Assignment Management",
+    url: "/faculty/assignments",
+    icon: FileText,
+    items: [
       {
-        title: "Assignments",
+        title: "All Assignments",
         url: "/faculty/assignments",
         icon: FileText,
+      },
+      {
+        title: "Create Assignment",
+        url: "/faculty/assignments/create",
+        icon: FileText,
+      },
+      {
+        title: "Submissions Queue",
+        url: "/faculty/assignments/submissions",
+        icon: Inbox,
+      },
+      {
+        title: "Grading Queue",
+        url: "/faculty/assignments/reviews",
+        icon: CheckCircle2,
       },
     ],
   },
@@ -195,7 +219,11 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                         {item.items.map((subItem) => {
                           const isSubActive =
                             location.pathname === subItem.url ||
-                            (subItem.url === "/faculty/classes" && (location.pathname === "/faculty/schedule/classes" || location.pathname === "/faculty/classes"))
+                            (subItem.url === "/faculty/classes" &&
+                              (location.pathname === "/faculty/schedule/classes" ||
+                                location.pathname === "/faculty/classes")) ||
+                            (subItem.url === "/faculty/assignments" &&
+                              location.pathname === "/faculty/assignments")
 
                           return (
                             <SidebarMenuSubItem key={subItem.title}>

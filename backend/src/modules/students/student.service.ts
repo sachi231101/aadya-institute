@@ -268,7 +268,16 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
       submittedAt: sub.submittedAt,
       marks: sub.marks,
       feedback: sub.feedback,
-      status: sub.marks !== null ? "GRADED" : sub.submittedAt ? "SUBMITTED" : "PENDING",
+      maxMarks: sub.assignment.maxMarks ?? 100,
+      submissionStatus: sub.submissionStatus,
+      status:
+        sub.submissionStatus === "GRADED" || sub.marks !== null
+          ? "GRADED"
+          : sub.submittedAt ||
+              sub.submissionStatus === "SUBMITTED" ||
+              sub.submissionStatus === "LATE"
+            ? "SUBMITTED"
+            : "PENDING",
     })),
     payments: (student.payments || []).map((p: any) => ({
       id: p.id,
@@ -513,7 +522,7 @@ export const getStudentPerformance = async (studentId: string, currentUser: Auth
     .map((s) => ({
       testName: s.assignment.title,
       score: s.marks!,
-      maxScore: 100, // Default max; adjust if schema supports custom max
+      maxScore: s.assignment.maxMarks ?? 100,
     }));
 
   // ΓöÇΓöÇ Enrolled Courses Progress ΓöÇΓöÇ
@@ -741,12 +750,35 @@ export const getMyDashboard = async (
         : undefined,
   };
 
+  const studentPendingAssignmentWhere = {
+    status: "ACTIVE" as const,
+    OR: [
+      { batchId: { in: batchIds } },
+      { targets: { some: { batchId: { in: batchIds } } } },
+    ],
+    AND: [
+      {
+        OR: [
+          { recipients: { none: {} } },
+          { recipients: { some: { studentId: student.id } } },
+        ],
+      },
+    ],
+    submissions: {
+      none: {
+        studentId: student.id,
+        submittedAt: { not: null },
+      },
+    },
+  };
+
   const [
     todaySessions,
     upcomingSessions,
     activeLiveSessions,
     attendanceRecords,
-    pendingAssignments,
+    pendingAssignmentsCount,
+    pendingAssignmentItems,
     availableRecordings,
   ] = await Promise.all([
     batchIds.length
@@ -890,26 +922,24 @@ export const getMyDashboard = async (
     }),
 
     batchIds.length
-      ? prisma.assignment.count({
-          where: {
-            batchId: {
-              in: batchIds,
-            },
-
-            status: "ACTIVE",
-
-            submissions: {
-              none: {
-                studentId: student.id,
-
-                submittedAt: {
-                  not: null,
-                },
-              },
-            },
-          },
-        })
+      ? prisma.assignment.count({ where: studentPendingAssignmentWhere })
       : Promise.resolve(0),
+
+    batchIds.length
+      ? prisma.assignment.findMany({
+          where: studentPendingAssignmentWhere,
+          select: {
+            id: true,
+            title: true,
+            dueDate: true,
+            maxMarks: true,
+            assignedAt: true,
+            batch: { select: { id: true, name: true, code: true } },
+          },
+          orderBy: [{ dueDate: "asc" }, { assignedAt: "desc" }],
+          take: 10,
+        })
+      : Promise.resolve([]),
 
     batchIds.length
       ? prisma.recording.count({
@@ -1012,10 +1042,20 @@ export const getMyDashboard = async (
       upcomingClasses:
         upcomingSessions.length,
 
-      pendingAssignments,
+      pendingAssignments: pendingAssignmentsCount,
 
       availableRecordings,
     },
+
+    pendingAssignmentList: pendingAssignmentItems.map((a) => ({
+      id: a.id,
+      title: a.title,
+      dueDate: a.dueDate,
+      maxMarks: a.maxMarks,
+      assignedAt: a.assignedAt,
+      batchName: a.batch?.name ?? null,
+      batchCode: a.batch?.code ?? null,
+    })),
 
     attendanceSummary: {
       attendancePercentage:

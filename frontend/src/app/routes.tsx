@@ -93,6 +93,7 @@ import { BatchDetails } from "../pages/admin/batches/BatchDetails";
 import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
 import { AssignmentList } from "../pages/admin/assignments/AssignmentList";
 import { CreateAssignment } from "../pages/admin/assignments/CreateAssignment";
+import { AssignmentDetail } from "../pages/admin/assignments/AssignmentDetail";
 import { SubmissionsQueue } from "../pages/admin/assignments/SubmissionsQueue";
 import { ReviewsQueue } from "../pages/admin/assignments/ReviewsQueue";
 import { ExamResults } from "../pages/admin/exams/ExamResults";
@@ -112,7 +113,6 @@ import { AdmissionReports } from "../pages/admin/reports/AdmissionReports";
 import { ExaminationReports } from "../pages/admin/reports/ExaminationReports";
 
 // Faculty Portal Expansion
-import { FacultyAssignments } from "../pages/faculty/Assignments";
 import { FacultyBatchClasses } from "../pages/faculty/BatchClasses";
 import { FacultyMarkAttendance } from "../pages/faculty/MarkAttendance";
 import { FacultyClassSession } from "../pages/faculty/ClassSession";
@@ -221,6 +221,7 @@ export const AppRoutes: React.FC = () => {
           <Route path="create" element={<CreateAssignment />} />
           <Route path="submissions" element={<SubmissionsQueue />} />
           <Route path="reviews" element={<ReviewsQueue />} />
+          <Route path=":id" element={<AssignmentDetail />} />
         </Route>
 
         <Route path="batches">
@@ -442,7 +443,13 @@ export const AppRoutes: React.FC = () => {
         <Route path="reports">
           <Route path="students" element={<StudentReports />} />
         </Route>
-        <Route path="assignments" element={<FacultyAssignments />} />
+        <Route path="assignments">
+          <Route index element={<AssignmentList />} />
+          <Route path="create" element={<CreateAssignment />} />
+          <Route path="submissions" element={<SubmissionsQueue />} />
+          <Route path="reviews" element={<ReviewsQueue />} />
+          <Route path=":id" element={<AssignmentDetail />} />
+        </Route>
         <Route path="announcements" element={<FacultyAnnouncements />} />
         <Route path="batches" element={<FacultyBatchClasses />} />
         <Route path="settings" element={<Settings />} />

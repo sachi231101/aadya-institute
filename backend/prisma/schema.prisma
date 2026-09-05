@@ -138,6 +138,13 @@ enum MeetSpaceStatus {
   CANCELLED
 }
 
+enum AssignmentSubmissionStatus {
+  PENDING
+  SUBMITTED
+  LATE
+  GRADED
+}
+
 model Institute {
   id        String   @id @default(cuid())
   name      String
@@ -379,6 +386,7 @@ model Student {
   batchEnrollments      BatchEnrollment[]
   studentAttendances    StudentAttendance[]
   assignmentSubmissions AssignmentSubmission[]
+  assignmentRecipients  AssignmentRecipient[]
   feedbacks             Feedback[]
   callLogs              CallLog[]
   notifications         Notification[]
@@ -461,6 +469,7 @@ model Course {
   questions  Question[]
   questionBanks QuestionBank[]
   feePlanTemplates FeePlanTemplate[]
+  assignmentTargets AssignmentTarget[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -484,6 +493,7 @@ model CourseModule {
   batchModules BatchModule[]
   questions    Question[]
   exams        Exam[]
+  assignmentTargets AssignmentTarget[]
 
   @@unique([courseId, sequence])
   @@index([courseId])
@@ -628,6 +638,8 @@ model Batch {
   classSessions ClassSession[]
   admissions    Admission[]
   examAssignments ExamBatch[]
+  assignments   Assignment[]
+  assignmentTargets AssignmentTarget[] @relation("AssignmentTargetBatch")
 
 
   @@unique([instituteId, code])
@@ -879,43 +891,96 @@ model GoogleMeetSpace {
 }
 
 model Assignment {
-  id                   String    @id @default(cuid())
-  classSessionId       String
-  batchId              String
-  facultyId            String
-  title                String
-  description          String?
+  id                     String    @id @default(cuid())
+  classSessionId         String?
+  batchId                String
+  facultyId              String
+  title                  String
+  description            String?
   assignmentTypeMasterId String?
-  dueDate              DateTime?
-  status               Status    @default(ACTIVE)
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  academicYearMasterId   String?
+  assignedAt             DateTime  @default(now())
+  dueDate                DateTime?
+  validTill              DateTime?
+  youtubeVideoId         String?
+  attachmentFileKey      String?
+  attachmentFileName     String?
+  restrictStudentUpload  Boolean   @default(false)
+  maxMarks               Int       @default(100)
+  allowLate              Boolean   @default(false)
+  status                 Status    @default(ACTIVE)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
 
-  classSession         ClassSession  @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
+  classSession         ClassSession? @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
+  batch                Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
   faculty              Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
   assignmentTypeMaster MasterRecord? @relation("AssignmentTypeMaster", fields: [assignmentTypeMasterId], references: [id], onDelete: SetNull)
+  academicYearMaster   MasterRecord? @relation("AssignmentAcademicYearMaster", fields: [academicYearMasterId], references: [id], onDelete: SetNull)
   submissions          AssignmentSubmission[]
+  targets              AssignmentTarget[]
+  recipients           AssignmentRecipient[]
 
   @@index([batchId])
   @@index([facultyId])
+  @@index([status])
+  @@index([assignedAt])
+  @@index([academicYearMasterId])
+  @@index([assignmentTypeMasterId])
 }
 
-model AssignmentSubmission {
-  id           String    @id @default(cuid())
+model AssignmentTarget {
+  id             String  @id @default(cuid())
+  assignmentId   String
+  courseId       String
+  courseModuleId String?
+  topic          String?
+  batchId        String
+
+  assignment   Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  course       Course        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  courseModule CourseModule? @relation(fields: [courseModuleId], references: [id], onDelete: SetNull)
+  batch        Batch         @relation("AssignmentTargetBatch", fields: [batchId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([batchId])
+  @@index([courseId])
+}
+
+model AssignmentRecipient {
+  id           String @id @default(cuid())
   assignmentId String
   studentId    String
-  submittedAt  DateTime?
-  fileKey      String?
-  marks        Float?
-  feedback     String?
-  evaluatedAt  DateTime?
-  evaluatedBy  String?
-  status       Status    @default(ACTIVE)
 
   assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
+  @@index([assignmentId])
+  @@index([studentId])
+}
+
+model AssignmentSubmission {
+  id               String                     @id @default(cuid())
+  assignmentId     String
+  studentId        String
+  submittedAt      DateTime?
+  fileKey          String?
+  fileName         String?
+  notes            String?
+  marks            Float?
+  feedback         String?
+  evaluatedAt      DateTime?
+  evaluatedBy      String?
+  submissionStatus AssignmentSubmissionStatus @default(PENDING)
+  status           Status                     @default(ACTIVE)
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@index([submissionStatus])
+  @@index([assignmentId])
 }
 
 model Feedback {
@@ -1485,6 +1550,7 @@ model MasterRecord {
   admissionsAsStatus         Admission[]    @relation("AdmissionStatusMaster")
   admissionsAsConcession     Admission[]    @relation("AdmissionConcessionMaster")
   assignmentsAsType          Assignment[]   @relation("AssignmentTypeMaster")
+  assignmentsAsAcademicYear  Assignment[]   @relation("AssignmentAcademicYearMaster")
   examsAsTerm                Exam[]         @relation("ExamTermMaster")
   userSettingsAsDesignation  UserSettings[] @relation("UserSettingsDesignationMaster")
 

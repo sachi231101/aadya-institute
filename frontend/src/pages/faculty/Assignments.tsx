@@ -39,6 +39,9 @@ import { useAssignments, useCreateAssignment, useGradeSubmission } from "@/hooks
 import { useAuthStore } from "@/store/auth.store";
 import { useQuery } from "@tanstack/react-query";
 import { batchesApi } from "@/services/batches.api";
+import { assignmentsApi } from "@/services/assignments.api";
+import { MasterSelect } from "@/components/common/MasterSelect";
+import { formatMarks } from "@/utils/assignment.utils";
 import {
   batchIncludesFaculty,
   formatBatchSubjectNames,
@@ -59,6 +62,7 @@ export const FacultyAssignments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [gradeTarget, setGradeTarget] = useState<{
     assignmentTitle: string;
+    maxMarks: number;
     submission: any;
   } | null>(null);
   const [gradeMarks, setGradeMarks] = useState("");
@@ -71,6 +75,10 @@ export const FacultyAssignments: React.FC = () => {
   const [instructions, setInstructions] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [dueTime, setDueTime] = useState("23:59");
+  const [maxMarks, setMaxMarks] = useState("100");
+  const [allowLate, setAllowLate] = useState(false);
+  const [academicYearMasterId, setAcademicYearMasterId] = useState("");
+  const [assignmentTypeMasterId, setAssignmentTypeMasterId] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
 
   // Success Toast
@@ -80,9 +88,6 @@ export const FacultyAssignments: React.FC = () => {
   const { data: assignmentsResponse, isLoading } = useAssignments({});
   const createMutation = useCreateAssignment();
   const apiAssignments = assignmentsResponse?.data || [];
-
-  // Local state for instant optimistic list display
-  const [localAssignments, setLocalAssignments] = useState<any[]>([]);
 
   // Fetch batches to get assigned batches
   const { data: batchesRes } = useQuery({
@@ -107,30 +112,36 @@ export const FacultyAssignments: React.FC = () => {
     }
     return [];
   }, [batchesRes, user?.facultyId]);
-  // Combined assignment list — prefer live API, keep local optimistic creates
+  // Combined assignment list from API
   const allAssignments = useMemo(() => {
-    const fromApi = (apiAssignments || []).map((a: any) => ({
+    return (apiAssignments || []).map((a: any) => ({
       id: a.id,
       title: a.title,
       courseName:
         getSessionSubjectLabel({
           title: a.classSession?.title,
-          batch: a.classSession?.batch,
-        }) || "Course",
-      batchName: a.classSession?.batch?.name || "",
-      batchCode: a.classSession?.batch?.code || "",
+          batch: a.batch || a.classSession?.batch,
+        }) || a.batch?.course?.name || "Course",
+      batchName: a.batch?.name || a.classSession?.batch?.name || "",
+      batchCode: a.batch?.code || a.classSession?.batch?.code || "",
       instructions: a.description || "",
       dueDate: a.dueDate,
+      maxMarks: a.maxMarks ?? 100,
+      allowLate: !!a.allowLate,
       submissionCount: (a.submissions || []).filter((s: any) => s.submittedAt).length,
       totalStudents: (a.submissions || []).length,
-      pendingGrade: (a.submissions || []).filter((s: any) => s.submittedAt && s.marks == null).length,
+      pendingGrade: (a.submissions || []).filter(
+        (s: any) =>
+          s.submittedAt &&
+          s.marks == null &&
+          s.submissionStatus !== "GRADED"
+      ).length,
       status: a.status || "ACTIVE",
       hasDocument: false,
       submissions: a.submissions || [],
       raw: a,
     }));
-    return [...localAssignments, ...fromApi];
-  }, [localAssignments, apiAssignments]);
+  }, [apiAssignments]);
   const filteredAssignments = useMemo(() => {
     if (!searchTerm.trim()) return allAssignments;
     const q = searchTerm.toLowerCase();
@@ -169,6 +180,10 @@ export const FacultyAssignments: React.FC = () => {
     setInstructions("");
     setDueDate("");
     setDueTime("23:59");
+    setMaxMarks("100");
+    setAllowLate(false);
+    setAcademicYearMasterId("");
+    setAssignmentTypeMasterId("");
     setUploadedFile(null);
     setShowCreateDialog(false);
   };
@@ -179,52 +194,50 @@ export const FacultyAssignments: React.FC = () => {
     selectedBatchId.length > 0 &&
     instructions.trim().length > 0 &&
     dueDate.length > 0 &&
-    dueTime.length > 0;
+    dueTime.length > 0 &&
+    academicYearMasterId.length > 0;
 
   const handleCreateAssignment = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isFormValid || !selectedBatch) return;
 
     const combinedDueDateTime = `${dueDate}T${dueTime}:00`;
+    const batch = (batchesRes?.data || []).find((b: any) => b.id === selectedBatch.id) as any;
 
-    const newAssignment = {
-      id: `asg-${Date.now()}`,
-      title: title.trim(),
-      courseName: selectedBatch.courseName,
-      batchName: selectedBatch.name,
-      batchCode: selectedBatch.code,
-      instructions: instructions.trim(),
-      dueDate: combinedDueDateTime,
-      submissionCount: 0,
-      totalStudents: selectedBatch.studentCount,
-      status: "ACTIVE",
-      hasDocument: !!uploadedFile,
-      documentName: uploadedFile ? uploadedFile.name : undefined,
-    };
-
-    // Call API mutation
     createMutation.mutate(
       {
         title: title.trim(),
         description: instructions.trim(),
         batchId: selectedBatch.id,
-        dueDate: combinedDueDateTime,
+        facultyId: user?.facultyId,
+        dueDate: new Date(combinedDueDateTime).toISOString(),
+        maxMarks: Number(maxMarks) || 100,
+        allowLate,
+        academicYearMasterId,
+        assignmentTypeMasterId: assignmentTypeMasterId || null,
+        targets: [
+          {
+            courseId: batch?.courseId || batch?.course?.id,
+            batchId: selectedBatch.id,
+          },
+        ],
       },
       {
         onSuccess: () => {
-          setLocalAssignments((prev) => [newAssignment, ...prev]);
+          setSuccessToast(
+            `Assignment created & automatically assigned to all ${selectedBatch.studentCount} students in ${selectedBatch.name} (${selectedBatch.code})!`
+          );
+          handleResetForm();
+          setTimeout(() => setSuccessToast(null), 4500);
         },
-        onError: () => {
-          // API error surfaced via mutation state
+        onError: (err: unknown) => {
+          alert(
+            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+              "Failed to create assignment"
+          );
         },
       }
     );
-
-    setSuccessToast(
-      `Assignment created & automatically assigned to all ${selectedBatch.studentCount} students in ${selectedBatch.name} (${selectedBatch.code})!`
-    );
-    handleResetForm();
-    setTimeout(() => setSuccessToast(null), 4500);
   };
 
   return (
@@ -460,6 +473,7 @@ export const FacultyAssignments: React.FC = () => {
                               if (pending) {
                                 setGradeTarget({
                                   assignmentTitle: assignment.title,
+                                  maxMarks: assignment.maxMarks ?? 100,
                                   submission: pending,
                                 });
                                 setGradeMarks("");
@@ -468,6 +482,33 @@ export const FacultyAssignments: React.FC = () => {
                             }}
                           >
                             Grade ({assignment.pendingGrade})
+                          </Button>
+                        )}
+                        {(assignment.submissions || []).some((s: any) => s.fileKey) && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-[10px] h-7"
+                            onClick={async () => {
+                              const withFile = (assignment.submissions || []).find(
+                                (s: any) => s.submittedAt && s.fileKey && s.marks == null
+                              ) || (assignment.submissions || []).find((s: any) => s.fileKey);
+                              if (!withFile) return;
+                              const token = localStorage.getItem("token");
+                              const url = assignmentsApi.getDownloadUrl(withFile.id);
+                              const res = await fetch(url, {
+                                headers: token ? { Authorization: `Bearer ${token}` } : {},
+                              });
+                              if (!res.ok) return;
+                              const blob = await res.blob();
+                              const a = document.createElement("a");
+                              a.href = URL.createObjectURL(blob);
+                              a.download = withFile.fileName || "submission";
+                              a.click();
+                              URL.revokeObjectURL(a.href);
+                            }}
+                          >
+                            Download
                           </Button>
                         )}
                       <Badge
@@ -650,6 +691,51 @@ export const FacultyAssignments: React.FC = () => {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="font-bold text-slate-800 dark:text-slate-200">Academic year *</Label>
+                <MasterSelect
+                  entityType="academicyear"
+                  value={academicYearMasterId}
+                  onChange={setAcademicYearMasterId}
+                  placeholder="Select year"
+                  includeEmpty={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="font-bold text-slate-800 dark:text-slate-200">Type</Label>
+                <MasterSelect
+                  entityType="assignmenttype"
+                  value={assignmentTypeMasterId}
+                  onChange={setAssignmentTypeMasterId}
+                  placeholder="Select type"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="font-bold text-slate-800 dark:text-slate-200">Max Marks</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={1000}
+                  value={maxMarks}
+                  onChange={(e) => setMaxMarks(e.target.value)}
+                  className="h-10 rounded-xl bg-slate-50/70 dark:bg-[#0D1527] border-slate-200 dark:border-slate-800 text-xs"
+                />
+              </div>
+              <label className="flex items-end gap-2 text-xs font-semibold text-slate-700 dark:text-slate-300 pb-2">
+                <input
+                  type="checkbox"
+                  checked={allowLate}
+                  onChange={(e) => setAllowLate(e.target.checked)}
+                  className="rounded border"
+                />
+                Allow late submit
+              </label>
+            </div>
+
             {/* Modal Footer Actions */}
             <DialogFooter className="pt-3 flex gap-2">
               <Button
@@ -686,14 +772,20 @@ export const FacultyAssignments: React.FC = () => {
                   "Student"}
               </p>
               <div>
-                <Label>Marks</Label>
+                <Label>Marks (max {gradeTarget.maxMarks})</Label>
                 <Input
                   type="number"
                   min={0}
+                  max={gradeTarget.maxMarks}
                   value={gradeMarks}
                   onChange={(e) => setGradeMarks(e.target.value)}
                   className="mt-1"
                 />
+                {gradeTarget.submission?.marks != null && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Current: {formatMarks(gradeTarget.submission.marks, gradeTarget.maxMarks)}
+                  </p>
+                )}
               </div>
               <div>
                 <Label>Feedback</Label>
