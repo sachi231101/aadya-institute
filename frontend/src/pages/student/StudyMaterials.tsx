@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
+import { useSessionStore } from "@/store/session.store";
 
 interface StudyMaterialItem {
   id: string;
@@ -44,10 +45,15 @@ const MOCK_STUDY_MATERIALS: StudyMaterialItem[] = [];
 
 export const StudentStudyMaterials: React.FC = () => {
   const academic = useStudentAcademicAccess();
+  const { materials: storeMaterials } = useSessionStore();
   const [selectedModule, setSelectedModule] = useState<string>("ALL");
   const [selectedType, setSelectedType] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [previewItem, setPreviewItem] = useState<StudyMaterialItem | null>(null);
+
+  const allMaterials = useMemo(() => {
+    return [...storeMaterials, ...MOCK_STUDY_MATERIALS];
+  }, [storeMaterials]);
 
   const modulesList = useMemo(() => {
     return ["ALL", ...academic.assignedModuleNames];
@@ -55,7 +61,7 @@ export const StudentStudyMaterials: React.FC = () => {
 
   // Filtered materials
   const filteredMaterials = useMemo(() => {
-    return MOCK_STUDY_MATERIALS.filter((item) => {
+    return allMaterials.filter((item) => {
       // Course authorization check
       if (item.courseName && !academic.isAuthorizedForCourse(item.courseName)) {
         return false;

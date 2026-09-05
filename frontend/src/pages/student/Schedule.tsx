@@ -38,6 +38,7 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore } from "@/store/feedback.store";
 import type { ClassFeedbackItem } from "@/store/feedback.store";
+import { useSessionStore } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
@@ -219,6 +220,7 @@ export const StudentSchedule: React.FC = () => {
   const { user } = useAuthStore();
   const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
+  const { activeLiveClass } = useSessionStore();
 
   const studentId = academic.studentId || user?.studentId || user?.id || "";
   const studentName = academic.studentName || user?.name || "Student";
@@ -363,8 +365,14 @@ export const StudentSchedule: React.FC = () => {
       };
     }
 
-    // 3. Today — prefer API LIVE status, otherwise use real-time clock
-    if (session.forceStatus === "LIVE NOW") {
+    // 3. Today — prefer API LIVE status or Session Store live status, otherwise use real-time clock
+    const isLiveInStore =
+      activeLiveClass?.status === "LIVE" &&
+      (activeLiveClass.id === session.id ||
+        activeLiveClass.sessionId === session.id ||
+        activeLiveClass.batchCode?.toLowerCase() === session.batchCode?.toLowerCase());
+
+    if (session.forceStatus === "LIVE NOW" || isLiveInStore) {
       return {
         stage: "LIVE_NOW" as const,
         statusText: "LIVE NOW",
