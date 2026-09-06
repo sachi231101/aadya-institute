@@ -22,6 +22,9 @@ export const getAll = async (
       !roles.includes("COUNSELLOR");
 
     let facultyFilter = req.query.facultyId as string;
+    // Faculty see batches they teach across branches (enrollment/teaching scope),
+    // not only the primary user.branchId (which can differ from batch.branchId).
+    let effectiveBranchId = branchId;
 
     if (isPureFaculty) {
       const facultyRecord = await prisma.faculty.findFirst({
@@ -36,6 +39,7 @@ export const getAll = async (
         return;
       }
       facultyFilter = facultyRecord.id;
+      effectiveBranchId = undefined;
     }
 
     const filters = {
@@ -44,7 +48,7 @@ export const getAll = async (
       facultyId: facultyFilter,
       status: req.query.status as string,
     };
-    const batches = await service.getBatches(instituteId, branchId, filters);
+    const batches = await service.getBatches(instituteId, effectiveBranchId, filters);
     res.json({
       success: true,
       message: "Batches retrieved successfully",

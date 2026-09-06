@@ -580,8 +580,10 @@ export const findSubmissions = async (params: {
 export const countAssignmentStats = async (params: {
   instituteId: string;
   branchId?: string;
+  facultyId?: string;
 }) => {
   const baseWhere: Prisma.AssignmentWhereInput = {
+    ...(params.facultyId ? { facultyId: params.facultyId } : {}),
     batch: {
       instituteId: params.instituteId,
       ...(params.branchId ? { branchId: params.branchId } : {}),

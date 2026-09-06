@@ -44,6 +44,10 @@ const getFacultyIdForUser = async (userId: string): Promise<string | null> => {
 const isAdminOrManager = (user: AuthUser) =>
   user.roles.includes("ADMIN") || user.roles.includes("CENTER_MANAGER");
 
+/** Faculty teaching scope is by facultyId, not user.branchId (batches can be on other branches). */
+const isPureFaculty = (user: AuthUser) =>
+  user.roles.includes("FACULTY") && !isAdminOrManager(user) && !user.roles.includes("COUNSELLOR");
+
 const parseOptionalDate = (value?: string | null): Date | null | undefined => {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -62,10 +66,16 @@ const assertFacultyTeachesBatch = async (facultyId: string, batchId: string) => 
   });
   if (!batch) throw new AppError("Batch not found", 404);
 
+  const scheduleHit = await prisma.batchSchedule.findFirst({
+    where: { batchId, facultyId },
+    select: { id: true },
+  });
+
   const teaches =
     batch.facultyId === facultyId ||
     batch.batchCourses.some((bc) => bc.facultyId === facultyId) ||
-    batch.classSessions.some((cs) => cs.facultyId === facultyId);
+    batch.classSessions.some((cs) => cs.facultyId === facultyId) ||
+    Boolean(scheduleHit);
 
   if (!teaches) {
     throw new AppError("Selected faculty is not assigned to this batch", 400);
@@ -119,7 +129,7 @@ const validateAndNormalizeTargets = async (
       where: {
         id: target.batchId,
         instituteId: currentUser.instituteId,
-        ...(currentUser.roles.includes("ADMIN")
+        ...(currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
           ? {}
           : currentUser.branchId
             ? { branchId: currentUser.branchId }
@@ -284,18 +294,14 @@ export const getAssignments = async (currentUser: AuthUser, query: AssignmentQue
     !currentUser.roles.includes("FACULTY") &&
     !currentUser.roles.includes("CENTER_MANAGER");
 
-  // Students are scoped by enrollment batches, not user.branchId (which can drift).
+  // Students: enrollment scope. Faculty: facultyId scope. Others: branch lock.
   const branchId =
-    currentUser.roles.includes("ADMIN") || isStudentViewer
+    currentUser.roles.includes("ADMIN") || isStudentViewer || isPureFaculty(currentUser)
       ? undefined
       : (currentUser.branchId ?? undefined);
 
   let facultyId = query.facultyId;
-  if (
-    currentUser.roles.includes("FACULTY") &&
-    !currentUser.roles.includes("ADMIN") &&
-    !currentUser.roles.includes("CENTER_MANAGER")
-  ) {
+  if (isPureFaculty(currentUser)) {
     const ownFacultyId = await getFacultyIdForUser(currentUser.id);
     if (!ownFacultyId) throw new AppError("Faculty profile not found for this user", 403);
     facultyId = ownFacultyId;
@@ -360,9 +366,10 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
     !currentUser.roles.includes("FACULTY") &&
     !currentUser.roles.includes("CENTER_MANAGER");
 
-  // Branch isolation applies to staff; students are authorized via enrollment below.
+  // Branch isolation for managers/counsellors; faculty authorized by ownership below.
   if (
     !isStudentViewer &&
+    !isPureFaculty(currentUser) &&
     !currentUser.roles.includes("ADMIN") &&
     currentUser.branchId &&
     batch.branchId !== currentUser.branchId
@@ -403,7 +410,7 @@ export const getAssignmentById = async (currentUser: AuthUser, id: string) => {
     };
   }
 
-  if (currentUser.roles.includes("FACULTY") && !isAdminOrManager(currentUser)) {
+  if (isPureFaculty(currentUser)) {
     const facultyId = await getFacultyIdForUser(currentUser.id);
     if (!facultyId || facultyId !== assignment.facultyId) {
       throw new AppError("Assignment not found", 404);
@@ -624,12 +631,13 @@ export const listSubmissions = async (currentUser: AuthUser, query: SubmissionQu
   const limit = Math.min(100, Math.max(1, Number(query.limit) || 20));
   const skip = (page - 1) * limit;
 
-  const branchId = currentUser.roles.includes("ADMIN")
-    ? undefined
-    : (currentUser.branchId ?? undefined);
+  const branchId =
+    currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
+      ? undefined
+      : (currentUser.branchId ?? undefined);
 
   let facultyId = query.facultyId;
-  if (currentUser.roles.includes("FACULTY") && !isAdminOrManager(currentUser)) {
+  if (isPureFaculty(currentUser)) {
     const ownFacultyId = await getFacultyIdForUser(currentUser.id);
     if (!ownFacultyId) throw new AppError("Faculty profile not found for this user", 403);
     facultyId = ownFacultyId;
@@ -673,13 +681,14 @@ export const gradeSubmission = async (
 
   if (
     !currentUser.roles.includes("ADMIN") &&
+    !isPureFaculty(currentUser) &&
     currentUser.branchId &&
     batch.branchId !== currentUser.branchId
   ) {
     throw new AppError("Submission not found", 404);
   }
 
-  if (currentUser.roles.includes("FACULTY") && !isAdminOrManager(currentUser)) {
+  if (isPureFaculty(currentUser)) {
     const facultyId = await getFacultyIdForUser(currentUser.id);
     if (!facultyId || facultyId !== submission.assignment.facultyId) {
       throw new AppError("You can only grade submissions for your own assignments", 403);
@@ -892,13 +901,20 @@ export const getSubmissionDownload = async (
 };
 
 export const getAssignmentStats = async (currentUser: AuthUser) => {
-  const branchId = currentUser.roles.includes("ADMIN")
-    ? undefined
-    : (currentUser.branchId ?? undefined);
+  const branchId =
+    currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
+      ? undefined
+      : (currentUser.branchId ?? undefined);
+
+  let facultyId: string | undefined;
+  if (isPureFaculty(currentUser)) {
+    facultyId = (await getFacultyIdForUser(currentUser.id)) ?? undefined;
+  }
 
   return repo.countAssignmentStats({
     instituteId: currentUser.instituteId,
     branchId,
+    facultyId,
   });
 };
 
@@ -909,13 +925,21 @@ export const getBatchEnrolledStudents = async (
   const unique = [...new Set(batchIds.filter(Boolean))];
   if (unique.length === 0) return [];
 
+  if (isPureFaculty(currentUser)) {
+    const ownFacultyId = await getFacultyIdForUser(currentUser.id);
+    if (!ownFacultyId) throw new AppError("Faculty profile not found for this user", 403);
+    for (const batchId of unique) {
+      await assertFacultyTeachesBatch(ownFacultyId, batchId);
+    }
+  }
+
   const enrollments = await prisma.batchEnrollment.findMany({
     where: {
       batchId: { in: unique },
       status: "ACTIVE",
       batch: {
         instituteId: currentUser.instituteId,
-        ...(currentUser.roles.includes("ADMIN")
+        ...(currentUser.roles.includes("ADMIN") || isPureFaculty(currentUser)
           ? {}
           : currentUser.branchId
             ? { branchId: currentUser.branchId }
