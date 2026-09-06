@@ -56,6 +56,7 @@ import { CreateQuestion } from "../pages/admin/exams/CreateQuestion";
 import { EditQuestion } from "../pages/admin/exams/EditQuestion";
 import { ExamAttempts } from "../pages/admin/exams/ExamAttempts";
 import { AttemptProctoringDetails } from "../pages/admin/exams/AttemptProctoringDetails";
+import { ExamManualGrading } from "../pages/admin/exams/ExamManualGrading";
 import { MyExams } from "../pages/student/exams/MyExams";
 import { ExamConsentScreen } from "../pages/student/exams/ExamConsentScreen";
 import { TakeExam } from "../pages/student/exams/TakeExam";
@@ -328,6 +329,7 @@ export const AppRoutes: React.FC = () => {
           <Route path=":id/edit" element={<EditExam />} />
           <Route path=":id/attempts" element={<ExamAttempts />} />
           <Route path="attempts/:attemptId/proctoring" element={<AttemptProctoringDetails />} />
+          <Route path="attempts/:attemptId/grade" element={<ExamManualGrading />} />
         </Route>
       </Route>
 
@@ -460,10 +462,10 @@ export const AppRoutes: React.FC = () => {
 
       {/* Student Routes */}
       <Route path="/student" element={<StudentLayout />}>
-        <Route index element={<Navigate to="home" replace />} />
-        <Route path="home" element={<AiHome />} />
+        <Route index element={<Navigate to="dashboard" replace />} />
+        <Route path="home" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="dashboard" element={<StudentDashboard />} />
-        <Route path="ask-me" element={<Navigate to="/student/home" replace />} />
+        <Route path="ask-me" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
         <Route path="announcements" element={<StudentAnnouncements />} />
         <Route path="schedule" element={<StudentSchedule />} />

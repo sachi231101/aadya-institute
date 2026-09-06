@@ -91,3 +91,50 @@ export const terminateStaff = async (req: AuthenticatedRequest, res: Response, n
     res.json({ success: true, message: 'Attempt terminated manually', data: result });
   } catch (error) { next(error); }
 };
+
+export const grantRetryStaff = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { userId, instituteId } = req.user!;
+    const attemptId = String(req.params.attemptId);
+    const result = await service.grantAttemptRetry(attemptId, userId, instituteId, req.body.reason);
+    res.json({
+      success: true,
+      message: 'Student granted another chance to write the exam',
+      data: result,
+    });
+  } catch (error) { next(error); }
+};
+
+export const getGradingQueue = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId } = req.user!;
+    const id = String(req.params.id);
+    const result = await service.getExamGradingQueue(id, instituteId);
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+};
+
+export const getAttemptForGrading = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { instituteId, branchId } = req.user!;
+    const attemptId = String(req.params.attemptId);
+    const result = await service.getAttemptForGrading(attemptId, instituteId, branchId);
+    res.json({ success: true, data: result });
+  } catch (error) { next(error); }
+};
+
+export const gradeAnswer = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const { userId, instituteId } = req.user!;
+    const attemptId = String(req.params.attemptId);
+    const answerId = String(req.params.answerId);
+    const result = await service.gradeSubjectiveAnswer(
+      attemptId,
+      answerId,
+      userId,
+      instituteId,
+      req.body
+    );
+    res.json({ success: true, message: 'Answer graded successfully', data: result });
+  } catch (error) { next(error); }
+};

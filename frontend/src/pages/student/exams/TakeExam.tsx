@@ -202,8 +202,9 @@ export const TakeExam: React.FC = () => {
 
     const calculateRemaining = () => {
       const expires = new Date(attempt.expiresAt).getTime();
-      const now = Date.now();
-      const remaining = Math.max(0, Math.floor((expires - now) / 1000));
+      const examEnd = attempt.exam?.endAt ? new Date(attempt.exam.endAt).getTime() : null;
+      const hardStop = examEnd !== null ? Math.min(expires, examEnd) : expires;
+      const remaining = Math.max(0, Math.floor((hardStop - Date.now()) / 1000));
       setSecondsRemaining(remaining);
 
       if (remaining === 0 && !isAutoSubmitting) {
@@ -215,7 +216,7 @@ export const TakeExam: React.FC = () => {
     calculateRemaining();
     const interval = setInterval(calculateRemaining, 1000);
     return () => clearInterval(interval);
-  }, [attempt?.expiresAt, attempt?.status, proctoring.isTerminated, isAutoSubmitting]);
+  }, [attempt?.expiresAt, attempt?.exam?.endAt, attempt?.status, proctoring.isTerminated, isAutoSubmitting]);
 
   // Format Timer mm:ss or hh:mm:ss
   const formattedTime = useMemo(() => {
@@ -340,8 +341,32 @@ export const TakeExam: React.FC = () => {
   };
 
   const handleSubmitExam = async (isAuto = false) => {
-    if (proctoring.isTerminated) return;
+    if (proctoring.isTerminated || submitExamMutation.isPending) return;
     try {
+      // Flush any pending debounced autosave before final submit
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+      if (currentQuestion && currentAnswer && attempt?.status === 'IN_PROGRESS') {
+        try {
+          const numVal = currentAnswer.numericalAnswer.trim()
+            ? parseFloat(currentAnswer.numericalAnswer)
+            : undefined;
+          await saveAnswersMutation.mutateAsync([
+            {
+              questionId: currentQuestion.id,
+              selectedOptionIds: currentAnswer.selectedOptionIds,
+              textAnswer: currentAnswer.textAnswer || undefined,
+              numericalAnswer: !isNaN(numVal as number) ? numVal : undefined,
+              isFlagged: currentAnswer.isFlagged,
+            },
+          ]);
+        } catch {
+          // Continue submit even if last autosave fails
+        }
+      }
+
       await submitExamMutation.mutateAsync();
       setIsSubmitModalOpen(false);
       navigate(`/student/exams/${attemptId}/result`);
@@ -628,6 +653,7 @@ export const TakeExam: React.FC = () => {
                       <label className="text-xs font-bold text-slate-700">Enter Numerical Value:</label>
                       <Input
                         type="number"
+                        step="any"
                         placeholder="e.g. 42.5"
                         value={currentAnswer?.numericalAnswer || ''}
                         onChange={(e) => handleNumericalAnswerChange(e.target.value)}
@@ -636,16 +662,44 @@ export const TakeExam: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Descriptive / Subjective Answer Area */}
-                  {currentQuestion.questionType === 'DESCRIPTIVE' && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-slate-700">Type Your Answer:</label>
-                      <textarea
-                        rows={6}
-                        placeholder="Write your explanation or detailed answer here..."
+                  {/* Fill in the blank */}
+                  {currentQuestion.questionType === 'FILL_BLANK' && (
+                    <div className="space-y-2 max-w-xl">
+                      <label className="text-xs font-bold text-slate-700">Fill in the blank:</label>
+                      <Input
+                        type="text"
+                        placeholder="Type your answer..."
                         value={currentAnswer?.textAnswer || ''}
                         onChange={(e) => handleTextAnswerChange(e.target.value)}
-                        className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans"
+                        className="text-sm"
+                      />
+                    </div>
+                  )}
+
+                  {/* Short answer */}
+                  {currentQuestion.questionType === 'SHORT_ANSWER' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700">Short Answer:</label>
+                      <textarea
+                        rows={3}
+                        placeholder="Type your short answer here..."
+                        value={currentAnswer?.textAnswer || ''}
+                        onChange={(e) => handleTextAnswerChange(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans resize-y"
+                      />
+                    </div>
+                  )}
+
+                  {/* Long answer */}
+                  {currentQuestion.questionType === 'LONG_ANSWER' && (
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-slate-700">Long Answer:</label>
+                      <textarea
+                        rows={8}
+                        placeholder="Write your detailed answer here..."
+                        value={currentAnswer?.textAnswer || ''}
+                        onChange={(e) => handleTextAnswerChange(e.target.value)}
+                        className="w-full p-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 font-sans resize-y"
                       />
                     </div>
                   )}
@@ -907,15 +961,17 @@ export const TakeExam: React.FC = () => {
             <Button
               variant="outline"
               onClick={() => setIsSubmitModalOpen(false)}
+              disabled={submitExamMutation.isPending}
               className="text-xs"
             >
               Back to Test
             </Button>
             <Button
               onClick={() => handleSubmitExam(false)}
+              disabled={submitExamMutation.isPending}
               className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs"
             >
-              Yes, Submit Exam
+              {submitExamMutation.isPending ? 'Submitting…' : 'Yes, Submit Exam'}
             </Button>
           </DialogFooter>
         </DialogContent>

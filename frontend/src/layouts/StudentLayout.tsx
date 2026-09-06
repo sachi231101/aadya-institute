@@ -8,7 +8,6 @@ import {
   BookOpen,
   Video,
   User,
-  Sparkles,
   Headphones,
   ChevronDown,
   ShieldCheck,
@@ -29,7 +28,6 @@ import { NotificationPopover } from "../components/notifications/NotificationPop
 import { InstallAppButton } from "@/components/common/InstallAppButton";
 import { InstallLoginPopup } from "@/components/common/InstallLoginPopup";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -125,8 +123,6 @@ export const StudentLayout: React.FC = () => {
     { label: "Assignments", icon: FileText, path: "/student/assignments" },
   ];
 
-  const isAiActive = location.pathname === "/student/home";
-
   const renderSidebarContent = () => (
     <div className="flex flex-col justify-between h-full space-y-4">
       <div className="space-y-4">
@@ -161,29 +157,6 @@ export const StudentLayout: React.FC = () => {
           >
             <X className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* AI Ask Me Button */}
-        <div>
-          <Link
-            to="/student/home"
-            onClick={() => setMobileMenuOpen(false)}
-            className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all ${isAiActive
-                ? "bg-[#5B50EC] text-white border-[#5B50EC] shadow-xs"
-                : "bg-blue-50/70 dark:bg-blue-950/40 hover:bg-blue-100/80 dark:hover:bg-blue-900/50 text-[#5B50EC] dark:text-indigo-300 border-blue-200/60 dark:border-indigo-900/50"
-              }`}
-          >
-            <div className="flex items-center gap-2">
-              <Sparkles className={`w-4 h-4 ${isAiActive ? "text-white" : "text-[#5B50EC] dark:text-indigo-400"}`} />
-              <span>ASK ME Anything</span>
-            </div>
-            <span
-              className={`text-[9px] font-black px-1.5 py-0.5 rounded-md ${isAiActive ? "bg-white/20 text-white" : "bg-[#5B50EC] text-white"
-                }`}
-            >
-              AI
-            </span>
-          </Link>
         </div>
 
         {/* Navigation Links */}
@@ -380,20 +353,6 @@ export const StudentLayout: React.FC = () => {
                 </div>
               </Link>
 
-              <Link
-                to="/student/home"
-                onClick={() => setMobileMoreOpen(false)}
-                className="flex items-center gap-3 p-3 rounded-2xl bg-muted/40 hover:bg-muted border border-border/60 text-xs font-bold text-foreground transition-all"
-              >
-                <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="block">Ask Me AI</span>
-                  <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-extrabold">24/7 ASSIST</span>
-                </div>
-              </Link>
-
               <a
                 href="https://verify.aadyainstitution.com/"
                 target="_blank"
@@ -484,7 +443,6 @@ export const StudentLayout: React.FC = () => {
 
           {/* Right Header Widgets */}
           <div className="flex items-center gap-2">
-            <NavbarAskAi />
             {/* Dynamic Date & Time Pill */}
             <div className="hidden xl:flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-white">
               <Calendar className="w-3 h-3 text-amber-300" />

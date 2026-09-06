@@ -22,9 +22,7 @@ export const NavbarAskAi: React.FC<{ className?: string }> = ({ className = "" }
     if (location.pathname.startsWith("/faculty") || userRoles.includes("FACULTY")) {
       return "/faculty/home";
     }
-    if (location.pathname.startsWith("/student") || userRoles.includes("STUDENT")) {
-      return "/student/home";
-    }
+    // Students do not have Ask AI — fall through to admin only for staff roles
     return "/admin/home";
   };
 

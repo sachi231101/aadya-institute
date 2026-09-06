@@ -48,6 +48,7 @@ export const EditQuestion: React.FC = () => {
   const [marks, setMarks] = useState(1);
   const [negativeMarks, setNegativeMarks] = useState(0);
   const [explanation, setExplanation] = useState("");
+  const [correctAnswer, setCorrectAnswer] = useState("");
   const [questionBankId, setQuestionBankId] = useState("");
   const [courseId, setCourseId] = useState("");
   const [moduleId, setModuleId] = useState("");
@@ -71,6 +72,7 @@ export const EditQuestion: React.FC = () => {
       setMarks(existingQuestion.marks ?? 1);
       setNegativeMarks(existingQuestion.negativeMarks ?? 0);
       setExplanation(existingQuestion.explanation || "");
+      setCorrectAnswer(existingQuestion.correctAnswer || "");
       setQuestionBankId(existingQuestion.questionBankId || "");
       setCourseId(existingQuestion.courseId || "");
       setModuleId(existingQuestion.moduleId || "");
@@ -172,6 +174,13 @@ export const EditQuestion: React.FC = () => {
       }
     }
 
+    if (questionType === "NUMERICAL") {
+      if (!correctAnswer.trim() || Number.isNaN(Number(correctAnswer.trim()))) {
+        setValidationError("Enter a valid numerical correct answer.");
+        return;
+      }
+    }
+
     try {
       const updatePayload = {
         questionType,
@@ -180,6 +189,7 @@ export const EditQuestion: React.FC = () => {
         marks: Number(marks),
         negativeMarks: Number(negativeMarks),
         explanation: explanation.trim() || null,
+        correctAnswer: correctAnswer.trim() || null,
         questionBankId: questionBankId || null,
         courseId: courseId || null,
         moduleId: moduleId || null,
@@ -480,6 +490,46 @@ export const EditQuestion: React.FC = () => {
                 />
               </div>
             </div>
+
+            {["NUMERICAL", "FILL_BLANK", "SHORT_ANSWER", "LONG_ANSWER"].includes(questionType) && (
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold">
+                  {questionType === "NUMERICAL"
+                    ? "Correct Answer (required)"
+                    : "Sample / Expected Answer (for admin grading)"}
+                </Label>
+                {questionType === "NUMERICAL" && (
+                  <Input
+                    type="number"
+                    step="any"
+                    placeholder="e.g. 42 or 3.14"
+                    value={correctAnswer}
+                    onChange={(e) => setCorrectAnswer(e.target.value)}
+                    className="max-w-xs"
+                  />
+                )}
+                {["FILL_BLANK", "SHORT_ANSWER"].includes(questionType) && (
+                  <Input
+                    placeholder="Optional expected answer for graders..."
+                    value={correctAnswer}
+                    onChange={(e) => setCorrectAnswer(e.target.value)}
+                  />
+                )}
+                {questionType === "LONG_ANSWER" && (
+                  <Textarea
+                    placeholder="Optional sample answer shown to graders only..."
+                    value={correctAnswer}
+                    onChange={(e) => setCorrectAnswer(e.target.value)}
+                    rows={3}
+                  />
+                )}
+                {questionType !== "NUMERICAL" && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Students will type their answer; admin will award marks manually.
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label className="text-xs font-semibold">Solution / Explanation (Optional)</Label>

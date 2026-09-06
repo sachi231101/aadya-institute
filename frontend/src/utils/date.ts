@@ -1,5 +1,13 @@
 export type OrganizationDateFormat = "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
 
+/** Format a Date/ISO string for `<input type="datetime-local">` in the browser's local timezone. */
+export const toDatetimeLocalValue = (date: Date | string | number): string => {
+  const d = date instanceof Date ? date : new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export const formatDate = (dateString?: string): string => {
   if (!dateString) return "N/A";
   const date = new Date(dateString);

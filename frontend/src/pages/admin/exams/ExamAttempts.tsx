@@ -13,8 +13,9 @@ import {
   UserCheck,
   RotateCcw,
   Users,
+  ClipboardCheck,
 } from 'lucide-react';
-import { useStaffExamAttempts, useStaffTerminateAttempt } from '@/hooks/useExamAttempts';
+import { useStaffExamAttempts, useStaffTerminateAttempt, useStaffGrantRetry } from '@/hooks/useExamAttempts';
 import { useExam } from '@/hooks/useExams';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -48,6 +49,8 @@ export const ExamAttempts: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [terminatingAttemptId, setTerminatingAttemptId] = useState<string | null>(null);
   const [terminationReason, setTerminationReason] = useState('');
+  const [retryingAttemptId, setRetryingAttemptId] = useState<string | null>(null);
+  const [retryReason, setRetryReason] = useState('');
 
   const { data: examData } = useExam(id || '');
   const { data: attemptsData, isLoading, error } = useStaffExamAttempts(id || '', {
@@ -56,6 +59,7 @@ export const ExamAttempts: React.FC = () => {
   });
 
   const terminateMutation = useStaffTerminateAttempt(terminatingAttemptId || '', id || '');
+  const grantRetryMutation = useStaffGrantRetry(id || '');
 
   const exam = examData?.data;
   const attempts: any[] = attemptsData?.data?.attempts || [];
@@ -72,6 +76,20 @@ export const ExamAttempts: React.FC = () => {
       await terminateMutation.mutateAsync(terminationReason);
       setTerminatingAttemptId(null);
       setTerminationReason('');
+    } catch {
+      // Handled by hook notification
+    }
+  };
+
+  const handleConfirmRetry = async () => {
+    if (!retryingAttemptId || !retryReason.trim()) return;
+    try {
+      await grantRetryMutation.mutateAsync({
+        attemptId: retryingAttemptId,
+        reason: retryReason.trim(),
+      });
+      setRetryingAttemptId(null);
+      setRetryReason('');
     } catch {
       // Handled by hook notification
     }
@@ -163,6 +181,7 @@ export const ExamAttempts: React.FC = () => {
             >
               <option value="">All Statuses</option>
               <option value="IN_PROGRESS">In Progress</option>
+              <option value="EVALUATING">Needs Grading</option>
               <option value="COMPLETED">Completed</option>
               <option value="TERMINATED">Terminated</option>
             </select>
@@ -203,6 +222,7 @@ export const ExamAttempts: React.FC = () => {
                   const isTerminated = attempt.status === 'TERMINATED';
                   const isInProgress = attempt.status === 'IN_PROGRESS';
                   const isCompleted = ['COMPLETED', 'SUBMITTED'].includes(attempt.status);
+                  const needsGrading = attempt.status === 'EVALUATING';
 
                   return (
                     <TableRow key={attempt.id} className="hover:bg-slate-50/50">
@@ -222,6 +242,10 @@ export const ExamAttempts: React.FC = () => {
                           <Badge className="bg-amber-100 text-amber-800 border-amber-200 text-[10px] gap-1">
                             <span className="h-1.5 w-1.5 rounded-full bg-amber-600 animate-pulse" />
                             In Progress
+                          </Badge>
+                        ) : needsGrading ? (
+                          <Badge className="bg-violet-100 text-violet-800 border-violet-200 text-[10px] gap-1">
+                            <ClipboardCheck className="h-3 w-3" /> Needs Grading
                           </Badge>
                         ) : isTerminated ? (
                           <Badge className="bg-red-100 text-red-800 border-red-200 text-[10px] gap-1">
@@ -273,6 +297,15 @@ export const ExamAttempts: React.FC = () => {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {needsGrading && (
+                            <Button
+                              size="sm"
+                              onClick={() => navigate(`${basePath}/attempts/${attempt.id}/grade`)}
+                              className="h-7 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1"
+                            >
+                              <ClipboardCheck className="h-3 w-3" /> Grade
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -290,6 +323,24 @@ export const ExamAttempts: React.FC = () => {
                             >
                               <Ban className="h-3 w-3" /> Terminate
                             </Button>
+                          )}
+                          {isTerminated && attempt.countsTowardLimit !== false && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setRetryingAttemptId(attempt.id);
+                                setRetryReason('');
+                              }}
+                              className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+                            >
+                              <RotateCcw className="h-3 w-3" /> Reassign
+                            </Button>
+                          )}
+                          {isTerminated && attempt.countsTowardLimit === false && (
+                            <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] gap-1">
+                              <UserCheck className="h-3 w-3" /> Retry granted
+                            </Badge>
                           )}
                         </div>
                       </TableCell>
@@ -338,6 +389,59 @@ export const ExamAttempts: React.FC = () => {
               className="bg-red-600 hover:bg-red-700 text-white text-xs font-bold"
             >
               Confirm Termination
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Grant Retry / Reassign Dialog */}
+      <Dialog
+        open={!!retryingAttemptId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRetryingAttemptId(null);
+            setRetryReason('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-md bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-emerald-700 flex items-center gap-2">
+              <RotateCcw className="h-5 w-5" /> Reassign Exam Attempt
+            </DialogTitle>
+            <DialogDescription className="text-xs text-slate-500">
+              Grant this student another chance to write the exam. The terminated attempt stays in the
+              audit log and will no longer count toward their attempt limit.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 py-2">
+            <label className="text-xs font-bold text-slate-700">Reason for reassignment:</label>
+            <Input
+              placeholder="e.g. Network outage confirmed; allow fresh attempt"
+              value={retryReason}
+              onChange={(e) => setRetryReason(e.target.value)}
+              className="text-xs"
+            />
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setRetryingAttemptId(null);
+                setRetryReason('');
+              }}
+              className="text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={!retryReason.trim() || grantRetryMutation.isPending}
+              onClick={handleConfirmRetry}
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold"
+            >
+              {grantRetryMutation.isPending ? 'Granting...' : 'Grant Another Chance'}
             </Button>
           </DialogFooter>
         </DialogContent>

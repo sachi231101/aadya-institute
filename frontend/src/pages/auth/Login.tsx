@@ -157,7 +157,7 @@ const ROLE_CARDS: RoleCardConfig[] = [
     borderColor: "#ddd6fe",
     activeBg: "rgba(237, 233, 254, 1)",
     icon: Users,
-    dashboardPath: "/student/home",
+    dashboardPath: "/student/dashboard",
     demoUser: {
       id: "seed-student-user",
       name: "Rahul Verma",
@@ -286,7 +286,7 @@ export const Login: React.FC = () => {
           navigate("/faculty/home");
           break;
         case UserRole.STUDENT:
-          navigate("/student/home");
+          navigate("/student/dashboard");
           break;
         default:
           navigate(roleConfig.dashboardPath);

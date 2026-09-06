@@ -23,6 +23,7 @@ export const useStudentAvailableExams = () => {
   return useQuery({
     queryKey: attemptKeys.available(),
     queryFn: examAttemptsApi.getAvailableExams,
+    refetchInterval: 15_000,
   });
 };
 
@@ -31,6 +32,7 @@ export const useExamInstructions = (examId: string) => {
     queryKey: attemptKeys.instructions(examId),
     queryFn: () => examAttemptsApi.getExamInstructions(examId),
     enabled: !!examId,
+    refetchInterval: 15_000,
   });
 };
 
@@ -57,11 +59,14 @@ export const useAttemptDetails = (attemptId: string, options?: { pollWhileEvalua
     queryFn: () => examAttemptsApi.getAttempt(attemptId),
     enabled: !!attemptId,
     refetchInterval: (query) => {
-      if (!options?.pollWhileEvaluating) return false;
       const status = (query.state.data as any)?.data?.status;
-      if (status === 'EVALUATING' || status === 'SUBMITTED' || status === 'AUTO_SUBMITTED') {
-        return 2000;
+      if (options?.pollWhileEvaluating) {
+        if (status === 'EVALUATING' || status === 'SUBMITTED' || status === 'AUTO_SUBMITTED') {
+          return 2000;
+        }
       }
+      // Detect server-side auto-submit when exam endAt / attempt expiresAt has passed
+      if (status === 'IN_PROGRESS') return 20_000;
       return false;
     },
   });
@@ -135,6 +140,73 @@ export const useStaffTerminateAttempt = (attemptId: string, examId: string) => {
     },
     onError: (err: any) => {
       addNotification(err?.response?.data?.message || 'Failed to terminate attempt', 'error');
+    },
+  });
+};
+
+export const useStaffGrantRetry = (examId: string) => {
+  const queryClient = useQueryClient();
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: ({ attemptId, reason }: { attemptId: string; reason: string }) =>
+      examAttemptsApi.grantRetryStaff(attemptId, reason),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: attemptKeys.staffList(examId) });
+      queryClient.invalidateQueries({ queryKey: attemptKeys.staffProctoring(variables.attemptId) });
+      queryClient.invalidateQueries({ queryKey: attemptKeys.available() });
+      addNotification('Student granted another chance to write the exam', 'success');
+    },
+    onError: (err: any) => {
+      addNotification(err?.response?.data?.message || 'Failed to grant another chance', 'error');
+    },
+  });
+};
+
+export const useStaffGradingQueue = (examId: string) => {
+  return useQuery({
+    queryKey: [...attemptKeys.all, 'grading-queue', examId],
+    queryFn: () => examAttemptsApi.getGradingQueue(examId),
+    enabled: !!examId,
+    refetchInterval: 20_000,
+  });
+};
+
+export const useStaffAttemptForGrading = (attemptId: string) => {
+  return useQuery({
+    queryKey: [...attemptKeys.all, 'grade', attemptId],
+    queryFn: () => examAttemptsApi.getAttemptForGrading(attemptId),
+    enabled: !!attemptId,
+  });
+};
+
+export const useStaffGradeAnswer = (attemptId: string, examId?: string) => {
+  const queryClient = useQueryClient();
+  const addNotification = useNotificationStore((s) => s.addNotification);
+
+  return useMutation({
+    mutationFn: ({
+      answerId,
+      marksAwarded,
+      isCorrect,
+      graderComment,
+    }: {
+      answerId: string;
+      marksAwarded: number;
+      isCorrect?: boolean;
+      graderComment?: string;
+    }) => examAttemptsApi.gradeAnswer(attemptId, answerId, { marksAwarded, isCorrect, graderComment }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [...attemptKeys.all, 'grade', attemptId] });
+      queryClient.invalidateQueries({ queryKey: attemptKeys.detail(attemptId) });
+      if (examId) {
+        queryClient.invalidateQueries({ queryKey: attemptKeys.staffList(examId) });
+        queryClient.invalidateQueries({ queryKey: [...attemptKeys.all, 'grading-queue', examId] });
+      }
+      addNotification('Answer graded successfully', 'success');
+    },
+    onError: (err: any) => {
+      addNotification(err?.response?.data?.message || 'Failed to grade answer', 'error');
     },
   });
 };

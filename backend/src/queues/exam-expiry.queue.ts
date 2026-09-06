@@ -22,13 +22,31 @@ export const enqueueExamExpirySweep = async () => {
 
 /**
  * Find expired IN_PROGRESS attempts, mark EVALUATING, enqueue grading.
+ * Also close exams whose endAt has passed (SCHEDULED/LIVE → ENDED).
  */
 export const processExpiredAttempts = async (limit = 200) => {
   const now = new Date();
+
+  // Close exam windows that have ended
+  const closed = await prisma.exam.updateMany({
+    where: {
+      status: { in: ["SCHEDULED", "LIVE"] },
+      endAt: { lt: now },
+    },
+    data: { status: "ENDED" },
+  });
+  if (closed.count > 0) {
+    logger.info({ count: closed.count }, "[exam-expiry] Closed exams past endAt");
+  }
+
+  // Auto-submit attempts that are past their own timer OR past the exam endAt
   const expired = await prisma.examAttempt.findMany({
     where: {
       status: "IN_PROGRESS",
-      expiresAt: { lt: now },
+      OR: [
+        { expiresAt: { lt: now } },
+        { exam: { endAt: { lt: now } } },
+      ],
     },
     select: { id: true, userId: true, instituteId: true },
     take: limit,
