@@ -13,6 +13,9 @@ import type {
   MyStudentsParams,
   AssignCoursePayload,
   MarkAttendancePayload,
+  DailyAttendanceParams,
+  BulkDailyAttendancePayload,
+  FacultyDailyAttendanceResponse,
   PaginatedResponse,
   SingleResponse,
 } from "../types/faculty.types";
@@ -70,6 +73,25 @@ export const facultyApi = {
 
   markAttendance: async (data: MarkAttendancePayload): Promise<SingleResponse<FacultyAttendanceRecord>> => {
     const response = await api.post<SingleResponse<FacultyAttendanceRecord>>("/faculty/attendance", data);
+    return response.data;
+  },
+
+  getDailyAttendance: async (
+    params?: DailyAttendanceParams
+  ): Promise<SingleResponse<FacultyDailyAttendanceResponse>> => {
+    const response = await api.get<SingleResponse<FacultyDailyAttendanceResponse>>("/faculty/daily-attendance", {
+      params,
+    });
+    return response.data;
+  },
+
+  saveDailyAttendance: async (
+    data: BulkDailyAttendancePayload
+  ): Promise<SingleResponse<{ date: string; savedCount: number; records: unknown[] }>> => {
+    const response = await api.put<SingleResponse<{ date: string; savedCount: number; records: unknown[] }>>(
+      "/faculty/daily-attendance",
+      data
+    );
     return response.data;
   },
 };

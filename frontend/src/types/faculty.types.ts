@@ -251,6 +251,69 @@ export interface MarkAttendancePayload {
   logoutAt?: string;
 }
 
+// ─── Faculty Daily Attendance (desk) ────────────────────────────────────
+
+export type FacultyDailyAttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE" | "WEEKLY_OFF";
+
+export interface FacultyDailyAttendanceRecord {
+  id: string;
+  facultyId: string;
+  date: string;
+  status: FacultyDailyAttendanceStatus;
+  inTime: string | null;
+  outTime: string | null;
+  comments: string | null;
+  markedBy?: string | null;
+  updatedAt?: string;
+}
+
+export interface FacultyDailyAttendanceDeskRow {
+  facultyId: string;
+  employeeCode: string;
+  designation: string | null;
+  specialization: string | null;
+  status: FacultyStatus;
+  user: { id: string; name: string | null; email: string | null; phone: string | null };
+  branch: FacultyBranch | null;
+  attendance: FacultyDailyAttendanceRecord | null;
+}
+
+export interface FacultyDailyAttendanceDeskResponse {
+  mode: "desk";
+  date: string;
+  records: FacultyDailyAttendanceDeskRow[];
+}
+
+export interface FacultyDailyAttendanceHistoryResponse {
+  mode: "history";
+  facultyId: string;
+  attendancePct: number;
+  records: FacultyDailyAttendanceRecord[];
+}
+
+export type FacultyDailyAttendanceResponse =
+  | FacultyDailyAttendanceDeskResponse
+  | FacultyDailyAttendanceHistoryResponse;
+
+export interface DailyAttendanceParams {
+  date?: string;
+  branchId?: string;
+  facultyId?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BulkDailyAttendancePayload {
+  date: string;
+  records: Array<{
+    facultyId: string;
+    status: FacultyDailyAttendanceStatus;
+    inTime?: string | null;
+    outTime?: string | null;
+    comments?: string | null;
+  }>;
+}
+
 // ─── Paginated Response ─────────────────────────────────────────────────
 
 export interface PaginationMeta {

@@ -10,6 +10,8 @@ import {
   myStudentsQuerySchema,
   assignCourseSchema,
   markAttendanceSchema,
+  dailyAttendanceQuerySchema,
+  bulkDailyAttendanceSchema,
 } from "./faculty.validation";
 
 const router = Router();
@@ -61,6 +63,20 @@ router.post(
   requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
   validate(markAttendanceSchema),
   controller.markAttendance
+);
+
+router.get(
+  "/daily-attendance",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  validate(dailyAttendanceQuerySchema, "query"),
+  controller.getDailyAttendance
+);
+
+router.put(
+  "/daily-attendance",
+  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  validate(bulkDailyAttendanceSchema),
+  controller.saveDailyAttendance
 );
 
 router.get(

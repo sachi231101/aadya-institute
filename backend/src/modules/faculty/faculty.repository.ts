@@ -611,6 +611,157 @@ export const upsertFacultyAttendance = (data: {
     },
   });
 
+// ─── Faculty Daily Attendance (desk) ────────────────────────────────────
+
+export type FacultyDailyAttendanceStatus =
+  | "PRESENT"
+  | "ABSENT"
+  | "LEAVE"
+  | "WEEKLY_OFF";
+
+export interface FindDailyAttendanceParams {
+  instituteId: string;
+  branchId?: string;
+  facultyId?: string;
+  date: Date;
+}
+
+/** Parse YYYY-MM-DD as UTC date-only for @db.Date columns. */
+export const parseDateOnly = (dateStr: string): Date => {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d));
+};
+
+export const findFacultyForDailyAttendance = (params: {
+  instituteId: string;
+  branchId?: string;
+  facultyId?: string;
+}) => {
+  const where: Record<string, unknown> = {
+    instituteId: params.instituteId,
+    status: { in: ["ACTIVE", "ON_LEAVE"] },
+  };
+  if (params.branchId) where.branchId = params.branchId;
+  if (params.facultyId) where.id = params.facultyId;
+
+  return prisma.faculty.findMany({
+    where,
+    include: {
+      user: { select: { id: true, name: true, email: true, phone: true } },
+      branch: { select: { id: true, name: true, code: true } },
+    },
+    orderBy: { employeeCode: "asc" },
+  });
+};
+
+export const findDailyAttendanceByDate = (params: FindDailyAttendanceParams) => {
+  const facultyWhere: Record<string, unknown> = {
+    instituteId: params.instituteId,
+  };
+  if (params.branchId) facultyWhere.branchId = params.branchId;
+  if (params.facultyId) facultyWhere.id = params.facultyId;
+
+  return prisma.facultyDailyAttendance.findMany({
+    where: {
+      date: params.date,
+      faculty: facultyWhere,
+      ...(params.facultyId ? { facultyId: params.facultyId } : {}),
+    },
+  });
+};
+
+export const findDailyAttendanceForFaculty = (params: {
+  facultyId: string;
+  from?: Date;
+  to?: Date;
+}) => {
+  const dateFilter: { gte?: Date; lte?: Date } = {};
+  if (params.from) dateFilter.gte = params.from;
+  if (params.to) dateFilter.lte = params.to;
+
+  return prisma.facultyDailyAttendance.findMany({
+    where: {
+      facultyId: params.facultyId,
+      ...(params.from || params.to ? { date: dateFilter } : {}),
+    },
+    orderBy: { date: "desc" },
+  });
+};
+
+export const bulkUpsertDailyAttendance = async (
+  date: Date,
+  records: Array<{
+    facultyId: string;
+    status: FacultyDailyAttendanceStatus;
+    inTime: string | null;
+    outTime: string | null;
+    comments: string | null;
+    markedBy?: string | null;
+  }>
+) => {
+  return prisma.$transaction(
+    records.map((r) =>
+      prisma.facultyDailyAttendance.upsert({
+        where: {
+          facultyId_date: {
+            facultyId: r.facultyId,
+            date,
+          },
+        },
+        create: {
+          facultyId: r.facultyId,
+          date,
+          status: r.status,
+          inTime: r.inTime,
+          outTime: r.outTime,
+          comments: r.comments,
+          markedBy: r.markedBy ?? null,
+        },
+        update: {
+          status: r.status,
+          inTime: r.inTime,
+          outTime: r.outTime,
+          comments: r.comments,
+          markedBy: r.markedBy ?? null,
+        },
+      })
+    )
+  );
+};
+
+/** Aggregate PRESENT/(PRESENT+ABSENT+LEAVE) per faculty; WEEKLY_OFF excluded. */
+export const getFacultyDailyAttendancePctMap = async (
+  facultyIds: string[]
+): Promise<Map<string, number>> => {
+  const result = new Map<string, number>();
+  if (facultyIds.length === 0) return result;
+
+  const grouped = await prisma.facultyDailyAttendance.groupBy({
+    by: ["facultyId", "status"],
+    where: {
+      facultyId: { in: facultyIds },
+      status: { in: ["PRESENT", "ABSENT", "LEAVE"] },
+    },
+    _count: { _all: true },
+  });
+
+  const counts = new Map<string, { present: number; counted: number }>();
+  for (const row of grouped) {
+    const current = counts.get(row.facultyId) || { present: 0, counted: 0 };
+    current.counted += row._count._all;
+    if (row.status === "PRESENT") current.present += row._count._all;
+    counts.set(row.facultyId, current);
+  }
+
+  for (const [facultyId, c] of counts) {
+    result.set(facultyId, c.counted > 0 ? Math.round((c.present / c.counted) * 100) : 0);
+  }
+  for (const id of facultyIds) {
+    if (!result.has(id)) result.set(id, 0);
+  }
+  return result;
+};
+
 // ─── Faculty Dashboard / My Students ────────────────────────────────────
 
 const sessionCardSelect = {

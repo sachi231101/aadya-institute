@@ -132,34 +132,28 @@ export const AddFaculty: React.FC = () => {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-3">
         <Button
           variant="outline"
           size="icon"
+          className="h-9 w-9 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
           onClick={() => navigate(`${basePath}/faculty/all`)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Add New Faculty</h2>
-          <p className="text-sm text-text-secondary">
-            Register a new professor or technical instructor. Employee Code comes from Master Setup numbering series.
-          </p>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">Add New Faculty</h1>
         </div>
       </div>
 
-      <Card className="border-border/50 shadow-sm bg-bg-primary">
-        <CardHeader className="border-b border-border/50 pb-4">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <UserPlus className="h-5 w-5 text-[#1769AA]" />
+      <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
+        <CardHeader className="border-b border-border/80 py-3.5 px-6">
+          <CardTitle className="text-xs font-bold uppercase tracking-wider text-foreground">
             Faculty Information
           </CardTitle>
-          <CardDescription>
-            Employee Code is auto-generated from the EMPLOYEE numbering series in Master Setup.
-          </CardDescription>
         </CardHeader>
 
-        <CardContent className="pt-6">
+        <CardContent className="p-6">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {form.formState.errors.root && (
@@ -179,39 +173,28 @@ export const AddFaculty: React.FC = () => {
                         <button
                           type="button"
                           onClick={generateNewCode}
-                          className="inline-flex items-center gap-1 text-[10px] font-bold text-[#1769AA] hover:underline"
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
                         >
                           <RefreshCw className="h-3 w-3" />
-                          Refresh from Master
+                          Refresh
                         </button>
                       </FormLabel>
                       <FormControl>
                         <Input
                           placeholder={
                             isEmployeePreviewLoading
-                              ? "Loading next number from Master..."
+                              ? "Loading next number..."
                               : employeeSeriesData?.data?.preview ||
-                                "Configure EMPLOYEE series in Master Setup"
+                                "EMPLOYEE code"
                           }
                           {...field}
                           onChange={(e) => {
                             setEmployeeCodeManuallyEdited(true);
                             field.onChange(e);
                           }}
-                          className="font-mono font-medium text-slate-800 uppercase"
+                          className="font-mono font-medium uppercase"
                         />
                       </FormControl>
-                      {employeeSeriesData?.data?.preview && (
-                        <p className="text-[10px] text-slate-500 font-medium">
-                          Next from Master:{" "}
-                          <span className="font-mono text-[#1769AA]">
-                            {employeeSeriesData.data.preview}
-                          </span>
-                          {" "}
-                          (counter #{employeeSeriesData.data.currentSequence} → #
-                          {employeeSeriesData.data.nextSequence})
-                        </p>
-                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -266,7 +249,7 @@ export const AddFaculty: React.FC = () => {
                     <FormItem>
                       <FormLabel>Password *</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="Must meet security policy" {...field} />
+                        <Input type="password" placeholder="Enter password" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -291,7 +274,7 @@ export const AddFaculty: React.FC = () => {
                           />
                         ) : (
                           <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-[#1769AA] focus:ring-offset-2"
+                            className="flex h-10 w-full items-center justify-between rounded-lg border border-input bg-background px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
                             {...field}
                             disabled={branchesLoading}
                           >
@@ -364,32 +347,31 @@ export const AddFaculty: React.FC = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-6 border-t border-border/50">
+              <div className="flex items-center justify-end gap-2.5 pt-4 border-t border-border/80">
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => navigate(`${basePath}/faculty/all`)}
                   disabled={createMutation.isPending}
-                  className="px-5 font-medium transition-colors"
+                  className="h-9 px-4 text-xs font-semibold rounded-lg"
                 >
                   Cancel
                 </Button>
 
                 <Button
                   type="submit"
+                  size="sm"
                   disabled={createMutation.isPending}
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-medium px-6 py-2 shadow-sm transition-colors flex items-center gap-2"
+                  className="bg-primary hover:bg-primary/90 text-white h-9 px-5 text-xs font-semibold rounded-lg shadow-xs flex items-center gap-1.5"
                 >
                   {createMutation.isPending ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
                       <span>Saving...</span>
                     </>
                   ) : (
-                    <>
-                      <Save className="h-4 w-4" />
-                      <span>Save Faculty</span>
-                    </>
+                    <span>Save Faculty</span>
                   )}
                 </Button>
               </div>

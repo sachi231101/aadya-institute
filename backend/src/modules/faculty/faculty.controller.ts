@@ -69,6 +69,20 @@ export const markAttendance = async (req: AuthenticatedRequest, res: Response, n
   } catch (err) { next(err); }
 };
 
+export const getDailyAttendance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.getDailyAttendance(toAuthUser(req), req.query as any);
+    sendSuccess(res, data, 200, "Faculty daily attendance retrieved successfully");
+  } catch (err) { next(err); }
+};
+
+export const saveDailyAttendance = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
+  try {
+    const data = await service.saveDailyAttendance(toAuthUser(req), req.body);
+    sendSuccess(res, data, 200, "Faculty daily attendance saved successfully");
+  } catch (err) { next(err); }
+};
+
 export const getMyDashboard = async (req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> => {
   try {
     const data = await service.getMyDashboard(toAuthUser(req));

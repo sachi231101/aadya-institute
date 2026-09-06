@@ -210,18 +210,55 @@ export class ReportRepository {
       },
       include: {
         user: { select: { name: true, email: true } },
-        batches: { select: { id: true, name: true } },
+        branch: { select: { id: true, name: true, code: true } },
+        batches: {
+          where: { status: { in: ["ACTIVE", "UPCOMING"] } },
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { enrollments: true } },
+          },
+        },
         batchCourses: {
           where: { status: "ACTIVE" },
-          select: { batchId: true, batch: { select: { id: true, name: true, status: true } } },
+          select: {
+            batchId: true,
+            batch: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                _count: { select: { enrollments: true } },
+              },
+            },
+          },
         },
-        classSessions: { select: { id: true, startTime: true, endTime: true, status: true } },
+        classSessions: {
+          where: { status: "ACTIVE" },
+          select: { id: true, startTime: true, endTime: true, status: true, scheduledDate: true },
+        },
       },
     });
     const totalActiveFaculty = faculty.filter((f) => f.status === "ACTIVE").length;
 
-    // Fetch Feedback ratings from database
-    const feedbacks = await prisma.feedback.findMany({
+    // Fetch Feedback ratings from database — per faculty
+    const feedbacksPerFaculty = await prisma.feedback.groupBy({
+      by: ["facultyId"],
+      where: {
+        facultyId: { in: faculty.map((f) => f.id) },
+      },
+      _avg: { rating: true },
+      _count: { rating: true },
+      _sum: { rating: true },
+    });
+    const feedbackMap = new Map(
+      feedbacksPerFaculty
+        .filter((fb) => fb.facultyId !== null)
+        .map((fb) => [fb.facultyId!, fb])
+    );
+
+    // Also compute global avg for summary
+    const allFeedbacks = await prisma.feedback.findMany({
       where: {
         classSession: {
           batch: {
@@ -239,7 +276,7 @@ export class ReportRepository {
     let rating3 = 0;
     let ratingBelow3 = 0;
 
-    feedbacks.forEach((fb) => {
+    allFeedbacks.forEach((fb) => {
       totalRatingSum += fb.rating;
       if (fb.rating === 5) rating5++;
       else if (fb.rating === 4) rating4++;
@@ -247,7 +284,7 @@ export class ReportRepository {
       else ratingBelow3++;
     });
 
-    const avgStudentRating = feedbacks.length > 0 ? Number((totalRatingSum / feedbacks.length).toFixed(1)) : 0;
+    const avgStudentRating = allFeedbacks.length > 0 ? Number((totalRatingSum / allFeedbacks.length).toFixed(1)) : 0;
 
     // Fetch Class Sessions for Session Compliance calculation
     const allClassSessions = await prisma.classSession.findMany({
@@ -258,7 +295,6 @@ export class ReportRepository {
         },
       },
       select: { id: true, status: true, sessionStatus: true, startTime: true, endTime: true },
-
     });
 
     const completedSessions = allClassSessions.filter((cs) => cs.sessionStatus === "COMPLETED").length;
@@ -266,8 +302,88 @@ export class ReportRepository {
     const sessionCompliancePercentage =
       allClassSessions.length > 0 ? Math.round((completedSessions / allClassSessions.length) * 100) : 0;
 
+    // Collect all unique batch IDs across faculty for student attendance computation
+    const allFacultyBatchIds = new Set<string>();
+    faculty.forEach((f) => {
+      f.batches.forEach((b) => allFacultyBatchIds.add(b.id));
+      f.batchCourses.forEach((bc) => allFacultyBatchIds.add(bc.batchId));
+    });
+
+    // Fetch student attendance stats per batch (for avgStudentAttendancePct)
+    const batchAttendanceMap = new Map<string, { present: number; total: number }>();
+    if (allFacultyBatchIds.size > 0) {
+      const attendanceStats = await prisma.studentAttendance.groupBy({
+        by: ["classSessionId", "status"],
+        where: {
+          classSession: {
+            batchId: { in: Array.from(allFacultyBatchIds) },
+            status: "ACTIVE",
+          },
+        },
+        _count: { _all: true },
+      });
+
+      // Map classSessionId -> batchId
+      const sessionBatchMap = new Map<string, string>();
+      const sessionsForAttendance = await prisma.classSession.findMany({
+        where: {
+          batchId: { in: Array.from(allFacultyBatchIds) },
+          status: "ACTIVE",
+        },
+        select: { id: true, batchId: true },
+      });
+      sessionsForAttendance.forEach((s) => sessionBatchMap.set(s.id, s.batchId));
+
+      attendanceStats.forEach((stat) => {
+        const batchId = sessionBatchMap.get(stat.classSessionId);
+        if (!batchId) return;
+        const current = batchAttendanceMap.get(batchId) || { present: 0, total: 0 };
+        current.total += stat._count._all;
+        if (stat.status === "PRESENT") {
+          current.present += stat._count._all;
+        }
+        batchAttendanceMap.set(batchId, current);
+      });
+    }
+
+    // Fetch faculty daily attendance % (PRESENT / PRESENT+ABSENT+LEAVE)
+    const facultyDailyPctMap = new Map<string, number>();
+    if (faculty.length > 0) {
+      const dailyGrouped = await prisma.facultyDailyAttendance.groupBy({
+        by: ["facultyId", "status"],
+        where: {
+          facultyId: { in: faculty.map((f) => f.id) },
+          status: { in: ["PRESENT", "ABSENT", "LEAVE"] },
+        },
+        _count: { _all: true },
+      });
+      const dailyCounts = new Map<string, { present: number; counted: number }>();
+      for (const row of dailyGrouped) {
+        const current = dailyCounts.get(row.facultyId) || { present: 0, counted: 0 };
+        current.counted += row._count._all;
+        if (row.status === "PRESENT") current.present += row._count._all;
+        dailyCounts.set(row.facultyId, current);
+      }
+      for (const f of faculty) {
+        const c = dailyCounts.get(f.id);
+        facultyDailyPctMap.set(
+          f.id,
+          c && c.counted > 0 ? Math.round((c.present / c.counted) * 100) : 0
+        );
+      }
+    }
+
     let totalMonthlyTeachingHours = 0;
     const workloadList: { name: string; hours: number; batches: number }[] = [];
+
+    // Compute weekly hours based on sessions in the current week
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - ((now.getDay() + 6) % 7)); // Monday
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
 
     const facultyRows = faculty.map((f) => {
       const name = f.user?.name || `Faculty ${f.employeeCode}`;
@@ -275,22 +391,69 @@ export class ReportRepository {
       f.batches.forEach((b) => batchIds.add(b.id));
       f.batchCourses.forEach((bc) => batchIds.add(bc.batchId));
       const batchesCount = batchIds.size;
+
+      // Total students across all assigned batches (deduplicated via batch)
+      let totalStudents = 0;
+      const countedBatchIds = new Set<string>();
+      f.batches.forEach((b) => {
+        if (!countedBatchIds.has(b.id)) {
+          totalStudents += b._count.enrollments;
+          countedBatchIds.add(b.id);
+        }
+      });
+      f.batchCourses.forEach((bc) => {
+        if (!countedBatchIds.has(bc.batchId) && bc.batch) {
+          totalStudents += bc.batch._count.enrollments;
+          countedBatchIds.add(bc.batchId);
+        }
+      });
+
+      // Average student attendance percentage across assigned batches
+      let totalPresent = 0;
+      let totalAttendanceRecords = 0;
+      batchIds.forEach((bId) => {
+        const stats = batchAttendanceMap.get(bId);
+        if (stats) {
+          totalPresent += stats.present;
+          totalAttendanceRecords += stats.total;
+        }
+      });
+      const avgStudentAttendancePct =
+        totalAttendanceRecords > 0 ? Math.round((totalPresent / totalAttendanceRecords) * 100) : 0;
+      const facultyAttendancePct = facultyDailyPctMap.get(f.id) ?? 0;
+
+      // Compute total teaching hours and weekly workload
       let hours = 0;
+      let weeklyHours = 0;
       f.classSessions.forEach((cs) => {
+        let sessionHours = 2; // default
         if (cs.startTime && cs.endTime) {
           const start = new Date(cs.startTime).getTime();
           const end = new Date(cs.endTime).getTime();
           if (!isNaN(start) && !isNaN(end) && end > start) {
-            hours += (end - start) / (1000 * 60 * 60);
-          } else {
-            hours += 2;
+            sessionHours = (end - start) / (1000 * 60 * 60);
           }
-        } else {
-          hours += 2;
+        }
+        hours += sessionHours;
+        // Check if session is in the current week for weekly workload
+        if (cs.scheduledDate) {
+          const sessionDate = new Date(cs.scheduledDate);
+          if (sessionDate >= weekStart && sessionDate <= weekEnd) {
+            weeklyHours += sessionHours;
+          }
         }
       });
       hours = Math.round(hours);
+      weeklyHours = Math.round(weeklyHours);
+      // If no sessions this week, estimate from total / 4 weeks
+      const workloadHoursPerWeek = weeklyHours > 0 ? weeklyHours : (hours > 0 ? Math.round(hours / 4) : 0);
       totalMonthlyTeachingHours += hours;
+
+      // Faculty-specific rating
+      const facultyFeedback = feedbackMap.get(f.id);
+      const facultyAvgRating = facultyFeedback?._avg?.rating
+        ? Number(facultyFeedback._avg.rating.toFixed(1))
+        : 0;
 
       workloadList.push({
         name,
@@ -301,11 +464,17 @@ export class ReportRepository {
       return {
         id: f.id,
         facultyCode: f.employeeCode,
+        employeeCode: f.employeeCode,
         name,
+        branchName: f.branch?.name || "Unknown",
         specialization: f.specialization || "Unspecified",
         assignedBatchesCount: batchesCount,
+        totalStudents,
+        avgStudentAttendancePct,
+        facultyAttendancePct,
         teachingHours: hours,
-        avgRating: avgStudentRating,
+        workloadHoursPerWeek,
+        avgRating: facultyAvgRating,
         status: f.status,
       };
     });
