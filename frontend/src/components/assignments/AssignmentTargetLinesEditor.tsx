@@ -61,7 +61,7 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
     queryFn: () => coursesApi.getAll({ status: "ACTIVE" }),
   });
 
-  const { data: batchesRes } = useQuery({
+  const { data: batchesRes, isLoading: batchesLoading } = useQuery({
     queryKey: ["batches", "assignment-targets", facultyId || "all"],
     queryFn: () => batchesApi.getAll(),
   });
@@ -69,7 +69,9 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
   const batches = useMemo(() => {
     const all = (batchesRes?.data || []) as BatchData[];
     if (!facultyId) return all;
-    return all.filter((b) => batchIncludesFaculty(b, facultyId));
+    // Backend already scopes faculty lists; keep a defensive client filter that
+    // also recognizes schedule-based teaching links.
+    return all.filter((b) => batchIncludesFaculty(b as never, facultyId));
   }, [batchesRes, facultyId]);
 
   const courses = useMemo(() => {
@@ -83,7 +85,9 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
       });
       if (b.course?.id) allowedCourseIds.add(b.course.id);
     }
-    if (allowedCourseIds.size === 0) return all;
+    // Do not fall back to every institute course — that produces course options
+    // with zero matching batches (the faculty create-assignment failure mode).
+    if (allowedCourseIds.size === 0) return [];
     return all.filter((c) => allowedCourseIds.has(c.id));
   }, [coursesRes, batches, facultyId]);
 
@@ -96,8 +100,16 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
     onChange(lines.filter((l) => l.key !== key));
   };
 
+  const noFacultyBatches = Boolean(facultyId) && !batchesLoading && batches.length === 0;
+
   return (
     <div className="space-y-3">
+      {noFacultyBatches && (
+        <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+          No batches are linked to your faculty profile yet. Ask admin to assign you as batch
+          faculty (or on a batch course/schedule), then refresh this page.
+        </p>
+      )}
       <div className="hidden md:grid grid-cols-12 gap-2 text-xs font-semibold text-text-secondary px-1">
         <div className="col-span-3">Course *</div>
         <div className="col-span-3">Module</div>
@@ -124,6 +136,7 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
         size="sm"
         className="text-[#1769AA]"
         onClick={() => onChange([...lines, createEmptyTargetLine()])}
+        disabled={noFacultyBatches}
       >
         <Plus className="h-4 w-4 mr-1" /> Add target row
       </Button>
@@ -215,12 +228,20 @@ const TargetLineRow: React.FC<{
           className="w-full h-10 px-2 border rounded-md text-sm bg-background disabled:opacity-50"
         >
           <option value="">Select batch</option>
+          {filteredBatches.length === 0 && line.courseId ? (
+            <option value="" disabled>
+              No batch for this course
+            </option>
+          ) : null}
           {filteredBatches.map((b) => (
             <option key={b.id} value={b.id}>
               {b.name} ({b.code}) — {formatBatchSubjectNames(b)}
             </option>
           ))}
         </select>
+        {line.courseId && filteredBatches.length === 0 && (
+          <p className="text-[11px] text-amber-700 mt-1">No assigned batch matches this course.</p>
+        )}
       </div>
       <div className="md:col-span-1 flex items-center justify-end">
         <Button

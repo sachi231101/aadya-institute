@@ -24,7 +24,7 @@ const userInclude = {
   branchAccesses: { select: { branchId: true } },
 };
 
-export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
+export const findUsersByEmailOrPhone = async (emailOrPhone: string) => {
   const trimmed = emailOrPhone.trim();
 
   // 1. Check if identifier matches a student's studentCode or admissionNo
@@ -43,22 +43,23 @@ export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
   });
 
   if (student?.user && student.user.status === "ACTIVE") {
-    // Ensure STUDENT role is primary when logging in with student identifier
     const sortedRoles = [...(student.user.userRoles || [])].sort((a: any, b: any) => {
       if (a.role?.name === "STUDENT") return -1;
       if (b.role?.name === "STUDENT") return 1;
       return 0;
     });
 
-    return {
-      ...student.user,
-      userRoles: sortedRoles,
-      student: { id: student.id },
-    };
+    return [
+      {
+        ...student.user,
+        userRoles: sortedRoles,
+        student: { id: student.id },
+      },
+    ];
   }
 
-  // 2. Otherwise search user by email or phone
-  const users = await prisma.user.findMany({
+  // 2. Otherwise search users by email or phone (duplicates possible in dev data)
+  return prisma.user.findMany({
     where: {
       OR: [
         { email: { equals: trimmed, mode: "insensitive" } },
@@ -69,7 +70,10 @@ export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
     include: userInclude,
     orderBy: { updatedAt: "desc" },
   });
+};
 
+export const findUserByEmailOrPhone = async (emailOrPhone: string) => {
+  const users = await findUsersByEmailOrPhone(emailOrPhone);
   if (users.length === 0) return null;
 
   const withProfile = users.find((u) => u.student != null || u.faculty != null);

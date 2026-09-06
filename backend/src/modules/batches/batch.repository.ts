@@ -490,6 +490,7 @@ export const findAllBatches = async (
           { facultyId: filters.facultyId },
           { batchCourses: { some: { facultyId: filters.facultyId } } },
           { schedules: { some: { facultyId: filters.facultyId } } },
+          { classSessions: { some: { facultyId: filters.facultyId, status: "ACTIVE" } } },
         ],
       },
     ];

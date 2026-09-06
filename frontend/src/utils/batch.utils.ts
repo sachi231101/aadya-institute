@@ -23,6 +23,10 @@ export type BatchLike = {
     user?: { name?: string; email?: string | null; phone?: string | null };
   } | null;
   batchCourses?: BatchCourseLike[];
+  schedules?: Array<{
+    facultyId?: string | null;
+    faculty?: { id: string } | null;
+  }>;
 };
 
 export const getBatchCourseRows = (batch: BatchLike): BatchCourseLike[] => {
@@ -51,7 +55,15 @@ export const batchIncludesFaculty = (batch: BatchLike, facultyId: string): boole
   batch.facultyId === facultyId ||
   batch.faculty?.id === facultyId ||
   (batch.batchCourses?.some(
-    (bc) => bc.facultyId === facultyId || bc.faculty?.id === facultyId
+    (bc) =>
+      bc.facultyId === facultyId ||
+      bc.faculty?.id === facultyId ||
+      (bc as { schedules?: Array<{ facultyId?: string | null; faculty?: { id: string } | null }> }).schedules?.some(
+        (s) => s.facultyId === facultyId || s.faculty?.id === facultyId
+      )
+  ) ?? false) ||
+  (batch.schedules?.some(
+    (s) => s.facultyId === facultyId || s.faculty?.id === facultyId
   ) ?? false);
 
 export const getCourseNameInBatch = (batch: BatchLike, courseId: string): string | undefined => {
