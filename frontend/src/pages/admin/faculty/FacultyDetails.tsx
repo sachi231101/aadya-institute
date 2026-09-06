@@ -19,10 +19,11 @@ import {
   BarChart3,
   Users
 } from "lucide-react";
-import { useFacultyMember, useFacultyCourses, useFacultyAttendance } from "../../../hooks/useFaculty";
+import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "../../../hooks/useFaculty";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import type { FacultyDailyAttendanceHistoryResponse, FacultyDailyAttendanceStatus } from "@/types/faculty.types";
 import {
   ResponsiveContainer,
   LineChart,
@@ -33,14 +34,52 @@ import {
   Tooltip as RechartsTooltip,
 } from "recharts";
 
-const ATTENDANCE_TREND = [
-  { name: "Mar", val: 88 },
-  { name: "Apr", val: 92 },
-  { name: "May", val: 90 },
-  { name: "Jun", val: 94 },
-  { name: "Jul", val: 91 },
-  { name: "Aug", val: 95 },
-];
+const statusBadgeClass = (status: FacultyDailyAttendanceStatus) => {
+  switch (status) {
+    case "PRESENT":
+      return "bg-emerald-600 text-white font-bold";
+    case "ABSENT":
+      return "bg-rose-600 text-white font-bold";
+    case "LEAVE":
+      return "bg-amber-500 text-white font-bold";
+    case "WEEKLY_OFF":
+      return "bg-slate-500 text-white font-bold";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+};
+
+const buildAttendanceTrend = (
+  records: Array<{ date: string; status: FacultyDailyAttendanceStatus }>
+) => {
+  const months: { key: string; name: string; present: number; counted: number }[] = [];
+  const now = new Date();
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    months.push({
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      name: d.toLocaleString("en-US", { month: "short" }),
+      present: 0,
+      counted: 0,
+    });
+  }
+
+  for (const r of records) {
+    const key = r.date.slice(0, 7);
+    const bucket = months.find((m) => m.key === key);
+    if (!bucket) continue;
+    if (r.status === "WEEKLY_OFF") continue;
+    if (r.status === "PRESENT" || r.status === "ABSENT" || r.status === "LEAVE") {
+      bucket.counted += 1;
+      if (r.status === "PRESENT") bucket.present += 1;
+    }
+  }
+
+  return months.map((m) => ({
+    name: m.name,
+    val: m.counted > 0 ? Math.round((m.present / m.counted) * 100) : 0,
+  }));
+};
 
 const getWorkloadState = (hrs: number) => {
   if (hrs > 30) return { label: "High", color: "bg-rose-500", text: "text-rose-500", pct: Math.min(100, Math.round((hrs / 35) * 100)) };
@@ -59,11 +98,18 @@ export const FacultyDetails: React.FC = () => {
   // Fetch from backend
   const { data: facultyResponse, isLoading, isError } = useFacultyMember(id);
   const { data: coursesResponse } = useFacultyCourses({ facultyId: id, limit: 50 });
-  const { data: attendanceResponse } = useFacultyAttendance({ facultyId: id, limit: 50 });
+  const { data: dailyAttendanceResponse } = useFacultyDailyAttendance(
+    { facultyId: id },
+    !!id
+  );
 
   const backendFaculty = facultyResponse?.data;
   const facultyAssignments = coursesResponse?.data ?? [];
-  const facultyAttendance = attendanceResponse?.data ?? [];
+  const dailyHistory = dailyAttendanceResponse?.data as FacultyDailyAttendanceHistoryResponse | undefined;
+  const facultyDailyAttendance =
+    dailyHistory?.mode === "history" ? dailyHistory.records : [];
+  const attendanceRate =
+    dailyHistory?.mode === "history" ? dailyHistory.attendancePct : 0;
 
   if (isLoading) {
     return (
@@ -90,9 +136,6 @@ export const FacultyDetails: React.FC = () => {
   }
 
   const assignedStudentsCount = facultyAssignments.reduce((sum, a: any) => sum + (a._count?.enrollments ?? a.enrollments?.length ?? 0), 0);
-  const totalClasses = facultyAttendance.length;
-  const presentClasses = facultyAttendance.filter((a: any) => a.status === "PRESENT").length;
-  const attendanceRate = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 100;
 
   // Unified real faculty data object
   const faculty = {
@@ -131,26 +174,20 @@ export const FacultyDetails: React.FC = () => {
   };
 
   const workloadState = getWorkloadState(faculty.workloadHrs);
+  const attendanceTrend = buildAttendanceTrend(facultyDailyAttendance);
+  const hasTrendData = attendanceTrend.some((m) => m.val > 0);
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("en-IN", {
+    return new Date(dateStr.includes("T") ? dateStr : dateStr + "T00:00:00").toLocaleDateString("en-IN", {
       year: "numeric",
       month: "short",
       day: "numeric",
     });
   };
 
-  const formatTime = (dateStr: string | null) => {
-    if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleTimeString("en-IN", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
   return (
     <div className="space-y-6 max-w-[1500px] mx-auto pb-12 animate-in fade-in duration-300">
-      {/* ─── 1. TOP BREADCRUMB & HEADER ───────────────────────────────── */}
+      {/* ─── 1. TOP HEADER ───────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <Button
@@ -163,15 +200,11 @@ export const FacultyDetails: React.FC = () => {
           </Button>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                Faculty Profile & Performance Hub
-              </span>
-              <span className="text-muted-foreground/40">•</span>
-              <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+              <h1 className="text-xl font-bold tracking-tight text-foreground">{faculty.name}</h1>
+              <span className="font-mono text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
                 {faculty.employeeCode}
               </span>
             </div>
-            <h1 className="text-2xl font-black tracking-tight text-foreground mt-0.5">{faculty.name}</h1>
           </div>
         </div>
 
@@ -179,42 +212,45 @@ export const FacultyDetails: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="outline"
+            size="sm"
             onClick={() => navigate(`/admin/faculty/${faculty.id}/edit`)}
-            className="border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold h-9 rounded-xl cursor-pointer shadow-2xs"
+            className="rounded-xl shadow-2xs text-xs font-semibold h-9 cursor-pointer"
           >
             Edit Profile
           </Button>
           <Button
             variant="outline"
+            size="sm"
             onClick={() => navigate(`/admin/faculty/courses?facultyId=${faculty.id}`)}
-            className="border-border bg-card text-foreground hover:bg-muted/40 text-xs font-bold h-9 rounded-xl cursor-pointer shadow-2xs"
+            className="rounded-xl shadow-2xs text-xs font-semibold h-9 cursor-pointer"
           >
-            <BookOpen className="mr-1.5 h-4 w-4 text-primary" /> View Course Allocations
+            Course Allocations
           </Button>
           <Button
+            size="sm"
             onClick={() => alert(`Opening message composer for ${faculty.name}`)}
-            className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-9 rounded-xl shadow-xs cursor-pointer"
+            className="bg-primary hover:bg-primary/90 text-white text-xs font-semibold h-9 rounded-xl shadow-xs cursor-pointer"
           >
-            <Mail className="mr-1.5 h-4 w-4" /> Message Faculty
+            Message Faculty
           </Button>
         </div>
       </div>
 
       {/* ─── 2. HERO PROFILE BANNER ───────────────────────────────────── */}
-      <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-5">
+      <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
+        <CardContent className="p-5">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
               <img
                 src={faculty.avatar}
                 alt={faculty.name}
-                className="w-20 h-20 rounded-2xl border-2 border-border shadow-md object-cover shrink-0"
+                className="w-16 h-16 rounded-xl border border-border object-cover shrink-0"
               />
               <div>
-                <div className="flex flex-wrap items-center gap-2.5 mb-1.5">
-                  <h2 className="text-2xl font-black text-foreground">{faculty.name}</h2>
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h2 className="text-lg font-bold text-foreground">{faculty.name}</h2>
                   <span
-                    className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                    className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                       String(faculty.status).toUpperCase() === "ACTIVE"
                         ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20"
                         : "bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20"
@@ -223,78 +259,87 @@ export const FacultyDetails: React.FC = () => {
                     {faculty.status}
                   </span>
                   {faculty.rating > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
-                      <Star className="h-3.5 w-3.5 fill-current text-amber-500" /> {faculty.rating} / 5.0 Rating
+                    <span className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                      ★ {faculty.rating} / 5.0
                     </span>
                   )}
                 </div>
 
-                <p className="text-xs text-muted-foreground font-medium flex flex-wrap items-center gap-2 mb-2">
-                  <span className="font-mono font-bold text-foreground">{faculty.employeeCode}</span>
-                  <span>•</span>
-                  <span className="text-primary font-bold">{faculty.specialization}</span>
-                  <span>•</span>
-                  <span>{faculty.designation}</span>
-                  <span>•</span>
-                  <span>{faculty.qualification}</span>
-                  <span>•</span>
-                  <span className="flex items-center gap-1 text-foreground">
-                    <MapPin className="h-3 w-3 text-muted-foreground" /> {faculty.branch}
-                  </span>
+                <p className="text-xs text-muted-foreground font-medium flex flex-wrap items-center gap-2 mb-1.5">
+                  <span className="font-mono text-foreground">{faculty.employeeCode}</span>
+                  {faculty.specialization && (
+                    <>
+                      <span>•</span>
+                      <span className="text-primary font-semibold">{faculty.specialization}</span>
+                    </>
+                  )}
+                  {faculty.designation && faculty.designation !== "—" && (
+                    <>
+                      <span>•</span>
+                      <span>{faculty.designation}</span>
+                    </>
+                  )}
+                  {faculty.branch && (
+                    <>
+                      <span>•</span>
+                      <span>{faculty.branch}</span>
+                    </>
+                  )}
                 </p>
 
-                <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground font-medium">
-                  <a href={`mailto:${faculty.email}`} className="hover:text-primary flex items-center gap-1.5 transition-colors">
-                    <Mail className="h-3.5 w-3.5 text-muted-foreground" /> {faculty.email}
+                <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                  <a href={`mailto:${faculty.email}`} className="hover:text-primary transition-colors">
+                    {faculty.email}
                   </a>
-                  <span className="flex items-center gap-1.5">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" /> +91 {faculty.phone}
-                  </span>
-                  <span>•</span>
-                  <span>Teaching Exp: <strong className="text-foreground">{faculty.experience}</strong></span>
+                  {faculty.phone && (
+                    <>
+                      <span>•</span>
+                      <span>+91 {faculty.phone}</span>
+                    </>
+                  )}
+                  {faculty.experience && faculty.experience !== "—" && (
+                    <>
+                      <span>•</span>
+                      <span>{faculty.experience}</span>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="text-right shrink-0 bg-muted/40 p-3.5 rounded-xl border border-border hidden lg:block">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Academy Tenure</p>
-              <p className="text-xs font-bold text-foreground mt-1">Joined {faculty.joinDate}</p>
-              <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-0.5">Verified Instructor</p>
+            <div className="text-right shrink-0 bg-muted/30 p-3 rounded-lg border border-border/80 hidden lg:block">
+              <p className="text-xs font-semibold text-foreground">Joined {faculty.joinDate}</p>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* ─── 3. TOP KPI SNAPSHOT CARDS ────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Assigned Batches</p>
-            <h4 className="text-2xl font-black text-foreground">{faculty.batchesCount}</h4>
-            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Active ongoing</p>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="p-3.5 text-center">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Assigned Batches</p>
+            <h4 className="text-xl font-bold text-foreground mt-0.5">{faculty.batchesCount}</h4>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Students Taught</p>
-            <h4 className="text-2xl font-black text-foreground">{faculty.studentsCount}</h4>
-            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">Across batches</p>
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="p-3.5 text-center">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Students Taught</p>
+            <h4 className="text-xl font-bold text-foreground mt-0.5">{faculty.studentsCount}</h4>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Weekly Workload</p>
-            <h4 className="text-2xl font-black text-primary">
-              {faculty.workloadHrs}h <span className="text-sm font-normal text-muted-foreground">/wk</span>
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="p-3.5 text-center">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Weekly Workload</p>
+            <h4 className="text-xl font-bold text-primary mt-0.5">
+              {faculty.workloadHrs}h <span className="text-xs font-normal text-muted-foreground">/wk</span>
             </h4>
-            <p className={`text-[11px] font-bold mt-0.5 ${workloadState.text}`}>{workloadState.label} Load</p>
           </CardContent>
         </Card>
-        <Card className="border border-border shadow-xs bg-card rounded-2xl">
-          <CardContent className="p-4 text-center">
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Attendance Rate</p>
-            <h4 className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{faculty.attendance}%</h4>
-            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">This month</p>
+        <Card className="border border-border/80 shadow-2xs bg-card rounded-xl">
+          <CardContent className="p-3.5 text-center">
+            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Rate</p>
+            <h4 className="text-xl font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">{faculty.attendance}%</h4>
           </CardContent>
         </Card>
       </div>
@@ -302,25 +347,24 @@ export const FacultyDetails: React.FC = () => {
       {/* ─── 4. TAB NAVIGATION & CONTENT ──────────────────────────────── */}
       <div className="space-y-4">
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-1.5 p-1.5 bg-card border border-border rounded-2xl overflow-x-auto shadow-xs">
+        <div className="flex items-center gap-1.5 p-1 bg-muted/20 border border-border/80 rounded-xl overflow-x-auto">
           {[
-            { id: "overview", label: "Overview & Credentials", icon: Award },
-            { id: "batches", label: `Assigned Batches (${faculty.batches.length})`, icon: BookOpen },
-            { id: "performance", label: "Student Progress & Analytics", icon: MonitorPlay },
-            { id: "schedule", label: "Weekly Schedule", icon: Calendar },
-            { id: "feedback", label: `Student Reviews (${faculty.feedback.length})`, icon: Star },
-            { id: "attendance", label: `Attendance Log (${facultyAttendance.length})`, icon: Clock },
+            { id: "overview", label: "Overview" },
+            { id: "batches", label: `Batches (${faculty.batches.length})` },
+            { id: "performance", label: "Progress & Analytics" },
+            { id: "schedule", label: "Schedule" },
+            { id: "feedback", label: `Reviews (${faculty.feedback.length})` },
+            { id: "attendance", label: `Attendance (${facultyDailyAttendance.length})` },
           ].map((tab) => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-1.5 py-2 px-3.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-all whitespace-nowrap cursor-pointer ${
                 activeTab === tab.id
-                  ? "bg-primary text-white shadow-xs"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                  ? "bg-primary text-white shadow-2xs"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/40"
               }`}
             >
-              <tab.icon className="h-3.5 w-3.5" />
               {tab.label}
             </button>
           ))}
@@ -328,57 +372,57 @@ export const FacultyDetails: React.FC = () => {
 
         {/* ─── TAB 1: OVERVIEW & CREDENTIALS ──────────────────────────── */}
         {activeTab === "overview" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
-              <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
-                <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Award className="h-4 w-4 text-primary" /> Academic & Professional Credentials
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
+              <CardHeader className="bg-muted/40 border-b border-border/80 py-3 px-5">
+                <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+                  Credentials
                 </CardTitle>
               </CardHeader>
-              <CardContent className="p-6 space-y-3 text-xs">
-                <div className="flex justify-between py-2 border-b border-border/70">
-                  <span className="text-muted-foreground font-semibold">Employee ID</span>
-                  <span className="font-mono font-bold text-foreground">{faculty.employeeCode}</span>
+              <CardContent className="p-5 space-y-2.5 text-xs">
+                <div className="flex justify-between py-1.5 border-b border-border/70">
+                  <span className="text-muted-foreground font-medium">Employee ID</span>
+                  <span className="font-mono font-semibold text-foreground">{faculty.employeeCode}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-border/70">
-                  <span className="text-muted-foreground font-semibold">Assigned Branch</span>
-                  <span className="font-bold text-foreground">{faculty.branch}</span>
+                <div className="flex justify-between py-1.5 border-b border-border/70">
+                  <span className="text-muted-foreground font-medium">Branch</span>
+                  <span className="font-semibold text-foreground">{faculty.branch}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-border/70">
-                  <span className="text-muted-foreground font-semibold">Primary Specialization</span>
-                  <span className="font-bold text-primary">{faculty.specialization}</span>
+                <div className="flex justify-between py-1.5 border-b border-border/70">
+                  <span className="text-muted-foreground font-medium">Specialization</span>
+                  <span className="font-semibold text-primary">{faculty.specialization}</span>
                 </div>
-                <div className="flex justify-between py-2 border-b border-border/70">
-                  <span className="text-muted-foreground font-semibold">Teaching Experience</span>
-                  <span className="font-bold text-foreground">{faculty.experience}</span>
+                <div className="flex justify-between py-1.5 border-b border-border/70">
+                  <span className="text-muted-foreground font-medium">Experience</span>
+                  <span className="font-semibold text-foreground">{faculty.experience}</span>
                 </div>
-                <div className="flex justify-between py-2">
-                  <span className="text-muted-foreground font-semibold">Joined Academy</span>
-                  <span className="font-bold text-foreground">{faculty.joinDate}</span>
+                <div className="flex justify-between py-1.5">
+                  <span className="text-muted-foreground font-medium">Joined</span>
+                  <span className="font-semibold text-foreground">{faculty.joinDate}</span>
                 </div>
               </CardContent>
             </Card>
 
             <div className="space-y-4">
               {/* Teaching Capacity Card */}
-              <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
-                <CardHeader className="bg-muted/40 border-b border-border py-3.5 px-6">
-                  <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" /> Teaching Workload Capacity
+              <Card className="border border-border/80 shadow-2xs bg-card rounded-xl overflow-hidden">
+                <CardHeader className="bg-muted/40 border-b border-border/80 py-3 px-5">
+                  <CardTitle className="text-xs font-bold text-foreground uppercase tracking-wider">
+                    Workload Capacity
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-6 space-y-3 text-xs">
+                <CardContent className="p-5 space-y-3 text-xs">
                   <div className="flex justify-between items-center">
-                    <span className="text-muted-foreground font-semibold">Weekly Hours Scheduled</span>
-                    <span className={`font-bold ${workloadState.text}`}>{faculty.workloadHrs} Hours ({workloadState.label})</span>
+                    <span className="text-muted-foreground font-medium">Weekly Hours</span>
+                    <span className={`font-semibold ${workloadState.text}`}>{faculty.workloadHrs} Hours ({workloadState.label})</span>
                   </div>
-                  <div className="w-full bg-muted h-2.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-muted h-2 rounded-full overflow-hidden">
                     <div className={`h-full ${workloadState.color} rounded-full`} style={{ width: `${workloadState.pct}%` }} />
                   </div>
                   <div className="flex justify-between text-[10px] text-muted-foreground font-medium">
-                    <span>0 hrs</span>
+                    <span>0h</span>
                     <span>Optimal (20h)</span>
-                    <span>Max Capacity (35h)</span>
+                    <span>Max (35h)</span>
                   </div>
                 </CardContent>
               </Card>
@@ -506,30 +550,36 @@ export const FacultyDetails: React.FC = () => {
                   <TrendingUp className="h-4 w-4 text-emerald-500" /> Monthly Faculty Attendance Trend (Last 6 Months)
                 </CardTitle>
                 <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/20">
-                  +4.2% Consistency
+                  {faculty.attendance}% overall
                 </span>
               </CardHeader>
               <CardContent className="p-6">
                 <div className="h-48 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={ATTENDANCE_TREND}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/50" />
-                      <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} />
-                      <YAxis stroke="currentColor" className="text-muted-foreground" fontSize={11} domain={[70, 100]} tickLine={false} axisLine={false} unit="%" />
-                      <RechartsTooltip
-                        contentStyle={{ backgroundColor: "var(--card)", borderRadius: "12px", border: "1px solid var(--border)", color: "var(--foreground)" }}
-                        formatter={(val: any) => [`${val}%`, "Attendance"]}
-                      />
-                      <Line
-                        type="monotone"
-                        dataKey="val"
-                        stroke="#1769AA"
-                        strokeWidth={3}
-                        dot={{ r: 4, fill: "#1769AA", strokeWidth: 2, stroke: "#fff" }}
-                        activeDot={{ r: 6 }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  {hasTrendData ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={attendanceTrend}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" className="text-border/50" />
+                        <XAxis dataKey="name" stroke="currentColor" className="text-muted-foreground" fontSize={11} tickLine={false} axisLine={false} />
+                        <YAxis stroke="currentColor" className="text-muted-foreground" fontSize={11} domain={[0, 100]} tickLine={false} axisLine={false} unit="%" />
+                        <RechartsTooltip
+                          contentStyle={{ backgroundColor: "var(--card)", borderRadius: "12px", border: "1px solid var(--border)", color: "var(--foreground)" }}
+                          formatter={(val: any) => [`${val}%`, "Attendance"]}
+                        />
+                        <Line
+                          type="monotone"
+                          dataKey="val"
+                          stroke="#1769AA"
+                          strokeWidth={3}
+                          dot={{ r: 4, fill: "#1769AA", strokeWidth: 2, stroke: "#fff" }}
+                          activeDot={{ r: 6 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
+                      No daily attendance history yet for trend chart.
+                    </div>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -602,23 +652,21 @@ export const FacultyDetails: React.FC = () => {
         {activeTab === "attendance" && (
           <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
             <CardContent className="p-0">
-              {facultyAttendance.length > 0 ? (
+              {facultyDailyAttendance.length > 0 ? (
                 <div className="divide-y divide-border">
-                  {facultyAttendance.map((record) => (
+                  {facultyDailyAttendance.map((record) => (
                     <div key={record.id} className="p-4 flex justify-between items-center text-xs hover:bg-muted/30 transition-colors">
                       <div>
-                        <p className="font-bold text-foreground">{formatDate(record.classSession.scheduledDate)}</p>
+                        <p className="font-bold text-foreground">{formatDate(record.date)}</p>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {record.classSession.batch?.name} ({record.classSession.batch?.code}) • {record.classSession.startTime} – {record.classSession.endTime}
+                          {record.status === "PRESENT"
+                            ? `In: ${record.inTime || "—"} — Out: ${record.outTime || "—"}`
+                            : record.comments || record.status.replace("_", " ")}
                         </p>
                       </div>
                       <div className="flex items-center gap-4">
-                        <span className="text-muted-foreground">
-                          {record.loginAt ? `In: ${formatTime(record.loginAt)}` : "No login"}
-                          {record.logoutAt ? ` — Out: ${formatTime(record.logoutAt)}` : ""}
-                        </span>
-                        <Badge variant={record.loginAt ? "default" : "secondary"} className={record.loginAt ? "bg-emerald-600 text-white font-bold" : "bg-muted text-muted-foreground"}>
-                          {record.loginAt ? "Present" : "No Record"}
+                        <Badge className={statusBadgeClass(record.status)}>
+                          {record.status.replace("_", " ")}
                         </Badge>
                       </div>
                     </div>
@@ -626,7 +674,7 @@ export const FacultyDetails: React.FC = () => {
                 </div>
               ) : (
                 <div className="p-8 text-center text-muted-foreground text-xs">
-                  No attendance session records logged for {faculty.name} yet.
+                  No daily attendance records for {faculty.name} yet. Mark attendance from Faculty Attendance desk.
                 </div>
               )}
             </CardContent>

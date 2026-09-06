@@ -24,6 +24,9 @@ import type {
   ListFacultyQuery,
   MyStudentsQuery,
   MarkAttendanceDto,
+  BulkDailyAttendanceDto,
+  DailyAttendanceQuery,
+  FacultyDailyAttendanceStatus,
 } from "./faculty.validation";
 
 const startOfDay = (d: Date) => {
@@ -186,6 +189,7 @@ export const createFaculty = async (instituteId: string, dto: CreateFacultyDto) 
 
   await assertPasswordMeetsInstitutePolicy(instituteId, dto.password);
   const passwordHash = await hashPassword(dto.password);
+  let designation: string | undefined;
   let designationMasterId: string | undefined;
   if (dto.designationMasterId) {
     const resolved = await resolveOptionalMasterFields({
@@ -413,6 +417,193 @@ export const logFacultyAttendance = async (
     loginAt: data.loginAt ? new Date(data.loginAt) : undefined,
     logoutAt: data.logoutAt ? new Date(data.logoutAt) : undefined,
   });
+};
+
+// ─── Faculty Daily Attendance (desk) ────────────────────────────────────
+
+const normalizeDailyRecord = (
+  status: FacultyDailyAttendanceStatus,
+  inTime?: string | null,
+  outTime?: string | null,
+  comments?: string | null
+) => {
+  if (status === "PRESENT") {
+    return {
+      status,
+      inTime: inTime || "09:30",
+      outTime: outTime || "17:30",
+      comments: comments ?? null,
+    };
+  }
+  return {
+    status,
+    inTime: null,
+    outTime: null,
+    comments: comments ?? null,
+  };
+};
+
+/**
+ * GET desk attendance for a date: all in-scope faculty + that day's record (or null).
+ * Pure faculty may only fetch their own records (use facultyId or from/to range).
+ */
+export const getDailyAttendance = async (
+  currentUser: AuthUser,
+  query: DailyAttendanceQuery
+) => {
+  const scope = getBranchScopeFilter(currentUser, query.branchId);
+
+  let facultyId = query.facultyId || undefined;
+  if (isPureFaculty(currentUser.roles)) {
+    facultyId = (await requireFacultyIdIfPureFaculty(currentUser))!;
+  }
+
+  // History mode: facultyId + optional from/to (no single date desk list)
+  if (facultyId && !query.date) {
+    const from = query.from ? repo.parseDateOnly(query.from) : undefined;
+    const to = query.to ? repo.parseDateOnly(query.to) : undefined;
+    const faculty = await repo.findFacultyById(facultyId);
+    if (!faculty || faculty.instituteId !== currentUser.instituteId) {
+      throw new AppError("Faculty not found", 404);
+    }
+    if (
+      scope.branchId &&
+      faculty.branchId !== scope.branchId &&
+      !isPureFaculty(currentUser.roles)
+    ) {
+      throw new AppError("Faculty not found", 404);
+    }
+
+    const records = await repo.findDailyAttendanceForFaculty({ facultyId, from, to });
+    const present = records.filter((r) => r.status === "PRESENT").length;
+    const counted = records.filter((r) =>
+      r.status === "PRESENT" || r.status === "ABSENT" || r.status === "LEAVE"
+    ).length;
+    const attendancePct = counted > 0 ? Math.round((present / counted) * 100) : 0;
+
+    return {
+      mode: "history" as const,
+      facultyId,
+      attendancePct,
+      records: records.map((r) => ({
+        id: r.id,
+        facultyId: r.facultyId,
+        date: r.date.toISOString().slice(0, 10),
+        status: r.status,
+        inTime: r.inTime,
+        outTime: r.outTime,
+        comments: r.comments,
+        markedBy: r.markedBy,
+        updatedAt: r.updatedAt.toISOString(),
+      })),
+    };
+  }
+
+  if (!query.date) {
+    throw new AppError("date (YYYY-MM-DD) is required", 400);
+  }
+
+  const date = repo.parseDateOnly(query.date);
+  const [facultyList, attendanceRows] = await Promise.all([
+    repo.findFacultyForDailyAttendance({
+      instituteId: scope.instituteId,
+      branchId: scope.branchId,
+      facultyId,
+    }),
+    repo.findDailyAttendanceByDate({
+      instituteId: scope.instituteId,
+      branchId: scope.branchId,
+      facultyId,
+      date,
+    }),
+  ]);
+
+  const attendanceByFaculty = new Map(attendanceRows.map((r) => [r.facultyId, r]));
+
+  const records = facultyList.map((f) => {
+    const att = attendanceByFaculty.get(f.id);
+    return {
+      facultyId: f.id,
+      employeeCode: f.employeeCode,
+      designation: f.designation,
+      specialization: f.specialization,
+      status: f.status,
+      user: f.user,
+      branch: f.branch,
+      attendance: att
+        ? {
+            id: att.id,
+            date: query.date!,
+            status: att.status,
+            inTime: att.inTime,
+            outTime: att.outTime,
+            comments: att.comments,
+            markedBy: att.markedBy,
+            updatedAt: att.updatedAt.toISOString(),
+          }
+        : null,
+    };
+  });
+
+  return {
+    mode: "desk" as const,
+    date: query.date,
+    records,
+  };
+};
+
+export const saveDailyAttendance = async (
+  currentUser: AuthUser,
+  dto: BulkDailyAttendanceDto
+) => {
+  if (isPureFaculty(currentUser.roles)) {
+    throw new AppError("Faculty cannot bulk-mark daily attendance", 403);
+  }
+
+  const scope = getBranchScopeFilter(currentUser);
+  const date = repo.parseDateOnly(dto.date);
+  const facultyIds = [...new Set(dto.records.map((r) => r.facultyId))];
+
+  const facultyRows = await prisma.faculty.findMany({
+    where: {
+      id: { in: facultyIds },
+      instituteId: currentUser.instituteId,
+      ...(scope.branchId ? { branchId: scope.branchId } : {}),
+    },
+    select: { id: true, branchId: true },
+  });
+
+  if (facultyRows.length !== facultyIds.length) {
+    throw new AppError("One or more faculty members were not found or are out of scope", 400);
+  }
+
+  const normalized = dto.records.map((r) => {
+    const n = normalizeDailyRecord(r.status, r.inTime, r.outTime, r.comments);
+    return {
+      facultyId: r.facultyId,
+      status: n.status,
+      inTime: n.inTime,
+      outTime: n.outTime,
+      comments: n.comments,
+      markedBy: currentUser.id,
+    };
+  });
+
+  const saved = await repo.bulkUpsertDailyAttendance(date, normalized);
+
+  return {
+    date: dto.date,
+    savedCount: saved.length,
+    records: saved.map((r) => ({
+      id: r.id,
+      facultyId: r.facultyId,
+      date: dto.date,
+      status: r.status,
+      inTime: r.inTime,
+      outTime: r.outTime,
+      comments: r.comments,
+    })),
+  };
 };
 
 // ─── Personal Dashboard ─────────────────────────────────────────────────

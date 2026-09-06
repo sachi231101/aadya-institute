@@ -33,6 +33,13 @@ enum FacultyStatus {
   ON_LEAVE
 }
 
+enum FacultyDailyAttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  WEEKLY_OFF
+}
+
 enum AdmissionStatus {
   CONFIRMED
   PROVISIONAL
@@ -464,13 +471,14 @@ model Faculty {
   designationMaster     MasterRecord? @relation("FacultyDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
   qualificationMaster   MasterRecord? @relation("FacultyQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
 
-  batches           Batch[]
-  batchCourses      BatchCourse[]
-  batchSchedules    BatchSchedule[]
-  classSessions     ClassSession[]
-  facultyAttendance FacultyAttendance[]
-  assignments       Assignment[]
-  feedbacks         Feedback[]
+  batches                Batch[]
+  batchCourses           BatchCourse[]
+  batchSchedules         BatchSchedule[]
+  classSessions          ClassSession[]
+  facultyAttendance      FacultyAttendance[]
+  facultyDailyAttendance FacultyDailyAttendance[]
+  assignments            Assignment[]
+  feedbacks              Feedback[]
 
   @@unique([instituteId, employeeCode])
   @@index([instituteId])
@@ -860,6 +868,25 @@ model FacultyAttendance {
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
 
   @@unique([facultyId, classSessionId])
+}
+
+model FacultyDailyAttendance {
+  id        String                        @id @default(cuid())
+  facultyId String
+  date      DateTime                      @db.Date
+  status    FacultyDailyAttendanceStatus
+  inTime    String?
+  outTime   String?
+  comments  String?
+  markedBy  String?
+  createdAt DateTime                      @default(now())
+  updatedAt DateTime                      @updatedAt
+
+  faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+
+  @@unique([facultyId, date])
+  @@index([date])
+  @@index([facultyId, date])
 }
 
 model Recording {

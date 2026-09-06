@@ -23,9 +23,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
-import { useFacultyAttendance } from "@/hooks/useFaculty";
+import { useFacultyDailyAttendance } from "@/hooks/useFaculty";
+import type { FacultyDailyAttendanceHistoryResponse } from "@/types/faculty.types";
 
-type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE" | "HALF_DAY" | "HOLIDAY" | "WEEKEND" | "NOT_MARKED";
+type AttendanceStatus = "PRESENT" | "ABSENT" | "LEAVE" | "HALF_DAY" | "HOLIDAY" | "WEEKEND" | "WEEKLY_OFF" | "NOT_MARKED";
 
 interface DailyAttendanceRecord {
   id: string;
@@ -39,6 +40,18 @@ interface DailyAttendanceRecord {
   markedAt: string | null;
   remarks: string;
 }
+
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+const calcWorkingHours = (inTime: string | null, outTime: string | null): string | null => {
+  if (!inTime || !outTime) return null;
+  const [ih, im] = inTime.split(":").map(Number);
+  const [oh, om] = outTime.split(":").map(Number);
+  if ([ih, im, oh, om].some((n) => Number.isNaN(n))) return null;
+  const mins = oh * 60 + om - (ih * 60 + im);
+  if (mins <= 0) return null;
+  return `${Math.floor(mins / 60)}h ${String(mins % 60).padStart(2, "0")}m`;
+};
 
 // Generate realistic initial month records (August 2026 / Current Month)
 const generateMockAttendanceData = (): DailyAttendanceRecord[] => {
@@ -164,52 +177,55 @@ const generateMockAttendanceData = (): DailyAttendanceRecord[] => {
 
 export const FacultyAttendance: React.FC = () => {
   const { user } = useAuthStore();
-  const facultyId = (user as any)?.facultyId || user?.id;
+  const facultyId = (user as any)?.facultyId as string | undefined;
 
   // Selected Month/Year State
-  const [selectedYear, setSelectedYear] = useState<number>(2026);
-  const [selectedMonth, setSelectedMonth] = useState<number>(7); // 7 = August (0-indexed)
+  const now = new Date();
+  const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<number>(now.getMonth());
   const [timeFilter, setTimeFilter] = useState<"ALL" | "TODAY" | "THIS_WEEK" | "THIS_MONTH" | "CUSTOM">("THIS_MONTH");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<"UNIFIED" | "CALENDAR" | "TABLE">("UNIFIED");
 
-  // Query live faculty attendance from backend if available
-  const { data: apiResponse, isLoading } = useFacultyAttendance({
-    facultyId: facultyId || undefined,
-    limit: 100,
-  });
+  const monthStart = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-01`;
+  const monthEndDate = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const monthEnd = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(monthEndDate).padStart(2, "0")}`;
 
-  const mockData = useMemo(() => generateMockAttendanceData(), []);
+  const { data: apiResponse, isLoading } = useFacultyDailyAttendance(
+    {
+      facultyId: facultyId || undefined,
+      from: monthStart,
+      to: monthEnd,
+    },
+    !!facultyId
+  );
 
-  // Map API records or fallback to mock data
+  // Map API daily attendance records (no mock fallback)
   const attendanceRecords: DailyAttendanceRecord[] = useMemo(() => {
-    const rawApiList = apiResponse?.data;
-    if (rawApiList && Array.isArray(rawApiList) && rawApiList.length > 0) {
-      return rawApiList.map((rec: any, idx: number) => {
-        const schedDate = rec.classSession?.scheduledDate || new Date().toISOString();
-        const dateObj = new Date(schedDate);
-        const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-        const dayName = dayNames[dateObj.getDay()] || "Weekday";
-        const hasLogin = !!rec.loginAt;
-        const status: AttendanceStatus = hasLogin ? "PRESENT" : "ABSENT";
+    const payload = apiResponse?.data as FacultyDailyAttendanceHistoryResponse | undefined;
+    if (!payload || payload.mode !== "history") return [];
 
-        return {
-          id: rec.id || `api-att-${idx}`,
-          date: schedDate.split("T")[0],
-          dayName,
-          checkIn: rec.loginAt ? new Date(rec.loginAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
-          checkOut: rec.logoutAt ? new Date(rec.logoutAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
-          workingHours: rec.loginAt && rec.logoutAt ? "08h 30m" : rec.loginAt ? "04h 00m" : "—",
-          status,
-          markedBy: "Admin / System",
-          markedAt: rec.loginAt ? new Date(rec.loginAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—",
-          remarks: hasLogin ? "Recorded via Portal" : "Session Missed",
-        };
-      });
-    }
-    return mockData;
-  }, [apiResponse, mockData]);
+    return payload.records.map((rec) => {
+      const dateObj = new Date(rec.date + "T00:00:00");
+      const dayName = dayNames[dateObj.getDay()] || "Weekday";
+      const status: AttendanceStatus =
+        rec.status === "WEEKLY_OFF" ? "WEEKLY_OFF" : (rec.status as AttendanceStatus);
+
+      return {
+        id: rec.id,
+        date: rec.date,
+        dayName,
+        checkIn: rec.inTime,
+        checkOut: rec.outTime,
+        workingHours: calcWorkingHours(rec.inTime, rec.outTime),
+        status,
+        markedBy: "Admin",
+        markedAt: rec.updatedAt ? new Date(rec.updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : null,
+        remarks: rec.comments || (status === "WEEKLY_OFF" ? "Weekly Off" : ""),
+      };
+    });
+  }, [apiResponse]);
 
   // Calculations for summary metrics
   const summary = useMemo(() => {
@@ -218,10 +234,14 @@ export const FacultyAttendance: React.FC = () => {
     const absentCount = attendanceRecords.filter((r) => r.status === "ABSENT").length;
     const leaveCount = attendanceRecords.filter((r) => r.status === "LEAVE").length;
     const holidayCount = attendanceRecords.filter((r) => r.status === "HOLIDAY").length;
-    const weekendCount = attendanceRecords.filter((r) => r.status === "WEEKEND").length;
+    const weekendCount = attendanceRecords.filter(
+      (r) => r.status === "WEEKEND" || r.status === "WEEKLY_OFF"
+    ).length;
 
-    // Total working days (excluding weekends & holidays)
-    const workingDays = attendanceRecords.filter((r) => r.status !== "WEEKEND" && r.status !== "HOLIDAY").length;
+    // Total working days (excluding weekly off / weekends & holidays)
+    const workingDays = attendanceRecords.filter(
+      (r) => r.status !== "WEEKEND" && r.status !== "WEEKLY_OFF" && r.status !== "HOLIDAY"
+    ).length;
     const effectivePresent = presentCount + halfDayCount * 0.5;
     const attendancePercentage = workingDays > 0 ? ((effectivePresent / workingDays) * 100).toFixed(1) : "0.0";
 
@@ -259,10 +279,19 @@ export const FacultyAttendance: React.FC = () => {
     return attendanceRecords.filter((item) => {
       // Time filter
       if (timeFilter === "TODAY") {
-        if (item.date !== "2026-08-31") return false;
+        const todayStr = new Date().toISOString().split("T")[0];
+        if (item.date !== todayStr) return false;
       } else if (timeFilter === "THIS_WEEK") {
-        const dayNum = parseInt(item.date.split("-")[2], 10);
-        if (dayNum < 24 || dayNum > 31) return false;
+        const itemDate = new Date(item.date + "T00:00:00");
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+        weekStart.setHours(0, 0, 0, 0);
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        if (itemDate < weekStart || itemDate > weekEnd) return false;
+      } else if (timeFilter === "THIS_MONTH") {
+        if (!item.date.startsWith(`${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}`)) return false;
       }
 
       // Status filter
@@ -309,8 +338,9 @@ export const FacultyAttendance: React.FC = () => {
   };
 
   const handleTodayClick = () => {
-    setSelectedYear(2026);
-    setSelectedMonth(7);
+    const today = new Date();
+    setSelectedYear(today.getFullYear());
+    setSelectedMonth(today.getMonth());
     setTimeFilter("THIS_MONTH");
   };
 
@@ -352,9 +382,10 @@ export const FacultyAttendance: React.FC = () => {
           </Badge>
         );
       case "WEEKEND":
+      case "WEEKLY_OFF":
         return (
           <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900 dark:text-slate-400 dark:border-slate-800 gap-1.5 font-medium text-xs px-2.5 py-0.5">
-            WEEKEND
+            WEEKLY OFF
           </Badge>
         );
       default:
@@ -368,10 +399,12 @@ export const FacultyAttendance: React.FC = () => {
 
   // Calendar Day cell helper
   const getCalendarDayColor = (dayNum: number) => {
-    const record = attendanceRecords.find((r) => r.date === `2026-08-${String(dayNum).padStart(2, "0")}`);
+    const dateStr = `${selectedYear}-${String(selectedMonth + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
+    const record = attendanceRecords.find((r) => r.date === dateStr);
+    const todayStr = new Date().toISOString().split("T")[0];
     if (!record) return { bg: "bg-slate-50 dark:bg-slate-900/40 text-slate-400", dot: "bg-slate-300", label: "—" };
 
-    if (dayNum === 31) {
+    if (dateStr === todayStr) {
       return { bg: "bg-blue-600 text-white font-bold shadow-sm shadow-blue-500/20", dot: "bg-white", label: "Today" };
     }
 
@@ -387,6 +420,7 @@ export const FacultyAttendance: React.FC = () => {
       case "HOLIDAY":
         return { bg: "bg-purple-50 text-purple-700 dark:bg-purple-950/40 dark:text-purple-300", dot: "bg-purple-400", label: "H" };
       case "WEEKEND":
+      case "WEEKLY_OFF":
         return { bg: "bg-slate-50/50 text-slate-400 dark:bg-slate-900/20", dot: "bg-slate-300", label: "Off" };
       default:
         return { bg: "bg-slate-50 text-slate-600", dot: "bg-slate-300", label: "—" };
@@ -628,6 +662,7 @@ export const FacultyAttendance: React.FC = () => {
             <option value="PRESENT">Present Only</option>
             <option value="ABSENT">Absent Only</option>
             <option value="LEAVE">Leave Only</option>
+            <option value="WEEKLY_OFF">Weekly Off</option>
             <option value="HALF_DAY">Half Day</option>
             <option value="HOLIDAY">Holidays</option>
           </select>
@@ -896,7 +931,7 @@ export const FacultyAttendance: React.FC = () => {
                     </tr>
                   ) : (
                     filteredRecords.map((rec, index) => {
-                      const isToday = rec.date === "2026-08-31";
+                      const isToday = rec.date === new Date().toISOString().split("T")[0];
                       return (
                         <tr
                           key={rec.id}

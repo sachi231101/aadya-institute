@@ -9,6 +9,8 @@ import type {
   UpdateFacultyPayload,
   AssignCoursePayload,
   MarkAttendancePayload,
+  DailyAttendanceParams,
+  BulkDailyAttendancePayload,
 } from "@/types/faculty.types";
 import { useAuthStore } from "@/store/auth.store";
 import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
@@ -16,6 +18,7 @@ import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
 const FACULTY_KEY = "faculty";
 const FACULTY_COURSES_KEY = "faculty-courses";
 const FACULTY_ATTENDANCE_KEY = "faculty-attendance";
+const FACULTY_DAILY_ATTENDANCE_KEY = "faculty-daily-attendance";
 const FACULTY_DASHBOARD_KEY = "faculty-dashboard";
 const FACULTY_MY_STUDENTS_KEY = "faculty-my-students";
 
@@ -117,6 +120,28 @@ export const useMarkFacultyAttendance = () => {
     mutationFn: (data: MarkAttendancePayload) => facultyApi.markAttendance(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [FACULTY_ATTENDANCE_KEY] });
+    },
+  });
+};
+
+export const useFacultyDailyAttendance = (params?: DailyAttendanceParams, enabled = true) => {
+  const { user } = useAuthStore();
+  const mergedParams = mergeBranchScopedParams(user, params);
+
+  return useQuery({
+    queryKey: [FACULTY_DAILY_ATTENDANCE_KEY, mergedParams],
+    queryFn: () => facultyApi.getDailyAttendance(mergedParams),
+    enabled: enabled && (!!mergedParams?.date || !!mergedParams?.facultyId),
+  });
+};
+
+export const useSaveFacultyDailyAttendance = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BulkDailyAttendancePayload) => facultyApi.saveDailyAttendance(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [FACULTY_DAILY_ATTENDANCE_KEY] });
+      queryClient.invalidateQueries({ queryKey: ["reports", "faculty"] });
     },
   });
 };

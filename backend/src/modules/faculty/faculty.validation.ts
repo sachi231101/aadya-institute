@@ -53,9 +53,49 @@ export const markAttendanceSchema = z.object({
   logoutAt: z.string().datetime().optional(),
 });
 
+export const facultyDailyAttendanceStatusEnum = z.enum([
+  "PRESENT",
+  "ABSENT",
+  "LEAVE",
+  "WEEKLY_OFF",
+]);
+
+const timeHmmSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/, "Time must be HH:mm")
+  .optional()
+  .nullable();
+
+export const dailyAttendanceQuerySchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD").optional(),
+  branchId: z.string().optional(),
+  facultyId: z.string().optional(),
+  from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+});
+
+export const bulkDailyAttendanceSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD"),
+  records: z
+    .array(
+      z.object({
+        facultyId: z.string().min(1, "Faculty ID is required"),
+        status: facultyDailyAttendanceStatusEnum,
+        inTime: timeHmmSchema,
+        outTime: timeHmmSchema,
+        comments: z.string().max(500).optional().nullable(),
+      })
+    )
+    .min(1, "At least one attendance record is required")
+    .max(500),
+});
+
 export type CreateFacultyDto = z.infer<typeof createFacultySchema>;
 export type UpdateFacultyDto = z.infer<typeof updateFacultySchema>;
 export type ListFacultyQuery = z.infer<typeof listFacultyQuerySchema>;
 export type MyStudentsQuery = z.infer<typeof myStudentsQuerySchema>;
 export type AssignCourseDto = z.infer<typeof assignCourseSchema>;
 export type MarkAttendanceDto = z.infer<typeof markAttendanceSchema>;
+export type DailyAttendanceQuery = z.infer<typeof dailyAttendanceQuerySchema>;
+export type BulkDailyAttendanceDto = z.infer<typeof bulkDailyAttendanceSchema>;
+export type FacultyDailyAttendanceStatus = z.infer<typeof facultyDailyAttendanceStatusEnum>;

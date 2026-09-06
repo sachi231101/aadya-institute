@@ -286,6 +286,7 @@ export const FacultyReports: React.FC = () => {
                 <TableHead className="font-semibold text-slate-900">Specialization</TableHead>
                 <TableHead className="font-semibold text-slate-900">Assigned Cohorts</TableHead>
                 <TableHead className="font-semibold text-slate-900">Teaching Hours</TableHead>
+                <TableHead className="font-semibold text-slate-900">Attendance %</TableHead>
                 <TableHead className="font-semibold text-slate-900">Student Rating</TableHead>
                 <TableHead className="font-semibold text-slate-900">Status</TableHead>
               </TableRow>
@@ -307,6 +308,9 @@ export const FacultyReports: React.FC = () => {
                     <TableCell className="text-xs text-slate-600">{faculty.specialization}</TableCell>
                     <TableCell className="text-xs text-slate-700 font-semibold">{faculty.assignedBatchesCount} Batches</TableCell>
                     <TableCell className="text-xs text-slate-700">{faculty.teachingHours} hrs/mo</TableCell>
+                    <TableCell className="text-xs text-slate-700 font-semibold">
+                      {faculty.facultyAttendancePct > 0 ? `${faculty.facultyAttendancePct}%` : "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
                         ⭐ {faculty.avgRating} / 5.0

@@ -56,10 +56,16 @@ export interface FacultyReportData {
   faculty: {
     id: string;
     facultyCode: string;
+    employeeCode: string;
     name: string;
+    branchName: string;
     specialization: string;
     assignedBatchesCount: number;
+    totalStudents: number;
+    avgStudentAttendancePct: number;
+    facultyAttendancePct: number;
     teachingHours: number;
+    workloadHoursPerWeek: number;
     avgRating: number;
     status: string;
   }[];
