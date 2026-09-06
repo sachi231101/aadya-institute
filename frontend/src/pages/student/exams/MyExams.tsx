@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldCheck,
@@ -56,6 +56,13 @@ export const MyExams: React.FC = () => {
   const { data, isLoading, error } = useStudentAvailableExams();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'COMPLETED'>('ALL');
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  // Re-evaluate schedule windows so Start unlocks at startAt without a full refresh
+  useEffect(() => {
+    const id = window.setInterval(() => setNowMs(Date.now()), 15_000);
+    return () => window.clearInterval(id);
+  }, []);
 
   const rawExams: any[] = data?.data && data.data.length > 0 ? data.data : DEMO_EXAMS;
 
@@ -157,8 +164,25 @@ export const MyExams: React.FC = () => {
             const latestAttempt = exam.attempts?.[0];
             const hasActiveAttempt = latestAttempt?.status === 'IN_PROGRESS';
             const isTerminated = latestAttempt?.status === 'TERMINATED';
-            const isCompleted = ['COMPLETED', 'SUBMITTED'].includes(latestAttempt?.status);
-            const attemptsLeft = Math.max(0, exam.attemptsAllowed - (exam.attempts?.length || 0));
+            const isEvaluating = ['EVALUATING', 'SUBMITTED', 'AUTO_SUBMITTED'].includes(
+              latestAttempt?.status
+            );
+            const isCompleted = ['COMPLETED'].includes(latestAttempt?.status);
+            const countedAttempts = (exam.attempts || []).filter(
+              (a: any) => a.countsTowardLimit !== false
+            );
+            const attemptsLeft = Math.max(0, exam.attemptsAllowed - countedAttempts.length);
+            const canViewResult =
+              !!latestAttempt &&
+              (isCompleted || isEvaluating) &&
+              exam.showResults !== false;
+
+            const startMs = exam.startAt ? new Date(exam.startAt).getTime() : null;
+            const endMs = exam.endAt ? new Date(exam.endAt).getTime() : null;
+            const isUpcoming = startMs !== null && nowMs < startMs;
+            const isWindowEnded = endMs !== null && nowMs > endMs;
+            const isWindowOpen = !isUpcoming && !isWindowEnded;
+            const canStartNow = attemptsLeft > 0 && isWindowOpen && !hasActiveAttempt && !isEvaluating;
 
             return (
               <Card
@@ -209,6 +233,41 @@ export const MyExams: React.FC = () => {
                       </div>
                     </div>
 
+                    {(exam.startAt || exam.endAt) && (
+                      <div className="p-2.5 rounded-lg bg-slate-50 border border-slate-200 text-[11px] text-slate-600 space-y-0.5">
+                        {exam.startAt && (
+                          <div>
+                            <span className="text-slate-400">Starts:</span>{' '}
+                            <span className="font-semibold text-slate-800">
+                              {new Date(exam.startAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                        {exam.endAt && (
+                          <div>
+                            <span className="text-slate-400">Ends:</span>{' '}
+                            <span className="font-semibold text-slate-800">
+                              {new Date(exam.endAt).toLocaleString()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {isUpcoming && (
+                      <div className="p-2.5 rounded-lg bg-blue-50 border border-blue-200 flex items-center gap-2 text-blue-800 font-medium">
+                        <Calendar className="h-4 w-4 shrink-0 text-blue-500" />
+                        <span>Opens at {new Date(exam.startAt).toLocaleString()}</span>
+                      </div>
+                    )}
+
+                    {isWindowEnded && !isCompleted && !isEvaluating && (
+                      <div className="p-2.5 rounded-lg bg-slate-100 border border-slate-200 flex items-center gap-2 text-slate-700 font-medium">
+                        <Clock className="h-4 w-4 shrink-0 text-slate-500" />
+                        <span>Exam window has ended</span>
+                      </div>
+                    )}
+
                     {/* Attempt Status Banner */}
                     {hasActiveAttempt && (
                       <div className="p-2.5 rounded-lg bg-amber-50 border border-amber-200 flex items-center gap-2 text-amber-800 font-medium">
@@ -246,16 +305,29 @@ export const MyExams: React.FC = () => {
                     >
                       <Play className="h-3.5 w-3.5 fill-current" /> Resume Examination
                     </Button>
+                  ) : isEvaluating ? (
+                    <Button
+                      onClick={() => navigate(`/student/exams/${latestAttempt.id}/result`)}
+                      className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
+                    >
+                      View Result Status
+                    </Button>
                   ) : isCompleted ? (
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        onClick={() => navigate(`/student/exams/${latestAttempt.id}/result`)}
-                        className="flex-1 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50"
-                      >
-                        View Result
-                      </Button>
-                      {attemptsLeft > 0 && (
+                      {canViewResult ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => navigate(`/student/exams/${latestAttempt.id}/result`)}
+                          className="flex-1 text-xs text-indigo-700 border-indigo-200 hover:bg-indigo-50"
+                        >
+                          View Result
+                        </Button>
+                      ) : (
+                        <Button disabled variant="outline" className="flex-1 text-xs text-slate-400">
+                          Results Hidden
+                        </Button>
+                      )}
+                      {attemptsLeft > 0 && isWindowOpen && (
                         <Button
                           onClick={() => navigate(`/student/exams/${exam.id}/start`)}
                           className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs"
@@ -263,17 +335,39 @@ export const MyExams: React.FC = () => {
                           Retake Exam
                         </Button>
                       )}
+                      {attemptsLeft > 0 && isUpcoming && (
+                        <Button disabled variant="outline" className="flex-1 text-xs text-blue-700 border-blue-200">
+                          Opens later
+                        </Button>
+                      )}
+                      {attemptsLeft > 0 && isWindowEnded && (
+                        <Button disabled variant="outline" className="flex-1 text-xs text-slate-400">
+                          Window Closed
+                        </Button>
+                      )}
                     </div>
                   ) : isTerminated && attemptsLeft === 0 ? (
                     <Button disabled variant="outline" className="w-full text-xs text-slate-400">
                       No Attempts Left
                     </Button>
-                  ) : (
+                  ) : isUpcoming ? (
+                    <Button disabled variant="outline" className="w-full text-xs text-blue-700 border-blue-200">
+                      Opens {exam.startAt ? new Date(exam.startAt).toLocaleString() : 'soon'}
+                    </Button>
+                  ) : isWindowEnded ? (
+                    <Button disabled variant="outline" className="w-full text-xs text-slate-400">
+                      Exam Window Closed
+                    </Button>
+                  ) : canStartNow ? (
                     <Button
                       onClick={() => navigate(`/student/exams/${exam.id}/start`)}
                       className="w-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5"
                     >
                       <Play className="h-3.5 w-3.5 fill-current" /> Start Examination
+                    </Button>
+                  ) : (
+                    <Button disabled variant="outline" className="w-full text-xs text-slate-400">
+                      Not Available
                     </Button>
                   )}
                 </div>

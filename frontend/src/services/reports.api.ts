@@ -139,6 +139,23 @@ export interface ExaminationsReportData {
     passRate: number;
   }>;
   scoreDistribution: Array<{ range: string; count: number }>;
+  studentResults?: Array<{
+    attemptId: string;
+    examId: string;
+    examName: string;
+    studentId: string;
+    studentName: string;
+    studentCode: string;
+    email: string | null;
+    attemptNumber: number;
+    status: string;
+    score: number | null;
+    totalMarks: number | null;
+    percentage: number | null;
+    passed: boolean | null;
+    submittedAt: string | null;
+    startedAt: string | null;
+  }>;
 }
 
 export interface RecentPaymentData {

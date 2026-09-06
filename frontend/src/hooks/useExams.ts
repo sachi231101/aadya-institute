@@ -129,14 +129,15 @@ export const usePublishExam = () => {
   });
 };
 
-export const useScheduleExam = (id: string) => {
+export const useScheduleExam = () => {
   const queryClient = useQueryClient();
   const addNotification = useNotificationStore((s) => s.addNotification);
 
   return useMutation({
-    mutationFn: (payload: api.ScheduleExamPayload) => api.scheduleExam(id, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: examKeys.detail(id) });
+    mutationFn: ({ id, ...payload }: { id: string } & api.ScheduleExamPayload) =>
+      api.scheduleExam(id, payload),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: examKeys.detail(variables.id) });
       queryClient.invalidateQueries({ queryKey: examKeys.lists() });
       addNotification('Exam scheduled successfully!', 'success');
     },

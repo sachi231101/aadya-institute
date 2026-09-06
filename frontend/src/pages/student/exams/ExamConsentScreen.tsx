@@ -53,13 +53,16 @@ export const ExamConsentScreen: React.FC = () => {
   };
 
   const exam = examData?.exam || fallbackExam;
-  const canStart = examData?.canStartNewAttempt ?? true;
+  const windowState = examData?.window;
+  const canStart = examData?.canStartNewAttempt === true;
   const activeAttemptId = examData?.activeAttemptId;
+  const [startError, setStartError] = useState<string | null>(null);
 
   const handleStartExam = async () => {
     if (!id) return;
 
     setIsStarting(true);
+    setStartError(null);
     try {
       // If there is an active attempt already, navigate directly
       if (activeAttemptId) {
@@ -74,41 +77,40 @@ export const ExamConsentScreen: React.FC = () => {
         return;
       }
 
-      // Start new attempt
-      try {
-        const res = await startExamMutation.mutateAsync({
-          examId: id,
-          deviceInfo: {
-            userAgent: navigator.userAgent,
-            screenResolution: `${window.screen.width}x${window.screen.height}`,
-            browserName: navigator.userAgent.includes('Chrome')
-              ? 'Chrome'
-              : navigator.userAgent.includes('Firefox')
-              ? 'Firefox'
-              : 'Other',
-          },
-        });
+      const res = await startExamMutation.mutateAsync({
+        examId: id,
+        deviceInfo: {
+          userAgent: navigator.userAgent,
+          screenResolution: `${window.screen.width}x${window.screen.height}`,
+          browserName: navigator.userAgent.includes('Chrome')
+            ? 'Chrome'
+            : navigator.userAgent.includes('Firefox')
+            ? 'Firefox'
+            : 'Other',
+        },
+      });
 
-        const attemptId = res.data?.attempt?.id;
-        if (attemptId) {
-          if (document.documentElement.requestFullscreen) {
-            try {
-              await document.documentElement.requestFullscreen();
-            } catch {
-              // Ignore error if user browser requires immediate gesture
-            }
-          }
-          navigate(`/student/exams/${attemptId}/take`);
-          return;
-        }
-      } catch {
-        // If api attempt creation fails (e.g. mock/demo exam), navigate to demo attempt session
-        navigate(`/student/exams/demo-attempt-01/take`);
+      const attemptId = res.data?.attempt?.id;
+      if (!attemptId) {
+        setStartError('Could not start the examination. Please try again.');
+        setIsStarting(false);
         return;
       }
 
-      navigate(`/student/exams/demo-attempt-01/take`);
-    } catch {
+      if (document.documentElement.requestFullscreen) {
+        try {
+          await document.documentElement.requestFullscreen();
+        } catch {
+          // Ignore error if user browser requires immediate gesture
+        }
+      }
+      navigate(`/student/exams/${attemptId}/take`);
+    } catch (err: any) {
+      const message =
+        err?.response?.data?.message ||
+        windowState?.message ||
+        'Unable to start this examination right now.';
+      setStartError(message);
       setIsStarting(false);
     }
   };
@@ -201,7 +203,27 @@ export const ExamConsentScreen: React.FC = () => {
                 <Play className="h-3.5 w-3.5 fill-current" /> Resume Now
               </Button>
             </div>
-          ) : !canStart ? (
+          ) : windowState?.windowStatus === 'UPCOMING' ? (
+            <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-center space-y-1">
+              <h4 className="text-sm font-bold text-blue-900">Examination Not Open Yet</h4>
+              <p className="text-xs text-blue-700">
+                {windowState.message ||
+                  (windowState.startAt
+                    ? `This examination opens at ${new Date(windowState.startAt).toLocaleString()}.`
+                    : 'Please wait until the scheduled start time.')}
+              </p>
+            </div>
+          ) : windowState?.windowStatus === 'ENDED' ? (
+            <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-center space-y-1">
+              <h4 className="text-sm font-bold text-slate-800">Examination Window Closed</h4>
+              <p className="text-xs text-slate-500">
+                {windowState.message ||
+                  (windowState.endAt
+                    ? `This examination ended at ${new Date(windowState.endAt).toLocaleString()}.`
+                    : 'The scheduled exam window has ended.')}
+              </p>
+            </div>
+          ) : examData && !canStart ? (
             <div className="p-4 rounded-xl bg-slate-100 border border-slate-200 text-center space-y-1">
               <h4 className="text-sm font-bold text-slate-800">No Remaining Attempts</h4>
               <p className="text-xs text-slate-500">
@@ -209,6 +231,33 @@ export const ExamConsentScreen: React.FC = () => {
               </p>
             </div>
           ) : null}
+
+          {(exam.startAt || exam.endAt || windowState?.startAt || windowState?.endAt) && (
+            <div className="p-3 rounded-xl border border-slate-200 bg-slate-50 text-xs text-slate-600 space-y-1">
+              {(exam.startAt || windowState?.startAt) && (
+                <div>
+                  <span className="text-slate-400">Starts:</span>{' '}
+                  <span className="font-semibold text-slate-800">
+                    {new Date(exam.startAt || windowState?.startAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
+              {(exam.endAt || windowState?.endAt) && (
+                <div>
+                  <span className="text-slate-400">Ends:</span>{' '}
+                  <span className="font-semibold text-slate-800">
+                    {new Date(exam.endAt || windowState?.endAt).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {startError && (
+            <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
+              {startError}
+            </div>
+          )}
 
           {/* System & Readiness Checks */}
           <div>

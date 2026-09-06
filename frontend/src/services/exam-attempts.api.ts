@@ -79,4 +79,28 @@ export const examAttemptsApi = {
     const res = await api.post(`/exams/attempts/${attemptId}/terminate`, { reason });
     return res.data;
   },
+
+  grantRetryStaff: async (attemptId: string, reason: string) => {
+    const res = await api.post(`/exams/attempts/${attemptId}/grant-retry`, { reason });
+    return res.data;
+  },
+
+  getGradingQueue: async (examId: string) => {
+    const res = await api.get(`/exams/${examId}/grading-queue`);
+    return res.data;
+  },
+
+  getAttemptForGrading: async (attemptId: string) => {
+    const res = await api.get(`/exams/attempts/${attemptId}/grade`);
+    return res.data;
+  },
+
+  gradeAnswer: async (
+    attemptId: string,
+    answerId: string,
+    payload: { marksAwarded: number; isCorrect?: boolean; graderComment?: string }
+  ) => {
+    const res = await api.patch(`/exams/attempts/${attemptId}/answers/${answerId}/grade`, payload);
+    return res.data;
+  },
 };

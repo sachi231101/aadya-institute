@@ -25,6 +25,7 @@ export interface CreateQuestionPayload {
   marks?: number;
   negativeMarks?: number;
   explanation?: string;
+  correctAnswer?: string;
   questionBankId?: string;
   courseId?: string;
   moduleId?: string;

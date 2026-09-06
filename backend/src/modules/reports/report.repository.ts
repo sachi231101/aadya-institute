@@ -815,8 +815,28 @@ export class ReportRepository {
       where: { instituteId, ...whereBranch },
       include: {
         attempts: {
-          where: { status: "COMPLETED" },
-          select: { score: true, percentage: true, passed: true },
+          where: {
+            status: { in: ["COMPLETED", "EVALUATING", "SUBMITTED", "AUTO_SUBMITTED", "TERMINATED"] },
+          },
+          orderBy: [{ submittedAt: "desc" }, { startedAt: "desc" }],
+          select: {
+            id: true,
+            status: true,
+            attemptNumber: true,
+            score: true,
+            totalMarks: true,
+            percentage: true,
+            passed: true,
+            submittedAt: true,
+            startedAt: true,
+            student: {
+              select: {
+                id: true,
+                studentCode: true,
+                user: { select: { name: true, email: true } },
+              },
+            },
+          },
         },
       },
     });
@@ -825,23 +845,49 @@ export class ReportRepository {
     const publishedExams = exams.filter((e) =>
       ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(e.status)
     ).length;
-    const allAttempts = exams.flatMap((e) => e.attempts);
-    const totalAttempts = allAttempts.length;
+
+    const completedAttempts = exams.flatMap((e) =>
+      e.attempts.filter((a) => a.status === "COMPLETED")
+    );
+    const totalAttempts = completedAttempts.length;
     const avgScore =
       totalAttempts > 0
-        ? Math.round(allAttempts.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) / totalAttempts)
+        ? Math.round(
+            completedAttempts.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) /
+              totalAttempts
+          )
         : 0;
-    const passedCount = allAttempts.filter((a) => a.passed === true).length;
+    const passedCount = completedAttempts.filter((a) => a.passed === true).length;
     const passRate = totalAttempts > 0 ? Math.round((passedCount / totalAttempts) * 100) : 0;
 
     const scoreBuckets = { "90-100": 0, "75-89": 0, "50-74": 0, "Below 50": 0 };
-    for (const a of allAttempts) {
+    for (const a of completedAttempts) {
       const pct = a.percentage || a.score || 0;
       if (pct >= 90) scoreBuckets["90-100"] += 1;
       else if (pct >= 75) scoreBuckets["75-89"] += 1;
       else if (pct >= 50) scoreBuckets["50-74"] += 1;
       else scoreBuckets["Below 50"] += 1;
     }
+
+    const studentResults = exams.flatMap((e) =>
+      e.attempts.map((a) => ({
+        attemptId: a.id,
+        examId: e.id,
+        examName: e.name,
+        studentId: a.student.id,
+        studentName: a.student.user?.name || "Unknown Student",
+        studentCode: a.student.studentCode,
+        email: a.student.user?.email || null,
+        attemptNumber: a.attemptNumber,
+        status: a.status,
+        score: a.score,
+        totalMarks: a.totalMarks,
+        percentage: a.percentage,
+        passed: a.passed,
+        submittedAt: a.submittedAt ? a.submittedAt.toISOString() : null,
+        startedAt: a.startedAt ? a.startedAt.toISOString() : null,
+      }))
+    );
 
     return {
       summary: {
@@ -852,12 +898,15 @@ export class ReportRepository {
         passRate,
       },
       examBreakdown: exams.map((e) => {
-        const attempts = e.attempts.length;
+        const completed = e.attempts.filter((a) => a.status === "COMPLETED");
+        const attempts = completed.length;
         const avg =
           attempts > 0
-            ? Math.round(e.attempts.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) / attempts)
+            ? Math.round(
+                completed.reduce((sum, a) => sum + (a.percentage || a.score || 0), 0) / attempts
+              )
             : 0;
-        const passed = e.attempts.filter((a) => a.passed === true).length;
+        const passed = completed.filter((a) => a.passed === true).length;
         return {
           id: e.id,
           title: e.name,
@@ -868,6 +917,7 @@ export class ReportRepository {
         };
       }),
       scoreDistribution: Object.entries(scoreBuckets).map(([range, count]) => ({ range, count })),
+      studentResults,
     };
   }
 }

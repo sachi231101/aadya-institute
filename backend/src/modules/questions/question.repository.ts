@@ -76,6 +76,7 @@ export const createQuestion = async (
       marks: data.marks || 1,
       negativeMarks: data.negativeMarks || 0,
       explanation: data.explanation,
+      correctAnswer: data.correctAnswer?.trim() || null,
       options: data.options ? {
         create: data.options.map((opt, i) => ({
           optionText: opt.optionText,
@@ -111,6 +112,7 @@ export const createBulkQuestions = async (
           marks: item.marks || 1,
           negativeMarks: item.negativeMarks || 0,
           explanation: item.explanation || null,
+          correctAnswer: item.correctAnswer?.trim() || null,
           options: item.options ? {
             create: item.options.map((opt, i) => ({
               optionText: opt.optionText,
@@ -153,6 +155,7 @@ export const updateQuestion = async (id: string, data: UpdateQuestionDto) => {
         ...(data.marks !== undefined && { marks: data.marks }),
         ...(data.negativeMarks !== undefined && { negativeMarks: data.negativeMarks }),
         ...(data.explanation !== undefined && { explanation: data.explanation || null }),
+        ...(data.correctAnswer !== undefined && { correctAnswer: data.correctAnswer?.trim() || null }),
         ...(data.questionBankId !== undefined && { questionBankId: data.questionBankId || null }),
         ...(data.courseId !== undefined && { courseId: data.courseId || null }),
         ...(data.moduleId !== undefined && { moduleId: data.moduleId || null }),

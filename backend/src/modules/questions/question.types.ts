@@ -15,6 +15,7 @@ export interface CreateQuestionDto {
   marks?: number;
   negativeMarks?: number;
   explanation?: string;
+  correctAnswer?: string;
   questionBankId?: string;
   courseId?: string;
   moduleId?: string;
@@ -29,6 +30,7 @@ export interface UpdateQuestionDto {
   marks?: number;
   negativeMarks?: number;
   explanation?: string;
+  correctAnswer?: string | null;
   questionBankId?: string;
   courseId?: string;
   moduleId?: string;

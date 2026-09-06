@@ -13,6 +13,7 @@ export const createQuestionSchema = z.object({
   marks: z.coerce.number().positive('Marks must be positive').optional(),
   negativeMarks: z.coerce.number().min(0).optional(),
   explanation: z.string().optional(),
+  correctAnswer: z.string().optional(),
   questionBankId: z.string().optional(),
   courseId: z.string().optional(),
   moduleId: z.string().optional(),
@@ -26,7 +27,15 @@ export const createQuestionSchema = z.object({
     }
   }
   return true;
-}, { message: 'MCQ and True/False questions require at least 2 options', path: ['options'] });
+}, { message: 'MCQ and True/False questions require at least 2 options', path: ['options'] })
+.refine((data) => {
+  if (data.questionType === 'NUMERICAL') {
+    if (!data.correctAnswer || data.correctAnswer.trim() === '' || Number.isNaN(Number(data.correctAnswer.trim()))) {
+      return false;
+    }
+  }
+  return true;
+}, { message: 'Numerical questions require a valid correct answer number', path: ['correctAnswer'] });
 export const createBulkQuestionsSchema = z.object({
   questions: z.array(createQuestionSchema).min(1, 'At least one question is required'),
 });
@@ -38,6 +47,7 @@ export const updateQuestionSchema = z.object({
   marks: z.coerce.number().positive().optional(),
   negativeMarks: z.coerce.number().min(0).optional(),
   explanation: z.string().optional(),
+  correctAnswer: z.string().optional().nullable(),
   questionBankId: z.string().optional().nullable(),
   courseId: z.string().optional().nullable(),
   moduleId: z.string().optional().nullable(),

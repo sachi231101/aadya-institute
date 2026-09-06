@@ -12,6 +12,8 @@ import {
   batchSaveAnswersSchema,
   proctoringEventSchema,
   terminateAttemptSchema,
+  grantRetrySchema,
+  gradeAnswerSchema,
 } from './attempt.validation';
 
 const router = Router();
@@ -48,7 +50,21 @@ router.post(
 
 // Staff / Admin Management Routes
 router.get('/:id/attempts', requirePermission('exam.view_attempts'), controller.getExamAttemptsStaff);
+router.get('/:id/grading-queue', requirePermission('exam.view_attempts'), controller.getGradingQueue);
+router.get('/attempts/:attemptId/grade', requirePermission('exam.update'), controller.getAttemptForGrading);
+router.patch(
+  '/attempts/:attemptId/answers/:answerId/grade',
+  requirePermission('exam.update'),
+  validate(gradeAnswerSchema),
+  controller.gradeAnswer
+);
 router.get('/attempts/:attemptId/proctoring', requirePermission('exam.view_attempts'), controller.getProctoringTimelineStaff);
 router.post('/attempts/:attemptId/terminate', requirePermission('exam.update'), validate(terminateAttemptSchema), controller.terminateStaff);
+router.post(
+  '/attempts/:attemptId/grant-retry',
+  requirePermission('exam.update'),
+  validate(grantRetrySchema),
+  controller.grantRetryStaff
+);
 
 export default router;

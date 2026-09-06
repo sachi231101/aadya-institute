@@ -6,8 +6,77 @@ import { logger } from '../../config/logger';
 import { broadcastToUser } from '../../websocket/ws.server';
 import { cacheGet, cacheSet, cacheDel } from '../../config/cache';
 import { enqueueExamGrading } from '../../queues/exam-grading.queue';
-import { env } from '../../config/env';
-import { gradeExamAttempt } from './attempt.grading';
+
+type ExamWindowInput = {
+  startAt?: Date | string | null;
+  endAt?: Date | string | null;
+  status?: string;
+};
+
+export type ExamWindowState = {
+  isOpen: boolean;
+  windowStatus: 'ON_DEMAND' | 'UPCOMING' | 'LIVE' | 'ENDED';
+  startAt: string | null;
+  endAt: string | null;
+  message: string | null;
+};
+
+/** Evaluate whether an exam is within its scheduled start/end window. */
+export const getExamWindowState = (exam: ExamWindowInput, now = new Date()): ExamWindowState => {
+  const startAt = exam.startAt ? new Date(exam.startAt) : null;
+  const endAt = exam.endAt ? new Date(exam.endAt) : null;
+
+  if (!startAt && !endAt) {
+    const openStatuses = ['PUBLISHED', 'SCHEDULED', 'LIVE'];
+    const isOpen = !exam.status || openStatuses.includes(exam.status);
+    return {
+      isOpen,
+      windowStatus: 'ON_DEMAND',
+      startAt: null,
+      endAt: null,
+      message: isOpen ? null : 'This examination is not currently available.',
+    };
+  }
+
+  if (startAt && now < startAt) {
+    return {
+      isOpen: false,
+      windowStatus: 'UPCOMING',
+      startAt: startAt.toISOString(),
+      endAt: endAt ? endAt.toISOString() : null,
+      message: `This examination opens at ${startAt.toLocaleString()}.`,
+    };
+  }
+
+  if (endAt && now > endAt) {
+    return {
+      isOpen: false,
+      windowStatus: 'ENDED',
+      startAt: startAt ? startAt.toISOString() : null,
+      endAt: endAt.toISOString(),
+      message: `This examination ended at ${endAt.toLocaleString()}.`,
+    };
+  }
+
+  return {
+    isOpen: true,
+    windowStatus: 'LIVE',
+    startAt: startAt ? startAt.toISOString() : null,
+    endAt: endAt ? endAt.toISOString() : null,
+    message: null,
+  };
+};
+
+const computeAttemptExpiresAt = (
+  now: Date,
+  durationMinutes: number,
+  examEndAt?: Date | string | null
+) => {
+  const durationEnd = new Date(now.getTime() + durationMinutes * 60 * 1000);
+  if (!examEndAt) return durationEnd;
+  const windowEnd = new Date(examEndAt);
+  return durationEnd < windowEnd ? durationEnd : windowEnd;
+};
 
 // ─── Activity Log Helper ──────────────────────────────────────────────────────
 const logActivity = async (
@@ -65,6 +134,7 @@ export const getStudentAvailableExams = async (userId: string, instituteId: stri
             terminationReason: true,
             violationCount: true,
             warningCount: true,
+            countsTowardLimit: true,
           },
         },
       },
@@ -100,6 +170,7 @@ export const getExamInstructions = async (examId: string, userId: string, instit
         totalMarks: true,
         passed: true,
         violationCount: true,
+        countsTowardLimit: true,
       },
     });
   } else {
@@ -121,6 +192,7 @@ export const getExamInstructions = async (examId: string, userId: string, instit
           totalMarks: true,
           passed: true,
           violationCount: true,
+          countsTowardLimit: true,
         },
       });
     }
@@ -131,6 +203,23 @@ export const getExamInstructions = async (examId: string, userId: string, instit
   }
 
   const activeAttempt = pastAttempts.find((a) => a.status === 'IN_PROGRESS');
+  const countedAttempts = pastAttempts.filter((a) => a.countsTowardLimit !== false);
+  const attemptsUsed = countedAttempts.length;
+  const attemptsRemaining = Math.max(0, exam.attemptsAllowed - attemptsUsed);
+  const window = getExamWindowState(exam);
+
+  // Keep exam status aligned with the schedule window (works even without Redis workers)
+  if (window.windowStatus === 'LIVE' && exam.status === 'SCHEDULED') {
+    await prisma.exam.updateMany({
+      where: { id: exam.id, status: 'SCHEDULED' },
+      data: { status: 'LIVE' },
+    });
+  } else if (window.windowStatus === 'ENDED' && ['SCHEDULED', 'LIVE'].includes(exam.status)) {
+    await prisma.exam.updateMany({
+      where: { id: exam.id, status: { in: ['SCHEDULED', 'LIVE'] } },
+      data: { status: 'ENDED' },
+    });
+  }
 
   return {
     exam: {
@@ -143,6 +232,9 @@ export const getExamInstructions = async (examId: string, userId: string, instit
       passingMarks: exam.passingMarks,
       attemptsAllowed: exam.attemptsAllowed,
       examType: exam.examType,
+      status: exam.status,
+      startAt: exam.startAt ? new Date(exam.startAt).toISOString() : null,
+      endAt: exam.endAt ? new Date(exam.endAt).toISOString() : null,
       negativeMarkingEnabled: exam.negativeMarkingEnabled,
       questionCount: exam._count?.examQuestions ?? 0,
       course: exam.course,
@@ -159,9 +251,10 @@ export const getExamInstructions = async (examId: string, userId: string, instit
       networkGracePeriodSeconds: exam.networkGracePeriodSeconds,
       autoTerminateOnMaxViolations: exam.autoTerminateOnMaxViolations,
     },
-    attemptsUsed: pastAttempts.length,
-    attemptsRemaining: Math.max(0, exam.attemptsAllowed - pastAttempts.length),
-    canStartNewAttempt: pastAttempts.length < exam.attemptsAllowed && !activeAttempt,
+    attemptsUsed,
+    attemptsRemaining,
+    window,
+    canStartNewAttempt: attemptsRemaining > 0 && !activeAttempt && window.isOpen,
     activeAttemptId: activeAttempt?.id || null,
     pastAttempts,
   };
@@ -229,13 +322,16 @@ export const startExamAttempt = async (
     throw new AppError('Examination not found or you are not authorized for this exam', 403);
   }
 
+  const now = new Date();
+  const window = getExamWindowState(exam, now);
+
   // Check existing active attempt
   const existingActive = await repository.findActiveAttempt(examId, student.id);
   if (existingActive) {
-    // Resume existing attempt if within timer
-    const now = new Date();
-    if (existingActive.expiresAt && now > new Date(existingActive.expiresAt)) {
-      // Auto-submit expired attempt
+    // Resume existing attempt if within timer and exam window
+    const attemptExpired = existingActive.expiresAt && now > new Date(existingActive.expiresAt);
+    const windowEnded = window.windowStatus === 'ENDED';
+    if (attemptExpired || windowEnded) {
       await submitExam(existingActive.id, userId, instituteId);
     } else {
       const sanitizedQuestions = formatSanitizedQuestions(exam, existingActive.id);
@@ -248,14 +344,33 @@ export const startExamAttempt = async (
     }
   }
 
-  // Check attempt limit
+  if (!window.isOpen) {
+    throw new AppError(
+      window.message || 'This examination is not open for attempts right now.',
+      403
+    );
+  }
+
+  // Check attempt limit (waived/retry-granted attempts do not count)
   const count = await repository.countStudentAttempts(examId, student.id);
   if (count >= exam.attemptsAllowed) {
     throw new AppError(`Maximum attempts (${exam.attemptsAllowed}) reached for this examination`, 403);
   }
 
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + exam.durationMinutes * 60 * 1000);
+  const expiresAt = computeAttemptExpiresAt(now, exam.durationMinutes, exam.endAt);
+  if (expiresAt <= now) {
+    throw new AppError('This examination window has ended. You cannot start a new attempt.', 403);
+  }
+
+  const attemptNumber = await repository.getNextAttemptNumber(examId, student.id);
+
+  // Promote SCHEDULED → LIVE when the first student starts inside the window
+  if (exam.status === 'SCHEDULED') {
+    await prisma.exam.updateMany({
+      where: { id: exam.id, status: 'SCHEDULED' },
+      data: { status: 'LIVE' },
+    });
+  }
 
   const attempt = await repository.createExamAttempt({
     instituteId,
@@ -263,7 +378,7 @@ export const startExamAttempt = async (
     examId: exam.id,
     studentId: student.id,
     userId,
-    attemptNumber: count + 1,
+    attemptNumber,
     startedAt: now,
     expiresAt,
     proctoringEnabled: exam.proctoringEnabled,
@@ -368,6 +483,72 @@ const attachSanitizedExamQuestions = async (attempt: any, instituteId: string) =
   return attempt;
 };
 
+/**
+ * Attach full Q&A review (student answers + correct options) for completed attempts.
+ * Only used when results are visible to the requester.
+ */
+const attachResultReview = async (attempt: any, instituteId: string) => {
+  const examWithQuestions = await prisma.exam.findFirst({
+    where: { id: attempt.examId, instituteId },
+    include: {
+      examQuestions: {
+        orderBy: { displayOrder: 'asc' },
+        include: {
+          question: {
+            include: {
+              options: { orderBy: { displayOrder: 'asc' } },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!examWithQuestions) {
+    attempt.resultReview = [];
+    return attempt;
+  }
+
+  const answerMap = new Map(
+    (attempt.answers || []).map((a: any) => [a.questionId, a])
+  );
+
+  attempt.resultReview = examWithQuestions.examQuestions.map((eq: any, index: number) => {
+    const q = eq.question;
+    const ans = answerMap.get(q.id) as any | undefined;
+    const selectedIds = Array.isArray(ans?.selectedOptionIds)
+      ? (ans.selectedOptionIds as string[])
+      : [];
+
+    return {
+      displayOrder: eq.displayOrder ?? index + 1,
+      questionId: q.id,
+      questionText: q.questionText,
+      questionType: q.questionType,
+      marks: eq.marksOverride ?? q.marks,
+      options: (q.options || []).map((opt: any) => ({
+        id: opt.id,
+        optionText: opt.optionText,
+        displayOrder: opt.displayOrder,
+        isCorrect: !!opt.isCorrect,
+        isSelected: selectedIds.includes(opt.id),
+      })),
+      studentAnswer: ans
+        ? {
+            selectedOptionIds: selectedIds,
+            textAnswer: ans.textAnswer ?? null,
+            numericalAnswer: ans.numericalAnswer ?? null,
+            isCorrect: ans.isCorrect ?? null,
+            marksAwarded: ans.marksAwarded ?? null,
+            isFlagged: !!ans.isFlagged,
+          }
+        : null,
+    };
+  });
+
+  return attempt;
+};
+
 export const invalidateExamPaperCache = async (examId: string) => {
   await cacheDel(`exam-paper:${examId}`);
 };
@@ -390,15 +571,52 @@ export const getAttemptDetails = async (
 
   // Server-authoritative timer check
   const now = new Date();
-  if (attempt.status === 'IN_PROGRESS' && attempt.expiresAt && now > new Date(attempt.expiresAt)) {
-    // Attempt expired: auto-finalize
-    await submitExam(attempt.id, userId, instituteId);
-    return repository.findAttemptById(attemptId, instituteId);
+  if (attempt.status === 'IN_PROGRESS') {
+    const window = getExamWindowState(attempt.exam || {}, now);
+    const attemptExpired = attempt.expiresAt && now > new Date(attempt.expiresAt);
+    if (attemptExpired || window.windowStatus === 'ENDED') {
+      await submitExam(attempt.id, userId, instituteId);
+      const finalized = await repository.findAttemptById(attemptId, instituteId);
+      if (
+        finalized &&
+        finalized.status === 'COMPLETED' &&
+        (isStaff || finalized.exam?.showResults !== false)
+      ) {
+        await attachResultReview(finalized, instituteId);
+      }
+      return finalized;
+    }
+  }
+
+  // Recover stuck EVALUATING/SUBMITTED attempts when Redis/queue was unavailable
+  if (['EVALUATING', 'SUBMITTED', 'AUTO_SUBMITTED'].includes(attempt.status)) {
+    await enqueueExamGrading({
+      attemptId: attempt.id,
+      userId: attempt.userId,
+      instituteId,
+    });
+    const graded = await repository.findAttemptById(attemptId, instituteId);
+    if (
+      graded &&
+      graded.status === 'COMPLETED' &&
+      (isStaff || graded.exam?.showResults !== false)
+    ) {
+      await attachResultReview(graded, instituteId);
+    }
+    return graded;
   }
 
   // Include sanitized questions for active attempts so TakeExam can load after navigation/refresh
   if (['IN_PROGRESS', 'NOT_STARTED'].includes(attempt.status)) {
     await attachSanitizedExamQuestions(attempt, instituteId);
+  }
+
+  // Question + answer review for completed attempts (when results are visible)
+  if (
+    attempt.status === 'COMPLETED' &&
+    (isStaff || attempt.exam?.showResults !== false)
+  ) {
+    await attachResultReview(attempt, instituteId);
   }
 
   return attempt;
@@ -538,13 +756,8 @@ export const submitExam = async (attemptId: string, userId: string, instituteId:
   }
 
   if (attempt.status === 'SUBMITTED' || attempt.status === 'EVALUATING' || attempt.status === 'AUTO_SUBMITTED') {
-    // Already accepted — ensure grading job exists
-    try {
-      await enqueueExamGrading({ attemptId, userId: attempt.userId, instituteId });
-    } catch {
-      // Redis down: grade inline as fallback
-      return gradeExamAttempt(attemptId, attempt.userId, instituteId);
-    }
+    // Already accepted — ensure grading completes (inline if queue unavailable)
+    await enqueueExamGrading({ attemptId, userId: attempt.userId, instituteId });
     return repository.findAttemptById(attemptId, instituteId);
   }
 
@@ -558,20 +771,15 @@ export const submitExam = async (attemptId: string, userId: string, instituteId:
   });
 
   if (updated.count === 0) {
+    // Race: another request may have moved status — finish grading if needed
+    const current = await repository.findAttemptLean(attemptId, instituteId);
+    if (current && ['SUBMITTED', 'EVALUATING', 'AUTO_SUBMITTED'].includes(current.status)) {
+      await enqueueExamGrading({ attemptId, userId: attempt.userId, instituteId });
+    }
     return repository.findAttemptById(attemptId, instituteId);
   }
 
-  try {
-    await enqueueExamGrading({ attemptId, userId: attempt.userId, instituteId });
-  } catch (err) {
-    logger.warn({ err, attemptId }, '[submitExam] Queue unavailable — grading inline');
-    if (!env.RUN_WORKERS) {
-      // API-only process without workers: grade inline so results still complete
-      return gradeExamAttempt(attemptId, attempt.userId, instituteId);
-    }
-    return gradeExamAttempt(attemptId, attempt.userId, instituteId);
-  }
-
+  await enqueueExamGrading({ attemptId, userId: attempt.userId, instituteId });
   return repository.findAttemptById(attemptId, instituteId);
 };
 
@@ -628,4 +836,262 @@ export const terminateAttemptManually = async (
   });
 
   return terminated;
+};
+
+// ─── Staff: Grant another chance after termination ────────────────────────────
+export const grantAttemptRetry = async (
+  attemptId: string,
+  staffUserId: string,
+  instituteId: string,
+  reason: string
+) => {
+  const attempt = await repository.findAttemptById(attemptId, instituteId);
+  if (!attempt) {
+    throw new AppError('Attempt not found', 404);
+  }
+
+  if (attempt.status !== 'TERMINATED') {
+    throw new AppError('Only terminated attempts can be reassigned for another chance', 400);
+  }
+
+  if (attempt.countsTowardLimit === false) {
+    throw new AppError('Another chance has already been granted for this attempt', 400);
+  }
+
+  const updated = await repository.grantAttemptRetry(attemptId, instituteId, staffUserId, reason);
+
+  await logActivity(staffUserId, instituteId, 'EXAM_RETRY_GRANTED', attemptId, null, {
+    examId: attempt.examId,
+    studentId: attempt.studentId,
+    reason,
+  });
+
+  return updated;
+};
+
+// ─── Staff: Grading queue for subjective answers ──────────────────────────────
+const SUBJECTIVE_TYPES = ['SHORT_ANSWER', 'LONG_ANSWER', 'FILL_BLANK'] as const;
+
+export const getExamGradingQueue = async (examId: string, instituteId: string) => {
+  const exam = await prisma.exam.findFirst({
+    where: { id: examId, instituteId },
+    select: { id: true, name: true },
+  });
+  if (!exam) {
+    throw new AppError('Examination not found', 404);
+  }
+
+  const attempts = await prisma.examAttempt.findMany({
+    where: {
+      examId,
+      instituteId,
+      OR: [
+        { status: 'EVALUATING' },
+        {
+          answers: {
+            some: { gradingStatus: 'PENDING_MANUAL' },
+          },
+        },
+      ],
+    },
+    include: {
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      answers: {
+        where: { gradingStatus: 'PENDING_MANUAL' },
+        select: { id: true },
+      },
+      _count: {
+        select: {
+          answers: true,
+        },
+      },
+    },
+    orderBy: { submittedAt: 'asc' },
+  });
+
+  return {
+    exam,
+    attempts: attempts.map((a) => ({
+      id: a.id,
+      status: a.status,
+      attemptNumber: a.attemptNumber,
+      score: a.score,
+      totalMarks: a.totalMarks,
+      submittedAt: a.submittedAt,
+      student: a.student,
+      pendingCount: a.answers.length,
+    })),
+  };
+};
+
+export const getAttemptForGrading = async (
+  attemptId: string,
+  instituteId: string,
+  branchId?: string | null
+) => {
+  const attempt = await prisma.examAttempt.findFirst({
+    where: { id: attemptId, instituteId },
+    include: {
+      exam: {
+        select: {
+          id: true,
+          name: true,
+          totalMarks: true,
+          passingMarks: true,
+          showResults: true,
+        },
+      },
+      student: {
+        select: {
+          id: true,
+          studentCode: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      },
+      answers: {
+        include: {
+          question: {
+            select: {
+              id: true,
+              questionType: true,
+              questionText: true,
+              marks: true,
+              correctAnswer: true,
+              explanation: true,
+            },
+          },
+        },
+        orderBy: { savedAt: 'asc' },
+      },
+    },
+  });
+
+  if (!attempt) {
+    throw new AppError('Attempt not found', 404);
+  }
+
+  if (branchId && attempt.branchId && attempt.branchId !== branchId) {
+    throw new AppError('Unauthorized access to this branch attempt', 403);
+  }
+
+  const examQuestions = await prisma.examQuestion.findMany({
+    where: { examId: attempt.examId },
+    select: {
+      questionId: true,
+      displayOrder: true,
+      marksOverride: true,
+    },
+  });
+  const orderMap = new Map(examQuestions.map((eq) => [eq.questionId, eq]));
+
+  const subjective = attempt.answers
+    .filter((a) => SUBJECTIVE_TYPES.includes(a.question.questionType as any))
+    .map((a) => {
+      const eq = orderMap.get(a.questionId);
+      const maxMarks = eq?.marksOverride ?? a.question.marks;
+      return {
+        answerId: a.id,
+        questionId: a.questionId,
+        questionType: a.question.questionType,
+        questionText: a.question.questionText,
+        maxMarks,
+        displayOrder: eq?.displayOrder ?? 0,
+        textAnswer: a.textAnswer,
+        marksAwarded: a.marksAwarded,
+        isCorrect: a.isCorrect,
+        gradingStatus: a.gradingStatus,
+        graderComment: a.graderComment,
+        gradedAt: a.gradedAt,
+        sampleAnswer: a.question.correctAnswer,
+      };
+    })
+    .sort((a, b) => a.displayOrder - b.displayOrder);
+
+  const pendingCount = subjective.filter((s) => s.gradingStatus === 'PENDING_MANUAL').length;
+  const gradedCount = subjective.filter((s) => s.gradingStatus === 'MANUALLY_GRADED').length;
+
+  return {
+    attempt: {
+      id: attempt.id,
+      status: attempt.status,
+      attemptNumber: attempt.attemptNumber,
+      score: attempt.score,
+      totalMarks: attempt.totalMarks,
+      percentage: attempt.percentage,
+      passed: attempt.passed,
+      submittedAt: attempt.submittedAt,
+    },
+    exam: attempt.exam,
+    student: attempt.student,
+    subjectiveAnswers: subjective,
+    pendingCount,
+    gradedCount,
+    totalSubjective: subjective.length,
+  };
+};
+
+export const gradeSubjectiveAnswer = async (
+  attemptId: string,
+  answerId: string,
+  staffUserId: string,
+  instituteId: string,
+  data: { marksAwarded: number; isCorrect?: boolean; graderComment?: string }
+) => {
+  const answer = await prisma.examAnswer.findFirst({
+    where: { id: answerId, attemptId },
+    include: {
+      question: { select: { id: true, marks: true, questionType: true } },
+      attempt: { select: { id: true, instituteId: true, examId: true, branchId: true } },
+    },
+  });
+
+  if (!answer || answer.attempt.instituteId !== instituteId) {
+    throw new AppError('Answer not found', 404);
+  }
+
+  if (!SUBJECTIVE_TYPES.includes(answer.question.questionType as any)) {
+    throw new AppError('Only fill-blank, short, and long answers can be manually graded', 400);
+  }
+
+  const eq = await prisma.examQuestion.findFirst({
+    where: { examId: answer.attempt.examId, questionId: answer.questionId },
+    select: { marksOverride: true },
+  });
+  const maxMarks = eq?.marksOverride ?? answer.question.marks;
+
+  if (data.marksAwarded < 0 || data.marksAwarded > maxMarks) {
+    throw new AppError(`Marks must be between 0 and ${maxMarks}`, 400);
+  }
+
+  const isCorrect =
+    data.isCorrect !== undefined ? data.isCorrect : data.marksAwarded >= maxMarks * 0.99;
+
+  await prisma.examAnswer.update({
+    where: { id: answerId },
+    data: {
+      marksAwarded: data.marksAwarded,
+      isCorrect,
+      gradingStatus: 'MANUALLY_GRADED',
+      gradedById: staffUserId,
+      gradedAt: new Date(),
+      graderComment: data.graderComment?.trim() || null,
+    },
+  });
+
+  const { recalculateAttemptScore } = await import('./attempt.grading');
+  await recalculateAttemptScore(attemptId, instituteId);
+
+  await logActivity(staffUserId, instituteId, 'EXAM_ANSWER_MANUALLY_GRADED', answerId, null, {
+    attemptId,
+    marksAwarded: data.marksAwarded,
+    isCorrect,
+  });
+
+  return getAttemptForGrading(attemptId, instituteId);
 };

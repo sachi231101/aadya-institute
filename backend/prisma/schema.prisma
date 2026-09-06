@@ -340,6 +340,7 @@ model User {
   targetProgress       TargetProgress[]
   createdExams         Exam[]             @relation("ExamCreatedBy")
   createdQuestions     Question[]         @relation("QuestionCreatedBy")
+  gradedExamAnswers    ExamAnswer[]       @relation("ExamAnswerGradedBy")
   createdQuestionBanks QuestionBank[]     @relation("QuestionBankCreatedBy")
   examAttempts         ExamAttempt[]
   documentsUploaded    Document[]     @relation("DocumentUploadedBy")
@@ -1936,6 +1937,8 @@ model Question {
   marks          Float          @default(1)
   negativeMarks  Float          @default(0)
   explanation    String?        @db.Text
+  /// Expected value for NUMERICAL, or sample/key for text types (admin grading aid)
+  correctAnswer  String?        @db.Text
   status         QuestionStatus @default(ACTIVE)
   createdById    String
   createdAt      DateTime       @default(now())
@@ -2091,6 +2094,12 @@ enum AttemptStatus {
   EXPIRED
 }
 
+enum AnswerGradingStatus {
+  AUTO
+  PENDING_MANUAL
+  MANUALLY_GRADED
+}
+
 enum ProctoringEventType {
   TAB_SWITCH
   WINDOW_BLUR
@@ -2130,6 +2139,10 @@ model ExamAttempt {
   percentage           Float?
   passed               Boolean?
   feedback             String?       @db.Text
+  countsTowardLimit    Boolean       @default(true)
+  retryGrantedAt       DateTime?
+  retryGrantedById     String?
+  retryGrantReason     String?
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
@@ -2150,27 +2163,35 @@ model ExamAttempt {
   @@index([userId])
   @@index([status])
   @@index([startedAt])
+  @@index([examId, studentId, countsTowardLimit])
 }
 
 model ExamAnswer {
-  id                 String   @id @default(cuid())
+  id                 String               @id @default(cuid())
   attemptId          String
   questionId         String
-  selectedOptionIds  Json?    // String array of option IDs
-  textAnswer         String?  @db.Text
+  selectedOptionIds  Json?                // String array of option IDs
+  textAnswer         String?              @db.Text
   numericalAnswer    Float?
   isCorrect          Boolean?
-  marksAwarded       Float?   @default(0)
-  isFlagged          Boolean  @default(false)
-  savedAt            DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  marksAwarded       Float?               @default(0)
+  gradingStatus      AnswerGradingStatus?
+  gradedById         String?
+  gradedAt           DateTime?
+  graderComment      String?              @db.Text
+  isFlagged          Boolean              @default(false)
+  savedAt            DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   attempt  ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  gradedBy User?       @relation("ExamAnswerGradedBy", fields: [gradedById], references: [id], onDelete: SetNull)
 
   @@unique([attemptId, questionId])
   @@index([attemptId])
   @@index([questionId])
+  @@index([gradingStatus])
+  @@index([gradedById])
 }
 
 model ExamProctoringEvent {

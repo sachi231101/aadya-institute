@@ -45,6 +45,16 @@ export const terminateAttemptSchema = z.object({
   notes: z.string().optional(),
 });
 
+export const grantRetrySchema = z.object({
+  reason: z.string().min(2, 'Reason for granting another chance is required').max(500),
+});
+
+export const gradeAnswerSchema = z.object({
+  marksAwarded: z.coerce.number().min(0, 'Marks cannot be negative'),
+  isCorrect: z.boolean().optional(),
+  graderComment: z.string().max(2000).optional(),
+});
+
 export const attemptQuerySchema = z.object({
   status: z.enum([
     'NOT_STARTED',

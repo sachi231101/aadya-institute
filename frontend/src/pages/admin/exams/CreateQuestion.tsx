@@ -49,6 +49,7 @@ interface QuestionDraft {
   marks: number;
   negativeMarks: number;
   explanation: string;
+  correctAnswer: string;
   options: OptionItem[];
   isCollapsed?: boolean;
 }
@@ -79,6 +80,7 @@ const createNewQuestionDraft = (
   marks: 1,
   negativeMarks: 0,
   explanation: "",
+  correctAnswer: "",
   options: createDefaultOptions(defaultType),
   isCollapsed: false,
 });
@@ -292,6 +294,14 @@ export const CreateQuestion: React.FC = () => {
           return;
         }
       }
+
+      if (q.questionType === "NUMERICAL") {
+        if (!q.correctAnswer.trim() || Number.isNaN(Number(q.correctAnswer.trim()))) {
+          setValidationError(`Question #${qNum}: Enter a valid numerical correct answer.`);
+          if (q.isCollapsed) handleToggleCollapse(idx);
+          return;
+        }
+      }
     }
 
     try {
@@ -304,6 +314,7 @@ export const CreateQuestion: React.FC = () => {
           marks: Number(q.marks),
           negativeMarks: Number(q.negativeMarks),
           explanation: q.explanation.trim() || undefined,
+          correctAnswer: q.correctAnswer.trim() || undefined,
           questionBankId: questionBankId || undefined,
           courseId: courseId || undefined,
           moduleId: moduleId || undefined,
@@ -671,6 +682,57 @@ export const CreateQuestion: React.FC = () => {
                         >
                           <Plus className="h-3.5 w-3.5" /> Add Choice
                         </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Correct / sample answer for typed question types */}
+                  {["NUMERICAL", "FILL_BLANK", "SHORT_ANSWER", "LONG_ANSWER"].includes(q.questionType) && (
+                    <div className="space-y-1.5 pt-1">
+                      <Label className="text-xs font-semibold">
+                        {q.questionType === "NUMERICAL"
+                          ? "Correct Answer (required)"
+                          : "Sample / Expected Answer (for admin grading)"}
+                      </Label>
+                      {q.questionType === "NUMERICAL" ? (
+                        <Input
+                          type="number"
+                          step="any"
+                          placeholder="e.g. 42 or 3.14"
+                          value={q.correctAnswer}
+                          onChange={(e) =>
+                            handleQuestionFieldChange(qIndex, "correctAnswer", e.target.value)
+                          }
+                          className="text-sm max-w-xs"
+                        />
+                      ) : q.questionType === "LONG_ANSWER" ? (
+                        <Textarea
+                          placeholder="Optional sample answer shown to graders only..."
+                          value={q.correctAnswer}
+                          onChange={(e) =>
+                            handleQuestionFieldChange(qIndex, "correctAnswer", e.target.value)
+                          }
+                          rows={3}
+                          className="text-xs"
+                        />
+                      ) : (
+                        <Input
+                          placeholder={
+                            q.questionType === "FILL_BLANK"
+                              ? "Optional expected fill-in text for graders..."
+                              : "Optional expected short answer for graders..."
+                          }
+                          value={q.correctAnswer}
+                          onChange={(e) =>
+                            handleQuestionFieldChange(qIndex, "correctAnswer", e.target.value)
+                          }
+                          className="text-sm"
+                        />
+                      )}
+                      {q.questionType !== "NUMERICAL" && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Students will type their answer; admin will award marks manually.
+                        </p>
                       )}
                     </div>
                   )}

@@ -10,6 +10,10 @@ const attemptInclude = {
       durationMinutes: true,
       totalMarks: true,
       passingMarks: true,
+      status: true,
+      startAt: true,
+      endAt: true,
+      showResults: true,
       proctoringEnabled: true,
       fullscreenRequired: true,
       maxWarnings: true,
@@ -21,7 +25,6 @@ const attemptInclude = {
       rightClickDetection: true,
       networkGracePeriodSeconds: true,
       autoTerminateOnMaxViolations: true,
-      showResults: true,
       course: { select: { id: true, name: true, code: true } },
     },
   },
@@ -40,6 +43,8 @@ const attemptInclude = {
       textAnswer: true,
       numericalAnswer: true,
       isFlagged: true,
+      isCorrect: true,
+      marksAwarded: true,
       savedAt: true,
     },
   },
@@ -154,6 +159,9 @@ export const findExamMetaForStudent = async (
       passingMarks: true,
       attemptsAllowed: true,
       examType: true,
+      status: true,
+      startAt: true,
+      endAt: true,
       negativeMarkingEnabled: true,
       proctoringEnabled: true,
       fullscreenRequired: true,
@@ -246,7 +254,34 @@ export const findActiveAttempt = async (examId: string, studentId: string) => {
 
 export const countStudentAttempts = async (examId: string, studentId: string) => {
   return prisma.examAttempt.count({
+    where: { examId, studentId, countsTowardLimit: true },
+  });
+};
+
+export const getNextAttemptNumber = async (examId: string, studentId: string) => {
+  const latest = await prisma.examAttempt.findFirst({
     where: { examId, studentId },
+    orderBy: { attemptNumber: 'desc' },
+    select: { attemptNumber: true },
+  });
+  return (latest?.attemptNumber ?? 0) + 1;
+};
+
+export const grantAttemptRetry = async (
+  attemptId: string,
+  _instituteId: string,
+  staffUserId: string,
+  reason: string
+) => {
+  return prisma.examAttempt.update({
+    where: { id: attemptId },
+    data: {
+      countsTowardLimit: false,
+      retryGrantedAt: new Date(),
+      retryGrantedById: staffUserId,
+      retryGrantReason: reason,
+    },
+    include: attemptInclude,
   });
 };
 
@@ -542,6 +577,7 @@ export const findStudentAvailableExams = async (
           terminationReason: true,
           violationCount: true,
           warningCount: true,
+          countsTowardLimit: true,
         },
       },
     },

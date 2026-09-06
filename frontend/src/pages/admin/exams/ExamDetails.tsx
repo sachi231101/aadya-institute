@@ -43,6 +43,7 @@ import { useQuestions } from "@/hooks/useQuestions";
 import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useBatches } from "@/hooks/useBatches";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
+import { toDatetimeLocalValue } from "@/utils/date";
 import { useStudentList } from "@/hooks/useStudents";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -89,7 +90,7 @@ export const ExamDetails: React.FC = () => {
 
   // Mutations
   const publishMutation = usePublishExam();
-  const scheduleMutation = useScheduleExam(id || "");
+  const scheduleMutation = useScheduleExam();
   const archiveMutation = useArchiveExam();
   const addQuestionMutation = useAddQuestionToExam(id || "");
   const addQuestionBankMutation = useAddQuestionBankToExam(id || "");
@@ -120,7 +121,7 @@ export const ExamDetails: React.FC = () => {
       page: pickerPage,
       limit: PICKER_PAGE_SIZE,
     },
-    { enabled: pickerView === "questions" && !!selectedBankId }
+    { enabled: pickerView === "questions" }
   );
   const pickerQuestions = pickerQuestionsResponse?.data || [];
   const pickerTotal = pickerQuestionsResponse?.meta?.total ?? pickerQuestions.length;
@@ -209,14 +210,14 @@ export const ExamDetails: React.FC = () => {
   const handleOpenSchedule = () => {
     setScheduleError(null);
     if (exam?.startAt) {
-      setStartAt(new Date(exam.startAt).toISOString().slice(0, 16));
+      setStartAt(toDatetimeLocalValue(exam.startAt));
     } else {
-      setStartAt(new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+      setStartAt(toDatetimeLocalValue(Date.now() + 3600000));
     }
     if (exam?.endAt) {
-      setEndAt(new Date(exam.endAt).toISOString().slice(0, 16));
+      setEndAt(toDatetimeLocalValue(exam.endAt));
     } else {
-      setEndAt(new Date(Date.now() + 7200000).toISOString().slice(0, 16));
+      setEndAt(toDatetimeLocalValue(Date.now() + 7200000));
     }
     setShowScheduleModal(true);
   };
@@ -236,6 +237,7 @@ export const ExamDetails: React.FC = () => {
 
     try {
       await scheduleMutation.mutateAsync({
+        id: exam.id,
         startAt: sDate.toISOString(),
         endAt: eDate.toISOString(),
       });
@@ -557,32 +559,34 @@ export const ExamDetails: React.FC = () => {
                   <div>
                     <CardTitle className="text-base font-semibold flex items-center gap-2">
                       <Folder className="h-4 w-4 text-purple-600" />
-                      Add from Question Bank
+                      Add Questions
                     </CardTitle>
                     <CardDescription>
-                      Pick a question bank and add all questions at once, or browse and add individually.
+                      Add a full question bank, or open Questions to search and add individual questions.
                     </CardDescription>
                   </div>
-                  {pickerView === "questions" && selectedBank && (
-                    <Button variant="outline" size="sm" onClick={handleBackToBanks}>
-                      ← Back to Banks
-                    </Button>
-                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <Tabs
                   value={pickerView}
                   onValueChange={(v) => {
-                    if (v === "banks") handleBackToBanks();
+                    const next = v as PickerView;
+                    if (next === "banks") {
+                      handleBackToBanks();
+                      return;
+                    }
+                    setPickerView("questions");
+                    setPickerSearch("");
+                    setPickerPage(1);
                   }}
                 >
                   <TabsList className="grid w-full sm:w-[320px] grid-cols-2">
                     <TabsTrigger value="banks">
                       Question Banks ({questionBanks.length})
                     </TabsTrigger>
-                    <TabsTrigger value="questions" disabled={!selectedBankId}>
-                      Questions{selectedBank ? ` (${pickerTotal})` : ""}
+                    <TabsTrigger value="questions">
+                      Questions{pickerView === "questions" ? ` (${pickerTotal})` : ""}
                     </TabsTrigger>
                   </TabsList>
 
@@ -680,12 +684,40 @@ export const ExamDetails: React.FC = () => {
                   </TabsContent>
 
                   <TabsContent value="questions" className="mt-4 space-y-4">
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search questions by text..."
+                          value={pickerSearch}
+                          onChange={(e) => setPickerSearch(e.target.value)}
+                          className="pl-9 text-sm"
+                        />
+                      </div>
+                      <select
+                        value={selectedBankId || "ALL"}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          setSelectedBankId(value === "ALL" ? null : value);
+                          setPickerPage(1);
+                        }}
+                        className="h-10 rounded-md border border-input bg-background px-3 text-xs sm:w-56"
+                      >
+                        <option value="ALL">All question banks</option>
+                        {questionBanks.map((bank: any) => (
+                          <option key={bank.id} value={bank.id}>
+                            {bank.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
                     {selectedBank && (
                       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-purple-200 bg-purple-500/5 px-4 py-3">
                         <div className="flex items-center gap-2 text-sm">
                           <Folder className="h-4 w-4 text-purple-600" />
                           <span>
-                            Browsing <strong>{selectedBank.name}</strong>
+                            Filtered by <strong>{selectedBank.name}</strong>
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -704,22 +736,20 @@ export const ExamDetails: React.FC = () => {
                               )}
                             </Button>
                           )}
-                          <Button size="sm" variant="ghost" className="text-xs" onClick={handleBackToBanks}>
-                            Change Bank
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-xs"
+                            onClick={() => {
+                              setSelectedBankId(null);
+                              setPickerPage(1);
+                            }}
+                          >
+                            Clear filter
                           </Button>
                         </div>
                       </div>
                     )}
-
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search questions in this bank..."
-                        value={pickerSearch}
-                        onChange={(e) => setPickerSearch(e.target.value)}
-                        className="pl-9 text-sm"
-                      />
-                    </div>
 
                     {pickerQuestionsLoading ? (
                       <div className="py-12 text-center text-muted-foreground">
@@ -729,16 +759,24 @@ export const ExamDetails: React.FC = () => {
                     ) : pickerQuestions.length === 0 ? (
                       <div className="py-12 text-center space-y-2 text-muted-foreground">
                         <HelpCircle className="h-10 w-10 mx-auto opacity-40" />
-                        <p className="text-sm font-medium text-foreground">No questions in this bank</p>
+                        <p className="text-sm font-medium text-foreground">No questions found</p>
+                        <p className="text-xs max-w-sm mx-auto">
+                          Create questions in the Question Bank, then return here to add them to this exam.
+                        </p>
                         <Button
                           size="sm"
                           variant="outline"
                           className="gap-2 mt-2"
                           onClick={() =>
-                            navigate(`${basePath}/questions/create?bankId=${selectedBankId}`)
+                            navigate(
+                              selectedBankId
+                                ? `${basePath}/questions/create?bankId=${selectedBankId}`
+                                : `${basePath}/question-bank`
+                            )
                           }
                         >
-                          <Plus className="h-4 w-4" /> Add Questions to Bank
+                          <Plus className="h-4 w-4" />{" "}
+                          {selectedBankId ? "Add Questions to Bank" : "Open Question Bank"}
                         </Button>
                       </div>
                     ) : (
@@ -770,6 +808,11 @@ export const ExamDetails: React.FC = () => {
                                     {q.difficulty}
                                   </Badge>
                                   <span className="text-[11px] text-muted-foreground">{q.marks} pts</span>
+                                  {q.questionBank?.name && (
+                                    <span className="text-[11px] text-muted-foreground truncate">
+                                      Bank: {q.questionBank.name}
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-sm text-foreground">{q.questionText}</p>
                                 {q.options && q.options.length > 0 && (

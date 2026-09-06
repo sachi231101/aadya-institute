@@ -30,6 +30,7 @@ import {
   useDeleteExam,
 } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
+import { toDatetimeLocalValue } from "@/utils/date";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -82,7 +83,7 @@ export const ExamManagement: React.FC = () => {
 
   // Mutations
   const publishMutation = usePublishExam();
-  const scheduleMutation = useScheduleExam("");
+  const scheduleMutation = useScheduleExam();
   const archiveMutation = useArchiveExam();
   const deleteMutation = useDeleteExam();
 
@@ -121,14 +122,14 @@ export const ExamManagement: React.FC = () => {
     setSchedulingExam(exam);
     setScheduleError(null);
     if (exam.startAt) {
-      setStartAt(new Date(exam.startAt).toISOString().slice(0, 16));
+      setStartAt(toDatetimeLocalValue(exam.startAt));
     } else {
-      setStartAt(new Date(Date.now() + 3600000).toISOString().slice(0, 16));
+      setStartAt(toDatetimeLocalValue(Date.now() + 3600000));
     }
     if (exam.endAt) {
-      setEndAt(new Date(exam.endAt).toISOString().slice(0, 16));
+      setEndAt(toDatetimeLocalValue(exam.endAt));
     } else {
-      setEndAt(new Date(Date.now() + 7200000).toISOString().slice(0, 16));
+      setEndAt(toDatetimeLocalValue(Date.now() + 7200000));
     }
   };
 
@@ -148,6 +149,7 @@ export const ExamManagement: React.FC = () => {
 
     try {
       await scheduleMutation.mutateAsync({
+        id: schedulingExam.id,
         startAt: sDate.toISOString(),
         endAt: eDate.toISOString(),
       });
