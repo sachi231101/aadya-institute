@@ -21,6 +21,7 @@ import {
 } from "../../../hooks/useTargets";
 import { useAuthStore } from "../../../store/auth.store";
 import type { Incentive, IncentiveStatus } from "../../../types/target.types";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const IncentiveManagement: React.FC = () => {
   const { user } = useAuthStore();
@@ -324,22 +325,24 @@ export const IncentiveManagement: React.FC = () => {
 
                     <td className="py-4 px-4 text-right">
                       {inc.status === "PENDING_APPROVAL" && (
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => handleOpenApprove(inc)}
-                            className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-emerald-600/20"
-                          >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            Approve
-                          </button>
-                          <button
-                            onClick={() => handleOpenReject(inc)}
-                            className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-rose-600/20"
-                          >
-                            <XCircle className="w-3.5 h-3.5" />
-                            Reject
-                          </button>
-                        </div>
+                        <PermissionGate itemKey="targets.incentives" mode="write">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleOpenApprove(inc)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-emerald-600/20"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleOpenReject(inc)}
+                              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center gap-1 shadow-xs shadow-rose-600/20"
+                            >
+                              <XCircle className="w-3.5 h-3.5" />
+                              Reject
+                            </button>
+                          </div>
+                        </PermissionGate>
                       )}
 
                       {inc.status === "APPROVED" && (

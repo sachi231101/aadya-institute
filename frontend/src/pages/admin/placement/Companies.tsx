@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Companies: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -42,7 +43,9 @@ export const Companies: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Companies</h2>
           <p className="text-sm text-text-secondary">Partner companies for placement drives.</p>
         </div>
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
+        <PermissionGate itemKey="placement.companies" mode="write">
+          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
+        </PermissionGate>
       </div>
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">

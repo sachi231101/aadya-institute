@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { securityApi, type PasswordRequirements } from "@/services/security.api";
 import {
@@ -15,10 +16,13 @@ export const usePasswordRequirements = () => {
     staleTime: 5 * 60 * 1000,
   });
 
-  const policy: PasswordPolicyFields = {
-    ...DEFAULT_PASSWORD_POLICY,
-    ...(query.data ?? {}),
-  };
+  const policy: PasswordPolicyFields = useMemo(
+    () => ({
+      ...DEFAULT_PASSWORD_POLICY,
+      ...(query.data ?? {}),
+    }),
+    [query.data]
+  );
 
   return {
     ...query,

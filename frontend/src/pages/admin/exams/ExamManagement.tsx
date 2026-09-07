@@ -35,6 +35,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -207,6 +208,7 @@ export const ExamManagement: React.FC = () => {
             Question Bank
           </Button>
 
+          <PermissionGate itemKey="exams.all" mode="write">
           <Button
             className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm"
             onClick={() => navigate(`${basePath}/create`)}
@@ -214,6 +216,7 @@ export const ExamManagement: React.FC = () => {
             <Plus className="h-4 w-4" />
             Create Exam
           </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -414,6 +417,7 @@ export const ExamManagement: React.FC = () => {
                           : "Get started by creating your first exam using the button above."}
                       </p>
                       {!searchTerm && statusFilter === "ALL" && courseFilter === "ALL" && (
+                        <PermissionGate itemKey="exams.all" mode="write">
                         <Button
                           size="sm"
                           className="mt-2 gap-2"
@@ -421,6 +425,7 @@ export const ExamManagement: React.FC = () => {
                         >
                           <Plus className="h-4 w-4" /> Create Exam
                         </Button>
+                        </PermissionGate>
                       )}
                     </div>
                   </TableCell>
@@ -514,33 +519,33 @@ export const ExamManagement: React.FC = () => {
                             <Eye className="h-4 w-4 mr-2 text-primary" /> View Details
                           </DropdownMenuItem>
 
-                          {["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
+                          {canEditExams && ["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
                             <DropdownMenuItem onClick={() => navigate(`${basePath}/${exam.id}/edit`)}>
                               <Edit className="h-4 w-4 mr-2" /> Edit Exam
                             </DropdownMenuItem>
                           )}
 
-                          {exam.status === "DRAFT" && (
+                          {canEditExams && exam.status === "DRAFT" && (
                             <DropdownMenuItem onClick={() => handlePublish(exam)}>
                               <Send className="h-4 w-4 mr-2 text-blue-600" /> Publish Exam
                             </DropdownMenuItem>
                           )}
 
-                          {["DRAFT", "PUBLISHED"].includes(exam.status) && (
+                          {canEditExams && ["DRAFT", "PUBLISHED"].includes(exam.status) && (
                             <DropdownMenuItem onClick={() => handleOpenSchedule(exam)}>
                               <Calendar className="h-4 w-4 mr-2 text-purple-600" /> Schedule
                             </DropdownMenuItem>
                           )}
 
-                          <DropdownMenuSeparator />
+                          {canEditExams && <DropdownMenuSeparator />}
 
-                          {["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
+                          {canEditExams && ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
                             <DropdownMenuItem onClick={() => handleArchive(exam)}>
                               <Archive className="h-4 w-4 mr-2 text-gray-500" /> Archive
                             </DropdownMenuItem>
                           )}
 
-                          {["DRAFT", "CANCELLED"].includes(exam.status) && (
+                          {canEditExams && ["DRAFT", "CANCELLED"].includes(exam.status) && (
                             <DropdownMenuItem
                               onClick={() => setDeletingExam(exam)}
                               className="text-destructive focus:text-destructive"

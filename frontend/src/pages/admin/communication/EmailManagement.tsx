@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 type Tab = "templates" | "logs";
 
@@ -50,9 +51,11 @@ export const EmailManagement: React.FC = () => {
           <p className="text-sm text-text-secondary">Email templates and delivery logs.</p>
         </div>
         {tab === "templates" && (
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
-            <Plus className="mr-2 h-4 w-4" /> New Template
-          </Button>
+          <PermissionGate itemKey="communication.email" mode="write">
+            <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+              <Plus className="mr-2 h-4 w-4" /> New Template
+            </Button>
+          </PermissionGate>
         )}
       </div>
 

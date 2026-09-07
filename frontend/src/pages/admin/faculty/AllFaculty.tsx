@@ -7,6 +7,7 @@ import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useFacultyReport } from "@/hooks/useReports";
 import { useFacultyList } from "@/hooks/useFaculty";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const ProgressBar = ({ value, colorClass }: { value: number, colorClass: string }) => (
   <div className="w-full bg-muted rounded-full h-1.5 mt-1.5 overflow-hidden">
@@ -131,6 +132,7 @@ export const AllFaculty: React.FC = () => {
             >
               Faculty Timetable
             </Button>
+            <PermissionGate itemKey="faculty.all" mode="write">
             <Button 
               size="sm"
               className="bg-primary hover:bg-primary/90 text-white font-semibold shadow-xs rounded-xl cursor-pointer h-9 px-3.5 text-xs" 
@@ -138,6 +140,7 @@ export const AllFaculty: React.FC = () => {
             >
               <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Faculty
             </Button>
+            </PermissionGate>
           </div>
         </div>
 

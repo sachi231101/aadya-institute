@@ -25,6 +25,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Interviews: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -70,9 +71,11 @@ export const Interviews: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Interviews</h2>
           <p className="text-sm text-text-secondary">Scheduled and completed placement interviews.</p>
         </div>
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Schedule Interview
-        </Button>
+        <PermissionGate itemKey="placement.interviews" mode="write">
+          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Schedule Interview
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">

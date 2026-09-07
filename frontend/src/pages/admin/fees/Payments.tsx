@@ -40,6 +40,7 @@ import {
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Payments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -172,13 +173,15 @@ export const Payments: React.FC = () => {
           </p>
         </div>
 
-        <Button 
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
-          onClick={() => setShowModal(true)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Record New Payment
-        </Button>
+        <PermissionGate itemKey="fees.payments" mode="write">
+          <Button 
+            className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
+            onClick={() => setShowModal(true)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Record New Payment
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Summary Metrics */}
@@ -340,13 +343,15 @@ export const Payments: React.FC = () => {
                             <DropdownMenuItem onClick={() => setViewReceiptItem(p)}>
                               <FileText className="mr-2 h-4 w-4 text-[#1769AA]" /> View & Print Receipt
                             </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-red-600 focus:text-red-600"
-                              onClick={() => handleDelete(p.id)}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
-                            </DropdownMenuItem>
+                            <PermissionGate itemKey="fees.payments" mode="write">
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                className="text-red-600 focus:text-red-600"
+                                onClick={() => handleDelete(p.id)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
+                              </DropdownMenuItem>
+                            </PermissionGate>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>

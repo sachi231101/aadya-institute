@@ -1,18 +1,21 @@
+import {
+  hasItemGrantFlags,
+  itemShowPermission,
+  itemWritePermission,
+} from "@/utils/permission-utils";
+
 /**
  * Center Manager catalog item → permission mappings (mirrors backend permission-catalog.ts).
  * Used for sidebar visibility (read) and page edit controls (write).
  */
 export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "leads.all": ["lead.read"],
-  "leads.new": ["lead.read"],
   "leads.ai_calling": ["ai_call.read"],
   "leads.followups": ["lead.read"],
   "leads.call_history": ["ai_call.read", "lead.read"],
   "admissions.enquiries": ["lead.read"],
   "admissions.applications": ["admission.read"],
   "admissions.all": ["admission.read"],
-  "admissions.direct": ["admission.read"],
-  "admissions.documents": ["document.read"],
   "counsellor.all": ["user.read"],
   "counsellor.lead_allocation": ["lead.read"],
   "counsellor.performance": ["target.read", "report.read"],
@@ -27,7 +30,6 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "faculty.performance": ["feedback.read", "report.read"],
   "courses.all": ["course.read"],
   "courses.curriculum": ["module.read", "course.read"],
-  "courses.modules": ["module.read"],
   "courses.course_assignment": ["faculty.read", "course.read"],
   "batches.all": ["batch.read"],
   "schedule.timetable": ["schedule.read"],
@@ -49,7 +51,6 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "fees.receipts": ["fee.read"],
   "fees.reports": ["fee.read", "report.read"],
   "targets.all": ["target.read"],
-  "targets.assignments": ["target.read"],
   "targets.leaderboard": ["target.read", "incentive.read"],
   "targets.incentives": ["incentive.read"],
   "reports.students": ["report.read"],
@@ -72,21 +73,18 @@ export const CENTER_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
   "admin.organization": ["institute.read"],
   "admin.branches": ["branch.read"],
   "admin.masters": ["master.read"],
-  "admin.integrations": ["integration.read", "google_meet.read"],
-  "admin.settings": ["institute.read"],
+  "admin.integrations": ["integration.read"],
+  "admin.settings": ["settings.read"],
 };
 
 export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "leads.all": ["lead.create", "lead.update", "lead.assign", "lead.convert", "lead.delete"],
-  "leads.new": ["lead.create"],
   "leads.ai_calling": ["ai_call.create"],
   "leads.followups": ["lead.update", "lead.assign"],
   "leads.call_history": [],
   "admissions.enquiries": ["lead.create", "lead.update"],
   "admissions.applications": ["admission.create", "admission.update"],
   "admissions.all": ["admission.create", "admission.update"],
-  "admissions.direct": ["admission.create", "admission.update"],
-  "admissions.documents": ["document.create", "document.verify", "document.update"],
   "counsellor.all": ["user.create", "user.update"],
   "counsellor.lead_allocation": ["lead.assign", "lead.update"],
   "counsellor.performance": [],
@@ -101,7 +99,6 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "faculty.performance": [],
   "courses.all": ["course.create", "course.update"],
   "courses.curriculum": ["module.create", "module.update"],
-  "courses.modules": ["module.create", "module.update"],
   "courses.course_assignment": ["faculty.update", "batch.update"],
   "batches.all": ["batch.create", "batch.update"],
   "schedule.timetable": ["schedule.update"],
@@ -123,7 +120,6 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "fees.receipts": [],
   "fees.reports": [],
   "targets.all": ["target.manage", "target.assign"],
-  "targets.assignments": ["target.assign"],
   "targets.leaderboard": [],
   "targets.incentives": ["target.approve"],
   "reports.students": [],
@@ -143,11 +139,11 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "placement.applications": ["placement.create", "placement.update"],
   "placement.interviews": ["placement.create", "placement.update"],
   "placement.placements": ["placement.create", "placement.update"],
-  "admin.organization": [],
-  "admin.branches": ["branch.update"],
+  "admin.organization": ["institute.update"],
+  "admin.branches": ["branch.create", "branch.update"],
   "admin.masters": ["master.create", "master.update", "master.delete"],
-  "admin.integrations": ["integration.manage", "google_meet.connect"],
-  "admin.settings": ["institute.update"],
+  "admin.integrations": ["integration.manage"],
+  "admin.settings": ["settings.update"],
 };
 
 /** Legacy module keys for modulePermissions fallback (maps ERP groups). */
@@ -175,6 +171,9 @@ export const canReadCenterItem = (
   itemKey: string
 ): boolean => {
   if (!permissions?.length) return false;
+  if (hasItemGrantFlags(permissions)) {
+    return permissions.includes(itemShowPermission(itemKey));
+  }
   const required = CENTER_ITEM_READ_PERMISSIONS[itemKey];
   if (!required?.length) return false;
   const permSet = new Set(permissions);
@@ -186,10 +185,16 @@ export const canEditCenterItem = (
   itemKey: string
 ): boolean => {
   if (!permissions?.length) return false;
-  const readOk = canReadCenterItem(permissions, itemKey);
-  if (!readOk) return false;
   const writePerms = CENTER_ITEM_WRITE_PERMISSIONS[itemKey];
   if (!writePerms?.length) return false;
+  if (hasItemGrantFlags(permissions)) {
+    return (
+      permissions.includes(itemShowPermission(itemKey)) &&
+      permissions.includes(itemWritePermission(itemKey))
+    );
+  }
+  const readOk = canReadCenterItem(permissions, itemKey);
+  if (!readOk) return false;
   const permSet = new Set(permissions);
   return writePerms.every((p) => permSet.has(p));
 };

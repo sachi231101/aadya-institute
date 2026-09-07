@@ -105,6 +105,7 @@ const buildAddAdminSchema = (
 type AddAdminFormValues = z.infer<ReturnType<typeof buildAddAdminSchema>>;
 
 const USERS_PATH = "/admin/administration/users";
+const EMPTY_CATALOG: PermissionModuleDefinition[] = [];
 
 export const AddAdmin: React.FC = () => {
   const navigate = useNavigate();
@@ -132,12 +133,11 @@ export const AddAdmin: React.FC = () => {
 
   useEffect(() => {
     form.clearErrors("password");
-  }, [policy, form]);
+  }, [policy, form.clearErrors]);
 
-  // Keep resolver in sync when institute password policy loads/changes
   useEffect(() => {
     form.clearErrors();
-  }, [addAdminSchema, form]);
+  }, [addAdminSchema, form.clearErrors]);
 
   const selectedRole = form.watch("role");
   const showPermissions =
@@ -151,16 +151,16 @@ export const AddAdmin: React.FC = () => {
       ),
     enabled: showPermissions,
   });
-  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? [];
+  const catalog: PermissionModuleDefinition[] = catalogRes?.data ?? EMPTY_CATALOG;
 
   const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
 
   useEffect(() => {
     if (catalog.length > 0) {
       setItemAccess(createDefaultAccessState(catalog));
-    } else {
-      setItemAccess({});
+      return;
     }
+    setItemAccess((prev) => (Object.keys(prev).length === 0 ? prev : {}));
   }, [catalog, selectedRole]);
 
   const createFacultyMutation = useMutation({
@@ -431,7 +431,7 @@ export const AddAdmin: React.FC = () => {
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500">
                       By default, new users see only Dashboard, ASK ME, and Settings.
-                      Enable Show/Editable per submodule to grant access.
+                      Enable Read/Edit per submodule to grant access.
                     </CardDescription>
                   </div>
                 </div>
@@ -442,7 +442,7 @@ export const AddAdmin: React.FC = () => {
                   <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                   <span>
                     <strong>Default access:</strong> Unchecked modules stay hidden
-                    until you enable Show. Use Grant all for full ERP access.
+                    until you enable Read. Use Grant all for full ERP access.
                   </span>
                 </div>
 

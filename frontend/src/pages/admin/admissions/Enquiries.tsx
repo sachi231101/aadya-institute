@@ -42,6 +42,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { ViewEnquiryInfo } from "./ViewEnquiryInfo";
 
 // ─── TYPES & MOCK/SEED DATA MATCHING THE REFERENCE IMAGE ───────────────────
@@ -706,13 +707,15 @@ export const Enquiries: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button
-            onClick={() => setShowImportModal(true)}
-            variant="outline"
-            className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
-          >
-            <Download className="h-4 w-4 text-muted-foreground" /> Import Leads
-          </Button>
+          <PermissionGate itemKey="admissions.enquiries" mode="write">
+            <Button
+              onClick={() => setShowImportModal(true)}
+              variant="outline"
+              className="border-border text-foreground hover:bg-muted/50 bg-card font-semibold px-3.5 py-2 rounded-xl shadow-xs gap-1.5 h-10 text-xs transition-all cursor-pointer"
+            >
+              <Download className="h-4 w-4 text-muted-foreground" /> Import Leads
+            </Button>
+          </PermissionGate>
 
           <Button
             onClick={handleExportCSV}
@@ -722,12 +725,14 @@ export const Enquiries: React.FC = () => {
             <Upload className="h-4 w-4 text-muted-foreground" /> Export
           </Button>
 
-          <Button
-            onClick={() => setShowAddModal(true)}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
-          >
-            <Plus className="h-4 w-4" /> Add New Enquiry
-          </Button>
+          <PermissionGate itemKey="admissions.enquiries" mode="write">
+            <Button
+              onClick={() => setShowAddModal(true)}
+              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
+            >
+              <Plus className="h-4 w-4" /> Add New Enquiry
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -1420,9 +1425,11 @@ export const Enquiries: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="text-xs">
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs">
-                Save & Add Enquiry
-              </Button>
+              <PermissionGate itemKey="admissions.enquiries" mode="write">
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs">
+                  Save & Add Enquiry
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1530,7 +1537,9 @@ export const Enquiries: React.FC = () => {
 
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowFollowupModal(false)}>Cancel</Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">Save Follow-up</Button>
+              <PermissionGate itemKey="admissions.enquiries" mode="write">
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">Save Follow-up</Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -1571,9 +1580,11 @@ export const Enquiries: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowLostModal(false)}>
                 Cancel
               </Button>
-              <Button type="button" onClick={handleConfirmLost} className="bg-red-600 hover:bg-red-700 text-white font-bold">
-                Confirm Mark as Lost
-              </Button>
+              <PermissionGate itemKey="admissions.enquiries" mode="write">
+                <Button type="button" onClick={handleConfirmLost} className="bg-red-600 hover:bg-red-700 text-white font-bold">
+                  Confirm Mark as Lost
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </div>
         </DialogContent>
@@ -1594,14 +1605,16 @@ export const Enquiries: React.FC = () => {
               <p className="font-bold text-slate-800">Select CSV file with lead data</p>
               <p className="text-[11px] text-slate-400">Supported columns: Name, Phone, Email, Course, Source</p>
               <input type="file" accept=".csv" className="hidden" id="csv-upload-input" />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById("csv-upload-input")?.click()}
-                className="mt-2 text-xs font-semibold"
-              >
-                Choose File
-              </Button>
+              <PermissionGate itemKey="admissions.enquiries" mode="write">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => document.getElementById("csv-upload-input")?.click()}
+                  className="mt-2 text-xs font-semibold"
+                >
+                  Choose File
+                </Button>
+              </PermissionGate>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowImportModal(false)}>

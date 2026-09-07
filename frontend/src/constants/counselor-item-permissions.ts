@@ -1,3 +1,9 @@
+import {
+  hasItemGrantFlags,
+  itemShowPermission,
+  itemWritePermission,
+} from "@/utils/permission-utils";
+
 /**
  * Counsellor catalog item → permission mappings (mirrors backend COUNSELLOR_CATALOG).
  */
@@ -60,6 +66,9 @@ export const canReadCounselorItem = (
   itemKey: string
 ): boolean => {
   if (!permissions?.length) return false;
+  if (hasItemGrantFlags(permissions)) {
+    return permissions.includes(itemShowPermission(itemKey));
+  }
   const required = COUNSELOR_ITEM_READ_PERMISSIONS[itemKey];
   if (!required?.length) return false;
   const permSet = new Set(permissions);
@@ -71,10 +80,16 @@ export const canEditCounselorItem = (
   itemKey: string
 ): boolean => {
   if (!permissions?.length) return false;
-  const readOk = canReadCounselorItem(permissions, itemKey);
-  if (!readOk) return false;
   const writePerms = COUNSELOR_ITEM_WRITE_PERMISSIONS[itemKey];
   if (!writePerms?.length) return false;
+  if (hasItemGrantFlags(permissions)) {
+    return (
+      permissions.includes(itemShowPermission(itemKey)) &&
+      permissions.includes(itemWritePermission(itemKey))
+    );
+  }
+  const readOk = canReadCounselorItem(permissions, itemKey);
+  if (!readOk) return false;
   const permSet = new Set(permissions);
   return writePerms.every((p) => permSet.has(p));
 };

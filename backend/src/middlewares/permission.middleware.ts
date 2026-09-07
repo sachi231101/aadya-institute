@@ -3,6 +3,7 @@ import type { AuthenticatedRequest } from "./auth.middleware";
 import { prisma } from "../config/database";
 import { sendError } from "../utils/response";
 import { logger } from "../config/logger";
+import { ALWAYS_ON_PERMISSIONS } from "../utils/permission-catalog";
 
 /**
  * Factory: checks that the authenticated user's roles have the given permission.
@@ -12,8 +13,7 @@ import { logger } from "../config/logger";
  * Security notes:
  * - Always runs after authMiddleware — req.user is guaranteed to exist.
  * - ADMIN role bypasses all permission checks.
- * - CENTER_MANAGER uses per-user permissions from the UserPermission table.
- * - COUNSELLOR has specific hardcoded permissions for lead management.
+ * - CENTER_MANAGER and COUNSELLOR use only UserPermission (+ always-on baseline).
  * - Other roles fall back to role-level permissions from RolePermission.
  */
 const userHasPermission = async (
@@ -25,6 +25,10 @@ const userHasPermission = async (
     return true;
   }
 
+  if (ALWAYS_ON_PERMISSIONS.includes(permission)) {
+    return true;
+  }
+
   if (userRoles.includes("CENTER_MANAGER") || userRoles.includes("COUNSELLOR")) {
     const userPermission = await prisma.userPermission.findFirst({
       where: {
@@ -32,36 +36,7 @@ const userHasPermission = async (
         permission: { name: permission },
       },
     });
-    if (userPermission) return true;
-
-    const roleMatch = await prisma.rolePermission.findFirst({
-      where: {
-        role: { name: { in: userRoles } },
-        permission: { name: permission },
-      },
-    });
-    if (roleMatch) return true;
-
-    if (userRoles.includes("COUNSELLOR")) {
-      const anyUserPerm = await prisma.userPermission.count({ where: { userId } });
-      if (
-        anyUserPerm === 0 &&
-        [
-          "lead.read",
-          "lead.create",
-          "lead.update",
-          "lead.convert",
-          "branch.read",
-          "dashboard.read",
-          "master.read",
-          "course.read",
-        ].includes(permission)
-      ) {
-        return true;
-      }
-    }
-
-    return false;
+    return Boolean(userPermission);
   }
 
   const match = await prisma.rolePermission.findFirst({
@@ -71,6 +46,14 @@ const userHasPermission = async (
     },
   });
   if (match) return true;
+
+  const userPermission = await prisma.userPermission.findFirst({
+    where: {
+      userId,
+      permission: { name: permission },
+    },
+  });
+  if (userPermission) return true;
 
   if (
     userRoles.includes("STUDENT") &&
@@ -92,6 +75,8 @@ const userHasPermission = async (
   return false;
 };
 
+export { userHasPermission };
+
 /**
  * Factory: checks that the authenticated user has the given permission.
  *
@@ -100,8 +85,7 @@ const userHasPermission = async (
  * Security notes:
  * - Always runs after authMiddleware — req.user is guaranteed to exist.
  * - ADMIN role bypasses all permission checks.
- * - CENTER_MANAGER uses per-user permissions from the UserPermission table.
- * - COUNSELLOR has specific hardcoded permissions for lead management.
+ * - CENTER_MANAGER and COUNSELLOR use only UserPermission (+ always-on baseline).
  * - Other roles fall back to role-level permissions from RolePermission.
  */
 export const requirePermission = (permission: string) => {

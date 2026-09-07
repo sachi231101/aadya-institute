@@ -35,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/store/auth.store";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const NotificationsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -440,15 +441,17 @@ export const NotificationsPage: React.FC = () => {
                       <ExternalLink className="h-4 w-4" />
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    title="Delete Notification"
-                    className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
-                    onClick={(e) => handleDelete(item.id, e)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  <PermissionGate itemKey="communication.notifications" mode="write">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      title="Delete Notification"
+                      className="text-slate-400 hover:text-red-600 hover:bg-red-50 h-8 w-8 p-0"
+                      onClick={(e) => handleDelete(item.id, e)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </PermissionGate>
                 </div>
               </CardContent>
             </Card>

@@ -22,6 +22,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -192,6 +193,7 @@ export const CourseAssignment: React.FC = () => {
           </div>
 
           {!isFacultyOnly && (
+            <PermissionGate itemKey="courses.course_assignment" mode="write">
             <Button
               onClick={() => setShowAssignModal(true)}
               className="bg-primary hover:bg-primary/90 text-white text-xs font-bold h-10 px-4 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
@@ -199,6 +201,7 @@ export const CourseAssignment: React.FC = () => {
               <Plus className="h-4 w-4" />
               Assign Batch to Faculty
             </Button>
+            </PermissionGate>
           )}
         </div>
       </div>

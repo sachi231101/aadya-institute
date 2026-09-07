@@ -91,6 +91,7 @@ import {
   formatTimeToAmPm,
   parseAmPmToTimeInput,
 } from "@/utils/master.utils";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 // ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
@@ -1021,15 +1022,17 @@ export const MasterSetup: React.FC = () => {
                             <Eye className="h-3.5 w-3.5" />
                             <span>View</span>
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleOpenAddRecord(item)}
-                            className="h-8 px-2.5 text-[11px] font-bold text-emerald-700 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 rounded-lg gap-1 cursor-pointer"
-                          >
-                            <Plus className="h-3.5 w-3.5" />
-                            <span>Add</span>
-                          </Button>
+                          <PermissionGate itemKey="admin.masters" mode="write">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenAddRecord(item)}
+                              className="h-8 px-2.5 text-[11px] font-bold text-emerald-700 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 rounded-lg gap-1 cursor-pointer"
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              <span>Add</span>
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </td>
                     </tr>
@@ -1091,13 +1094,15 @@ export const MasterSetup: React.FC = () => {
                     >
                       <Download className="h-3.5 w-3.5" /> Export CSV
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                      className="h-8 text-xs font-bold bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add Record
-                    </Button>
+                    <PermissionGate itemKey="admin.masters" mode="write">
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenAddRecord(selectedMasterEntity)}
+                        className="h-8 text-xs font-bold bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add Record
+                      </Button>
+                    </PermissionGate>
                   </div>
                 </div>
                 <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -1154,13 +1159,15 @@ export const MasterSetup: React.FC = () => {
                     <PackageOpen className="h-10 w-10 mb-3 text-slate-300" />
                     <span className="text-sm font-bold text-slate-500">No records found</span>
                     <p className="text-xs text-slate-400 mt-1">Add your first {selectedMasterEntity.name} record to get started.</p>
-                    <Button
-                      size="sm"
-                      onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                      className="mt-4 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
-                    >
-                      <Plus className="h-3.5 w-3.5" /> Add First Record
-                    </Button>
+                    <PermissionGate itemKey="admin.masters" mode="write">
+                      <Button
+                        size="sm"
+                        onClick={() => handleOpenAddRecord(selectedMasterEntity)}
+                        className="mt-4 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                      >
+                        <Plus className="h-3.5 w-3.5" /> Add First Record
+                      </Button>
+                    </PermissionGate>
                   </div>
                 ) : (
                   <div className="max-h-[380px] overflow-y-auto">
@@ -1209,39 +1216,41 @@ export const MasterSetup: React.FC = () => {
                               <StatusBadge status={rec.status} />
                             </td>
                             <td className="py-2.5 px-3 text-center">
-                              <div className="inline-flex items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleOpenEditRecord(selectedMasterEntity, rec)}
-                                  className="p-1 hover:bg-blue-50 text-blue-600 rounded-lg cursor-pointer"
-                                  title="Edit Record"
-                                >
-                                  <Edit2 className="h-3.5 w-3.5" />
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleStatus(selectedMasterEntity.id, rec.id, rec.name)}
-                                  className={`p-1 rounded-lg cursor-pointer ${rec.status === "ACTIVE"
-                                      ? "hover:bg-amber-50 text-amber-600"
-                                      : "hover:bg-emerald-50 text-emerald-600"
-                                    }`}
-                                  title={rec.status === "ACTIVE" ? "Deactivate" : "Activate"}
-                                >
-                                  {rec.status === "ACTIVE" ? (
-                                    <ToggleRight className="h-4 w-4" />
-                                  ) : (
-                                    <ToggleLeft className="h-4 w-4" />
-                                  )}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleRequestDelete(selectedMasterEntity.id, rec.id, rec.name)}
-                                  className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
-                                  title="Deactivate Record"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              </div>
+                              <PermissionGate itemKey="admin.masters" mode="write">
+                                <div className="inline-flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditRecord(selectedMasterEntity, rec)}
+                                    className="p-1 hover:bg-blue-50 text-blue-600 rounded-lg cursor-pointer"
+                                    title="Edit Record"
+                                  >
+                                    <Edit2 className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleStatus(selectedMasterEntity.id, rec.id, rec.name)}
+                                    className={`p-1 rounded-lg cursor-pointer ${rec.status === "ACTIVE"
+                                        ? "hover:bg-amber-50 text-amber-600"
+                                        : "hover:bg-emerald-50 text-emerald-600"
+                                      }`}
+                                    title={rec.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                                  >
+                                    {rec.status === "ACTIVE" ? (
+                                      <ToggleRight className="h-4 w-4" />
+                                    ) : (
+                                      <ToggleLeft className="h-4 w-4" />
+                                    )}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRequestDelete(selectedMasterEntity.id, rec.id, rec.name)}
+                                    className="p-1 hover:bg-rose-50 text-rose-600 rounded-lg cursor-pointer"
+                                    title="Deactivate Record"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              </PermissionGate>
                             </td>
                           </tr>
                         ))}

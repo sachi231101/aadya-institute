@@ -33,6 +33,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -157,9 +158,11 @@ export const AssignmentList: React.FC = () => {
             Create, target, and manage coursework across courses and batches.
           </p>
         </div>
+        <PermissionGate itemKey="assignments.all" mode="write">
         <Button className="bg-[#1769AA] hover:bg-[#125387] text-white shadow-sm" onClick={() => navigate(`${assignmentsBase}/create`)}>
           <Plus className="mr-2 h-4 w-4" /> Add New
         </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50 shadow-sm">
@@ -357,12 +360,14 @@ export const AssignmentList: React.FC = () => {
                       <FileText className="w-10 h-10 mx-auto mb-3 opacity-40" />
                       <p className="font-medium text-text-primary mb-1">No assignments yet</p>
                       <p className="text-sm mb-4">Create your first assignment for a batch or course.</p>
+                      <PermissionGate itemKey="assignments.all" mode="write">
                       <Button
                         className="bg-[#1769AA] text-white"
                         onClick={() => navigate(`${assignmentsBase}/create`)}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Create Assignment
                       </Button>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 ) : (

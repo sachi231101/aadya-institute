@@ -16,6 +16,8 @@ import { useBranches } from "@/hooks/useBranches";
 import { useBranchStore } from "@/store/branch.store";
 import { useFacultyList, useFacultyDailyAttendance, useSaveFacultyDailyAttendance } from "@/hooks/useFaculty";
 import type { FacultyDailyAttendanceDeskResponse } from "@/types/faculty.types";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export type AttendanceDeskStatus = "PRESENT" | "ABSENT" | "LEAVE" | "WEEKLY_OFF";
 
@@ -43,6 +45,8 @@ const toTimeValue = (val: string): string => {
 };
 
 export const FacultyAttendance: React.FC = () => {
+  const { canEditItem } = usePermissions();
+  const canEditAttendance = canEditItem("faculty.attendance");
   // Global branch filter
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchesResponse } = useBranches({ limit: 100 });
@@ -481,6 +485,7 @@ export const FacultyAttendance: React.FC = () => {
                 </select>
 
                 {/* Save Button */}
+                <PermissionGate itemKey="faculty.attendance" mode="write">
                 <Button
                   size="sm"
                   onClick={handleSaveAttendance}
@@ -502,6 +507,7 @@ export const FacultyAttendance: React.FC = () => {
                       ? "Save *"
                       : "Save"}
                 </Button>
+                </PermissionGate>
 
                 {/* Search Box */}
                 <div className="relative w-44">
@@ -554,12 +560,13 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* PRESENT Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className="flex flex-col items-center cursor-pointer select-none">
+                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.present}
+                            disabled={!canEditAttendance}
                             onChange={() => handleBulkSetStatus("PRESENT")}
-                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer"
+                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <span className="text-[10px] font-bold mt-0.5">PRESENT</span>
                         </label>
@@ -567,12 +574,13 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* ABSENT Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className="flex flex-col items-center cursor-pointer select-none">
+                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.absent}
+                            disabled={!canEditAttendance}
                             onChange={() => handleBulkSetStatus("ABSENT")}
-                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer"
+                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <span className="text-[10px] font-bold mt-0.5">ABSENT</span>
                         </label>
@@ -580,12 +588,13 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* LEAVE Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-20">
-                        <label className="flex flex-col items-center cursor-pointer select-none">
+                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.leave}
+                            disabled={!canEditAttendance}
                             onChange={() => handleBulkSetStatus("LEAVE")}
-                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer"
+                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <span className="text-[10px] font-bold mt-0.5">LEAVE</span>
                         </label>
@@ -593,12 +602,13 @@ export const FacultyAttendance: React.FC = () => {
 
                       {/* WEEKLY OFF Column with Select-All Checkbox */}
                       <th className="py-2 px-2 border-r border-slate-200 dark:border-slate-800 text-center w-24">
-                        <label className="flex flex-col items-center cursor-pointer select-none">
+                        <label className={`flex flex-col items-center select-none ${canEditAttendance ? "cursor-pointer" : "cursor-default"}`}>
                           <input
                             type="checkbox"
                             checked={allStatusCheck.weeklyOff}
+                            disabled={!canEditAttendance}
                             onChange={() => handleBulkSetStatus("WEEKLY_OFF")}
-                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer"
+                            className="w-3.5 h-3.5 accent-blue-600 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
                           />
                           <span className="text-[10px] font-bold mt-0.5 leading-tight text-center">WEEKLY OFF</span>
                         </label>
@@ -657,8 +667,9 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.id}`}
                               checked={row.status === "PRESENT"}
+                              disabled={!canEditAttendance}
                               onChange={() => handleStatusChange(f.id, "PRESENT")}
-                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle"
+                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
@@ -668,8 +679,9 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.id}`}
                               checked={row.status === "ABSENT"}
+                              disabled={!canEditAttendance}
                               onChange={() => handleStatusChange(f.id, "ABSENT")}
-                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle"
+                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
@@ -679,8 +691,9 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.id}`}
                               checked={row.status === "LEAVE"}
+                              disabled={!canEditAttendance}
                               onChange={() => handleStatusChange(f.id, "LEAVE")}
-                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle"
+                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
@@ -690,8 +703,9 @@ export const FacultyAttendance: React.FC = () => {
                               type="radio"
                               name={`attendance-${f.id}`}
                               checked={row.status === "WEEKLY_OFF"}
+                              disabled={!canEditAttendance}
                               onChange={() => handleStatusChange(f.id, "WEEKLY_OFF")}
-                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle"
+                              className="w-4 h-4 text-blue-600 accent-blue-600 cursor-pointer align-middle disabled:cursor-not-allowed disabled:opacity-60"
                             />
                           </td>
 
@@ -700,13 +714,13 @@ export const FacultyAttendance: React.FC = () => {
                             <input
                               type="time"
                               value={toTimeValue(row.inTime)}
-                              disabled={isInactiveTime}
+                              disabled={!canEditAttendance || isInactiveTime}
                               onChange={(e) => handleFieldChange(f.id, "inTime", e.target.value)}
                               onClick={(e) => {
-                                if (!isInactiveTime) e.currentTarget.showPicker?.();
+                                if (canEditAttendance && !isInactiveTime) e.currentTarget.showPicker?.();
                               }}
                               className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                isInactiveTime
+                                !canEditAttendance || isInactiveTime
                                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                                   : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
                               }`}
@@ -718,13 +732,13 @@ export const FacultyAttendance: React.FC = () => {
                             <input
                               type="time"
                               value={toTimeValue(row.outTime)}
-                              disabled={isInactiveTime}
+                              disabled={!canEditAttendance || isInactiveTime}
                               onChange={(e) => handleFieldChange(f.id, "outTime", e.target.value)}
                               onClick={(e) => {
-                                if (!isInactiveTime) e.currentTarget.showPicker?.();
+                                if (canEditAttendance && !isInactiveTime) e.currentTarget.showPicker?.();
                               }}
                               className={`w-full h-7 px-1 text-xs border border-slate-200 dark:border-slate-700 rounded-none text-center outline-none transition-colors ${
-                                isInactiveTime
+                                !canEditAttendance || isInactiveTime
                                   ? "bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed"
                                   : "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 cursor-pointer focus:border-blue-500 hover:border-slate-400"
                               }`}
@@ -736,9 +750,10 @@ export const FacultyAttendance: React.FC = () => {
                             <input
                               type="text"
                               value={row.comments}
+                              disabled={!canEditAttendance}
                               onChange={(e) => handleFieldChange(f.id, "comments", e.target.value)}
                               placeholder=""
-                              className="w-full h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-blue-500 outline-none"
+                              className="w-full h-7 px-2 text-xs border border-slate-200 dark:border-slate-700 rounded-none bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 focus:border-blue-500 outline-none disabled:bg-slate-100 dark:disabled:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
                             />
                           </td>
                         </tr>

@@ -17,7 +17,6 @@ import {
 import { INTEGRATION_TYPES } from "../modules/integrations/integration.types";
 import { schemaForType } from "../modules/integrations/integration.validation";
 import integrationRoutes from "../modules/integrations/integration.routes";
-import { getPermissionCatalog } from "../utils/permission-catalog";
 
 describe("Integration credentials utilities", () => {
   test("encryptCredentials round-trips and maskSecret hides secrets", () => {
@@ -63,13 +62,6 @@ describe("Integration RBAC wiring", () => {
     const putType = routes.find((l) => l.route?.path === "/:type" && l.route.methods.put);
     assert.ok(getRoot, "GET / registered");
     assert.ok(putType, "PUT /:type registered");
-
-    const catalog = getPermissionCatalog("CENTER_MANAGER")
-      .flatMap((m) => m.items)
-      .find((i) => i.key === "admin.integrations");
-    assert.ok(catalog);
-    assert.ok(catalog!.readPermissions.includes("integration.read"));
-    assert.ok(catalog!.writePermissions.includes("integration.manage"));
   });
 });
 

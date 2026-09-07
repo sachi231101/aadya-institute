@@ -33,6 +33,8 @@ import type { Lead } from "@/services/leads.api";
 import type { Counselor, CounselorStatus } from "@/types/counselor.types";
 import { usersApi, type UserResponse } from "@/services/users.api";
 import { PermissionMatrix } from "@/components/permissions/PermissionMatrix";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   buildPermissionsFromAccess,
   permissionsToAccessState,
@@ -91,6 +93,8 @@ const toCounselor = (u: UserResponse): Counselor => ({
 
 export const AllCounsellors: React.FC = () => {
   const { user } = useAuthStore();
+  const { canEditItem } = usePermissions();
+  const canEditCounsellors = canEditItem("counsellor.all");
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const userBranchId = user?.branchId;
 
@@ -375,15 +379,17 @@ export const AllCounsellors: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            resetCreateForm();
-            setShowCreateModal(true);
-          }}
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors self-start md:self-auto"
-        >
-          <Plus size={16} /> Add Counsellor
-        </Button>
+        <PermissionGate itemKey="counsellor.all" mode="write">
+          <Button
+            onClick={() => {
+              resetCreateForm();
+              setShowCreateModal(true);
+            }}
+            className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors self-start md:self-auto"
+          >
+            <Plus size={16} /> Add Counsellor
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Metrics Row */}
@@ -556,6 +562,7 @@ export const AllCounsellors: React.FC = () => {
                   </TableCell>
                   <TableCell>{getStatusBadge(c.status)}</TableCell>
                   <TableCell className="text-right">
+                    {canEditCounsellors && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-text-primary">
@@ -576,6 +583,7 @@ export const AllCounsellors: React.FC = () => {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -706,7 +714,7 @@ export const AllCounsellors: React.FC = () => {
                 </div>
                 <div className="px-2.5 py-1.5 rounded-lg bg-amber-50/70 border border-amber-200/60 text-[11px] text-amber-800 flex items-center gap-1.5 mb-3">
                   <Sparkles className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-                  <span>By default, new counsellors see only Dashboard, ASK ME, and Settings. Enable Show/Editable to grant module access.</span>
+                  <span>By default, new counsellors see only Dashboard, ASK ME, and Settings. Enable Read/Edit to grant module access.</span>
                 </div>
                 <PermissionMatrix
                   role="COUNSELLOR"
@@ -721,15 +729,17 @@ export const AllCounsellors: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowCreateModal(false)} disabled={isSubmitting}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Creating...
-                  </>
-                ) : (
-                  "Create Counsellor"
-                )}
-              </Button>
+              <PermissionGate itemKey="counsellor.all" mode="write">
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" /> Creating...
+                    </>
+                  ) : (
+                    "Create Counsellor"
+                  )}
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -851,9 +861,11 @@ export const AllCounsellors: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setEditCounselor(null)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold">
-                Save Changes
-              </Button>
+              <PermissionGate itemKey="counsellor.all" mode="write">
+                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold">
+                  Save Changes
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -874,9 +886,11 @@ export const AllCounsellors: React.FC = () => {
             <Button variant="outline" onClick={() => setDeleteCounselorId(null)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleDeleteConfirm}>
-              Delete Counsellor
-            </Button>
+            <PermissionGate itemKey="counsellor.all" mode="write">
+              <Button variant="destructive" onClick={handleDeleteConfirm}>
+                Delete Counsellor
+              </Button>
+            </PermissionGate>
           </DialogFooter>
         </DialogContent>
       </Dialog>

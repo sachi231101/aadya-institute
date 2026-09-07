@@ -7,7 +7,14 @@ import {
   canAccessNavUrl,
   resolveNavItemKey,
   isAlwaysAllowedPortalPath,
+  isWritePortalPath,
 } from "@/constants/nav-permissions";
+import { canEditCenterItem } from "@/constants/center-item-permissions";
+import { canEditCounselorItem } from "@/constants/counselor-item-permissions";
+import {
+  LayoutReadOnlyBannerContext,
+  ReadOnlyBanner,
+} from "@/components/permissions/PermissionGate";
 
 interface PortalRouteGuardProps {
   portal: "center" | "counselor";
@@ -53,5 +60,20 @@ export const PortalRouteGuard: React.FC<PortalRouteGuardProps> = ({
     return <Navigate to={dashboardPath} replace state={{ accessDenied: true }} />;
   }
 
-  return <>{children}</>;
+  if (isWritePortalPath(pathname)) {
+    const canEdit =
+      portal === "center"
+        ? canEditCenterItem(user?.permissions, itemKey)
+        : canEditCounselorItem(user?.permissions, itemKey);
+    if (!canEdit) {
+      return <Navigate to={dashboardPath} replace state={{ accessDenied: true, readOnly: true }} />;
+    }
+  }
+
+  return (
+    <LayoutReadOnlyBannerContext.Provider value={portal === "center"}>
+      {portal === "center" && <ReadOnlyBanner itemKey={itemKey} fromLayout />}
+      {children}
+    </LayoutReadOnlyBannerContext.Provider>
+  );
 };

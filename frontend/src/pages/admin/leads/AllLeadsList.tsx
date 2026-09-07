@@ -11,7 +11,7 @@ import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ReadOnlyBanner } from "@/components/permissions/PermissionGate";
+import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -113,13 +113,15 @@ export const AllLeadsList: React.FC = () => {
               <Columns3 className="h-4 w-4 mr-1" /> Pipeline
             </Button>
           </div>
-          <Button
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
-            onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add Lead
-          </Button>
+          <PermissionGate itemKey="leads.all" mode="write">
+            <Button
+              className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+              onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Lead
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

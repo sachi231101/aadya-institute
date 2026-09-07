@@ -35,12 +35,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 interface DocumentManagementProps {
   entityType: DocumentEntityType;
   title: string;
   description: string;
   entityIdLabel: string;
+  writeItemKey?: string;
 }
 
 export const DocumentManagement: React.FC<DocumentManagementProps> = ({
@@ -48,6 +50,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
   title,
   description,
   entityIdLabel,
+  writeItemKey = "students.documents",
 }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showUpload, setShowUpload] = useState(false);
@@ -119,9 +122,11 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
           <h2 className="text-2xl font-bold text-text-primary">{title}</h2>
           <p className="text-sm text-text-secondary">{description}</p>
         </div>
+        <PermissionGate itemKey={writeItemKey} mode="write">
         <Button className="bg-[#1769AA] text-white" onClick={() => setShowUpload(true)}>
           <Plus className="mr-2 h-4 w-4" /> Upload Document
         </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">
@@ -205,6 +210,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
                       <TableCell>{new Date(d.createdAt).toLocaleDateString("en-IN")}</TableCell>
                       <TableCell className="text-right">
                         {d.status !== "VERIFIED" && d.status !== "REJECTED" && (
+                          <PermissionGate itemKey={writeItemKey} mode="write">
                           <div className="flex justify-end gap-1">
                             <Button
                               variant="ghost"
@@ -224,6 +230,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
                               <XCircle className="h-4 w-4" />
                             </Button>
                           </div>
+                          </PermissionGate>
                         )}
                       </TableCell>
                     </TableRow>
@@ -334,5 +341,6 @@ export const StudentDocuments: React.FC = () => (
     title="Student Documents"
     description="Uploaded student documents and verification status."
     entityIdLabel="Student ID"
+    writeItemKey="students.documents"
   />
 );

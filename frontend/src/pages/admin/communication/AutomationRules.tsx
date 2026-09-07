@@ -15,6 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const AutomationRules: React.FC = () => {
   const queryClient = useQueryClient();
@@ -55,9 +56,11 @@ export const AutomationRules: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Automation Rules</h2>
           <p className="text-sm text-text-secondary">Configure WhatsApp notification rules for academy events.</p>
         </div>
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Add Rule
-        </Button>
+        <PermissionGate itemKey="communication.automation" mode="write">
+          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Add Rule
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">

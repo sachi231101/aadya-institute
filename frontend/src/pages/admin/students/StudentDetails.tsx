@@ -53,6 +53,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const StudentDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -543,6 +544,7 @@ Best regards,
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <PermissionGate itemKey="students.all" mode="write">
           {isDraftStudent ? (
             <Button
               onClick={() => setIsActivateModalOpen(true)}
@@ -624,6 +626,7 @@ Best regards,
               </>
             )}
           </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -645,6 +648,7 @@ Best regards,
               </p>
             </div>
           </div>
+          <PermissionGate itemKey="students.all" mode="write">
           <Button
             size="sm"
             onClick={handleAICall}
@@ -652,6 +656,7 @@ Best regards,
           >
             Initiate Urgent AI Call
           </Button>
+          </PermissionGate>
         </div>
       )}
 
@@ -964,6 +969,7 @@ Best regards,
                     <GraduationCap className="h-4 w-4 text-primary" />
                     <span>Section 4 — Course & Batch Details</span>
                   </CardTitle>
+                  <PermissionGate itemKey="students.all" mode="write">
                   <Button
                     size="sm"
                     variant="outline"
@@ -973,6 +979,7 @@ Best regards,
                     <RefreshCw className="h-3 w-3" />
                     <span>{hasAssignedBatch ? "Change Batch" : "Assign Batch"}</span>
                   </Button>
+                  </PermissionGate>
                 </CardHeader>
                 <CardContent className="p-5 space-y-3.5 text-xs">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -1097,6 +1104,7 @@ Best regards,
                 <BookOpen className="h-4 w-4 text-primary" />
                 <span>Enrolled Academic Curriculum & Batch Schedule</span>
               </CardTitle>
+              <PermissionGate itemKey="students.all" mode="write">
               <Button
                 size="sm"
                 onClick={() => setIsActivateModalOpen(true)}
@@ -1105,6 +1113,7 @@ Best regards,
                 <PlusCircle className="h-3.5 w-3.5" />
                 <span>{isDraftStudent ? "Complete Admission & Assign Batch" : "Change / Assign Batch"}</span>
               </Button>
+              </PermissionGate>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1252,6 +1261,7 @@ Best regards,
                 <CreditCard className="h-4 w-4 text-primary" />
                 <span>Fee Payment Plan & Installment Ledger</span>
               </CardTitle>
+              <PermissionGate itemKey="students.all" mode="write">
               <Button
                 size="sm"
                 onClick={() => setIsActivateModalOpen(true)}
@@ -1260,6 +1270,7 @@ Best regards,
               >
                 Update Fee Structure
               </Button>
+              </PermissionGate>
             </CardHeader>
             <CardContent className="p-6 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

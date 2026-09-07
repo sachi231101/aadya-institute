@@ -11,6 +11,7 @@ import { useRecordings, useDeleteRecording, useRecordingAccess } from "@/hooks/u
 import { useBatches } from "@/hooks/useBatches";
 import type { Recording } from "@/services/recordings.api";
 import { ROUTES } from "@/constants/routes";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const getDaysRemaining = (expiresAt: string) => {
   const now = new Date();
@@ -315,16 +316,18 @@ export const Recordings: React.FC = () => {
                               <Play size={14} />
                             )}
                           </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-8 w-8 p-0 text-red-500"
-                            title="Delete recording"
-                            onClick={() => handleDelete(rec)}
-                            disabled={deleteMutation.isPending}
-                          >
-                            <Trash2 size={14} />
-                          </Button>
+                          <PermissionGate itemKey="schedule.recordings" mode="write">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-red-500"
+                              title="Delete recording"
+                              onClick={() => handleDelete(rec)}
+                              disabled={deleteMutation.isPending}
+                            >
+                              <Trash2 size={14} />
+                            </Button>
+                          </PermissionGate>
                         </div>
                       </TableCell>
                     </TableRow>

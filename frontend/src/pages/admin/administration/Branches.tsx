@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Dialog,
   DialogContent,
@@ -180,9 +181,11 @@ export const Branches: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Branches</h2>
           <p className="text-sm text-text-secondary">Manage Aadya Institute branch locations.</p>
         </div>
+        <PermissionGate itemKey="admin.branches" mode="write">
         <Button className="bg-[#1769AA] text-white" onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" /> Add Branch
         </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">
@@ -261,6 +264,7 @@ export const Branches: React.FC = () => {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
+                      <PermissionGate itemKey="admin.branches" mode="write">
                       <div className="flex justify-end gap-1">
                         <Button
                           variant="ghost"
@@ -288,6 +292,7 @@ export const Branches: React.FC = () => {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 ))

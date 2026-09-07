@@ -57,10 +57,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatBatchSubjectNames, getBatchCourseRows } from "@/utils/batch.utils";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export const StudentAllocation: React.FC = () => {
   const [searchParams] = useSearchParams();
   const initialBatchId = searchParams.get("batchId") ?? "";
+  const { canEditItem } = usePermissions();
+  const canEditAllocation = canEditItem("students.student_allocation");
 
   const {
     batches,
@@ -358,6 +362,7 @@ export const StudentAllocation: React.FC = () => {
             </p>
           </div>
 
+          <PermissionGate itemKey="students.student_allocation" mode="write">
           <Button
             onClick={() => {
               setActiveTab("UNASSIGNED");
@@ -369,6 +374,7 @@ export const StudentAllocation: React.FC = () => {
             <Plus className="h-4 w-4" />
             + Assign Students
           </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -542,7 +548,7 @@ export const StudentAllocation: React.FC = () => {
                   <TableHead className="min-w-[180px] text-[10px] font-bold uppercase text-slate-500">Contact</TableHead>
                   <TableHead className="min-w-[140px] text-[10px] font-bold uppercase text-slate-500">Course</TableHead>
                   <TableHead className="min-w-[120px] text-[10px] font-bold uppercase text-slate-500 text-center">Status</TableHead>
-                  {activeTab === "ASSIGNED" && (
+                  {activeTab === "ASSIGNED" && canEditAllocation && (
                     <TableHead className="min-w-[120px] text-[10px] font-bold uppercase text-slate-500 text-right pr-4">Actions</TableHead>
                   )}
                 </TableRow>
@@ -634,7 +640,7 @@ export const StudentAllocation: React.FC = () => {
                         </TableCell>
 
                         {/* Actions for Assigned Tab */}
-                        {activeTab === "ASSIGNED" && (
+                        {activeTab === "ASSIGNED" && canEditAllocation && (
                           <TableCell className="text-right pr-4" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -714,7 +720,7 @@ export const StudentAllocation: React.FC = () => {
               </div>
             </div>
 
-            {selectedStudentIds.size > 0 && (
+            {selectedStudentIds.size > 0 && canEditAllocation && (
               <button
                 onClick={handleClearSelection}
                 className="text-xs font-bold text-rose-600 hover:text-rose-700 flex items-center gap-1"
@@ -905,6 +911,7 @@ export const StudentAllocation: React.FC = () => {
           <span>Once assigned, students will be added to this batch and will be visible in the batch student list and attendance.</span>
         </div>
 
+        <PermissionGate itemKey="students.student_allocation" mode="write">
         <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
           <Button
             variant="outline"
@@ -933,6 +940,7 @@ export const StudentAllocation: React.FC = () => {
             )}
           </Button>
         </div>
+        </PermissionGate>
       </div>
 
       {/* ─── CONFIRM BULK ASSIGN MODAL ─── */}

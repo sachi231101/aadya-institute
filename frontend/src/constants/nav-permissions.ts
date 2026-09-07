@@ -8,22 +8,27 @@ import {
   canReadCounselorItem,
   COUNSELOR_ITEM_READ_PERMISSIONS,
 } from "./counselor-item-permissions";
+import {
+  ALWAYS_ON_PERMISSIONS,
+  hasItemGrantFlags,
+  isItemGrantFlag,
+} from "@/utils/permission-utils";
 
 export const CENTER_NAV_PERMISSION_KEYS: Record<string, string> = buildCenterNavPermissionKeys();
 
 export const COUNSELOR_NAV_PERMISSION_KEYS: Record<string, string> = buildCounselorNavPermissionKeys();
 
-export const BASELINE_PERMISSIONS = [
-  "dashboard.read",
-  "branch.read",
-  "notification.read",
-  "notification.resend",
-];
+export const BASELINE_PERMISSIONS = [...ALWAYS_ON_PERMISSIONS];
 
 export const isBaselineOnlyPermissions = (permissions: string[] | undefined): boolean => {
   if (!permissions?.length) return true;
   const baseline = new Set(BASELINE_PERMISSIONS);
-  return permissions.every((p) => baseline.has(p));
+  const relevant = permissions.filter((p) => !isItemGrantFlag(p));
+  return (
+    relevant.length > 0 &&
+    relevant.every((p) => baseline.has(p)) &&
+    !hasItemGrantFlags(permissions)
+  );
 };
 
 const CENTER_ALWAYS_ALLOWED = [
@@ -38,6 +43,10 @@ const COUNSELOR_ALWAYS_ALLOWED = [
   "/counselor/home",
   "/counselor/settings",
 ];
+
+/** Create/edit URLs that require Edit, not just Read. */
+export const isWritePortalPath = (pathname: string): boolean =>
+  /(^|\/)(add|create|new|edit|direct-entry)(\/|$)/.test(pathname);
 
 export const isAlwaysAllowedPortalPath = (
   pathname: string,

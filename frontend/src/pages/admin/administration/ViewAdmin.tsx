@@ -578,7 +578,7 @@ export const ViewAdmin: React.FC = () => {
                         <Shield className="h-4 w-4 text-[#1769AA]" /> ERP Module Access
                       </h4>
                       <p className="text-xs text-slate-500 mt-0.5">
-                        Submodule Show/Editable settings for this {primaryRoleLabel} account
+                        Submodule Read/Edit settings for this {primaryRoleLabel} account
                       </p>
                     </div>
                     <Button

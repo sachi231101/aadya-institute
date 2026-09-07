@@ -760,14 +760,16 @@ export const AllAdmissions: React.FC = () => {
                 {totalAdmissionsCount} total · {confirmedCount} confirmed · {provisionalCount} provisional
               </p>
             </div>
-            <Button
-              size="sm"
-              onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
-              className="h-9 gap-1.5 shrink-0"
-            >
-              <Plus className="h-3.5 w-3.5" />
-              New admission
-            </Button>
+            <PermissionGate itemKey="admissions.all" mode="write">
+              <Button
+                size="sm"
+                onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
+                className="h-9 gap-1.5 shrink-0"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                New admission
+              </Button>
+            </PermissionGate>
           </div>
 
           {/* Toolbar */}
@@ -1004,44 +1006,46 @@ export const AllAdmissions: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1.5">Change Admission Status</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["Confirmed", "Provisional", "Cancelled"] as AdmissionRecordStatus[]).map((st) => (
-                    <button
-                      key={st}
-                      type="button"
-                      onClick={() => handleUpdateAdmissionStatus(selectedAdmission.id, st)}
-                      className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                        selectedAdmission.status === st
-                          ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                          : "border-border text-foreground hover:bg-muted/50"
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+              <PermissionGate itemKey="admissions.all" mode="write">
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1.5">Change Admission Status</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(["Confirmed", "Provisional", "Cancelled"] as AdmissionRecordStatus[]).map((st) => (
+                      <button
+                        key={st}
+                        type="button"
+                        onClick={() => handleUpdateAdmissionStatus(selectedAdmission.id, st)}
+                        className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          selectedAdmission.status === st
+                            ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                            : "border-border text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="space-y-2 pt-2 border-t border-border">
-                <label className="block text-xs font-bold text-foreground">Add Counsellor Note</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Add operational notes, remarks..."
-                    value={newNoteText}
-                    onChange={(e) => setNewNoteText(e.target.value)}
-                    className="bg-background border-border text-foreground text-xs h-9"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleAddCounsellorNote}
-                    className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3 h-9 shrink-0 cursor-pointer"
-                  >
-                    <Send className="h-3.5 w-3.5 mr-1" /> Add
-                  </Button>
+                <div className="space-y-2 pt-2 border-t border-border">
+                  <label className="block text-xs font-bold text-foreground">Add Counsellor Note</label>
+                  <div className="flex gap-2">
+                    <Input
+                      placeholder="Add operational notes, remarks..."
+                      value={newNoteText}
+                      onChange={(e) => setNewNoteText(e.target.value)}
+                      className="bg-background border-border text-foreground text-xs h-9"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={handleAddCounsellorNote}
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold px-3 h-9 shrink-0 cursor-pointer"
+                    >
+                      <Send className="h-3.5 w-3.5 mr-1" /> Add
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              </PermissionGate>
 
               {selectedAdmission.counsellorNotes?.length > 0 && (
                 <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
@@ -1193,17 +1197,19 @@ export const AllAdmissions: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => handleToggleDocVerification(doc.id)}
-                      className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${
-                        doc.verified
-                          ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                          : "bg-primary hover:bg-primary/90 text-primary-foreground"
-                      }`}
-                    >
-                      {doc.verified ? "Verified ✓" : "Verify Doc"}
-                    </Button>
+                    <PermissionGate itemKey="admissions.all" mode="write">
+                      <Button
+                        size="sm"
+                        onClick={() => handleToggleDocVerification(doc.id)}
+                        className={`h-8 px-3 text-xs font-bold transition-all cursor-pointer ${
+                          doc.verified
+                            ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                            : "bg-primary hover:bg-primary/90 text-primary-foreground"
+                        }`}
+                      >
+                        {doc.verified ? "Verified ✓" : "Verify Doc"}
+                      </Button>
+                    </PermissionGate>
                   </div>
                 ))
               ) : (
@@ -1432,21 +1438,23 @@ export const AllAdmissions: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleSaveDirectAdmission(false)}
-                  variant="outline"
-                  className="h-10 text-xs font-bold text-foreground border-border hover:bg-muted/50 cursor-pointer"
-                >
-                  Save Admission
-                </Button>
-                <Button
-                  type="button"
-                  onClick={() => handleSaveDirectAdmission(true)}
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 text-xs font-bold px-5 cursor-pointer"
-                >
-                  Save & Assign Batch
-                </Button>
+                <PermissionGate itemKey="admissions.all" mode="write">
+                  <Button
+                    type="button"
+                    onClick={() => handleSaveDirectAdmission(false)}
+                    variant="outline"
+                    className="h-10 text-xs font-bold text-foreground border-border hover:bg-muted/50 cursor-pointer"
+                  >
+                    Save Admission
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={() => handleSaveDirectAdmission(true)}
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 text-xs font-bold px-5 cursor-pointer"
+                  >
+                    Save & Assign Batch
+                  </Button>
+                </PermissionGate>
               </div>
 
             </div>
@@ -1499,13 +1507,15 @@ export const AllAdmissions: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="button"
-                  onClick={handleChangeBatchConfirm}
-                  className="bg-purple-600 hover:bg-purple-700 text-white h-10 text-xs font-bold px-5 cursor-pointer"
-                >
-                  Confirm Batch Transfer
-                </Button>
+                <PermissionGate itemKey="admissions.all" mode="write">
+                  <Button
+                    type="button"
+                    onClick={handleChangeBatchConfirm}
+                    className="bg-purple-600 hover:bg-purple-700 text-white h-10 text-xs font-bold px-5 cursor-pointer"
+                  >
+                    Confirm Batch Transfer
+                  </Button>
+                </PermissionGate>
               </div>
             </div>
           </div>

@@ -23,6 +23,7 @@ import { useFacultyMember, useFacultyCourses, useFacultyDailyAttendance } from "
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import type { FacultyDailyAttendanceHistoryResponse, FacultyDailyAttendanceStatus } from "@/types/faculty.types";
 import {
   ResponsiveContainer,
@@ -210,6 +211,7 @@ export const FacultyDetails: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          <PermissionGate itemKey="faculty.all" mode="write">
           <Button
             variant="outline"
             size="sm"
@@ -218,6 +220,7 @@ export const FacultyDetails: React.FC = () => {
           >
             Edit Profile
           </Button>
+          </PermissionGate>
           <Button
             variant="outline"
             size="sm"

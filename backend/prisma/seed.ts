@@ -1,6 +1,7 @@
 import "dotenv/config";
 import { prisma } from "../src/config/database";
 import bcrypt from "bcrypt";
+import { getCatalogItemPermissionNames } from "../src/utils/permission-catalog";
 
 const SALT_ROUNDS = 12;
 const DEFAULT_PASSWORD = process.env.SEED_ADMIN_PASSWORD || "ChangeMe@123";
@@ -279,6 +280,16 @@ async function main() {
     { name: "data_export.manage", description: "Manage data export jobs" },
   ];
 
+  for (const itemName of getCatalogItemPermissionNames()) {
+    const isWrite = itemName.endsWith(".write");
+    permissionsList.push({
+      name: itemName,
+      description: isWrite
+        ? `Edit access for catalog item ${itemName.replace(/^item\./, "").replace(/\.write$/, "")}`
+        : `Read access for catalog item ${itemName.replace(/^item\./, "")}`,
+    });
+  }
+
   const permissions: Record<string, any> = {};
   for (const perm of permissionsList) {
     permissions[perm.name] = await prisma.permission.upsert({
@@ -305,78 +316,13 @@ async function main() {
     });
   }
 
-  // CENTER_MANAGER role-level defaults
+  // CENTER_MANAGER role-level defaults — baseline only.
+  // Module access is granted per-user via UserPermission (item flags + coarse APIs).
   const cmPermNames = [
     "dashboard.read",
     "branch.read",
-    "student.read",
-    "student.create",
-    "student.update",
-    "faculty.read",
-    "course.read",
-    "module.read",
-    "batch.read",
-    "batch.create",
-    "batch.update",
-    "schedule.read",
-    "schedule.create",
-    "schedule.update",
-    "attendance.read",
-    "attendance.mark",
-    "attendance.update",
-    "assignment.read",
-    "recording.read",
-    "recording.manage",
-    "google_meet.connect",
-    "google_meet.create",
-    "google_meet.read",
-    "google_meet.manage",
-    "chat.read",
-    "chat.send",
-    "chat.manage",
-    "feedback.read",
-    "admission.read",
-    "admission.create",
-    "admission.update",
-    "fee.read",
-    "fee.create",
-    "fee.update",
-    "lead.read",
-    "lead.create",
-    "lead.update",
-    "lead.assign",
-    "lead.convert",
-    "ai_call.read",
-    "ai_call.create",
-    "master.read",
-    "master.create",
-    "master.update",
-    "report.read",
     "notification.read",
     "notification.resend",
-    "target.read",
-    "target.manage",
-    "target.assign",
-    "incentive.read",
-    "incentive.approve",
-    "exam.read",
-    "exam.create",
-    "exam.update",
-    "exam.publish",
-    "exam.schedule",
-    "exam.manage_questions",
-    "exam.manage_question_bank",
-    "exam.assign",
-    "exam.view_attempts",
-    "exam.manage_settings",
-    "question.read",
-    "question.create",
-    "question.update",
-    "question.delete",
-    "question_bank.read",
-    "question_bank.create",
-    "question_bank.update",
-    "question_bank.delete",
   ];
   for (const name of cmPermNames) {
     if (permissions[name]) {
@@ -395,6 +341,16 @@ async function main() {
       });
     }
   }
+
+  const cmPermissionIds = cmPermNames
+    .map((name) => permissions[name]?.id)
+    .filter((id: string | undefined): id is string => Boolean(id));
+  await prisma.rolePermission.deleteMany({
+    where: {
+      roleId: roles["CENTER_MANAGER"].id,
+      permissionId: { notIn: cmPermissionIds },
+    },
+  });
 
   // COUNSELLOR permissions
   const counsellorPermNames = [

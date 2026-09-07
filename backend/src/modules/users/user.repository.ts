@@ -147,8 +147,20 @@ export const findRolesByNames = async (roleNames: string[]) => {
  * Find permission records by their names.
  */
 export const findPermissionsByNames = async (names: string[]) => {
+  if (names.length === 0) return [];
   return prisma.permission.findMany({
     where: { name: { in: names } },
+  });
+};
+
+/** Create any missing Permission rows (used for catalog item.* flags). */
+export const ensurePermissionsExist = async (
+  names: Array<{ name: string; description: string }>
+) => {
+  if (names.length === 0) return;
+  await prisma.permission.createMany({
+    data: names,
+    skipDuplicates: true,
   });
 };
 
@@ -317,4 +329,8 @@ export const deleteUser = async (id: string, instituteId: string) => {
       data: { status: "BLOCKED" },
     }),
   ]);
+};
+
+export const hardDeleteUser = async (id: string) => {
+  await prisma.user.delete({ where: { id } });
 };

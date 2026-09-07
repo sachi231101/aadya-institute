@@ -17,6 +17,8 @@ import {
   Loader2
 } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -42,6 +44,8 @@ export const AllCourses: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const coursesBasePath = location.pathname.startsWith("/center") ? "/center/courses" : "/admin/courses";
+  const { canEditItem } = usePermissions();
+  const canEditCourses = canEditItem("courses.all");
 
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("ALL");
@@ -126,6 +130,7 @@ export const AllCourses: React.FC = () => {
           </p>
         </div>
 
+        <PermissionGate itemKey="courses.all" mode="write">
         <Button
           className="bg-primary hover:bg-primary/90 text-white shadow-xs transition-all text-xs font-bold h-10 px-4 rounded-xl cursor-pointer"
           onClick={() => navigate(`${coursesBasePath}/add`)}
@@ -133,6 +138,7 @@ export const AllCourses: React.FC = () => {
           <Plus className="mr-1.5 h-4 w-4" />
           Add New Course
         </Button>
+        </PermissionGate>
       </div>
 
       {/* Summary Cards */}
@@ -283,15 +289,19 @@ export const AllCourses: React.FC = () => {
                             <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
                               <DropdownMenuLabel className="text-xs font-bold">Course Options</DropdownMenuLabel>
                               <DropdownMenuSeparator className="bg-border" />
+                              {canEditCourses && (
                               <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
                                 <Pencil className="mr-2 h-4 w-4" /> Edit Course
                               </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> View Curriculum
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> View Batches
                               </DropdownMenuItem>
+                              {canEditCourses && (
+                              <>
                               <DropdownMenuSeparator className="bg-border" />
                               <DropdownMenuItem
                                 className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
@@ -299,6 +309,8 @@ export const AllCourses: React.FC = () => {
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete Course
                               </DropdownMenuItem>
+                              </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -418,15 +430,19 @@ export const AllCourses: React.FC = () => {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-card border-border shadow-lg rounded-xl text-foreground">
+                              {canEditCourses && (
                               <DropdownMenuItem onClick={() => handleEditCourse(course)} className="cursor-pointer text-xs font-bold">
                                 <Pencil className="mr-2 h-4 w-4" /> Edit Course
                               </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem onClick={() => handleOpenCurriculum(course.id)} className="cursor-pointer text-xs font-bold">
                                 <Layers className="mr-2 h-4 w-4" /> Curriculum
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={() => handleOpenBatches(course.id)} className="cursor-pointer text-xs font-bold">
                                 <GraduationCap className="mr-2 h-4 w-4" /> Batches
                               </DropdownMenuItem>
+                              {canEditCourses && (
+                              <>
                               <DropdownMenuSeparator className="bg-border" />
                               <DropdownMenuItem
                                 className="text-rose-500 focus:text-rose-600 focus:bg-rose-500/10 cursor-pointer text-xs font-bold"
@@ -434,6 +450,8 @@ export const AllCourses: React.FC = () => {
                               >
                                 <Trash2 className="mr-2 h-4 w-4" /> Delete
                               </DropdownMenuItem>
+                              </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </TableCell>
