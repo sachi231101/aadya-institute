@@ -27,12 +27,34 @@ const buildChatWebSocketUrl = (token: string): string => {
   }
 };
 
+const closeSocket = (socket: WebSocket | null) => {
+  if (!socket) return;
+
+  socket.onmessage = null;
+  socket.onerror = null;
+  socket.onclose = null;
+
+  if (socket.readyState === WebSocket.OPEN) {
+    socket.close(1000, "Client unmounted");
+    return;
+  }
+
+  // Closing while CONNECTING logs "WebSocket is closed before the connection is established".
+  if (socket.readyState === WebSocket.CONNECTING) {
+    socket.onopen = () => {
+      socket.close(1000, "Client unmounted");
+    };
+  }
+};
+
 export const useChatSocket = () => {
   const socketRef = useRef<WebSocket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const queryClient = useQueryClient();
   const { token, user } = useAuthStore();
   const { isOpen, activeConversationId, setSocketConnected } = useChatStore();
+  const userRoles = user?.roles || (user?.role ? [user.role] : []);
+  const rolesKey = userRoles.join(",");
 
   // Keep references to active state for event handler callbacks
   const activeStateRef = useRef({ isOpen, activeConversationId, currentUserId: user?.id });
@@ -41,16 +63,13 @@ export const useChatSocket = () => {
   }, [isOpen, activeConversationId, user?.id]);
 
   useEffect(() => {
-    const userRoles = user?.roles || (user?.role ? [user.role] : []);
     const isAllowed = Boolean(
       token && userRoles.some((r) => ALLOWED_STAFF_ROLES.includes(r)) && !userRoles.includes("STUDENT")
     );
 
     if (!isAllowed || !token) {
-      if (socketRef.current) {
-        socketRef.current.close();
-        socketRef.current = null;
-      }
+      closeSocket(socketRef.current);
+      socketRef.current = null;
       setIsConnected(false);
       setSocketConnected(false);
       return;
@@ -64,6 +83,11 @@ export const useChatSocket = () => {
       if (isUnmounted) return;
 
       try {
+        if (socketRef.current) {
+          closeSocket(socketRef.current);
+          socketRef.current = null;
+        }
+
         const wsUrl = buildChatWebSocketUrl(token);
 
         const socket = new WebSocket(wsUrl);
@@ -194,12 +218,10 @@ export const useChatSocket = () => {
     return () => {
       isUnmounted = true;
       if (reconnectTimeout) clearTimeout(reconnectTimeout);
-      if (socketRef.current) {
-        socketRef.current.close(1000, "Client unmounted");
-        socketRef.current = null;
-      }
+      closeSocket(socketRef.current);
+      socketRef.current = null;
     };
-  }, [token, user?.id, user?.roles, user?.role, queryClient, setSocketConnected]);
+  }, [token, user?.id, rolesKey, queryClient, setSocketConnected]);
 
   return { isConnected };
 };
