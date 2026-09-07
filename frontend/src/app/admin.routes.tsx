@@ -44,6 +44,7 @@ import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
 import { CounsellorPerformance } from "../pages/admin/counsellors/CounsellorPerformance";
 
 import { Classes } from "../pages/admin/schedule/Classes";
+import { ClassDetails } from "../pages/admin/schedule/ClassDetails";
 import { Timetable } from "../pages/admin/schedule/Timetable";
 import { Recordings } from "../pages/admin/schedule/Recordings";
 import { LiveClasses } from "../pages/admin/schedule/LiveClasses";
@@ -213,6 +214,7 @@ export const adminChildRoutes = (
     <Route path="schedule">
       <Route path="timetable" element={<Timetable />} />
       <Route path="classes" element={<Classes />} />
+      <Route path="classes/:id" element={<ClassDetails />} />
       <Route path="live" element={<LiveClasses />} />
       <Route path="recordings" element={<Recordings />} />
       <Route path="assignments" element={<Navigate to="/admin/assignments" replace />} />

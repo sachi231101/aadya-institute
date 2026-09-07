@@ -6,8 +6,6 @@ import {
   Search,
   Clock,
   CheckCircle2,
-  MoreVertical,
-  Trash2,
   MapPin,
   Building2,
   RotateCcw,
@@ -16,11 +14,6 @@ import {
   Users,
   AlertTriangle,
   Link as LinkIcon,
-  UserCheck,
-  Edit3,
-  XCircle,
-  Eye,
-  UserPlus,
   Laptop,
   Code2,
   Megaphone,
@@ -35,13 +28,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -52,6 +38,22 @@ import {
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useBatches } from "../../../hooks/useBatches";
+import { useBranches } from "../../../hooks/useBranches";
+import { useFacultyList } from "../../../hooks/useFaculty";
+import { useCourses } from "../../../hooks/useCourses";
+import {
+  useClassSessions,
+  useCreateClassSession,
+  useUpdateClassSession,
+} from "../../../hooks/useClassSessions";
+import { type BackendClassSession } from "../../../services/class-sessions.api";
+import { formatBatchSubjectNames } from "@/utils/batch.utils";
+import {
+  BOOKABLE_TIME_SLOTS,
+  periodToTimes,
+  toDateKey,
+} from "@/constants/timetable-slots";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -173,31 +175,10 @@ const mapSessionToScheduledClassItem = (
   };
 };
 
-import { useBatches } from "../../../hooks/useBatches";
-import { useBranches } from "../../../hooks/useBranches";
-import { useFacultyList } from "../../../hooks/useFaculty";
-import { useCourses } from "../../../hooks/useCourses";
-import {
-  useClassSessions,
-  useCreateClassSession,
-  useUpdateClassSession,
-  useDeleteClassSession,
-} from "../../../hooks/useClassSessions";
-import { useQueryClient } from "@tanstack/react-query";
-import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
-import { formatBatchSubjectNames } from "@/utils/batch.utils";
-import { batchesApi } from "../../../services/batches.api";
-import {
-  BOOKABLE_TIME_SLOTS,
-  findPeriodByTimes,
-  periodToTimes,
-  toDateKey,
-} from "@/constants/timetable-slots";
-
 export const Classes: React.FC = () => {
-  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const location = useLocation();
   const { canEditItem } = usePermissions();
-  const canEditClasses = canEditItem("schedule.classes");
   const { data: branchData } = useBranches();
   const branchesList = branchData?.data ?? [];
   const { batches } = useBatches();
@@ -205,6 +186,9 @@ export const Classes: React.FC = () => {
   const { data: facultyData } = useFacultyList({ limit: 50 });
   const facultyMembers = facultyData?.data ?? [];
   const [searchParams] = useSearchParams();
+
+  const isCenterPortal = location.pathname.startsWith("/center");
+  const baseClassesRoute = isCenterPortal ? "/center/schedule/classes" : "/admin/schedule/classes";
 
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
   const [isViewAllBranches, setIsViewAllBranches] = useState<boolean>(true);
@@ -269,7 +253,6 @@ export const Classes: React.FC = () => {
   const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
   const createSession = useCreateClassSession();
   const updateSession = useUpdateClassSession();
-  const deleteSession = useDeleteClassSession();
 
   const classesList = useMemo(() => {
     const sessions = sessionsResponse?.data ?? [];
@@ -283,14 +266,7 @@ export const Classes: React.FC = () => {
 
   // Dialogs State
   const [isScheduleModalOpen, setIsScheduleModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [isAssignFacultyModalOpen, setIsAssignFacultyModalOpen] = useState(false);
-  const [isStudentsModalOpen, setIsStudentsModalOpen] = useState(false);
-  const [isAttendanceModalOpen, setIsAttendanceModalOpen] = useState(false);
-  const [selectedClassItem, setSelectedClassItem] = useState<ScheduledClassItem | null>(null);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
-  const [batchStudents, setBatchStudents] = useState<any[]>([]);
-  const [sessionAttendance, setSessionAttendance] = useState<any[]>([]);
 
   // Schedule Modal Form
   const [formTopic, setFormTopic] = useState("");
@@ -308,9 +284,6 @@ export const Classes: React.FC = () => {
   const formTimes = periodToTimes(formPeriod);
   const formStartTime = formTimes.start;
   const formEndTime = formTimes.end;
-
-  // Assign Faculty Target
-  const [targetFacultyId, setTargetFacultyId] = useState("");
 
   const currentBranchInfo = useMemo(() => {
     const found = branchesList.find((b: any) => b.id === selectedBranchId);
@@ -338,12 +311,9 @@ export const Classes: React.FC = () => {
     };
   }, [classesList, selectedBranchId, isViewAllBranches]);
 
-  // Filtered Classes (server handles all filters now)
-  const filteredClasses = classesList;
-
-  const paginatedClasses = filteredClasses;
+  const paginatedClasses = classesList;
   const totalPages = sessionsResponse?.meta?.totalPages ?? 1;
-  const totalCount = sessionsResponse?.meta?.total ?? filteredClasses.length;
+  const totalCount = sessionsResponse?.meta?.total ?? classesList.length;
 
   // Handlers
   const handleResetFilters = () => {
@@ -352,32 +322,6 @@ export const Classes: React.FC = () => {
     setSelectedStatus("ALL");
     setSelectedDate("");
     setCurrentPage(1);
-  };
-
-  const handleOpenAssignFaculty = (classItem: ScheduledClassItem) => {
-    setSelectedClassItem(classItem);
-    setTargetFacultyId(classItem.facultyId || "");
-    setIsAssignFacultyModalOpen(true);
-  };
-
-  const handleSaveAssignFaculty = async () => {
-    if (!selectedClassItem) return;
-    const fac = facultyMembers.find((f: any) => f.id === targetFacultyId);
-    if (!fac) return;
-    const facName = fac.user?.name || fac.employeeCode || "Faculty";
-
-    try {
-      await updateSession.mutateAsync({
-        id: selectedClassItem.id,
-        payload: { facultyId: fac.id },
-      });
-      setIsAssignFacultyModalOpen(false);
-      setNotificationMsg(`✓ Assigned ${facName} to ${selectedClassItem.topicName} (${selectedClassItem.batchCode}).`);
-      setTimeout(() => setNotificationMsg(null), 3500);
-    } catch {
-      setNotificationMsg("Failed to assign faculty. Please try again.");
-      setTimeout(() => setNotificationMsg(null), 3500);
-    }
   };
 
   const handleSaveClass = async () => {
@@ -429,33 +373,6 @@ export const Classes: React.FC = () => {
     }
   };
 
-  const handleOpenStudents = async (classItem: ScheduledClassItem) => {
-    setSelectedClassItem(classItem);
-    const batch =
-      batches.find((b) => b.id === classItem.batchId) ||
-      batches.find((b) => b.code === classItem.batchCode);
-    if (batch) {
-      try {
-        const res = await batchesApi.getStudents(batch.id);
-        setBatchStudents(res.data ?? []);
-      } catch {
-        setBatchStudents([]);
-      }
-    }
-    setIsStudentsModalOpen(true);
-  };
-
-  const handleOpenAttendance = async (classItem: ScheduledClassItem) => {
-    setSelectedClassItem(classItem);
-    try {
-      const res = await classSessionsApi.getAttendance(classItem.id);
-      setSessionAttendance(res.data?.attendance ?? res.data ?? []);
-    } catch {
-      setSessionAttendance([]);
-    }
-    setIsAttendanceModalOpen(true);
-  };
-
   const resetScheduleForm = () => {
     setEditingSessionId(null);
     setFormTopic("");
@@ -471,68 +388,42 @@ export const Classes: React.FC = () => {
     setFormMeetingUrl("");
   };
 
-  const handleCancelClass = async (classItem: ScheduledClassItem) => {
-    try {
-      await classSessionsApi.cancel(classItem.id);
-      await queryClient.invalidateQueries({ queryKey: ["class-sessions"] });
-      await queryClient.invalidateQueries({ queryKey: ["schedule-summary"] });
-      await queryClient.invalidateQueries({ queryKey: ["faculty-dashboard"] });
-      await queryClient.invalidateQueries({ queryKey: ["student-dashboard"] });
-      setNotificationMsg(`✓ Class ${classItem.topicName} marked as Cancelled.`);
-      setTimeout(() => setNotificationMsg(null), 3000);
-    } catch {
-      setNotificationMsg("Failed to cancel class. Please try again.");
-      setTimeout(() => setNotificationMsg(null), 3000);
-    }
-  };
-
-  const handleDeleteClass = async (classItem: ScheduledClassItem) => {
-    try {
-      await deleteSession.mutateAsync(classItem.id);
-      setNotificationMsg(`✓ Removed class ${classItem.topicName} from schedule.`);
-      setTimeout(() => setNotificationMsg(null), 3000);
-    } catch {
-      setNotificationMsg("Failed to delete class. Please try again.");
-      setTimeout(() => setNotificationMsg(null), 3000);
-    }
-  };
-
   // Helper Icon Renderer
   const renderTopicIcon = (iconType: string) => {
     switch (iconType) {
       case "java":
         return (
-          <div className="w-8 h-8 rounded-xl bg-purple-100/90 text-purple-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-purple-100/90 dark:bg-purple-950/40 text-purple-700 dark:text-purple-400 flex items-center justify-center shrink-0 shadow-2xs">
             <Laptop className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       case "python":
         return (
-          <div className="w-8 h-8 rounded-xl bg-blue-100/90 text-blue-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-blue-100/90 dark:bg-blue-950/40 text-blue-700 dark:text-blue-400 flex items-center justify-center shrink-0 shadow-2xs">
             <Code2 className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       case "marketing":
         return (
-          <div className="w-8 h-8 rounded-xl bg-pink-100/90 text-pink-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-pink-100/90 dark:bg-pink-950/40 text-pink-700 dark:text-pink-400 flex items-center justify-center shrink-0 shadow-2xs">
             <Megaphone className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       case "excel":
         return (
-          <div className="w-8 h-8 rounded-xl bg-emerald-100/90 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-emerald-100/90 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 flex items-center justify-center shrink-0 shadow-2xs">
             <TableIcon className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       case "powerbi":
         return (
-          <div className="w-8 h-8 rounded-xl bg-amber-100/90 text-amber-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-amber-100/90 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0 shadow-2xs">
             <BarChart3 className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
       default:
         return (
-          <div className="w-8 h-8 rounded-xl bg-orange-100/90 text-orange-700 flex items-center justify-center shrink-0 shadow-2xs">
+          <div className="w-8 h-8 rounded-xl bg-cyan-100/90 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 flex items-center justify-center shrink-0 shadow-2xs">
             <Globe className="w-4 h-4 stroke-[2.2]" />
           </div>
         );
@@ -548,7 +439,7 @@ export const Classes: React.FC = () => {
             Classes Management
           </h1>
           <p className="text-sm text-muted-foreground font-medium mt-0.5">
-            View, manage, and track all scheduled classes and faculty assignments.
+            View and manage all scheduled classes and faculty assignments. Click on any class to view details.
           </p>
         </div>
 
@@ -787,10 +678,10 @@ export const Classes: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── 5. CLASSES TABLE ───────────────────────────────────────────── */}
+      {/* ─── 5. CLASSES TABLE (STRICTLY 7 COLUMNS, NO ACTION COLUMN) ───── */}
       <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto w-full">
-          <table className="w-full min-w-[1100px] border-collapse text-left">
+          <table className="w-full min-w-[1000px] border-collapse text-left">
             <thead>
               <tr className="bg-muted/60 dark:bg-slate-900/90 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
                 <th className="py-3.5 px-4 pl-5">CLASS TOPIC & COURSE</th>
@@ -800,21 +691,35 @@ export const Classes: React.FC = () => {
                 <th className="py-3.5 px-3 text-center">MODE</th>
                 <th className="py-3.5 px-4">LOCATION / LINK</th>
                 <th className="py-3.5 px-3 text-center">STATUS</th>
-                <th className="py-3.5 px-4 text-center">ACTIONS</th>
               </tr>
             </thead>
 
             <tbody className="divide-y divide-border text-xs bg-card">
               {paginatedClasses.length > 0 ? (
                 paginatedClasses.map((item) => (
-                  <tr key={item.id} className="hover:bg-muted/40 transition-colors">
+                  <tr
+                    key={item.id}
+                    onClick={() => navigate(`${baseClassesRoute}/${item.id}`)}
+                    className="hover:bg-muted/60 dark:hover:bg-slate-900/90 transition-colors cursor-pointer group"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        navigate(`${baseClassesRoute}/${item.id}`);
+                      }
+                    }}
+                  >
                     {/* Column 1: Class Topic & Course */}
                     <td className="py-3 px-4 pl-5 align-middle">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 select-none py-1">
                         {renderTopicIcon(item.iconType)}
-                        <div>
-                          <h4 className="font-bold text-foreground text-xs">{item.topicName}</h4>
-                          <p className="text-[11px] text-muted-foreground font-medium">{item.moduleName}</p>
+                        <div className="min-w-0">
+                          <h4 className="font-bold text-foreground text-xs group-hover:text-[#1769AA] dark:group-hover:text-blue-400 group-hover:underline transition-colors flex items-center gap-1.5 truncate">
+                            {item.topicName}
+                          </h4>
+                          <p className="text-[11px] text-muted-foreground font-medium truncate">
+                            {item.moduleName}
+                          </p>
                         </div>
                       </div>
                     </td>
@@ -826,13 +731,13 @@ export const Classes: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Column 3: Assigned Faculty (Prominent & Clear) */}
+                    {/* Column 3: Assigned Faculty */}
                     <td className="py-3 px-4 align-middle">
                       {item.isFacultyAssigned && item.facultyName ? (
                         <div className="flex items-center gap-2.5">
                           <Avatar className="h-8 w-8 rounded-full border border-border shadow-2xs shrink-0">
                             <AvatarImage src={item.facultyAvatar} alt={item.facultyName} />
-                            <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
+                            <AvatarFallback className="bg-[#1769AA] text-white font-bold text-xs">
                               {item.facultyName.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -841,25 +746,14 @@ export const Classes: React.FC = () => {
                               {item.facultyName}
                             </span>
                             <span className="text-[10px] text-muted-foreground font-medium block truncate">
-                              {item.facultySpecialization}
+                              {item.facultySpecialization || "Faculty Instructor"}
                             </span>
                           </div>
                         </div>
                       ) : (
-                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 inline-flex flex-col gap-1">
-                          <div className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-300">
-                            <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                            <span>Faculty Not Assigned</span>
-                          </div>
-                          {canEditClasses && (
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAssignFaculty(item)}
-                              className="text-[10px] font-extrabold text-blue-500 dark:text-blue-400 hover:underline text-left cursor-pointer"
-                            >
-                              + Assign Faculty
-                            </button>
-                          )}
+                        <div className="p-1.5 px-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 inline-flex items-center gap-1.5 text-[11px] font-bold">
+                          <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                          <span>Faculty Not Assigned</span>
                         </div>
                       )}
                     </td>
@@ -893,17 +787,22 @@ export const Classes: React.FC = () => {
                     <td className="py-3 px-4 align-middle">
                       {item.isOnlineLink ? (
                         <a
-                          href="#join"
-                          onClick={(e) => e.preventDefault()}
+                          href={item.locationOrLink !== "Online" ? item.locationOrLink : "#"}
+                          target={item.locationOrLink !== "Online" ? "_blank" : undefined}
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (item.locationOrLink === "Online") e.preventDefault();
+                          }}
                           className="flex items-center gap-1 text-blue-500 hover:text-blue-400 font-bold text-xs hover:underline"
                         >
-                          <LinkIcon className="h-3.5 w-3.5 text-blue-500" />
-                          <span>Meeting Link</span>
+                          <LinkIcon className="h-3.5 w-3.5 text-blue-500 shrink-0" />
+                          <span className="truncate">Meeting Link</span>
                         </a>
                       ) : (
                         <div className="flex items-center gap-1 text-foreground font-semibold text-xs">
                           <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                          <span>{item.locationOrLink}</span>
+                          <span className="truncate">{item.locationOrLink}</span>
                         </div>
                       )}
                     </td>
@@ -936,91 +835,11 @@ export const Classes: React.FC = () => {
                         </span>
                       )}
                     </td>
-
-                    {/* Column 8: Actions */}
-                    <td className="py-3 px-4 text-center align-middle">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <button className="p-1.5 hover:bg-muted rounded-lg text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
-                            <MoreVertical className="h-4 w-4" />
-                          </button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-popover border border-border rounded-xl shadow-xl p-1 text-xs">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setSelectedClassItem(item);
-                              setIsDetailsModalOpen(true);
-                            }}
-                            className="gap-2 cursor-pointer font-medium"
-                          >
-                            <Eye className="h-3.5 w-3.5 text-blue-500" /> View Class Details
-                          </DropdownMenuItem>
-                          {canEditClasses && (
-                            <DropdownMenuItem
-                              onClick={() => {
-                                setEditingSessionId(item.id);
-                                setFormTopic(item.topicName);
-                                setFormCourse(item.courseName);
-                                setFormModule(item.moduleName);
-                                setFormBatch(item.batchCode);
-                                setFormFacultyId(item.facultyId || "");
-                                setFormDate(item.date);
-                                setFormPeriod(findPeriodByTimes(item.startTime, item.endTime) ?? 2);
-                                setFormMode(item.mode);
-                                setFormClassroomMasterId(item.classroomMasterId || "");
-                                setFormMeetingUrl(item.mode === "ONLINE" ? item.locationOrLink : "");
-                                setIsScheduleModalOpen(true);
-                              }}
-                              className="gap-2 cursor-pointer font-medium"
-                            >
-                              <Edit3 className="h-3.5 w-3.5 text-indigo-400" /> Edit Class
-                            </DropdownMenuItem>
-                          )}
-                          {canEditClasses && (
-                            <DropdownMenuItem
-                              onClick={() => handleOpenAssignFaculty(item)}
-                              className="gap-2 cursor-pointer font-medium"
-                            >
-                              <UserPlus className="h-3.5 w-3.5 text-emerald-400" /> Change Faculty
-                            </DropdownMenuItem>
-                          )}
-                          <DropdownMenuItem
-                            onClick={() => handleOpenStudents(item)}
-                            className="gap-2 cursor-pointer font-medium"
-                          >
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" /> View Students
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleOpenAttendance(item)}
-                            className="gap-2 cursor-pointer font-medium"
-                          >
-                            <UserCheck className="h-3.5 w-3.5 text-muted-foreground" /> View Attendance
-                          </DropdownMenuItem>
-                          {canEditClasses && (
-                            <>
-                              <DropdownMenuSeparator className="bg-border" />
-                              <DropdownMenuItem
-                                onClick={() => handleCancelClass(item)}
-                                className="gap-2 text-rose-500 font-medium cursor-pointer"
-                              >
-                                <XCircle className="h-3.5 w-3.5" /> Cancel Class
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={() => handleDeleteClass(item)}
-                                className="gap-2 text-rose-500 font-medium cursor-pointer"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" /> Delete
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="py-16 text-center">
+                  <td colSpan={7} className="py-16 text-center">
                     <div className="max-w-md mx-auto space-y-3">
                       <div className="w-16 h-16 rounded-3xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-500 mx-auto">
                         <Calendar className="w-8 h-8 stroke-[1.8]" />
@@ -1126,7 +945,7 @@ export const Classes: React.FC = () => {
         </div>
       </Card>
 
-      {/* ─── MODAL 1: SCHEDULE CLASS DIALOG ─────────────────────────────── */}
+      {/* ─── SCHEDULE CLASS MODAL ────────────────────────────────────────── */}
       <Dialog open={isScheduleModalOpen} onOpenChange={setIsScheduleModalOpen}>
         <DialogContent className="sm:max-w-lg bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
           <DialogHeader className="space-y-1">
@@ -1289,7 +1108,6 @@ export const Classes: React.FC = () => {
                 )}
               </div>
             </div>
-
           </div>
 
           <DialogFooter className="flex gap-2 mt-3">
