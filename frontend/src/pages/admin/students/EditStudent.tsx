@@ -10,6 +10,7 @@ import { useBatches } from "../../../hooks/useBatches";
 import { batchIncludesCourse } from "@/utils/batch.utils";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { usePermissions } from "@/hooks/usePermissions";
 import { findMasterIdByLabel, getMasterLabel } from "@/utils/master.utils";
 
 import {
@@ -74,6 +75,7 @@ export const EditStudent: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const isCompleteAdmissionMode = searchParams.get("mode") === "complete-admission";
 
   const basePath = location.pathname.startsWith("/counselor")
@@ -83,6 +85,14 @@ export const EditStudent: React.FC = () => {
     : location.pathname.startsWith("/faculty")
     ? "/faculty"
     : "/admin";
+  const studentsListPath = `${basePath}/students/all`;
+  const canWrite = isAdmin || !roleScope || canEditItem("students.all");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(studentsListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, studentsListPath]);
 
   const { data: response, isLoading, isError } = useStudent(id);
   const { data: branchResponse } = useBranches();
@@ -273,6 +283,10 @@ export const EditStudent: React.FC = () => {
     }
     await executeSave(values, true);
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   if (isLoading) {
     return (

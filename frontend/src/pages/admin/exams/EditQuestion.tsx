@@ -13,6 +13,7 @@ import {
 import { useQuestion, useUpdateQuestion } from "@/hooks/useQuestions";
 import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useCourses } from "@/hooks/useCourses";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,16 @@ export const EditQuestion: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const questionBankPath = `${basePath}/question-bank`;
+  const canWrite = isAdmin || !roleScope || canEditItem("exams.question_bank");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(questionBankPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, questionBankPath]);
 
   const { data: questionResponse, isLoading: questionLoading, isError } = useQuestion(id || "");
   const existingQuestion = questionResponse?.data;
@@ -210,6 +220,10 @@ export const EditQuestion: React.FC = () => {
       setValidationError(err?.response?.data?.message || "Failed to update question");
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   if (questionLoading) {
     return (

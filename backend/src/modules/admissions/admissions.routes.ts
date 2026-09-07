@@ -41,7 +41,7 @@ router.post(
 
 router.delete(
   "/enquiries/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("admission.update"),
   AdmissionsController.deleteEnquiry
 );
 
@@ -84,7 +84,7 @@ router.patch(
 
 router.delete(
   "/applications/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("admission.update"),
   AdmissionsController.deleteApplication
 );
 

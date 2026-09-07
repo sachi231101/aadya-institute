@@ -43,21 +43,50 @@ export const hasItemGrantFlags = (permissionNames: string[] | undefined): boolea
 
 export const buildPermissionsFromAccess = (
   accessByItem: Record<string, ItemAccessState>,
-  catalog: PermissionModuleDefinition[]
+  catalog: PermissionModuleDefinition[],
+  fallbackMaps?: {
+    read: Record<string, string[]>;
+    write: Record<string, string[]>;
+  }
 ): string[] => {
   const set = new Set<string>(ALWAYS_ON_PERMISSIONS);
+  const defs = new Map<string, { read: string[]; write: string[] }>();
+
   for (const mod of catalog) {
     for (const item of mod.items) {
-      const access = accessByItem[item.key];
-      if (!access?.show) continue;
-      set.add(itemShowPermission(item.key));
-      item.readPermissions.forEach((p) => set.add(p));
-      if (access.editable) {
-        set.add(itemWritePermission(item.key));
-        item.writePermissions.forEach((p) => set.add(p));
-      }
+      defs.set(item.key, {
+        read: item.readPermissions ?? [],
+        write: item.writePermissions ?? [],
+      });
     }
   }
+
+  // If catalog failed to load / is empty, still resolve from FE maps so Grant all can save
+  if (fallbackMaps) {
+    for (const key of Object.keys(accessByItem)) {
+      if (defs.has(key)) continue;
+      defs.set(key, {
+        read: fallbackMaps.read[key] ?? [],
+        write: fallbackMaps.write[key] ?? [],
+      });
+    }
+  }
+
+  for (const [itemKey, access] of Object.entries(accessByItem)) {
+    if (!access?.show) continue;
+    const def = defs.get(itemKey);
+    set.add(itemShowPermission(itemKey));
+    if (def) {
+      def.read.forEach((p) => set.add(p));
+      if (access.editable && def.write.length > 0) {
+        set.add(itemWritePermission(itemKey));
+        def.write.forEach((p) => set.add(p));
+      }
+    } else if (access.editable) {
+      set.add(itemWritePermission(itemKey));
+    }
+  }
+
   return Array.from(set);
 };
 
@@ -92,7 +121,10 @@ export const createFullAccessState = (
   const result: Record<string, ItemAccessState> = {};
   for (const mod of catalog) {
     for (const item of mod.items) {
-      result[item.key] = { show: true, editable: true };
+      result[item.key] = {
+        show: true,
+        editable: (item.writePermissions?.length ?? 0) > 0,
+      };
     }
   }
   return result;

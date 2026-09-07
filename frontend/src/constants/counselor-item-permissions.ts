@@ -1,95 +1,76 @@
 import {
-  hasItemGrantFlags,
-  itemShowPermission,
-  itemWritePermission,
-} from "@/utils/permission-utils";
+  CENTER_ITEM_READ_PERMISSIONS,
+  CENTER_ITEM_WRITE_PERMISSIONS,
+  canReadCenterItem,
+  canEditCenterItem,
+} from "./center-item-permissions";
 
 /**
- * Counsellor catalog item → permission mappings (mirrors backend COUNSELLOR_CATALOG).
+ * Counsellor catalog item keys — same Admin Dashboard sub-items as CM
+ * for the Counsellor module set (mirrors backend COUNSELLOR_CATALOG).
  */
-export const COUNSELOR_ITEM_READ_PERMISSIONS: Record<string, string[]> = {
-  "leads.all": ["lead.read"],
-  "leads.new": ["lead.read"],
-  "leads.ai_calling": ["ai_call.read"],
-  "leads.followups": ["lead.read"],
-  "admissions.enquiries": ["lead.read"],
-  "admissions.applications": ["admission.read"],
-  "admissions.all": ["admission.read"],
-  "admissions.direct": ["admission.read"],
-  "students.all": ["student.read"],
-  "students.attendance": ["attendance.read"],
-  "faculty.all": ["faculty.read"],
-  "courses.course_assignment": ["faculty.read", "course.read"],
-  "faculty.attendance": ["attendance.read"],
-  "batches.all": ["batch.read"],
-  "schedule.timetable": ["schedule.read"],
-  "exams.all": ["exam.read"],
-  "fees.payments": ["fee.read"],
-  "fees.pending": ["fee.read"],
-  "fees.reports": ["fee.read", "report.read"],
-  "reports.students": ["report.read"],
-  "reports.faculty": ["report.read"],
-  "reports.courses": ["report.read"],
-  "reports.financial": ["report.read", "fee.read"],
-  "targets.performance": ["target.read", "incentive.read"],
+export const COUNSELOR_CATALOG_ITEM_KEYS = [
+  "leads.all",
+  "leads.ai_calling",
+  "leads.followups",
+  "leads.call_history",
+  "admissions.enquiries",
+  "admissions.applications",
+  "admissions.all",
+  "students.all",
+  "students.documents",
+  "students.student_allocation",
+  "students.attendance",
+  "students.performance",
+  "students.discontinuation",
+  "faculty.all",
+  "faculty.attendance",
+  "faculty.performance",
+  "batches.all",
+  "exams.all",
+  "exams.create",
+  "exams.question_bank",
+  "exams.results",
+  "fees.plans",
+  "fees.student_fees",
+  "fees.payments",
+  "fees.pending",
+  "fees.receipts",
+  "fees.reports",
+  "reports.students",
+  "reports.admissions",
+  "reports.attendance",
+  "reports.faculty",
+  "reports.courses",
+  "reports.examinations",
+  "reports.financial",
+  "targets.all",
+  "targets.leaderboard",
+  "targets.incentives",
+] as const;
+
+type CounselorItemKey = (typeof COUNSELOR_CATALOG_ITEM_KEYS)[number];
+
+const pickMaps = (
+  source: Record<string, string[]>
+): Record<CounselorItemKey, string[]> => {
+  const result = {} as Record<CounselorItemKey, string[]>;
+  for (const key of COUNSELOR_CATALOG_ITEM_KEYS) {
+    result[key] = [...(source[key] ?? [])];
+  }
+  return result;
 };
 
-export const COUNSELOR_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
-  "leads.all": ["lead.create", "lead.update", "lead.assign", "lead.convert"],
-  "leads.new": ["lead.create"],
-  "leads.ai_calling": ["ai_call.create"],
-  "leads.followups": ["lead.update", "lead.assign"],
-  "admissions.enquiries": ["lead.create", "lead.update"],
-  "admissions.applications": ["admission.create", "admission.update"],
-  "admissions.all": ["admission.create", "admission.update"],
-  "admissions.direct": ["admission.create"],
-  "students.all": ["student.update"],
-  "students.attendance": ["attendance.mark"],
-  "faculty.all": [],
-  "courses.course_assignment": [],
-  "faculty.attendance": [],
-  "batches.all": [],
-  "schedule.timetable": [],
-  "exams.all": [],
-  "fees.payments": ["fee.create"],
-  "fees.pending": [],
-  "fees.reports": [],
-  "reports.students": [],
-  "reports.faculty": [],
-  "reports.courses": [],
-  "reports.financial": [],
-  "targets.performance": [],
-};
+/** Mirrors Admin/CM item → coarse permission mappings for Counsellor catalog items. */
+export const COUNSELOR_ITEM_READ_PERMISSIONS = pickMaps(CENTER_ITEM_READ_PERMISSIONS);
+export const COUNSELOR_ITEM_WRITE_PERMISSIONS = pickMaps(CENTER_ITEM_WRITE_PERMISSIONS);
 
 export const canReadCounselorItem = (
   permissions: string[] | undefined,
   itemKey: string
-): boolean => {
-  if (!permissions?.length) return false;
-  if (hasItemGrantFlags(permissions)) {
-    return permissions.includes(itemShowPermission(itemKey));
-  }
-  const required = COUNSELOR_ITEM_READ_PERMISSIONS[itemKey];
-  if (!required?.length) return false;
-  const permSet = new Set(permissions);
-  return required.some((p) => permSet.has(p));
-};
+): boolean => canReadCenterItem(permissions, itemKey);
 
 export const canEditCounselorItem = (
   permissions: string[] | undefined,
   itemKey: string
-): boolean => {
-  if (!permissions?.length) return false;
-  const writePerms = COUNSELOR_ITEM_WRITE_PERMISSIONS[itemKey];
-  if (!writePerms?.length) return false;
-  if (hasItemGrantFlags(permissions)) {
-    return (
-      permissions.includes(itemShowPermission(itemKey)) &&
-      permissions.includes(itemWritePermission(itemKey))
-    );
-  }
-  const readOk = canReadCounselorItem(permissions, itemKey);
-  if (!readOk) return false;
-  const permSet = new Set(permissions);
-  return writePerms.every((p) => permSet.has(p));
-};
+): boolean => canEditCenterItem(permissions, itemKey);

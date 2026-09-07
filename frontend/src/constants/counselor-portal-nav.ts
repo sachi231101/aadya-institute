@@ -6,7 +6,7 @@ import {
   Target,
   GraduationCap,
   Users,
-  Layers,
+  FolderOpen,
   FileText,
   CreditCard,
   BarChart3,
@@ -33,7 +33,10 @@ export interface CounselorNavModule {
   items?: CounselorNavSubItem[];
 }
 
-/** Counsellor sidebar — aligned with backend COUNSELLOR permission catalog. */
+/**
+ * Counsellor sidebar — module set matches Counsellor catalog;
+ * sub-items under each module match Admin Dashboard / CM hierarchy exactly.
+ */
 export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
   {
     title: "Dashboard",
@@ -47,28 +50,15 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     isAi: true,
   },
   {
-    title: "Target & Incentive",
-    url: "/counselor/performance",
-    icon: Award,
-    moduleKey: "targets",
-    items: [
-      {
-        title: "My Targets & Rewards",
-        url: "/counselor/performance",
-        itemKey: "targets.performance",
-      },
-    ],
-  },
-  {
     title: "Lead Management",
     url: "/counselor/leads",
     icon: Bot,
     moduleKey: "leads_ai_calling",
     items: [
       { title: "All Leads", url: "/counselor/leads", itemKey: "leads.all" },
-      { title: "New Lead", url: "/counselor/leads/add", itemKey: "leads.new" },
       { title: "AI Calling", url: "/counselor/leads/ai-calling", itemKey: "leads.ai_calling" },
       { title: "Follow-ups", url: "/counselor/leads/follow-ups", itemKey: "leads.followups" },
+      { title: "Call History", url: "/counselor/leads/call-history", itemKey: "leads.call_history" },
     ],
   },
   {
@@ -89,7 +79,11 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "students",
     items: [
       { title: "All Students", url: "/counselor/students/all", itemKey: "students.all" },
+      { title: "Student Documents", url: "/counselor/students/documents", itemKey: "students.documents" },
+      { title: L["students.student_allocation"] ?? "Assign Students to Batches", url: "/counselor/students/student-allocation", itemKey: "students.student_allocation" },
       { title: L["students.attendance"] ?? "Student Attendance", url: "/counselor/students/attendance", itemKey: "students.attendance" },
+      { title: L["students.performance"] ?? "Academic Performance", url: "/counselor/students/performance", itemKey: "students.performance" },
+      { title: "Discontinuation Risk", url: "/counselor/students/discontinuation-risk", itemKey: "students.discontinuation" },
     ],
   },
   {
@@ -99,18 +93,17 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "faculty",
     items: [
       { title: "All Faculty", url: "/counselor/faculty/all", itemKey: "faculty.all" },
-      { title: L["courses.course_assignment"] ?? "Assign Faculty to Courses", url: "/counselor/faculty/courses", itemKey: "courses.course_assignment" },
       { title: L["faculty.attendance"] ?? "Faculty Attendance", url: "/counselor/faculty/attendance", itemKey: "faculty.attendance" },
+      { title: L["faculty.performance"] ?? "Faculty Ratings & Feedback", url: "/counselor/faculty/ratings", itemKey: "faculty.performance" },
     ],
   },
   {
     title: "Batch Management",
     url: "/counselor/batches",
-    icon: Layers,
+    icon: FolderOpen,
     moduleKey: "batches",
     items: [
       { title: "All Batches", url: "/counselor/batches", itemKey: "batches.all" },
-      { title: "Class Timetable", url: "/counselor/timetable", itemKey: "schedule.timetable" },
     ],
   },
   {
@@ -120,6 +113,9 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "examinations",
     items: [
       { title: "All Examinations", url: "/counselor/exams", itemKey: "exams.all" },
+      { title: "Create Examination", url: "/counselor/exams/create", itemKey: "exams.create" },
+      { title: "Question Bank", url: "/counselor/exams/question-bank", itemKey: "exams.question_bank" },
+      { title: "Results", url: "/counselor/exams/results", itemKey: "exams.results" },
     ],
   },
   {
@@ -128,8 +124,11 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     icon: CreditCard,
     moduleKey: "fees",
     items: [
+      { title: "Fee Plans", url: "/counselor/fees/plans", itemKey: "fees.plans" },
+      { title: "Student Fees", url: "/counselor/fees/student-fees", itemKey: "fees.student_fees" },
       { title: "Payments", url: "/counselor/fees/payments", itemKey: "fees.payments" },
       { title: "Pending Fees", url: "/counselor/fees/pending", itemKey: "fees.pending" },
+      { title: "Receipts", url: "/counselor/fees/receipts", itemKey: "fees.receipts" },
       { title: L["fees.reports"] ?? "Fee Collection Reports", url: "/counselor/fees/reports", itemKey: "fees.reports" },
     ],
   },
@@ -140,9 +139,23 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     moduleKey: "reports",
     items: [
       { title: "Student Reports", url: "/counselor/reports/students", itemKey: "reports.students" },
+      { title: "Admission Reports", url: "/counselor/reports/admissions", itemKey: "reports.admissions" },
+      { title: "Attendance Reports", url: "/counselor/reports/attendance", itemKey: "reports.attendance" },
       { title: "Faculty Reports", url: "/counselor/reports/faculty", itemKey: "reports.faculty" },
       { title: "Course Reports", url: "/counselor/reports/courses", itemKey: "reports.courses" },
+      { title: "Examination Reports", url: "/counselor/reports/examinations", itemKey: "reports.examinations" },
       { title: L["reports.financial"] ?? "Revenue & Finance Reports", url: "/counselor/reports/financial", itemKey: "reports.financial" },
+    ],
+  },
+  {
+    title: "Target & Incentive",
+    url: "/counselor/targets",
+    icon: Award,
+    moduleKey: "targets",
+    items: [
+      { title: L["targets.all"] ?? "Target Plans & Assignments", url: "/counselor/targets", itemKey: "targets.all" },
+      { title: L["targets.leaderboard"] ?? "Leaderboard", url: "/counselor/targets/leaderboard", itemKey: "targets.leaderboard" },
+      { title: "Incentive Approvals", url: "/counselor/incentives", itemKey: "targets.incentives" },
     ],
   },
   {
@@ -153,7 +166,19 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
 ];
 
 export const buildCounselorNavPermissionKeys = (): Record<string, string> => {
-  const map: Record<string, string> = {};
+  const map: Record<string, string> = {
+    "/counselor/students": "students.all",
+    "/counselor/faculty": "faculty.all",
+    "/counselor/admissions": "admissions.all",
+    "/counselor/leads": "leads.all",
+    "/counselor/admissions/direct-entry": "admissions.all",
+    "/counselor/leads/add": "leads.all",
+    "/counselor/students/add": "students.all",
+    "/counselor/faculty/add": "faculty.all",
+    "/counselor/faculty/courses": "faculty.all",
+    "/counselor/timetable": "batches.all",
+    "/counselor/performance": "targets.all",
+  };
   for (const mod of COUNSELOR_PORTAL_NAV) {
     mod.items?.forEach((item) => {
       map[item.url] = item.itemKey;

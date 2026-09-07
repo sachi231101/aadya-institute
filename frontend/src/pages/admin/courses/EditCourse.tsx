@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { coursesApi, type CourseData } from "../../../services/courses.api";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,11 +38,13 @@ export const EditCourse: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const courseFromState = (location.state as { course?: CourseData } | null)?.course;
 
   const coursesListPath = location.pathname.startsWith("/center")
     ? "/center/courses/all"
     : "/admin/courses/all";
+  const canWrite = isAdmin || !roleScope || canEditItem("courses.all");
 
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
@@ -58,6 +61,12 @@ export const EditCourse: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(coursesListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, coursesListPath]);
 
   useEffect(() => {
     if (!id) {
@@ -144,6 +153,10 @@ export const EditCourse: React.FC = () => {
         <span className="ml-2 text-xs font-bold">Loading course...</span>
       </div>
     );
+  }
+
+  if (!canWrite) {
+    return null;
   }
 
   return (

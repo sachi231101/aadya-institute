@@ -81,6 +81,7 @@ import { useNumberingSeriesPreview, useActiveMasterRecords, useCreateMasterRecor
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { getMasterLabel, findMasterIdByLabel } from "@/utils/master.utils";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { CreateAdmissionPayload } from "@/types/admission.types";
 
 const COURSE_PACKAGE_ENTITY = "coursepackage";
@@ -211,12 +212,22 @@ export const DirectAdmissionEntry: React.FC = () => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
   const { selectedBranchId } = useBranchStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
 
   const basePath = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
     ? "/center"
     : "/admin";
+  const admissionsListPath = `${basePath}/admissions/all`;
+  const admissionWriteKey = "admissions.all";
+  const canWrite = isAdmin || !roleScope || canEditItem(admissionWriteKey);
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(admissionsListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, admissionsListPath]);
 
   // ─── 1. STUDENT DETAILS STATE ───────────────────────────────────────────
   const [studentSearch, setStudentSearch] = useState("");
@@ -1243,10 +1254,14 @@ export const DirectAdmissionEntry: React.FC = () => {
     await submitAdmissions(nextStatus);
   };
 
+  if (!canWrite) {
+    return null;
+  }
+
   return (
-    <PermissionGate itemKey="admissions.direct" mode="read">
+    <PermissionGate itemKey={admissionWriteKey} mode="read">
     <div className="min-h-screen bg-background text-foreground pb-16">
-      <ReadOnlyBanner itemKey="admissions.direct" label="Direct Admission" />
+      <ReadOnlyBanner itemKey={admissionWriteKey} label="Direct Admission" />
       {(formError || formSuccess) && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 bg-popover text-popover-foreground px-4 py-3 rounded-xl shadow-2xl text-xs font-medium border border-border animate-in fade-in slide-in-from-bottom-3 duration-200 max-w-sm">
           {formError ? (

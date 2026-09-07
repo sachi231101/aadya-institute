@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   Table,
   TableBody,
@@ -54,13 +55,15 @@ export const CallHistory: React.FC = () => {
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">AI Call History</h2>
           <p className="text-sm text-text-secondary">View all AI calling logs, transcripts, and outcomes.</p>
         </div>
-        <Button
-          className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
-          onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Add Lead
-        </Button>
+        <PermissionGate itemKey="leads.all" mode="write">
+          <Button
+            className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+            onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Lead
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50 shadow-sm">

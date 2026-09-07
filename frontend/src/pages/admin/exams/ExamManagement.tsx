@@ -36,6 +36,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   Table,
   TableBody,
@@ -66,6 +67,8 @@ export const ExamManagement: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const { canEditItem } = usePermissions();
+  const canEditExams = canEditItem("exams.all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");

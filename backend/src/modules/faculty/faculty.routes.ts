@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as controller from "./faculty.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   createFacultySchema,
@@ -34,67 +35,67 @@ router.get(
 
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermissionUnlessRoles("faculty.read", "FACULTY"),
   validate(listFacultyQuerySchema, "query"),
   controller.getAll
 );
 
 router.get(
   "/courses",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermissionUnlessRoles("course.read", "FACULTY"),
   controller.getCourses
 );
 
 router.post(
   "/courses/assign",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("faculty.update"),
   validate(assignCourseSchema),
   controller.assignCourse
 );
 
 router.get(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermissionUnlessRoles("attendance.read", "FACULTY"),
   controller.getAttendance
 );
 
 router.post(
   "/attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermission("attendance.mark"),
   validate(markAttendanceSchema),
   controller.markAttendance
 );
 
 router.get(
   "/daily-attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermissionUnlessRoles("attendance.read", "FACULTY"),
   validate(dailyAttendanceQuerySchema, "query"),
   controller.getDailyAttendance
 );
 
 router.put(
   "/daily-attendance",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("attendance.update"),
   validate(bulkDailyAttendanceSchema),
   controller.saveDailyAttendance
 );
 
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermissionUnlessRoles("faculty.read", "FACULTY"),
   controller.getById
 );
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("faculty.create"),
   validate(createFacultySchema),
   controller.create
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("faculty.update"),
   validate(updateFacultySchema),
   controller.update
 );

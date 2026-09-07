@@ -222,7 +222,10 @@ export const AllStudents: React.FC = () => {
             <Download className="h-4 w-4 mr-2 text-slate-500" /> Export Excel
           </Button>
           {!isFacultyPortal && (
-            <PermissionGate itemKey="students.all" mode="write">
+            <PermissionGate
+              itemKey="admissions.all"
+              mode="write"
+            >
               <Button
                 className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
                 onClick={() => navigate(`${basePath}/admissions/direct-entry`)}

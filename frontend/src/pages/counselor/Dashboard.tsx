@@ -153,7 +153,11 @@ export const CounselorDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { hasAnyModuleAccess } = usePermissions();
+  const { hasAnyModuleAccess, canEditItem } = usePermissions();
+  const canCreateLead = canEditItem("leads.all");
+  const canEditLeads = canEditItem("leads.all") || canEditItem("leads.followups");
+  const canCreateBatch = canEditItem("batches.all");
+  const canRegisterAdmission = canEditItem("admissions.all");
   const { students, fetchStudents } = useStudentStore();
   const { counselors, fetchCounselors } = useCounselorStore();
   const { admissions, fetchEnquiries, fetchAdmissions } = useAdmissionStore();
@@ -938,13 +942,16 @@ export const CounselorDashboard: React.FC = () => {
 
         {hasAnyModuleAccess && (
         <div className="flex items-center gap-3 flex-wrap">
+          {canCreateBatch && (
           <Button
             onClick={() => setShowCreateBatchModal(true)}
             className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-2 h-10 transition-all"
           >
             <Layers className="h-4 w-4" /> Create Batch & Schedule
           </Button>
+          )}
 
+          {canCreateLead && (
           <Button
             onClick={() => setShowAddModal(true)}
             variant="outline"
@@ -952,13 +959,16 @@ export const CounselorDashboard: React.FC = () => {
           >
             <Plus className="h-4 w-4 text-[#1769AA]" /> New Lead Enquiry
           </Button>
+          )}
 
+          {canRegisterAdmission && (
           <Button
-            onClick={() => navigate("/counselor/students/all")}
+            onClick={() => navigate("/counselor/admissions/direct-entry")}
             className="bg-[#059669] hover:bg-[#047857] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 transition-all"
           >
             <Plus className="h-4 w-4" /> Register Students
           </Button>
+          )}
         </div>
         )}
       </div>
@@ -1233,6 +1243,7 @@ export const CounselorDashboard: React.FC = () => {
               <span>View All Leads</span>
               <ChevronRight className="h-3.5 w-3.5" />
             </button>
+            {canCreateLead && (
             <Button
               type="button"
               onClick={() => setShowAddModal(true)}
@@ -1241,6 +1252,7 @@ export const CounselorDashboard: React.FC = () => {
               <Plus className="h-4 w-4" />
               <span>Add Lead</span>
             </Button>
+            )}
           </div>
         </CardHeader>
 
@@ -1495,9 +1507,20 @@ export const CounselorDashboard: React.FC = () => {
                                   {/* Interactive Stage Node */}
                                   <button
                                     type="button"
-                                    onClick={() => handleToggleStageCheckbox(lead.id, step.key)}
-                                    className="group/node flex flex-col items-center focus:outline-none cursor-pointer transition-transform hover:scale-110"
-                                    title={`Click to set stage to ${step.label}`}
+                                    onClick={() =>
+                                      canEditLeads && handleToggleStageCheckbox(lead.id, step.key)
+                                    }
+                                    disabled={!canEditLeads}
+                                    className={`group/node flex flex-col items-center focus:outline-none transition-transform ${
+                                      canEditLeads
+                                        ? "cursor-pointer hover:scale-110"
+                                        : "cursor-default opacity-80"
+                                    }`}
+                                    title={
+                                      canEditLeads
+                                        ? `Click to set stage to ${step.label}`
+                                        : "Read-only — cannot change stage"
+                                    }
                                   >
                                     {step.key === "CONVERTED" && isConverted ? (
                                       <div className="w-4.5 h-4.5 rounded-full bg-emerald-600 text-white flex items-center justify-center shadow-xs ring-2 ring-emerald-100">
@@ -1539,9 +1562,23 @@ export const CounselorDashboard: React.FC = () => {
                           {/* Separate Lost Stage Node */}
                           <button
                             type="button"
-                            onClick={() => handleToggleStageCheckbox(lead.id, isLost ? "NEW" : "LOST")}
-                            className="group/lost flex flex-col items-center focus:outline-none cursor-pointer transition-transform hover:scale-110"
-                            title={isLost ? "Reopen Lead to AI Calling" : "Mark Lead as Lost"}
+                            onClick={() =>
+                              canEditLeads &&
+                              handleToggleStageCheckbox(lead.id, isLost ? "NEW" : "LOST")
+                            }
+                            disabled={!canEditLeads}
+                            className={`group/lost flex flex-col items-center focus:outline-none transition-transform ${
+                              canEditLeads
+                                ? "cursor-pointer hover:scale-110"
+                                : "cursor-default opacity-80"
+                            }`}
+                            title={
+                              !canEditLeads
+                                ? "Read-only — cannot change stage"
+                                : isLost
+                                  ? "Reopen Lead to AI Calling"
+                                  : "Mark Lead as Lost"
+                            }
                           >
                             {isLost ? (
                               <div className="w-4.5 h-4.5 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-md ring-2 ring-rose-100">
@@ -1652,7 +1689,7 @@ export const CounselorDashboard: React.FC = () => {
                       {/* 7. ACTION COLUMN */}
                       <td className="py-3.5 px-3 text-center">
                         <div className="flex items-center justify-center gap-1.5">
-                          {/* Follow Up Button */}
+                          {canEditLeads && (
                           <Button
                             type="button"
                             onClick={() => handleOpenFollowUp(lead)}
@@ -1667,6 +1704,7 @@ export const CounselorDashboard: React.FC = () => {
                             <Phone className="h-3 w-3" />
                             <span>Follow Up</span>
                           </Button>
+                          )}
 
                           {/* Three Dot Dropdown Menu */}
                           <DropdownMenu>
@@ -1680,6 +1718,7 @@ export const CounselorDashboard: React.FC = () => {
                               </button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-52 rounded-xl shadow-lg border-slate-200">
+                              {canEditLeads && (
                               <DropdownMenuItem
                                 onClick={() => handleOpenFollowUp(lead)}
                                 className="text-xs font-semibold py-2 cursor-pointer text-[#1769AA]"
@@ -1687,6 +1726,7 @@ export const CounselorDashboard: React.FC = () => {
                                 <CalendarDays className="h-3.5 w-3.5 mr-2 text-[#1769AA]" />
                                 Schedule Follow-up
                               </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={() => handleOpenAiDrawer(lead)}
                                 className="text-xs font-semibold py-2 cursor-pointer text-indigo-700"
@@ -1704,6 +1744,8 @@ export const CounselorDashboard: React.FC = () => {
                                 <History className="h-3.5 w-3.5 mr-2 text-blue-600" />
                                 View Interaction History
                               </DropdownMenuItem>
+                              {canEditLeads && (
+                              <>
                               <DropdownMenuItem
                                 onClick={() => handleCall(lead)}
                                 className="text-xs font-semibold py-2 cursor-pointer"
@@ -1749,6 +1791,8 @@ export const CounselorDashboard: React.FC = () => {
                                 <Trash2 className="h-3.5 w-3.5 mr-2 text-rose-600" />
                                 Delete Lead
                               </DropdownMenuItem>
+                              </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -2248,6 +2292,7 @@ export const CounselorDashboard: React.FC = () => {
 
               {/* Action Buttons & Danger Mark as Lost */}
               <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {canEditLeads && (
                 <Button
                   type="button"
                   variant="outline"
@@ -2257,6 +2302,7 @@ export const CounselorDashboard: React.FC = () => {
                   <AlertTriangle className="h-3.5 w-3.5 text-rose-500" />
                   Mark as Lost / Not Interested
                 </Button>
+                )}
 
                 <div className="flex items-center justify-end gap-2.5">
                   <Button
@@ -2267,6 +2313,7 @@ export const CounselorDashboard: React.FC = () => {
                   >
                     Cancel
                   </Button>
+                  {canEditLeads && (
                   <Button
                     type="submit"
                     className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold px-5 rounded-xl shadow-md gap-1.5 cursor-pointer h-9.5"
@@ -2274,6 +2321,7 @@ export const CounselorDashboard: React.FC = () => {
                     <Check className="h-4 w-4" />
                     Save Follow-up
                   </Button>
+                  )}
                 </div>
               </div>
             </form>

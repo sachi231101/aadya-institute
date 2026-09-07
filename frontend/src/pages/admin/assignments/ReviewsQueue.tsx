@@ -25,6 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 async function downloadSubmission(submissionId: string, fileName?: string) {
   const token = localStorage.getItem("token");
@@ -45,6 +46,12 @@ export const ReviewsQueue: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
+  const canGrade =
+    isAdmin ||
+    !roleScope ||
+    canEditItem("assignments.reviews") ||
+    canEditItem("assignments.all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [grading, setGrading] = useState<AssignmentSubmission | null>(null);
@@ -203,6 +210,7 @@ export const ReviewsQueue: React.FC = () => {
                             <Download className="h-4 w-4" />
                           </Button>
                         )}
+                        {canGrade && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -215,6 +223,7 @@ export const ReviewsQueue: React.FC = () => {
                         >
                           Grade
                         </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

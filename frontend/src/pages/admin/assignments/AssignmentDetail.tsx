@@ -47,6 +47,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import type { AssignmentSubmission } from "@/services/assignments.api";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 async function downloadAttachment(assignmentId: string, fileName?: string | null) {
   const token = localStorage.getItem("token");
@@ -70,13 +72,21 @@ export const AssignmentDetail: React.FC = () => {
   const [searchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const assignmentsBase = `${basePath}/assignments`;
+  const { canEditItem } = usePermissions();
+  const canEditAssignments = canEditItem("assignments.all");
+  const canGradeSubmissions =
+    canEditItem("assignments.submissions") ||
+    canEditItem("assignments.reviews") ||
+    canEditAssignments;
 
   const { data, isLoading, isError, refetch } = useAssignmentById(id);
   const assignment = data?.data;
   const updateMutation = useUpdateAssignment();
   const gradeMutation = useGradeSubmission();
 
-  const [editOpen, setEditOpen] = useState(searchParams.get("edit") === "1");
+  const [editOpen, setEditOpen] = useState(
+    searchParams.get("edit") === "1" && canEditAssignments
+  );
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
@@ -202,6 +212,7 @@ export const AssignmentDetail: React.FC = () => {
           >
             {assignmentStatusLabel(assignment.status)}
           </Badge>
+          <PermissionGate itemKey="assignments.all" mode="write">
           <Button
             variant="outline"
             size="sm"
@@ -235,6 +246,7 @@ export const AssignmentDetail: React.FC = () => {
               </>
             )}
           </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -407,7 +419,7 @@ export const AssignmentDetail: React.FC = () => {
                             <Download className="h-4 w-4" />
                           </Button>
                         )}
-                        {s.submittedAt && (
+                        {s.submittedAt && canGradeSubmissions && (
                           <Button
                             size="sm"
                             variant="outline"

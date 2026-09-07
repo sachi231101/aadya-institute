@@ -13,6 +13,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
+import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
 
 const addLeadSchema = z.object({
@@ -37,6 +38,7 @@ export const AddLead: React.FC = () => {
   const location = useLocation();
   const { user } = useAuthStore();
   const { selectedBranchId } = useBranchStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const createLeadMutation = useCreateLead();
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const { courses } = useCourses();
@@ -47,6 +49,15 @@ export const AddLead: React.FC = () => {
     : location.pathname.startsWith("/center")
     ? "/center"
     : "/admin";
+  const leadsListPath = `${basePath}/leads`;
+  const leadWriteKey = "leads.all";
+  const canWrite = isAdmin || !roleScope || canEditItem(leadWriteKey);
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(leadsListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, leadsListPath]);
 
   const defaultBranch =
     user?.branchId ||
@@ -110,6 +121,10 @@ export const AddLead: React.FC = () => {
       }
     );
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6 animate-in fade-in duration-500">

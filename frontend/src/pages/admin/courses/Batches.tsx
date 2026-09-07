@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { useSearchParams, Link, useNavigate, useLocation } from "react-router-dom";
 import {
   GraduationCap,
   Plus,
@@ -24,7 +24,6 @@ import type { BatchData, ScheduleLinePayload } from "../../../services/batches.a
 import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { batchesApi } from "@/services/batches.api";
-import { ROUTES } from "@/constants/routes";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -67,6 +66,10 @@ export const Batches: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
+  const location = useLocation();
+  const batchesBasePath = location.pathname.startsWith("/center")
+    ? "/center/batches"
+    : "/admin/batches";
 
   const [searchTerm, setSearchTerm] = useState("");
   const [courseFilter, setCourseFilter] = useState(courseIdFromUrl || "ALL");
@@ -475,7 +478,7 @@ export const Batches: React.FC = () => {
             disabled={selectedIds.length !== 1}
             onClick={() => {
               const id = selectedIds[0];
-              if (id) navigate(ROUTES.ADMIN.BATCHES.DETAIL(id));
+              if (id) navigate(`${batchesBasePath}/${id}`);
             }}
           >
             <Eye className="mr-1.5 h-3.5 w-3.5" />
@@ -763,7 +766,7 @@ export const Batches: React.FC = () => {
                                 <DropdownMenuLabel className="text-xs font-bold">Batch Actions</DropdownMenuLabel>
                                 <DropdownMenuSeparator className="bg-border" />
                                 <DropdownMenuItem asChild className="cursor-pointer text-xs font-bold">
-                                  <Link to={ROUTES.ADMIN.BATCHES.DETAIL(batch.id)}>
+                                  <Link to={`${batchesBasePath}/${batch.id}`}>
                                     <Eye className="mr-2 h-4 w-4" /> View Details
                                   </Link>
                                 </DropdownMenuItem>

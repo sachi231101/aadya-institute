@@ -19,6 +19,14 @@ import {
   type PermissionModuleDefinition,
   type PermissionRoleScope,
 } from "@/utils/permission-utils";
+import {
+  CENTER_ITEM_READ_PERMISSIONS,
+  CENTER_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/center-item-permissions";
+import {
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+  COUNSELOR_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/counselor-item-permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -125,8 +133,23 @@ export const RolesPermissions: React.FC = () => {
 
   const savePermissions = async (user: UserResponse) => {
     const catalog = getCatalogForUser(user, centerManagerCatalog, counsellorCatalog);
+    const roleScope = getRoleScope(user);
+    const permissionMaps =
+      roleScope === "COUNSELLOR"
+        ? { read: COUNSELOR_ITEM_READ_PERMISSIONS, write: COUNSELOR_ITEM_WRITE_PERMISSIONS }
+        : { read: CENTER_ITEM_READ_PERMISSIONS, write: CENTER_ITEM_WRITE_PERMISSIONS };
     const access = draftAccess[user.id] ?? getDefaultAccessState(user, catalog);
-    const permissions = buildPermissionsFromAccess(access, catalog);
+    const permissions = buildPermissionsFromAccess(access, catalog, permissionMaps);
+
+    if (
+      Object.values(access).some((a) => a?.show) &&
+      !permissions.some((p) => p.startsWith("item.") && !p.endsWith(".write"))
+    ) {
+      alert(
+        "Permissions could not be built from the matrix. Wait for the catalog to load, click Grant all again, then save."
+      );
+      return;
+    }
 
     try {
       await updatePermissions.mutateAsync({
@@ -138,8 +161,13 @@ export const RolesPermissions: React.FC = () => {
         delete copy[user.id];
         return copy;
       });
-    } catch {
-      alert("Failed to update permissions.");
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      alert(
+        apiErr.response?.data?.message ||
+          apiErr.message ||
+          "Failed to update permissions."
+      );
     }
   };
 
@@ -257,6 +285,7 @@ export const RolesPermissions: React.FC = () => {
                             role={roleScope}
                             value={activeAccess}
                             onChange={(next) => handleAccessChange(user.id, next)}
+                            catalog={catalog}
                             disabled={updatePermissions.isPending}
                           />
                         </div>

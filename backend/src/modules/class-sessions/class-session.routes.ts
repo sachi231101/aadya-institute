@@ -1,5 +1,7 @@
 import { Router } from "express";
+import type { Response, NextFunction } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
+import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
@@ -36,6 +38,24 @@ const router = Router();
 
 router.use(authMiddleware);
 
+/** Faculty can run live classes; CM needs schedule.update. */
+const requireLiveSessionControl = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const roles = (req.user?.roles ?? []).map((r) => String(r).toUpperCase());
+  if (
+    roles.includes("ADMIN") ||
+    roles.includes("SUPER_ADMIN") ||
+    roles.includes("FACULTY")
+  ) {
+    next();
+    return;
+  }
+  return requirePermission("schedule.update")(req, res, next);
+};
+
 // Active live sessions query (for Student & Faculty dashboards)
 router.get("/active/live", getActiveLiveSessions);
 
@@ -52,8 +72,8 @@ router.get("/:id/attendance", requirePermission("attendance.read"), getSessionAt
 router.post("/:id/attendance", requirePermission("attendance.mark"), postSessionAttendance);
 
 // Live class management actions
-router.post("/:id/start-live", startLiveSession);
-router.post("/:id/end-live", endLiveSession);
+router.post("/:id/start-live", requireLiveSessionControl, startLiveSession);
+router.post("/:id/end-live", requireLiveSessionControl, endLiveSession);
 
 // Session CRUD
 router.get("/", requirePermission("schedule.read"), validate(queryClassSessionSchema, "query"), getSessions);
