@@ -3,9 +3,13 @@ import { ALL_MODULE_KEYS } from "../../utils/module-permissions";
 
 const phoneSchema = z.preprocess(
   (val) => {
-    if (typeof val === "string" && val.trim() !== "") {
-      const digits = val.replace(/\D/g, "");
-      return digits.length >= 10 ? digits.slice(-10) : val;
+    if (val === null || val === undefined) return undefined;
+    if (typeof val === "string") {
+      const trimmed = val.trim();
+      if (trimmed === "") return undefined;
+      const digits = trimmed.replace(/\D/g, "");
+      // Normalize to last 10 digits when enough digits exist; otherwise keep for zod error
+      return digits.length >= 10 ? digits.slice(-10) : trimmed;
     }
     return val;
   },

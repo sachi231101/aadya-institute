@@ -7,6 +7,7 @@ import { useCreateFaculty } from "../../../hooks/useFaculty";
 import { useBranches } from "../../../hooks/useBranches";
 import { useAuthStore } from "@/store/auth.store";
 import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
+import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { useNumberingSeriesPreview } from "@/hooks/useMasters";
@@ -56,6 +57,7 @@ export const AddFaculty: React.FC = () => {
   const createMutation = useCreateFaculty();
   const { data: branchesResponse, isLoading: branchesLoading } = useBranches({ limit: 100, status: "ACTIVE" });
   const { user } = useAuthStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const { policy } = usePasswordRequirements();
   const facultySchema = useMemo(() => buildFacultySchema(policy), [policy]);
@@ -69,6 +71,14 @@ export const AddFaculty: React.FC = () => {
     : location.pathname.startsWith("/center")
     ? "/center"
     : "/admin";
+  const facultyListPath = `${basePath}/faculty/all`;
+  const canWrite = isAdmin || !roleScope || canEditItem("faculty.all");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(facultyListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, facultyListPath]);
 
   const branches = branchesResponse?.data ?? [];
 
@@ -129,6 +139,10 @@ export const AddFaculty: React.FC = () => {
       form.setError("root", { message });
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">

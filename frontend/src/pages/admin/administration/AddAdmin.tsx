@@ -19,6 +19,14 @@ import {
   type PermissionModuleDefinition,
 } from "@/utils/permission-utils";
 import {
+  CENTER_ITEM_READ_PERMISSIONS,
+  CENTER_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/center-item-permissions";
+import {
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+  COUNSELOR_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/counselor-item-permissions";
+import {
   validatePasswordAgainstPolicy,
 } from "@/utils/password-policy";
 import {
@@ -155,13 +163,34 @@ export const AddAdmin: React.FC = () => {
 
   const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
 
+  // Reset matrix only when role changes — not on every catalog query refetch
+  // (refetch was wiping Grant all / Clear all selections).
   useEffect(() => {
-    if (catalog.length > 0) {
-      setItemAccess(createDefaultAccessState(catalog));
+    if (!showPermissions) {
+      setItemAccess({});
       return;
     }
-    setItemAccess((prev) => (Object.keys(prev).length === 0 ? prev : {}));
-  }, [catalog, selectedRole]);
+    if (catalog.length === 0) return;
+    setItemAccess(createDefaultAccessState(catalog));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- catalog hydrate below
+  }, [selectedRole, showPermissions]);
+
+  useEffect(() => {
+    if (!showPermissions || catalog.length === 0) return;
+    setItemAccess((prev) => {
+      if (Object.keys(prev).length === 0) {
+        return createDefaultAccessState(catalog);
+      }
+      const catalogKeys = new Set(
+        catalog.flatMap((m) => m.items.map((i) => i.key))
+      );
+      const prevKeys = Object.keys(prev);
+      const shapeMismatch =
+        prevKeys.some((k) => !catalogKeys.has(k)) ||
+        [...catalogKeys].some((k) => !(k in prev));
+      return shapeMismatch ? createDefaultAccessState(catalog) : prev;
+    });
+  }, [catalog, showPermissions]);
 
   const createFacultyMutation = useMutation({
     mutationFn: facultyApi.create,
@@ -216,7 +245,24 @@ export const AddAdmin: React.FC = () => {
       return;
     }
 
-    const permissions = buildPermissionsFromAccess(itemAccess, catalog);
+    const permissionMaps =
+      data.role === "COUNSELLOR"
+        ? { read: COUNSELOR_ITEM_READ_PERMISSIONS, write: COUNSELOR_ITEM_WRITE_PERMISSIONS }
+        : { read: CENTER_ITEM_READ_PERMISSIONS, write: CENTER_ITEM_WRITE_PERMISSIONS };
+
+    const permissions = buildPermissionsFromAccess(itemAccess, catalog, permissionMaps);
+    const grantedModules = Object.values(itemAccess).some((a) => a?.show);
+    if (
+      grantedModules &&
+      !permissions.some((p) => p.startsWith("item.") && !p.endsWith(".write"))
+    ) {
+      form.setError("root", {
+        type: "manual",
+        message:
+          "Permissions could not be built from the matrix. Wait for the catalog to load, click Grant all again, then save.",
+      });
+      return;
+    }
 
     createUserMutation.mutate(
       {
@@ -450,6 +496,7 @@ export const AddAdmin: React.FC = () => {
                   role={selectedRole as "CENTER_MANAGER" | "COUNSELLOR"}
                   value={itemAccess}
                   onChange={setItemAccess}
+                  catalog={catalog}
                 />
 
                 <div className="mt-4 text-xs text-slate-400 font-medium">

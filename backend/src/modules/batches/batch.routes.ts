@@ -22,67 +22,67 @@ router.use(authMiddleware);
 
 router.get(
   "/faculty/available",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.read"),
   validate(availableFacultyQuerySchema, "query"),
   controller.getAvailableFaculty
 );
 
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"),
+  requirePermission("batch.read"),
   controller.getAll
 );
 
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"),
+  requirePermission("batch.read"),
   controller.getById
 );
 
 router.get(
   "/:id/students",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY"),
+  requirePermission("batch.read"),
   controller.getStudents
 );
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.create"),
   validate(createBatchSchema),
   controller.create
 );
 
 router.post(
   "/transfer-student",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.update"),
   validate(transferStudentSchema),
   controller.transferStudent
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.update"),
   validate(updateBatchSchema),
   controller.update
 );
 
 router.patch(
   "/:id/faculty",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.update"),
   validate(assignFacultySchema),
   controller.assignFaculty
 );
 
 router.post(
   "/:id/students",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.update"),
   validate(enrollStudentSchema),
   controller.enrollStudent
 );
 
 router.delete(
   "/:id/students/:studentId",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("batch.update"),
   controller.removeStudent
 );
 

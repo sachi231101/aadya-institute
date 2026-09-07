@@ -29,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { usePermissions } from "@/hooks/usePermissions";
 
 type QueueFilter = "ALL" | "NEEDS_REVIEW" | "GRADED" | "LATE";
 
@@ -58,6 +59,12 @@ export const SubmissionsQueue: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
+  const canGrade =
+    isAdmin ||
+    !roleScope ||
+    canEditItem("assignments.submissions") ||
+    canEditItem("assignments.all");
   const [statusFilter, setStatusFilter] = useState<QueueFilter>("ALL");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -240,6 +247,7 @@ export const SubmissionsQueue: React.FC = () => {
                             <Download className="h-4 w-4" />
                           </Button>
                         )}
+                        {canGrade && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -252,6 +260,7 @@ export const SubmissionsQueue: React.FC = () => {
                         >
                           {submission.submissionStatus === "GRADED" ? "Re-grade" : "Grade"}
                         </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))

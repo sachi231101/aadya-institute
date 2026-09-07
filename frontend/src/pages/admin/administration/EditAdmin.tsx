@@ -21,6 +21,14 @@ import {
   type PermissionModuleDefinition,
 } from "@/utils/permission-utils";
 import {
+  CENTER_ITEM_READ_PERMISSIONS,
+  CENTER_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/center-item-permissions";
+import {
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+  COUNSELOR_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/counselor-item-permissions";
+import {
   ArrowLeft,
   Loader2,
   ShieldCheck,
@@ -106,6 +114,7 @@ export const EditAdmin: React.FC = () => {
 
   const [itemAccess, setItemAccess] = useState<Record<string, ItemAccessState>>({});
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const hydratedUserIdRef = React.useRef<string | null>(null);
 
   const form = useForm<EditAdminFormValues>({
     resolver: zodResolver(editAdminSchema),
@@ -118,13 +127,16 @@ export const EditAdmin: React.FC = () => {
   });
 
   useEffect(() => {
-    if (admin) {
-      form.reset({
-        name: admin.name,
-        email: admin.email || "",
-        phone: admin.phone || "",
-        branchId: admin.branchId || "",
-      });
+    if (!admin) return;
+    form.reset({
+      name: admin.name,
+      email: admin.email || "",
+      phone: admin.phone || "",
+      branchId: admin.branchId || "",
+    });
+    // Re-hydrate matrix only when switching users — not on every refetch after save
+    if (hydratedUserIdRef.current !== admin.id) {
+      hydratedUserIdRef.current = admin.id;
       setPermissionsLoaded(false);
     }
   }, [admin, form]);
@@ -139,6 +151,10 @@ export const EditAdmin: React.FC = () => {
     }
     setPermissionsLoaded(true);
   }, [admin, catalog, permissionsLoaded]);
+
+  const handleItemAccessChange = (next: Record<string, ItemAccessState>) => {
+    setItemAccess(next);
+  };
 
   if (isLoading) {
     return (
@@ -179,24 +195,55 @@ export const EditAdmin: React.FC = () => {
   const onSubmit = async (data: EditAdminFormValues) => {
     if (!id) return;
 
+    if (hasPermissionMatrix && !permissionsLoaded) {
+      addNotification("Permission catalog is still loading. Please wait and try again.", "error");
+      return;
+    }
+
+    const permissionMaps =
+      permissionRoleScope === "COUNSELLOR"
+        ? { read: COUNSELOR_ITEM_READ_PERMISSIONS, write: COUNSELOR_ITEM_WRITE_PERMISSIONS }
+        : { read: CENTER_ITEM_READ_PERMISSIONS, write: CENTER_ITEM_WRITE_PERMISSIONS };
+
+    // Snapshot before any awaits so refetch/hydration cannot wipe the intended grants
+    const permissionsSnapshot = hasPermissionMatrix
+      ? buildPermissionsFromAccess(itemAccess, catalog, permissionMaps)
+      : null;
+
+    if (
+      permissionsSnapshot &&
+      Object.values(itemAccess).some((a) => a?.show) &&
+      !permissionsSnapshot.some((p) => p.startsWith("item.") && !p.endsWith(".write"))
+    ) {
+      addNotification(
+        "Permissions could not be built from the matrix. Wait for the catalog to load, click Grant all again, then save.",
+        "error"
+      );
+      return;
+    }
+
+    const phoneDigits = (data.phone || "").replace(/\D/g, "");
+    const normalizedPhone =
+      phoneDigits.length >= 10 ? phoneDigits.slice(-10) : data.phone?.trim() || undefined;
+
     try {
+      // Persist permissions first so a profile validation failure cannot skip grants
+      if (permissionsSnapshot) {
+        await updatePermissionsMutation.mutateAsync({
+          id,
+          data: { permissions: permissionsSnapshot },
+        });
+      }
+
       await updateUserMutation.mutateAsync({
         id,
         data: {
           name: data.name,
           email: data.email || undefined,
-          phone: data.phone || undefined,
+          phone: normalizedPhone,
           branchId: data.branchId || null,
         },
       });
-
-      if (hasPermissionMatrix) {
-        const permissions = buildPermissionsFromAccess(itemAccess, catalog);
-        await updatePermissionsMutation.mutateAsync({
-          id,
-          data: { permissions },
-        });
-      }
 
       addNotification("User updated successfully.", "success");
       navigate(USERS_PATH);
@@ -368,8 +415,9 @@ export const EditAdmin: React.FC = () => {
                 <PermissionMatrix
                   role={permissionRoleScope}
                   value={itemAccess}
-                  onChange={setItemAccess}
-                  disabled={isSaving}
+                  onChange={handleItemAccessChange}
+                  catalog={catalog}
+                  disabled={isSaving || !permissionsLoaded}
                 />
               </CardContent>
             </Card>
@@ -405,7 +453,7 @@ export const EditAdmin: React.FC = () => {
             <Button
               type="submit"
               className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
-              disabled={isSaving}
+              disabled={isSaving || (hasPermissionMatrix && !permissionsLoaded)}
             >
               {isSaving ? (
                 <>

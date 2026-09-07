@@ -7,6 +7,7 @@ import {
   getBaselinePermissions,
   ALWAYS_ON_PERMISSIONS,
   getPermissionCatalog,
+  getAllCatalogPermissionNames,
   isItemGrantFlag,
   type PermissionRoleScope,
 } from "../../utils/permission-catalog";
@@ -289,9 +290,12 @@ export const updateUserPermissionsService = async (
     ? "COUNSELLOR"
     : "CENTER_MANAGER";
 
-  const permissionNames = input.permissions?.length
-    ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
-    : resolveModuleKeysToPermissions(input.modulePermissions ?? [], roleScope);
+  // Explicit `permissions: []` (or any array) must win over legacy modulePermissions.
+  // Using `.length` previously treated empty arrays as "unset" and skipped the update path.
+  const permissionNames =
+    input.permissions !== undefined
+      ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
+      : resolveModuleKeysToPermissions(input.modulePermissions ?? [], roleScope);
 
   await assignDirectPermissions(userId, permissionNames, actorId(currentUser));
 
@@ -337,6 +341,14 @@ export const updateUserStatusService = async (
   // Prevent self-deactivation
   if (userId === currentUser.id) {
     throw new AppError("Cannot change your own account status", 400);
+  }
+
+  const isTargetAdmin =
+    existing.email === "admin@aadya.in" ||
+    existing.userRoles?.some((ur: any) => ur.role?.name === "ADMIN");
+
+  if (isTargetAdmin && input.status !== "ACTIVE") {
+    throw new AppError("System Administrator accounts cannot be deactivated", 400);
   }
 
   const updated = await updateUserStatus(userId, instituteId, input.status);
@@ -408,6 +420,15 @@ export const deleteUserService = async (
     throw new AppError("Cannot delete your own account", 400);
   }
 
+  // Prevent deleting System Administrator accounts
+  const isTargetAdmin =
+    existing.email === "admin@aadya.in" ||
+    existing.userRoles?.some((ur: any) => ur.role?.name === "ADMIN");
+
+  if (isTargetAdmin) {
+    throw new AppError("System Administrator accounts cannot be deleted", 400);
+  }
+
   // Branch isolation for CENTER_MANAGER
   if (
     currentUser.roles.includes("CENTER_MANAGER") &&
@@ -447,6 +468,8 @@ export const getPermissionCatalogService = (role: "CENTER_MANAGER" | "COUNSELLOR
 
 /**
  * Set explicit permission names on a user (replaces all user-level permissions).
+ * Auto-creates any missing Permission rows that belong to the staff catalogs
+ * (item.* flags and coarse APIs), so Grant all works even if seed is stale.
  */
 async function assignDirectPermissions(
   userId: string,
@@ -457,30 +480,45 @@ async function assignDirectPermissions(
   let permissionRecords = await findPermissionsByNames(uniqueNames);
   const foundNames = new Set(permissionRecords.map((p) => p.name));
   const missing = uniqueNames.filter((name) => !foundNames.has(name));
-  const missingItemFlags = missing.filter(isItemGrantFlag);
-  const missingOther = missing.filter((name) => !isItemGrantFlag(name));
 
-  if (missingItemFlags.length > 0) {
-    await ensurePermissionsExist(
-      missingItemFlags.map((name) => ({
-        name,
-        description: name.endsWith(".write")
-          ? `Edit access for catalog item ${name.replace(/^item\./, "").replace(/\.write$/, "")}`
-          : `Read access for catalog item ${name.replace(/^item\./, "")}`,
-      }))
+  if (missing.length > 0) {
+    const catalogKnown = new Set(getAllCatalogPermissionNames());
+    const creatable = missing.filter((name) => catalogKnown.has(name));
+    const unknown = missing.filter((name) => !catalogKnown.has(name));
+
+    if (creatable.length > 0) {
+      await ensurePermissionsExist(
+        creatable.map((name) => ({
+          name,
+          description: isItemGrantFlag(name)
+            ? name.endsWith(".write")
+              ? `Edit access for catalog item ${name.replace(/^item\./, "").replace(/\.write$/, "")}`
+              : `Read access for catalog item ${name.replace(/^item\./, "")}`
+            : `Catalog permission ${name}`,
+        }))
+      );
+      permissionRecords = await findPermissionsByNames(uniqueNames);
+    }
+
+    if (unknown.length > 0) {
+      throw new AppError(
+        `Unknown permission(s): ${unknown.slice(0, 8).join(", ")}${unknown.length > 8 ? "…" : ""}`,
+        400
+      );
+    }
+
+    const stillMissing = uniqueNames.filter(
+      (name) => !permissionRecords.some((p) => p.name === name)
     );
-    permissionRecords = await findPermissionsByNames(uniqueNames);
+    if (stillMissing.length > 0) {
+      throw new AppError(
+        `Failed to resolve permission(s): ${stillMissing.slice(0, 8).join(", ")}${stillMissing.length > 8 ? "…" : ""}`,
+        500
+      );
+    }
   }
 
-  if (missingOther.length > 0) {
-    throw new AppError(
-      `Unknown permission(s): ${missingOther.slice(0, 8).join(", ")}${missingOther.length > 8 ? "…" : ""}`,
-      400
-    );
-  }
-
-  const permissionIds = permissionRecords.map((p) => p.id);
-  if (permissionIds.length > 0) {
-    await setUserPermissions(userId, permissionIds, grantedById);
-  }
+  const permissionIds = Array.from(new Set(permissionRecords.map((p) => p.id)));
+  // Always replace — including empty — so clearing modules actually removes prior grants.
+  await setUserPermissions(userId, permissionIds, grantedById);
 }

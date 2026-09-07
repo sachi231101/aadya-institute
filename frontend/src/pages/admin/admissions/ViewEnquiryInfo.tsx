@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { EnrichedLead } from "./Enquiries";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface ViewEnquiryInfoProps {
   lead: EnrichedLead;
@@ -60,6 +61,8 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
   getPriorityDot,
   getInitials,
 }) => {
+  const { canEditItem } = usePermissions();
+  const canEditEnquiries = canEditItem("admissions.enquiries");
   const [activeTab, setActiveTab] = useState<
     "Profile" | "Course" | "Timeline" | "Follow-ups" | "AI Call" | "Notes"
   >("Profile");
@@ -651,6 +654,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                   />
                 </div>
 
+                {canEditEnquiries && (
                 <Button
                   size="sm"
                   onClick={handleSaveFollowUp}
@@ -658,6 +662,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                 >
                   Save Follow-up & Next Action
                 </Button>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -829,6 +834,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                   className="w-full border border-border rounded-xl p-3 text-xs bg-background text-foreground min-h-[140px] focus:outline-none focus:ring-1 focus:ring-primary"
                 />
 
+                {canEditEnquiries && (
                 <Button
                   onClick={handleSaveNote}
                   disabled={!noteInput.trim()}
@@ -837,6 +843,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                   <Send className="h-3.5 w-3.5" />
                   <span>+ Save Note</span>
                 </Button>
+                )}
               </CardContent>
             </Card>
 

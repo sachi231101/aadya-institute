@@ -33,6 +33,7 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { usePermissions } from "@/hooks/usePermissions";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
@@ -223,8 +224,12 @@ export interface FacultyTimetableProps {
 export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = true }) => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
 
-  const isFacultyUser = readOnly || !user?.roles?.includes("ADMIN");
+  // Preserve faculty/default readOnly mode; gate center write UI with schedule.timetable
+  const canEditTimetable =
+    !readOnly && (isAdmin || !roleScope || canEditItem("schedule.timetable"));
+  const isFacultyUser = !canEditTimetable;
   const facultyCenterName = (user as any)?.branchName || "Bangalore Center";
 
   const weekRange = useMemo(() => {

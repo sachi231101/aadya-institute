@@ -71,8 +71,8 @@ export const PortalRouteGuard: React.FC<PortalRouteGuardProps> = ({
   }
 
   return (
-    <LayoutReadOnlyBannerContext.Provider value={portal === "center"}>
-      {portal === "center" && <ReadOnlyBanner itemKey={itemKey} fromLayout />}
+    <LayoutReadOnlyBannerContext.Provider value={true}>
+      <ReadOnlyBanner itemKey={itemKey} fromLayout />
       {children}
     </LayoutReadOnlyBannerContext.Provider>
   );

@@ -42,7 +42,7 @@ async function main() {
         code: "KOR",
       },
     },
-    update: {},
+    update: { status: "ACTIVE" },
     create: {
       instituteId: institute.id,
       name: "Koramangala Campus",
@@ -59,7 +59,7 @@ async function main() {
         code: "IND",
       },
     },
-    update: {},
+    update: { status: "ACTIVE" },
     create: {
       instituteId: institute.id,
       name: "Indiranagar Center",
@@ -76,7 +76,7 @@ async function main() {
         code: "HSR",
       },
     },
-    update: {},
+    update: { status: "ACTIVE" },
     create: {
       instituteId: institute.id,
       name: "HSR Layout Campus",
@@ -399,6 +399,7 @@ async function main() {
     "branch.read",
     "course.read",
     "module.read",
+    "module.update",
     "batch.read",
     "schedule.read",
     "attendance.read",
@@ -484,7 +485,7 @@ async function main() {
   console.log("👤 Seeding Admin User & Granting User Permissions...");
 
   let adminUser = await prisma.user.findFirst({
-    where: { email: "admin@aadya.in" },
+    where: { email: "admin@aadya.in", instituteId: institute.id },
   });
   if (!adminUser) {
     adminUser = await prisma.user.create({

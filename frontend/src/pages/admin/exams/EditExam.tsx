@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { useExam, useUpdateExam } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useBranches } from "@/hooks/useBranches";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -58,7 +59,15 @@ export const EditExam: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const canWrite = isAdmin || !roleScope || canEditItem("exams.all");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(basePath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, basePath]);
 
   const { data: examResponse, isLoading: examLoading } = useExam(id || "");
   const exam = examResponse?.data;
@@ -142,6 +151,10 @@ export const EditExam: React.FC = () => {
       // Handled by hook
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   if (examLoading) {
     return (
