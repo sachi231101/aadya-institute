@@ -14,6 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { LeadStageBadge, isTerminalAiCallStatus } from "@/components/common/LeadStageBadge";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import type { Lead } from "@/services/leads.api";
 
 export const LeadAllocation: React.FC = () => {
@@ -118,14 +119,16 @@ export const LeadAllocation: React.FC = () => {
                       </select>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        className="bg-[#1769AA] text-white"
-                        disabled={tab === "awaiting" || !selectedCounsellor[lead.id]}
-                        onClick={() => handleAssign(lead.id)}
-                      >
-                        <UserPlus className="w-4 h-4 mr-1" /> Assign
-                      </Button>
+                      <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
+                        <Button
+                          size="sm"
+                          className="bg-[#1769AA] text-white"
+                          disabled={tab === "awaiting" || !selectedCounsellor[lead.id]}
+                          onClick={() => handleAssign(lead.id)}
+                        >
+                          <UserPlus className="w-4 h-4 mr-1" /> Assign
+                        </Button>
+                      </PermissionGate>
                     </TableCell>
                   </TableRow>
                 ))

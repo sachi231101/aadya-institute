@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const FeePlans: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,9 +47,11 @@ export const FeePlans: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Fee Plans</h2>
           <p className="text-sm text-text-secondary">Manage course fee plan templates and installments.</p>
         </div>
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" /> New Plan
-        </Button>
+        <PermissionGate itemKey="fees.plans" mode="write">
+          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> New Plan
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">

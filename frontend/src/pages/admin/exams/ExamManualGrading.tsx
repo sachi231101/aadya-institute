@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { PermissionGate } from '@/components/permissions/PermissionGate';
 
 type GradeDraft = {
   marksAwarded: string;
@@ -240,18 +241,20 @@ export const ExamManualGrading: React.FC = () => {
                         className="text-xs"
                       />
                     </div>
-                    <Button
-                      onClick={() => handleSave(item)}
-                      disabled={isSaving || draft.marksAwarded === ''}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
-                    >
-                      {isSaving ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        <Save className="h-4 w-4" />
-                      )}
-                      Save
-                    </Button>
+                    <PermissionGate itemKey="exams.results" mode="write">
+                      <Button
+                        onClick={() => handleSave(item)}
+                        disabled={isSaving || draft.marksAwarded === ''}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white gap-1.5"
+                      >
+                        {isSaving ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="h-4 w-4" />
+                        )}
+                        Save
+                      </Button>
+                    </PermissionGate>
                   </div>
                 </CardContent>
               </Card>

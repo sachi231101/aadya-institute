@@ -27,12 +27,16 @@ import {
   LeadStageBadge,
   isTerminalAiCallStatus,
 } from "@/components/common/LeadStageBadge";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export const LeadDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
+  const { canEditItem } = usePermissions();
+  const canEditLeads = canEditItem("leads.all");
 
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
@@ -201,58 +205,60 @@ export const LeadDetails: React.FC = () => {
             </div>
           </div>
           <div className="flex gap-2 flex-wrap">
-            <Button
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-              onClick={() => id && triggerCallMutation.mutate(id)}
-              disabled={triggerCallMutation.isPending}
-            >
-              <PhoneCall size={14} />
-              {triggerCallMutation.isPending ? "Calling..." : "Trigger AI Call"}
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-              onClick={() => setShowAssignDialog(true)}
-              disabled={!canAssign}
-              title={!aiReady ? "Wait for the AI call to finish before assigning" : undefined}
-            >
-              <UserCheck size={14} /> Assign
-            </Button>
-            <Button
-              variant="outline"
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-              onClick={() => setShowFollowUpDialog(true)}
-              disabled={!canAct}
-            >
-              <Calendar size={14} /> Follow-Up
-            </Button>
-            {canAct && lead.stage !== "CONVERTED" && (
-              <>
-                <Button
-                  className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
-                  onClick={navigateToDirectAdmission}
-                >
-                  <GraduationCap size={14} /> Continue to Admission
-                </Button>
-                <Button
-                  variant="outline"
-                  className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                  onClick={openApplication}
-                >
-                  <FileText size={14} /> Create Application
-                </Button>
-              </>
-            )}
-            {canAct && (
+            <PermissionGate itemKey="leads.all" mode="write">
               <Button
                 variant="outline"
-                className="bg-red-500/20 border-red-300/40 text-red-100 hover:bg-red-500/30 gap-1 text-xs"
-                onClick={() => setShowLostDialog(true)}
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
+                onClick={() => id && triggerCallMutation.mutate(id)}
+                disabled={triggerCallMutation.isPending}
               >
-                <XCircle size={14} /> Mark Lost
+                <PhoneCall size={14} />
+                {triggerCallMutation.isPending ? "Calling..." : "Trigger AI Call"}
               </Button>
-            )}
+              <Button
+                variant="outline"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
+                onClick={() => setShowAssignDialog(true)}
+                disabled={!canAssign}
+                title={!aiReady ? "Wait for the AI call to finish before assigning" : undefined}
+              >
+                <UserCheck size={14} /> Assign
+              </Button>
+              <Button
+                variant="outline"
+                className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
+                onClick={() => setShowFollowUpDialog(true)}
+                disabled={!canAct}
+              >
+                <Calendar size={14} /> Follow-Up
+              </Button>
+              {canAct && lead.stage !== "CONVERTED" && (
+                <>
+                  <Button
+                    className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
+                    onClick={navigateToDirectAdmission}
+                  >
+                    <GraduationCap size={14} /> Continue to Admission
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
+                    onClick={openApplication}
+                  >
+                    <FileText size={14} /> Create Application
+                  </Button>
+                </>
+              )}
+              {canAct && (
+                <Button
+                  variant="outline"
+                  className="bg-red-500/20 border-red-300/40 text-red-100 hover:bg-red-500/30 gap-1 text-xs"
+                  onClick={() => setShowLostDialog(true)}
+                >
+                  <XCircle size={14} /> Mark Lost
+                </Button>
+              )}
+            </PermissionGate>
             {lead.stage === "CONVERTED" && (
               <Button
                 className="bg-emerald-500 hover:bg-emerald-600 text-white gap-2 font-semibold"
@@ -285,7 +291,7 @@ export const LeadDetails: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleStageChange(stage)}
-                  disabled={changeStageMutation.isPending || isClosed}
+                  disabled={changeStageMutation.isPending || isClosed || !canEditLeads}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                     isCurrent
                       ? "bg-white text-[#1769AA] shadow-md"
@@ -353,17 +359,19 @@ export const LeadDetails: React.FC = () => {
                     {fu.notes && <p className="text-xs mt-1">{fu.notes}</p>}
                   </div>
                   {fu.status === "PENDING" && canAct && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => id && updateFollowUpMutation.mutate({
-                        leadId: id,
-                        followUpId: fu.id,
-                        data: { status: "COMPLETED", outcome: "Completed from lead details" },
-                      })}
-                    >
-                      Complete
-                    </Button>
+                    <PermissionGate itemKey="leads.all" mode="write">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => id && updateFollowUpMutation.mutate({
+                          leadId: id,
+                          followUpId: fu.id,
+                          data: { status: "COMPLETED", outcome: "Completed from lead details" },
+                        })}
+                      >
+                        Complete
+                      </Button>
+                    </PermissionGate>
                   )}
                 </div>
               ))}
@@ -392,9 +400,11 @@ export const LeadDetails: React.FC = () => {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-base">Lead information</CardTitle>
               {!isClosed && (
-                <Button size="sm" variant="outline" className="gap-1" onClick={() => setIsEditing((v) => !v)}>
-                  <Pencil size={14} /> {isEditing ? "Cancel" : "Edit"}
-                </Button>
+                <PermissionGate itemKey="leads.all" mode="write">
+                  <Button size="sm" variant="outline" className="gap-1" onClick={() => setIsEditing((v) => !v)}>
+                    <Pencil size={14} /> {isEditing ? "Cancel" : "Edit"}
+                  </Button>
+                </PermissionGate>
               )}
             </CardHeader>
             <CardContent>
@@ -493,13 +503,15 @@ export const LeadDetails: React.FC = () => {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowApplicationDialog(false)}>Cancel</Button>
-            <Button
-              onClick={handleCreateApplication}
-              disabled={!appCourseId || createAppMutation.isPending}
-              className="bg-[#1769AA] text-white"
-            >
-              {createAppMutation.isPending ? "Creating..." : "Create Application"}
-            </Button>
+            <PermissionGate itemKey="leads.all" mode="write">
+              <Button
+                onClick={handleCreateApplication}
+                disabled={!appCourseId || createAppMutation.isPending}
+                className="bg-[#1769AA] text-white"
+              >
+                {createAppMutation.isPending ? "Creating..." : "Create Application"}
+              </Button>
+            </PermissionGate>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -546,9 +558,11 @@ export const LeadDetails: React.FC = () => {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowFollowUpDialog(false)}>Cancel</Button>
-              <Button type="submit" className="bg-[#1769AA] text-white" disabled={createFollowUpMutation.isPending}>
-                {createFollowUpMutation.isPending ? "Scheduling..." : "Schedule Follow-Up"}
-              </Button>
+              <PermissionGate itemKey="leads.all" mode="write">
+                <Button type="submit" className="bg-[#1769AA] text-white" disabled={createFollowUpMutation.isPending}>
+                  {createFollowUpMutation.isPending ? "Scheduling..." : "Schedule Follow-Up"}
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -588,9 +602,11 @@ export const LeadDetails: React.FC = () => {
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowAssignDialog(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#1769AA] text-white" disabled={assignMutation.isPending}>
-                  {assignMutation.isPending ? "Assigning..." : "Assign Counsellor"}
-                </Button>
+                <PermissionGate itemKey="leads.all" mode="write">
+                  <Button type="submit" className="bg-[#1769AA] text-white" disabled={assignMutation.isPending}>
+                    {assignMutation.isPending ? "Assigning..." : "Assign Counsellor"}
+                  </Button>
+                </PermissionGate>
               </DialogFooter>
             </form>
           )}
@@ -630,9 +646,11 @@ export const LeadDetails: React.FC = () => {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowLostDialog(false)}>Cancel</Button>
-              <Button type="submit" className="bg-red-600 text-white" disabled={markLostMutation.isPending}>
-                {markLostMutation.isPending ? "Marking..." : "Confirm Mark Lost"}
-              </Button>
+              <PermissionGate itemKey="leads.all" mode="write">
+                <Button type="submit" className="bg-red-600 text-white" disabled={markLostMutation.isPending}>
+                  {markLostMutation.isPending ? "Marking..." : "Confirm Mark Lost"}
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>

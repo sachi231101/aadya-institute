@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
   emptyOrganizationForm,
   organizationContextToForm,
@@ -186,6 +187,7 @@ export const Organization: React.FC = () => {
             {updateMutation.isSuccess && (
               <p className="text-sm text-green-600">Organization updated successfully.</p>
             )}
+            <PermissionGate itemKey="admin.organization" mode="write">
             <Button
               type="submit"
               className="bg-[#1769AA] text-white"
@@ -198,6 +200,7 @@ export const Organization: React.FC = () => {
               )}
               Save Changes
             </Button>
+            </PermissionGate>
           </form>
         </CardContent>
       </Card>

@@ -40,6 +40,8 @@ import {
 } from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   useClassSessions,
   useCreateClassSession,
@@ -209,6 +211,8 @@ import {
 
 export const Timetable: React.FC = () => {
   const { user } = useAuthStore();
+  const { canEditItem } = usePermissions();
+  const canEditTimetable = canEditItem("schedule.timetable");
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const branches = branchesResponse?.data || [];
   const { data: facultyResponse } = useFacultyList({ limit: 100 });
@@ -901,17 +905,19 @@ export const Timetable: React.FC = () => {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              const defaultFac = filteredFaculty[0] || facultyRoster[0];
-              if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
-            }}
-            className="text-xs h-9 gap-1.5"
-          >
-            <Plus className="h-3.5 w-3.5" /> Add class
-          </Button>
+          <PermissionGate itemKey="schedule.timetable" mode="write">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const defaultFac = filteredFaculty[0] || facultyRoster[0];
+                if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
+              }}
+              className="text-xs h-9 gap-1.5"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add class
+            </Button>
+          </PermissionGate>
           <Button variant="outline" size="sm" onClick={handleExportCSV} className="text-xs h-9 gap-1.5">
             <Download className="h-3.5 w-3.5" /> Export
           </Button>
@@ -1012,14 +1018,16 @@ export const Timetable: React.FC = () => {
             >
               Clear filters
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsWorkingDaysModalOpen(true)}
-              className="text-xs h-9 text-slate-600 ml-auto"
-            >
-              <Calendar className="h-3.5 w-3.5 mr-1" /> Working days
-            </Button>
+            <PermissionGate itemKey="schedule.timetable" mode="write">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsWorkingDaysModalOpen(true)}
+                className="text-xs h-9 text-slate-600 ml-auto"
+              >
+                <Calendar className="h-3.5 w-3.5 mr-1" /> Working days
+              </Button>
+            </PermissionGate>
           </div>
         )}
 
@@ -1162,34 +1170,36 @@ export const Timetable: React.FC = () => {
                                   <span className="text-[9px] font-semibold text-blue-900 dark:text-blue-200 truncate block leading-tight">
                                     {cell.courseName}
                                   </span>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <button className="p-0.5 hover:bg-blue-500/20 rounded text-blue-600 dark:text-blue-400 transition-opacity cursor-pointer shrink-0">
-                                        <MoreVertical className="h-2.5 w-2.5" />
-                                      </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40 rounded-lg bg-popover border border-border shadow-xl p-1 text-xs">
-                                      <DropdownMenuItem
-                                        onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                        className="gap-2 cursor-pointer text-xs py-1.5"
-                                      >
-                                        <Edit3 className="h-3 w-3 text-blue-500" /> Edit
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem
-                                        onClick={() => handleOpenMoveModal(fac.id, selectedDayKey, col.period)}
-                                        className="gap-2 cursor-pointer text-xs py-1.5"
-                                      >
-                                        <MoveHorizontal className="h-3 w-3 text-indigo-400" /> Move
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator className="bg-border" />
-                                      <DropdownMenuItem
-                                        onClick={() => handleDeleteSlot(fac.id, selectedDayKey, col.period)}
-                                        className="gap-2 text-rose-500 cursor-pointer text-xs py-1.5"
-                                      >
-                                        <Trash2 className="h-3 w-3" /> Remove
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
+                                  {canEditTimetable && (
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <button className="p-0.5 hover:bg-blue-500/20 rounded text-blue-600 dark:text-blue-400 transition-opacity cursor-pointer shrink-0">
+                                          <MoreVertical className="h-2.5 w-2.5" />
+                                        </button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end" className="w-40 rounded-lg bg-popover border border-border shadow-xl p-1 text-xs">
+                                        <DropdownMenuItem
+                                          onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
+                                          className="gap-2 cursor-pointer text-xs py-1.5"
+                                        >
+                                          <Edit3 className="h-3 w-3 text-blue-500" /> Edit
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem
+                                          onClick={() => handleOpenMoveModal(fac.id, selectedDayKey, col.period)}
+                                          className="gap-2 cursor-pointer text-xs py-1.5"
+                                        >
+                                          <MoveHorizontal className="h-3 w-3 text-indigo-400" /> Move
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator className="bg-border" />
+                                        <DropdownMenuItem
+                                          onClick={() => handleDeleteSlot(fac.id, selectedDayKey, col.period)}
+                                          className="gap-2 text-rose-500 cursor-pointer text-xs py-1.5"
+                                        >
+                                          <Trash2 className="h-3 w-3" /> Remove
+                                        </DropdownMenuItem>
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  )}
                                 </div>
                                 <div className="text-[8px] font-medium text-foreground/90 truncate leading-tight">
                                   {cell.batchCode}
@@ -1210,16 +1220,22 @@ export const Timetable: React.FC = () => {
                         if (cell.type === "FREE") {
                           return (
                             <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[52px] w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group"
-                              >
-                                <span className="text-[8px] font-semibold text-emerald-600 dark:text-emerald-300 uppercase">Free</span>
-                                <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 group-hover:bg-emerald-500/25">
-                                  <Plus className="h-2 w-2" /> Add
-                                </span>
-                              </button>
+                              {canEditTimetable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
+                                  className="h-[52px] w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 hover:border-emerald-500/50 transition-all flex flex-col items-center justify-center cursor-pointer group"
+                                >
+                                  <span className="text-[8px] font-semibold text-emerald-600 dark:text-emerald-300 uppercase">Free</span>
+                                  <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-emerald-700 dark:text-emerald-300 bg-emerald-500/15 group-hover:bg-emerald-500/25">
+                                    <Plus className="h-2 w-2" /> Add
+                                  </span>
+                                </button>
+                              ) : (
+                                <div className="h-[52px] w-full rounded-md border border-emerald-500/30 bg-emerald-500/10 flex flex-col items-center justify-center">
+                                  <span className="text-[8px] font-semibold text-emerald-600 dark:text-emerald-300 uppercase">Free</span>
+                                </div>
+                              )}
                             </td>
                           );
                         }
@@ -1252,14 +1268,21 @@ export const Timetable: React.FC = () => {
                         if (cell.type === "LEAVE") {
                           return (
                             <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[52px] w-full rounded-md border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-600 dark:text-rose-300"
-                              >
-                                <span className="text-[8px] font-semibold uppercase">Leave</span>
-                                <span className="text-[7px] text-rose-500 dark:text-rose-400 mt-0.5">Off</span>
-                              </button>
+                              {canEditTimetable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
+                                  className="h-[52px] w-full rounded-md border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-rose-600 dark:text-rose-300"
+                                >
+                                  <span className="text-[8px] font-semibold uppercase">Leave</span>
+                                  <span className="text-[7px] text-rose-500 dark:text-rose-400 mt-0.5">Off</span>
+                                </button>
+                              ) : (
+                                <div className="h-[52px] w-full rounded-md border border-rose-500/30 bg-rose-500/10 flex flex-col items-center justify-center text-rose-600 dark:text-rose-300">
+                                  <span className="text-[8px] font-semibold uppercase">Leave</span>
+                                  <span className="text-[7px] text-rose-500 dark:text-rose-400 mt-0.5">Off</span>
+                                </div>
+                              )}
                             </td>
                           );
                         }
@@ -1268,14 +1291,21 @@ export const Timetable: React.FC = () => {
                         if (cell.type === "MEETING") {
                           return (
                             <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
-                              <button
-                                type="button"
-                                onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                                className="h-[52px] w-full rounded-md border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-600 dark:text-purple-300"
-                              >
-                                <span className="text-[8px] font-semibold uppercase">Meeting</span>
-                                <span className="text-[7px] text-purple-500 dark:text-purple-400 mt-0.5">Sync</span>
-                              </button>
+                              {canEditTimetable ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
+                                  className="h-[52px] w-full rounded-md border border-purple-500/30 bg-purple-500/10 hover:bg-purple-500/20 transition-colors flex flex-col items-center justify-center cursor-pointer text-purple-600 dark:text-purple-300"
+                                >
+                                  <span className="text-[8px] font-semibold uppercase">Meeting</span>
+                                  <span className="text-[7px] text-purple-500 dark:text-purple-400 mt-0.5">Sync</span>
+                                </button>
+                              ) : (
+                                <div className="h-[52px] w-full rounded-md border border-purple-500/30 bg-purple-500/10 flex flex-col items-center justify-center text-purple-600 dark:text-purple-300">
+                                  <span className="text-[8px] font-semibold uppercase">Meeting</span>
+                                  <span className="text-[7px] text-purple-500 dark:text-purple-400 mt-0.5">Sync</span>
+                                </div>
+                              )}
                             </td>
                           );
                         }
@@ -1283,16 +1313,22 @@ export const Timetable: React.FC = () => {
                         // 7. NOT ASSIGNED SLOT
                         return (
                           <td key={col.period} className="p-1 border-r border-border last:border-r-0 align-middle">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
-                              className="h-[52px] w-full rounded-md border border-border bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col items-center justify-center cursor-pointer group"
-                            >
-                              <span className="text-[8px] font-medium text-muted-foreground">Empty</span>
-                              <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-muted-foreground bg-muted/40 group-hover:bg-muted/60">
-                                <Plus className="h-2 w-2" /> Add
-                              </span>
-                            </button>
+                            {canEditTimetable ? (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenAddOrEditModal(fac.id, selectedDayKey, col.period, cell)}
+                                className="h-[52px] w-full rounded-md border border-border bg-muted/20 hover:bg-muted/40 transition-colors flex flex-col items-center justify-center cursor-pointer group"
+                              >
+                                <span className="text-[8px] font-medium text-muted-foreground">Empty</span>
+                                <span className="mt-0.5 inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-medium text-muted-foreground bg-muted/40 group-hover:bg-muted/60">
+                                  <Plus className="h-2 w-2" /> Add
+                                </span>
+                              </button>
+                            ) : (
+                              <div className="h-[52px] w-full rounded-md border border-border bg-muted/20 flex flex-col items-center justify-center">
+                                <span className="text-[8px] font-medium text-muted-foreground">Empty</span>
+                              </div>
+                            )}
                           </td>
                         );
                       })}

@@ -347,10 +347,12 @@ export const Applications: React.FC = () => {
             {totalAppsCount} total · {feePendingCount} fee pending · {convertedToAdmissionCount} admitted
           </p>
         </div>
-        <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="h-9 gap-1.5 shrink-0">
-          <Plus className="h-3.5 w-3.5" />
-          New application
-        </Button>
+        <PermissionGate itemKey="admissions.applications" mode="write">
+          <Button size="sm" onClick={() => setIsCreateModalOpen(true)} className="h-9 gap-1.5 shrink-0">
+            <Plus className="h-3.5 w-3.5" />
+            New application
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Toolbar */}
@@ -858,12 +860,14 @@ export const Applications: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 text-xs font-bold px-5 cursor-pointer"
-                >
-                  Create Application
-                </Button>
+                <PermissionGate itemKey="admissions.applications" mode="write">
+                  <Button
+                    type="submit"
+                    className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 text-xs font-bold px-5 cursor-pointer"
+                  >
+                    Create Application
+                  </Button>
+                </PermissionGate>
               </div>
             </form>
           </div>

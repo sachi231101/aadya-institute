@@ -158,6 +158,7 @@ const PENDING_TASKS = [
     iconColor: "text-rose-600",
     iconBg: "bg-rose-50",
     url: "/center/leads/follow-ups",
+    itemKey: "leads.followups",
   },
   {
     id: "task-2",
@@ -167,6 +168,7 @@ const PENDING_TASKS = [
     iconColor: "text-amber-600",
     iconBg: "bg-amber-50",
     url: "/center/fees/pending",
+    itemKey: "fees.pending",
   },
   {
     id: "task-3",
@@ -176,6 +178,7 @@ const PENDING_TASKS = [
     iconColor: "text-purple-600",
     iconBg: "bg-purple-50",
     url: "/center/admissions/applications",
+    itemKey: "admissions.applications",
   },
   {
     id: "task-4",
@@ -185,6 +188,7 @@ const PENDING_TASKS = [
     iconColor: "text-emerald-600",
     iconBg: "bg-emerald-50",
     url: "/center/admissions",
+    itemKey: "admissions.all",
   },
 ];
 
@@ -192,7 +196,7 @@ export const CenterDashboard: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
-  const { hasAnyModuleAccess } = usePermissions();
+  const { hasAnyModuleAccess, canReadItem, canEditItem } = usePermissions();
   const branchId = user?.branchId ?? undefined;
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [timeFilter, setTimeFilter] = useState("This Month");
@@ -361,7 +365,7 @@ export const CenterDashboard: React.FC = () => {
         <>
       {/* ─── 3. SIX BRANCH-SPECIFIC SUMMARY KPI CARDS ─────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-        {/* 1. Total Leads */}
+        {canReadItem("leads.all") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -379,8 +383,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* 2. Today's Classes */}
+        {canReadItem("schedule.classes") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -398,8 +403,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* 3. Active Students */}
+        {canReadItem("students.all") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -417,8 +423,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* 4. Active Batches */}
+        {canReadItem("batches.all") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -436,8 +443,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* 5. This Month Revenue */}
+        {canReadItem("fees.payments") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -455,8 +463,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
-        {/* 6. Pending Fees */}
+        {canReadItem("fees.pending") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -468,17 +477,14 @@ export const CenterDashboard: React.FC = () => {
             <div className="mt-3">
               <span className="text-2xl font-black text-slate-900 tracking-tight">{kpiValue(formatCurrency(totalPending))}</span>
             </div>
-            <div className="mt-2 pt-2 border-t border-slate-100 flex items-center text-[11px] font-bold text-rose-600">
-              <TrendingUp className="h-3 w-3 mr-1" />
-              <span>{isKpiLoading ? "Loading..." : trendSub("pending")}</span>
-            </div>
           </CardContent>
         </Card>
+        )}
       </div>
 
       {/* ─── 4. DASHBOARD ANALYTICS (3 Columns) ───────────────────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* ─── COLUMN 1: ADMISSIONS TREND (5.5 cols) ─── */}
+        {canReadItem("admissions.all") && (
         <div className="lg:col-span-6 xl:col-span-5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between gap-2 pb-3 border-b border-slate-100">
@@ -565,8 +571,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
-        {/* ─── COLUMN 2: FEE COLLECTION SUMMARY (3.5 cols) ─── */}
+        {canReadItem("fees.payments") && (
         <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="pb-3 border-b border-slate-100">
@@ -644,8 +651,9 @@ export const CenterDashboard: React.FC = () => {
             View Fee Details
           </Button>
         </div>
+        )}
 
-        {/* ─── COLUMN 3: COUNSELLOR PERFORMANCE (3.5 cols) ─── */}
+        {canReadItem("counsellor.performance") && (
         <div className="lg:col-span-12 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -696,12 +704,13 @@ export const CenterDashboard: React.FC = () => {
 
           <Button
             variant="outline"
-            onClick={() => navigate("/center/counsellors")}
+            onClick={() => navigate("/center/counselor/all")}
             className="w-full mt-4 h-9 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border-slate-200 rounded-xl cursor-pointer"
           >
             View All Counsellors
           </Button>
         </div>
+        )}
       </div>
 
       {/* ─── 5. QUICK ACTIONS, RECENT ADMISSIONS & PENDING TASKS ──────────── */}
@@ -713,9 +722,9 @@ export const CenterDashboard: React.FC = () => {
           </h3>
 
           <div className="grid grid-cols-2 gap-3 mt-4">
-            {/* Add Lead */}
+            {canEditItem("leads.all") && (
             <button
-              onClick={() => navigate("/center/leads")}
+              onClick={() => navigate("/center/leads/add")}
               className="p-3.5 rounded-2xl bg-blue-50/70 hover:bg-blue-100/70 border border-blue-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-blue-100 group-hover:bg-blue-200 text-[#1D4ED8] flex items-center justify-center transition-colors">
@@ -723,10 +732,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">Add Lead</span>
             </button>
+            )}
 
-            {/* New Admission */}
+            {canEditItem("admissions.all") && (
             <button
-              onClick={() => navigate("/center/admissions/new")}
+              onClick={() => navigate("/center/admissions/all")}
               className="p-3.5 rounded-2xl bg-emerald-50/70 hover:bg-emerald-100/70 border border-emerald-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-emerald-100 group-hover:bg-emerald-200 text-emerald-700 flex items-center justify-center transition-colors">
@@ -734,8 +744,9 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">New Admission</span>
             </button>
+            )}
 
-            {/* Add Student */}
+            {canEditItem("students.all") && (
             <button
               onClick={() => navigate("/center/students/add")}
               className="p-3.5 rounded-2xl bg-purple-50/70 hover:bg-purple-100/70 border border-purple-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
@@ -745,8 +756,9 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">Add Student</span>
             </button>
+            )}
 
-            {/* Create Batch */}
+            {canEditItem("batches.all") && (
             <button
               onClick={() => navigate("/center/batches")}
               className="p-3.5 rounded-2xl bg-amber-50/70 hover:bg-amber-100/70 border border-amber-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
@@ -756,10 +768,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">Create Batch</span>
             </button>
+            )}
 
-            {/* Collect Fees */}
+            {canReadItem("fees.payments") && (
             <button
-              onClick={() => navigate("/center/fees")}
+              onClick={() => navigate("/center/fees/payments")}
               className="p-3.5 rounded-2xl bg-teal-50/70 hover:bg-teal-100/70 border border-teal-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-teal-100 group-hover:bg-teal-200 text-teal-700 flex items-center justify-center transition-colors">
@@ -767,10 +780,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">Collect Fees</span>
             </button>
+            )}
 
-            {/* View Reports */}
+            {canReadItem("reports.students") && (
             <button
-              onClick={() => navigate("/center/reports")}
+              onClick={() => navigate("/center/reports/students")}
               className="p-3.5 rounded-2xl bg-rose-50/70 hover:bg-rose-100/70 border border-rose-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-rose-100 group-hover:bg-rose-200 text-rose-700 flex items-center justify-center transition-colors">
@@ -778,10 +792,11 @@ export const CenterDashboard: React.FC = () => {
               </div>
               <span className="text-xs font-bold text-slate-800">View Reports</span>
             </button>
+            )}
           </div>
         </div>
 
-        {/* ─── RECENT ADMISSIONS (4.5 cols) ─── */}
+        {canReadItem("admissions.all") && (
         <div className="lg:col-span-6 xl:col-span-4.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -828,8 +843,9 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
 
-        {/* ─── PENDING TASKS (3.5 cols) ─── */}
+        {PENDING_TASKS.some((task) => canReadItem(task.itemKey)) && (
         <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -845,7 +861,7 @@ export const CenterDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-3 mt-4">
-              {PENDING_TASKS.map((task) => {
+              {PENDING_TASKS.filter((task) => canReadItem(task.itemKey)).map((task) => {
                 const Icon = task.icon;
                 return (
                   <div
@@ -873,8 +889,8 @@ export const CenterDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+        )}
       </div>
-
         </>
       )}
 

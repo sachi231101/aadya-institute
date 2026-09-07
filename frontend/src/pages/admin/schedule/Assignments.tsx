@@ -48,6 +48,7 @@ import { batchesApi } from "@/services/batches.api";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import type { Assignment } from "@/services/assignments.api";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const ALLOWED_ATTACHMENT_EXTS = [".zip", ".png", ".jpeg", ".jpg", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".txt", ".mp4"];
 const ALLOWED_ATTACHMENT_ACCEPT = ALLOWED_ATTACHMENT_EXTS.join(",");
@@ -317,16 +318,18 @@ export const AdminAssignments: React.FC = () => {
             Create, edit, grade, and manage assignments across all batches
           </p>
         </div>
-        <Button
-          onClick={() => {
-            handleResetForm();
-            setShowCreateDialog(true);
-          }}
-          className="bg-[#1769AA] hover:bg-[#125890] text-white gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Create Assignment
-        </Button>
+        <PermissionGate itemKey="assignments.all" mode="write">
+          <Button
+            onClick={() => {
+              handleResetForm();
+              setShowCreateDialog(true);
+            }}
+            className="bg-[#1769AA] hover:bg-[#125890] text-white gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create Assignment
+          </Button>
+        </PermissionGate>
       </div>
 
       {successToast && (
@@ -487,42 +490,44 @@ export const AdminAssignments: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
-                        {assignment.pendingGrade > 0 && (
+                        <PermissionGate itemKey="assignments.all" mode="write">
+                          {assignment.pendingGrade > 0 && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-[10px] h-7 px-2"
+                              onClick={() => {
+                                const pending = assignment.submissions?.find(
+                                  (s) => s.submittedAt && s.marks == null
+                                );
+                                if (pending) {
+                                  setGradeTarget({ assignmentTitle: assignment.title, submission: pending });
+                                  setGradeMarks("");
+                                  setGradeFeedback("");
+                                }
+                              }}
+                            >
+                              Grade ({assignment.pendingGrade})
+                            </Button>
+                          )}
                           <Button
+                            variant="ghost"
                             size="sm"
-                            variant="outline"
-                            className="text-[10px] h-7 px-2"
-                            onClick={() => {
-                              const pending = assignment.submissions?.find(
-                                (s) => s.submittedAt && s.marks == null
-                              );
-                              if (pending) {
-                                setGradeTarget({ assignmentTitle: assignment.title, submission: pending });
-                                setGradeMarks("");
-                                setGradeFeedback("");
-                              }
-                            }}
+                            className="h-8 w-8 p-0"
+                            onClick={() => openEditDialog(assignment)}
                           >
-                            Grade ({assignment.pendingGrade})
+                            <Pencil size={14} />
                           </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0"
-                          onClick={() => openEditDialog(assignment)}
-                        >
-                          <Pencil size={14} />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-8 w-8 p-0 text-red-500"
-                          onClick={() => handleDelete(assignment)}
-                          disabled={deleteMutation.isPending}
-                        >
-                          <Trash2 size={14} />
-                        </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-500"
+                            onClick={() => handleDelete(assignment)}
+                            disabled={deleteMutation.isPending}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </TableCell>
                   </TableRow>

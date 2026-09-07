@@ -17,6 +17,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import { BatchEnrolledStudents } from "./BatchEnrolledStudents";
 import { BatchAssignedFaculty } from "./BatchAssignedFaculty";
 import { BatchSubjectsFacultyTable } from "@/components/batches/BatchSubjectFacultyDisplay";
@@ -92,6 +94,8 @@ const statusLabel = (status?: string) => {
 export const BatchDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { canEditItem } = usePermissions();
+  const canEditBatches = canEditItem("batches.all");
   const [tab, setTab] = useState<Tab>("overview");
   const queryClient = useQueryClient();
 
@@ -246,7 +250,7 @@ export const BatchDetails: React.FC = () => {
     { key: "upcoming", label: "Upcoming Batch" },
     { key: "attendance", label: "Attendance Details" },
     { key: "activities", label: "Recent Activities" },
-    { key: "generate", label: "Generate Sessions" },
+    ...(canEditBatches ? [{ key: "generate" as Tab, label: "Generate Sessions" }] : []),
   ];
 
   return (
@@ -255,6 +259,7 @@ export const BatchDetails: React.FC = () => {
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-3 border-b border-border pb-3">
         <h2 className="text-xl font-black tracking-tight text-foreground">Batch Schedule</h2>
         <div className="flex flex-wrap items-center gap-1.5">
+          <PermissionGate itemKey="batches.all" mode="write">
           <Button
             size="sm"
             className="h-8 px-2.5 text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white shadow-xs rounded-lg transition-all cursor-pointer"
@@ -288,6 +293,7 @@ export const BatchDetails: React.FC = () => {
               Add New
             </Link>
           </Button>
+          </PermissionGate>
           <Button
             size="sm"
             variant="outline"
@@ -305,9 +311,11 @@ export const BatchDetails: React.FC = () => {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              {canEditBatches && (
               <DropdownMenuItem onClick={() => setTab("generate")}>
                 Generate Class Sessions
               </DropdownMenuItem>
+              )}
               <DropdownMenuItem onClick={() => setTab("current")}>
                 View Students
               </DropdownMenuItem>
@@ -503,7 +511,7 @@ export const BatchDetails: React.FC = () => {
         </div>
       )}
 
-      {tab === "generate" && (
+      {tab === "generate" && canEditBatches && (
         <Card className="border-border">
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2">

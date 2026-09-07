@@ -77,9 +77,13 @@ import { useBranches } from "@/hooks/useBranches";
 import { useBatches } from "@/hooks/useBatches";
 import { useBranchStore } from "@/store/branch.store";
 import { useStudentList } from "../../../hooks/useStudents";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export const StudentAttendance: React.FC = () => {
   const navigate = useNavigate();
+  const { canEditItem } = usePermissions();
+  const canEditAttendance = canEditItem("students.attendance");
   const { selectedBranchId, setSelectedBranchId } = useBranchStore();
   const { data: branchResponse } = useBranches({ limit: 100 });
   const branches = branchResponse?.data ?? [];
@@ -592,6 +596,7 @@ export const StudentAttendance: React.FC = () => {
       </div>
 
       {/* ─── 5. AUTO-SAVE BANNER ────────────────────────────────────────── */}
+      {canEditAttendance && (
       <div className="p-3 bg-blue-50/70 dark:bg-sky-950/40 border border-blue-100 dark:border-sky-900/50 rounded-xl flex items-center justify-between gap-2 text-xs font-medium text-foreground shadow-2xs">
         <div className="flex items-center gap-2">
           <Info className="h-4 w-4 text-primary dark:text-sky-400 shrink-0" />
@@ -607,6 +612,7 @@ export const StudentAttendance: React.FC = () => {
           </span>
         </div>
       </div>
+      )}
 
       {/* ─── 6. TAB CONTENT: STUDENT LIST ──────────────────────────────── */}
       {activeTab === "list" && (
@@ -696,8 +702,9 @@ export const StudentAttendance: React.FC = () => {
                           </div>
                         </TableCell>
 
-                        {/* Status Buttons */}
+                        {/* Status Buttons / Read-only badge */}
                         <TableCell>
+                          {canEditAttendance ? (
                           <div className="flex items-center justify-center gap-2">
                             {/* Present */}
                             <button
@@ -735,6 +742,21 @@ export const StudentAttendance: React.FC = () => {
                               <span>Excused</span>
                             </button>
                           </div>
+                          ) : (
+                            <div className="flex items-center justify-center">
+                              <Badge
+                                className={`text-xs font-bold ${
+                                  stu.status === "PRESENT"
+                                    ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20"
+                                    : stu.status === "ABSENT"
+                                    ? "bg-rose-500/10 text-rose-600 border-rose-500/20"
+                                    : "bg-amber-500/10 text-amber-600 border-amber-500/20"
+                                }`}
+                              >
+                                {stu.status}
+                              </Badge>
+                            </div>
+                          )}
                         </TableCell>
 
                         {/* Remarks */}
@@ -745,9 +767,11 @@ export const StudentAttendance: React.FC = () => {
                               value={stu.remarks}
                               onChange={(e) => handleRemarksChange(stu.id, e.target.value)}
                               placeholder="Add remarks..."
-                              className="w-full h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all"
+                              readOnly={!canEditAttendance}
+                              disabled={!canEditAttendance}
+                              className="w-full h-8 px-3 text-xs bg-muted/30 border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:bg-background focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition-all disabled:opacity-70 disabled:cursor-default"
                             />
-                            {stu.status === "EXCUSED" && (
+                            {canEditAttendance && stu.status === "EXCUSED" && (
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <button
@@ -792,12 +816,14 @@ export const StudentAttendance: React.FC = () => {
                               >
                                 View Student Profile
                               </DropdownMenuItem>
+                              {canEditAttendance && (
                               <DropdownMenuItem
                                 onClick={() => handleStatusChange(stu.id, "EXCUSED")}
                                 className="cursor-pointer"
                               >
                                 Mark as Approved Leave
                               </DropdownMenuItem>
+                              )}
                               <DropdownMenuItem
                                 onClick={() => alert(`Contacting ${stu.name} (${stu.email})`)}
                                 className="cursor-pointer text-primary"
@@ -816,7 +842,7 @@ export const StudentAttendance: React.FC = () => {
           </div>
 
           {/* ─── FLOATING / STICKY BULK ACTION TOOLBAR ──────────────────── */}
-          {selectedIds.size > 0 && (
+          {canEditAttendance && selectedIds.size > 0 && (
             <div className="p-3 bg-slate-900 text-white flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 animate-in slide-in-from-bottom-2">
               <div className="flex items-center gap-3">
                 <span className="px-3 py-1 rounded-lg bg-indigo-600 text-white text-xs font-black shadow-2xs">
@@ -1081,6 +1107,7 @@ export const StudentAttendance: React.FC = () => {
 
       {/* ─── 9. QR SCAN CARD & MODAL ───────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <PermissionGate itemKey="students.attendance" mode="write">
         <div className="md:col-span-1 p-5 rounded-2xl bg-gradient-to-br from-indigo-600 to-indigo-800 text-white shadow-md flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between">
@@ -1101,27 +1128,34 @@ export const StudentAttendance: React.FC = () => {
             <Camera className="h-3.5 w-3.5" /> Scan QR
           </Button>
         </div>
+        </PermissionGate>
 
         {/* ─── 10. STICKY SAVE ATTENDANCE BANNER ─────────────────────────── */}
-        <div className="md:col-span-3 p-5 bg-card border border-border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden">
+        <div className={`${canEditAttendance ? "md:col-span-3" : "md:col-span-4"} p-5 bg-card border border-border rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm relative overflow-hidden`}>
           <div className="flex items-start gap-3.5">
             <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 shrink-0">
               <Lightbulb className="h-5 w-5" />
             </div>
             <div>
-              <h5 className="text-sm font-extrabold text-foreground tracking-tight">Don't forget to save your attendance!</h5>
+              <h5 className="text-sm font-extrabold text-foreground tracking-tight">
+                {canEditAttendance ? "Don't forget to save your attendance!" : "Attendance overview"}
+              </h5>
               <p className="text-xs text-muted-foreground font-medium mt-0.5 leading-relaxed">
-                Your attendance will be permanently recorded in the Aadya portal database for {selectedDate}.
+                {canEditAttendance
+                  ? `Your attendance will be permanently recorded in the Aadya portal database for ${selectedDate}.`
+                  : `Viewing attendance records for ${selectedDate}.`}
               </p>
             </div>
           </div>
 
+          <PermissionGate itemKey="students.attendance" mode="write">
           <Button
             onClick={handleSaveAttendance}
             className="bg-primary hover:bg-primary/90 text-white text-xs font-black h-10 px-6 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02] cursor-pointer"
           >
             <Lock className="h-4 w-4" /> Save Attendance
           </Button>
+          </PermissionGate>
         </div>
       </div>
 

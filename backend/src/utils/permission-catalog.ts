@@ -1,7 +1,7 @@
 /**
- * Granular permission catalog aligned with Admin ERP sidebar modules.
- * Each top-level module (Lead Management, Admission Management, …) lists
- * the same submodules shown in app-sidebar.tsx.
+ * Granular permission catalog aligned with Admin operational sidebar modules.
+ * Dashboard, ASK ME, and personal Settings are always-on and are not in this catalog.
+ * Admin-only Administration items (users, roles, security, billing, data, audit) are excluded.
  */
 
 export interface PermissionItemDefinition {
@@ -33,15 +33,31 @@ export const getBaselinePermissions = (_role?: PermissionRoleScope): string[] =>
   ...ALWAYS_ON_PERMISSIONS,
 ];
 
+export const ITEM_PERMISSION_PREFIX = "item.";
+
+export const itemShowPermission = (itemKey: string): string =>
+  `${ITEM_PERMISSION_PREFIX}${itemKey}`;
+
+export const itemWritePermission = (itemKey: string): string =>
+  `${ITEM_PERMISSION_PREFIX}${itemKey}.write`;
+
+export const isItemGrantFlag = (permissionName: string): boolean =>
+  permissionName.startsWith(ITEM_PERMISSION_PREFIX);
+
+export const hasItemGrantFlags = (permissionNames: string[]): boolean =>
+  permissionNames.some(isItemGrantFlag);
+
 export const isBaselineOnlyPermissions = (permissionNames: string[]): boolean => {
   const baseline = new Set(ALWAYS_ON_PERMISSIONS);
+  const relevant = permissionNames.filter((p) => !isItemGrantFlag(p));
   return (
-    permissionNames.length > 0 &&
-    permissionNames.every((p) => baseline.has(p))
+    relevant.length > 0 &&
+    relevant.every((p) => baseline.has(p)) &&
+    !hasItemGrantFlags(permissionNames)
   );
 };
 
-/** Center Manager — full ERP module tree (matches admin sidebar). */
+/** Center Manager — 1:1 with Admin operational sidebar (minus always-on and Admin-only items). */
 const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "lead_management",
@@ -50,7 +66,6 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "leads.all", label: "All Leads", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update", "lead.assign", "lead.convert", "lead.delete"] },
-      { key: "leads.new", label: "New Lead", readPermissions: ["lead.read"], writePermissions: ["lead.create"] },
       { key: "leads.ai_calling", label: "AI Calling", readPermissions: ["ai_call.read"], writePermissions: ["ai_call.create"] },
       { key: "leads.followups", label: "Follow-ups", readPermissions: ["lead.read"], writePermissions: ["lead.update", "lead.assign"] },
       { key: "leads.call_history", label: "Call History", readPermissions: ["ai_call.read", "lead.read"], writePermissions: [] },
@@ -59,14 +74,12 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "admission_management",
     label: "Admission Management",
-    description: "Enquiries, applications, admissions, and documents",
+    description: "Enquiries, applications, and admissions",
     category: "ERP Modules",
     items: [
       { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update"] },
       { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
       { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
-      { key: "admissions.direct", label: "Direct Admission", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
-      { key: "admissions.documents", label: "Admission Documents", readPermissions: ["document.read"], writePermissions: ["document.create", "document.verify", "document.update"] },
     ],
   },
   {
@@ -113,7 +126,6 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "courses.all", label: "All Courses", readPermissions: ["course.read"], writePermissions: ["course.create", "course.update"] },
       { key: "courses.curriculum", label: "Course Curriculum", readPermissions: ["module.read", "course.read"], writePermissions: ["module.create", "module.update"] },
-      { key: "courses.modules", label: "Course Curriculum", readPermissions: ["module.read"], writePermissions: ["module.create", "module.update"] },
       { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: ["faculty.update", "batch.update"] },
     ],
   },
@@ -183,7 +195,6 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     category: "ERP Modules",
     items: [
       { key: "targets.all", label: "Target Plans & Assignments", readPermissions: ["target.read"], writePermissions: ["target.manage", "target.assign"] },
-      { key: "targets.assignments", label: "Target Plans & Assignments", readPermissions: ["target.read"], writePermissions: ["target.assign"] },
       { key: "targets.leaderboard", label: "Leaderboard", readPermissions: ["target.read", "incentive.read"], writePermissions: [] },
       { key: "targets.incentives", label: "Incentive Approvals", readPermissions: ["incentive.read"], writePermissions: ["target.approve"] },
     ],
@@ -232,14 +243,14 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "administration",
     label: "Administration",
-    description: "Branch setup, masters, integrations, and settings",
+    description: "Organization, branches, masters, integrations, and system settings",
     category: "ERP Modules",
     items: [
-      { key: "admin.organization", label: "Organization", readPermissions: ["institute.read"], writePermissions: [] },
-      { key: "admin.branches", label: "Centers & Branches", readPermissions: ["branch.read"], writePermissions: ["branch.update"] },
+      { key: "admin.organization", label: "Organization", readPermissions: ["institute.read"], writePermissions: ["institute.update"] },
+      { key: "admin.branches", label: "Centers & Branches", readPermissions: ["branch.read"], writePermissions: ["branch.create", "branch.update"] },
       { key: "admin.masters", label: "Masters", readPermissions: ["master.read"], writePermissions: ["master.create", "master.update", "master.delete"] },
-      { key: "admin.integrations", label: "Integrations", readPermissions: ["integration.read", "google_meet.read"], writePermissions: ["integration.manage", "google_meet.connect"] },
-      { key: "admin.settings", label: "Settings", readPermissions: ["institute.read"], writePermissions: ["institute.update"] },
+      { key: "admin.integrations", label: "Integrations", readPermissions: ["integration.read"], writePermissions: ["integration.manage"] },
+      { key: "admin.settings", label: "System Settings", readPermissions: ["settings.read"], writePermissions: ["settings.update"] },
     ],
   },
 ];
@@ -356,6 +367,18 @@ export const getAllCatalogItemKeys = (role: PermissionRoleScope): string[] => {
   return getPermissionCatalog(role).flatMap((m) => m.items.map((i) => i.key));
 };
 
+/** Unique item.* / item.*.write Permission names to seed for both staff catalogs. */
+export const getCatalogItemPermissionNames = (): string[] => {
+  const names = new Set<string>();
+  for (const role of ["CENTER_MANAGER", "COUNSELLOR"] as const) {
+    for (const key of getAllCatalogItemKeys(role)) {
+      names.add(itemShowPermission(key));
+      names.add(itemWritePermission(key));
+    }
+  }
+  return Array.from(names);
+};
+
 export interface ItemAccessState {
   show: boolean;
   editable: boolean;
@@ -372,8 +395,10 @@ export const resolveItemAccessToPermissions = (
     for (const item of mod.items) {
       const access = accessByItem[item.key];
       if (!access?.show) continue;
+      permissionSet.add(itemShowPermission(item.key));
       for (const p of item.readPermissions) permissionSet.add(p);
       if (access.editable) {
+        permissionSet.add(itemWritePermission(item.key));
         for (const p of item.writePermissions) permissionSet.add(p);
       }
     }
@@ -389,9 +414,16 @@ export const permissionsToItemAccess = (
   const permSet = new Set(permissionNames);
   const catalog = getPermissionCatalog(role);
   const result: Record<string, ItemAccessState> = {};
+  const useItemFlags = hasItemGrantFlags(permissionNames);
 
   for (const mod of catalog) {
     for (const item of mod.items) {
+      if (useItemFlags) {
+        const show = permSet.has(itemShowPermission(item.key));
+        const editable = show && permSet.has(itemWritePermission(item.key));
+        result[item.key] = { show, editable };
+        continue;
+      }
       const hasRead = item.readPermissions.some((p) => permSet.has(p));
       const hasWrite =
         item.writePermissions.length > 0 &&
@@ -403,7 +435,7 @@ export const permissionsToItemAccess = (
   return result;
 };
 
-/** True when the user has at least one catalog submodule visible (Show checked). */
+/** True when the user has at least one catalog submodule visible (Read checked). */
 export const hasAssignedModulePermissions = (
   permissionNames: string[],
   role: PermissionRoleScope
@@ -417,6 +449,7 @@ export const resolvePermissionsToModuleKeys = (
   permissionNames: string[],
   role: PermissionRoleScope
 ): string[] => {
+  if (isBaselineOnlyPermissions(permissionNames)) return [];
   const access = permissionsToItemAccess(permissionNames, role);
   const catalog = getPermissionCatalog(role);
   const enabled: string[] = [];
@@ -492,4 +525,21 @@ export const canReadItem = (permissionNames: string[], itemKey: string, role: Pe
 export const canEditItem = (permissionNames: string[], itemKey: string, role: PermissionRoleScope): boolean => {
   const access = permissionsToItemAccess(permissionNames, role);
   return access[itemKey]?.editable ?? false;
+};
+
+/** Pure check used by API middleware and tests (no RolePermission fallback for CM/Counsellor). */
+export const staffUserAllowsPermission = (
+  userRoles: string[],
+  grantedPermissionNames: string[],
+  permission: string
+): boolean => {
+  if (userRoles.includes("ADMIN") || userRoles.includes("SUPER_ADMIN")) {
+    return true;
+  }
+
+  if (ALWAYS_ON_PERMISSIONS.includes(permission)) {
+    return true;
+  }
+
+  return grantedPermissionNames.includes(permission);
 };

@@ -60,7 +60,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     moduleKey: "leads_ai_calling",
     items: [
       { title: "All Leads", url: "/center/leads", itemKey: "leads.all" },
-      { title: "New Lead", url: "/center/leads/add", itemKey: "leads.new" },
       { title: "AI Calling", url: "/center/leads/ai-calling", itemKey: "leads.ai_calling" },
       { title: "Follow-ups", url: "/center/leads/follow-ups", itemKey: "leads.followups" },
       { title: "Call History", url: "/center/leads/call-history", itemKey: "leads.call_history" },
@@ -75,7 +74,6 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
       { title: L["admissions.enquiries"] ?? "Enquiries", url: "/center/admissions/enquiries", itemKey: "admissions.enquiries" },
       { title: L["admissions.applications"] ?? "Admission Applications", url: "/center/admissions/applications", itemKey: "admissions.applications" },
       { title: "Admissions", url: "/center/admissions/all", itemKey: "admissions.all" },
-      { title: "Admission Documents", url: "/center/admissions/documents", itemKey: "admissions.documents" },
     ],
   },
   {
@@ -238,10 +236,16 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
   },
   {
     title: "Administration",
-    url: "/center/masters",
+    url: "/center/organization",
     icon: Building2,
     moduleKey: "masters",
-    items: [{ title: "Masters", url: "/center/masters", itemKey: "admin.masters" }],
+    items: [
+      { title: "Organization", url: "/center/organization", itemKey: "admin.organization" },
+      { title: "Centers & Branches", url: "/center/branches", itemKey: "admin.branches" },
+      { title: "Masters", url: "/center/masters", itemKey: "admin.masters" },
+      { title: "Integrations", url: "/center/integrations", itemKey: "admin.integrations" },
+      { title: "System Settings", url: "/center/system-settings", itemKey: "admin.settings" },
+    ],
   },
   {
     title: "Settings",
@@ -251,7 +255,13 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
 ];
 
 export const buildCenterNavPermissionKeys = (): Record<string, string> => {
-  const map: Record<string, string> = {};
+  const map: Record<string, string> = {
+    "/center/students": "students.all",
+    "/center/faculty": "faculty.all",
+    "/center/courses": "courses.all",
+    "/center/admissions": "admissions.all",
+    "/center/counselor": "counsellor.all",
+  };
   for (const mod of CENTER_PORTAL_NAV) {
     mod.items?.forEach((item) => {
       map[item.url] = item.itemKey;

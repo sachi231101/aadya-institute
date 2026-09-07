@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Plug,
   Loader2,
@@ -14,6 +14,8 @@ import { Button } from "@/components/ui/button";
 import { useIntegrationsCatalog } from "@/hooks/useIntegrations";
 import type { IntegrationStatus } from "@/services/integrations.api";
 import { ROUTES } from "@/constants/routes";
+import { getPortalBasePath } from "@/utils/portal-path";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const STATUS_STYLES: Record<
   IntegrationStatus,
@@ -49,6 +51,11 @@ function formatStatus(status: IntegrationStatus): string {
 }
 
 export const Integrations: React.FC = () => {
+  const location = useLocation();
+  const integrationsBase =
+    getPortalBasePath(location.pathname) === "/center"
+      ? "/center/integrations"
+      : ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS;
   const { data, isLoading, isError, refetch } = useIntegrationsCatalog();
 
   if (isLoading) {
@@ -85,7 +92,7 @@ export const Integrations: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {cards.map((item) => {
           const style = STATUS_STYLES[item.status] ?? STATUS_STYLES.NOT_CONFIGURED;
-          const detailPath = `${ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS}/${item.type.toLowerCase()}`;
+          const detailPath = `${integrationsBase}/${item.type.toLowerCase()}`;
           const actionLabel =
             item.status === "NOT_CONFIGURED"
               ? "Configure"
@@ -120,12 +127,14 @@ export const Integrations: React.FC = () => {
                   </Badge>
                 </div>
                 <div className="flex justify-end">
+                  <PermissionGate itemKey="admin.integrations" mode="write">
                   <Button size="sm" variant="outline" asChild>
                     <Link to={detailPath}>
                       <Settings2 className="h-3 w-3 mr-1" />
                       {actionLabel}
                     </Link>
                   </Button>
+                  </PermissionGate>
                 </div>
               </CardContent>
             </Card>

@@ -19,11 +19,15 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 export const Curriculum: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
   const { courses, loading: coursesLoading } = useCourses();
+  const { canEditItem } = usePermissions();
+  const canEditCurriculum = canEditItem("courses.curriculum");
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courseIdFromUrl);
 
   useEffect(() => {
@@ -257,6 +261,7 @@ export const Curriculum: React.FC = () => {
                       </div>
                     </div>
 
+                    <PermissionGate itemKey="courses.curriculum" mode="write">
                     <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                       <Button 
                         variant="outline" 
@@ -279,6 +284,7 @@ export const Curriculum: React.FC = () => {
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                    </PermissionGate>
                   </div>
                 </CardHeader>
 
@@ -292,6 +298,7 @@ export const Curriculum: React.FC = () => {
                             className="p-3.5 flex items-start justify-between gap-4 hover:bg-muted/40 transition-colors"
                           >
                             <div className="flex items-start gap-3">
+                              {canEditCurriculum ? (
                               <button 
                                 type="button"
                                 className="mt-0.5 text-muted-foreground hover:text-emerald-500 transition-colors cursor-pointer"
@@ -303,6 +310,15 @@ export const Curriculum: React.FC = () => {
                                   <Circle className="h-5 w-5 text-muted-foreground/40" />
                                 )}
                               </button>
+                              ) : (
+                                <span className="mt-0.5">
+                                  {topic.isCompleted ? (
+                                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                                  ) : (
+                                    <Circle className="h-5 w-5 text-muted-foreground/40" />
+                                  )}
+                                </span>
+                              )}
                               <div>
                                 <h5 className={`text-xs font-bold ${topic.isCompleted ? "line-through text-muted-foreground" : "text-foreground"}`}>
                                   {topic.title}
@@ -318,6 +334,7 @@ export const Curriculum: React.FC = () => {
                                 <Clock className="h-3.5 w-3.5" />
                                 <span>{topic.durationHours || 4} hrs</span>
                               </div>
+                              <PermissionGate itemKey="courses.curriculum" mode="write">
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -327,6 +344,7 @@ export const Curriculum: React.FC = () => {
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
+                              </PermissionGate>
                             </div>
                           </div>
                         ))}
@@ -335,6 +353,7 @@ export const Curriculum: React.FC = () => {
                       <div className="py-6 text-center text-xs text-muted-foreground border border-dashed border-border rounded-xl">
                         <Bookmark className="mx-auto h-8 w-8 text-muted-foreground/40 mb-1" />
                         <p className="font-semibold">No topics added to this module yet.</p>
+                        <PermissionGate itemKey="courses.curriculum" mode="write">
                         <Button 
                           variant="ghost" 
                           size="sm" 
@@ -346,6 +365,7 @@ export const Curriculum: React.FC = () => {
                         >
                           + Add First Topic
                         </Button>
+                        </PermissionGate>
                       </div>
                     )}
                   </CardContent>
@@ -361,6 +381,7 @@ export const Curriculum: React.FC = () => {
               <p className="text-xs text-muted-foreground max-w-sm mx-auto mt-1 mb-4 font-medium">
                 This course currently has no curriculum modules defined. Start by adding your first module.
               </p>
+              <PermissionGate itemKey="courses.curriculum" mode="write">
               <Button 
                 className="bg-primary hover:bg-primary/90 text-white rounded-xl text-xs font-bold cursor-pointer"
                 onClick={() => setShowModuleModal(true)}
@@ -369,6 +390,7 @@ export const Curriculum: React.FC = () => {
                 <Plus className="mr-1.5 h-4 w-4" />
                 Add Module
               </Button>
+              </PermissionGate>
             </CardContent>
           </Card>
         )}

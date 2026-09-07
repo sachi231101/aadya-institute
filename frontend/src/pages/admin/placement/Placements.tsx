@@ -27,6 +27,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Placements: React.FC = () => {
   const [showModal, setShowModal] = useState(false);
@@ -88,9 +89,11 @@ export const Placements: React.FC = () => {
           <h2 className="text-2xl font-bold text-text-primary">Placements</h2>
           <p className="text-sm text-text-secondary">Confirmed student placements and offers.</p>
         </div>
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Confirm Placement
-        </Button>
+        <PermissionGate itemKey="placement.placements" mode="write">
+          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Confirm Placement
+          </Button>
+        </PermissionGate>
       </div>
 
       <Card className="border-border/50">

@@ -350,7 +350,7 @@ export const EditAdmin: React.FC = () => {
                     </CardTitle>
                     <CardDescription className="text-xs text-slate-500">
                       By default, users see only Dashboard, ASK ME, and Settings. Enable
-                      Show/Editable per submodule to grant portal access.
+                      Read/Edit per submodule to grant portal access.
                     </CardDescription>
                   </div>
                 </div>
@@ -361,7 +361,7 @@ export const EditAdmin: React.FC = () => {
                   <Sparkles className="h-4 w-4 text-amber-600 shrink-0" />
                   <span>
                     <strong>Default access:</strong> Unchecked modules stay hidden until
-                    you enable Show. Changes apply live to the user&apos;s portal.
+                    you enable Read. Changes apply live to the user&apos;s portal.
                   </span>
                 </div>
 

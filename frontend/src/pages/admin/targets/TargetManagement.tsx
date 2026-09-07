@@ -47,6 +47,7 @@ import type {
   IncentiveSlab,
   IncentivePercentageTier,
 } from "../../../types/target.types";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const TargetManagement: React.FC = () => {
   const { user } = useAuthStore();
@@ -328,25 +329,27 @@ export const TargetManagement: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setShowCreatePlanModal(true)}
-            className="flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold rounded-xl border border-border transition cursor-pointer"
-          >
-            <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            New Campaign Plan
-          </button>
-          <button
-            onClick={() => {
-              resetTargetForm();
-              setShowTargetModal(true);
-            }}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-sm transition cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            Assign Target
-          </button>
-        </div>
+        <PermissionGate itemKey="targets.all" mode="write">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowCreatePlanModal(true)}
+              className="flex items-center gap-2 px-4 py-2.5 bg-muted hover:bg-muted/80 text-foreground text-sm font-semibold rounded-xl border border-border transition cursor-pointer"
+            >
+              <Layers className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              New Campaign Plan
+            </button>
+            <button
+              onClick={() => {
+                resetTargetForm();
+                setShowTargetModal(true);
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-semibold rounded-xl shadow-sm transition cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              Assign Target
+            </button>
+          </div>
+        </PermissionGate>
       </div>
 
       {/* Navigation Tabs */}
@@ -572,33 +575,35 @@ export const TargetManagement: React.FC = () => {
                           </td>
 
                           <td className="py-4 px-4 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              <button
-                                title="Recalculate live progress"
-                                onClick={() => handleRecalculate(t.id)}
-                                className="p-1.5 hover:bg-muted text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-300 rounded-lg transition cursor-pointer"
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </button>
-                              {t.status !== "LOCKED" && (
-                                <>
-                                  <button
-                                    title="Edit target"
-                                    onClick={() => handleOpenEditTarget(t)}
-                                    className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition cursor-pointer"
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </button>
-                                  <button
-                                    title="Delete target"
-                                    onClick={() => handleDelete(t.id, t.title)}
-                                    className="p-1.5 hover:bg-muted text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition cursor-pointer"
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </button>
-                                </>
-                              )}
-                            </div>
+                            <PermissionGate itemKey="targets.all" mode="write">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  title="Recalculate live progress"
+                                  onClick={() => handleRecalculate(t.id)}
+                                  className="p-1.5 hover:bg-muted text-muted-foreground hover:text-indigo-600 dark:hover:text-indigo-300 rounded-lg transition cursor-pointer"
+                                >
+                                  <RefreshCw className="w-4 h-4" />
+                                </button>
+                                {t.status !== "LOCKED" && (
+                                  <>
+                                    <button
+                                      title="Edit target"
+                                      onClick={() => handleOpenEditTarget(t)}
+                                      className="p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg transition cursor-pointer"
+                                    >
+                                      <Edit2 className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                      title="Delete target"
+                                      onClick={() => handleDelete(t.id, t.title)}
+                                      className="p-1.5 hover:bg-muted text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition cursor-pointer"
+                                    >
+                                      <Trash2 className="w-4 h-4" />
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </PermissionGate>
                           </td>
                         </tr>
                       );
@@ -685,46 +690,48 @@ export const TargetManagement: React.FC = () => {
                   </div>
 
                   <div className="pt-4 border-t border-border flex items-center justify-between gap-2">
-                    {plan.status === "DRAFT" && (
-                      <button
-                        onClick={async () => {
-                          await publishPlanMutation.mutateAsync(plan.id);
-                          showToast("✓ Plan Published!");
-                        }}
-                        className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        Publish Plan
-                      </button>
-                    )}
+                    <PermissionGate itemKey="targets.all" mode="write">
+                      {plan.status === "DRAFT" && (
+                        <button
+                          onClick={async () => {
+                            await publishPlanMutation.mutateAsync(plan.id);
+                            showToast("✓ Plan Published!");
+                          }}
+                          className="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          Publish Plan
+                        </button>
+                      )}
 
-                    {plan.status === "PUBLISHED" && (
-                      <button
-                        onClick={async () => {
-                          await activatePlanMutation.mutateAsync(plan.id);
-                          showToast("✓ Plan Activated!");
-                        }}
-                        className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Play className="w-3.5 h-3.5" />
-                        Activate Drive
-                      </button>
-                    )}
+                      {plan.status === "PUBLISHED" && (
+                        <button
+                          onClick={async () => {
+                            await activatePlanMutation.mutateAsync(plan.id);
+                            showToast("✓ Plan Activated!");
+                          }}
+                          className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Play className="w-3.5 h-3.5" />
+                          Activate Drive
+                        </button>
+                      )}
 
-                    {plan.status === "ACTIVE" && (
-                      <button
-                        onClick={async () => {
-                          if (confirm("Locking this campaign will prevent further edits. Continue?")) {
-                            await lockPlanMutation.mutateAsync(plan.id);
-                            showToast("✓ Plan Locked!");
-                          }
-                        }}
-                        className="w-full py-2 bg-muted hover:bg-muted/80 text-purple-600 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-500/30 transition cursor-pointer flex items-center justify-center gap-1.5"
-                      >
-                        <Lock className="w-3.5 h-3.5" />
-                        Lock & Finalize
-                      </button>
-                    )}
+                      {plan.status === "ACTIVE" && (
+                        <button
+                          onClick={async () => {
+                            if (confirm("Locking this campaign will prevent further edits. Continue?")) {
+                              await lockPlanMutation.mutateAsync(plan.id);
+                              showToast("✓ Plan Locked!");
+                            }
+                          }}
+                          className="w-full py-2 bg-muted hover:bg-muted/80 text-purple-600 dark:text-purple-300 text-xs font-bold rounded-xl border border-purple-500/30 transition cursor-pointer flex items-center justify-center gap-1.5"
+                        >
+                          <Lock className="w-3.5 h-3.5" />
+                          Lock & Finalize
+                        </button>
+                      )}
+                    </PermissionGate>
 
                     {plan.status === "LOCKED" && (
                       <div className="w-full py-2 text-center text-xs text-purple-600 dark:text-purple-400 font-bold flex items-center justify-center gap-1">

@@ -72,6 +72,11 @@ import { FinancialReports } from "../pages/admin/reports/FinancialReports";
 import { Settings } from "../pages/admin/settings/Settings";
 import { NotificationsPage } from "../pages/admin/notifications/NotificationsPage";
 import { MasterSetup } from "../pages/admin/masters/MasterSetup";
+import { Organization } from "../pages/admin/administration/Organization";
+import { Branches } from "../pages/admin/administration/Branches";
+import { Integrations } from "../pages/admin/administration/Integrations";
+import { IntegrationDetail } from "../pages/admin/administration/IntegrationDetail";
+import { SettingsHub } from "../pages/admin/administration/SettingsHub";
 import { AllLeadsList } from "../pages/admin/leads/AllLeadsList";
 import { LeadDetails } from "../pages/admin/leads/LeadDetails";
 import { AddLead } from "../pages/admin/leads/AddLead";
@@ -291,8 +296,13 @@ export const AppRoutes: React.FC = () => {
           <Route path="placements" element={<Placements />} />
         </Route>
 
-        {/* Settings, Notifications & Masters */}
+        {/* Administration (operational) + personal settings */}
+        <Route path="organization" element={<Organization />} />
+        <Route path="branches" element={<Branches />} />
         <Route path="masters" element={<MasterSetup />} />
+        <Route path="integrations" element={<Integrations />} />
+        <Route path="integrations/:type" element={<IntegrationDetail />} />
+        <Route path="system-settings" element={<SettingsHub />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
         <Route path="notifications/whatsapp" element={<WhatsAppHub />} />

@@ -7,6 +7,7 @@ import {
   getBaselinePermissions,
   ALWAYS_ON_PERMISSIONS,
   getPermissionCatalog,
+  isItemGrantFlag,
   type PermissionRoleScope,
 } from "../../utils/permission-catalog";
 import { createAuditLog } from "../../utils/audit-log.util";
@@ -28,12 +29,14 @@ import {
   findUserByPhone,
   findRolesByNames,
   findPermissionsByNames,
+  ensurePermissionsExist,
   setUserPermissions,
   createUser,
   updateUser,
   updateUserStatus,
   updateWhatsappPreference,
   deleteUser,
+  hardDeleteUser,
   replaceUserBranchAccess,
 } from "./user.repository";
 import type { UserStatus } from "@prisma/client";
@@ -188,9 +191,13 @@ export const createUserService = async (
           ? resolveModuleKeysToPermissions(input.modulePermissions, roleScope)
           : getBaselinePermissions(roleScope);
 
-    await assignDirectPermissions(user.id, permissionNames, currentUser.id);
+    try {
+      await assignDirectPermissions(user.id, permissionNames, actorId(currentUser));
+    } catch (err) {
+      await hardDeleteUser(user.id);
+      throw err;
+    }
 
-    // Re-fetch to include the newly created permissions
     const refreshed = await findUserById(user.id, instituteId);
     result = refreshed ?? user;
   }
@@ -286,7 +293,7 @@ export const updateUserPermissionsService = async (
     ? Array.from(new Set([...ALWAYS_ON_PERMISSIONS, ...input.permissions]))
     : resolveModuleKeysToPermissions(input.modulePermissions ?? [], roleScope);
 
-  await assignDirectPermissions(userId, permissionNames, currentUser.id);
+  await assignDirectPermissions(userId, permissionNames, actorId(currentUser));
 
   // Re-fetch to include updated permissions
   const refreshed = await findUserById(userId, instituteId);
@@ -446,9 +453,33 @@ async function assignDirectPermissions(
   permissionNames: string[],
   grantedById?: string
 ): Promise<void> {
-  const permissionRecords = await findPermissionsByNames(permissionNames);
-  const permissionIds = permissionRecords.map((p) => p.id);
+  const uniqueNames = Array.from(new Set(permissionNames));
+  let permissionRecords = await findPermissionsByNames(uniqueNames);
+  const foundNames = new Set(permissionRecords.map((p) => p.name));
+  const missing = uniqueNames.filter((name) => !foundNames.has(name));
+  const missingItemFlags = missing.filter(isItemGrantFlag);
+  const missingOther = missing.filter((name) => !isItemGrantFlag(name));
 
+  if (missingItemFlags.length > 0) {
+    await ensurePermissionsExist(
+      missingItemFlags.map((name) => ({
+        name,
+        description: name.endsWith(".write")
+          ? `Edit access for catalog item ${name.replace(/^item\./, "").replace(/\.write$/, "")}`
+          : `Read access for catalog item ${name.replace(/^item\./, "")}`,
+      }))
+    );
+    permissionRecords = await findPermissionsByNames(uniqueNames);
+  }
+
+  if (missingOther.length > 0) {
+    throw new AppError(
+      `Unknown permission(s): ${missingOther.slice(0, 8).join(", ")}${missingOther.length > 8 ? "…" : ""}`,
+      400
+    );
+  }
+
+  const permissionIds = permissionRecords.map((p) => p.id);
   if (permissionIds.length > 0) {
     await setUserPermissions(userId, permissionIds, grantedById);
   }

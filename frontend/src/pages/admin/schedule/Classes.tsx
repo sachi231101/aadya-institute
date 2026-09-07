@@ -50,6 +50,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -194,6 +196,8 @@ import {
 
 export const Classes: React.FC = () => {
   const queryClient = useQueryClient();
+  const { canEditItem } = usePermissions();
+  const canEditClasses = canEditItem("schedule.classes");
   const { data: branchData } = useBranches();
   const branchesList = branchData?.data ?? [];
   const { batches } = useBatches();
@@ -548,16 +552,18 @@ export const Classes: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          onClick={() => {
-            resetScheduleForm();
-            setIsScheduleModalOpen(true);
-          }}
-          className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
-        >
-          <Plus className="w-4 h-4 stroke-[2.5]" />
-          <span>Schedule Class</span>
-        </Button>
+        <PermissionGate itemKey="schedule.classes" mode="write">
+          <Button
+            onClick={() => {
+              resetScheduleForm();
+              setIsScheduleModalOpen(true);
+            }}
+            className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <span>Schedule Class</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Notification Toast */}
@@ -845,13 +851,15 @@ export const Classes: React.FC = () => {
                             <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
                             <span>Faculty Not Assigned</span>
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenAssignFaculty(item)}
-                            className="text-[10px] font-extrabold text-blue-500 dark:text-blue-400 hover:underline text-left cursor-pointer"
-                          >
-                            + Assign Faculty
-                          </button>
+                          {canEditClasses && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenAssignFaculty(item)}
+                              className="text-[10px] font-extrabold text-blue-500 dark:text-blue-400 hover:underline text-left cursor-pointer"
+                            >
+                              + Assign Faculty
+                            </button>
+                          )}
                         </div>
                       )}
                     </td>
@@ -947,31 +955,35 @@ export const Classes: React.FC = () => {
                           >
                             <Eye className="h-3.5 w-3.5 text-blue-500" /> View Class Details
                           </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setEditingSessionId(item.id);
-                              setFormTopic(item.topicName);
-                              setFormCourse(item.courseName);
-                              setFormModule(item.moduleName);
-                              setFormBatch(item.batchCode);
-                              setFormFacultyId(item.facultyId || "");
-                              setFormDate(item.date);
-                              setFormPeriod(findPeriodByTimes(item.startTime, item.endTime) ?? 2);
-                              setFormMode(item.mode);
-                              setFormClassroomMasterId(item.classroomMasterId || "");
-                              setFormMeetingUrl(item.mode === "ONLINE" ? item.locationOrLink : "");
-                              setIsScheduleModalOpen(true);
-                            }}
-                            className="gap-2 cursor-pointer font-medium"
-                          >
-                            <Edit3 className="h-3.5 w-3.5 text-indigo-400" /> Edit Class
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleOpenAssignFaculty(item)}
-                            className="gap-2 cursor-pointer font-medium"
-                          >
-                            <UserPlus className="h-3.5 w-3.5 text-emerald-400" /> Change Faculty
-                          </DropdownMenuItem>
+                          {canEditClasses && (
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setEditingSessionId(item.id);
+                                setFormTopic(item.topicName);
+                                setFormCourse(item.courseName);
+                                setFormModule(item.moduleName);
+                                setFormBatch(item.batchCode);
+                                setFormFacultyId(item.facultyId || "");
+                                setFormDate(item.date);
+                                setFormPeriod(findPeriodByTimes(item.startTime, item.endTime) ?? 2);
+                                setFormMode(item.mode);
+                                setFormClassroomMasterId(item.classroomMasterId || "");
+                                setFormMeetingUrl(item.mode === "ONLINE" ? item.locationOrLink : "");
+                                setIsScheduleModalOpen(true);
+                              }}
+                              className="gap-2 cursor-pointer font-medium"
+                            >
+                              <Edit3 className="h-3.5 w-3.5 text-indigo-400" /> Edit Class
+                            </DropdownMenuItem>
+                          )}
+                          {canEditClasses && (
+                            <DropdownMenuItem
+                              onClick={() => handleOpenAssignFaculty(item)}
+                              className="gap-2 cursor-pointer font-medium"
+                            >
+                              <UserPlus className="h-3.5 w-3.5 text-emerald-400" /> Change Faculty
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem
                             onClick={() => handleOpenStudents(item)}
                             className="gap-2 cursor-pointer font-medium"
@@ -984,19 +996,23 @@ export const Classes: React.FC = () => {
                           >
                             <UserCheck className="h-3.5 w-3.5 text-muted-foreground" /> View Attendance
                           </DropdownMenuItem>
-                          <DropdownMenuSeparator className="bg-border" />
-                          <DropdownMenuItem
-                            onClick={() => handleCancelClass(item)}
-                            className="gap-2 text-rose-500 font-medium cursor-pointer"
-                          >
-                            <XCircle className="h-3.5 w-3.5" /> Cancel Class
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteClass(item)}
-                            className="gap-2 text-rose-500 font-medium cursor-pointer"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" /> Delete
-                          </DropdownMenuItem>
+                          {canEditClasses && (
+                            <>
+                              <DropdownMenuSeparator className="bg-border" />
+                              <DropdownMenuItem
+                                onClick={() => handleCancelClass(item)}
+                                className="gap-2 text-rose-500 font-medium cursor-pointer"
+                              >
+                                <XCircle className="h-3.5 w-3.5" /> Cancel Class
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDeleteClass(item)}
+                                className="gap-2 text-rose-500 font-medium cursor-pointer"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" /> Delete
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </td>
@@ -1015,12 +1031,14 @@ export const Classes: React.FC = () => {
                       <p className="text-xs text-muted-foreground font-medium leading-relaxed">
                         There are currently no classes scheduled matching the selected filters. Click below to schedule a new class session.
                       </p>
-                      <Button
-                        onClick={() => setIsScheduleModalOpen(true)}
-                        className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
-                      >
-                        <Plus className="w-3.5 h-3.5" /> Schedule Class
-                      </Button>
+                      <PermissionGate itemKey="schedule.classes" mode="write">
+                        <Button
+                          onClick={() => setIsScheduleModalOpen(true)}
+                          className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" /> Schedule Class
+                        </Button>
+                      </PermissionGate>
                     </div>
                   </td>
                 </tr>
@@ -1383,15 +1401,17 @@ export const Classes: React.FC = () => {
                 >
                   Close
                 </Button>
-                <Button
-                  onClick={() => {
-                    setIsDetailsModalOpen(false);
-                    handleOpenAssignFaculty(selectedClassItem);
-                  }}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
-                >
-                  <UserPlus className="h-3.5 w-3.5" /> Reassign Faculty
-                </Button>
+                <PermissionGate itemKey="schedule.classes" mode="write">
+                  <Button
+                    onClick={() => {
+                      setIsDetailsModalOpen(false);
+                      handleOpenAssignFaculty(selectedClassItem);
+                    }}
+                    className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                  >
+                    <UserPlus className="h-3.5 w-3.5" /> Reassign Faculty
+                  </Button>
+                </PermissionGate>
               </DialogFooter>
             </>
           )}

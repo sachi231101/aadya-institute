@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -25,6 +25,8 @@ import {
 } from "@/hooks/useIntegrations";
 import type { IntegrationType } from "@/services/integrations.api";
 import { ROUTES } from "@/constants/routes";
+import { getPortalBasePath } from "@/utils/portal-path";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 const TYPE_MAP: Record<string, IntegrationType> = {
   ai: "AI",
@@ -105,6 +107,11 @@ export const IntegrationDetail: React.FC = () => {
   const { type: typeParam } = useParams<{ type: string }>();
   const type = parseType(typeParam);
   const navigate = useNavigate();
+  const location = useLocation();
+  const integrationsBase =
+    getPortalBasePath(location.pathname) === "/center"
+      ? "/center/integrations"
+      : ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS;
 
   const { data, isLoading, isError, refetch } = useIntegrationDetail(type ?? undefined);
   const upsert = useUpsertIntegration(type ?? "AI");
@@ -143,7 +150,7 @@ export const IntegrationDetail: React.FC = () => {
       <div className="text-center py-20 text-red-600">
         Unknown integration type.
         <Button variant="link" asChild>
-          <Link to={ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS}>Back</Link>
+          <Link to={integrationsBase}>Back</Link>
         </Button>
       </div>
     );
@@ -265,7 +272,7 @@ export const IntegrationDetail: React.FC = () => {
           type="button"
           variant="ghost"
           size="icon"
-          onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS)}
+          onClick={() => navigate(integrationsBase)}
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -309,56 +316,62 @@ export const IntegrationDetail: React.FC = () => {
                     onChange={setConfigField("spreadsheetId")}
                     placeholder="Google Sheets document ID"
                   />
-                  <Button
-                    type="button"
-                    className="mt-3"
-                    variant="outline"
-                    disabled={upsert.isPending}
-                    onClick={async () => {
-                      try {
-                        await upsert.mutateAsync({
-                          configuration: { spreadsheetId: config.spreadsheetId },
-                          isEnabled,
-                        });
-                        setMessage("Spreadsheet settings saved.");
-                      } catch (err: unknown) {
-                        setErrorMsg((err as Error)?.message || "Save failed");
-                      }
-                    }}
-                  >
-                    {upsert.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
-                    Save spreadsheet ID
-                  </Button>
+                  <PermissionGate itemKey="admin.integrations" mode="write">
+                    <Button
+                      type="button"
+                      className="mt-3"
+                      variant="outline"
+                      disabled={upsert.isPending}
+                      onClick={async () => {
+                        try {
+                          await upsert.mutateAsync({
+                            configuration: { spreadsheetId: config.spreadsheetId },
+                            isEnabled,
+                          });
+                          setMessage("Spreadsheet settings saved.");
+                        } catch (err: unknown) {
+                          setErrorMsg((err as Error)?.message || "Save failed");
+                        }
+                      }}
+                    >
+                      {upsert.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save spreadsheet ID
+                    </Button>
+                  </PermissionGate>
                 </div>
               ) : null}
               <div className="flex flex-wrap gap-2">
                 {data.status === "CONNECTED" ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={disconnectGoogle.isPending || disconnect.isPending}
-                    onClick={handleDisconnect}
-                  >
-                    {(disconnectGoogle.isPending || disconnect.isPending) && (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    )}
-                    <Unplug className="h-4 w-4 mr-1" />
-                    Disconnect
-                  </Button>
+                  <PermissionGate itemKey="admin.integrations" mode="write">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={disconnectGoogle.isPending || disconnect.isPending}
+                      onClick={handleDisconnect}
+                    >
+                      {(disconnectGoogle.isPending || disconnect.isPending) && (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      )}
+                      <Unplug className="h-4 w-4 mr-1" />
+                      Disconnect
+                    </Button>
+                  </PermissionGate>
                 ) : (
-                  <Button
-                    type="button"
-                    className="bg-[#1769AA] text-white"
-                    disabled={connectGoogle.isPending}
-                    onClick={() => connectGoogle.mutate()}
-                  >
-                    {connectGoogle.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                    ) : (
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                    )}
-                    Connect with Google
-                  </Button>
+                  <PermissionGate itemKey="admin.integrations" mode="write">
+                    <Button
+                      type="button"
+                      className="bg-[#1769AA] text-white"
+                      disabled={connectGoogle.isPending}
+                      onClick={() => connectGoogle.mutate()}
+                    >
+                      {connectGoogle.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4 mr-1" />
+                      )}
+                      Connect with Google
+                    </Button>
+                  </PermissionGate>
                 )}
                 <Button type="button" variant="outline" disabled={test.isPending} onClick={handleTest}>
                   {test.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
@@ -564,6 +577,7 @@ export const IntegrationDetail: React.FC = () => {
               )}
 
               <div className="flex flex-wrap gap-2 pt-2">
+                <PermissionGate itemKey="admin.integrations" mode="write">
                 <Button type="submit" disabled={upsert.isPending} className="bg-[#1769AA] text-white">
                   {upsert.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -591,6 +605,7 @@ export const IntegrationDetail: React.FC = () => {
                     Disconnect
                   </Button>
                 ) : null}
+                </PermissionGate>
               </div>
             </form>
           )}

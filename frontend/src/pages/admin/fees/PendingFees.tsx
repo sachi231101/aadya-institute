@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 import type { PendingFee } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const PendingFees: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -275,13 +276,15 @@ export const PendingFees: React.FC = () => {
                       <TableCell>{getStatusBadge(pf.status, pf.overdueDays)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
-                          <Button
-                            size="sm"
-                            className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs h-8"
-                            onClick={() => handleOpenCollectModal(pf)}
-                          >
-                            <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
-                          </Button>
+                          <PermissionGate itemKey="fees.pending" mode="write">
+                            <Button
+                              size="sm"
+                              className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs h-8"
+                              onClick={() => handleOpenCollectModal(pf)}
+                            >
+                              <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
+                            </Button>
+                          </PermissionGate>
 
                           <Button
                             size="sm"

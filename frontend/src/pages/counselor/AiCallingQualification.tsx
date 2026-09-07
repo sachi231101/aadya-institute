@@ -68,6 +68,8 @@ import {
   useTriggerLeadCall,
   useChangeLeadStage,
 } from "@/hooks/useLeads";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface AiTranscriptMessage {
   speaker: "AI" | "LEAD";
@@ -113,6 +115,8 @@ const _INITIAL_AI_CALLING_LEADS: AiCallingLead[] = [];
 export const AiCallingQualification: React.FC = () => {
   const { user } = useAuthStore();
   const { counselors, fetchCounselors } = useCounselorStore();
+  const { canEditItem } = usePermissions();
+  const canEditAiCalling = canEditItem("leads.ai_calling");
   const { data: leadsResponse } = useLeads({
     limit: 100,
     branchId: user?.branchId || undefined,
@@ -558,14 +562,16 @@ export const AiCallingQualification: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2.5 self-start sm:self-auto">
-          <Button
-            type="button"
-            onClick={() => setShowAddLeadModal(true)}
-            className="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-1.5 h-9.5 text-xs transition-all cursor-pointer"
-          >
-            <Plus className="h-3.5 w-3.5 stroke-[3]" />
-            <span>Add New Lead</span>
-          </Button>
+          <PermissionGate itemKey="leads.ai_calling" mode="write">
+            <Button
+              type="button"
+              onClick={() => setShowAddLeadModal(true)}
+              className="bg-primary hover:bg-primary/90 text-white font-bold px-4 py-2 rounded-xl shadow-xs gap-1.5 h-9.5 text-xs transition-all cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5 stroke-[3]" />
+              <span>Add New Lead</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -969,6 +975,7 @@ export const AiCallingQualification: React.FC = () => {
                       {/* 7. Next Action */}
                       <td className="py-2.5 px-2 text-center align-middle">
                         <div className="inline-flex flex-col items-center gap-0.5 max-w-full">
+                          <PermissionGate itemKey="leads.ai_calling" mode="write">
                           {lead.nextActionType === "CONTACT_NOW" ? (
                             <Button
                               type="button"
@@ -1024,6 +1031,7 @@ export const AiCallingQualification: React.FC = () => {
                               Follow Up
                             </Button>
                           )}
+                          </PermissionGate>
 
                           {lead.nextActionSubtext && (
                             <span className="text-[8.5px] font-bold text-slate-400 truncate max-w-full">
@@ -1063,6 +1071,8 @@ export const AiCallingQualification: React.FC = () => {
                                 <FileText className="h-3.5 w-3.5 mr-2 text-blue-600" />
                                 View Full Transcript
                               </DropdownMenuItem>
+                              {canEditAiCalling && (
+                                <>
                               <DropdownMenuItem
                                 onClick={() => handleOpenFollowUpModal(lead)}
                                 className="text-xs font-semibold py-1.5 cursor-pointer text-[#1769AA]"
@@ -1092,6 +1102,8 @@ export const AiCallingQualification: React.FC = () => {
                                 <AlertTriangle className="h-3.5 w-3.5 mr-2 text-rose-600" />
                                 Mark as Lost
                               </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -1465,29 +1477,31 @@ export const AiCallingQualification: React.FC = () => {
               </div>
 
               <div className="flex items-center justify-end gap-2.5">
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowDetailsDrawer(false);
-                    handleOpenFollowUpModal(activeLead);
-                  }}
-                  variant="outline"
-                  className="rounded-xl border-border text-xs font-bold text-foreground hover:bg-muted/50 cursor-pointer h-9.5 px-4"
-                >
-                  Schedule Follow-up
-                </Button>
+                <PermissionGate itemKey="leads.ai_calling" mode="write">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowDetailsDrawer(false);
+                      handleOpenFollowUpModal(activeLead);
+                    }}
+                    variant="outline"
+                    className="rounded-xl border-border text-xs font-bold text-foreground hover:bg-muted/50 cursor-pointer h-9.5 px-4"
+                  >
+                    Schedule Follow-up
+                  </Button>
 
-                <Button
-                  type="button"
-                  onClick={() => {
-                    setShowDetailsDrawer(false);
-                    handleOpenAssignModal(activeLead);
-                  }}
-                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
-                >
-                  <UserCheck className="w-4 h-4" />
-                  Assign Counsellor
-                </Button>
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowDetailsDrawer(false);
+                      handleOpenAssignModal(activeLead);
+                    }}
+                    className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <UserCheck className="w-4 h-4" />
+                    Assign Counsellor
+                  </Button>
+                </PermissionGate>
               </div>
             </div>
           )}
@@ -1653,13 +1667,15 @@ export const AiCallingQualification: React.FC = () => {
                   >
                     Cancel
                   </Button>
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
-                  >
-                    <Check className="h-4 w-4" />
-                    Save Follow-up
-                  </Button>
+                  <PermissionGate itemKey="leads.ai_calling" mode="write">
+                    <Button
+                      type="submit"
+                      className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                    >
+                      <Check className="h-4 w-4" />
+                      Save Follow-up
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             </form>
@@ -1722,13 +1738,15 @@ export const AiCallingQualification: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
-                >
-                  <X className="h-4 w-4" />
-                  Confirm Mark as Lost
-                </Button>
+                <PermissionGate itemKey="leads.ai_calling" mode="write">
+                  <Button
+                    type="submit"
+                    className="bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <X className="h-4 w-4" />
+                    Confirm Mark as Lost
+                  </Button>
+                </PermissionGate>
               </DialogFooter>
             </form>
           )}
@@ -1801,13 +1819,15 @@ export const AiCallingQualification: React.FC = () => {
                 >
                   Cancel
                 </Button>
-                <Button
-                  type="submit"
-                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
-                >
-                  <Check className="h-4 w-4" />
-                  Confirm Assignment
-                </Button>
+                <PermissionGate itemKey="leads.ai_calling" mode="write">
+                  <Button
+                    type="submit"
+                    className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                  >
+                    <Check className="h-4 w-4" />
+                    Confirm Assignment
+                  </Button>
+                </PermissionGate>
               </DialogFooter>
             </form>
           )}
@@ -1904,13 +1924,15 @@ export const AiCallingQualification: React.FC = () => {
               >
                 Cancel
               </Button>
-              <Button
-                type="submit"
-                className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
-              >
-                <Check className="h-4 w-4" />
-                Add & Launch AI Call
-              </Button>
+              <PermissionGate itemKey="leads.ai_calling" mode="write">
+                <Button
+                  type="submit"
+                  className="bg-primary hover:bg-primary/90 text-white text-xs font-bold px-5 rounded-xl shadow-xs gap-1.5 cursor-pointer h-9.5"
+                >
+                  <Check className="h-4 w-4" />
+                  Add & Launch AI Call
+                </Button>
+              </PermissionGate>
             </DialogFooter>
           </form>
         </DialogContent>

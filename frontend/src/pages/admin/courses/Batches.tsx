@@ -29,6 +29,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { getMasterLabel, findMasterIdByLabel, getTimeslotTimes } from "@/utils/master.utils";
 import {
@@ -60,6 +62,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export const Batches: React.FC = () => {
+  const { canEditItem } = usePermissions();
+  const canEditBatches = canEditItem("batches.all");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const courseIdFromUrl = searchParams.get("courseId") || "";
@@ -324,6 +328,14 @@ export const Batches: React.FC = () => {
     if (!editId && createFlag !== "1") return;
     if (loading) return;
 
+    if (!canEditBatches) {
+      const next = new URLSearchParams(searchParams);
+      next.delete("create");
+      next.delete("edit");
+      setSearchParams(next, { replace: true });
+      return;
+    }
+
     if (createFlag === "1") {
       handleOpenCreateModal();
       const next = new URLSearchParams(searchParams);
@@ -339,7 +351,7 @@ export const Batches: React.FC = () => {
       next.delete("edit");
       setSearchParams(next, { replace: true });
     }
-  }, [loading, batches]); // intentionally omit searchParams to avoid reopen loops
+  }, [loading, batches, canEditBatches]); // intentionally omit searchParams to avoid reopen loops
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -469,6 +481,7 @@ export const Batches: React.FC = () => {
             <Eye className="mr-1.5 h-3.5 w-3.5" />
             View
           </Button>
+          <PermissionGate itemKey="batches.all" mode="write">
           <Button
             size="sm"
             className="h-8 px-2.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white shadow-xs rounded-lg disabled:opacity-40 transition-all cursor-pointer"
@@ -503,6 +516,7 @@ export const Batches: React.FC = () => {
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Add New Batch
           </Button>
+          </PermissionGate>
           <Button
             size="sm"
             variant="outline"
@@ -753,6 +767,8 @@ export const Batches: React.FC = () => {
                                     <Eye className="mr-2 h-4 w-4" /> View Details
                                   </Link>
                                 </DropdownMenuItem>
+                                {canEditBatches && (
+                                  <>
                                 <DropdownMenuItem
                                   className="cursor-pointer text-xs font-bold"
                                   disabled={!canGenerateSessions(batch)}
@@ -780,6 +796,8 @@ export const Batches: React.FC = () => {
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" /> Delete Batch
                                 </DropdownMenuItem>
+                                  </>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
