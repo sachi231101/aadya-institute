@@ -66,6 +66,7 @@ export const ROUTES = {
     SCHEDULE: {
       TIMETABLE: "/admin/schedule/timetable",
       CLASSES: "/admin/schedule/classes",
+      CLASS_DETAIL: (id: string) => `/admin/schedule/classes/${id}`,
       LIVE: "/admin/schedule/live",
       RECORDINGS: "/admin/schedule/recordings",
     },
