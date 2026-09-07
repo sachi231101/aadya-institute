@@ -1,7 +1,7 @@
 import { Router } from "express";
 import * as controller from "./module.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   createModuleSchema,
@@ -15,46 +15,46 @@ router.use(authMiddleware);
 
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"),
+  requirePermissionUnlessRoles("module.read", "FACULTY", "STUDENT"),
   controller.getByCourse
 );
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("module.create"),
   validate(createModuleSchema),
   controller.create
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("module.update"),
   validate(updateModuleSchema),
   controller.update
 );
 
 router.post(
   "/:id/topics",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("module.update"),
   validate(addTopicSchema),
   controller.addTopic
 );
 
 router.patch(
   "/:id/topics/:topicId/toggle",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("module.update"),
   controller.toggleTopic
 );
 
 router.delete(
   "/:id/topics/:topicId",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY"),
+  requirePermission("module.update"),
   controller.removeTopic
 );
 
 router.delete(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("module.update"),
   controller.remove
 );
 

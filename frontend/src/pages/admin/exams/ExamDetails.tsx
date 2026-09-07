@@ -67,6 +67,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const PICKER_PAGE_SIZE = 20;
 
@@ -75,6 +76,8 @@ export const ExamDetails: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const { canEditItem } = usePermissions();
+  const canEditExams = canEditItem("exams.all");
 
   const { data: examResponse, isLoading: examLoading } = useExam(id || "");
   const exam = examResponse?.data;
@@ -108,7 +111,8 @@ export const ExamDetails: React.FC = () => {
   const [pickerPage, setPickerPage] = useState(1);
   const [addingBankId, setAddingBankId] = useState<string | null>(null);
 
-  const canEditQuestions = exam && ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status);
+  const canEditQuestions =
+    canEditExams && exam && ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam.status);
 
   const { data: banksResponse, isLoading: banksLoading } = useQuestionBanks();
   const questionBanks = banksResponse?.data || [];
@@ -267,7 +271,8 @@ export const ExamDetails: React.FC = () => {
   const assignedBatchIds = new Set(examBatches.map((eb: any) => eb.batchId));
   const assignedStudentIds = new Set(examStudents.map((es: any) => es.studentId));
 
-  const canAssign = ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam?.status || "");
+  const canAssign =
+    canEditExams && ["DRAFT", "PUBLISHED", "SCHEDULED"].includes(exam?.status || "");
 
   const toggleStudentSelection = (studentId: string) => {
     setSelectedStudentIds((prev) =>
@@ -337,7 +342,7 @@ export const ExamDetails: React.FC = () => {
             <Users className="h-4 w-4" /> View Attempts & Proctoring
           </Button>
 
-          {["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
+          {canEditExams && ["DRAFT", "SCHEDULED", "PUBLISHED"].includes(exam.status) && (
             <Button
               variant="outline"
               size="sm"
@@ -348,7 +353,7 @@ export const ExamDetails: React.FC = () => {
             </Button>
           )}
 
-          {["DRAFT", "PUBLISHED"].includes(exam.status) && (
+          {canEditExams && ["DRAFT", "PUBLISHED"].includes(exam.status) && (
             <Button
               variant="outline"
               size="sm"
@@ -359,7 +364,7 @@ export const ExamDetails: React.FC = () => {
             </Button>
           )}
 
-          {exam.status === "DRAFT" && (
+          {canEditExams && exam.status === "DRAFT" && (
             <Button
               size="sm"
               className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
@@ -375,7 +380,7 @@ export const ExamDetails: React.FC = () => {
             </Button>
           )}
 
-          {["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
+          {canEditExams && ["PUBLISHED", "SCHEDULED", "LIVE", "ENDED", "COMPLETED"].includes(exam.status) && (
             <Button
               variant="outline"
               size="sm"
@@ -502,6 +507,7 @@ export const ExamDetails: React.FC = () => {
                             <p className="text-sm font-medium text-foreground pt-1">{q.questionText}</p>
                           </div>
                           <div className="flex items-center gap-1">
+                            {canEditExams && (
                             <Button
                               variant="ghost"
                               size="icon"
@@ -511,6 +517,7 @@ export const ExamDetails: React.FC = () => {
                             >
                               <Edit className="h-4 w-4" />
                             </Button>
+                            )}
                             {canEditQuestions && (
                               <Button
                                 variant="ghost"

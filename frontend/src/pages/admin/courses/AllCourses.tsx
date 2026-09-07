@@ -102,10 +102,11 @@ export const AllCourses: React.FC = () => {
   };
 
   const handleOpenBatches = (courseId?: string) => {
+    const batchesBase = location.pathname.startsWith("/center")
+      ? "/center/batches"
+      : "/admin/batches";
     navigate(
-      courseId
-        ? `${coursesBasePath}/batches?courseId=${courseId}`
-        : `${coursesBasePath}/batches`
+      courseId ? `${batchesBase}?courseId=${courseId}` : batchesBase
     );
   };
 

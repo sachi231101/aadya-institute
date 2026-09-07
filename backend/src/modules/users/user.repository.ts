@@ -183,14 +183,19 @@ export const setUserPermissions = async (
   permissionIds: string[],
   grantedById?: string
 ) => {
-  await prisma.$transaction([
-    prisma.userPermission.deleteMany({ where: { userId } }),
-    ...permissionIds.map((permissionId) =>
-      prisma.userPermission.create({
-        data: { userId, permissionId, grantedById },
-      })
-    ),
-  ]);
+  const uniqueIds = Array.from(new Set(permissionIds));
+  await prisma.$transaction(async (tx) => {
+    await tx.userPermission.deleteMany({ where: { userId } });
+    if (uniqueIds.length === 0) return;
+    await tx.userPermission.createMany({
+      data: uniqueIds.map((permissionId) => ({
+        userId,
+        permissionId,
+        grantedById,
+      })),
+      skipDuplicates: true,
+    });
+  });
 };
 
 // ─── Mutations ────────────────────────────────────────────────────────────────

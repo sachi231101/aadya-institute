@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
-import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   submitFeedbackSchema,
@@ -23,7 +22,7 @@ router.get(
 
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR", "STUDENT"),
+  requirePermissionUnlessRoles("feedback.read", "FACULTY", "STUDENT"),
   validate(listFeedbackQuerySchema, "query"),
   controller.listFeedback
 );

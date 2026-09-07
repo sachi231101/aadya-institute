@@ -67,9 +67,8 @@ export const ExamManagement: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
-  const { canEditItem, isAdmin, roleScope } = usePermissions();
-  // Match PermissionGate write mode: admins and non-scoped roles can edit; CM/counsellor follow item permissions.
-  const canEditExams = Boolean(isAdmin || !roleScope || canEditItem("exams.all"));
+  const { canEditItem } = usePermissions();
+  const canEditExams = canEditItem("exams.all");
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [courseFilter, setCourseFilter] = useState("ALL");

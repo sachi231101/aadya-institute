@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft, BookOpen, Save, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 import { useCourses } from "../../../hooks/useCourses";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,9 +10,11 @@ import { Input } from "@/components/ui/input";
 export const AddCourse: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const coursesListPath = location.pathname.startsWith("/center")
     ? "/center/courses/all"
     : "/admin/courses/all";
+  const canWrite = isAdmin || !roleScope || canEditItem("courses.all");
   const { createCourse } = useCourses();
 
   const [name, setName] = useState("");
@@ -27,6 +30,12 @@ export const AddCourse: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState(false);
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(coursesListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, coursesListPath]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +66,10 @@ export const AddCourse: React.FC = () => {
       setSubmitting(false);
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto animate-in fade-in duration-300">

@@ -184,24 +184,155 @@ describe("item-level grant round-trip", () => {
     assert.ok(!permissions.includes(itemShowPermission("leads.new")));
   });
 
-  test("Read-only does not include write permissions; Edit includes item.*.write", () => {
+  test("Read-only Batch Management excludes batch.create/update", () => {
     const readOnly = resolveItemAccessToPermissions(
-      { "admin.organization": { show: true, editable: false } },
+      { "batches.all": { show: true, editable: false } },
       "CENTER_MANAGER"
     );
-    assert.ok(readOnly.includes(itemShowPermission("admin.organization")));
-    assert.ok(readOnly.includes("institute.read"));
-    assert.ok(!readOnly.includes(itemWritePermission("admin.organization")));
-    assert.ok(!readOnly.includes("institute.update"));
+    assert.ok(readOnly.includes(itemShowPermission("batches.all")));
+    assert.ok(readOnly.includes("batch.read"));
+    assert.ok(!readOnly.includes(itemWritePermission("batches.all")));
+    assert.ok(!readOnly.includes("batch.create"));
+    assert.ok(!readOnly.includes("batch.update"));
 
-    const editable = resolveItemAccessToPermissions(
-      { "admin.organization": { show: true, editable: true } },
-      "CENTER_MANAGER"
+    const access = permissionsToItemAccess(readOnly, "CENTER_MANAGER");
+    assert.strictEqual(access["batches.all"]?.show, true);
+    assert.strictEqual(access["batches.all"]?.editable, false);
+  });
+});
+
+const COUNSELLOR_NAV_ITEM_KEYS = [
+  "leads.all",
+  "leads.ai_calling",
+  "leads.followups",
+  "leads.call_history",
+  "admissions.enquiries",
+  "admissions.applications",
+  "admissions.all",
+  "students.all",
+  "students.documents",
+  "students.student_allocation",
+  "students.attendance",
+  "students.performance",
+  "students.discontinuation",
+  "faculty.all",
+  "faculty.attendance",
+  "faculty.performance",
+  "batches.all",
+  "exams.all",
+  "exams.create",
+  "exams.question_bank",
+  "exams.results",
+  "fees.plans",
+  "fees.student_fees",
+  "fees.payments",
+  "fees.pending",
+  "fees.receipts",
+  "fees.reports",
+  "reports.students",
+  "reports.admissions",
+  "reports.attendance",
+  "reports.faculty",
+  "reports.courses",
+  "reports.examinations",
+  "reports.financial",
+  "targets.all",
+  "targets.leaderboard",
+  "targets.incentives",
+] as const;
+
+const EXCLUDED_FROM_COUNSELLOR_CATALOG = [
+  "counsellor.all",
+  "courses.all",
+  "courses.course_assignment",
+  "schedule.timetable",
+  "assignments.all",
+  "admin.organization",
+  "placement.eligible",
+  "communication.notifications",
+  "leads.new",
+  "admissions.direct",
+  "targets.performance",
+] as const;
+
+describe("COUNSELLOR permission catalog", () => {
+  test("item keys match Admin Dashboard sub-items for Counsellor modules", () => {
+    const keys = getAllCatalogItemKeys("COUNSELLOR");
+    assert.deepStrictEqual([...keys].sort(), [...COUNSELLOR_NAV_ITEM_KEYS].sort());
+    assert.strictEqual(new Set(keys).size, keys.length);
+  });
+
+  test("module labels match Counsellor ERP module titles", () => {
+    const labels = getPermissionCatalog("COUNSELLOR").map((m) => m.label);
+    assert.deepStrictEqual(labels, [
+      "Lead Management",
+      "Admission Management",
+      "Student Management",
+      "Faculty Management",
+      "Batch Management",
+      "Examination Management",
+      "Fee Management",
+      "Report Management",
+      "Target & Incentive",
+    ]);
+  });
+
+  test("each module’s sub-items match Center Manager / Admin catalog exactly", () => {
+    const cmByKey = new Map(
+      getPermissionCatalog("CENTER_MANAGER").map((m) => [m.key, m])
     );
-    assert.ok(editable.includes(itemShowPermission("admin.organization")));
-    assert.ok(editable.includes(itemWritePermission("admin.organization")));
-    assert.ok(editable.includes("institute.read"));
-    assert.ok(editable.includes("institute.update"));
+    for (const mod of getPermissionCatalog("COUNSELLOR")) {
+      const cm = cmByKey.get(mod.key);
+      assert.ok(cm, `missing CM module ${mod.key}`);
+      assert.deepStrictEqual(
+        mod.items.map((i) => ({
+          key: i.key,
+          label: i.label,
+          readPermissions: i.readPermissions,
+          writePermissions: i.writePermissions,
+        })),
+        cm.items.map((i) => ({
+          key: i.key,
+          label: i.label,
+          readPermissions: i.readPermissions,
+          writePermissions: i.writePermissions,
+        }))
+      );
+    }
+  });
+
+  test("excludes modules/items outside the Counsellor module set", () => {
+    const keys = getAllCatalogItemKeys("COUNSELLOR");
+    for (const excluded of EXCLUDED_FROM_COUNSELLOR_CATALOG) {
+      assert.ok(!keys.includes(excluded), `catalog still contains ${excluded}`);
+    }
+  });
+
+  test("Read-only leads.all excludes write flags and coarse writes", () => {
+    const readOnly = resolveItemAccessToPermissions(
+      { "leads.all": { show: true, editable: false } },
+      "COUNSELLOR"
+    );
+    assert.ok(readOnly.includes(itemShowPermission("leads.all")));
+    assert.ok(readOnly.includes("lead.read"));
+    assert.ok(!readOnly.includes(itemWritePermission("leads.all")));
+    assert.ok(!readOnly.includes("lead.create"));
+
+    const access = permissionsToItemAccess(readOnly, "COUNSELLOR");
+    assert.strictEqual(access["leads.all"]?.show, true);
+    assert.strictEqual(access["leads.all"]?.editable, false);
+  });
+
+  test("Editable batches.all includes batch.create/update and item write", () => {
+    const perms = resolveItemAccessToPermissions(
+      { "batches.all": { show: true, editable: true } },
+      "COUNSELLOR"
+    );
+    assert.ok(perms.includes(itemShowPermission("batches.all")));
+    assert.ok(perms.includes("batch.read"));
+    assert.ok(perms.includes("batch.create"));
+    assert.ok(perms.includes("batch.update"));
+    assert.ok(perms.includes(itemWritePermission("batches.all")));
   });
 });
 

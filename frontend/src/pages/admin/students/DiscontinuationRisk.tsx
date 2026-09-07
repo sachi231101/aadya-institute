@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/services/api";
 import { useBranchStore } from "@/store/branch.store";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const DiscontinuationRisk: React.FC = () => {
   const { selectedBranchId } = useBranchStore();
@@ -168,6 +169,7 @@ export const DiscontinuationRisk: React.FC = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1.5">
+                          <PermissionGate itemKey="students.discontinuation" mode="write">
                           <Button variant="outline" size="sm" className="h-7 text-xs font-bold gap-1 border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer">
                             <MessageSquare size={12} className="text-emerald-500" /> WhatsApp
                           </Button>
@@ -179,6 +181,7 @@ export const DiscontinuationRisk: React.FC = () => {
                               Discontinue
                             </Button>
                           )}
+                          </PermissionGate>
                         </div>
                       </TableCell>
                     </TableRow>

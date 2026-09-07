@@ -259,6 +259,8 @@ export const buildCenterNavPermissionKeys = (): Record<string, string> => {
     "/center/students": "students.all",
     "/center/faculty": "faculty.all",
     "/center/courses": "courses.all",
+    // Nested under /center/courses but belongs to Batch Management (not Course Management)
+    "/center/courses/batches": "batches.all",
     "/center/admissions": "admissions.all",
     "/center/counselor": "counsellor.all",
   };

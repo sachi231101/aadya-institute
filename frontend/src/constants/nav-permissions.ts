@@ -40,8 +40,8 @@ const CENTER_ALWAYS_ALLOWED = [
 const COUNSELOR_ALWAYS_ALLOWED = [
   "/counselor/dashboard",
   "/counselor/home",
-  "/counselor/home",
   "/counselor/settings",
+  "/counselor/notifications",
 ];
 
 /** Create/edit URLs that require Edit, not just Read. */

@@ -90,6 +90,7 @@ router.post(
 // GET /api/v1/attendance/session/:sessionId — Get attendance for a class session
 router.get(
   "/session/:sessionId",
+  requirePermission("attendance.read"),
   requireRole("ADMIN", "CENTER_MANAGER", "FACULTY", "COUNSELLOR"),
   controller.getSessionAttendance
 );

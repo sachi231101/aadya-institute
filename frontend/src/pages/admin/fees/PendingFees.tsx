@@ -286,6 +286,7 @@ export const PendingFees: React.FC = () => {
                             </Button>
                           </PermissionGate>
 
+                          <PermissionGate itemKey="fees.pending" mode="write">
                           <Button
                             size="sm"
                             variant="outline"
@@ -303,6 +304,7 @@ export const PendingFees: React.FC = () => {
                               </>
                             )}
                           </Button>
+                          </PermissionGate>
                         </div>
                       </TableCell>
                     </TableRow>

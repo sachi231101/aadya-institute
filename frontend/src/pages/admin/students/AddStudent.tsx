@@ -10,6 +10,7 @@ import { useBatches } from "../../../hooks/useBatches";
 import { useAuthStore } from "@/store/auth.store";
 import { useBranchStore } from "@/store/branch.store";
 import { usePasswordRequirements } from "@/hooks/usePasswordRequirements";
+import { usePermissions } from "@/hooks/usePermissions";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PasswordRequirementsHint } from "@/components/forms/PasswordRequirementsHint";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
@@ -121,6 +122,7 @@ export const AddStudent: React.FC = () => {
   const createMutation = useCreateStudent();
   const { user } = useAuthStore();
   const { selectedBranchId } = useBranchStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const isCenterManager = user?.role === "CENTER_MANAGER";
   const [showPassword, setShowPassword] = useState(false);
   const { policy } = usePasswordRequirements();
@@ -133,6 +135,14 @@ export const AddStudent: React.FC = () => {
       : location.pathname.startsWith("/faculty")
         ? "/faculty"
         : "/admin";
+  const studentsListPath = `${basePath}/students/all`;
+  const canWrite = isAdmin || !roleScope || canEditItem("students.all");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(studentsListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, studentsListPath]);
 
   const { data: branchResponse } = useBranches();
   const branches = branchResponse?.data ?? [];
@@ -268,6 +278,10 @@ export const AddStudent: React.FC = () => {
       form.setValue("studentCode", preview);
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto pb-12">

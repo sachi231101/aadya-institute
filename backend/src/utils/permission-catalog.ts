@@ -255,105 +255,36 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   },
 ];
 
-/** Counsellor — ERP modules relevant to counsellor portal. */
-const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = [
-  {
-    key: "lead_management",
-    label: "Lead Management",
-    description: "Lead capture, AI calling, and follow-ups",
-    category: "ERP Modules",
-    items: [
-      { key: "leads.all", label: "All Leads", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update", "lead.assign", "lead.convert"] },
-      { key: "leads.new", label: "New Lead", readPermissions: ["lead.read"], writePermissions: ["lead.create"] },
-      { key: "leads.ai_calling", label: "AI Calling", readPermissions: ["ai_call.read"], writePermissions: ["ai_call.create"] },
-      { key: "leads.followups", label: "Follow-ups", readPermissions: ["lead.read"], writePermissions: ["lead.update", "lead.assign"] },
-    ],
-  },
-  {
-    key: "admission_management",
-    label: "Admission Management",
-    description: "Enquiries, applications, and admissions",
-    category: "ERP Modules",
-    items: [
-      { key: "admissions.enquiries", label: "Enquiries", readPermissions: ["lead.read"], writePermissions: ["lead.create", "lead.update"] },
-      { key: "admissions.applications", label: "Admission Applications", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
-      { key: "admissions.all", label: "Admissions", readPermissions: ["admission.read"], writePermissions: ["admission.create", "admission.update"] },
-      { key: "admissions.direct", label: "Direct Admission", readPermissions: ["admission.read"], writePermissions: ["admission.create"] },
-    ],
-  },
-  {
-    key: "student_management",
-    label: "Student Management",
-    description: "Student profiles and attendance",
-    category: "ERP Modules",
-    items: [
-      { key: "students.all", label: "All Students", readPermissions: ["student.read"], writePermissions: ["student.update"] },
-      { key: "students.attendance", label: "Student Attendance", readPermissions: ["attendance.read"], writePermissions: ["attendance.mark"] },
-    ],
-  },
-  {
-    key: "faculty_management",
-    label: "Faculty Management",
-    description: "View faculty and assigned courses",
-    category: "ERP Modules",
-    items: [
-      { key: "faculty.all", label: "All Faculty", readPermissions: ["faculty.read"], writePermissions: [] },
-      { key: "courses.course_assignment", label: "Assign Faculty to Courses", readPermissions: ["faculty.read", "course.read"], writePermissions: [] },
-      { key: "faculty.attendance", label: "Faculty Attendance", readPermissions: ["attendance.read"], writePermissions: [] },
-    ],
-  },
-  {
-    key: "batch_management",
-    label: "Batch Management",
-    description: "Batches and class timetable",
-    category: "ERP Modules",
-    items: [
-      { key: "batches.all", label: "All Batches", readPermissions: ["batch.read"], writePermissions: [] },
-      { key: "schedule.timetable", label: "Class Timetable", readPermissions: ["schedule.read"], writePermissions: [] },
-    ],
-  },
-  {
-    key: "examination_management",
-    label: "Examination Management",
-    description: "View examinations and schedules",
-    category: "ERP Modules",
-    items: [
-      { key: "exams.all", label: "All Examinations", readPermissions: ["exam.read"], writePermissions: [] },
-    ],
-  },
-  {
-    key: "fee_management",
-    label: "Fee Management",
-    description: "Payments and pending fees",
-    category: "ERP Modules",
-    items: [
-      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
-      { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: [] },
-      { key: "fees.reports", label: "Fee Collection Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
-    ],
-  },
-  {
-    key: "report_management",
-    label: "Report Management",
-    description: "Student, faculty, course, and finance reports",
-    category: "ERP Modules",
-    items: [
-      { key: "reports.students", label: "Student Reports", readPermissions: ["report.read"], writePermissions: [] },
-      { key: "reports.faculty", label: "Faculty Reports", readPermissions: ["report.read"], writePermissions: [] },
-      { key: "reports.courses", label: "Course Reports", readPermissions: ["report.read"], writePermissions: [] },
-      { key: "reports.financial", label: "Revenue & Finance Reports", readPermissions: ["report.read"], writePermissions: [] },
-    ],
-  },
-  {
-    key: "target_incentive",
-    label: "Target & Incentive",
-    description: "Personal targets and rewards",
-    category: "ERP Modules",
-    items: [
-      { key: "targets.performance", label: "My Targets & Rewards", readPermissions: ["target.read", "incentive.read"], writePermissions: [] },
-    ],
-  },
-];
+/**
+ * Counsellor — same modules as the focused counsellor portal, but each module’s
+ * sub-items (labels, keys, read/write) are an exact slice of Admin/CM catalog.
+ */
+const COUNSELLOR_MODULE_ORDER = [
+  "lead_management",
+  "admission_management",
+  "student_management",
+  "faculty_management",
+  "batch_management",
+  "examination_management",
+  "fee_management",
+  "report_management",
+  "target_incentive",
+] as const;
+
+const COUNSELLOR_CATALOG: PermissionModuleDefinition[] = COUNSELLOR_MODULE_ORDER.map((key) => {
+  const mod = CENTER_MANAGER_CATALOG.find((m) => m.key === key);
+  if (!mod) {
+    throw new Error(`COUNSELLOR catalog missing CM module: ${key}`);
+  }
+  return {
+    ...mod,
+    items: mod.items.map((item) => ({
+      ...item,
+      readPermissions: [...item.readPermissions],
+      writePermissions: [...item.writePermissions],
+    })),
+  };
+});
 
 export const getPermissionCatalog = (role: PermissionRoleScope): PermissionModuleDefinition[] => {
   return role === "COUNSELLOR" ? COUNSELLOR_CATALOG : CENTER_MANAGER_CATALOG;
@@ -379,6 +310,22 @@ export const getCatalogItemPermissionNames = (): string[] => {
   return Array.from(names);
 };
 
+/** All coarse + item permission names referenced by either staff catalog (for seed / assign). */
+export const getAllCatalogPermissionNames = (): string[] => {
+  const names = new Set<string>(ALWAYS_ON_PERMISSIONS);
+  for (const role of ["CENTER_MANAGER", "COUNSELLOR"] as const) {
+    for (const mod of getPermissionCatalog(role)) {
+      for (const item of mod.items) {
+        names.add(itemShowPermission(item.key));
+        names.add(itemWritePermission(item.key));
+        for (const p of item.readPermissions) names.add(p);
+        for (const p of item.writePermissions) names.add(p);
+      }
+    }
+  }
+  return Array.from(names);
+};
+
 export interface ItemAccessState {
   show: boolean;
   editable: boolean;
@@ -397,7 +344,8 @@ export const resolveItemAccessToPermissions = (
       if (!access?.show) continue;
       permissionSet.add(itemShowPermission(item.key));
       for (const p of item.readPermissions) permissionSet.add(p);
-      if (access.editable) {
+      // View-only catalog items (empty writePermissions) never get Edit grants
+      if (access.editable && item.writePermissions.length > 0) {
         permissionSet.add(itemWritePermission(item.key));
         for (const p of item.writePermissions) permissionSet.add(p);
       }

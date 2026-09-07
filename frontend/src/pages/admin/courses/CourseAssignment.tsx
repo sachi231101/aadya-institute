@@ -436,7 +436,7 @@ export const CourseAssignment: React.FC = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(isFacultyOnly ? `/faculty/batches` : `${basePath}/courses/batches`)}
+                    onClick={() => navigate(isFacultyOnly ? `/faculty/batches` : `${basePath}/batches`)}
                     className="flex-1 text-xs font-bold h-8.5 rounded-xl border-border bg-card text-foreground hover:bg-muted/40 cursor-pointer shadow-2xs"
                   >
                     View Batch

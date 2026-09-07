@@ -40,10 +40,25 @@ export const useAuthStore = create<AuthStore>((set) => ({
   },
   updateUser: (data) => {
     set((state) => {
-      const updatedUser = state.user ? { ...state.user, ...data } : null;
-      if (updatedUser) {
-        localStorage.setItem("user", JSON.stringify(updatedUser));
-      }
+      if (!state.user) return { user: null };
+      const updatedUser = {
+        ...state.user,
+        ...data,
+        // Always keep a primary role for portal routing after /auth/me sync
+        role:
+          (data as User).role ||
+          state.user.role ||
+          (data.roles?.[0] ?? state.user.roles?.[0] ?? ""),
+        roles: data.roles?.length ? data.roles : state.user.roles,
+        // Replace permissions array entirely when provided (do not shallow-merge)
+        permissions:
+          data.permissions !== undefined ? data.permissions : state.user.permissions,
+        modulePermissions:
+          data.modulePermissions !== undefined
+            ? data.modulePermissions
+            : state.user.modulePermissions,
+      };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
       return { user: updatedUser };
     });
   },

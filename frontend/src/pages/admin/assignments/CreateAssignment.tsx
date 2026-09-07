@@ -26,6 +26,7 @@ import {
 } from "@/components/assignments/AssignmentTargetLinesEditor";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { useAuthStore } from "@/store/auth.store";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -64,9 +65,16 @@ export const CreateAssignment: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const basePath = getPortalBasePath(location.pathname);
   const assignmentsBase = `${basePath}/assignments`;
   const isFacultyPortal = basePath === "/faculty";
+  const canCreate =
+    isAdmin ||
+    isFacultyPortal ||
+    !roleScope ||
+    canEditItem("assignments.create") ||
+    canEditItem("assignments.all");
   const ownFacultyId = user?.facultyId || undefined;
   const createMutation = useCreateAssignment();
   const uploadAttachment = useUploadAssignmentAttachment();
@@ -77,6 +85,12 @@ export const CreateAssignment: React.FC = () => {
   const [limitStudents, setLimitStudents] = useState(false);
   const [studentPickerOpen, setStudentPickerOpen] = useState(false);
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!canCreate) {
+      navigate(assignmentsBase, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canCreate, navigate, assignmentsBase]);
 
   const {
     register,
@@ -194,6 +208,10 @@ export const CreateAssignment: React.FC = () => {
       );
     }
   };
+
+  if (!canCreate) {
+    return null;
+  }
 
   return (
     <div className="w-full p-4 sm:p-6 lg:p-8 space-y-6 pb-16">

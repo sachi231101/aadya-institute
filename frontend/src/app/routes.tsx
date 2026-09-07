@@ -1,5 +1,5 @@
 import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Login } from "../pages/auth/Login";
 import { AcceptInvite } from "../pages/auth/AcceptInvite";
 
@@ -24,14 +24,12 @@ import { AllFaculty } from "../pages/admin/faculty/AllFaculty";
 import { AddFaculty } from "../pages/admin/faculty/AddFaculty";
 import { EditFaculty } from "../pages/admin/faculty/EditFaculty";
 import { FacultyDetails } from "../pages/admin/faculty/FacultyDetails";
-import { FacultyTimetable } from "../pages/admin/faculty/FacultyTimetable";
 import { FacultyAttendance } from "../pages/admin/faculty/FacultyAttendance";
 import { FacultyRatings } from "../pages/admin/faculty/FacultyRatings";
 import { AllCourses } from "../pages/admin/courses/AllCourses";
 import { AddCourse } from "../pages/admin/courses/AddCourse";
 import { EditCourse } from "../pages/admin/courses/EditCourse";
 import { CourseAssignment } from "../pages/admin/courses/CourseAssignment";
-import { Batches } from "../pages/admin/courses/Batches";
 import { Curriculum } from "../pages/admin/courses/Curriculum";
 import { UsersManagement } from "../pages/admin/administration/UsersManagement";
 import { ViewAdmin } from "../pages/admin/administration/ViewAdmin";
@@ -89,7 +87,6 @@ import { PlacementExport } from "../pages/admin/reports/PlacementExport";
 import { TargetManagement } from "../pages/admin/targets/TargetManagement";
 import { TargetPerformance } from "../pages/admin/targets/TargetPerformance";
 import { IncentiveManagement } from "../pages/admin/targets/IncentiveManagement";
-import { CounselorPerformance } from "../pages/counselor/CounselorPerformance";
 import { CallHistory } from "../pages/admin/leads/CallHistory";
 import { StudentDocuments } from "../pages/admin/students/StudentDocuments";
 import { StudentAllocation } from "../pages/admin/students/StudentAllocation";
@@ -146,6 +143,12 @@ import { CounselorDashboard } from "../pages/counselor/Dashboard";
 import { FacultyDashboard } from "../pages/faculty/Dashboard";
 import { StudentDashboard } from "../pages/student/Dashboard";
 import { StudentAttendance as PortalStudentAttendance } from "../pages/student/Attendance";
+
+/** Redirect while preserving query string (e.g. courseId on batches). */
+const RedirectPreserveSearch: React.FC<{ to: string }> = ({ to }) => {
+  const { search } = useLocation();
+  return <Navigate to={`${to}${search}`} replace />;
+};
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -264,7 +267,10 @@ export const AppRoutes: React.FC = () => {
           <Route path="all" element={<AllCourses />} />
           <Route path="add" element={<AddCourse />} />
           <Route path=":id/edit" element={<EditCourse />} />
-          <Route path="batches" element={<Batches />} />
+          <Route
+            path="batches"
+            element={<RedirectPreserveSearch to="/center/batches" />}
+          />
           <Route path="curriculum" element={<Curriculum />} />
           <Route path="modules" element={<Navigate to="/center/courses/curriculum" replace />} />
           <Route path="course-assignment" element={<CourseAssignment />} />
@@ -343,14 +349,13 @@ export const AppRoutes: React.FC = () => {
         </Route>
       </Route>
 
-      {/* Counselor Routes */}
+      {/* Counselor Routes — modules match Counsellor catalog; sub-items match Admin Dashboard */}
       <Route path="/counselor" element={<CounselorLayout />}>
         <Route index element={<Navigate to="home" replace />} />
         <Route path="home" element={<AiHome />} />
         <Route path="dashboard" element={<CounselorDashboard />} />
         <Route path="ask-me" element={<Navigate to="/counselor/home" replace />} />
 
-        {/* Admissions / Leads */}
         <Route path="admissions">
           <Route path="all" element={<AllAdmissions />} />
           <Route path="direct-entry" element={<DirectAdmissionEntry />} />
@@ -358,21 +363,22 @@ export const AppRoutes: React.FC = () => {
           <Route path="enquiries" element={<Enquiries />} />
         </Route>
 
-        {/* Students */}
         <Route path="students">
           <Route path="all" element={<AllStudents />} />
-          <Route path="add" element={<AddStudent />} />
+          <Route path="add" element={<Navigate to="/counselor/students/all" replace />} />
           <Route path=":id" element={<StudentDetails />} />
           <Route path=":id/edit" element={<EditStudent />} />
+          <Route path="documents" element={<StudentDocuments />} />
+          <Route path="student-allocation" element={<StudentAllocation />} />
           <Route path="attendance" element={<StudentAttendance />} />
           <Route path="performance" element={<StudentPerformance />} />
+          <Route path="discontinuation-risk" element={<DiscontinuationRisk />} />
         </Route>
 
-        {/* Faculty & Timetable */}
         <Route path="faculty">
           <Route path="all" element={<AllFaculty />} />
-          <Route path="add" element={<AddFaculty />} />
-          <Route path=":id/edit" element={<EditFaculty />} />
+          <Route path="add" element={<Navigate to="/counselor/faculty/all" replace />} />
+          <Route path=":id/edit" element={<Navigate to="/counselor/faculty/all" replace />} />
           <Route path=":id" element={<FacultyDetails />} />
           <Route path="courses" element={<CourseAssignment />} />
           <Route path="attendance" element={<FacultyAttendance />} />
@@ -380,49 +386,60 @@ export const AppRoutes: React.FC = () => {
           <Route path="ratings" element={<FacultyRatings />} />
         </Route>
 
-        {/* Batches & Schedules */}
         <Route path="batches" element={<CounsellorBatches />} />
-        <Route path="timetable" element={<Timetable />} />
+        <Route path="timetable" element={<Navigate to="/counselor/batches" replace />} />
 
-        {/* Fees */}
         <Route path="fees">
+          <Route path="plans" element={<FeePlans />} />
+          <Route path="student-fees" element={<StudentFees />} />
           <Route path="payments" element={<Payments />} />
           <Route path="pending" element={<PendingFees />} />
+          <Route path="receipts" element={<Receipts />} />
           <Route path="reports" element={<FeeReports />} />
         </Route>
 
-        {/* Reports */}
         <Route path="reports">
           <Route path="students" element={<StudentReports />} />
+          <Route path="admissions" element={<AdmissionReports />} />
+          <Route path="attendance" element={<AttendanceReports />} />
           <Route path="faculty" element={<FacultyReports />} />
           <Route path="courses" element={<CourseReports />} />
+          <Route path="examinations" element={<ExaminationReports />} />
           <Route path="financial" element={<FinancialReports />} />
         </Route>
 
-        {/* Settings & Notifications */}
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
 
-        {/* Phase 1 — Leads & AI Calling */}
         <Route path="leads">
           <Route index element={<AllLeadsList />} />
           <Route path="all" element={<AllLeadsList />} />
           <Route path="enquiries" element={<Enquiries />} />
           <Route path="ai-calling" element={<AiCallingQualification />} />
           <Route path="follow-ups" element={<FollowUps />} />
+          <Route path="call-history" element={<CallHistory />} />
           <Route path="add" element={<AddLead />} />
           <Route path=":id" element={<LeadDetails />} />
         </Route>
 
-        {/* Personal Performance & Target Rewards */}
-        <Route path="performance" element={<CounselorPerformance />} />
-        <Route path="targets" element={<CounselorPerformance />} />
+        <Route path="targets" element={<TargetManagement />} />
+        <Route path="targets/leaderboard" element={<TargetPerformance />} />
+        <Route path="incentives" element={<IncentiveManagement />} />
+        <Route path="performance" element={<Navigate to="/counselor/targets" replace />} />
 
-        {/* Examination Management (view-only for counsellors) */}
         <Route path="exams">
           <Route index element={<ExamManagement />} />
           <Route path="all" element={<ExamManagement />} />
+          <Route path="create" element={<CreateExam />} />
+          <Route path="question-bank" element={<QuestionBank />} />
+          <Route path="results" element={<ExamResults />} />
+          <Route path="questions/create" element={<CreateQuestion />} />
+          <Route path="questions/:id/edit" element={<EditQuestion />} />
           <Route path=":id" element={<ExamDetails />} />
+          <Route path=":id/edit" element={<EditExam />} />
+          <Route path=":id/attempts" element={<ExamAttempts />} />
+          <Route path="attempts/:attemptId/proctoring" element={<AttemptProctoringDetails />} />
+          <Route path="attempts/:attemptId/grade" element={<ExamManualGrading />} />
         </Route>
       </Route>
 

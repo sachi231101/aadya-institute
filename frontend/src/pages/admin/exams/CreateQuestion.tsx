@@ -17,6 +17,7 @@ import {
 import { useCreateBulkQuestions } from "@/hooks/useQuestions";
 import { useQuestionBanks } from "@/hooks/useQuestionBanks";
 import { useCourses } from "@/hooks/useCourses";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -89,7 +90,10 @@ export const CreateQuestion: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const questionBankPath = `${basePath}/question-bank`;
+  const canWrite = isAdmin || !roleScope || canEditItem("exams.question_bank");
   const createBulkQuestionsMutation = useCreateBulkQuestions();
 
   const { courses } = useCourses();
@@ -111,6 +115,12 @@ export const CreateQuestion: React.FC = () => {
 
   const [validationError, setValidationError] = useState<string | null>(null);
   const questionsEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(questionBankPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, questionBankPath]);
 
   useEffect(() => {
     if (preselectedBankId) {
@@ -339,6 +349,10 @@ export const CreateQuestion: React.FC = () => {
       );
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto pb-24">

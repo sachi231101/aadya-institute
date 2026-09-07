@@ -42,6 +42,10 @@ import {
   type ItemAccessState,
   type PermissionModuleDefinition,
 } from "@/utils/permission-utils";
+import {
+  COUNSELOR_ITEM_READ_PERMISSIONS,
+  COUNSELOR_ITEM_WRITE_PERMISSIONS,
+} from "@/constants/counselor-item-permissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -95,7 +99,9 @@ export const AllCounsellors: React.FC = () => {
   const { user } = useAuthStore();
   const { canEditItem } = usePermissions();
   const canEditCounsellors = canEditItem("counsellor.all");
-  const isCenterManager = user?.role === "CENTER_MANAGER";
+  const isCenterManager =
+    user?.role === "CENTER_MANAGER" ||
+    Boolean(user?.roles?.includes("CENTER_MANAGER"));
   const userBranchId = user?.branchId;
 
   const { data: branchesResponse } = useBranches({ limit: 100 });
@@ -184,15 +190,20 @@ export const AllCounsellors: React.FC = () => {
   const [editStatus, setEditStatus] = useState<CounselorStatus>("ACTIVE");
   const [editItemAccess, setEditItemAccess] = useState<Record<string, ItemAccessState>>({});
   const [editPermissions, setEditPermissions] = useState<string[] | null>(null);
+  const [editMatrixHydrated, setEditMatrixHydrated] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!editCounselor || catalog.length === 0) return;
-    if (editPermissions) {
-      setEditItemAccess(permissionsToAccessState(editPermissions, catalog));
-    } else {
-      setEditItemAccess(createDefaultAccessState(catalog));
+    if (!editCounselor) {
+      setEditMatrixHydrated(false);
+      return;
     }
-  }, [editCounselor, catalog, editPermissions]);
+    // Hydrate matrix once per open once permissions + catalog are ready
+    if (editMatrixHydrated || catalog.length === 0 || editPermissions === null) return;
+    setEditItemAccess(permissionsToAccessState(editPermissions, catalog));
+    setEditMatrixHydrated(true);
+  }, [editCounselor, catalog, editPermissions, editMatrixHydrated]);
 
   // Delete Modal State
   const [deleteCounselorId, setDeleteCounselorId] = useState<string | null>(null);
@@ -226,6 +237,11 @@ export const AllCounsellors: React.FC = () => {
   const totalLeads = branchCounselors.reduce((acc, c) => acc + c.assignedLeadsCount, 0);
   const totalConverted = branchCounselors.reduce((acc, c) => acc + c.convertedLeadsCount, 0);
 
+  const counselorPermissionMaps = {
+    read: COUNSELOR_ITEM_READ_PERMISSIONS,
+    write: COUNSELOR_ITEM_WRITE_PERMISSIONS,
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email || !phone) return;
@@ -240,7 +256,22 @@ export const AllCounsellors: React.FC = () => {
     }
 
     try {
-      const permissions = buildPermissionsFromAccess(createItemAccess, catalog);
+      const permissions = buildPermissionsFromAccess(
+        createItemAccess,
+        catalog,
+        counselorPermissionMaps
+      );
+      const grantedModules = Object.values(createItemAccess).some((a) => a?.show);
+      if (
+        grantedModules &&
+        !permissions.some((p) => p.startsWith("item.") && !p.endsWith(".write"))
+      ) {
+        setCreateError(
+          "Permissions could not be built from the matrix. Wait for the catalog to load, click Grant all again, then save."
+        );
+        setIsSubmitting(false);
+        return;
+      }
       await createUserMutation.mutateAsync({
         name,
         email,
@@ -288,12 +319,14 @@ export const AllCounsellors: React.FC = () => {
     setEditPhone(c.phone);
     setEditBranchId(c.branchId);
     setEditStatus(c.status === "BLOCKED" ? "INACTIVE" : c.status);
-    setEditItemAccess({});
+    setEditItemAccess(catalog.length > 0 ? createDefaultAccessState(catalog) : {});
     setEditPermissions(null);
+    setEditMatrixHydrated(false);
+    setEditError(null);
 
     try {
       const res = await usersApi.getUserById(c.id);
-      if (res.success && res.data?.permissions?.length) {
+      if (res.success && res.data?.permissions) {
         setEditPermissions(res.data.permissions);
       } else {
         setEditPermissions([]);
@@ -307,13 +340,47 @@ export const AllCounsellors: React.FC = () => {
     e.preventDefault();
     if (!editCounselor || !editName || !editEmail) return;
 
+    if (catalog.length === 0 || !editMatrixHydrated) {
+      setEditError("Permission catalog is still loading. Please wait and try again.");
+      return;
+    }
+
+    const permissionsSnapshot = buildPermissionsFromAccess(
+      editItemAccess,
+      catalog,
+      counselorPermissionMaps
+    );
+    const grantedModules = Object.values(editItemAccess).some((a) => a?.show);
+    if (
+      grantedModules &&
+      !permissionsSnapshot.some((p) => p.startsWith("item.") && !p.endsWith(".write"))
+    ) {
+      setEditError(
+        "Permissions could not be built from the matrix. Wait for the catalog to load, click Grant all again, then save."
+      );
+      return;
+    }
+
+    setEditError(null);
+    setIsEditSubmitting(true);
+
+    const phoneDigits = editPhone.replace(/\D/g, "");
+    const normalizedPhone =
+      phoneDigits.length >= 10 ? phoneDigits.slice(-10) : editPhone.trim() || undefined;
+
     try {
+      // Permissions first — profile validation must not skip grant updates
+      await updatePermissionsMutation.mutateAsync({
+        id: editCounselor.id,
+        data: { permissions: permissionsSnapshot },
+      });
+
       await updateUserMutation.mutateAsync({
         id: editCounselor.id,
         data: {
           name: editName,
           email: editEmail,
-          phone: editPhone,
+          phone: normalizedPhone,
           branchId: editBranchId,
         },
       });
@@ -327,17 +394,19 @@ export const AllCounsellors: React.FC = () => {
         });
       }
 
-      const permissions = buildPermissionsFromAccess(editItemAccess, catalog);
-      await updatePermissionsMutation.mutateAsync({
-        id: editCounselor.id,
-        data: { permissions },
-      });
-
       await refetchCounsellors();
       setEditCounselor(null);
       setEditPermissions(null);
-    } catch {
-      // Keep modal open on failure
+      setEditMatrixHydrated(false);
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      setEditError(
+        apiErr.response?.data?.message ||
+          apiErr.message ||
+          "Failed to update counsellor permissions."
+      );
+    } finally {
+      setIsEditSubmitting(false);
     }
   };
 
@@ -720,6 +789,7 @@ export const AllCounsellors: React.FC = () => {
                   role="COUNSELLOR"
                   value={createItemAccess}
                   onChange={setCreateItemAccess}
+                  catalog={catalog}
                   disabled={isSubmitting}
                 />
               </div>
@@ -853,17 +923,33 @@ export const AllCounsellors: React.FC = () => {
                   role="COUNSELLOR"
                   value={editItemAccess}
                   onChange={setEditItemAccess}
+                  catalog={catalog}
+                  disabled={isEditSubmitting || !editMatrixHydrated}
                 />
               </div>
+
+              {editError && (
+                <p className="text-sm text-rose-600 font-medium">{editError}</p>
+              )}
             </div>
 
             <DialogFooter className="px-6 py-3.5 border-t border-slate-100 bg-slate-50/80 shrink-0 flex items-center justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setEditCounselor(null)}>
+              <Button type="button" variant="outline" onClick={() => setEditCounselor(null)} disabled={isEditSubmitting}>
                 Cancel
               </Button>
               <PermissionGate itemKey="counsellor.all" mode="write">
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold">
-                  Save Changes
+                <Button
+                  type="submit"
+                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold"
+                  disabled={isEditSubmitting || !editMatrixHydrated}
+                >
+                  {isEditSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Save Changes"
+                  )}
                 </Button>
               </PermissionGate>
             </DialogFooter>

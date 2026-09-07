@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useFacultyMember, useUpdateFaculty } from "../../../hooks/useFaculty";
 import { MasterSelect } from "@/components/common/MasterSelect";
+import { usePermissions } from "@/hooks/usePermissions";
 
 import {
   Form,
@@ -36,6 +37,7 @@ export const EditFaculty: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const updateMutation = useUpdateFaculty();
   const { data: facultyResponse, isLoading, isError } = useFacultyMember(id);
 
@@ -44,6 +46,14 @@ export const EditFaculty: React.FC = () => {
     : location.pathname.startsWith("/center")
     ? "/center"
     : "/admin";
+  const facultyListPath = `${basePath}/faculty/all`;
+  const canWrite = isAdmin || !roleScope || canEditItem("faculty.all");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(facultyListPath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, facultyListPath]);
 
   const faculty = facultyResponse?.data;
 
@@ -94,6 +104,10 @@ export const EditFaculty: React.FC = () => {
       form.setError("root", { message });
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   if (isLoading) {
     return (

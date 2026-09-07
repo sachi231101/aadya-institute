@@ -71,6 +71,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { usePermissions } from "@/hooks/usePermissions";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 interface StudentItem {
   id: string;
@@ -163,6 +165,8 @@ const getBatchEnrolledStudentIds = (batch: BatchData): string[] => {
 export const CounsellorBatches: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { canEditItem } = usePermissions();
+  const canEditBatches = canEditItem("batches.all");
 
   // Search & Filter State
   const [studentSearch, setStudentSearch] = useState<string>("");
@@ -611,6 +615,7 @@ export const CounsellorBatches: React.FC = () => {
                 <Badge className="bg-blue-50 text-[#1769AA] hover:bg-blue-50 border-blue-200 font-bold text-xs px-2.5 py-0.5">
                   {allStudentsList.length} Students
                 </Badge>
+                <PermissionGate itemKey="batches.all" mode="write">
                 <Button
                   size="sm"
                   variant="outline"
@@ -620,6 +625,7 @@ export const CounsellorBatches: React.FC = () => {
                   <Plus className="w-3 h-3" />
                   <span>+ New Student</span>
                 </Button>
+                </PermissionGate>
               </div>
             </div>
 
@@ -661,8 +667,10 @@ export const CounsellorBatches: React.FC = () => {
                   return (
                     <div
                       key={student.id}
-                      onClick={() => toggleStudent(student.id)}
-                      className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
+                      onClick={() => canEditBatches && toggleStudent(student.id)}
+                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                        canEditBatches ? "cursor-pointer" : "cursor-default"
+                      } ${isSelected
                           ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
                           : "bg-white border-slate-200/80 hover:bg-slate-50/70"
                         }`}
@@ -703,6 +711,7 @@ export const CounsellorBatches: React.FC = () => {
                       </div>
 
                       {/* Action Button */}
+                      {canEditBatches && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -716,6 +725,7 @@ export const CounsellorBatches: React.FC = () => {
                       >
                         {isSelected ? "Selected" : "+ Add"}
                       </button>
+                      )}
                     </div>
                   );
                 })
@@ -770,8 +780,10 @@ export const CounsellorBatches: React.FC = () => {
                 return (
                   <div
                     key={faculty.id}
-                    onClick={() => handleSelectFaculty(faculty)}
-                    className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${isSelected
+                    onClick={() => canEditBatches && handleSelectFaculty(faculty)}
+                    className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-3 ${
+                      canEditBatches ? "cursor-pointer" : "cursor-default"
+                    } ${isSelected
                         ? "bg-blue-50/50 border-[#1769AA]/40 shadow-xs"
                         : "bg-white border-slate-200/80 hover:bg-slate-50/70"
                       }`}
@@ -813,6 +825,7 @@ export const CounsellorBatches: React.FC = () => {
                       </span>
 
                       {/* Select Action */}
+                      {canEditBatches && (
                       <button
                         type="button"
                         onClick={(e) => {
@@ -826,6 +839,7 @@ export const CounsellorBatches: React.FC = () => {
                       >
                         {isSelected ? "✓ Selected" : "Select"}
                       </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -849,7 +863,7 @@ export const CounsellorBatches: React.FC = () => {
               </Badge>
             </div>
 
-            {(selectedStudentIds.length > 0 || selectedFaculty !== null) && (
+            {canEditBatches && (selectedStudentIds.length > 0 || selectedFaculty !== null) && (
               <button
                 onClick={handleClearAll}
                 className="text-xs font-bold text-slate-500 hover:text-rose-600 flex items-center gap-1.5 cursor-pointer self-start sm:self-center transition-colors"
@@ -1092,6 +1106,8 @@ export const CounsellorBatches: React.FC = () => {
                               <span>View</span>
                             </Button>
 
+                            {canEditBatches && (
+                            <>
                             <Button
                               size="sm"
                               variant="outline"
@@ -1110,6 +1126,8 @@ export const CounsellorBatches: React.FC = () => {
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
+                            </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1156,6 +1174,7 @@ export const CounsellorBatches: React.FC = () => {
       </Card>
 
       {/* ─── 5. STICKY BOTTOM ACTION BAR ─────────────────────────────────── */}
+      {canEditBatches && (
       <div className="sticky bottom-4 z-20 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-2 text-xs font-medium text-slate-600">
           <Info className="w-4 h-4 text-[#1769AA] shrink-0" />
@@ -1171,6 +1190,7 @@ export const CounsellorBatches: React.FC = () => {
           <ArrowRight className="w-4 h-4" />
         </Button>
       </div>
+      )}
 
       {/* ─── 6. CREATE / ASSIGN BATCH MODAL ───────────────────────────────── */}
       <Dialog open={showAssignModal} onOpenChange={setShowAssignModal}>

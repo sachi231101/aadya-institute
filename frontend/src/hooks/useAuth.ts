@@ -75,7 +75,19 @@ export const useCurrentUserSync = () => {
     queryFn: async () => {
       const freshUser = await authApi.getCurrentUser();
       if (freshUser) {
-        updateUser(freshUser);
+        const roles = Array.isArray(freshUser.roles) ? freshUser.roles : [];
+        const primaryRole =
+          (freshUser as { role?: string }).role ||
+          roles.find((r) =>
+            ["ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"].includes(r)
+          ) ||
+          roles[0] ||
+          "";
+        updateUser({
+          ...freshUser,
+          role: primaryRole,
+          roles,
+        });
       }
       return freshUser;
     },

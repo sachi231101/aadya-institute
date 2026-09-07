@@ -142,3 +142,40 @@ export const requireAnyPermission = (...permissions: string[]) => {
   };
 };
 
+/**
+ * Require a permission for CM/Counsellor UserPermission model, but allow listed
+ * roles (e.g. FACULTY) to pass without that UserPermission row.
+ */
+export const requirePermissionUnlessRoles = (
+  permission: string,
+  ...bypassRoles: string[]
+) => {
+  const bypass = bypassRoles.map((r) => r.toUpperCase());
+  return async (
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction
+  ): Promise<void> => {
+    const rawRoles = req.user?.roles ?? [];
+    const userRoles = rawRoles.map((r: string) => r.toUpperCase());
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      sendError(res, "Unauthorized", 401);
+      return;
+    }
+
+    if (userRoles.includes("ADMIN") || userRoles.includes("SUPER_ADMIN")) {
+      next();
+      return;
+    }
+
+    if (userRoles.some((r) => bypass.includes(r))) {
+      next();
+      return;
+    }
+
+    return requirePermission(permission)(req, res, next);
+  };
+};
+

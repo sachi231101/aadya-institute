@@ -151,13 +151,17 @@ const ManagerCard = ({
                   <DropdownMenuItem onClick={() => onAction(manager.id, "resetPassword")}>
                     <Key className="h-4 w-4 mr-2" /> Reset Password
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    className="text-red-600 focus:text-red-600"
-                    onClick={() => onAction(manager.id, "delete")}
-                  >
-                    <Trash2 className="h-4 w-4 mr-2" /> Delete
-                  </DropdownMenuItem>
+                  {!manager.roles?.includes("ADMIN") && manager.email !== "admin@aadya.in" && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        className="text-red-600 focus:text-red-600 cursor-pointer"
+                        onClick={() => onAction(manager.id, "delete")}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Delete
+                      </DropdownMenuItem>
+                    </>
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>

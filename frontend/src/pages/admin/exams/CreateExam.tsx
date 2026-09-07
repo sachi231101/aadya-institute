@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,7 @@ import {
 import { useCreateExam } from "@/hooks/useExams";
 import { useCourses } from "@/hooks/useCourses";
 import { useBranches } from "@/hooks/useBranches";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -63,7 +64,13 @@ type CreateExamFormValues = z.infer<typeof createExamSchema>;
 export const CreateExam: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem, isAdmin, roleScope } = usePermissions();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const canWrite =
+    isAdmin ||
+    !roleScope ||
+    canEditItem("exams.create") ||
+    canEditItem("exams.all");
   const createExamMutation = useCreateExam();
   const { courses } = useCourses();
   const { data: branchesResponse } = useBranches();
@@ -71,6 +78,12 @@ export const CreateExam: React.FC = () => {
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [examTermMasterId, setExamTermMasterId] = useState("");
+
+  useEffect(() => {
+    if (!canWrite) {
+      navigate(basePath, { replace: true, state: { accessDenied: true, readOnly: true } });
+    }
+  }, [canWrite, navigate, basePath]);
 
   const form = useForm<CreateExamFormValues>({
     resolver: zodResolver(createExamSchema) as any,
@@ -117,6 +130,10 @@ export const CreateExam: React.FC = () => {
       // Error handled by mutation hook
     }
   };
+
+  if (!canWrite) {
+    return null;
+  }
 
   return (
     <div className="p-6 space-y-6 max-w-5xl mx-auto">

@@ -41,6 +41,8 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const PAGE_SIZE = 20;
 
@@ -48,6 +50,8 @@ export const QuestionBank: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = location.pathname.startsWith("/center") ? "/center/exams" : "/admin/exams";
+  const { canEditItem } = usePermissions();
+  const canEditQuestionBank = canEditItem("exams.question_bank");
   const [searchTerm, setSearchTerm] = useState("");
   const [typeFilter, setTypeFilter] = useState("ALL");
   const [difficultyFilter, setDifficultyFilter] = useState("ALL");
@@ -157,6 +161,7 @@ export const QuestionBank: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
+          <PermissionGate itemKey="exams.question_bank" mode="write">
           <Button
             variant="outline"
             className="gap-2"
@@ -173,6 +178,7 @@ export const QuestionBank: React.FC = () => {
             <Plus className="h-4 w-4" />
             Create Question
           </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -254,6 +260,7 @@ export const QuestionBank: React.FC = () => {
                 </span>
               </div>
               <div className="flex items-center gap-2">
+                {canEditQuestionBank && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -263,6 +270,7 @@ export const QuestionBank: React.FC = () => {
                   <Plus className="h-3.5 w-3.5" />
                   Add to Bank
                 </Button>
+                )}
                 <Button
                   size="sm"
                   variant="ghost"
@@ -380,6 +388,7 @@ export const QuestionBank: React.FC = () => {
                     ? "Add assessment questions to this bank to build a reusable question repository."
                     : "Create your first assessment question to populate the institute question catalog."}
                 </p>
+                {canEditQuestionBank && (
                 <Button
                   size="sm"
                   className="gap-2 mt-2"
@@ -389,6 +398,7 @@ export const QuestionBank: React.FC = () => {
                 >
                   <Plus className="h-4 w-4" /> Create Question
                 </Button>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -440,6 +450,8 @@ export const QuestionBank: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-1">
+                        {canEditQuestionBank && (
+                        <>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -465,6 +477,8 @@ export const QuestionBank: React.FC = () => {
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        </>
+                        )}
                       </div>
                     </div>
 
@@ -548,6 +562,7 @@ export const QuestionBank: React.FC = () => {
                 <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                   Question banks allow you to organize questions into reusable subject-specific folders.
                 </p>
+                {canEditQuestionBank && (
                 <Button
                   size="sm"
                   className="gap-2 mt-2"
@@ -555,6 +570,7 @@ export const QuestionBank: React.FC = () => {
                 >
                   <FolderPlus className="h-4 w-4" /> Create First Bank
                 </Button>
+                )}
               </div>
             ) : (
               questionBanks.map((bank: any) => (
@@ -577,6 +593,7 @@ export const QuestionBank: React.FC = () => {
                         </div>
                       </div>
 
+                      {canEditQuestionBank && (
                       <Button
                         variant="ghost"
                         size="icon"
@@ -590,6 +607,7 @@ export const QuestionBank: React.FC = () => {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3 text-xs">
@@ -602,6 +620,7 @@ export const QuestionBank: React.FC = () => {
                     <div className="flex items-center justify-between pt-2 border-t text-[11px] text-muted-foreground">
                       <span>Questions: <strong className="text-foreground">{bank._count?.questions ?? 0}</strong></span>
                       <div className="flex items-center gap-2">
+                        {canEditQuestionBank && (
                         <Button
                           variant="link"
                           size="sm"
@@ -613,6 +632,7 @@ export const QuestionBank: React.FC = () => {
                         >
                           Add Question
                         </Button>
+                        )}
                         <Button
                           variant="link"
                           size="sm"

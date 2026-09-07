@@ -19,7 +19,10 @@ export const PermissionGate: React.FC<PermissionGateProps> = ({
   mode = "write",
 }) => {
   const { canReadItem, canEditItem, isAdmin, roleScope } = usePermissions();
-  if (isAdmin || !roleScope) return <>{children}</>;
+  // Admin bypasses gates. Unscoped roles (FACULTY/STUDENT) are not CM/Counsellor
+  // matrix users — leave UI visible; their APIs enforce role-specific rules.
+  if (isAdmin) return <>{children}</>;
+  if (!roleScope) return <>{children}</>;
   const allowed = mode === "read" ? canReadItem(itemKey) : canEditItem(itemKey);
   return allowed ? <>{children}</> : <>{fallback}</>;
 };

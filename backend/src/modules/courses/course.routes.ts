@@ -2,6 +2,7 @@ import { Router } from "express";
 import * as controller from "./course.controller";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requireRole } from "../../middlewares/role.middleware";
+import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import { createCourseSchema, updateCourseSchema } from "./course.validation";
 
@@ -11,26 +12,26 @@ router.use(authMiddleware);
 
 router.get(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"),
+  requirePermissionUnlessRoles("course.read", "FACULTY", "STUDENT"),
   controller.getAll
 );
 
 router.get(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR", "FACULTY", "STUDENT"),
+  requirePermissionUnlessRoles("course.read", "FACULTY", "STUDENT"),
   controller.getById
 );
 
 router.post(
   "/",
-  requireRole("ADMIN", "CENTER_MANAGER", "COUNSELLOR"),
+  requirePermission("course.create"),
   validate(createCourseSchema),
   controller.create
 );
 
 router.patch(
   "/:id",
-  requireRole("ADMIN", "CENTER_MANAGER"),
+  requirePermission("course.update"),
   validate(updateCourseSchema),
   controller.update
 );
