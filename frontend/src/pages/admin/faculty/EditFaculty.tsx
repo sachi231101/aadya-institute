@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+﻿import React, { useEffect } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -146,7 +146,7 @@ export const EditFaculty: React.FC = () => {
       <Card className="border-border/50 shadow-sm">
         <CardHeader className="border-b border-border/50 pb-4">
           <CardTitle className="text-lg flex items-center gap-2">
-            <Pencil className="h-5 w-5 text-[#1769AA]" />
+            <Pencil className="h-5 w-5 text-[#2563EB]" />
             Faculty Details
           </CardTitle>
           <CardDescription>Employee code and branch cannot be changed here.</CardDescription>
@@ -295,7 +295,7 @@ export const EditFaculty: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={updateMutation.isPending}
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
                 >
                   {updateMutation.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />

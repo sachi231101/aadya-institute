@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   AlertCircle,
@@ -159,7 +159,7 @@ export const IntegrationDetail: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
       </div>
     );
   }
@@ -360,7 +360,7 @@ export const IntegrationDetail: React.FC = () => {
                   <PermissionGate itemKey="admin.integrations" mode="write">
                     <Button
                       type="button"
-                      className="bg-[#1769AA] text-white"
+                      className="bg-[#2563EB] text-white"
                       disabled={connectGoogle.isPending}
                       onClick={() => connectGoogle.mutate()}
                     >
@@ -578,7 +578,7 @@ export const IntegrationDetail: React.FC = () => {
 
               <div className="flex flex-wrap gap-2 pt-2">
                 <PermissionGate itemKey="admin.integrations" mode="write">
-                <Button type="submit" disabled={upsert.isPending} className="bg-[#1769AA] text-white">
+                <Button type="submit" disabled={upsert.isPending} className="bg-[#2563EB] text-white">
                   {upsert.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PhoneCall, Search, Plus, Loader2, AlertCircle } from "lucide-react";
 import { useCallHistory } from "@/hooks/useLeads";
@@ -57,7 +57,7 @@ export const CallHistory: React.FC = () => {
         </div>
         <PermissionGate itemKey="leads.all" mode="write">
           <Button
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+            className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
             onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
           >
             <Plus className="mr-2 h-4 w-4" />

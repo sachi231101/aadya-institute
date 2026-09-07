@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -455,7 +455,7 @@ export const FacultyMySchedule: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl border-2 border-[#1769AA] flex items-center justify-center text-[#1769AA] bg-blue-50/50">
+            <div className="w-9 h-9 rounded-xl border-2 border-[#2563EB] flex items-center justify-center text-[#2563EB] bg-blue-50/50">
               <CalendarDays className="w-5 h-5" />
             </div>
             My Class Timetable
@@ -479,7 +479,7 @@ export const FacultyMySchedule: React.FC = () => {
               <ChevronLeft className="w-4 h-4 text-slate-600" />
             </Button>
             <div className="flex items-center gap-2 px-2 text-xs font-extrabold text-slate-800 dark:text-slate-200">
-              <CalendarIcon className="w-3.5 h-3.5 text-[#1769AA]" />
+              <CalendarIcon className="w-3.5 h-3.5 text-[#2563EB]" />
               <span>{weekRangeLabel}</span>
             </div>
             <Button
@@ -497,7 +497,7 @@ export const FacultyMySchedule: React.FC = () => {
             variant="outline"
             size="sm"
             onClick={handleCurrentWeek}
-            className="h-9 px-3.5 text-xs font-bold rounded-xl border-[#1769AA]/30 text-[#1769AA] hover:bg-blue-50 bg-white dark:bg-slate-900 shadow-xs"
+            className="h-9 px-3.5 text-xs font-bold rounded-xl border-[#2563EB]/30 text-[#2563EB] hover:bg-blue-50 bg-white dark:bg-slate-900 shadow-xs"
           >
             Today
           </Button>
@@ -509,7 +509,7 @@ export const FacultyMySchedule: React.FC = () => {
               onClick={() => setViewMode("TIMETABLE")}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                 viewMode === "TIMETABLE"
-                  ? "bg-[#1769AA] text-white shadow-xs"
+                  ? "bg-[#2563EB] text-white shadow-xs"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
@@ -520,7 +520,7 @@ export const FacultyMySchedule: React.FC = () => {
               onClick={() => setViewMode("LIST")}
               className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                 viewMode === "LIST"
-                  ? "bg-[#1769AA] text-white shadow-xs"
+                  ? "bg-[#2563EB] text-white shadow-xs"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
               }`}
             >
@@ -564,7 +564,7 @@ export const FacultyMySchedule: React.FC = () => {
                 <select
                   value={selectedCourse}
                   onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
                 >
                   <option value="ALL">All Assigned Courses</option>
                   {coursesList.map((c) => (
@@ -580,7 +580,7 @@ export const FacultyMySchedule: React.FC = () => {
                 <select
                   value={selectedBatch}
                   onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
                 >
                   <option value="ALL">All Batches</option>
                   {batchesList.map((b) => (
@@ -596,7 +596,7 @@ export const FacultyMySchedule: React.FC = () => {
                 <select
                   value={selectedMode}
                   onChange={(e) => setSelectedMode(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20"
+                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
                 >
                   <option value="ALL">All Modes (Offline / Online)</option>
                   <option value="OFFLINE">Offline / Classroom</option>
@@ -676,7 +676,7 @@ export const FacultyMySchedule: React.FC = () => {
                       <td
                         className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${
                           day.isToday
-                            ? "bg-blue-50/60 text-[#1769AA] dark:bg-blue-950/40"
+                            ? "bg-blue-50/60 text-[#2563EB] dark:bg-blue-950/40"
                             : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
                         }`}
                       >
@@ -742,8 +742,8 @@ export const FacultyMySchedule: React.FC = () => {
                                     : isExam
                                     ? "bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 hover:border-rose-400"
                                     : isSelected
-                                    ? "bg-blue-50 border-[#1769AA] ring-2 ring-[#1769AA]/30 shadow-xs"
-                                    : "bg-blue-50/50 border-blue-100 hover:border-[#1769AA]/60 dark:bg-slate-800/60 dark:border-slate-700"
+                                    ? "bg-blue-50 border-[#2563EB] ring-2 ring-[#2563EB]/30 shadow-xs"
+                                    : "bg-blue-50/50 border-blue-100 hover:border-[#2563EB]/60 dark:bg-slate-800/60 dark:border-slate-700"
                                 }`}
                               >
                                 <div className="flex items-center justify-between gap-1">
@@ -812,7 +812,7 @@ export const FacultyMySchedule: React.FC = () => {
                   onClick={() => setMobileDayIndex(idx)}
                   className={`flex-1 min-w-[42px] py-2 px-1 text-center rounded-xl transition-all cursor-pointer ${
                     mobileDayIndex === idx
-                      ? "bg-[#1769AA] text-white font-bold shadow-xs"
+                      ? "bg-[#2563EB] text-white font-bold shadow-xs"
                       : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
@@ -832,7 +832,7 @@ export const FacultyMySchedule: React.FC = () => {
                     <span>
                       {activeDay.dayName}, {activeDay.formattedDate}
                     </span>
-                    {activeDay.isToday && <Badge className="bg-[#1769AA] text-white text-[10px]">TODAY</Badge>}
+                    {activeDay.isToday && <Badge className="bg-[#2563EB] text-white text-[10px]">TODAY</Badge>}
                   </div>
 
                   {dayClasses.length > 0 ? (
@@ -841,12 +841,12 @@ export const FacultyMySchedule: React.FC = () => {
                         key={cls.id}
                         onClick={() => setSelectedClassId(cls.id)}
                         className={`rounded-2xl border cursor-pointer hover:shadow-md transition-all ${
-                          selectedClassId === cls.id ? "ring-2 ring-[#1769AA] border-[#1769AA]" : ""
+                          selectedClassId === cls.id ? "ring-2 ring-[#2563EB] border-[#2563EB]" : ""
                         }`}
                       >
                         <CardContent className="p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-bold font-mono text-[#1769AA]">{cls.timeRange}</span>
+                            <span className="text-xs font-bold font-mono text-[#2563EB]">{cls.timeRange}</span>
                             <Badge
                               className={
                                 cls.status === "LIVE"
@@ -885,7 +885,7 @@ export const FacultyMySchedule: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setViewMode("LIST")}
-                  className="text-xs font-bold text-[#1769AA] hover:underline flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
                 >
                   View Full Day <ArrowRight className="w-3.5 h-3.5" />
                 </button>
@@ -902,7 +902,7 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => setSelectedClassId(cls.id)}
                       className={`rounded-2xl border transition-all cursor-pointer ${
                         isSelected
-                          ? "border-[#1769AA] ring-2 ring-[#1769AA]/20 bg-blue-50/30 dark:bg-slate-800"
+                          ? "border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-blue-50/30 dark:bg-slate-800"
                           : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
                       }`}
                     >
@@ -950,7 +950,7 @@ export const FacultyMySchedule: React.FC = () => {
                             e.stopPropagation();
                             handleNavigateToSession(cls);
                           }}
-                          className="rounded-xl text-xs font-extrabold h-8 px-3.5 shrink-0 cursor-pointer text-[#1769AA] border-blue-200 hover:bg-[#1769AA] hover:text-white hover:border-[#1769AA] bg-white transition-all shadow-2xs"
+                          className="rounded-xl text-xs font-extrabold h-8 px-3.5 shrink-0 cursor-pointer text-[#2563EB] border-blue-200 hover:bg-[#2563EB] hover:text-white hover:border-[#2563EB] bg-white transition-all shadow-2xs"
                         >
                           View Class
                         </Button>
@@ -991,7 +991,7 @@ export const FacultyMySchedule: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleNavigateToSession(currentSelectedClass)}
-                      className="text-xs font-bold text-[#1769AA] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       Go to Class <ArrowRight className="w-3.5 h-3.5" />
                     </button>
@@ -1001,7 +1001,7 @@ export const FacultyMySchedule: React.FC = () => {
                   <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
                     {/* Row 1 */}
                     <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
                         <BookOpen className="w-3.5 h-3.5" />
                       </div>
                       <div>
@@ -1125,7 +1125,7 @@ export const FacultyMySchedule: React.FC = () => {
                     </div>
 
                     <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0 mt-0.5">
+                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
                         <Video className="w-3.5 h-3.5" />
                       </div>
                       <div>
@@ -1135,7 +1135,7 @@ export const FacultyMySchedule: React.FC = () => {
                             href={currentSelectedClass.meetingUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-bold text-[#1769AA] hover:underline truncate block max-w-[150px]"
+                            className="font-bold text-[#2563EB] hover:underline truncate block max-w-[150px]"
                           >
                             Google Meet link
                           </a>
@@ -1155,13 +1155,13 @@ export const FacultyMySchedule: React.FC = () => {
                     onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
                     className="flex-1 h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-extrabold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <UserCheck className="w-4 h-4 text-[#1769AA]" /> Update Attendance
+                    <UserCheck className="w-4 h-4 text-[#2563EB]" /> Update Attendance
                   </Button>
 
                   <Button
                     type="button"
                     onClick={() => handleGoLive(currentSelectedClass)}
-                    className="flex-1 h-11 rounded-2xl bg-[#1769AA] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    className="flex-1 h-11 rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Video className="w-4 h-4" /> Join / Go Live Class
                   </Button>
@@ -1193,7 +1193,7 @@ export const FacultyMySchedule: React.FC = () => {
                       ) : (
                         <Badge
                           variant="outline"
-                          className="text-xs px-2.5 py-0.5 text-[#1769AA] bg-blue-50 font-extrabold"
+                          className="text-xs px-2.5 py-0.5 text-[#2563EB] bg-blue-50 font-extrabold"
                         >
                           UPCOMING
                         </Badge>
@@ -1203,7 +1203,7 @@ export const FacultyMySchedule: React.FC = () => {
                       </Badge>
                       <span className="text-xs text-slate-400">•</span>
                       <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-[#1769AA]" />
+                        <Clock className="w-3.5 h-3.5 text-[#2563EB]" />
                         {cls.date} ({cls.timeRange})
                       </span>
                     </div>
@@ -1237,11 +1237,11 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => handleNavigateToSession(cls, "attendance")}
                       className="rounded-2xl h-9 text-xs font-bold border-slate-200 hover:bg-slate-50"
                     >
-                      <UserCheck className="w-3.5 h-3.5 mr-1 text-[#1769AA]" /> Attendance
+                      <UserCheck className="w-3.5 h-3.5 mr-1 text-[#2563EB]" /> Attendance
                     </Button>
                     <Button
                       onClick={() => handleGoLive(cls)}
-                      className="rounded-2xl bg-[#1769AA] hover:bg-[#125386] text-white font-extrabold h-9 text-xs px-4"
+                      className="rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold h-9 text-xs px-4"
                     >
                       <Video className="w-3.5 h-3.5 mr-1.5" /> GO LIVE
                     </Button>

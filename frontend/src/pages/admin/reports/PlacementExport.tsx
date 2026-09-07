@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Download, ExternalLink, FileSpreadsheet, Users, GraduationCap,
   CheckCircle2, Search
@@ -133,7 +133,7 @@ export const PlacementExport: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Users className="h-6 w-6 text-[#1769AA]" />
+              <Users className="h-6 w-6 text-[#2563EB]" />
             </div>
             <div>
               <p className="text-2xl font-bold">{students.length}</p>
@@ -235,7 +235,7 @@ export const PlacementExport: React.FC = () => {
                   <TableRow key={student.id}>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-[#1769AA]/10 flex items-center justify-center text-[#1769AA] font-bold text-xs">
+                        <div className="h-8 w-8 rounded-full bg-[#2563EB]/10 flex items-center justify-center text-[#2563EB] font-bold text-xs">
                           {(student.user?.name || student.name || "S").charAt(0).toUpperCase()}
                         </div>
                         <span className="font-medium text-sm">{student.user?.name || student.name}</span>

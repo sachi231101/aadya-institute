@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1319,7 +1319,7 @@ export const DirectAdmissionEntry: React.FC = () => {
               size="sm"
               onClick={() => handleConfirmAdmission("Confirmed")}
               disabled={isSubmitting}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold shadow-xs px-4"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold shadow-xs px-4"
             >
               Confirm Admission
             </Button>
@@ -2579,7 +2579,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                         variant="outline"
                         size="sm"
                         onClick={handleAddInstallment}
-                        className="text-xs text-[#1769AA] border-blue-200 hover:bg-blue-50 font-bold h-8 gap-1.5"
+                        className="text-xs text-[#2563EB] border-blue-200 hover:bg-blue-50 font-bold h-8 gap-1.5"
                       >
                         <Plus className="h-3.5 w-3.5" /> Add Installment
                       </Button>
@@ -2823,7 +2823,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             <Button
               onClick={() => handleConfirmAdmission("Confirmed")}
               disabled={isSubmitting}
-              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-sm font-bold h-11 rounded-xl shadow-sm gap-2 disabled:opacity-50"
             >
               <CheckCircle2 className="h-4 w-4" />
               Confirm Admission
@@ -2951,7 +2951,7 @@ export const DirectAdmissionEntry: React.FC = () => {
             <Button
               onClick={handleFinalSubmitAdmission}
               disabled={isSubmitting || !reviewVerifiedCheck}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-2"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold gap-2"
             >
               {isSubmitting ? (
                 <span>Generating Admission...</span>
@@ -3340,7 +3340,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 setShowSuccessModal(false);
                 navigate(`${basePath}/admissions/all`);
               }}
-              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold"
             >
               Done
             </Button>

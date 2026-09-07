@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { 
   AlertCircle, 
   Search, 
@@ -169,7 +169,7 @@ export const PendingFees: React.FC = () => {
 
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
+            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
               <Clock className="h-6 w-6" />
             </div>
             <div>
@@ -200,7 +200,7 @@ export const PendingFees: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               >
                 <option value="ALL">All Due Statuses</option>
                 <option value="OVERDUE">Overdue Only</option>
@@ -231,7 +231,7 @@ export const PendingFees: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#1769AA]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
                         Loading pending fee records...
                       </div>
                     </TableCell>
@@ -279,7 +279,7 @@ export const PendingFees: React.FC = () => {
                           <PermissionGate itemKey="fees.pending" mode="write">
                             <Button
                               size="sm"
-                              className="bg-[#1769AA] hover:bg-[#F39A16] text-white text-xs h-8"
+                              className="bg-[#2563EB] hover:bg-[#F39A16] text-white text-xs h-8"
                               onClick={() => handleOpenCollectModal(pf)}
                             >
                               <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
@@ -393,7 +393,7 @@ export const PendingFees: React.FC = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
                   disabled={collectFeeMutation.isPending}
                 >
                   {collectFeeMutation.isPending ? "Processing..." : "Confirm & Issue Receipt"}

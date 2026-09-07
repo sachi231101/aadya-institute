@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Users,
   Calendar,
@@ -1046,7 +1046,7 @@ export const Timetable: React.FC = () => {
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   isSelected
-                    ? "bg-[#1769AA] text-white"
+                    ? "bg-[#2563EB] text-white"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                 }`}
               >
@@ -1124,7 +1124,7 @@ export const Timetable: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Avatar className="w-7 h-7 border border-border shrink-0">
                             <AvatarImage src={fac.avatar} alt={fac.name} />
-                            <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-600 text-white font-bold text-[10px]">
+                            <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-indigo-600 text-white font-bold text-[10px]">
                               {fac.name.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
                           </Avatar>
@@ -1380,7 +1380,7 @@ export const Timetable: React.FC = () => {
         <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader className="space-y-1">
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1769AA] border border-blue-200 uppercase">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 uppercase">
                 {modalDayKey} • Period {modalPeriod} ({TIME_SLOT_COLUMNS.find((c) => c.period === modalPeriod)?.label})
               </span>
             </div>
@@ -1453,7 +1453,7 @@ export const Timetable: React.FC = () => {
                 <select
                   value={modalSlotType}
                   onChange={(e) => setModalSlotType(e.target.value as SlotType)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#1769AA] outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#2563EB] outline-none"
                 >
                   <option value="CLASS">Class Scheduled</option>
                   <option value="FREE">Free (clear class)</option>
@@ -1556,7 +1556,7 @@ export const Timetable: React.FC = () => {
             <Button
               onClick={handleSaveSlot}
               disabled={createSession.isPending || updateSession.isPending}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 rounded-xl"
             >
               <Save className="h-3.5 w-3.5 mr-1" /> Save Schedule Entry
             </Button>
@@ -1582,7 +1582,7 @@ export const Timetable: React.FC = () => {
               <select
                 value={targetPeriod}
                 onChange={(e) => setTargetPeriod(Number(e.target.value))}
-                className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#1769AA] outline-none"
+                className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#2563EB] outline-none"
               >
                 {BOOKABLE_TIME_SLOTS.map((col) => (
                   <option key={col.period} value={col.period}>
@@ -1597,7 +1597,7 @@ export const Timetable: React.FC = () => {
             <Button variant="outline" onClick={() => setIsMoveModalOpen(false)} className="text-xs font-bold rounded-xl">
               Cancel
             </Button>
-            <Button onClick={handleExecuteMoveSlot} className="bg-[#1769AA] text-white text-xs font-bold rounded-xl">
+            <Button onClick={handleExecuteMoveSlot} className="bg-[#2563EB] text-white text-xs font-bold rounded-xl">
               Confirm Move
             </Button>
           </DialogFooter>
@@ -1609,7 +1609,7 @@ export const Timetable: React.FC = () => {
         <DialogContent className="sm:max-w-xl bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
           <DialogHeader>
             <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1769AA] border border-blue-200 uppercase">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 uppercase">
                 Academy Schedule Config
               </span>
             </div>
@@ -1654,7 +1654,7 @@ export const Timetable: React.FC = () => {
                           );
                         });
                       }}
-                      className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#1769AA] outline-none cursor-pointer"
+                      className="h-8 px-2.5 bg-white border border-slate-200 rounded-lg text-xs font-bold text-[#2563EB] outline-none cursor-pointer"
                     >
                       <option value="HOLIDAY">Holiday</option>
                       <option value="WORKING">Working Day</option>
@@ -1698,7 +1698,7 @@ export const Timetable: React.FC = () => {
                 setNotificationMsg("✓ Working days and holiday configuration updated successfully.");
                 setTimeout(() => setNotificationMsg(null), 3000);
               }}
-              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-bold rounded-xl"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold rounded-xl"
             >
               Save Configuration
             </Button>

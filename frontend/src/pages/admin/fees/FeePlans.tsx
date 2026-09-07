@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Layers, Plus, Search, Loader2, AlertCircle } from "lucide-react";
 import { useFeePlans, useCreateFeePlan } from "@/hooks/useFees";
 import { Card, CardContent } from "@/components/ui/card";
@@ -48,7 +48,7 @@ export const FeePlans: React.FC = () => {
           <p className="text-sm text-text-secondary">Manage course fee plan templates and installments.</p>
         </div>
         <PermissionGate itemKey="fees.plans" mode="write">
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
             <Plus className="mr-2 h-4 w-4" /> New Plan
           </Button>
         </PermissionGate>
@@ -103,7 +103,7 @@ export const FeePlans: React.FC = () => {
               <div><Label>Total Amount (₹) *</Label><Input type="number" required min={1} value={totalAmount} onChange={(e) => setTotalAmount(Number(e.target.value))} /></div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#1769AA] text-white" disabled={createMutation.isPending}>Create</Button>
+                <Button type="submit" className="bg-[#2563EB] text-white" disabled={createMutation.isPending}>Create</Button>
               </div>
             </form>
           </div>

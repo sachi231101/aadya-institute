@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   HelpCircle,
@@ -728,7 +728,7 @@ export const Enquiries: React.FC = () => {
           <PermissionGate itemKey="admissions.enquiries" mode="write">
             <Button
               onClick={() => setShowAddModal(true)}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-4.5 py-2 rounded-xl shadow-sm gap-2 h-10 text-xs transition-all cursor-pointer"
             >
               <Plus className="h-4 w-4" /> Add New Enquiry
             </Button>
@@ -918,7 +918,7 @@ export const Enquiries: React.FC = () => {
             <button
               type="button"
               onClick={handleResetFilters}
-              className="text-[#1769AA] hover:underline font-bold text-xs ml-auto cursor-pointer"
+              className="text-[#2563EB] hover:underline font-bold text-xs ml-auto cursor-pointer"
             >
               Reset Filters
             </button>
@@ -943,7 +943,7 @@ export const Enquiries: React.FC = () => {
               onClick={() => setActiveTab(tab.label)}
               className={`px-3 py-2 rounded-t-lg transition-all flex items-center gap-1.5 whitespace-nowrap border-b-2 font-bold ${
                 activeTab === tab.label
-                  ? "border-[#1769AA] text-[#1769AA] bg-blue-50/40"
+                  ? "border-[#2563EB] text-[#2563EB] bg-blue-50/40"
                   : "border-transparent text-slate-600 hover:text-slate-900"
               }`}
             >
@@ -963,7 +963,7 @@ export const Enquiries: React.FC = () => {
             onClick={() => setViewMode("List")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === "List"
-                ? "bg-blue-50 text-[#1769AA] shadow-2xs"
+                ? "bg-blue-50 text-[#2563EB] shadow-2xs"
                 : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -973,7 +973,7 @@ export const Enquiries: React.FC = () => {
             onClick={() => setViewMode("Pipeline")}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
               viewMode === "Pipeline"
-                ? "bg-blue-50 text-[#1769AA] shadow-2xs"
+                ? "bg-blue-50 text-[#2563EB] shadow-2xs"
                 : "text-slate-500 hover:text-slate-900"
             }`}
           >
@@ -1190,7 +1190,7 @@ export const Enquiries: React.FC = () => {
                   <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-400 hover:bg-slate-50">
                     &lt;
                   </button>
-                  <button className="h-6 w-6 rounded bg-[#1769AA] text-white font-bold flex items-center justify-center">
+                  <button className="h-6 w-6 rounded bg-[#2563EB] text-white font-bold flex items-center justify-center">
                     1
                   </button>
                   <button className="h-6 w-6 rounded border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50">
@@ -1268,7 +1268,7 @@ export const Enquiries: React.FC = () => {
         <DialogContent className="max-w-xl bg-white rounded-2xl p-6 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Plus className="h-5 w-5 text-[#1769AA]" />
+              <Plus className="h-5 w-5 text-[#2563EB]" />
               New Student Enquiry Registration
             </DialogTitle>
           </DialogHeader>
@@ -1414,7 +1414,7 @@ export const Enquiries: React.FC = () => {
                 id="whatsapp-welcome"
                 checked={newFormWhatsappWelcome}
                 onChange={(e) => setNewFormWhatsappWelcome(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] cursor-pointer"
+                className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] cursor-pointer"
               />
               <label htmlFor="whatsapp-welcome" className="text-slate-600 font-medium text-xs cursor-pointer">
                 Send WhatsApp Welcome Message Automatically
@@ -1426,7 +1426,7 @@ export const Enquiries: React.FC = () => {
                 Cancel
               </Button>
               <PermissionGate itemKey="admissions.enquiries" mode="write">
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs">
+                <Button type="submit" className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs">
                   Save & Add Enquiry
                 </Button>
               </PermissionGate>
@@ -1440,7 +1440,7 @@ export const Enquiries: React.FC = () => {
         <DialogContent className="max-w-lg bg-white rounded-2xl p-6 max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Phone className="h-5 w-5 text-[#1769AA]" />
+              <Phone className="h-5 w-5 text-[#2563EB]" />
               Log Follow-up Interaction — {selectedLead?.name}
             </DialogTitle>
           </DialogHeader>
@@ -1531,14 +1531,14 @@ export const Enquiries: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <input type="checkbox" checked={fuWhatsappReminder} onChange={(e) => setFuWhatsappReminder(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#1769AA]" />
+              <input type="checkbox" checked={fuWhatsappReminder} onChange={(e) => setFuWhatsappReminder(e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-[#2563EB]" />
               <Label className="text-slate-600 font-medium text-[11px]">Trigger WhatsApp Reminder to Student</Label>
             </div>
 
             <DialogFooter className="pt-2">
               <Button type="button" variant="outline" onClick={() => setShowFollowupModal(false)}>Cancel</Button>
               <PermissionGate itemKey="admissions.enquiries" mode="write">
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold">Save Follow-up</Button>
+                <Button type="submit" className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold">Save Follow-up</Button>
               </PermissionGate>
             </DialogFooter>
           </form>
@@ -1595,13 +1595,13 @@ export const Enquiries: React.FC = () => {
         <DialogContent className="max-w-md bg-white rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Upload className="h-5 w-5 text-[#1769AA]" />
+              <Upload className="h-5 w-5 text-[#2563EB]" />
               Import Student Enquiries (CSV)
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 pt-2 text-xs">
             <div className="p-6 border-2 border-dashed border-slate-200 rounded-2xl text-center space-y-2 bg-slate-50/50">
-              <Upload className="h-8 w-8 text-[#1769AA] mx-auto" />
+              <Upload className="h-8 w-8 text-[#2563EB] mx-auto" />
               <p className="font-bold text-slate-800">Select CSV file with lead data</p>
               <p className="text-[11px] text-slate-400">Supported columns: Name, Phone, Email, Course, Source</p>
               <input type="file" accept=".csv" className="hidden" id="csv-upload-input" />

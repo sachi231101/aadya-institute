@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Briefcase, Search, Loader2, AlertCircle, Plus } from "lucide-react";
 import {
   usePlacementJobs,
@@ -77,7 +77,7 @@ export const Jobs: React.FC = () => {
           <p className="text-sm text-text-secondary">Active placement job postings.</p>
         </div>
         <PermissionGate itemKey="placement.jobs" mode="write">
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
             <Plus className="mr-2 h-4 w-4" /> Create Job
           </Button>
         </PermissionGate>
@@ -229,7 +229,7 @@ export const Jobs: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

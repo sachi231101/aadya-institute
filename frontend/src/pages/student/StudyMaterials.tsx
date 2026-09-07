@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { 
   BookOpen, 
   Search, 
@@ -110,7 +110,7 @@ export const StudentStudyMaterials: React.FC = () => {
       case "doc":
       default:
         return (
-          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1769AA] shrink-0 shadow-2xs">
+          <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shrink-0 shadow-2xs">
             <FolderArchive className="w-5 h-5 stroke-[2.2]" />
           </div>
         );
@@ -232,7 +232,7 @@ export const StudentStudyMaterials: React.FC = () => {
         {/* 4. Total Size */}
         <Card className="bg-white border border-slate-200/70 rounded-2xl shadow-2xs hover:shadow-xs transition-shadow">
           <CardContent className="p-4 sm:p-5 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1769AA] shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shrink-0">
               <HardDrive className="w-5 h-5 stroke-[2.2]" />
             </div>
             <div>

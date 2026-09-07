@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, GraduationCap, Loader2, AlertCircle, Users } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -24,7 +24,7 @@ export const FacultyMyStudents: React.FC = () => {
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
       <div>
         <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-          <GraduationCap className="w-6 h-6 text-[#1769AA]" />
+          <GraduationCap className="w-6 h-6 text-[#2563EB]" />
           My Students
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -55,7 +55,7 @@ export const FacultyMyStudents: React.FC = () => {
         <CardContent>
           {isLoading ? (
             <div className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-[#1769AA]" />
+              <Loader2 className="h-6 w-6 animate-spin text-[#2563EB]" />
             </div>
           ) : isError ? (
             <div className="text-center py-12 space-y-3">

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Building2, Search, Loader2, AlertCircle, Plus } from "lucide-react";
 import { usePlacementCompanies, useCreatePlacementCompany } from "@/hooks/usePlacement";
 import { Card, CardContent } from "@/components/ui/card";
@@ -44,7 +44,7 @@ export const Companies: React.FC = () => {
           <p className="text-sm text-text-secondary">Partner companies for placement drives.</p>
         </div>
         <PermissionGate itemKey="placement.companies" mode="write">
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
+          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}><Plus className="mr-2 h-4 w-4" /> Add Company</Button>
         </PermissionGate>
       </div>
       <Card className="border-border/50">
@@ -91,7 +91,7 @@ export const Companies: React.FC = () => {
               <div><Label>Name *</Label><Input required value={name} onChange={(e) => setName(e.target.value)} /></div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#1769AA] text-white">Create</Button>
+                <Button type="submit" className="bg-[#2563EB] text-white">Create</Button>
               </div>
             </form>
           </div>

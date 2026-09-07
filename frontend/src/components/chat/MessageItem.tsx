@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import type { Message } from "../../types/chat.types";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Check, CheckCheck } from "lucide-react";
@@ -50,7 +50,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isCurrentUser
         <div
           className={`px-3 py-2 rounded-2xl text-xs leading-relaxed break-words whitespace-pre-wrap ${
             isCurrentUser
-              ? "bg-[#1769AA] text-white rounded-tr-xs shadow-2xs font-normal"
+              ? "bg-[#2563EB] text-white rounded-tr-xs shadow-2xs font-normal"
               : "bg-bg-secondary text-foreground border border-border/70 rounded-tl-xs shadow-2xs"
           }`}
         >

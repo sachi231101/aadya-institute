@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   Download,
   X,
@@ -44,7 +44,7 @@ export const InstallLoginPopup: React.FC = () => {
   let portalName = "Aadya Institute Portal";
   let description = "Install Aadya Institute as a desktop app for faster access.";
   let RoleIcon = Laptop;
-  let gradientFrom = "from-[#1769AA]";
+  let gradientFrom = "from-[#2563EB]";
   let gradientTo = "to-[#1565C0]";
 
   if (roles.includes("ADMIN")) {
@@ -52,14 +52,14 @@ export const InstallLoginPopup: React.FC = () => {
     portalName = "Aadya Admin Portal";
     description = "Manage all branches, faculty, students, admissions, and finances from one powerful desktop app.";
     RoleIcon = Shield;
-    gradientFrom = "from-[#1769AA]";
+    gradientFrom = "from-[#2563EB]";
     gradientTo = "to-[#0D47A1]";
   } else if (roles.includes("CENTER_MANAGER")) {
     roleTitle = "Center Manager";
     portalName = "Center Manager Portal";
     description = "Access admissions, batch management, attendance reports, and branch operations from your desktop.";
     RoleIcon = Shield;
-    gradientFrom = "from-[#1769AA]";
+    gradientFrom = "from-[#2563EB]";
     gradientTo = "to-[#0277BD]";
   } else if (roles.includes("COUNSELLOR")) {
     roleTitle = "Counsellor";
@@ -173,7 +173,7 @@ export const InstallLoginPopup: React.FC = () => {
             <Button
               onClick={handleInstall}
               disabled={installing}
-              className="w-full h-12 text-sm font-bold gap-2 bg-[#1769AA] hover:bg-[#0B4F8A] text-white rounded-xl shadow-md hover:shadow-lg transition-all"
+              className="w-full h-12 text-sm font-bold gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl shadow-md hover:shadow-lg transition-all"
             >
               {installing ? (
                 <>Installing...</>

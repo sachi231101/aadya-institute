@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import {
   Dialog,
   DialogContent,
@@ -377,7 +377,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                       COMPLETED
                     </Badge>
                   ) : (
-                    <Badge variant="outline" className="border-blue-200 text-[#1769AA] bg-blue-50/70 font-semibold px-2.5 py-0.5 rounded-full">
+                    <Badge variant="outline" className="border-blue-200 text-[#2563EB] bg-blue-50/70 font-semibold px-2.5 py-0.5 rounded-full">
                       UPCOMING
                     </Badge>
                   )}
@@ -421,7 +421,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
               <div>
                 <span className="text-slate-400 block text-[11px]">Date</span>
                 <span className="font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1 mt-0.5">
-                  <Clock className="w-3.5 h-3.5 text-[#1769AA]" />
+                  <Clock className="w-3.5 h-3.5 text-[#2563EB]" />
                   {session.date}
                 </span>
               </div>
@@ -451,16 +451,16 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
             {session.meetingUrl && (
               <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 min-w-0">
-                  <Video className="w-4 h-4 text-[#1769AA] shrink-0" />
+                  <Video className="w-4 h-4 text-[#2563EB] shrink-0" />
                   <span className="text-slate-700 dark:text-slate-300 truncate">
-                    Meeting Link: <strong className="font-mono text-[#1769AA]">{session.meetingUrl}</strong>
+                    Meeting Link: <strong className="font-mono text-[#2563EB]">{session.meetingUrl}</strong>
                   </span>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
                   onClick={() => window.open(session.meetingUrl, "_blank")}
-                  className="h-7 text-xs px-2.5 rounded-lg border-blue-200 text-[#1769AA] hover:bg-blue-100/50 shrink-0"
+                  className="h-7 text-xs px-2.5 rounded-lg border-blue-200 text-[#2563EB] hover:bg-blue-100/50 shrink-0"
                 >
                   <ExternalLink className="w-3 h-3 mr-1" /> Open Meet
                 </Button>
@@ -473,7 +473,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                   <div>
                     <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                      <Users className="w-4 h-4 text-[#1769AA]" />
+                      <Users className="w-4 h-4 text-[#2563EB]" />
                       Student Attendance Roster
                     </h4>
                     <p className="text-[11px] text-slate-500">
@@ -522,7 +522,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] text-blue-600 dark:text-blue-400 uppercase font-semibold">Rate</span>
-                    <p className="font-bold text-[#1769AA] dark:text-blue-400 text-sm mt-0.5">
+                    <p className="font-bold text-[#2563EB] dark:text-blue-400 text-sm mt-0.5">
                       {attendancePercentage.toFixed(0)}%
                     </p>
                   </div>
@@ -629,7 +629,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
             {/* Live Session Online Room Banner */}
             {isLive && (
-              <div className="p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-[#1769AA] rounded-2xl text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
+              <div className="p-3.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-[#2563EB] rounded-2xl text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-9 h-9 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
                     <Video className="w-5 h-5 text-white animate-pulse" />
@@ -654,7 +654,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                       "_blank"
                     )
                   }
-                  className="bg-white hover:bg-slate-100 text-[#1769AA] font-black text-xs rounded-xl shadow-xs h-9 px-4 shrink-0"
+                  className="bg-white hover:bg-slate-100 text-[#2563EB] font-black text-xs rounded-xl shadow-xs h-9 px-4 shrink-0"
                 >
                   <Video className="w-4 h-4 mr-1.5 fill-current text-blue-600" /> Go Live to Class (Google Meet)
                 </Button>
@@ -680,7 +680,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     type="button"
                     size="sm"
                     onClick={() => setShowRecordingModal(true)}
-                    className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold justify-center shadow-xs h-9"
+                    className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold justify-center shadow-xs h-9"
                   >
                     <Film className="w-4 h-4 mr-2" /> Upload Recording to Student Portal
                   </Button>
@@ -715,7 +715,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 <Button
                   type="button"
                   onClick={handleStartClass}
-                  className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-bold px-5 h-9 text-xs"
+                  className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-5 h-9 text-xs"
                 >
                   <Play className="w-4 h-4 mr-1.5 fill-current" /> START CLASS
                 </Button>
@@ -770,7 +770,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     type="button"
                     size="sm"
                     onClick={() => setShowRecordingModal(true)}
-                    className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs h-9 px-3"
+                    className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs h-9 px-3"
                   >
                     <Film className="w-3.5 h-3.5 mr-1" /> Upload Recording
                   </Button>

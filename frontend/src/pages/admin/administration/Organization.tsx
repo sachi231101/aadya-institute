@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Loader2, AlertCircle, Save } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -52,7 +52,7 @@ export const Organization: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
       </div>
     );
   }
@@ -190,7 +190,7 @@ export const Organization: React.FC = () => {
             <PermissionGate itemKey="admin.organization" mode="write">
             <Button
               type="submit"
-              className="bg-[#1769AA] text-white"
+              className="bg-[#2563EB] text-white"
               disabled={updateMutation.isPending}
             >
               {updateMutation.isPending ? (

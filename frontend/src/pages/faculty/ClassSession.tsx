@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Search, Check, X, Clock, Users, Video, BookOpen,
@@ -529,7 +529,7 @@ export const FacultyClassSession: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/faculty/classes")}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1769AA] hover:underline transition-colors cursor-pointer"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563EB] hover:underline transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Classes
         </button>
@@ -565,7 +565,7 @@ export const FacultyClassSession: React.FC = () => {
 
             {/* Class Details Meta Info Badges */}
             <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-2.5 flex-wrap">
-              <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#1769AA] border border-blue-200 font-bold">
+              <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#2563EB] border border-blue-200 font-bold">
                 Batch: {batchCode}
               </span>
               <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-medium">
@@ -613,7 +613,7 @@ export const FacultyClassSession: React.FC = () => {
             className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
               }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "attendance" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "attendance" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
               }`}>
               1
             </div>
@@ -633,7 +633,7 @@ export const FacultyClassSession: React.FC = () => {
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${workflowStep === "LIVE"
                 ? "bg-rose-600 text-white animate-pulse"
                 : activeTab === "live_classroom"
-                  ? "bg-[#1769AA] text-white"
+                  ? "bg-[#2563EB] text-white"
                   : "bg-slate-100 text-slate-700"
               }`}>
               2
@@ -656,7 +656,7 @@ export const FacultyClassSession: React.FC = () => {
             className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
               }`}
           >
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "session_history" ? "bg-[#1769AA] text-white" : "bg-slate-100 text-slate-700"
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "session_history" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
               }`}>
               3
             </div>
@@ -674,7 +674,7 @@ export const FacultyClassSession: React.FC = () => {
             ? "bg-[#0A2540] border border-slate-800"
             : toastMsg.type === "error"
               ? "bg-rose-900 border border-rose-800"
-              : "bg-[#1769AA] border border-blue-900"
+              : "bg-[#2563EB] border border-blue-900"
           }`}>
           <div className="flex items-center gap-2.5">
             {toastMsg.type === "success" ? (
@@ -701,7 +701,7 @@ export const FacultyClassSession: React.FC = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
                         <Users className="w-4 h-4" />
                       </div>
                       <h2 className="text-base font-extrabold text-slate-900">Student Attendance</h2>
@@ -847,12 +847,12 @@ export const FacultyClassSession: React.FC = () => {
                       variant="outline"
                       onClick={handleUpdateAttendance}
                       disabled={isUpdatingAttendance}
-                      className="w-full sm:w-auto border-2 border-[#1769AA] text-[#1769AA] bg-white hover:bg-blue-50 font-extrabold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
+                      className="w-full sm:w-auto border-2 border-[#2563EB] text-[#2563EB] bg-white hover:bg-blue-50 font-extrabold h-11 px-6 rounded-xl shadow-xs gap-2 cursor-pointer transition-all"
                     >
                       {isUpdatingAttendance ? (
-                        <Loader2 className="w-4 h-4 animate-spin text-[#1769AA]" />
+                        <Loader2 className="w-4 h-4 animate-spin text-[#2563EB]" />
                       ) : (
-                        <Check className="w-4 h-4 text-[#1769AA]" />
+                        <Check className="w-4 h-4 text-[#2563EB]" />
                       )}
                       {isUpdatingAttendance ? "Updating Attendance..." : "Update Attendance"}
                     </Button>
@@ -909,7 +909,7 @@ export const FacultyClassSession: React.FC = () => {
 
               {/* Info Note below Main Card */}
               <div className="p-3.5 px-4 rounded-xl bg-blue-50/80 border border-blue-200/80 text-blue-900 text-xs font-medium flex items-center gap-2.5 shadow-2xs">
-                <div className="w-5 h-5 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-[11px] font-bold shrink-0">
+                <div className="w-5 h-5 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-[11px] font-bold shrink-0">
                   i
                 </div>
                 <span>
@@ -1120,7 +1120,7 @@ export const FacultyClassSession: React.FC = () => {
           {/* Card 1: Class Details */}
           <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 space-y-4">
             <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
-              <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1769AA] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center">
                 <BookOpen className="w-4 h-4" />
               </div>
               <h3 className="text-sm font-extrabold text-slate-900">Class Details</h3>
@@ -1138,7 +1138,7 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5 text-slate-400" /> Batch
                 </span>
-                <span className="font-bold text-[#1769AA] text-right">{batchCode}</span>
+                <span className="font-bold text-[#2563EB] text-right">{batchCode}</span>
               </div>
 
               <div className="flex items-start justify-between gap-2">
@@ -1173,8 +1173,8 @@ export const FacultyClassSession: React.FC = () => {
                 <span className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5">
                   <Video className="w-3.5 h-3.5 text-slate-400" /> Class Mode
                 </span>
-                <span className="font-bold text-[#1769AA] flex items-center gap-1">
-                  <Video className="w-3.5 h-3.5 text-[#1769AA]" /> Online (Google Meet)
+                <span className="font-bold text-[#2563EB] flex items-center gap-1">
+                  <Video className="w-3.5 h-3.5 text-[#2563EB]" /> Online (Google Meet)
                 </span>
               </div>
 
@@ -1211,7 +1211,7 @@ export const FacultyClassSession: React.FC = () => {
                     ? "bg-rose-100 text-rose-700 border-rose-200"
                     : workflowStep === "COMPLETED"
                       ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                      : "bg-blue-50 text-[#1769AA] border-blue-200"
+                      : "bg-blue-50 text-[#2563EB] border-blue-200"
                   }`}>
                   {workflowStep === "LIVE" ? "🔴 LIVE NOW" : workflowStep === "COMPLETED" ? "✓ Completed" : "Upcoming Slot"}
                 </Badge>
@@ -1277,7 +1277,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Batch:</span>
-              <span className="font-bold text-[#1769AA]">{batchCode}</span>
+              <span className="font-bold text-[#2563EB]">{batchCode}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Subject:</span>
@@ -1332,7 +1332,7 @@ export const FacultyClassSession: React.FC = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Batch:</span>
-              <span className="font-bold text-[#1769AA]">{batchCode}</span>
+              <span className="font-bold text-[#2563EB]">{batchCode}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Subject:</span>
@@ -1425,7 +1425,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleSaveRecording}
-              className="h-10 text-xs font-extrabold bg-[#1769AA] text-white rounded-xl shadow-md cursor-pointer"
+              className="h-10 text-xs font-extrabold bg-[#2563EB] text-white rounded-xl shadow-md cursor-pointer"
             >
               Save Recording
             </Button>
@@ -1480,7 +1480,7 @@ export const FacultyClassSession: React.FC = () => {
                     type="button"
                     onClick={() => setMatType(t.key as any)}
                     className={`p-2 rounded-xl text-center font-bold text-[11px] border transition-all cursor-pointer ${matType === t.key
-                        ? "border-[#1769AA] bg-blue-50 text-[#1769AA]"
+                        ? "border-[#2563EB] bg-blue-50 text-[#2563EB]"
                         : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
                       }`}
                   >
@@ -1513,7 +1513,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleSaveMaterial}
-              className="h-10 text-xs font-extrabold bg-[#1769AA] text-white rounded-xl shadow-md cursor-pointer"
+              className="h-10 text-xs font-extrabold bg-[#2563EB] text-white rounded-xl shadow-md cursor-pointer"
             >
               Upload Material
             </Button>
@@ -1536,7 +1536,7 @@ export const FacultyClassSession: React.FC = () => {
               value={classNotesText}
               onChange={(e) => setClassNotesText(e.target.value)}
               placeholder="Enter lecture summary, homework assignment, or student tasks..."
-              className="w-full text-xs p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#1769AA]/20 font-medium"
+              className="w-full text-xs p-3 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-[#2563EB]/20 font-medium"
             />
           </div>
 
@@ -1544,7 +1544,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button type="button" variant="outline" onClick={() => setShowNotesModal(false)} className="h-9 text-xs font-bold rounded-xl cursor-pointer">
               Cancel
             </Button>
-            <Button type="button" onClick={handleSaveNotes} className="h-9 text-xs font-bold bg-[#1769AA] text-white rounded-xl cursor-pointer">
+            <Button type="button" onClick={handleSaveNotes} className="h-9 text-xs font-bold bg-[#2563EB] text-white rounded-xl cursor-pointer">
               Save Notes
             </Button>
           </DialogFooter>
@@ -1622,7 +1622,7 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={() => setShowAttendanceSuccessModal(false)}
-              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white font-extrabold text-xs h-10 rounded-xl shadow-md cursor-pointer"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-extrabold text-xs h-10 rounded-xl shadow-md cursor-pointer"
             >
               Done
             </Button>

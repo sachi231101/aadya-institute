@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Plug,
@@ -61,7 +61,7 @@ export const Integrations: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
       </div>
     );
   }
@@ -106,7 +106,7 @@ export const Integrations: React.FC = () => {
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3">
                     <div className="h-10 w-10 rounded-xl bg-slate-50 border border-border/60 flex items-center justify-center shrink-0">
-                      <Plug className="w-5 h-5 text-[#1769AA]" />
+                      <Plug className="w-5 h-5 text-[#2563EB]" />
                     </div>
                     <div>
                       <p className="font-medium">{item.name}</p>

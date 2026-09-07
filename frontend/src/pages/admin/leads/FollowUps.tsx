@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { CalendarDays, Clock, AlertTriangle, Loader2, AlertCircle } from "lucide-react";
 import { useFollowUpDashboard } from "@/hooks/useLeads";
@@ -46,7 +46,7 @@ export const FollowUps: React.FC = () => {
         {tabs.map((tab) => (
           <Card
             key={tab.key}
-            className={`cursor-pointer border-border/50 ${activeTab === tab.key ? "ring-2 ring-[#1769AA]" : ""}`}
+            className={`cursor-pointer border-border/50 ${activeTab === tab.key ? "ring-2 ring-[#2563EB]" : ""}`}
             onClick={() => setActiveTab(tab.key)}
           >
             <CardContent className="p-4 flex items-center gap-4">

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ArrowLeft, Phone, PhoneCall, Bot, UserCheck, CheckCircle2, Clock,
@@ -158,7 +158,7 @@ export const LeadDetails: React.FC = () => {
     return (
       <div className="p-6 flex items-center justify-center min-h-[400px]">
         <div className="text-center">
-          <div className="h-8 w-8 border-2 border-[#1769AA] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+          <div className="h-8 w-8 border-2 border-[#2563EB] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-text-secondary">Loading lead details...</p>
         </div>
       </div>
@@ -187,7 +187,7 @@ export const LeadDetails: React.FC = () => {
         <ArrowLeft size={16} /> Back to Leads
       </Button>
 
-      <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-[#2563EB] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
@@ -294,7 +294,7 @@ export const LeadDetails: React.FC = () => {
                   disabled={changeStageMutation.isPending || isClosed || !canEditLeads}
                   className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
                     isCurrent
-                      ? "bg-white text-[#1769AA] shadow-md"
+                      ? "bg-white text-[#2563EB] shadow-md"
                       : isCompleted
                         ? "bg-white/30 text-white"
                         : "bg-white/10 text-white/50"
@@ -455,7 +455,7 @@ export const LeadDetails: React.FC = () => {
                   </div>
                   <div className="md:col-span-2"><Label>Notes</Label><Textarea name="notes" defaultValue={lead.notes || ""} className="mt-1" /></div>
                   <div className="md:col-span-2">
-                    <Button type="submit" disabled={updateLeadMutation.isPending} className="bg-[#1769AA] text-white">
+                    <Button type="submit" disabled={updateLeadMutation.isPending} className="bg-[#2563EB] text-white">
                       {updateLeadMutation.isPending ? "Saving..." : "Save changes"}
                     </Button>
                   </div>
@@ -507,7 +507,7 @@ export const LeadDetails: React.FC = () => {
               <Button
                 onClick={handleCreateApplication}
                 disabled={!appCourseId || createAppMutation.isPending}
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
               >
                 {createAppMutation.isPending ? "Creating..." : "Create Application"}
               </Button>
@@ -559,7 +559,7 @@ export const LeadDetails: React.FC = () => {
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowFollowUpDialog(false)}>Cancel</Button>
               <PermissionGate itemKey="leads.all" mode="write">
-                <Button type="submit" className="bg-[#1769AA] text-white" disabled={createFollowUpMutation.isPending}>
+                <Button type="submit" className="bg-[#2563EB] text-white" disabled={createFollowUpMutation.isPending}>
                   {createFollowUpMutation.isPending ? "Scheduling..." : "Schedule Follow-Up"}
                 </Button>
               </PermissionGate>
@@ -603,7 +603,7 @@ export const LeadDetails: React.FC = () => {
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setShowAssignDialog(false)}>Cancel</Button>
                 <PermissionGate itemKey="leads.all" mode="write">
-                  <Button type="submit" className="bg-[#1769AA] text-white" disabled={assignMutation.isPending}>
+                  <Button type="submit" className="bg-[#2563EB] text-white" disabled={assignMutation.isPending}>
                     {assignMutation.isPending ? "Assigning..." : "Assign Counsellor"}
                   </Button>
                 </PermissionGate>

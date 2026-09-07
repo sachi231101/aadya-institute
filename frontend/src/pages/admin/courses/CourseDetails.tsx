@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { BookOpen, Loader2, AlertCircle } from "lucide-react";
@@ -19,7 +19,7 @@ export const CourseDetails: React.FC = () => {
 
   const course = data?.data;
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
   if (isError || !course) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load course.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+﻿import React, { useState, useRef } from "react";
 import { SendHorizontal, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -73,7 +73,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           e.preventDefault();
           handleSend();
         }}
-        className="flex items-end gap-2 bg-background border border-border/80 focus-within:border-[#1769AA] dark:focus-within:border-sky-500 rounded-xl p-1.5 transition-colors shadow-2xs"
+        className="flex items-end gap-2 bg-background border border-border/80 focus-within:border-[#2563EB] dark:focus-within:border-sky-500 rounded-xl p-1.5 transition-colors shadow-2xs"
       >
         <textarea
           ref={textareaRef}
@@ -92,7 +92,7 @@ export const MessageInput: React.FC<MessageInputProps> = ({
           type="submit"
           size="icon"
           disabled={isSendDisabled}
-          className="h-8 w-8 rounded-lg bg-[#1769AA] hover:bg-[#1769AA]/90 text-white shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+          className="h-8 w-8 rounded-lg bg-[#2563EB] hover:bg-[#2563EB]/90 text-white shrink-0 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
           title="Send message"
           aria-label="Send message"
         >

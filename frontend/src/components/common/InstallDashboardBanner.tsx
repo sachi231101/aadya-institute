@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Download, Laptop, X, Shield, UserCheck, BookOpen, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePWAInstall } from "@/hooks/usePWAInstall";
@@ -54,9 +54,9 @@ export const InstallDashboardBanner: React.FC = () => {
   };
 
   return (
-    <div className="mb-6 rounded-2xl bg-gradient-to-r from-[#1769AA]/10 via-[#1769AA]/5 to-[#F39A16]/10 border border-[#1769AA]/20 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
+    <div className="mb-6 rounded-2xl bg-gradient-to-r from-[#2563EB]/10 via-[#2563EB]/5 to-[#F39A16]/10 border border-[#2563EB]/20 p-4 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-all">
       <div className="flex items-center gap-3.5 min-w-0">
-        <div className="w-11 h-11 rounded-xl bg-[#1769AA] text-white flex items-center justify-center shadow-sm shrink-0">
+        <div className="w-11 h-11 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-sm shrink-0">
           <RoleIcon className="h-6 w-6" />
         </div>
         <div className="min-w-0">
@@ -64,7 +64,7 @@ export const InstallDashboardBanner: React.FC = () => {
             <h3 className="text-sm font-bold text-slate-900 truncate">
               Install Aadya {roleTitle} on Desktop
             </h3>
-            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#1769AA] text-white">
+            <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-[#2563EB] text-white">
               Desktop App
             </span>
           </div>
@@ -78,7 +78,7 @@ export const InstallDashboardBanner: React.FC = () => {
         <Button
           onClick={handleInstallClick}
           size="sm"
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white font-bold text-xs gap-1.5 shadow-xs px-4 h-9"
+          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs gap-1.5 shadow-xs px-4 h-9"
         >
           <Download className="h-4 w-4" />
           Install {roleTitle}

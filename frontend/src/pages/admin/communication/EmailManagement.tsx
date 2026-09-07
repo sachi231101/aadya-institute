@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Mail, Plus, Loader2, AlertCircle } from "lucide-react";
 import { useEmailTemplates, useEmailLogs, useCreateEmailTemplate } from "@/hooks/useEmail";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +52,7 @@ export const EmailManagement: React.FC = () => {
         </div>
         {tab === "templates" && (
           <PermissionGate itemKey="communication.email" mode="write">
-            <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+            <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
               <Plus className="mr-2 h-4 w-4" /> New Template
             </Button>
           </PermissionGate>
@@ -61,7 +61,7 @@ export const EmailManagement: React.FC = () => {
 
       <div className="flex gap-2 border-b">
         {(["templates", "logs"] as Tab[]).map((t) => (
-          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium border-b-2 capitalize ${tab === t ? "border-[#1769AA] text-[#1769AA]" : "border-transparent text-text-secondary"}`}>
+          <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm font-medium border-b-2 capitalize ${tab === t ? "border-[#2563EB] text-[#2563EB]" : "border-transparent text-text-secondary"}`}>
             {t}
           </button>
         ))}
@@ -139,7 +139,7 @@ export const EmailManagement: React.FC = () => {
               <div><Label>Body *</Label><textarea required value={body} onChange={(e) => setBody(e.target.value)} className="w-full min-h-[120px] p-3 border rounded-md text-sm" /></div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#1769AA] text-white" disabled={createMutation.isPending}>Create</Button>
+                <Button type="submit" className="bg-[#2563EB] text-white" disabled={createMutation.isPending}>Create</Button>
               </div>
             </form>
           </div>

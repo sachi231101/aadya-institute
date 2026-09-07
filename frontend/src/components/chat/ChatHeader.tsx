@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { ArrowLeft, X, Users, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -67,12 +67,12 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
         {activeConversation ? (
           <div className="flex items-center gap-2.5 min-w-0">
             {isTeam ? (
-              <div className="h-8 w-8 rounded-lg bg-[#1769AA]/10 dark:bg-sky-950/60 text-[#1769AA] dark:text-sky-400 flex items-center justify-center shrink-0">
+              <div className="h-8 w-8 rounded-lg bg-[#2563EB]/10 dark:bg-sky-950/60 text-[#2563EB] dark:text-sky-400 flex items-center justify-center shrink-0">
                 <Users className="h-4 w-4" />
               </div>
             ) : (
               <Avatar className="h-8 w-8 rounded-lg border border-border/60 bg-slate-100 dark:bg-slate-800 text-xs font-bold shrink-0">
-                <AvatarFallback className="bg-[#1769AA] text-white text-[11px] font-bold">
+                <AvatarFallback className="bg-[#2563EB] text-white text-[11px] font-bold">
                   {initials}
                 </AvatarFallback>
               </Avatar>
@@ -97,7 +97,7 @@ export const ChatHeader: React.FC<ChatHeaderProps> = ({
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-[#1769AA]/10 dark:bg-sky-950/60 text-[#1769AA] dark:text-sky-400 flex items-center justify-center shrink-0">
+            <div className="h-8 w-8 rounded-lg bg-[#2563EB]/10 dark:bg-sky-950/60 text-[#2563EB] dark:text-sky-400 flex items-center justify-center shrink-0">
               <MessageSquare className="h-4 w-4" />
             </div>
             <div>

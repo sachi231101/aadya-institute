@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Loader2, AlertCircle, FileCheck } from "lucide-react";
 import { useExaminationsReport } from "@/hooks/useReports";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,7 +17,7 @@ export const ExaminationReports: React.FC = () => {
   const { data, isLoading, isError, refetch } = useExaminationsReport();
   const summary = data?.summary || { totalExams: 0, publishedExams: 0, totalAttempts: 0, avgScore: 0, passRate: 0 };
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
   return (
@@ -49,7 +49,7 @@ export const ExaminationReports: React.FC = () => {
                 <XAxis dataKey="range" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="count" fill="#1769AA" />
+                <Bar dataKey="count" fill="#2563EB" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

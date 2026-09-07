@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { MessageSquare, Loader2, AlertCircle, RefreshCw } from "lucide-react";
 import { whatsappApi } from "@/services/whatsapp.api";
@@ -63,7 +63,7 @@ export const WhatsAppHub: React.FC = () => {
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === t.key ? "border-[#1769AA] text-[#1769AA]" : "border-transparent text-text-secondary"}`}
+            className={`px-4 py-2 text-sm font-medium border-b-2 ${tab === t.key ? "border-[#2563EB] text-[#2563EB]" : "border-transparent text-text-secondary"}`}
           >
             {t.label}
           </button>

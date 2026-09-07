@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Wallet,
   Search,
@@ -80,7 +80,7 @@ export const StudentFees: React.FC = () => {
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
-              <TrendingUp className="h-5 w-5 text-[#1769AA]" />
+              <TrendingUp className="h-5 w-5 text-[#2563EB]" />
             </div>
             <div>
               <p className="text-lg font-bold">
@@ -123,7 +123,7 @@ export const StudentFees: React.FC = () => {
               <Button
                 variant={activeTab === "pending" ? "default" : "outline"}
                 size="sm"
-                className={activeTab === "pending" ? "bg-[#1769AA] text-white" : ""}
+                className={activeTab === "pending" ? "bg-[#2563EB] text-white" : ""}
                 onClick={() => {
                   setActiveTab("pending");
                   setPage(1);
@@ -134,7 +134,7 @@ export const StudentFees: React.FC = () => {
               <Button
                 variant={activeTab === "payments" ? "default" : "outline"}
                 size="sm"
-                className={activeTab === "payments" ? "bg-[#1769AA] text-white" : ""}
+                className={activeTab === "payments" ? "bg-[#2563EB] text-white" : ""}
                 onClick={() => {
                   setActiveTab("payments");
                   setPage(1);

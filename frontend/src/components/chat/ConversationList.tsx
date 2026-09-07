@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Users, MessageSquare } from "lucide-react";
 import type { Conversation } from "../../types/chat.types";
 import { useAuthStore } from "../../store/auth.store";
@@ -100,11 +100,11 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                 onClick={() => onSelect(conv)}
                 className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-colors cursor-pointer ${
                   isSelected
-                    ? "bg-[#1769AA]/10 dark:bg-sky-950/50 border border-[#1769AA]/30"
+                    ? "bg-[#2563EB]/10 dark:bg-sky-950/50 border border-[#2563EB]/30"
                     : "hover:bg-accent/70 border border-transparent"
                 }`}
               >
-                <div className="h-10 w-10 rounded-lg bg-[#1769AA]/10 dark:bg-sky-950/60 text-[#1769AA] dark:text-sky-400 flex items-center justify-center shrink-0">
+                <div className="h-10 w-10 rounded-lg bg-[#2563EB]/10 dark:bg-sky-950/60 text-[#2563EB] dark:text-sky-400 flex items-center justify-center shrink-0">
                   <Users className="h-5 w-5" />
                 </div>
 
@@ -186,13 +186,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
                   onClick={() => onSelect(conv)}
                   className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-colors cursor-pointer ${
                     isSelected
-                      ? "bg-[#1769AA]/10 dark:bg-sky-950/50 border border-[#1769AA]/30"
+                      ? "bg-[#2563EB]/10 dark:bg-sky-950/50 border border-[#2563EB]/30"
                       : "hover:bg-accent/70 border border-transparent"
                   }`}
                 >
                   <div className="relative shrink-0">
                     <Avatar className="h-10 w-10 rounded-lg border border-border/60 bg-slate-100 dark:bg-slate-800 text-xs font-bold">
-                      <AvatarFallback className="bg-[#1769AA] text-white text-xs font-bold">
+                      <AvatarFallback className="bg-[#2563EB] text-white text-xs font-bold">
                         {initials}
                       </AvatarFallback>
                     </Avatar>

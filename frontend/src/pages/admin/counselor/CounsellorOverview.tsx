@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   UserCheck,
@@ -216,14 +216,14 @@ export const CounsellorOverview: React.FC = () => {
         <Card className="lg:col-span-8 border border-slate-200/70 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
           <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-row items-center justify-between">
             <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-[#1769AA]" />
+              <UserCheck className="h-4 w-4 text-[#2563EB]" />
               Counsellor Performance
             </CardTitle>
             <Button
               variant="outline"
               size="sm"
               onClick={() => navigate(`${basePath}/counselor/all`)}
-              className="text-xs h-7 text-[#1769AA] border-blue-200 hover:bg-blue-50"
+              className="text-xs h-7 text-[#2563EB] border-blue-200 hover:bg-blue-50"
             >
               Manage Counsellors
             </Button>
@@ -283,7 +283,7 @@ export const CounsellorOverview: React.FC = () => {
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedCounsellor(c)}
-                          className="h-7 text-[11px] font-semibold border-slate-200 text-[#1769AA] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
+                          className="h-7 text-[11px] font-semibold border-slate-200 text-[#2563EB] hover:bg-blue-50 hover:border-blue-200 transition-colors px-2.5 rounded-lg"
                         >
                           View Details
                         </Button>
@@ -308,7 +308,7 @@ export const CounsellorOverview: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate(`${basePath}/leads`)}
-              className="text-xs font-bold text-[#1769AA] hover:underline"
+              className="text-xs font-bold text-[#2563EB] hover:underline"
             >
               View All
             </button>
@@ -355,7 +355,7 @@ export const CounsellorOverview: React.FC = () => {
       <Card className="border border-slate-200/70 shadow-xs bg-white rounded-2xl overflow-hidden">
         <CardHeader className="pb-3 pt-4 px-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <CardTitle className="text-sm md:text-base font-bold text-[#0A2540] flex items-center gap-2">
-            <Activity className="h-4 w-4 text-[#1769AA]" />
+            <Activity className="h-4 w-4 text-[#2563EB]" />
             Lead Tracking (All Leads)
           </CardTitle>
           <div className="relative w-full sm:w-64">
@@ -490,7 +490,7 @@ export const CounsellorOverview: React.FC = () => {
         <DialogContent className="max-w-md bg-white rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-[#1769AA]" />
+              <UserCheck className="h-5 w-5 text-[#2563EB]" />
               {selectedCounsellor?.name} — Performance Profile
             </DialogTitle>
           </DialogHeader>

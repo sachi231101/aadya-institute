@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
@@ -219,7 +219,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="flex items-center gap-2">
           <Button
             onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
-            className="bg-[#1769AA] hover:bg-[#13568c] text-white font-bold text-xs gap-1.5 shadow-sm"
+            className="bg-[#2563EB] hover:bg-[#13568c] text-white font-bold text-xs gap-1.5 shadow-sm"
           >
             <Building2 className="h-4 w-4" /> Manage Branches
           </Button>
@@ -296,7 +296,7 @@ export const AdminDashboard: React.FC = () => {
               className="text-left p-3 rounded-xl border border-border bg-card hover:bg-blue-50/50 hover:border-blue-200 transition-all"
             >
               <p className="text-xs font-bold text-foreground">{mod.label}</p>
-              <p className="text-lg font-extrabold text-[#1769AA] mt-1">{mod.count}</p>
+              <p className="text-lg font-extrabold text-[#2563EB] mt-1">{mod.count}</p>
             </button>
           ))}
         </div>
@@ -309,7 +309,7 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
-            className="text-xs font-semibold text-[#1769AA] hover:underline"
+            className="text-xs font-semibold text-[#2563EB] hover:underline"
           >
             Manage Assignments →
           </button>
@@ -317,7 +317,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Card className="border border-border bg-card shadow-sm rounded-2xl">
             <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
                 <FileText className="h-5 w-5" />
               </div>
               <div>
@@ -354,7 +354,7 @@ export const AdminDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(ROUTES.ADMIN.SCHEDULE.TIMETABLE)}
-            className="text-xs font-semibold text-[#1769AA] hover:underline"
+            className="text-xs font-semibold text-[#2563EB] hover:underline"
           >
             Open Timetable →
           </button>

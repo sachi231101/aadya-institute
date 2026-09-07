@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Loader2,
@@ -87,7 +87,7 @@ export const ExamResults: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" />
       </div>
     );
   }
@@ -142,7 +142,7 @@ export const ExamResults: React.FC = () => {
                 <XAxis dataKey="range" />
                 <YAxis allowDecimals={false} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#1769AA" />
+                <Bar dataKey="count" fill="#2563EB" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -189,7 +189,7 @@ export const ExamResults: React.FC = () => {
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-[#1769AA]" />
+              <Users className="w-4 h-4 text-[#2563EB]" />
               Student Results
             </h3>
             <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">

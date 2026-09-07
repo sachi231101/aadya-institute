@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Target, Loader2, AlertCircle } from "lucide-react";
 import { useCounsellorPerformance } from "@/hooks/useLeads";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export const CounsellorPerformance: React.FC = () => {
   const { data, isLoading, isError, refetch } = useCounsellorPerformance();
   const counsellors = data?.data?.counsellors || data?.data || [];
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
   return (

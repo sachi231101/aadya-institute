@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
@@ -190,7 +190,7 @@ export const AllStudents: React.FC = () => {
   };
 
   const tabs = [
-    { name: "All Students", count: branchStudents.length, color: "text-[#1769AA]" },
+    { name: "All Students", count: branchStudents.length, color: "text-[#2563EB]" },
     { name: "Active", count: branchStudents.filter((s) => s.status === "Active" || s.status === "Batch Assignment Pending").length, color: "text-emerald-600" },
     { name: "Draft", count: branchStudents.filter((s) => s.status === "Admission Pending").length, color: "text-amber-600" },
     { name: "At Risk", count: branchStudents.filter((s) => s.status === "At Risk").length, color: "text-red-500" },
@@ -205,7 +205,7 @@ export const AllStudents: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-              <Users className="h-6 w-6 text-[#1769AA]" />
+              <Users className="h-6 w-6 text-[#2563EB]" />
               Student Directory & 360° Tracker
             </h1>
             <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
@@ -227,7 +227,7 @@ export const AllStudents: React.FC = () => {
               mode="write"
             >
               <Button
-                className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold shadow-sm"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold shadow-sm"
                 onClick={() => navigate(`${basePath}/admissions/direct-entry`)}
               >
                 <Plus className="h-4 w-4 mr-2" /> Register Student
@@ -260,7 +260,7 @@ export const AllStudents: React.FC = () => {
                 ? `${kpis.studentsWithAttendance} students with marked attendance`
                 : "No attendance records yet",
             icon: CalendarDays,
-            color: "text-[#1769AA]",
+            color: "text-[#2563EB]",
             bg: "bg-blue-50",
           },
           {
@@ -305,7 +305,7 @@ export const AllStudents: React.FC = () => {
               placeholder="Search student by Name, Student ID (AAD-2026-XX), Email, or Phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA] transition-all bg-white"
+              className="w-full pl-9 pr-4 py-2 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all bg-white"
             />
           </div>
           <div className="flex items-center gap-3 w-full lg:w-auto">
@@ -313,7 +313,7 @@ export const AllStudents: React.FC = () => {
             <select
               value={selectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="text-sm font-semibold border border-slate-200 rounded-md px-3 py-2 text-slate-700 bg-white focus:outline-none focus:border-[#1769AA]"
+              className="text-sm font-semibold border border-slate-200 rounded-md px-3 py-2 text-slate-700 bg-white focus:outline-none focus:border-[#2563EB]"
             >
               <option value="ALL">🌐 All Branches</option>
               {branches.map((b) => (
@@ -327,7 +327,7 @@ export const AllStudents: React.FC = () => {
             <select
               value={selectedCourseFilter}
               onChange={(e) => setSelectedCourseFilter(e.target.value)}
-              className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#1769AA]"
+              className="text-sm border border-slate-200 rounded-md px-3 py-2 text-slate-600 bg-white focus:outline-none focus:border-[#2563EB]"
             >
               <option value="All Courses">All Courses</option>
               {allCourses.map((c) => (
@@ -347,13 +347,13 @@ export const AllStudents: React.FC = () => {
               onClick={() => setSelectedTab(tab.name)}
               className={`text-xs font-semibold py-2 border-b-2 flex items-center gap-2 transition-all whitespace-nowrap ${
                 selectedTab === tab.name
-                  ? "border-[#1769AA] text-[#1769AA]"
+                  ? "border-[#2563EB] text-[#2563EB]"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
               <span>{tab.name}</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                selectedTab === tab.name ? "bg-[#1769AA]/10 text-[#1769AA]" : "bg-slate-100 text-slate-600"
+                selectedTab === tab.name ? "bg-[#2563EB]/10 text-[#2563EB]" : "bg-slate-100 text-slate-600"
               }`}>
                 {tab.count}
               </span>
@@ -397,12 +397,12 @@ export const AllStudents: React.FC = () => {
                     <td className="p-3.5 pl-5">
                       <div className="flex items-center gap-3">
                         <Avatar className="h-9 w-9 border border-slate-200">
-                          <AvatarFallback className="bg-gradient-to-br from-[#1769AA] to-indigo-700 text-white font-bold text-xs">
+                          <AvatarFallback className="bg-gradient-to-br from-[#2563EB] to-indigo-700 text-white font-bold text-xs">
                             {s.name.split(" ").map((n: string) => n[0]).slice(0, 2).join("")}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-bold text-slate-900 group-hover:text-[#1769AA] transition-colors">
+                          <p className="font-bold text-slate-900 group-hover:text-[#2563EB] transition-colors">
                             {s.name}
                           </p>
                           <p className="font-mono text-[11px] text-slate-500">{s.studentCode}</p>
@@ -525,7 +525,7 @@ export const AllStudents: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => navigate(`${basePath}/students/${s.id}`)}
-                            className="h-7 px-2.5 text-xs font-semibold text-[#1769AA] border-[#1769AA]/30 hover:bg-[#1769AA] hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
+                            className="h-7 px-2.5 text-xs font-semibold text-[#2563EB] border-[#2563EB]/30 hover:bg-[#2563EB] hover:text-white transition-all rounded-md shadow-none inline-flex items-center gap-1.5"
                             title="Open Student Profile & Dossier"
                           >
                             View Dossier

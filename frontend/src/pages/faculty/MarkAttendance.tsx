@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Check,
@@ -320,7 +320,7 @@ export const FacultyMarkAttendance: React.FC = () => {
             {/* Title & Metric Badges */}
             <div className="flex flex-wrap items-center gap-3">
               <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#1769AA]">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center text-[#2563EB]">
                   <Users className="w-4 h-4" />
                 </div>
                 <h3 className="text-base font-black text-slate-900 tracking-tight">Mark Attendance</h3>
@@ -541,9 +541,9 @@ export const FacultyMarkAttendance: React.FC = () => {
               variant="outline"
               onClick={handleSaveAttendance}
               disabled={isSaving || !sessionId || students.length === 0}
-              className="bg-white hover:bg-slate-50 text-[#1769AA] border-[#1769AA] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
+              className="bg-white hover:bg-slate-50 text-[#2563EB] border-[#2563EB] text-xs font-bold h-11 px-5 rounded-xl shadow-2xs gap-2 transition-all cursor-pointer"
             >
-              <Save className="h-4 w-4 text-[#1769AA]" />
+              <Save className="h-4 w-4 text-[#2563EB]" />
               <span>{isSaving ? "Saving..." : "Save Attendance"}</span>
             </Button>
 
@@ -558,7 +558,7 @@ export const FacultyMarkAttendance: React.FC = () => {
                 });
               }}
               disabled={!sessionId}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group disabled:opacity-50 disabled:hover:scale-100"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-black h-11 px-6 rounded-xl shadow-md gap-2.5 transition-all hover:scale-[1.02] cursor-pointer group disabled:opacity-50 disabled:hover:scale-100"
             >
               <Video className="h-4 w-4 fill-white/20 stroke-[2.2]" />
               <span>Save & Go Live</span>
@@ -610,7 +610,7 @@ export const FacultyMarkAttendance: React.FC = () => {
                 setIsSavedPopupOpen(false);
                 navigate("/faculty/class-session?mode=live", { state: { live: true } });
               }}
-              className="w-full bg-[#1769AA] hover:bg-[#125890] text-white py-4 h-auto rounded-2xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 cursor-pointer group"
+              className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white py-4 h-auto rounded-2xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-3 cursor-pointer group"
             >
               <div className="w-8 h-8 rounded-xl bg-white/20 flex items-center justify-center text-white shrink-0 group-hover:scale-105 transition-transform">
                 <Video className="w-4 h-4 fill-white/20 stroke-[2.2]" />

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   FileText,
@@ -159,7 +159,7 @@ export const AssignmentList: React.FC = () => {
           </p>
         </div>
         <PermissionGate itemKey="assignments.all" mode="write">
-        <Button className="bg-[#1769AA] hover:bg-[#125387] text-white shadow-sm" onClick={() => navigate(`${assignmentsBase}/create`)}>
+        <Button className="bg-[#2563EB] hover:bg-[#125387] text-white shadow-sm" onClick={() => navigate(`${assignmentsBase}/create`)}>
           <Plus className="mr-2 h-4 w-4" /> Add New
         </Button>
         </PermissionGate>
@@ -362,7 +362,7 @@ export const AssignmentList: React.FC = () => {
                       <p className="text-sm mb-4">Create your first assignment for a batch or course.</p>
                       <PermissionGate itemKey="assignments.all" mode="write">
                       <Button
-                        className="bg-[#1769AA] text-white"
+                        className="bg-[#2563EB] text-white"
                         onClick={() => navigate(`${assignmentsBase}/create`)}
                       >
                         <Plus className="mr-2 h-4 w-4" /> Create Assignment

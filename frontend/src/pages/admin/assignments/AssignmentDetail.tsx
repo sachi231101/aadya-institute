@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -345,7 +345,7 @@ export const AssignmentDetail: React.FC = () => {
                   href={`https://www.youtube.com/watch?v=${assignment.youtubeVideoId}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-[#1769AA] hover:underline font-medium text-sm"
+                  className="inline-flex items-center gap-2 text-[#2563EB] hover:underline font-medium text-sm"
                 >
                   <Video className="h-4 w-4" />
                   Watch on YouTube

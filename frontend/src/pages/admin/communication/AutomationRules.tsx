@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Zap, Loader2, AlertCircle, Plus } from "lucide-react";
 import { whatsappApi } from "@/services/whatsapp.api";
@@ -57,7 +57,7 @@ export const AutomationRules: React.FC = () => {
           <p className="text-sm text-text-secondary">Configure WhatsApp notification rules for academy events.</p>
         </div>
         <PermissionGate itemKey="communication.automation" mode="write">
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
             <Plus className="mr-2 h-4 w-4" /> Add Rule
           </Button>
         </PermissionGate>
@@ -116,7 +116,7 @@ export const AutomationRules: React.FC = () => {
               </div>
               <div className="flex justify-end gap-3">
                 <Button type="button" variant="outline" onClick={() => setShowModal(false)}>Cancel</Button>
-                <Button type="submit" className="bg-[#1769AA] text-white" disabled={upsertMutation.isPending}>Save Rule</Button>
+                <Button type="submit" className="bg-[#2563EB] text-white" disabled={upsertMutation.isPending}>Save Rule</Button>
               </div>
             </form>
           </div>

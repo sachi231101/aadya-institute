@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -52,7 +52,7 @@ export const InstallAppDialog: React.FC<InstallAppDialogProps> = ({
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center border border-blue-100 shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center border border-blue-100 shadow-xs">
               <RoleIcon className="h-5 w-5" />
             </div>
             <div>
@@ -69,7 +69,7 @@ export const InstallAppDialog: React.FC<InstallAppDialogProps> = ({
         <div className="space-y-4 py-2 text-xs text-slate-700">
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 space-y-2">
             <div className="flex items-center gap-2 font-semibold text-slate-800">
-              <Globe className="h-4 w-4 text-[#1769AA]" />
+              <Globe className="h-4 w-4 text-[#2563EB]" />
               <span>Google Chrome / Brave / Chromium:</span>
             </div>
             <ol className="list-decimal list-inside space-y-1 text-slate-600 pl-1">

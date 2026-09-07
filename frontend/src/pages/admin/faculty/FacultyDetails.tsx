@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -571,9 +571,9 @@ export const FacultyDetails: React.FC = () => {
                         <Line
                           type="monotone"
                           dataKey="val"
-                          stroke="#1769AA"
+                          stroke="#2563EB"
                           strokeWidth={3}
-                          dot={{ r: 4, fill: "#1769AA", strokeWidth: 2, stroke: "#fff" }}
+                          dot={{ r: 4, fill: "#2563EB", strokeWidth: 2, stroke: "#fff" }}
                           activeDot={{ r: 6 }}
                         />
                       </LineChart>

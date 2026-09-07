@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   FileText,
   Search,
@@ -123,7 +123,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
           <p className="text-sm text-text-secondary">{description}</p>
         </div>
         <PermissionGate itemKey={writeItemKey} mode="write">
-        <Button className="bg-[#1769AA] text-white" onClick={() => setShowUpload(true)}>
+        <Button className="bg-[#2563EB] text-white" onClick={() => setShowUpload(true)}>
           <Plus className="mr-2 h-4 w-4" /> Upload Document
         </Button>
         </PermissionGate>
@@ -196,7 +196,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
                             href={d.fileUrl}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-[#1769AA] hover:underline text-sm"
+                            className="text-[#2563EB] hover:underline text-sm"
                           >
                             {d.fileName}
                           </a>
@@ -290,7 +290,7 @@ export const DocumentManagement: React.FC<DocumentManagementProps> = ({
               </Button>
               <Button
                 type="submit"
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

@@ -64,4 +64,4 @@ export const resolveDisplayOrganizationInfo = (params: {
 };
 
 export const DEFAULT_ORG_LOGO = "/aadya-logo.png";
-export const DEFAULT_ORG_NAME = "Aadya Portal";
+export const DEFAULT_ORG_NAME = "Aadya Institute";

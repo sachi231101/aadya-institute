@@ -58,7 +58,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({
         onClick={handleClick}
         variant="outline"
         size="sm"
-        className={`h-9 gap-1.5 bg-[#1769AA]/10 hover:bg-[#1769AA] text-[#1769AA] hover:text-white border border-[#1769AA]/30 font-bold text-xs transition-all shadow-xs px-3 ${className}`}
+        className={`h-9 gap-1.5 bg-[#2563EB]/10 hover:bg-[#2563EB] text-[#2563EB] hover:text-white border border-[#2563EB]/30 font-bold text-xs transition-all shadow-xs px-3 ${className}`}
         title={`Install Aadya ${roleTitle} as a standalone desktop application`}
       >
         <Download className="h-4 w-4 shrink-0" />
@@ -71,10 +71,10 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({
     return (
       <button
         onClick={handleClick}
-        className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[#1769AA] bg-blue-50/60 hover:bg-blue-100/80 border border-blue-200/60 rounded-xl transition-all shadow-xs ${className}`}
+        className={`flex items-center gap-2.5 w-full px-3 py-2 text-xs font-semibold text-[#2563EB] bg-blue-50/60 hover:bg-blue-100/80 border border-blue-200/60 rounded-xl transition-all shadow-xs ${className}`}
         title={`Install Aadya ${roleTitle} as a standalone desktop application`}
       >
-        <RoleIcon className="h-4 w-4 shrink-0 text-[#1769AA]" />
+        <RoleIcon className="h-4 w-4 shrink-0 text-[#2563EB]" />
         <span className="truncate">{fullTitle}</span>
       </button>
     );
@@ -84,7 +84,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({
     return (
       <div className={`p-4 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200/80 flex items-center justify-between gap-4 shadow-xs ${className}`}>
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#1769AA] text-white flex items-center justify-center shadow-xs shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shadow-xs shrink-0">
             <RoleIcon className="h-5 w-5" />
           </div>
           <div>
@@ -95,7 +95,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({
         <Button
           onClick={handleClick}
           size="sm"
-          className="bg-[#1769AA] hover:bg-[#0B4F8A] text-white font-semibold text-xs gap-1.5 shrink-0"
+          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs gap-1.5 shrink-0"
         >
           <Download className="h-3.5 w-3.5" /> Install Now
         </Button>
@@ -106,7 +106,7 @@ export const InstallAppButton: React.FC<InstallAppButtonProps> = ({
   return (
     <Button
       onClick={handleClick}
-      className={`gap-2 bg-[#1769AA] hover:bg-[#0B4F8A] text-white font-semibold ${className}`}
+      className={`gap-2 bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold ${className}`}
     >
       <Download className="h-4 w-4" />
       <span>Install {roleTitle}</span>

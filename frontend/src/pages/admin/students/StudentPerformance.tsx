@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
@@ -284,7 +284,7 @@ export const StudentPerformance: React.FC = () => {
           <Button
             variant="outline"
             size="sm"
-            className="h-10 px-3.5 text-slate-700 hover:text-[#1769AA] hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors"
+            className="h-10 px-3.5 text-slate-700 hover:text-[#2563EB] hover:bg-blue-50/50 border-slate-200 shadow-sm font-semibold flex items-center gap-2 transition-colors"
             onClick={() => navigate("/admin/students/all")}
           >
             <ArrowLeft className="h-4 w-4" /> Back
@@ -303,7 +303,7 @@ export const StudentPerformance: React.FC = () => {
             <select
               value={currentStudent.id}
               onChange={(e) => handleStudentSelect(e.target.value)}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA] font-medium cursor-pointer shadow-sm"
+              className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] font-medium cursor-pointer shadow-sm"
             >
               {allAvailableStudents.map(s => (
                 <option key={s.id} value={s.id}>
@@ -492,19 +492,19 @@ export const StudentPerformance: React.FC = () => {
             01 May 2026 - 14 May 2026
           </Button>
 
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#1769AA]">
+          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563EB]">
             <option>All Courses</option>
             <option>{currentStudent.course}</option>
           </select>
 
-          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#1769AA]">
+          <select className="h-9 px-3 bg-slate-50/70 border border-slate-200 rounded-md text-xs font-medium text-slate-700 focus:outline-none focus:border-[#2563EB]">
             <option>All Assessments</option>
             <option>Tests Only</option>
             <option>Assignments Only</option>
           </select>
         </div>
 
-        <Button variant="outline" className="h-9 text-xs font-bold text-[#1769AA] border-blue-200 hover:bg-blue-50/60 shadow-sm flex items-center gap-2">
+        <Button variant="outline" className="h-9 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50/60 shadow-sm flex items-center gap-2">
           <Download className="h-3.5 w-3.5" /> Export Report
         </Button>
       </div>
@@ -667,7 +667,7 @@ export const StudentPerformance: React.FC = () => {
                     <td className="px-4 py-3.5 text-slate-500">{test.date}</td>
                     <td className="px-4 py-3.5 text-slate-600 text-center">{test.maxMarks}</td>
                     <td className="px-4 py-3.5 font-semibold text-slate-800 text-center">{test.obtained}</td>
-                    <td className="px-4 py-3.5 font-bold text-[#1769AA] text-center">{test.score}</td>
+                    <td className="px-4 py-3.5 font-bold text-[#2563EB] text-center">{test.score}</td>
                     <td className="px-5 py-3.5 text-center">
                       <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold text-[11px] ${test.gradeColor}`}>
                         {test.grade}
@@ -679,7 +679,7 @@ export const StudentPerformance: React.FC = () => {
             </table>
           </div>
           <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center">
-            <button className="text-xs font-bold text-[#1769AA] hover:text-[#125890] flex items-center gap-1.5">
+            <button className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1.5">
               View All Assessments <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -723,7 +723,7 @@ export const StudentPerformance: React.FC = () => {
             ))}
           </CardContent>
           <div className="p-3 border-t border-slate-100 bg-slate-50/50 flex justify-center mt-auto">
-            <button className="text-xs font-bold text-[#1769AA] hover:text-[#125890] flex items-center gap-1.5">
+            <button className="text-xs font-bold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1.5">
               View All Courses <ArrowRight className="h-3.5 w-3.5" />
             </button>
           </div>

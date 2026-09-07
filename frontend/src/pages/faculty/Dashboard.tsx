@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -143,7 +143,7 @@ export const FacultyDashboard: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-28">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
         <span className="ml-3 text-sm text-slate-500 font-medium">Loading your teaching desk...</span>
       </div>
     );
@@ -155,7 +155,7 @@ export const FacultyDashboard: React.FC = () => {
         <AlertCircle className="mx-auto h-12 w-12 text-rose-500 opacity-70" />
         <h2 className="text-xl font-bold">Unable to load dashboard</h2>
         <p className="text-sm text-muted-foreground">Your faculty profile or schedule could not be loaded.</p>
-        <Button onClick={() => refetch()} className="bg-[#1769AA] text-white">
+        <Button onClick={() => refetch()} className="bg-[#2563EB] text-white">
           Retry
         </Button>
       </div>
@@ -166,7 +166,7 @@ export const FacultyDashboard: React.FC = () => {
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1680px] mx-auto space-y-7 animate-in fade-in duration-300">
       <InstallDashboardBanner />
 
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-[#1769AA] to-indigo-900 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/15">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-[#2563EB] to-indigo-900 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/15">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2.5 flex-wrap">
@@ -240,10 +240,10 @@ export const FacultyDashboard: React.FC = () => {
             key={item.path}
             type="button"
             onClick={() => navigate(item.path)}
-            className="text-left rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#1769AA]/40 hover:shadow-sm transition-all"
+            className="text-left rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#2563EB]/40 hover:shadow-sm transition-all"
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
                 <item.icon className="w-5 h-5" />
               </div>
               <div className="min-w-0">
@@ -263,7 +263,7 @@ export const FacultyDashboard: React.FC = () => {
               <div className="text-2xl sm:text-3xl font-black text-slate-900">{counts?.todayClasses ?? todayClasses.length}</div>
               <p className="text-[11px] text-slate-500 font-medium">Scheduled for today</p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#1769AA]">
+            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB]">
               <Calendar className="w-6 h-6" />
             </div>
           </CardContent>
@@ -379,7 +379,7 @@ export const FacultyDashboard: React.FC = () => {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100">
+                <span className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100">
                   <GraduationCap className="w-5 h-5" />
                 </span>
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">My Assigned Classes</h2>
@@ -396,7 +396,7 @@ export const FacultyDashboard: React.FC = () => {
                   type="button"
                   onClick={() => setActiveTab(tab)}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
-                    activeTab === tab ? "bg-white text-[#1769AA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    activeTab === tab ? "bg-white text-[#2563EB] shadow-xs" : "text-slate-600 hover:text-slate-900"
                   }`}
                 >
                   {tab === "TODAY"
@@ -455,7 +455,7 @@ export const FacultyDashboard: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Badge
                             variant="outline"
-                            className="bg-blue-50 text-[#1769AA] border-blue-200 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-lg"
+                            className="bg-blue-50 text-[#2563EB] border-blue-200 text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-lg"
                           >
                             {cls.batchCode || "BATCH"}
                           </Badge>
@@ -477,7 +477,7 @@ export const FacultyDashboard: React.FC = () => {
                       </div>
 
                       <div>
-                        <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight group-hover:text-[#1769AA]">
+                        <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight group-hover:text-[#2563EB]">
                           {cls.courseName || cls.title || "Class Session"}
                         </h3>
                         <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
@@ -487,7 +487,7 @@ export const FacultyDashboard: React.FC = () => {
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
                         <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
-                          <Clock className="w-4 h-4 text-[#1769AA] shrink-0" />
+                          <Clock className="w-4 h-4 text-[#2563EB] shrink-0" />
                           <span className="font-bold">{cls.timeRange}</span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
@@ -523,7 +523,7 @@ export const FacultyDashboard: React.FC = () => {
                         className={`font-black text-xs h-10 px-5 rounded-xl gap-2 ${
                           isLive
                             ? "bg-rose-600 hover:bg-rose-700 text-white"
-                            : "bg-[#1769AA] hover:bg-[#125890] text-white"
+                            : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
                         }`}
                       >
                         {isLive ? (
@@ -556,7 +556,7 @@ export const FacultyDashboard: React.FC = () => {
                 key={b.id}
                 type="button"
                 onClick={() => navigate("/faculty/batches")}
-                className="text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-[#1769AA]"
+                className="text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-[#2563EB]"
               >
                 <span className="font-bold">{b.name}</span>
                 <span className="text-slate-500"> · {b.courseName} · {b.studentCount} students</span>
@@ -570,7 +570,7 @@ export const FacultyDashboard: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
           <div>
             <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#1769AA]" />
+              <Calendar className="w-5 h-5 text-[#2563EB]" />
               Need Full Timetable Grid?
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -579,7 +579,7 @@ export const FacultyDashboard: React.FC = () => {
           </div>
           <Button
             onClick={() => navigate("/faculty/timetable")}
-            className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs shrink-0"
+            className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shrink-0"
           >
             Open My Schedule <ArrowRight className="w-4 h-4 ml-1.5" />
           </Button>

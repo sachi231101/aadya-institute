@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -42,8 +42,8 @@ import {
 } from "recharts";
 
 const COLLECTION_COLORS = ["#10b981", "#f59e0b"]; // Emerald (Paid), Amber (Pending)
-const METHOD_COLORS = ["#10b981", "#1769AA", "#8b5cf6", "#f59e0b", "#ec4899", "#6366f1"];
-const COURSE_COLORS = ["#1769AA", "#6366f1", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b"];
+const METHOD_COLORS = ["#10b981", "#2563EB", "#8b5cf6", "#f59e0b", "#ec4899", "#6366f1"];
+const COURSE_COLORS = ["#2563EB", "#6366f1", "#8b5cf6", "#ec4899", "#10b981", "#f59e0b"];
 
 export const BranchRevenueDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Video, Play, Clock, Lock, Calendar, X, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -131,7 +131,7 @@ export const StudentRecordings: React.FC = () => {
     <div className="p-6 md:p-8 space-y-6 max-w-5xl mx-auto animate-in fade-in duration-500 bg-[#f8fafc] min-h-screen">
       <div>
         <h1 className="text-2xl font-extrabold text-[#0A2540] flex items-center gap-2.5 tracking-tight">
-          <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 shadow-2xs">
+          <span className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 shadow-2xs">
             <Video className="h-6 w-6" />
           </span>
           Class Recordings
@@ -150,7 +150,7 @@ export const StudentRecordings: React.FC = () => {
 
       {isLoading ? (
         <Card className="bg-white rounded-3xl border-slate-200/80 p-12 text-center shadow-2xs">
-          <Loader2 className="h-8 w-8 animate-spin text-[#1769AA] mx-auto mb-3" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB] mx-auto mb-3" />
           <p className="text-sm text-slate-500">Loading recordings...</p>
         </Card>
       ) : isError ? (
@@ -186,8 +186,8 @@ export const StudentRecordings: React.FC = () => {
                   </div>
 
                   <div className="relative z-10 flex items-center justify-center my-auto">
-                    <div className="w-13 h-13 rounded-full bg-white/90 group-hover:bg-white text-[#1769AA] flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
-                      <Play className="w-6 h-6 fill-current ml-1 text-[#1769AA]" />
+                    <div className="w-13 h-13 rounded-full bg-white/90 group-hover:bg-white text-[#2563EB] flex items-center justify-center shadow-2xl transition-transform duration-300 group-hover:scale-110">
+                      <Play className="w-6 h-6 fill-current ml-1 text-[#2563EB]" />
                     </div>
                   </div>
 
@@ -206,13 +206,13 @@ export const StudentRecordings: React.FC = () => {
                     Status: {rec.status === "READY" ? "Available" : rec.status}
                   </Badge>
 
-                  <h3 className="font-extrabold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-[#1769AA] transition-colors line-clamp-2">
+                  <h3 className="font-extrabold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-[#2563EB] transition-colors line-clamp-2">
                     {rec.courseLabel} — {rec.moduleLabel}
                   </h3>
 
                   <div className="flex items-center justify-between text-xs text-slate-600 font-bold pt-1">
                     <span className="flex items-center gap-1 text-slate-700">
-                      <Calendar className="w-3.5 h-3.5 text-[#1769AA]" /> {rec.dateLabel}
+                      <Calendar className="w-3.5 h-3.5 text-[#2563EB]" /> {rec.dateLabel}
                     </span>
                     <span className="text-slate-500 font-medium text-[11px]">By {rec.facultyName}</span>
                   </div>
@@ -224,7 +224,7 @@ export const StudentRecordings: React.FC = () => {
                   type="button"
                   onClick={() => handleWatchRecording(rec)}
                   disabled={accessMutation.isPending && activeRecording?.id === rec.id}
-                  className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-9.5 gap-1.5 shadow-sm cursor-pointer"
+                  className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-9.5 gap-1.5 shadow-sm cursor-pointer"
                 >
                   {accessMutation.isPending && activeRecording?.id === rec.id ? (
                     <>

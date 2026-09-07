@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -123,7 +123,7 @@ export const Recordings: React.FC = () => {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <Video className="h-6 w-6 text-[#1769AA]" />
+            <Video className="h-6 w-6 text-[#2563EB]" />
             Class Recordings
           </h1>
           <p className="text-sm text-text-secondary mt-1">
@@ -139,7 +139,7 @@ export const Recordings: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <Video className="h-6 w-6 text-[#1769AA]" />
+              <Video className="h-6 w-6 text-[#2563EB]" />
             </div>
             <div>
               <p className="text-2xl font-bold text-text-primary">{meta.total}</p>
@@ -305,7 +305,7 @@ export const Recordings: React.FC = () => {
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0 text-[#1769AA]"
+                            className="h-8 w-8 p-0 text-[#2563EB]"
                             title="Play recording"
                             onClick={() => handlePlay(rec)}
                             disabled={accessMutation.isPending && playTarget?.id === rec.id}

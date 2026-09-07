@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Search, Plus, Loader2, AlertCircle, Users, LayoutList, Columns3 } from "lucide-react";
 import { useLeads } from "@/hooks/useLeads";
@@ -115,7 +115,7 @@ export const AllLeadsList: React.FC = () => {
           </div>
           <PermissionGate itemKey="leads.all" mode="write">
             <Button
-              className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+              className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
               onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -246,7 +246,7 @@ export const AllLeadsList: React.FC = () => {
                           key={lead.id}
                           type="button"
                           onClick={() => openLead(lead.id)}
-                          className="w-full text-left rounded-md border bg-white dark:bg-slate-950 p-3 hover:border-[#1769AA] transition-colors"
+                          className="w-full text-left rounded-md border bg-white dark:bg-slate-950 p-3 hover:border-[#2563EB] transition-colors"
                         >
                           <p className="font-semibold text-sm">{lead.name}</p>
                           <p className="text-xs text-text-secondary mt-0.5">{lead.phoneNumber}</p>

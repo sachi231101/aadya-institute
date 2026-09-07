@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+﻿import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -468,7 +468,7 @@ export const AddAdmin: React.FC = () => {
             <Card className="border-blue-100/80 shadow-xs">
               <CardHeader className="pb-3 border-b border-slate-100 bg-slate-50/50 rounded-t-xl">
                 <div className="flex items-center gap-2.5">
-                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                  <div className="h-8 w-8 rounded-lg bg-blue-100 text-[#2563EB] flex items-center justify-center">
                     <ShieldCheck className="h-5 w-5" />
                   </div>
                   <div>
@@ -526,7 +526,7 @@ export const AddAdmin: React.FC = () => {
             </Button>
             <Button
               type="submit"
-              className="bg-[#1769AA] hover:bg-[#F39A16] text-white transition-colors"
+              className="bg-[#2563EB] hover:bg-[#F39A16] text-white transition-colors"
               disabled={isSubmitting}
             >
               {isSubmitting ? (

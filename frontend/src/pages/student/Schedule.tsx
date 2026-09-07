@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+﻿import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -763,7 +763,7 @@ export const StudentSchedule: React.FC = () => {
                           <Button
                             variant="outline"
                             onClick={() => navigate("/student/recordings")}
-                            className="h-8 px-2.5 text-xs font-bold text-[#1769AA] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
                           >
                             <Video className="w-3 h-3 mr-1" />
                             <span>Recording</span>
@@ -784,7 +784,7 @@ export const StudentSchedule: React.FC = () => {
                           <Button
                             variant="outline"
                             onClick={() => navigate("/student/recordings")}
-                            className="h-8 px-2.5 text-xs font-bold text-[#1769AA] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
                           >
                             <Video className="w-3 h-3 mr-1" />
                             <span>Recording</span>
@@ -1249,7 +1249,7 @@ export const StudentSchedule: React.FC = () => {
               <DialogFooter className="pt-2">
                 <Button
                   onClick={() => setViewingFeedbackSession(null)}
-                  className="w-full bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl h-10"
+                  className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl h-10"
                 >
                   Close
                 </Button>

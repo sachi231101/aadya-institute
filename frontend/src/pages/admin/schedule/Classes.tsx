@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from "react";
+﻿import React, { useEffect, useState, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Calendar,
@@ -558,7 +558,7 @@ export const Classes: React.FC = () => {
               resetScheduleForm();
               setIsScheduleModalOpen(true);
             }}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs px-4 py-2.5 h-10 rounded-xl shadow-xs gap-2 shrink-0 cursor-pointer"
           >
             <Plus className="w-4 h-4 stroke-[2.5]" />
             <span>Schedule Class</span>
@@ -631,7 +631,7 @@ export const Classes: React.FC = () => {
               }}
               className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${
                 isViewAllBranches
-                  ? "bg-[#1769AA] hover:bg-[#125890] text-white shadow-xs"
+                  ? "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
                   : "border-border bg-card text-foreground hover:bg-muted"
               }`}
             >
@@ -1034,7 +1034,7 @@ export const Classes: React.FC = () => {
                       <PermissionGate itemKey="schedule.classes" mode="write">
                         <Button
                           onClick={() => setIsScheduleModalOpen(true)}
-                          className="bg-[#1769AA] hover:bg-[#125890] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
+                          className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs gap-1.5 mt-2 cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" /> Schedule Class
                         </Button>
@@ -1212,7 +1212,7 @@ export const Classes: React.FC = () => {
                 <select
                   value={formFacultyId}
                   onChange={(e) => setFormFacultyId(e.target.value)}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-[#1769AA] outline-none"
+                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-[#2563EB] outline-none"
                 >
                   <option value="none">⚠ Leave Unassigned for now</option>
                   {facultyMembers.map((f: any) => (
@@ -1302,7 +1302,7 @@ export const Classes: React.FC = () => {
             </Button>
             <Button
               onClick={handleSaveClass}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 rounded-xl gap-1.5"
             >
               <Check className="h-3.5 w-3.5" /> Schedule Class
             </Button>
@@ -1407,7 +1407,7 @@ export const Classes: React.FC = () => {
                       setIsDetailsModalOpen(false);
                       handleOpenAssignFaculty(selectedClassItem);
                     }}
-                    className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                    className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
                   >
                     <UserPlus className="h-3.5 w-3.5" /> Reassign Faculty
                   </Button>
@@ -1446,7 +1446,7 @@ export const Classes: React.FC = () => {
                         onClick={() => setTargetFacultyId(fac.id)}
                         className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
                           isSelected
-                            ? "bg-blue-500/15 border-[#1769AA] ring-2 ring-[#1769AA]/20"
+                            ? "bg-blue-500/15 border-[#2563EB] ring-2 ring-[#2563EB]/20"
                             : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
                         }`}
                       >
@@ -1464,7 +1464,7 @@ export const Classes: React.FC = () => {
                         </div>
 
                         {isSelected && (
-                          <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center shrink-0 shadow-xs">
+                          <div className="h-6 w-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center shrink-0 shadow-xs">
                             <Check className="h-3.5 w-3.5 stroke-[3]" />
                           </div>
                         )}
@@ -1484,7 +1484,7 @@ export const Classes: React.FC = () => {
                 </Button>
                 <Button
                   onClick={handleSaveAssignFaculty}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
                 >
                   <Check className="h-3.5 w-3.5" /> Confirm Assignment
                 </Button>

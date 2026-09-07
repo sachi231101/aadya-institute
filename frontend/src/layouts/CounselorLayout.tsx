@@ -12,6 +12,7 @@ import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { TeamChatButton } from "@/components/chat/TeamChatButton";
 import { TeamChatDrawer } from "@/components/chat/TeamChatDrawer";
 import { NavbarAskAi } from "@/components/layout/NavbarAskAi";
+import { UserNav } from "@/components/layout/UserNav";
 import { PortalRouteGuard } from "@/components/permissions/PortalRouteGuard";
 
 export const CounselorLayout: React.FC = () => {
@@ -37,7 +38,7 @@ export const CounselorLayout: React.FC = () => {
         <CounselorSidebar />
         
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="flex h-11 shrink-0 items-center justify-between border-b border-[#0B4F8A] bg-gradient-to-r from-[#0B3B60] via-[#1769AA] to-[#0B4F8A] text-white px-4 sm:px-5 z-10 shadow-md">
+          <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#334155] bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] text-white px-4 sm:px-5 z-10 shadow-md">
             <div className="flex items-center gap-2 md:gap-3">
               <SidebarTrigger className="-ml-1 h-7 w-7 text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-md transition-colors cursor-pointer" />
               <div className="flex items-center gap-1.5 text-white/90 hidden sm:flex">
@@ -48,11 +49,13 @@ export const CounselorLayout: React.FC = () => {
               <NavbarAskAi />
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <InstallAppButton variant="header" />
               <TeamChatButton />
               <ThemeToggle />
               <NotificationPopover />
+              <div className="h-4 w-[1px] bg-white/20 mx-0.5 hidden sm:block" />
+              <UserNav />
             </div>
 
           </header>

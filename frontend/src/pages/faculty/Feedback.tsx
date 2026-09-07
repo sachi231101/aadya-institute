@@ -173,7 +173,7 @@ export const FacultyFeedback: React.FC = () => {
       {/* ─── 2. 3-CRITERIA RATING METRICS DASHBOARD ────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Overall Average */}
-        <Card className="bg-gradient-to-br from-[#1769AA] to-[#0B4F8A] text-white border-0 shadow-md rounded-2xl p-5 relative overflow-hidden">
+        <Card className="bg-gradient-to-br from-[#2563EB] to-[#1D4ED8] text-white border-0 shadow-md rounded-2xl p-5 relative overflow-hidden">
           <div className="relative z-10 flex flex-col justify-between h-full space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-blue-100 uppercase tracking-wider">Overall Rating</span>
@@ -287,7 +287,7 @@ export const FacultyFeedback: React.FC = () => {
               onClick={() => setRatingFilter(tab.key)}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 ratingFilter === tab.key
-                  ? "bg-[#1769AA] text-white shadow-xs"
+                  ? "bg-[#2563EB] text-white shadow-xs"
                   : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/80"
               }`}
             >

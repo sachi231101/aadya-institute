@@ -80,20 +80,21 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
-      <SidebarHeader>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
-              <Link to="/center/dashboard">
-                <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
-                <div className="flex flex-col gap-0.5 leading-none">
-                  <span className="font-semibold text-text-primary">{orgName}</span>
-                  <span className="text-xs text-amber-600 font-bold">CENTER MANAGER</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="h-12 border-b border-[#334155] bg-[#172033] text-white px-3 flex flex-row items-center">
+        <Link
+          to="/center/dashboard"
+          className="flex items-center justify-between gap-2 px-1 py-0.5 rounded-lg hover:bg-white/5 transition-colors w-full group-data-[collapsible=icon]:justify-center"
+          title="Aadya Institute"
+        >
+          <img
+            src="/aadya-logo.png"
+            alt="Aadya Institute"
+            className="h-6.5 w-auto max-w-[125px] object-contain shrink-0 drop-shadow-[0_0_1px_rgba(255,255,255,0.35)] group-data-[collapsible=icon]:max-w-[26px] group-data-[collapsible=icon]:object-left"
+          />
+          <span className="text-[10px] text-amber-300 font-bold tracking-wider bg-white/10 border border-white/20 px-2 py-0.5 rounded-full shrink-0 group-data-[collapsible=icon]:hidden">
+            MANAGER
+          </span>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
@@ -113,11 +114,11 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                         asChild
                         isActive={isItemActive}
                         tooltip={item.title}
-                        className="bg-gradient-to-r from-[#1769AA]/10 to-[#F39A16]/10 border border-[#1769AA]/20 hover:from-[#1769AA]/15 hover:to-[#F39A16]/15"
+                        className="bg-gradient-to-r from-[#2563EB]/10 to-[#F39A16]/10 border border-[#2563EB]/20 hover:from-[#2563EB]/15 hover:to-[#F39A16]/15"
                       >
                         <Link to={item.url} className="flex items-center gap-2.5 w-full">
-                          <item.icon className="h-4 w-4 shrink-0 text-[#1769AA]" />
-                          <span className="truncate font-semibold text-[#1769AA]">{item.title}</span>
+                          <item.icon className="h-4 w-4 shrink-0 text-[#2563EB]" />
+                          <span className="truncate font-semibold text-[#2563EB]">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -144,7 +145,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                           <item.icon className={`h-4 w-4 shrink-0 ${isGroupActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />
                           <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                         </div>
-                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[collapsible=icon]:hidden" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -154,7 +155,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                             <SidebarMenuSubButton
                               asChild
                               isActive={location.pathname === subItem.url || location.pathname.startsWith(`${subItem.url}/`)}
-                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#1769AA] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
+                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#2563EB] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
                             >
                               <Link to={subItem.url} className="truncate min-w-0 flex-1">
                                 <span>{subItem.title}</span>
@@ -176,34 +177,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
         <div className="px-1">
           <InstallAppButton variant="sidebar" />
         </div>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <div className="flex items-center justify-between p-2 rounded-xl bg-card border border-border/40">
-              <div className="flex flex-col gap-0.5 overflow-hidden">
-                <span className="text-xs font-bold truncate text-text-primary">{managerName}</span>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] font-semibold text-amber-600">Center Manager</span>
-                  <span className="text-muted-foreground">•</span>
-                  <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-600">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    Online
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  logout();
-                  navigate("/login");
-                }}
-                className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors cursor-pointer"
-                title="Log out"
-              >
-                <LogOut className="h-4 w-4" />
-              </button>
-            </div>
-          </SidebarMenuItem>
-        </SidebarMenu>
+
         <div className="p-2.5 rounded-xl bg-blue-50/70 border border-blue-200/60 flex items-center justify-between">
           <div className="flex items-center gap-2 min-w-0">
             <div className="h-6 w-6 rounded-lg bg-blue-100 text-[#1D4ED8] flex items-center justify-center shrink-0">
