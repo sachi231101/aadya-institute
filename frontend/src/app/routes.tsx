@@ -47,6 +47,7 @@ import { LeadAllocation } from "../pages/admin/counsellors/LeadAllocation";
 import { CounsellorPerformance } from "../pages/admin/counsellors/CounsellorPerformance";
 import { CounsellorBatches } from "../pages/admin/counselor/CounsellorBatches";
 import { Classes } from "../pages/admin/schedule/Classes";
+import { ClassDetails } from "../pages/admin/schedule/ClassDetails";
 import { ExamManagement } from "../pages/admin/exams/ExamManagement";
 import { CreateExam } from "../pages/admin/exams/CreateExam";
 import { ExamDetails } from "../pages/admin/exams/ExamDetails";
@@ -218,6 +219,7 @@ export const AppRoutes: React.FC = () => {
         {/* Schedule */}
         <Route path="schedule">
           <Route path="classes" element={<Classes />} />
+          <Route path="classes/:id" element={<ClassDetails />} />
           <Route path="timetable" element={<Timetable />} />
           <Route path="live" element={<LiveClasses />} />
           <Route path="recordings" element={<Recordings />} />
