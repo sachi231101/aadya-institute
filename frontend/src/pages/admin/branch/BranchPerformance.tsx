@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -40,7 +40,7 @@ import {
   Area,
 } from "recharts";
 
-const PIE_COLORS = ["#1769AA", "#4f46e5", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899"];
+const PIE_COLORS = ["#2563EB", "#4f46e5", "#8b5cf6", "#10b981", "#f59e0b", "#ec4899"];
 const COLLECTION_COLORS = ["#10b981", "#f59e0b"]; // Emerald (Paid), Amber (Pending)
 const RISK_COLORS = ["#10b981", "#f59e0b", "#ef4444"]; // Normal, At Risk, Triggered
 

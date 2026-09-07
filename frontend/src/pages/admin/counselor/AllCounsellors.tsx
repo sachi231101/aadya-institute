@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Users,
@@ -440,7 +440,7 @@ export const AllCounsellors: React.FC = () => {
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <UserCheck className="h-6 w-6 text-[#1769AA]" />
+            <UserCheck className="h-6 w-6 text-[#2563EB]" />
             Counsellor Management
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -454,7 +454,7 @@ export const AllCounsellors: React.FC = () => {
               resetCreateForm();
               setShowCreateModal(true);
             }}
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 transition-colors self-start md:self-auto"
+            className="bg-[#2563EB] hover:bg-[#F39A16] text-white gap-2 transition-colors self-start md:self-auto"
           >
             <Plus size={16} /> Add Counsellor
           </Button>
@@ -470,7 +470,7 @@ export const AllCounsellors: React.FC = () => {
               <h3 className="text-2xl font-bold text-text-primary mt-1">{totalCount}</h3>
               <p className="text-xs text-muted-foreground mt-1">Registered Counsellors</p>
             </div>
-            <div className="p-3 bg-[#1769AA]/10 rounded-xl text-[#1769AA]">
+            <div className="p-3 bg-[#2563EB]/10 rounded-xl text-[#2563EB]">
               <Users className="h-6 w-6" />
             </div>
           </CardContent>
@@ -535,7 +535,7 @@ export const AllCounsellors: React.FC = () => {
             <select
               value={selectedBranchId}
               onChange={(e) => setSelectedBranchId(e.target.value)}
-              className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-semibold w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+              className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-semibold w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
             >
               <option value="ALL">🌐 All Branches</option>
               {branches.map((b) => (
@@ -556,7 +556,7 @@ export const AllCounsellors: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-medium w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+            className="h-10 px-3 py-2 text-sm rounded-md border border-border bg-bg-primary font-medium w-full sm:w-44 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active</option>
@@ -585,7 +585,7 @@ export const AllCounsellors: React.FC = () => {
               <TableRow>
                 <TableCell colSpan={7} className="h-32 text-center text-text-muted">
                   <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                    <Loader2 className="h-5 w-5 animate-spin text-[#2563EB]" />
                     Loading counsellors...
                   </div>
                 </TableCell>
@@ -595,12 +595,12 @@ export const AllCounsellors: React.FC = () => {
                 <TableRow key={c.id} className="hover:bg-slate-50/80 transition-colors">
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-[#1769AA]/10 text-[#1769AA] font-bold text-sm flex items-center justify-center border border-[#1769AA]/20">
+                      <div className="w-9 h-9 rounded-full bg-[#2563EB]/10 text-[#2563EB] font-bold text-sm flex items-center justify-center border border-[#2563EB]/20">
                         {c.name.slice(0, 2).toUpperCase()}
                       </div>
                       <div>
                         <span className="text-sm font-semibold text-text-primary block">{c.name}</span>
-                        <span className="font-mono text-xs text-[#1769AA] font-bold">{c.employeeCode}</span>
+                        <span className="font-mono text-xs text-[#2563EB] font-bold">{c.employeeCode}</span>
                       </div>
                     </div>
                   </TableCell>
@@ -642,7 +642,7 @@ export const AllCounsellors: React.FC = () => {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem onClick={() => handleOpenEditModal(c)} className="gap-2 cursor-pointer">
-                          <Edit3 className="h-4 w-4 text-[#1769AA]" /> Edit Details
+                          <Edit3 className="h-4 w-4 text-[#2563EB]" /> Edit Details
                         </DropdownMenuItem>
                         <DropdownMenuItem
                           onClick={() => setDeleteCounselorId(c.id)}
@@ -672,7 +672,7 @@ export const AllCounsellors: React.FC = () => {
         <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200 bg-white">
           <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
             <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <UserCheck className="h-5 w-5 text-[#1769AA]" />
+              <UserCheck className="h-5 w-5 text-[#2563EB]" />
               Add New Counsellor
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -738,7 +738,7 @@ export const AllCounsellors: React.FC = () => {
                   <select
                     value={status}
                     onChange={(e) => setStatus(e.target.value as CounselorStatus)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
@@ -757,7 +757,7 @@ export const AllCounsellors: React.FC = () => {
                       value={branchId}
                       onChange={(e) => setBranchId(e.target.value)}
                       required
-                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                     >
                       <option value="" disabled>Select a branch</option>
                       {branches.length === 0 ? (
@@ -776,7 +776,7 @@ export const AllCounsellors: React.FC = () => {
 
               <div className="border-t border-slate-200 pt-4">
                 <div className="flex items-center gap-2 mb-2.5">
-                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#2563EB] flex items-center justify-center">
                     <ShieldCheck className="h-3.5 w-3.5" />
                   </div>
                   <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
@@ -800,7 +800,7 @@ export const AllCounsellors: React.FC = () => {
                 Cancel
               </Button>
               <PermissionGate itemKey="counsellor.all" mode="write">
-                <Button type="submit" className="bg-[#1769AA] hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
+                <Button type="submit" className="bg-[#2563EB] hover:bg-[#F39A16] text-white gap-2 font-bold" disabled={isSubmitting}>
                   {isSubmitting ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin" /> Creating...
@@ -820,7 +820,7 @@ export const AllCounsellors: React.FC = () => {
         <DialogContent className="max-w-2xl sm:max-w-2xl max-h-[90vh] flex flex-col p-0 overflow-hidden rounded-2xl shadow-2xl border border-slate-200 bg-white">
           <DialogHeader className="px-6 py-4 border-b border-slate-100 bg-white shrink-0 text-left">
             <DialogTitle className="flex items-center gap-2 text-lg font-bold text-slate-900">
-              <Edit3 className="h-5 w-5 text-[#1769AA]" />
+              <Edit3 className="h-5 w-5 text-[#2563EB]" />
               Edit Counsellor Details
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -876,7 +876,7 @@ export const AllCounsellors: React.FC = () => {
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value as CounselorStatus)}
-                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                    className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                   >
                     <option value="ACTIVE">Active</option>
                     <option value="INACTIVE">Inactive</option>
@@ -895,7 +895,7 @@ export const AllCounsellors: React.FC = () => {
                       value={editBranchId}
                       onChange={(e) => setEditBranchId(e.target.value)}
                       required
-                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                      className="w-full h-10 px-3 py-2 bg-white border border-slate-300 rounded-md text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
                     >
                       <option value="" disabled>Select a branch</option>
                       {branches.length === 0 ? (
@@ -914,7 +914,7 @@ export const AllCounsellors: React.FC = () => {
 
               <div className="border-t border-slate-200 pt-4">
                 <div className="flex items-center gap-2 mb-2.5">
-                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#1769AA] flex items-center justify-center">
+                  <div className="h-6 w-6 rounded-md bg-blue-100 text-[#2563EB] flex items-center justify-center">
                     <ShieldCheck className="h-3.5 w-3.5" />
                   </div>
                   <span className="text-xs font-bold text-slate-800">Module & Submodule Permissions</span>
@@ -940,7 +940,7 @@ export const AllCounsellors: React.FC = () => {
               <PermissionGate itemKey="counsellor.all" mode="write">
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-bold"
+                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white font-bold"
                   disabled={isEditSubmitting || !editMatrixHydrated}
                 >
                   {isEditSubmitting ? (

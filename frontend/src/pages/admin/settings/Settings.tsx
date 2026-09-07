@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import {
   User as UserIcon,
   Lock,
@@ -260,7 +260,7 @@ export const Settings: React.FC = () => {
       {/* Notification Toast */}
       {toastMessage && (
         <div className="p-3.5 rounded-xl bg-blue-50 border border-blue-200 text-blue-900 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-[#1769AA] shrink-0" />
+          <CheckCircle2 className="h-4 w-4 text-[#2563EB] shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -271,7 +271,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("personal")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "personal"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -283,7 +283,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("security")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "security"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -295,7 +295,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("notifications")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "notifications"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -307,7 +307,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("system")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "system"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -319,7 +319,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("system-config")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "system-config"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -331,7 +331,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("sessions")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "sessions"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -343,7 +343,7 @@ export const Settings: React.FC = () => {
           onClick={() => setActiveTab("permissions")}
           className={`flex items-center gap-2 px-4 py-3 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
             activeTab === "permissions"
-              ? "border-[#1769AA] text-[#1769AA] bg-blue-50/50 rounded-t-xl"
+              ? "border-[#2563EB] text-[#2563EB] bg-blue-50/50 rounded-t-xl"
               : "border-transparent text-slate-500 hover:text-slate-900 hover:bg-slate-50"
           }`}
         >
@@ -368,7 +368,7 @@ export const Settings: React.FC = () => {
               {/* Camera / Edit Icon Badge */}
               <button
                 type="button"
-                className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white border border-slate-200 rounded-full text-slate-700 hover:text-[#1769AA] hover:bg-slate-50 shadow-md transition-all cursor-pointer"
+                className="absolute -bottom-1.5 -right-1.5 p-1.5 bg-white border border-slate-200 rounded-full text-slate-700 hover:text-[#2563EB] hover:bg-slate-50 shadow-md transition-all cursor-pointer"
                 title="Change Avatar"
               >
                 <Camera className="h-3.5 w-3.5" />
@@ -381,7 +381,7 @@ export const Settings: React.FC = () => {
                 <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
                   {fullName}
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100/80 text-[#1769AA] border border-blue-200">
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100/80 text-[#2563EB] border border-blue-200">
                   ADMIN
                 </span>
               </div>
@@ -419,7 +419,7 @@ export const Settings: React.FC = () => {
           {/* Left Column (2/3 width): Personal Information Form Card */}
           <Card className="lg:col-span-2 border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 sm:p-6 space-y-6">
             <div className="flex items-start gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0">
+              <div className="p-2.5 rounded-xl bg-blue-50 text-[#2563EB] shrink-0">
                 <UserIcon className="h-5 w-5 stroke-[2.2]" />
               </div>
               <div>
@@ -523,7 +523,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={department}
                     onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Administration">Administration</option>
                     <option value="Academic Operations">Academic Operations</option>
@@ -546,7 +546,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={branch}
                     onChange={(e) => setBranch(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Aadya Central Branch">Aadya Central Branch</option>
                     <option value="Aadya Mysore Branch">Aadya Mysore Branch</option>
@@ -601,7 +601,7 @@ export const Settings: React.FC = () => {
                   <select
                     value={gender}
                     onChange={(e) => setGender(e.target.value)}
-                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
+                    className="w-full h-10 pl-9 pr-8 text-xs font-semibold text-slate-900 bg-slate-50/70 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
                   >
                     <option value="Male">Male</option>
                     <option value="Female">Female</option>
@@ -625,7 +625,7 @@ export const Settings: React.FC = () => {
                   rows={2}
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  className="w-full p-2.5 pl-9 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none"
+                  className="w-full p-2.5 pl-9 bg-slate-50/70 border border-slate-200 rounded-xl text-xs font-semibold text-slate-900 focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none"
                 />
               </div>
             </div>
@@ -636,7 +636,7 @@ export const Settings: React.FC = () => {
             {/* 1. Profile Summary Card */}
             <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 space-y-4">
               <div className="flex items-center gap-2">
-                <UserIcon className="h-4 w-4 text-[#1769AA]" />
+                <UserIcon className="h-4 w-4 text-[#2563EB]" />
                 <h3 className="text-sm font-extrabold text-slate-900">
                   Profile Summary
                 </h3>
@@ -677,7 +677,7 @@ export const Settings: React.FC = () => {
             {/* 2. Quick Actions Card */}
             <Card className="border-slate-200/80 shadow-xs bg-white rounded-3xl p-5 space-y-3">
               <div className="flex items-center gap-2">
-                <ShieldCheck className="h-4 w-4 text-[#1769AA]" />
+                <ShieldCheck className="h-4 w-4 text-[#2563EB]" />
                 <h3 className="text-sm font-extrabold text-slate-900">
                   Quick Actions
                 </h3>
@@ -690,10 +690,10 @@ export const Settings: React.FC = () => {
                   className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#1769AA]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
                       <Lock className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#1769AA]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
                       Change Password
                     </span>
                   </div>
@@ -706,10 +706,10 @@ export const Settings: React.FC = () => {
                   className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#1769AA]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
                       <Monitor className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#1769AA]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
                       Manage Sessions
                     </span>
                   </div>
@@ -722,10 +722,10 @@ export const Settings: React.FC = () => {
                   className="w-full p-3 rounded-2xl border border-slate-200/70 bg-slate-50/50 hover:bg-slate-100/80 transition-all flex items-center justify-between text-left cursor-pointer group"
                 >
                   <div className="flex items-center gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#1769AA]">
+                    <div className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-600 shadow-2xs group-hover:text-[#2563EB]">
                       <Download className="h-3.5 w-3.5" />
                     </div>
-                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#1769AA]">
+                    <span className="text-xs font-bold text-slate-800 group-hover:text-[#2563EB]">
                       Download My Data
                     </span>
                   </div>
@@ -791,7 +791,7 @@ export const Settings: React.FC = () => {
             <Button
               onClick={handleChangePasswordSubmit}
               disabled={changePasswordMutation.isPending}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-10 px-5 rounded-xl mt-2"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-10 px-5 rounded-xl mt-2"
             >
               {changePasswordMutation.isPending ? "Updating Password..." : "Update Password"}
             </Button>
@@ -826,7 +826,7 @@ export const Settings: React.FC = () => {
                 type="checkbox"
                 checked={emailAdmissions}
                 onChange={(e) => setEmailAdmissions(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#1769AA] cursor-pointer"
+                className="h-4 w-4 rounded accent-[#2563EB] cursor-pointer"
               />
             </div>
 
@@ -839,7 +839,7 @@ export const Settings: React.FC = () => {
                 type="checkbox"
                 checked={emailFeeAlerts}
                 onChange={(e) => setEmailFeeAlerts(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#1769AA] cursor-pointer"
+                className="h-4 w-4 rounded accent-[#2563EB] cursor-pointer"
               />
             </div>
 
@@ -852,7 +852,7 @@ export const Settings: React.FC = () => {
                 type="checkbox"
                 checked={whatsappReminders}
                 onChange={(e) => setWhatsappReminders(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#1769AA] cursor-pointer"
+                className="h-4 w-4 rounded accent-[#2563EB] cursor-pointer"
               />
             </div>
 
@@ -865,7 +865,7 @@ export const Settings: React.FC = () => {
                 type="checkbox"
                 checked={aiCallAlerts}
                 onChange={(e) => setAiCallAlerts(e.target.checked)}
-                className="h-4 w-4 rounded accent-[#1769AA] cursor-pointer"
+                className="h-4 w-4 rounded accent-[#2563EB] cursor-pointer"
               />
             </div>
           </div>
@@ -887,7 +887,7 @@ export const Settings: React.FC = () => {
                   }
                 );
               }}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 px-4 rounded-xl"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
             >
               Save Notification Preferences
             </Button>
@@ -899,7 +899,7 @@ export const Settings: React.FC = () => {
       {activeTab === "system" && (
         <Card className="border-slate-200/80 dark:border-border shadow-xs bg-white dark:bg-card rounded-3xl p-6 space-y-6 max-w-3xl">
           <div className="flex items-start gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#1769AA] dark:text-sky-400 shrink-0">
+            <div className="p-2.5 rounded-xl bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] dark:text-sky-400 shrink-0">
               <Sliders className="h-5 w-5 stroke-[2.2]" />
             </div>
             <div>
@@ -963,7 +963,7 @@ export const Settings: React.FC = () => {
                   }
                 );
               }}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 px-4 rounded-xl"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
             >
               Save System Preferences
             </Button>
@@ -1177,7 +1177,7 @@ export const Settings: React.FC = () => {
             type="button"
             onClick={handleSavePersonal}
             disabled={updatePersonalMutation.isPending}
-            className="text-xs font-bold h-10 px-5 bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
+            className="text-xs font-bold h-10 px-5 bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl gap-2 shadow-xs cursor-pointer"
           >
             <Save className="h-4 w-4" />
             <span>Save Changes</span>
@@ -1243,7 +1243,7 @@ export const Settings: React.FC = () => {
             <Button
               onClick={handleChangePasswordSubmit}
               disabled={changePasswordMutation.isPending}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl"
             >
               Update Password
             </Button>
@@ -1313,7 +1313,7 @@ function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
             onClick={() => setCategory(c)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold border ${
               category === c
-                ? "bg-[#1769AA] text-white border-[#1769AA]"
+                ? "bg-[#2563EB] text-white border-[#2563EB]"
                 : "bg-white text-slate-600 border-slate-200"
             }`}
           >
@@ -1347,7 +1347,7 @@ function SystemConfigTab({ onToast }: { onToast: (msg: string) => void }) {
       <Button
         onClick={handleSave}
         disabled={updateMutation.isPending}
-        className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold h-9 px-4 rounded-xl"
+        className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold h-9 px-4 rounded-xl"
       >
         {updateMutation.isPending ? "Saving..." : "Save System Config"}
       </Button>

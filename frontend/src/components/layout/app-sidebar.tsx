@@ -255,38 +255,27 @@ function isPathActive(pathname: string, url: string) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
-  const { organization } = useOrganization()
-  const orgName = organization?.name || DEFAULT_ORG_NAME
-  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
-      <SidebarHeader className="border-b border-border/40 py-3 px-3">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-accent/60 rounded-xl transition-all">
-              <Link to={A.DASHBOARD} className="flex items-center gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-border/60 shadow-2xs shrink-0 p-1">
-                  <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
-                </div>
-                <div className="flex flex-col gap-0.5 leading-none min-w-0 flex-1">
-                  <span className="font-bold text-sm tracking-tight text-text-primary truncate">{orgName}</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] text-[#1769AA] dark:text-sky-400 font-extrabold tracking-wider bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.2 rounded">
-                      ADMIN
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">Workspace</span>
-                  </div>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="h-12 border-b border-[#334155] bg-[#172033] text-white px-3 flex flex-row items-center">
+        <Link
+          to={A.DASHBOARD}
+          className="flex items-center justify-between gap-2 px-1 py-0.5 rounded-lg hover:bg-white/5 transition-colors w-full group-data-[collapsible=icon]:justify-center"
+          title="Aadya Institute"
+        >
+          <img
+            src="/aadya-logo.png"
+            alt="Aadya Institute"
+            className="h-6.5 w-auto max-w-[125px] object-contain shrink-0 drop-shadow-[0_0_1px_rgba(255,255,255,0.35)] group-data-[collapsible=icon]:max-w-[26px] group-data-[collapsible=icon]:object-left"
+          />
+          <span className="text-[10px] text-white/90 font-bold tracking-wider bg-white/10 border border-white/20 px-2 py-0.5 rounded-full shrink-0 group-data-[collapsible=icon]:hidden">
+            ADMIN
+          </span>
+        </Link>
       </SidebarHeader>
 
-      <SidebarContent className="px-2 py-2">
+      <SidebarContent className="px-2 py-2 pb-6 overflow-y-auto">
         <SidebarGroup className="p-0">
           <SidebarMenu className="gap-1">
             {data.navMain.map((item) => {
@@ -320,7 +309,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                           {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isGroupActive ? "text-primary font-semibold" : "text-muted-foreground"}`} />}
                           <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                         </div>
-                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                        <ChevronRight className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90 group-data-[collapsible=icon]:hidden" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -330,7 +319,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                             <SidebarMenuSubButton
                               asChild
                               isActive={isPathActive(location.pathname, subItem.url)}
-                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#1769AA] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
+                              className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#2563EB] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
                             >
                               <Link to={subItem.url} className="truncate min-w-0 flex-1">
                                 <span>{subItem.title}</span>
@@ -348,29 +337,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-border/50 p-2.5 gap-2 bg-bg-secondary">
+      <SidebarFooter className="border-t border-border/50 p-2.5 bg-bg-secondary empty:hidden">
         <InstallAppButton variant="sidebar" />
-        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-border/40">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="h-8 w-8 rounded-full bg-[#1769AA]/10 text-[#1769AA] dark:text-sky-400 font-bold text-xs flex items-center justify-center shrink-0 border border-[#1769AA]/20">
-              {(user?.name || "Admin").charAt(0).toUpperCase()}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1 leading-tight">
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || "Aadya System Admin"}</span>
-              <span className="text-[11px] text-muted-foreground truncate">{user?.email || "admin@aadya.in"}</span>
-            </div>
-          </div>
-          <button
-            onClick={() => {
-              logout();
-              navigate("/login");
-            }}
-            title="Logout"
-            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0 cursor-pointer"
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

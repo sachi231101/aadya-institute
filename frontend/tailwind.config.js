@@ -68,7 +68,15 @@ export default {
   			'text-secondary': 'var(--text-secondary)',
   			'text-muted': 'var(--text-muted)',
   			'accent-primary': 'var(--accent-primary)',
-  			'accent-primary-hover': 'var(--accent-primary-hover)'
+  			'accent-primary-hover': 'var(--accent-primary-hover)',
+  			'deep-navy': '#172033',
+  			'primary-hover': '#1D4ED8',
+  			'light-bg': '#F8FAFC',
+  			'dark-bg': '#0F172A',
+  			'light-card': '#FFFFFF',
+  			'dark-card': '#1E293B',
+  			'border-light': '#E2E8F0',
+  			'border-dark': '#334155'
   		}
   	}
   },

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   Bot,
   Phone,
@@ -830,12 +830,12 @@ export const AiCallingQualification: React.FC = () => {
                       {/* 1. Lead Details */}
                       <td className="py-2.5 px-3 align-middle">
                         <div className="flex items-center gap-2 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#1769AA] font-black flex items-center justify-center text-[10.5px] shrink-0 shadow-2xs">
+                          <div className="w-8 h-8 rounded-lg bg-blue-100 text-[#2563EB] font-black flex items-center justify-center text-[10.5px] shrink-0 shadow-2xs">
                             {lead.name.split(" ").map((n) => n[0]).join("")}
                           </div>
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
-                              <p className="font-extrabold text-slate-900 text-xs truncate tracking-tight group-hover:text-[#1769AA] transition-colors">
+                              <p className="font-extrabold text-slate-900 text-xs truncate tracking-tight group-hover:text-[#2563EB] transition-colors">
                                 {lead.name}
                               </p>
                               {lead.hotLead && (
@@ -999,7 +999,7 @@ export const AiCallingQualification: React.FC = () => {
                               type="button"
                               onClick={() => handleOpenAssignModal(lead)}
                               size="sm"
-                              className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white font-extrabold text-[10px] border border-blue-200 transition-all shadow-2xs cursor-pointer truncate"
+                              className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white font-extrabold text-[10px] border border-blue-200 transition-all shadow-2xs cursor-pointer truncate"
                             >
                               Assign & Contact
                             </Button>
@@ -1008,7 +1008,7 @@ export const AiCallingQualification: React.FC = () => {
                               type="button"
                               onClick={() => handleRetryAiCall(lead)}
                               size="sm"
-                              className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white font-extrabold text-[10px] border border-blue-200 transition-all shadow-2xs cursor-pointer truncate"
+                              className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white font-extrabold text-[10px] border border-blue-200 transition-all shadow-2xs cursor-pointer truncate"
                             >
                               Retry AI Call
                             </Button>
@@ -1048,7 +1048,7 @@ export const AiCallingQualification: React.FC = () => {
                             type="button"
                             onClick={() => handleOpenDetails(lead)}
                             size="sm"
-                            className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#1769AA] text-[#1769AA] hover:text-white font-bold text-[10px] border border-blue-200/80 transition-all shadow-2xs cursor-pointer"
+                            className="h-6.5 px-2 rounded-md bg-blue-50 hover:bg-[#2563EB] text-[#2563EB] hover:text-white font-bold text-[10px] border border-blue-200/80 transition-all shadow-2xs cursor-pointer"
                           >
                             Details
                           </Button>
@@ -1075,9 +1075,9 @@ export const AiCallingQualification: React.FC = () => {
                                 <>
                               <DropdownMenuItem
                                 onClick={() => handleOpenFollowUpModal(lead)}
-                                className="text-xs font-semibold py-1.5 cursor-pointer text-[#1769AA]"
+                                className="text-xs font-semibold py-1.5 cursor-pointer text-[#2563EB]"
                               >
-                                <CalendarDays className="h-3.5 w-3.5 mr-2 text-[#1769AA]" />
+                                <CalendarDays className="h-3.5 w-3.5 mr-2 text-[#2563EB]" />
                                 Schedule Follow-up
                               </DropdownMenuItem>
                               <DropdownMenuItem
@@ -1194,7 +1194,7 @@ export const AiCallingQualification: React.FC = () => {
           <div className="p-5 sm:p-6 pb-4 border-b border-slate-100 bg-slate-50/70 space-y-4">
             <div className="flex items-center justify-between">
               <DialogTitle className="text-lg font-black text-[#0A2540] tracking-tight flex items-center gap-2.5">
-                <span className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 inline-flex">
+                <span className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 inline-flex">
                   <Bot className="h-5 w-5 stroke-[2.5]" />
                 </span>
                 AI Call Details & Qualification
@@ -1205,7 +1205,7 @@ export const AiCallingQualification: React.FC = () => {
             {activeLead && (
               <div className="p-4 bg-white rounded-2xl border border-slate-200/80 shadow-2xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-11 h-11 rounded-2xl bg-[#1769AA] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
+                  <div className="w-11 h-11 rounded-2xl bg-[#2563EB] text-white font-black flex items-center justify-center text-sm shadow-xs shrink-0">
                     {activeLead.name.split(" ").map((n) => n[0]).join("")}
                   </div>
                   <div className="min-w-0">
@@ -1244,7 +1244,7 @@ export const AiCallingQualification: React.FC = () => {
                   </div>
                 </div>
 
-                <Badge className="bg-blue-50 text-[#1769AA] border border-blue-200 font-bold text-[11px] px-3 py-1 shrink-0">
+                <Badge className="bg-blue-50 text-[#2563EB] border border-blue-200 font-bold text-[11px] px-3 py-1 shrink-0">
                   {activeLead.course}
                 </Badge>
               </div>
@@ -1257,7 +1257,7 @@ export const AiCallingQualification: React.FC = () => {
                 onClick={() => setActiveTab("SUMMARY")}
                 className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   activeTab === "SUMMARY"
-                    ? "bg-white text-[#1769AA] shadow-xs"
+                    ? "bg-white text-[#2563EB] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -1268,7 +1268,7 @@ export const AiCallingQualification: React.FC = () => {
                 onClick={() => setActiveTab("RECORDING")}
                 className={`py-2 text-xs font-extrabold rounded-lg transition-all cursor-pointer ${
                   activeTab === "RECORDING"
-                    ? "bg-white text-[#1769AA] shadow-xs"
+                    ? "bg-white text-[#2563EB] shadow-xs"
                     : "text-slate-600 hover:text-slate-900"
                 }`}
               >
@@ -1321,7 +1321,7 @@ export const AiCallingQualification: React.FC = () => {
                   {/* AI Detailed Summary */}
                   <div className="space-y-1.5">
                     <Label className="text-slate-800 font-bold text-xs flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#1769AA]" /> AI Generated Summary
+                      <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" /> AI Generated Summary
                     </Label>
                     <div className="p-4 bg-blue-50/40 rounded-2xl border border-blue-100/80 text-slate-700 font-medium leading-relaxed shadow-2xs">
                       {activeLead.aiSummaryDetailed || activeLead.aiSummaryShort || "Candidate details recorded via AI voice qualification."}
@@ -1430,7 +1430,7 @@ export const AiCallingQualification: React.FC = () => {
                   <div className="space-y-3">
                     <Label className="text-slate-800 font-bold text-xs flex items-center justify-between">
                       <span className="flex items-center gap-1.5">
-                        <FileText className="w-3.5 h-3.5 text-[#1769AA]" /> Dialogue Transcript ({(activeLead.transcript?.length || 0)} turns)
+                        <FileText className="w-3.5 h-3.5 text-[#2563EB]" /> Dialogue Transcript ({(activeLead.transcript?.length || 0)} turns)
                       </span>
                       <span className="text-[10.5px] font-medium text-slate-400">AI Speech-to-Text</span>
                     </Label>
@@ -1447,7 +1447,7 @@ export const AiCallingQualification: React.FC = () => {
                             }`}
                           >
                             <div className="flex items-center justify-between text-[10.5px] font-bold">
-                              <span className={msg.speaker === "AI" || msg.speaker === "AI_AGENT" ? "text-[#1769AA] flex items-center gap-1" : "text-emerald-700"}>
+                              <span className={msg.speaker === "AI" || msg.speaker === "AI_AGENT" ? "text-[#2563EB] flex items-center gap-1" : "text-emerald-700"}>
                                 {(msg.speaker === "AI" || msg.speaker === "AI_AGENT") && <Bot className="w-3 h-3" />}
                                 {msg.speakerName || msg.name || (msg.speaker === "AI" || msg.speaker === "AI_AGENT" ? "Aadya AI Agent" : activeLead.name)}
                               </span>

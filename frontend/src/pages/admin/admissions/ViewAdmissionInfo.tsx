@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePermissions } from "@/hooks/usePermissions";
 import type { EnrichedAdmission, AdmissionRecordStatus } from "./AllAdmissions";
 
 interface ViewAdmissionInfoProps {
@@ -45,6 +46,8 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
   basePath,
 }) => {
   const navigate = useNavigate();
+  const { canEditItem } = usePermissions();
+  const canEditAdmissions = canEditItem("admissions.all");
 
   const hasAssignedBatch = Boolean(
     admission.batchId ||
@@ -103,6 +106,7 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2">
+          {canEditAdmissions && (
           <Button
             onClick={onOpenManageAdmission}
             variant="outline"
@@ -111,6 +115,7 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
             <span>Manage Admission</span>
           </Button>
+          )}
 
           <Button
             onClick={handleNavigateToStudent360}
@@ -331,6 +336,7 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
               <GraduationCap className="h-4 w-4 text-primary" />
               <span>Section 4 — Course & Batch Details</span>
             </div>
+            {canEditAdmissions && (
             <Button
               size="sm"
               variant="outline"
@@ -340,6 +346,7 @@ export const ViewAdmissionInfo: React.FC<ViewAdmissionInfoProps> = ({
               <RefreshCw className="h-3 w-3" />
               <span>{hasAssignedBatch ? "Assign / Change Batch" : "Assign Batch"}</span>
             </Button>
+            )}
           </div>
           <CardContent className="p-5 space-y-4 text-xs">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

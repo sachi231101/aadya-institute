@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import {
   Bot,
   Target,
@@ -158,7 +158,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 px-1">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <ShieldCheck className="w-4 h-4 text-[#1769AA]" />
+          <ShieldCheck className="w-4 h-4 text-[#2563EB]" />
           <span>
             ERP modules · <strong>Read</strong> = view only · <strong>Edit</strong> = view, add, update, and all actions · New users start with none enabled (baseline only)
           </span>
@@ -192,7 +192,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
               >
                 <div className="flex items-center gap-3 min-w-0">
                   {Icon && (
-                    <div className="h-9 w-9 rounded-lg bg-[#1769AA]/10 text-[#1769AA] flex items-center justify-center shrink-0">
+                    <div className="h-9 w-9 rounded-lg bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center shrink-0">
                       <Icon className="h-4.5 w-4.5" />
                     </div>
                   )}
@@ -236,7 +236,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                             checked={access.show}
                             disabled={disabled}
                             onChange={(e) => setItemAccess(item.key, { show: e.target.checked })}
-                            className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                            className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                           />
                         </label>
                         <label className="flex justify-center cursor-pointer">
@@ -245,7 +245,7 @@ export const PermissionMatrix: React.FC<PermissionMatrixProps> = ({
                             checked={access.editable}
                             disabled={disabled || !canEdit}
                             onChange={(e) => setItemAccess(item.key, { editable: e.target.checked })}
-                            className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] disabled:opacity-40"
+                            className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] disabled:opacity-40"
                           />
                         </label>
                       </div>

@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 import { Loader2, AlertCircle, GraduationCap } from "lucide-react";
 import { useAdmissionsReport } from "@/hooks/useReports";
 import { Card, CardContent } from "@/components/ui/card";
@@ -35,7 +35,7 @@ export const AdmissionReports: React.FC = () => {
     return groupAdmissionsByStudent(rows);
   }, [data?.recentAdmissions]);
 
-  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#1769AA]" /></div>;
+  if (isLoading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#2563EB]" /></div>;
   if (isError) return <div className="text-center py-20 text-red-600"><AlertCircle className="w-8 h-8 mx-auto mb-2" />Failed to load.<Button variant="link" onClick={() => refetch()}>Retry</Button></div>;
 
   return (
@@ -66,7 +66,7 @@ export const AdmissionReports: React.FC = () => {
               <XAxis dataKey="month" />
               <YAxis />
               <Tooltip />
-              <Area type="monotone" dataKey="admissions" stroke="#1769AA" fill="#1769AA33" />
+              <Area type="monotone" dataKey="admissions" stroke="#2563EB" fill="#2563EB33" />
             </AreaChart>
           </ResponsiveContainer>
         </CardContent>

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { CreditCard, Loader2, AlertCircle, CheckCircle2, Users, Building2, GraduationCap } from "lucide-react";
 import {
   useBillingSubscription,
@@ -35,7 +35,7 @@ function UsageMeter({
   return (
     <div className="border rounded-xl p-4 space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
-        <Icon className="h-4 w-4 text-[#1769AA]" />
+        <Icon className="h-4 w-4 text-[#2563EB]" />
         {label}
       </div>
       <p className="text-2xl font-extrabold">
@@ -46,7 +46,7 @@ function UsageMeter({
       </p>
       {pct != null && (
         <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div className="h-full bg-[#1769AA] rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div className="h-full bg-[#2563EB] rounded-full transition-all" style={{ width: `${pct}%` }} />
         </div>
       )}
       {limit == null && <p className="text-xs text-text-secondary">No plan limit configured</p>}
@@ -171,7 +171,7 @@ export const Billing: React.FC = () => {
                 (plan: { id: string; name: string; price: number; billingCycle: string; code: string }) => (
                   <div key={plan.id} className="border rounded-xl p-4 space-y-2">
                     <p className="font-bold">{plan.name}</p>
-                    <p className="text-2xl font-extrabold text-[#1769AA]">
+                    <p className="text-2xl font-extrabold text-[#2563EB]">
                       ₹{plan.price.toLocaleString("en-IN")}
                       <span className="text-xs font-normal text-text-secondary">
                         /{plan.billingCycle?.toLowerCase()}
@@ -179,7 +179,7 @@ export const Billing: React.FC = () => {
                     </p>
                     <Button
                       size="sm"
-                      className="w-full bg-[#1769AA] text-white"
+                      className="w-full bg-[#2563EB] text-white"
                       onClick={() => handleSubscribe(plan.id)}
                       disabled={createSubMutation.isPending}
                     >

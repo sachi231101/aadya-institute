@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Search, Video, Calendar, Clock,
@@ -77,12 +77,12 @@ export const FacultyRecordings: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#1769AA] mb-2"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#2563EB] mb-2"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
           <h1 className="text-2xl font-black tracking-tight flex items-center gap-2">
-            <FileVideo className="w-6 h-6 text-[#1769AA]" />
+            <FileVideo className="w-6 h-6 text-[#2563EB]" />
             Class Recordings
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
@@ -103,7 +103,7 @@ export const FacultyRecordings: React.FC = () => {
 
       {isLoading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+          <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
         </div>
       ) : isError ? (
         <div className="text-center py-16 space-y-3">
@@ -131,7 +131,7 @@ export const FacultyRecordings: React.FC = () => {
               <Card key={rec.id} className="rounded-2xl overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3">
                   <div className="flex items-start justify-between gap-2">
-                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#1769AA] flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
                       <Video className="w-5 h-5" />
                     </div>
                     <Badge variant="outline" className="text-[10px]">{rec.status || "ACTIVE"}</Badge>
@@ -169,7 +169,7 @@ export const FacultyRecordings: React.FC = () => {
                   </div>
                   <Button
                     size="sm"
-                    className="w-full bg-[#1769AA] hover:bg-[#125890] text-white"
+                    className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
                     onClick={() => handleViewRecording(rec)}
                     disabled={accessMutation.isPending && activeRecording?.id === rec.id}
                   >

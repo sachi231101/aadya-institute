@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+﻿import React, { useState, useMemo, useCallback } from "react";
 import {
   MapPin,
   School,
@@ -761,7 +761,7 @@ export const MasterSetup: React.FC = () => {
               {usageCount > 0 && (
                 <Badge
                   variant="secondary"
-                  className="text-[10px] font-bold bg-blue-50 text-[#1769AA] border-blue-100"
+                  className="text-[10px] font-bold bg-blue-50 text-[#2563EB] border-blue-100"
                   title={entity.usedInPages?.join(", ")}
                 >
                   Used in {usageCount} {usageCount === 1 ? "page" : "pages"}
@@ -769,7 +769,7 @@ export const MasterSetup: React.FC = () => {
               )}
             </div>
           </div>
-          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#1769AA] transition-colors">
+          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm mt-3 tracking-tight group-hover:text-[#2563EB] transition-colors">
             {entity.name}
           </h4>
           <p className="text-[11px] text-slate-500 font-medium line-clamp-2 mt-0.5 leading-relaxed">
@@ -784,7 +784,7 @@ export const MasterSetup: React.FC = () => {
               `${currentCount} Records`
             )}
           </span>
-          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#1769AA] group-hover:translate-x-0.5 transition-all" />
+          <ChevronRight className="h-4 w-4 text-slate-400 group-hover:text-[#2563EB] group-hover:translate-x-0.5 transition-all" />
         </div>
       </div>
     );
@@ -825,7 +825,7 @@ export const MasterSetup: React.FC = () => {
           <button
             type="button"
             onClick={() => setSelectedModuleFilter(filterKey)}
-            className="text-xs font-extrabold text-[#1769AA] hover:text-[#125890] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
+            className="text-xs font-extrabold text-[#2563EB] hover:text-[#1D4ED8] flex items-center gap-1 self-start sm:self-auto cursor-pointer"
           >
             <span>View All ({masters.length})</span>
             <ChevronRight className="h-3.5 w-3.5" />
@@ -844,13 +844,13 @@ export const MasterSetup: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-blue-50 text-[#1769AA] border border-blue-100 shadow-2xs">
+            <div className="p-2 rounded-xl bg-blue-50 text-[#2563EB] border border-blue-100 shadow-2xs">
               <Layers className="h-5 w-5 stroke-[2.4]" />
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
               Master Setup
             </h1>
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-[#1769AA] border border-blue-200">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-black bg-blue-100 text-[#2563EB] border border-blue-200">
               {MASTER_ENTITY_TYPES.length} Modules
             </span>
           </div>
@@ -865,7 +865,7 @@ export const MasterSetup: React.FC = () => {
             type="button"
             onClick={() => setViewMode("GRID")}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "GRID"
-                ? "bg-[#1769AA] text-white shadow-xs"
+                ? "bg-[#2563EB] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
               }`}
           >
@@ -876,7 +876,7 @@ export const MasterSetup: React.FC = () => {
             type="button"
             onClick={() => setViewMode("CRUD")}
             className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${viewMode === "CRUD"
-                ? "bg-[#1769AA] text-white shadow-xs"
+                ? "bg-[#2563EB] text-white shadow-xs"
                 : "text-slate-600 hover:text-slate-900"
               }`}
           >
@@ -917,7 +917,7 @@ export const MasterSetup: React.FC = () => {
           <select
             value={selectedModuleFilter}
             onChange={(e) => setSelectedModuleFilter(e.target.value)}
-            className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#1769AA]/30 outline-none appearance-none cursor-pointer"
+            className="w-full h-10 pl-9 pr-8 text-xs font-bold text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-[#2563EB]/30 outline-none appearance-none cursor-pointer"
           >
             <option value="ALL">All Modules ({MASTER_ENTITY_TYPES.length})</option>
             <option value="ACADEMIC_ORG">{MASTER_CATEGORY_LABELS.ACADEMIC_ORG} ({CATEGORY_COUNTS.ACADEMIC_ORG ?? 0})</option>
@@ -993,7 +993,7 @@ export const MasterSetup: React.FC = () => {
                         {usageCount > 0 ? (
                           <Badge
                             variant="secondary"
-                            className="text-[10px] font-bold bg-blue-50 text-[#1769AA] border-blue-100"
+                            className="text-[10px] font-bold bg-blue-50 text-[#2563EB] border-blue-100"
                             title={item.usedInPages?.join(", ")}
                           >
                             {usageCount} {usageCount === 1 ? "page" : "pages"}
@@ -1017,7 +1017,7 @@ export const MasterSetup: React.FC = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleOpenMasterRecords(item)}
-                            className="h-8 px-2.5 text-[11px] font-bold text-[#1769AA] border-blue-200 bg-blue-50/50 hover:bg-blue-100 rounded-lg gap-1 cursor-pointer"
+                            className="h-8 px-2.5 text-[11px] font-bold text-[#2563EB] border-blue-200 bg-blue-50/50 hover:bg-blue-100 rounded-lg gap-1 cursor-pointer"
                           >
                             <Eye className="h-3.5 w-3.5" />
                             <span>View</span>
@@ -1047,7 +1047,7 @@ export const MasterSetup: React.FC = () => {
       {/* ─── 5. BOTTOM INFORMATION PANEL ─────────────────────────────────── */}
       <Card className="border-slate-200/80 shadow-xs bg-white rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-blue-50 text-[#1769AA] shrink-0">
+          <div className="p-2 rounded-xl bg-blue-50 text-[#2563EB] shrink-0">
             <Info className="h-4 w-4 stroke-[2.2]" />
           </div>
           <div>
@@ -1081,7 +1081,7 @@ export const MasterSetup: React.FC = () => {
                     <DialogTitle className="text-xl font-black text-slate-900">
                       {selectedMasterEntity.name} Master
                     </DialogTitle>
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#1769AA]">
+                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-[#2563EB]">
                       {entityApiData?.meta?.total ?? 0} Records
                     </span>
                   </div>
@@ -1098,7 +1098,7 @@ export const MasterSetup: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                        className="h-8 text-xs font-bold bg-[#1769AA] hover:bg-[#125890] text-white rounded-xl gap-1.5"
+                        className="h-8 text-xs font-bold bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl gap-1.5"
                       >
                         <Plus className="h-3.5 w-3.5" /> Add Record
                       </Button>
@@ -1163,7 +1163,7 @@ export const MasterSetup: React.FC = () => {
                       <Button
                         size="sm"
                         onClick={() => handleOpenAddRecord(selectedMasterEntity)}
-                        className="mt-4 bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                        className="mt-4 bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
                       >
                         <Plus className="h-3.5 w-3.5" /> Add First Record
                       </Button>
@@ -1535,7 +1535,7 @@ export const MasterSetup: React.FC = () => {
                 <Button
                   onClick={handleSaveRecord}
                   disabled={createMasterMutation.isPending || updateMasterMutation.isPending}
-                  className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
                 >
                   {(createMasterMutation.isPending || updateMasterMutation.isPending) && (
                     <Loader2 className="h-3.5 w-3.5 animate-spin" />

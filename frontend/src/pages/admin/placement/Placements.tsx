@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { Trophy, Loader2, AlertCircle, Plus } from "lucide-react";
 import {
   usePlacements,
@@ -90,7 +90,7 @@ export const Placements: React.FC = () => {
           <p className="text-sm text-text-secondary">Confirmed student placements and offers.</p>
         </div>
         <PermissionGate itemKey="placement.placements" mode="write">
-          <Button className="bg-[#1769AA] text-white" onClick={() => setShowModal(true)}>
+          <Button className="bg-[#2563EB] text-white" onClick={() => setShowModal(true)}>
             <Plus className="mr-2 h-4 w-4" /> Confirm Placement
           </Button>
         </PermissionGate>
@@ -263,7 +263,7 @@ export const Placements: React.FC = () => {
               </Button>
               <Button
                 type="submit"
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
                 disabled={createMutation.isPending}
               >
                 {createMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

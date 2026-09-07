@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import {
   FileText,
   Plus,
@@ -801,7 +801,7 @@ export const FacultyAssignments: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#1769AA] text-white"
+                  className="bg-[#2563EB] text-white"
                   disabled={!gradeMarks || gradeMutation.isPending}
                   onClick={() => {
                     gradeMutation.mutate(

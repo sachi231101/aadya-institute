@@ -141,40 +141,25 @@ const facultyNavItems: NavItem[] = [
 export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const location = useLocation()
   const navigate = useNavigate()
-  const { user, logout } = useAuthStore()
   const { organization } = useOrganization()
-  const orgName = organization?.name || DEFAULT_ORG_NAME
-  const orgLogo = organization?.branding.logoUrl || DEFAULT_ORG_LOGO
-
-  const facultyName = user?.name || "Ramesh Kumar"
-  const facultyDesignation = (user as any)?.specialization || (user as any)?.department || "Java Faculty"
-  const facultyCenter = (user as any)?.branchName || "Bangalore Center"
-  const facultyAvatar = (user as any)?.avatar || "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150"
 
   return (
     <Sidebar collapsible="icon" {...props} className="border-r border-border/50 bg-bg-secondary">
-      <SidebarHeader className="p-3 border-b border-border/40">
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild className="hover:bg-transparent">
-              <Link to="/faculty/dashboard" className="flex items-center gap-3">
-                {organization?.branding.logoUrl ? (
-                  <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-white dark:bg-slate-900 border border-border/60 shadow-2xs shrink-0 p-1 overflow-hidden">
-                    <img src={orgLogo} alt={orgName} className="h-7 w-auto object-contain" />
-                  </div>
-                ) : (
-                  <div className="flex aspect-square size-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#4F46E5] to-[#3B82F6] text-white shadow-xs">
-                    <ShieldCheck className="h-5 w-5" />
-                  </div>
-                )}
-                <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-black text-slate-900 tracking-tight text-sm">{orgName}</span>
-                  <span className="truncate text-[10px] font-extrabold text-[#4F46E5] tracking-wider uppercase">FACULTY MEMBER</span>
-                </div>
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarHeader className="h-12 border-b border-[#334155] bg-[#172033] text-white px-3 flex flex-row items-center">
+        <Link
+          to="/faculty/dashboard"
+          className="flex items-center justify-between gap-2 px-1 py-0.5 rounded-lg hover:bg-white/5 transition-colors w-full group-data-[collapsible=icon]:justify-center"
+          title="Aadya Institute"
+        >
+          <img
+            src="/aadya-logo.png"
+            alt="Aadya Institute"
+            className="h-6.5 w-auto max-w-[125px] object-contain shrink-0 drop-shadow-[0_0_1px_rgba(255,255,255,0.35)] group-data-[collapsible=icon]:max-w-[26px] group-data-[collapsible=icon]:object-left"
+          />
+          <span className="text-[10px] text-indigo-300 font-bold tracking-wider bg-white/10 border border-white/20 px-2 py-0.5 rounded-full shrink-0 group-data-[collapsible=icon]:hidden">
+            FACULTY
+          </span>
+        </Link>
       </SidebarHeader>
 
       <SidebarContent>
@@ -222,7 +207,7 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
                           {item.icon && <item.icon className={`h-4 w-4 shrink-0 ${isSubItemActive || isDirectActive ? "text-indigo-600 dark:text-indigo-400 font-semibold" : "text-muted-foreground"}`} />}
                           <span className="truncate min-w-0 flex-1 text-[13.5px] font-medium">{item.title}</span>
                         </div>
-                        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0 group-data-[state=closed]/collapsible:-rotate-90" />
+                        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-0 group-data-[state=closed]/collapsible:-rotate-90 group-data-[collapsible=icon]:hidden" />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -260,30 +245,8 @@ export function FacultySidebar({ ...props }: React.ComponentProps<typeof Sidebar
         </SidebarGroup>
       </SidebarContent>
         
-      <SidebarFooter className="border-t border-border/50 p-2.5 gap-2 bg-bg-secondary">
+      <SidebarFooter className="border-t border-border/50 p-2.5 bg-bg-secondary empty:hidden">
         <InstallAppButton variant="sidebar" />
-        <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-border/40">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
-            <div className="h-8 w-8 rounded-full bg-indigo-500/10 text-indigo-600 font-bold text-xs flex items-center justify-center shrink-0 border border-indigo-500/20">
-              {(user?.name || "Faculty").charAt(0).toUpperCase()}
-            </div>
-            <div className="flex flex-col min-w-0 flex-1 leading-tight">
-              <span className="text-xs font-semibold text-slate-800 dark:text-slate-100 truncate">{user?.name || "Dr. Rajesh Kumar"}</span>
-              <span className="text-[11px] text-muted-foreground truncate">{user?.email || "faculty@aadya.in"}</span>
-            </div>
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              logout()
-              navigate("/login")
-            }}
-            className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0 cursor-pointer"
-            title="Log out"
-          >
-            <LogOut size={15} />
-          </button>
-        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -133,7 +133,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
     <Dialog open={isOpen} onOpenChange={(open) => !open && !isUploading && onClose()}>
       <DialogContent className="sm:max-w-lg p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl rounded-2xl">
         <DialogHeader className="space-y-1.5">
-          <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-[#1769AA] dark:text-blue-400 flex items-center justify-center mb-1">
+          <div className="w-11 h-11 rounded-2xl bg-blue-50 dark:bg-blue-950/50 text-[#2563EB] dark:text-blue-400 flex items-center justify-center mb-1">
             <Film className="w-6 h-6 stroke-[2.2]" />
           </div>
           <DialogTitle className="text-xl font-bold text-slate-900 dark:text-white">
@@ -220,7 +220,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
             {videoUrl.trim() && (
               <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Video className="w-4 h-4 text-[#1769AA]" />
+                  <Video className="w-4 h-4 text-[#2563EB]" />
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate max-w-[240px]">
                     {videoUrl}
                   </span>
@@ -230,7 +230,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsPlayingPreview(!isPlayingPreview)}
-                  className="text-xs text-[#1769AA] h-7 px-2"
+                  className="text-xs text-[#2563EB] h-7 px-2"
                 >
                   <Play className="w-3 h-3 mr-1" /> {isPlayingPreview ? "Hide" : "Preview"}
                 </Button>
@@ -261,7 +261,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
               <Button
                 type="submit"
                 disabled={isUploading}
-                className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-semibold"
+                className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold"
               >
                 {isUploading ? (
                   <>

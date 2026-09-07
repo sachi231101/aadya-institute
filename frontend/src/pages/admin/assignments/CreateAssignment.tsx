@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -229,7 +229,7 @@ export const CreateAssignment: React.FC = () => {
           <Button
             type="submit"
             form="create-assignment-form"
-            className="bg-[#1769AA] hover:bg-[#125387] text-white shadow-sm"
+            className="bg-[#2563EB] hover:bg-[#125387] text-white shadow-sm"
             disabled={createMutation.isPending || uploadAttachment.isPending}
           >
             {(createMutation.isPending || uploadAttachment.isPending) && (
@@ -363,7 +363,7 @@ export const CreateAssignment: React.FC = () => {
                 </div>
               ) : (
                 <label className="flex flex-col items-center justify-center gap-2 p-6 border-2 border-dashed rounded-lg cursor-pointer hover:bg-muted/30">
-                  <Upload className="h-6 w-6 text-[#1769AA]" />
+                  <Upload className="h-6 w-6 text-[#2563EB]" />
                   <span className="text-sm font-medium">Select file to upload</span>
                   <span className="text-xs text-text-muted">
                     Allowed: {ALLOWED_ATTACHMENT_LABEL} (max 10MB)

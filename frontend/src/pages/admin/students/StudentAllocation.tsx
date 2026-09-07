@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   GraduationCap,
@@ -349,7 +349,7 @@ export const StudentAllocation: React.FC = () => {
           <ChevronRight className="h-3.5 w-3.5" />
           <span>Counsellor</span>
           <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-[#1769AA] font-bold">Assign Students to Batches</span>
+          <span className="text-[#2563EB] font-bold">Assign Students to Batches</span>
         </div>
 
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -369,7 +369,7 @@ export const StudentAllocation: React.FC = () => {
               const el = document.getElementById("student-selection-workspace");
               if (el) el.scrollIntoView({ behavior: "smooth" });
             }}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-10 px-5 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02]"
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-black h-10 px-5 rounded-xl shadow-md gap-2 shrink-0 transition-all hover:scale-[1.02]"
           >
             <Plus className="h-4 w-4" />
             + Assign Students
@@ -398,7 +398,7 @@ export const StudentAllocation: React.FC = () => {
         {/* Total Students */}
         <Card className="border border-slate-200/80 shadow-xs bg-white rounded-2xl">
           <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="p-2.5 rounded-xl bg-blue-50 text-[#1769AA] shrink-0">
+            <div className="p-2.5 rounded-xl bg-blue-50 text-[#2563EB] shrink-0">
               <GraduationCap className="h-5 w-5" />
             </div>
             <div>
@@ -460,7 +460,7 @@ export const StudentAllocation: React.FC = () => {
           <div className="p-5 border-b border-slate-100 space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-center gap-2.5">
-                <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-black shrink-0">
+                <div className="h-6 w-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-xs font-black shrink-0">
                   1
                 </div>
                 <div>
@@ -473,7 +473,7 @@ export const StudentAllocation: React.FC = () => {
               <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200/60 text-xs font-bold">
                 <button
                   onClick={() => setActiveTab("ALL")}
-                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ALL" ? "bg-white text-[#1769AA] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                  className={`px-3 py-1 rounded-lg transition-all ${activeTab === "ALL" ? "bg-white text-[#2563EB] shadow-xs" : "text-slate-600 hover:text-slate-900"
                     }`}
                 >
                   All ({totalStudentsCount})
@@ -526,7 +526,7 @@ export const StudentAllocation: React.FC = () => {
             <div className="flex items-center justify-between text-[11px] font-bold text-slate-400">
               <span>{filteredStudents.length} Students found</span>
               {selectedStudentIds.size > 0 && (
-                <span className="text-[#1769AA] font-black">{selectedStudentIds.size} Selected</span>
+                <span className="text-[#2563EB] font-black">{selectedStudentIds.size} Selected</span>
               )}
             </div>
           </div>
@@ -541,7 +541,7 @@ export const StudentAllocation: React.FC = () => {
                       type="checkbox"
                       checked={filteredStudents.length > 0 && selectedStudentIds.size === filteredStudents.length}
                       onChange={handleSelectAllVisible}
-                      className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] h-4 w-4 cursor-pointer"
+                      className="rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] h-4 w-4 cursor-pointer"
                     />
                   </TableHead>
                   <TableHead className="min-w-[180px] text-[10px] font-bold uppercase text-slate-500">Student</TableHead>
@@ -557,7 +557,7 @@ export const StudentAllocation: React.FC = () => {
                 {loadingStudents ? (
                   <TableRow>
                     <TableCell colSpan={6} className="text-center py-12 text-slate-400 text-xs">
-                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#1769AA] mb-2" />
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#2563EB] mb-2" />
                       Loading student directory...
                     </TableCell>
                   </TableRow>
@@ -594,7 +594,7 @@ export const StudentAllocation: React.FC = () => {
                             type="checkbox"
                             checked={isSelected}
                             onChange={() => handleToggleStudent(student.id)}
-                            className="rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA] h-4 w-4 cursor-pointer"
+                            className="rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB] h-4 w-4 cursor-pointer"
                           />
                         </TableCell>
 
@@ -660,7 +660,7 @@ export const StudentAllocation: React.FC = () => {
                                     });
                                     setTransferTargetBatchId(batches.find((b) => b.id !== enrolledBatch?.batchId)?.id || "");
                                   }}
-                                  className="cursor-pointer text-[#1769AA]"
+                                  className="cursor-pointer text-[#2563EB]"
                                 >
                                   <RefreshCw className="mr-2 h-3.5 w-3.5" /> Transfer Batch
                                 </DropdownMenuItem>
@@ -691,7 +691,7 @@ export const StudentAllocation: React.FC = () => {
 
           {/* Bottom Bar */}
           <div className="p-3.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs">
-            <span className="font-bold text-[#1769AA]">
+            <span className="font-bold text-[#2563EB]">
               {selectedStudentIds.size} students selected
             </span>
             {selectedStudentIds.size > 0 && (
@@ -711,7 +711,7 @@ export const StudentAllocation: React.FC = () => {
         <Card className="lg:col-span-5 border border-slate-200/80 shadow-xs bg-white rounded-2xl flex flex-col justify-between overflow-hidden">
           <div className="p-5 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="h-6 w-6 rounded-full bg-[#1769AA] text-white flex items-center justify-center text-xs font-black shrink-0">
+              <div className="h-6 w-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center text-xs font-black shrink-0">
                 2
               </div>
               <div>
@@ -735,10 +735,10 @@ export const StudentAllocation: React.FC = () => {
             <div className="space-y-1.5">
               <label className="text-xs font-black text-slate-900 flex items-center justify-between">
                 <span className="flex items-center gap-1.5">
-                  <Layers className="h-4 w-4 text-[#1769AA]" />
+                  <Layers className="h-4 w-4 text-[#2563EB]" />
                   SELECT TARGET BATCH *
                 </span>
-                <span className="text-[11px] font-bold text-[#1769AA]">
+                <span className="text-[11px] font-bold text-[#2563EB]">
                   {batches.length} Batches Available
                 </span>
               </label>
@@ -747,7 +747,7 @@ export const StudentAllocation: React.FC = () => {
                 <select
                   value={selectedTargetBatchId || (targetBatch?.id ?? "")}
                   onChange={(e) => setSelectedTargetBatchId(e.target.value)}
-                  className="w-full h-11 pl-3.5 pr-8 text-xs font-black text-slate-900 bg-blue-50/40 border-2 border-[#1769AA]/40 hover:border-[#1769AA] rounded-xl focus:ring-2 focus:ring-[#1769AA]/30 focus:border-[#1769AA] outline-none transition-all cursor-pointer shadow-xs"
+                  className="w-full h-11 pl-3.5 pr-8 text-xs font-black text-slate-900 bg-blue-50/40 border-2 border-[#2563EB]/40 hover:border-[#2563EB] rounded-xl focus:ring-2 focus:ring-[#2563EB]/30 focus:border-[#2563EB] outline-none transition-all cursor-pointer shadow-xs"
                 >
                   {batches.map((b) => (
                     <option key={b.id} value={b.id} className="font-medium text-slate-800">
@@ -907,7 +907,7 @@ export const StudentAllocation: React.FC = () => {
       {/* ─── STICKY BOTTOM CONFIRMATION BAR ─── */}
       <div className="p-4 bg-white border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-          <Info className="h-4 w-4 text-[#1769AA] shrink-0" />
+          <Info className="h-4 w-4 text-[#2563EB] shrink-0" />
           <span>Once assigned, students will be added to this batch and will be visible in the batch student list and attendance.</span>
         </div>
 
@@ -925,7 +925,7 @@ export const StudentAllocation: React.FC = () => {
           <Button
             onClick={() => setShowConfirmModal(true)}
             disabled={selectedStudentIds.size === 0 || isCapacityExceeded || isAssigning || !targetBatch}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-black h-9.5 px-5 rounded-xl shadow-md gap-2 transition-all hover:scale-[1.02]"
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-black h-9.5 px-5 rounded-xl shadow-md gap-2 transition-all hover:scale-[1.02]"
           >
             {isAssigning ? (
               <>
@@ -948,7 +948,7 @@ export const StudentAllocation: React.FC = () => {
         <DialogContent className="max-w-md bg-white rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-[#1769AA]" />
+              <CheckCircle2 className="h-5 w-5 text-[#2563EB]" />
               Confirm Batch Assignment
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 pt-1">
@@ -978,7 +978,7 @@ export const StudentAllocation: React.FC = () => {
             <Button
               onClick={handleConfirmBulkAssign}
               disabled={isAssigning}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
             >
               {isAssigning ? (
                 <>
@@ -998,7 +998,7 @@ export const StudentAllocation: React.FC = () => {
         <DialogContent className="max-w-md bg-white rounded-2xl p-6">
           <DialogHeader>
             <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <RefreshCw className="h-5 w-5 text-[#1769AA]" />
+              <RefreshCw className="h-5 w-5 text-[#2563EB]" />
               Transfer Student Batch
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500">
@@ -1020,7 +1020,7 @@ export const StudentAllocation: React.FC = () => {
                 <select
                   value={transferTargetBatchId}
                   onChange={(e) => setTransferTargetBatchId(e.target.value)}
-                  className="w-full h-10 px-3 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#1769AA]/30"
+                  className="w-full h-10 px-3 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-xl focus:ring-2 focus:ring-[#2563EB]/30"
                 >
                   {batches
                     .filter((b) => b.id !== transferModalStudent.currentBatchId)
@@ -1046,7 +1046,7 @@ export const StudentAllocation: React.FC = () => {
             <Button
               onClick={handleExecuteTransfer}
               disabled={isTransferring || !transferTargetBatchId}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold rounded-xl gap-1.5"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
             >
               {isTransferring ? (
                 <>

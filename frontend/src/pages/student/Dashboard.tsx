@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -168,7 +168,7 @@ export const StudentDashboard: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
+      <div className="bg-gradient-to-r from-[#2563EB] to-[#2088d8] rounded-xl p-8 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold mb-2">Welcome back, {studentName.split(" ")[0]}!</h1>
@@ -221,11 +221,11 @@ export const StudentDashboard: React.FC = () => {
             </Card>
 
             <Card className="border-border/50 shadow-sm overflow-hidden">
-              <div className="h-1 w-full bg-[#1769AA]" />
+              <div className="h-1 w-full bg-[#2563EB]" />
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center justify-between text-text-primary">
                   <span>{isMultiSubject ? "Batch Subjects" : "Current Course"}</span>
-                  <BookOpen className="h-4 w-4 text-[#1769AA]" />
+                  <BookOpen className="h-4 w-4 text-[#2563EB]" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -234,7 +234,7 @@ export const StudentDashboard: React.FC = () => {
                   <p className="text-xs text-text-secondary mt-1">Primary admission: {courseName}</p>
                 )}
                 <div className="mt-4 flex flex-wrap gap-2">
-                  <Badge variant="secondary" className="bg-blue-50 text-[#1769AA] border border-blue-100">Active</Badge>
+                  <Badge variant="secondary" className="bg-blue-50 text-[#2563EB] border border-blue-100">Active</Badge>
                   {batchName ? (
                     <Badge variant="outline" className="text-xs">{batchName}</Badge>
                   ) : null}

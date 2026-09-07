@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   User,
@@ -110,7 +110,7 @@ export const StudentProfile: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#1769AA] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
+      <div className="bg-gradient-to-r from-[#2563EB] to-[#2088d8] rounded-xl p-6 text-white shadow-lg">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-white/20 flex items-center justify-center text-2xl font-bold">
             {(academic.studentName || user?.name)?.charAt(0)?.toUpperCase() || "S"}
@@ -150,7 +150,7 @@ export const StudentProfile: React.FC = () => {
         <Card className="border-border shadow-xs bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-foreground">
-              <User size={16} className="text-[#1769AA]" /> Personal & Enrollment Details
+              <User size={16} className="text-[#2563EB]" /> Personal & Enrollment Details
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -198,7 +198,7 @@ export const StudentProfile: React.FC = () => {
         <Card className="border-border shadow-xs bg-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2 text-foreground">
-              <BookOpen size={16} className="text-[#1769AA]" /> Academic Summary
+              <BookOpen size={16} className="text-[#2563EB]" /> Academic Summary
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -234,7 +234,7 @@ export const StudentProfile: React.FC = () => {
       <Card className="border-border shadow-xs bg-card">
         <CardHeader className="pb-3 border-b border-border">
           <CardTitle className="text-base flex items-center gap-2 text-foreground">
-            <KeyRound size={16} className="text-[#1769AA]" /> Change Password
+            <KeyRound size={16} className="text-[#2563EB]" /> Change Password
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground">
             Update your student portal password. The initial default password (<span className="font-mono font-semibold text-foreground">Aadya@123</span>) will be replaced with your new password.
@@ -330,7 +330,7 @@ export const StudentProfile: React.FC = () => {
             <Button
               type="submit"
               disabled={passwordLoading}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white text-xs font-bold gap-1.5 h-9 px-4 cursor-pointer"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold gap-1.5 h-9 px-4 cursor-pointer"
             >
               <Lock className="h-3.5 w-3.5" />
               <span>{passwordLoading ? "Updating Password..." : "Change Password"}</span>

@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useNavigate } from "react-router-dom";
 import { BookOpen, Users, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -55,7 +55,7 @@ export const FacultyBatchClasses: React.FC = () => {
                     <Button
                       size="sm"
                       onClick={() => navigate(`/faculty/class-session?course=${encodeURIComponent(session.title || "Java Programming")}&batch=${encodeURIComponent(session.batch?.name || "Batch C")}`)}
-                      className="h-8 text-xs gap-1 bg-[#1769AA] text-white hover:bg-[#125890] font-bold cursor-pointer"
+                      className="h-8 text-xs gap-1 bg-[#2563EB] text-white hover:bg-[#1D4ED8] font-bold cursor-pointer"
                     >
                       <Users size={12} /> Mark Attendance & Open Classroom
                     </Button>

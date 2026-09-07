@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { LayoutDashboard, Sparkles, Settings, ShieldCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -22,7 +22,7 @@ export const DashboardBaselineView: React.FC<DashboardBaselineViewProps> = ({
   return (
     <Card className="border-dashed border-2 border-slate-200 bg-white/80 shadow-xs rounded-3xl">
       <CardContent className="p-8 sm:p-10 text-center space-y-6">
-        <div className="mx-auto h-14 w-14 rounded-2xl bg-[#1769AA]/10 text-[#1769AA] flex items-center justify-center">
+        <div className="mx-auto h-14 w-14 rounded-2xl bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center">
           <ShieldCheck className="h-7 w-7" />
         </div>
 
@@ -46,7 +46,7 @@ export const DashboardBaselineView: React.FC<DashboardBaselineViewProps> = ({
               key={label}
               className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-100"
             >
-              <div className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[#1769AA] shrink-0">
+              <div className="h-9 w-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-[#2563EB] shrink-0">
                 <Icon className="h-4 w-4" />
               </div>
               <div>

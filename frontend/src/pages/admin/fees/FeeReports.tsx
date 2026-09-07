@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { 
   TrendingUp, 
   PieChart as PieChartIcon, 
@@ -38,7 +38,7 @@ export const FeeReports: React.FC = () => {
       { month: "Feb 2026", revenue: 380000 },
     ],
     courseRevenue: [
-      { name: "Full Stack MERN", value: 420000, color: "#1769AA" },
+      { name: "Full Stack MERN", value: 420000, color: "#2563EB" },
       { name: "Backend Systems", value: 280000, color: "#10b981" },
       { name: "Data Science & AI", value: 240000, color: "#f59e0b" },
       { name: "UI/UX Design", value: 140000, color: "#8b5cf6" },
@@ -83,7 +83,7 @@ export const FeeReports: React.FC = () => {
           className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
           onClick={handleExportReport}
         >
-          <Download className="mr-2 h-4 w-4 text-[#1769AA]" />
+          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
           Export Financial Report (CSV)
         </Button>
       </div>
@@ -91,7 +91,7 @@ export const FeeReports: React.FC = () => {
       {isLoading ? (
         <Card className="border-border/50 bg-white p-12 text-center">
           <div className="flex items-center justify-center gap-2 text-slate-600">
-            <Loader2 className="w-6 h-6 animate-spin text-[#1769AA]" />
+            <Loader2 className="w-6 h-6 animate-spin text-[#2563EB]" />
             Loading financial reports & analytics...
           </div>
         </Card>
@@ -101,16 +101,16 @@ export const FeeReports: React.FC = () => {
           <Card className="border-border/50 bg-white shadow-sm p-6 space-y-3">
             <div className="flex justify-between items-center text-sm font-semibold">
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5 text-[#1769AA]" />
+                <TrendingUp className="h-5 w-5 text-[#2563EB]" />
                 <span className="text-slate-900">Q1 Revenue Target vs Collection</span>
               </div>
-              <span className="text-[#1769AA] font-bold text-base">
+              <span className="text-[#2563EB] font-bold text-base">
                 ₹{reports.totalCollected.toLocaleString("en-IN")} / ₹{reports.targetRevenue.toLocaleString("en-IN")} ({reports.targetAchievedPercent}%)
               </span>
             </div>
             <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
               <div 
-                className="bg-[#1769AA] h-full rounded-full transition-all duration-500"
+                className="bg-[#2563EB] h-full rounded-full transition-all duration-500"
                 style={{ width: `${reports.targetAchievedPercent}%` }}
               />
             </div>
@@ -122,7 +122,7 @@ export const FeeReports: React.FC = () => {
             <Card className="border-border/50 bg-white shadow-sm">
               <CardHeader className="p-5 pb-2 border-b border-slate-100">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5 text-[#1769AA]" />
+                  <BarChart3 className="h-5 w-5 text-[#2563EB]" />
                   Monthly Revenue Collection Trend
                 </CardTitle>
                 <CardDescription className="text-xs">Month-on-month fee collection history</CardDescription>
@@ -150,7 +150,7 @@ export const FeeReports: React.FC = () => {
                         boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
                       }}
                     />
-                    <Bar dataKey="revenue" fill="#1769AA" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="revenue" fill="#2563EB" radius={[4, 4, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>

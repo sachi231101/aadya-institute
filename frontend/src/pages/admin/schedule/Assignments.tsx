@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import {
   FileText,
   Plus,
@@ -311,7 +311,7 @@ export const AdminAssignments: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-text-primary flex items-center gap-2">
-            <FileText className="h-6 w-6 text-[#1769AA]" />
+            <FileText className="h-6 w-6 text-[#2563EB]" />
             All Assignments
           </h1>
           <p className="text-sm text-text-secondary mt-1">
@@ -324,7 +324,7 @@ export const AdminAssignments: React.FC = () => {
               handleResetForm();
               setShowCreateDialog(true);
             }}
-            className="bg-[#1769AA] hover:bg-[#125890] text-white gap-2"
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white gap-2"
           >
             <Plus className="w-4 h-4" />
             Create Assignment
@@ -343,7 +343,7 @@ export const AdminAssignments: React.FC = () => {
         <Card className="border-border/50 shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center">
-              <FileText className="h-6 w-6 text-[#1769AA]" />
+              <FileText className="h-6 w-6 text-[#2563EB]" />
             </div>
             <div>
               <p className="text-2xl font-bold">{meta.total}</p>
@@ -564,7 +564,7 @@ export const AdminAssignments: React.FC = () => {
         <DialogContent className="max-w-lg rounded-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <FileCheck className="h-5 w-5 text-[#1769AA]" />
+              <FileCheck className="h-5 w-5 text-[#2563EB]" />
               Create New Assignment
             </DialogTitle>
           </DialogHeader>
@@ -655,7 +655,7 @@ export const AdminAssignments: React.FC = () => {
               <Button
                 type="submit"
                 disabled={!isFormValid || createMutation.isPending}
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
               >
                 {createMutation.isPending ? "Creating..." : "Create Assignment"}
               </Button>
@@ -713,7 +713,7 @@ export const AdminAssignments: React.FC = () => {
               <Button
                 type="submit"
                 disabled={!isFormValid || updateMutation.isPending}
-                className="bg-[#1769AA] text-white"
+                className="bg-[#2563EB] text-white"
               >
                 {updateMutation.isPending ? "Saving..." : "Save Changes"}
               </Button>
@@ -758,7 +758,7 @@ export const AdminAssignments: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  className="bg-[#1769AA] text-white"
+                  className="bg-[#2563EB] text-white"
                   disabled={!gradeMarks || gradeMutation.isPending}
                   onClick={() => {
                     gradeMutation.mutate(

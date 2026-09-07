@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { MapPin, Plus, Loader2, AlertCircle, Pencil, Trash2, Power } from "lucide-react";
 import {
   useBranches,
@@ -182,7 +182,7 @@ export const Branches: React.FC = () => {
           <p className="text-sm text-text-secondary">Manage Aadya Institute branch locations.</p>
         </div>
         <PermissionGate itemKey="admin.branches" mode="write">
-        <Button className="bg-[#1769AA] text-white" onClick={openCreate}>
+        <Button className="bg-[#2563EB] text-white" onClick={openCreate}>
           <Plus className="mr-2 h-4 w-4" /> Add Branch
         </Button>
         </PermissionGate>
@@ -427,7 +427,7 @@ export const Branches: React.FC = () => {
               <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
                 Cancel
               </Button>
-              <Button type="submit" className="bg-[#1769AA] text-white" disabled={isSaving}>
+              <Button type="submit" className="bg-[#2563EB] text-white" disabled={isSaving}>
                 {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editingBranch ? "Save Changes" : "Create Branch"}
               </Button>

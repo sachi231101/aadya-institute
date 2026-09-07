@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { UserPlus, Search, Loader2, AlertCircle } from "lucide-react";
 import { useLeads, useAssignLead } from "@/hooks/useLeads";
 import { useAdminUsers } from "@/hooks/useUsers";
@@ -122,7 +122,7 @@ export const LeadAllocation: React.FC = () => {
                       <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
                         <Button
                           size="sm"
-                          className="bg-[#1769AA] text-white"
+                          className="bg-[#2563EB] text-white"
                           disabled={tab === "awaiting" || !selectedCounsellor[lead.id]}
                           onClick={() => handleAssign(lead.id)}
                         >

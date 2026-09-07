@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, ExternalLink, Users } from "lucide-react";
@@ -59,7 +59,7 @@ export const BatchEnrolledStudents: React.FC<Props> = ({ batchId }) => {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="py-12 text-center">
-              <Loader2 className="w-6 h-6 animate-spin inline text-[#1769AA]" />
+              <Loader2 className="w-6 h-6 animate-spin inline text-[#2563EB]" />
             </div>
           ) : isError ? (
             <p className="py-8 text-center text-sm text-red-600">Failed to load enrolled students.</p>

@@ -1,34 +1,18 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  Lock,
-  Mail,
-  ArrowRight,
-  ArrowLeft,
-  Shield,
-  Building2,
-  UserCheck,
-  GraduationCap,
-  Users,
-  ChevronRight,
-} from "lucide-react";
+import { Lock, Mail, ArrowRight, Shield, Building2, UserCheck, GraduationCap, Users, PhoneCall } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { authApi } from "../../services/auth.api";
 import { UserRole } from "../../constants/roles";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
-interface RoleCardConfig {
+interface DevAccount {
   id: string;
   name: string;
-  roleEnum: string;
-  badgeTag: string;
-  description: string;
+  roleEnum: UserRole;
   email: string;
   password: string;
   color: string;
-  bgColor: string;
-  borderColor: string;
-  activeBg: string;
   icon: React.ComponentType<{ size?: number; style?: React.CSSProperties; className?: string }>;
   dashboardPath: string;
   demoUser: {
@@ -43,19 +27,14 @@ interface RoleCardConfig {
   };
 }
 
-const ROLE_CARDS: RoleCardConfig[] = [
+const DEV_ACCOUNTS: DevAccount[] = [
   {
     id: "admin",
     name: "Admin",
     roleEnum: UserRole.ADMIN,
-    badgeTag: "Full System Control",
-    description: "Access institute configuration, multi-branch overview, user access permissions, financial reports, and global settings.",
     email: "admin@aadya.in",
     password: "ChangeMe@123",
     color: "#334155",
-    bgColor: "rgba(241, 245, 249, 0.9)",
-    borderColor: "#cbd5e1",
-    activeBg: "rgba(226, 232, 240, 1)",
     icon: Shield,
     dashboardPath: "/admin/dashboard",
     demoUser: {
@@ -71,16 +50,11 @@ const ROLE_CARDS: RoleCardConfig[] = [
   },
   {
     id: "center_manager",
-    name: "Center Manager",
+    name: "Manager",
     roleEnum: UserRole.CENTER_MANAGER,
-    badgeTag: "Branch Operations",
-    description: "Manage branch admissions, batches, timetables, attendance summaries, faculty rosters, and branch-level analytics.",
     email: "manager@aadya.in",
     password: "Manager@123",
-    color: "#1769AA",
-    bgColor: "rgba(239, 246, 255, 0.9)",
-    borderColor: "#93c5fd",
-    activeBg: "rgba(219, 234, 254, 1)",
+    color: "#2563EB",
     icon: Building2,
     dashboardPath: "/center/home",
     demoUser: {
@@ -98,14 +72,9 @@ const ROLE_CARDS: RoleCardConfig[] = [
     id: "counselor",
     name: "Counsellor",
     roleEnum: UserRole.COUNSELLOR,
-    badgeTag: "Leads & Follow-ups",
-    description: "Review prospective student leads, manage walk-in enquiries, follow-ups, and convert leads into student admissions.",
     email: "counsellor@aadya.in",
     password: "Counsellor@123",
-    color: "#10b981",
-    bgColor: "rgba(236, 253, 245, 0.9)",
-    borderColor: "#6ee7b7",
-    activeBg: "rgba(209, 250, 229, 1)",
+    color: "#16A34A",
     icon: UserCheck,
     dashboardPath: "/counselor/home",
     demoUser: {
@@ -123,14 +92,9 @@ const ROLE_CARDS: RoleCardConfig[] = [
     id: "faculty",
     name: "Faculty",
     roleEnum: UserRole.FACULTY,
-    badgeTag: "Teaching Desk",
-    description: "View daily class schedules, mark student attendance, publish module assignments, review student submissions, and upload recordings.",
     email: "ramesh@aadya.in",
     password: "Faculty@123",
     color: "#d97706",
-    bgColor: "rgba(254, 243, 199, 0.9)",
-    borderColor: "#fde68a",
-    activeBg: "rgba(253, 230, 138, 1)",
     icon: GraduationCap,
     dashboardPath: "/faculty/home",
     demoUser: {
@@ -148,14 +112,9 @@ const ROLE_CARDS: RoleCardConfig[] = [
     id: "student",
     name: "Student",
     roleEnum: UserRole.STUDENT,
-    badgeTag: "Learning Portal",
-    description: "Check timetable, track class attendance history, watch class recordings, submit assignments, and submit batch feedback.",
     email: "student@aadya.in",
     password: "Aadya@123",
     color: "#8b5cf6",
-    bgColor: "rgba(245, 243, 255, 0.9)",
-    borderColor: "#ddd6fe",
-    activeBg: "rgba(237, 233, 254, 1)",
     icon: Users,
     dashboardPath: "/student/dashboard",
     demoUser: {
@@ -171,39 +130,81 @@ const ROLE_CARDS: RoleCardConfig[] = [
   },
 ];
 
+const DASHBOARD_BY_ROLE: Record<string, string> = {
+  [UserRole.ADMIN]: "/admin/dashboard",
+  SUPER_ADMIN: "/admin/dashboard",
+  [UserRole.CENTER_MANAGER]: "/center/home",
+  [UserRole.COUNSELLOR]: "/counselor/home",
+  [UserRole.FACULTY]: "/faculty/home",
+  [UserRole.STUDENT]: "/student/dashboard",
+};
+
+function resolvePrimaryRole(userRoles: string[], preferredRole?: UserRole, isStudentIdentifier = false): UserRole {
+  if (preferredRole && userRoles.includes(preferredRole)) {
+    return preferredRole;
+  }
+  if (isStudentIdentifier && userRoles.includes(UserRole.STUDENT)) {
+    return UserRole.STUDENT;
+  }
+  if (userRoles.includes(UserRole.ADMIN) || userRoles.includes("SUPER_ADMIN")) {
+    return UserRole.ADMIN;
+  }
+  if (userRoles.includes(UserRole.CENTER_MANAGER)) {
+    return UserRole.CENTER_MANAGER;
+  }
+  if (userRoles.includes(UserRole.COUNSELLOR)) {
+    return UserRole.COUNSELLOR;
+  }
+  if (userRoles.includes(UserRole.FACULTY)) {
+    return UserRole.FACULTY;
+  }
+  if (userRoles.includes(UserRole.STUDENT)) {
+    return UserRole.STUDENT;
+  }
+  return (userRoles[0] as UserRole) || preferredRole || UserRole.STUDENT;
+}
+
+function isStudentLikeIdentifier(value: string): boolean {
+  return (
+    /^AADYA[\/-]/i.test(value) ||
+    /^ADM-\d+/i.test(value) ||
+    /^STU-\d+/i.test(value) ||
+    /^STU\d+/i.test(value)
+  );
+}
+
 export const Login: React.FC = () => {
-  const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [emailOrPhone, setEmailOrPhone] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingRoleId, setLoadingRoleId] = useState<string | null>(null);
+  const [loadingDevId, setLoadingDevId] = useState<string | null>(null);
   const [error, setError] = useState("");
 
   const { setAuth } = useAuthStore();
   const navigate = useNavigate();
 
-  const currentRole = ROLE_CARDS.find((r) => r.id === selectedRoleId) || null;
+  const navigateByRole = (role: UserRole, fallbackPath?: string) => {
+    navigate(DASHBOARD_BY_ROLE[role] || fallbackPath || "/login");
+  };
 
-  const executeLogin = async (loginEmail: string, loginPass: string, roleConfig: RoleCardConfig) => {
+  const executeLogin = async (
+    loginEmail: string,
+    loginPass: string,
+    options?: { preferredRole?: UserRole; demoAccount?: DevAccount }
+  ) => {
     const cleanEmail = loginEmail.trim();
     const cleanPass = loginPass.trim();
 
     setLoading(true);
-    setLoadingRoleId(roleConfig.id);
     setError("");
 
     try {
       let result;
       try {
         result = await authApi.login(cleanEmail, cleanPass);
-      } catch (firstErr: any) {
-        // If initial login fails and this could be a student account with an alternate default password (Aadya@123 <-> Student@123), attempt fallback
+      } catch (firstErr: unknown) {
         const isStudentOrCandidate =
-          roleConfig.roleEnum === UserRole.STUDENT ||
-          /^AADYA[\/-]/i.test(cleanEmail) ||
-          /^ADM-\d+/i.test(cleanEmail) ||
-          /^STU-\d+/i.test(cleanEmail) ||
-          /^STU\d+/i.test(cleanEmail);
+          options?.preferredRole === UserRole.STUDENT || isStudentLikeIdentifier(cleanEmail);
 
         const alternatePassword =
           cleanPass === "Aadya@123"
@@ -227,38 +228,18 @@ export const Login: React.FC = () => {
 
       const userRoles = result.user.roles || [];
       const isStudentIdentifier =
-        /^AADYA[\/-]/i.test(cleanEmail) ||
-        /^ADM-\d+/i.test(cleanEmail) ||
-        /^STU-\d+/i.test(cleanEmail) ||
-        /^STU\d+/i.test(cleanEmail) ||
-        roleConfig.roleEnum === UserRole.STUDENT;
+        isStudentLikeIdentifier(cleanEmail) || options?.preferredRole === UserRole.STUDENT;
 
-      let primaryRole: UserRole;
-
-      if (userRoles.includes(roleConfig.roleEnum)) {
-        primaryRole = roleConfig.roleEnum;
-      } else if (isStudentIdentifier && userRoles.includes(UserRole.STUDENT)) {
-        primaryRole = UserRole.STUDENT;
-      } else if (userRoles.includes(UserRole.ADMIN) || userRoles.includes("SUPER_ADMIN")) {
-        primaryRole = UserRole.ADMIN;
-      } else if (userRoles.includes(UserRole.CENTER_MANAGER)) {
-        primaryRole = UserRole.CENTER_MANAGER;
-      } else if (userRoles.includes(UserRole.COUNSELLOR)) {
-        primaryRole = UserRole.COUNSELLOR;
-      } else if (userRoles.includes(UserRole.FACULTY)) {
-        primaryRole = UserRole.FACULTY;
-      } else if (userRoles.includes(UserRole.STUDENT)) {
-        primaryRole = UserRole.STUDENT;
-      } else {
-        primaryRole = (userRoles[0] as UserRole) || roleConfig.roleEnum;
-      }
+      const primaryRole = resolvePrimaryRole(userRoles, options?.preferredRole, isStudentIdentifier);
 
       const allRoles = Array.from(
-        new Set([
-          String(primaryRole),
-          ...(Array.isArray(result.user.roles) ? result.user.roles : []),
-          (result.user as any).role ? String((result.user as any).role) : "",
-        ].filter(Boolean))
+        new Set(
+          [
+            String(primaryRole),
+            ...(Array.isArray(result.user.roles) ? result.user.roles : []),
+            (result.user as { role?: string }).role ? String((result.user as { role?: string }).role) : "",
+          ].filter(Boolean)
+        )
       );
 
       const frontendUser = {
@@ -272,537 +253,230 @@ export const Login: React.FC = () => {
         localStorage.setItem("refreshToken", result.refreshToken);
       }
 
-      switch (primaryRole) {
-        case UserRole.ADMIN:
-          navigate("/admin/dashboard");
-          break;
-        case UserRole.CENTER_MANAGER:
-          navigate("/center/home");
-          break;
-        case UserRole.COUNSELLOR:
-          navigate("/counselor/home");
-          break;
-        case UserRole.FACULTY:
-          navigate("/faculty/home");
-          break;
-        case UserRole.STUDENT:
-          navigate("/student/dashboard");
-          break;
-        default:
-          navigate(roleConfig.dashboardPath);
-      }
-    } catch (err: any) {
-      if (err?.response?.data?.message) {
-        setError(err.response.data.message);
-      } else if (err?.message && !err?.response) {
-        // Fallback to demo user if backend is offline
-        setAuth(roleConfig.demoUser, `demo-${roleConfig.id}-token`);
-        navigate(roleConfig.dashboardPath);
+      navigateByRole(primaryRole, options?.demoAccount?.dashboardPath);
+    } catch (err: unknown) {
+      const apiErr = err as { response?: { data?: { message?: string } }; message?: string };
+      if (apiErr?.response?.data?.message) {
+        setError(apiErr.response.data.message);
+      } else if (apiErr?.message && !apiErr?.response && options?.demoAccount) {
+        // Offline demo fallback only for explicit DEV quick-login
+        setAuth(options.demoAccount.demoUser, `demo-${options.demoAccount.id}-token`);
+        navigate(options.demoAccount.dashboardPath);
       } else {
         setError("Invalid email or password");
       }
     } finally {
       setLoading(false);
-      setLoadingRoleId(null);
+      setLoadingDevId(null);
     }
-  };
-
-  const handleSelectRoleCard = (roleConfig: RoleCardConfig) => {
-    setSelectedRoleId(roleConfig.id);
-    setEmailOrPhone(roleConfig.email);
-    setPassword(roleConfig.password);
-    setError("");
-  };
-
-  const handleQuickAutoLogin = (e: React.MouseEvent, roleConfig: RoleCardConfig) => {
-    e.stopPropagation();
-    executeLogin(roleConfig.email, roleConfig.password, roleConfig);
   };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!currentRole) return;
-    executeLogin(emailOrPhone, password, currentRole);
+    await executeLogin(emailOrPhone, password);
+  };
+
+  const handleDevQuickLogin = async (account: DevAccount) => {
+    setEmailOrPhone(account.email);
+    setPassword(account.password);
+    setLoadingDevId(account.id);
+    await executeLogin(account.email, account.password, {
+      preferredRole: account.roleEnum,
+      demoAccount: account,
+    });
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary, #f8fafc) 100%)",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "2rem 1.5rem",
-        position: "relative",
-      }}
-    >
+    <div className="min-h-screen w-full flex flex-col lg:flex-row bg-background text-foreground transition-colors duration-200 relative overflow-x-hidden">
       {/* Top Floating Controls */}
       <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
         <ThemeToggle />
       </div>
 
-      {/* Brand Header */}
-      <div style={{ textAlign: "center", marginBottom: "2rem", maxWidth: "650px" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "1rem" }}>
-          <img src="/aadya-logo.png" alt="Aadya Institute" style={{ height: "68px", objectFit: "contain" }} />
-        </div>
-        <h1 style={{ fontSize: "2rem", fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
-          Aadya Institute ERP & Automation Platform
-        </h1>
-        <p style={{ color: "var(--text-secondary)", fontSize: "0.95rem", marginTop: "0.35rem" }}>
-          {selectedRoleId
-            ? `Sign in below to access the ${currentRole?.name} Portal`
-            : "Click any role card below or use 1-Click Instant Login for quick development access"}
-        </p>
-      </div>
+      {/* LEFT COLUMN: SaaS Hero Showcase (Visible on lg screens) */}
+      <div className="hidden lg:flex lg:w-1/2 xl:w-[52%] bg-[#172033] text-white flex-col justify-between p-10 xl:p-14 relative overflow-hidden border-r border-[#334155]/60">
+        {/* Subtle decorative background gradient glows */}
+        <div className="absolute -top-32 -left-32 w-96 h-96 bg-[#2563EB]/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-indigo-600/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(#ffffff0a_1px,transparent_1px)] [background-size:24px_24px] pointer-events-none opacity-40" />
 
-      {/* STEP 1: 5 PORTAL CARDS GRID (When no role card is selected) */}
-      {!selectedRoleId ? (
-        <div style={{ width: "100%", maxWidth: "1150px" }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "1.25rem",
-              justifyContent: "center",
-              alignItems: "stretch",
-            }}
-          >
-            {ROLE_CARDS.map((role) => {
-              const isCardLoading = loadingRoleId === role.id;
-              return (
-                <div
-                  key={role.id}
-                  onClick={() => handleSelectRoleCard(role)}
-                  style={{
-                    flex: "1 1 300px",
-                    maxWidth: "350px",
-                    minWidth: "280px",
-                    background: "var(--bg-card, #ffffff)",
-                    border: `2px solid ${role.borderColor}`,
-                    borderRadius: "16px",
-                    padding: "1.35rem 1.25rem",
-                    cursor: "pointer",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    transition: "all 0.25s cubic-bezier(0.4, 0, 0.2, 1)",
-                    boxShadow: "0 4px 18px rgba(0, 0, 0, 0.04)",
-                    position: "relative",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = "translateY(-5px)";
-                    e.currentTarget.style.boxShadow = `0 12px 28px ${role.color}25`;
-                    e.currentTarget.style.borderColor = role.color;
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 4px 18px rgba(0, 0, 0, 0.04)";
-                    e.currentTarget.style.borderColor = role.borderColor;
-                  }}
-                >
-                  <div>
-                    {/* Top Bar inside Card */}
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.85rem" }}>
-                      <div
-                        style={{
-                          width: "44px",
-                          height: "44px",
-                          borderRadius: "12px",
-                          background: role.bgColor,
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                        }}
-                      >
-                        <role.icon size={24} style={{ color: role.color }} />
-                      </div>
-                      <span
-                        style={{
-                          padding: "0.25rem 0.6rem",
-                          borderRadius: "20px",
-                          background: role.bgColor,
-                          color: role.color,
-                          fontSize: "0.75rem",
-                          fontWeight: 700,
-                          border: `1px solid ${role.borderColor}`,
-                        }}
-                      >
-                        {role.badgeTag}
-                      </span>
-                    </div>
-
-                    {/* Role Title & Description */}
-                    <h2 style={{ fontSize: "1.25rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.35rem" }}>
-                      {role.name}
-                    </h2>
-                    <p style={{ fontSize: "0.825rem", color: "var(--text-secondary)", lineHeight: 1.45, marginBottom: "0.85rem" }}>
-                      {role.description}
-                    </p>
-
-                    {/* Demo Credentials Box */}
-                    <div
-                      style={{
-                        padding: "0.5rem 0.75rem",
-                        borderRadius: "8px",
-                        background: "rgba(0, 0, 0, 0.03)",
-                        border: "1px dashed var(--border-color, #e2e8f0)",
-                        marginBottom: "1rem",
-                        fontSize: "0.75rem",
-                        color: "var(--text-secondary)",
-                      }}
-                    >
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "0.15rem" }}>
-                        <span style={{ fontWeight: 600 }}>Login:</span>
-                        <code style={{ color: role.color, fontWeight: 700 }}>{role.email}</code>
-                      </div>
-                      <div style={{ display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontWeight: 600 }}>Password:</span>
-                        <code style={{ color: "var(--text-primary)" }}>{role.password}</code>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card Action Buttons */}
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    <button
-                      type="button"
-                      disabled={loading}
-                      onClick={(e) => handleQuickAutoLogin(e, role)}
-                      style={{
-                        width: "100%",
-                        padding: "0.65rem 0.9rem",
-                        borderRadius: "10px",
-                        background: role.color,
-                        color: "#ffffff",
-                        fontWeight: 700,
-                        fontSize: "0.825rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "0.4rem",
-                        border: "none",
-                        cursor: "pointer",
-                        boxShadow: `0 3px 10px ${role.color}35`,
-                        transition: "all 0.2s",
-                      }}
-                    >
-                      <span>{isCardLoading ? "Logging in..." : `⚡ 1-Click Instant Login`}</span>
-                      {!isCardLoading && <ArrowRight size={15} />}
-                    </button>
-
-                    <div
-                      style={{
-                        padding: "0.45rem 0.9rem",
-                        borderRadius: "8px",
-                        background: role.bgColor,
-                        color: role.color,
-                        fontWeight: 600,
-                        fontSize: "0.775rem",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        border: `1px solid ${role.borderColor}`,
-                      }}
-                    >
-                      <span>Custom Credentials</span>
-                      <ChevronRight size={14} />
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+        {/* Top Brand & Status */}
+        <div className="relative z-10">
+          <div className="flex items-center gap-3 mb-6">
+            <img
+              src="/aadya-logo.png"
+              alt="Aadya Institute"
+              className="h-10 w-auto max-w-[180px] object-contain drop-shadow-[0_0_2px_rgba(255,255,255,0.4)]"
+            />
           </div>
-        </div>
-      ) : (
-        /* STEP 2: DEDICATED ROLE SIGN IN CARD (When a role card is clicked) */
-        <div style={{ width: "100%", maxWidth: "480px" }}>
-          {/* Back Button */}
-          <button
-            type="button"
-            onClick={() => setSelectedRoleId(null)}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "0.5rem",
-              background: "none",
-              border: "none",
-              color: "var(--text-secondary)",
-              fontSize: "0.9rem",
-              fontWeight: 600,
-              cursor: "pointer",
-              marginBottom: "1rem",
-              padding: "0.4rem 0.6rem",
-              borderRadius: "8px",
-              transition: "all 0.2s",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.color = "var(--text-primary)";
-              e.currentTarget.style.background = "rgba(0,0,0,0.05)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.color = "var(--text-secondary)";
-              e.currentTarget.style.background = "none";
-            }}
-          >
-            <ArrowLeft size={18} />
-            <span>Back to All Role Portals</span>
-          </button>
 
-          {/* Sign In Glass Box */}
-          <div
-            className="glass-card"
-            style={{
-              width: "100%",
-              padding: "2.25rem 2rem",
-              borderRadius: "var(--radius-xl)",
-              boxShadow: "0 20px 40px rgba(0, 0, 0, 0.08)",
-              border: `2px solid ${currentRole?.borderColor}`,
-            }}
-          >
-            {/* Header with active role badge */}
-            <div style={{ textAlign: "center", marginBottom: "1.25rem" }}>
-              <div
-                style={{
-                  width: "56px",
-                  height: "56px",
-                  borderRadius: "16px",
-                  background: currentRole?.bgColor,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  margin: "0 auto 0.75rem auto",
-                  border: `1px solid ${currentRole?.borderColor}`,
-                }}
-              >
-                {currentRole && <currentRole.icon size={30} style={{ color: currentRole.color }} />}
+        </div>
+
+        {/* Center Headline & Features */}
+        <div className="relative z-10 my-auto py-8">
+          <h1 className="text-3xl xl:text-4xl 2xl:text-5xl font-black tracking-tight leading-[1.15] mb-4">
+            Next-Generation <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-sky-300 to-indigo-300">
+              AI Automation
+            </span>{" "}
+            for <br />
+            Academy Growth.
+          </h1>
+          <p className="text-slate-300/85 text-sm xl:text-base max-w-lg leading-relaxed mb-8">
+            Automating admissions, attendance, WhatsApp class reminders, and AI telephonic calling follow-ups so educators can focus on student success.
+          </p>
+
+          <div className="space-y-3 max-w-lg">
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
+              <div className="h-8 w-8 rounded-lg bg-blue-500/20 border border-blue-400/30 text-sky-400 flex items-center justify-center shrink-0 mt-0.5">
+                <PhoneCall className="h-4 w-4" />
               </div>
-              <h2 style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--text-primary)", marginBottom: "0.25rem" }}>
-                {currentRole?.name} Portal
-              </h2>
-              <p style={{ color: "var(--text-secondary)", fontSize: "0.875rem" }}>
-                Credentials pre-filled for local development
-              </p>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-bold text-white tracking-tight block">AI Calling Automation</span>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                  Automated lead qualification, student onboarding calls, and instant transcripts for counsellors.
+                </p>
+              </div>
             </div>
 
-            {/* Quick Auto-Fill Banner */}
-            {currentRole && (
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  background: currentRole.bgColor,
-                  border: `1px solid ${currentRole.borderColor}`,
-                  marginBottom: "1.25rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  fontSize: "0.8rem",
-                }}
-              >
-                <div>
-                  <span style={{ color: "var(--text-secondary)", display: "block" }}>Dev Account:</span>
-                  <strong style={{ color: currentRole.color }}>{currentRole.email}</strong>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEmailOrPhone(currentRole.email);
-                    setPassword(currentRole.password);
-                  }}
-                  style={{
-                    padding: "0.3rem 0.6rem",
-                    borderRadius: "6px",
-                    background: "#ffffff",
-                    border: `1px solid ${currentRole.borderColor}`,
-                    color: currentRole.color,
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    cursor: "pointer",
-                  }}
-                >
-                  Reset Form
-                </button>
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
+              <div className="h-8 w-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                <UserCheck className="h-4 w-4" />
               </div>
-            )}
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-bold text-white tracking-tight block">Automated WhatsApp Dispatch</span>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                  Timely session reminders, lecture recording access, feedback forms, and immediate absence notifications.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3.5 p-3.5 rounded-xl bg-white/[0.04] border border-white/10 hover:bg-white/[0.07] transition-all">
+              <div className="h-8 w-8 rounded-lg bg-amber-500/20 border border-amber-400/30 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                <GraduationCap className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <span className="text-xs font-bold text-white tracking-tight block">Academic Governance & Attendance</span>
+                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">
+                  Automated tracking of consecutive absences and dropout-risk intervention alerts.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom copyright / info */}
+        <div className="relative z-10 text-xs text-slate-400 flex items-center justify-between border-t border-white/10 pt-4">
+          <span>Aadya Institute Academy Operating System (AIOS)</span>
+          <span>v2.4 Production</span>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: Sign In Form */}
+      <div className="flex-1 flex flex-col justify-center items-center p-6 sm:p-10 lg:p-12 relative min-h-screen lg:min-h-0 bg-background">
+        {/* Mobile Header Logo */}
+        <div className="lg:hidden flex flex-col items-center mb-6 text-center">
+          <img
+            src="/aadya-logo.png"
+            alt="Aadya Institute"
+            className="h-9 w-auto max-w-[150px] object-contain mb-2"
+          />
+          <span className="text-xs font-semibold text-muted-foreground">
+            Academy Management Platform
+          </span>
+        </div>
+
+        <div className="w-full max-w-md">
+          <div className="rounded-2xl border border-border bg-card p-7 sm:p-9 shadow-lg">
+            <div className="mb-6 text-center sm:text-left">
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">
+                Sign In
+              </h2>
+            </div>
 
             {error && (
-              <div
-                style={{
-                  padding: "0.75rem",
-                  borderRadius: "var(--radius-md)",
-                  background: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                  color: "#ef4444",
-                  fontSize: "0.85rem",
-                  marginBottom: "1.25rem",
-                  textAlign: "center",
-                }}
-              >
+              <div className="p-3 mb-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive text-xs text-center font-medium">
                 {error}
               </div>
             )}
 
-            <form onSubmit={handleLoginSubmit} style={{ display: "flex", flexDirection: "column", gap: "1.25rem" }}>
+            <form onSubmit={handleLoginSubmit} className="space-y-4">
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  {currentRole?.id === "student"
-                    ? "Student ID / Admission No, Email, or Mobile"
-                    : "Email, Mobile, or Username"}
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Email, Mobile, Username, or Student ID
                 </label>
-                <div style={{ position: "relative" }}>
-                  <Mail
-                    size={18}
-                    style={{
-                      position: "absolute",
-                      left: "1rem",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--text-muted)",
-                    }}
-                  />
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     type="text"
                     value={emailOrPhone}
                     onChange={(e) => setEmailOrPhone(e.target.value)}
                     required
-                    placeholder={
-                      currentRole?.id === "student"
-                        ? "e.g. AADYA/2026/0001, student@aadya.in, or 9777777777"
-                        : currentRole?.email || "Enter your login credential"
-                    }
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem 1rem 0.75rem 2.75rem",
-                      background: "var(--bg-tertiary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "var(--radius-md)",
-                      color: "var(--text-primary)",
-                      fontSize: "0.9rem",
-                      outline: "none",
-                    }}
+                    autoComplete="username"
+                    placeholder="e.g. name@aadya.in or AADYA/2026/0001"
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label
-                  style={{
-                    display: "block",
-                    fontSize: "0.85rem",
-                    fontWeight: 600,
-                    color: "var(--text-secondary)",
-                    marginBottom: "0.5rem",
-                  }}
-                >
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Password
                 </label>
-                <div style={{ position: "relative" }}>
-                  <Lock
-                    size={18}
-                    style={{
-                      position: "absolute",
-                      left: "1rem",
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--text-muted)",
-                    }}
-                  />
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <input
                     type="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                     placeholder="••••••••"
-                    style={{
-                      width: "100%",
-                      padding: "0.75rem 1rem 0.75rem 2.75rem",
-                      background: "var(--bg-tertiary)",
-                      border: "1px solid var(--border-color)",
-                      borderRadius: "var(--radius-md)",
-                      color: "var(--text-primary)",
-                      fontSize: "0.9rem",
-                      outline: "none",
-                    }}
+                    className="w-full h-10 pl-9 pr-3 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 transition-all"
                   />
                 </div>
-                {currentRole?.id === "student" && (
-                  <p style={{ fontSize: "0.775rem", color: "var(--text-muted)", marginTop: "0.35rem", lineHeight: 1.4 }}>
-                    🔑 Initial default password is <strong style={{ color: "var(--text-primary)" }}>Aadya@123</strong>. You can change your password anytime after logging in from your Profile settings.
-                  </p>
-                )}
               </div>
 
               <button
                 type="submit"
                 disabled={loading}
-                style={{
-                  width: "100%",
-                  padding: "0.85rem",
-                  marginTop: "0.5rem",
-                  borderRadius: "var(--radius-md)",
-                  background: currentRole?.color,
-                  color: "#fff",
-                  fontWeight: 700,
-                  fontSize: "0.95rem",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "0.5rem",
-                  boxShadow: `0 4px 15px ${currentRole?.color}44`,
-                  transition: "all 0.2s",
-                  cursor: "pointer",
-                  border: "none",
-                }}
+                className="w-full h-10 rounded-lg bg-primary hover:bg-primary-hover text-white font-semibold text-sm flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer disabled:opacity-70 disabled:cursor-not-allowed mt-2"
               >
-                {loading ? "Signing in..." : `Sign In to ${currentRole?.name} Dashboard`}
-                <ArrowRight size={18} />
+                {loading && !loadingDevId ? "Signing in..." : "Sign In"}
+                <ArrowRight className="h-4 w-4" />
               </button>
             </form>
 
-            {/* Quick Switch Role Bar */}
-            <div style={{ marginTop: "1.75rem", paddingTop: "1rem", borderTop: "1px solid var(--border-color)", textAlign: "center" }}>
-              <span style={{ fontSize: "0.75rem", color: "#64748b", display: "block", marginBottom: "0.5rem" }}>
-                Switch to another portal:
-              </span>
-              <div style={{ display: "flex", gap: "0.35rem", justifyContent: "center", flexWrap: "wrap" }}>
-                {ROLE_CARDS.map((r) => (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => handleSelectRoleCard(r)}
-                    style={{
-                      padding: "0.3rem 0.6rem",
-                      borderRadius: "6px",
-                      background: r.id === selectedRoleId ? r.activeBg : "var(--bg-tertiary)",
-                      border: `1px solid ${r.id === selectedRoleId ? r.color : "var(--border-color)"}`,
-                      fontSize: "0.75rem",
-                      fontWeight: r.id === selectedRoleId ? 700 : 500,
-                      cursor: "pointer",
-                      color: r.color,
-                    }}
-                  >
-                    {r.name}
-                  </button>
-                ))}
+            {import.meta.env.DEV && (
+              <div className="mt-6 pt-5 border-t border-border">
+                <span className="text-[11px] font-semibold text-muted-foreground block text-center mb-2.5">
+                  Dev quick login
+                </span>
+                <div className="flex flex-wrap gap-1.5 justify-center">
+                  {DEV_ACCOUNTS.map((account) => {
+                    const Icon = account.icon;
+                    const isThisLoading = loadingDevId === account.id;
+                    return (
+                      <button
+                        key={account.id}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => handleDevQuickLogin(account)}
+                        title={`${account.email}`}
+                        className="px-2.5 py-1.5 rounded-lg bg-muted/60 hover:bg-muted border border-border text-xs font-semibold inline-flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                        style={{ color: account.color }}
+                      >
+                        <Icon className="h-3.5 w-3.5" />
+                        <span>{isThisLoading ? "..." : account.name}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 };
-
-
-

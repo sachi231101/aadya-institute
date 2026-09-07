@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { 
   Bell, 
@@ -144,7 +144,7 @@ export const NotificationsPage: React.FC = () => {
       return <SettingsIcon className="h-5 w-5 text-slate-600" />;
     }
     if (mod === "dashboard") {
-      return <LayoutDashboard className="h-5 w-5 text-[#1769AA]" />;
+      return <LayoutDashboard className="h-5 w-5 text-[#2563EB]" />;
     }
     return <Bell className="h-5 w-5 text-slate-600" />;
   };
@@ -276,7 +276,7 @@ export const NotificationsPage: React.FC = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary flex items-center gap-2">
-            <Bell className="h-6 w-6 text-[#1769AA]" />
+            <Bell className="h-6 w-6 text-[#2563EB]" />
             {headerTitle}
           </h2>
           <p className="text-sm text-text-secondary">
@@ -288,7 +288,7 @@ export const NotificationsPage: React.FC = () => {
           <Button
             onClick={() => markAllAsReadMutation.mutate()}
             disabled={markAllAsReadMutation.isPending}
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm gap-2"
+            className="bg-[#2563EB] hover:bg-[#F39A16] text-white shadow-sm gap-2"
           >
             <CheckCheck className="h-4 w-4" /> Mark All as Read ({unreadCount})
           </Button>
@@ -324,7 +324,7 @@ export const NotificationsPage: React.FC = () => {
               <Button
                 variant={unreadOnly ? "default" : "outline"}
                 size="sm"
-                className={unreadOnly ? "bg-[#1769AA] text-white" : ""}
+                className={unreadOnly ? "bg-[#2563EB] text-white" : ""}
                 onClick={() => setUnreadOnly(!unreadOnly)}
               >
                 <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5" />
@@ -342,7 +342,7 @@ export const NotificationsPage: React.FC = () => {
                 size="sm"
                 className={`rounded-full px-3.5 py-1 text-xs font-semibold whitespace-nowrap transition-colors ${
                   selectedFilter === tab.id
-                    ? "bg-[#1769AA] text-white shadow-xs"
+                    ? "bg-[#2563EB] text-white shadow-xs"
                     : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                 }`}
                 onClick={() => {
@@ -361,7 +361,7 @@ export const NotificationsPage: React.FC = () => {
       <div className="space-y-3">
         {isLoading ? (
           <div className="py-16 text-center text-slate-500 space-y-2">
-            <Loader2 className="h-8 w-8 animate-spin text-[#1769AA] mx-auto" />
+            <Loader2 className="h-8 w-8 animate-spin text-[#2563EB] mx-auto" />
             <p className="text-sm font-medium">Fetching real-time notifications...</p>
           </div>
         ) : isError ? (
@@ -377,7 +377,7 @@ export const NotificationsPage: React.FC = () => {
               key={item.id}
               onClick={() => handleItemClick(item)}
               className={`border-border/50 bg-white shadow-xs transition-all hover:shadow-md cursor-pointer relative overflow-hidden ${
-                !item.isRead ? "border-l-4 border-l-[#1769AA] bg-blue-50/20" : ""
+                !item.isRead ? "border-l-4 border-l-[#2563EB] bg-blue-50/20" : ""
               }`}
             >
               <CardContent className="p-4 sm:p-5 flex items-start gap-4">
@@ -393,7 +393,7 @@ export const NotificationsPage: React.FC = () => {
                       </h4>
                       {renderBadge(item)}
                       {!item.isRead && (
-                        <Badge variant="default" className="bg-[#1769AA] text-white text-[10px]">
+                        <Badge variant="default" className="bg-[#2563EB] text-white text-[10px]">
                           NEW
                         </Badge>
                       )}
@@ -432,7 +432,7 @@ export const NotificationsPage: React.FC = () => {
                       variant="ghost"
                       size="sm"
                       title="View Feature"
-                      className="text-slate-400 hover:text-[#1769AA] hover:bg-blue-50 h-8 w-8 p-0"
+                      className="text-slate-400 hover:text-[#2563EB] hover:bg-blue-50 h-8 w-8 p-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleItemClick(item);

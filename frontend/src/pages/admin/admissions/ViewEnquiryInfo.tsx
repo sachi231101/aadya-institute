@@ -63,6 +63,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
 }) => {
   const { canEditItem } = usePermissions();
   const canEditEnquiries = canEditItem("admissions.enquiries");
+  const canEditAiCalling = canEditItem("leads.ai_calling");
   const [activeTab, setActiveTab] = useState<
     "Profile" | "Course" | "Timeline" | "Follow-ups" | "AI Call" | "Notes"
   >("Profile");
@@ -153,6 +154,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
 
         {/* Header Action Buttons */}
         <div className="flex flex-wrap items-center gap-2">
+          {canEditEnquiries && (
           <Button
             onClick={() => onCreateApplication(lead)}
             className="h-9 px-3.5 text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1.5 shadow-sm cursor-pointer"
@@ -160,7 +162,9 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             <FileText className="h-3.5 w-3.5" />
             <span>+ Create Application</span>
           </Button>
+          )}
 
+          {canEditEnquiries && (
           <Button
             onClick={() => onDirectAdmission(lead)}
             variant="outline"
@@ -169,7 +173,9 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             <GraduationCap className="h-3.5 w-3.5 text-primary" />
             <span>Direct Admission</span>
           </Button>
+          )}
 
+          {canEditAiCalling && (
           <Button
             onClick={handleAiCallClick}
             disabled={isCalling}
@@ -187,6 +193,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
               </>
             )}
           </Button>
+          )}
 
           <Button
             onClick={() => window.open(`https://wa.me/91${lead.phone}`, "_blank")}
@@ -685,6 +692,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                   </div>
                 </div>
 
+                {canEditAiCalling && (
                 <Button
                   onClick={handleAiCallClick}
                   disabled={isCalling}
@@ -702,6 +710,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
                     </>
                   )}
                 </Button>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-6">
@@ -916,6 +925,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2">
+          {canEditEnquiries && (
           <Button
             variant="outline"
             size="sm"
@@ -925,7 +935,9 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             <CalendarCheck className="h-3.5 w-3.5 text-primary" />
             <span>+ Schedule Follow-up</span>
           </Button>
+          )}
 
+          {canEditEnquiries && (
           <Button
             size="sm"
             onClick={() => onCreateApplication(lead)}
@@ -934,7 +946,9 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             <FileText className="h-3.5 w-3.5" />
             <span>+ Create Application</span>
           </Button>
+          )}
 
+          {canEditEnquiries && (
           <Button
             variant="outline"
             size="sm"
@@ -944,6 +958,7 @@ export const ViewEnquiryInfo: React.FC<ViewEnquiryInfoProps> = ({
             <GraduationCap className="h-3.5 w-3.5 text-primary" />
             <span>Direct Admission</span>
           </Button>
+          )}
         </div>
       </div>
     </div>

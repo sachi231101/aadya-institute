@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import {
   Shield,
   Loader2,
@@ -269,7 +269,7 @@ export const RolesPermissions: React.FC = () => {
                             {hasDraft(user.id) && (
                               <Button
                                 size="sm"
-                                className="bg-[#1769AA] text-white"
+                                className="bg-[#2563EB] text-white"
                                 onClick={() => savePermissions(user)}
                                 disabled={updatePermissions.isPending}
                               >

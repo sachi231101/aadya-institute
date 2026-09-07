@@ -15,6 +15,7 @@ import {
 } from "../../../utils/map-application";
 import type { ApplicationStatus } from "../../../types/admission.types";
 import { PermissionGate, ReadOnlyBanner } from "@/components/permissions/PermissionGate";
+import { usePermissions } from "@/hooks/usePermissions";
 import {
   FileCheck2,
   Plus,
@@ -50,6 +51,8 @@ export type DetailedStatus = ApplicationDisplayStatus;
 export const Applications: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { canEditItem } = usePermissions();
+  const canEditApplications = canEditItem("admissions.applications");
 
   const handleConvertToAdmission = (app: ApplicationListItem) => {
     const rolePrefix = location.pathname.startsWith("/counselor")
@@ -674,6 +677,7 @@ export const Applications: React.FC = () => {
                   ) : (
                     <p className="text-xs text-muted-foreground italic">No notes yet.</p>
                   )}
+                  {canEditApplications && (
                   <div className="flex gap-2">
                     <Input
                       placeholder="Add a note..."
@@ -685,9 +689,11 @@ export const Applications: React.FC = () => {
                       Save
                     </Button>
                   </div>
+                  )}
                 </div>
               </div>
 
+              {canEditApplications && (
               <div className="p-4 border-t border-border bg-card flex flex-wrap items-center justify-between gap-3 sticky bottom-0">
                 <Button
                   size="sm"
@@ -715,6 +721,7 @@ export const Applications: React.FC = () => {
                   </Button>
                 </div>
               </div>
+              )}
             </div>
           ) : (
             <div className="p-8 text-sm text-muted-foreground">Application not found.</div>

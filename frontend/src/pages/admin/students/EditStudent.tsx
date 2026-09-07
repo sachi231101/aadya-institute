@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from "react";
+﻿import React, { useEffect, useMemo } from "react";
 import { useNavigate, useParams, useLocation, useSearchParams } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -291,7 +291,7 @@ export const EditStudent: React.FC = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <Loader2 className="h-8 w-8 animate-spin text-[#1769AA]" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#2563EB]" />
         <span className="ml-3 text-slate-600 font-medium">Loading student profile...</span>
       </div>
     );
@@ -373,7 +373,7 @@ export const EditStudent: React.FC = () => {
               type="button"
               onClick={form.handleSubmit(onSubmit)}
               disabled={updateMutation.isPending}
-              className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs h-9 px-5 shadow-sm flex items-center gap-1.5"
             >
               {updateMutation.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -395,14 +395,14 @@ export const EditStudent: React.FC = () => {
           )}
 
           {/* ─── Section 1: Academic & Admission Management (Highlighted) ─── */}
-          <Card className="border-[#1769AA]/30 shadow-sm overflow-hidden ring-1 ring-[#1769AA]/10">
+          <Card className="border-[#2563EB]/30 shadow-sm overflow-hidden ring-1 ring-[#2563EB]/10">
             <CardHeader className="bg-gradient-to-r from-blue-50/80 to-indigo-50/50 border-b border-blue-100 py-3.5 px-6">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5 text-[#1769AA]" />
+                  <GraduationCap className="h-5 w-5 text-[#2563EB]" />
                   Academic Program & Batch Enrollment
                 </CardTitle>
-                <Badge variant="outline" className="bg-white text-xs font-semibold text-[#1769AA] border-[#1769AA]/30">
+                <Badge variant="outline" className="bg-white text-xs font-semibold text-[#2563EB] border-[#2563EB]/30">
                   Required for Admission
                 </Badge>
               </div>
@@ -420,7 +420,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={field.value || ""}
                           onChange={(e) => handleCourseChange(e.target.value)}
                         >
@@ -448,7 +448,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={field.value || ""}
                           onChange={field.onChange}
                         >
@@ -479,7 +479,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={field.value || "CONFIRMED"}
                           onChange={field.onChange}
                         >
@@ -508,7 +508,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           value={field.value || "INSTALLMENT"}
                           onChange={field.onChange}
                         >
@@ -601,7 +601,7 @@ export const EditStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <User className="h-4 w-4 text-[#1769AA]" />
+                <User className="h-4 w-4 text-[#2563EB]" />
                 Student Identity & Center Details
               </CardTitle>
             </CardHeader>
@@ -638,7 +638,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           {...field}
                         >
                           <option value="ACTIVE">🟢 Active Student</option>
@@ -666,7 +666,7 @@ export const EditStudent: React.FC = () => {
                         <div className="relative">
                           <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 z-10" />
                           <select
-                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                            className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white pl-9 pr-3 py-2 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                             {...field}
                           >
                             <option value="">Select branch...</option>
@@ -750,7 +750,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           {...field}
                         >
                           <option value="Male">Male</option>
@@ -773,7 +773,7 @@ export const EditStudent: React.FC = () => {
                       </FormLabel>
                       <FormControl>
                         <select
-                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#1769AA]/20 focus:border-[#1769AA]"
+                          className="flex h-10 w-full items-center justify-between rounded-md border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
                           {...field}
                         >
                           <option value="">Select (Optional)</option>
@@ -843,7 +843,7 @@ export const EditStudent: React.FC = () => {
           <Card className="border-slate-200 shadow-sm overflow-hidden">
             <CardHeader className="bg-slate-50/70 border-b border-slate-100 py-3.5 px-6">
               <CardTitle className="text-base font-semibold text-slate-800 flex items-center gap-2">
-                <HeartHandshake className="h-4 w-4 text-[#1769AA]" />
+                <HeartHandshake className="h-4 w-4 text-[#2563EB]" />
                 Parent/Guardian & Residence Info
               </CardTitle>
             </CardHeader>
@@ -1002,7 +1002,7 @@ export const EditStudent: React.FC = () => {
               <Button
                 type="submit"
                 disabled={updateMutation.isPending}
-                className="bg-[#1769AA] hover:bg-[#125890] text-white font-semibold px-6 shadow-sm"
+                className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold px-6 shadow-sm"
               >
                 {updateMutation.isPending ? (
                   <>

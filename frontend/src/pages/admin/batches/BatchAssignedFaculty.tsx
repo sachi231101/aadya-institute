@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, UserCheck } from "lucide-react";
 import { batchesApi } from "@/services/batches.api";
@@ -35,7 +35,7 @@ export const BatchAssignedFaculty: React.FC<Props> = ({ batchId }) => {
 
       {isLoading ? (
         <div className="py-8 text-center">
-          <Loader2 className="w-6 h-6 animate-spin inline text-[#1769AA]" />
+          <Loader2 className="w-6 h-6 animate-spin inline text-[#2563EB]" />
         </div>
       ) : isError || !batch ? (
         <p className="text-sm text-red-600 text-center py-4">Failed to load faculty assignments.</p>

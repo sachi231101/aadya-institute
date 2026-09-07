@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Database,
   Upload,
@@ -201,7 +201,7 @@ export const DataManagement: React.FC = () => {
           />
           <div className="flex gap-2">
             <Button
-              className="bg-[#1769AA] text-white"
+              className="bg-[#2563EB] text-white"
               size="sm"
               onClick={handlePreview}
               disabled={previewMutation.isPending}
@@ -310,7 +310,7 @@ export const DataManagement: React.FC = () => {
               <option value="branches">Branches</option>
             </select>
             <Button
-              className="bg-[#1769AA] text-white"
+              className="bg-[#2563EB] text-white"
               size="sm"
               onClick={handleExport}
               disabled={exportMutation.isPending}

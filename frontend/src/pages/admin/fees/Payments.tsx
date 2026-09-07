@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import { 
   CreditCard, 
   Plus, 
@@ -175,7 +175,7 @@ export const Payments: React.FC = () => {
 
         <PermissionGate itemKey="fees.payments" mode="write">
           <Button 
-            className="bg-[#1769AA] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
+            className="bg-[#2563EB] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
             onClick={() => setShowModal(true)}
           >
             <Plus className="mr-2 h-4 w-4" />
@@ -200,7 +200,7 @@ export const Payments: React.FC = () => {
 
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
+            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
@@ -263,7 +263,7 @@ export const Payments: React.FC = () => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#1769AA]"
+                className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm text-text-primary focus:outline-none focus:ring-2 focus:ring-[#2563EB]"
               >
                 <option value="ALL">All Statuses</option>
                 <option value="SUCCESS">Success</option>
@@ -294,7 +294,7 @@ export const Payments: React.FC = () => {
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-5 h-5 animate-spin text-[#1769AA]" />
+                        <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
                         Loading payment receipts...
                       </div>
                     </TableCell>
@@ -309,7 +309,7 @@ export const Payments: React.FC = () => {
                   payments.map((p) => (
                     <TableRow key={p.id} className="hover:bg-bg-secondary/30 transition-colors">
                       <TableCell className="font-medium text-slate-900 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-[#1769AA]" />
+                        <FileText className="h-4 w-4 text-[#2563EB]" />
                         {p.receiptNo}
                       </TableCell>
                       <TableCell>
@@ -341,7 +341,7 @@ export const Payments: React.FC = () => {
                           <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Receipt Actions</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => setViewReceiptItem(p)}>
-                              <FileText className="mr-2 h-4 w-4 text-[#1769AA]" /> View & Print Receipt
+                              <FileText className="mr-2 h-4 w-4 text-[#2563EB]" /> View & Print Receipt
                             </DropdownMenuItem>
                             <PermissionGate itemKey="fees.payments" mode="write">
                               <DropdownMenuSeparator />
@@ -373,7 +373,7 @@ export const Payments: React.FC = () => {
                 <h3 className="text-xl font-bold text-slate-900">Official Fee Receipt</h3>
                 <p className="text-xs text-slate-500 font-mono">Aadya Institute of Technology</p>
               </div>
-              <Badge className="bg-[#1769AA] text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
+              <Badge className="bg-[#2563EB] text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
             </div>
 
             <div className="space-y-4 text-sm">
@@ -425,7 +425,7 @@ export const Payments: React.FC = () => {
               <Button variant="outline" onClick={() => window.print()}>
                 Print Receipt
               </Button>
-              <Button className="bg-[#1769AA]" onClick={() => setViewReceiptItem(null)}>
+              <Button className="bg-[#2563EB]" onClick={() => setViewReceiptItem(null)}>
                 Close
               </Button>
             </div>
@@ -479,7 +479,7 @@ export const Payments: React.FC = () => {
                 <select
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#1769AA]"
+                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#2563EB]"
                 >
                   {courses.map((c) => (
                     <option key={c.id} value={c.name}>{c.name}</option>
@@ -585,7 +585,7 @@ export const Payments: React.FC = () => {
                   type="checkbox"
                   checked={sendWhatsAppReceipt}
                   onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-[#1769AA] focus:ring-[#1769AA]"
+                  className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                 />
                 <label className="text-xs font-medium text-slate-600">Send WhatsApp Receipt to Student</label>
               </div>
@@ -596,7 +596,7 @@ export const Payments: React.FC = () => {
                 </Button>
                 <Button 
                   type="submit" 
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white"
+                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
                   disabled={createPaymentMutation.isPending}
                 >
                   {createPaymentMutation.isPending ? "Generating Receipt..." : "Submit & Print Receipt"}

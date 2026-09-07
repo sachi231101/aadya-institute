@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -294,7 +294,7 @@ export const UploadStudyMaterialsModal: React.FC<UploadStudyMaterialsModalProps>
             type="button"
             onClick={handleSaveAndClose}
             disabled={isSubmitting}
-            className="rounded-xl bg-[#1769AA] hover:bg-[#125890] text-white font-semibold"
+            className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold"
           >
             {isSubmitting ? (
               <>

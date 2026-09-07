@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+﻿import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, Target, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -133,8 +133,8 @@ export const AddLead: React.FC = () => {
       </Button>
 
       <div className="flex items-center gap-3">
-        <div className="h-10 w-10 rounded-xl bg-[#1769AA]/10 flex items-center justify-center">
-          <Target className="h-5 w-5 text-[#1769AA]" />
+        <div className="h-10 w-10 rounded-xl bg-[#2563EB]/10 flex items-center justify-center">
+          <Target className="h-5 w-5 text-[#2563EB]" />
         </div>
         <div>
           <h1 className="text-xl font-bold text-text-primary">Add New Lead</h1>
@@ -277,7 +277,7 @@ export const AddLead: React.FC = () => {
                 </Button>
                 <Button
                   type="submit"
-                  className="bg-[#1769AA] hover:bg-[#F39A16] text-white font-semibold"
+                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white font-semibold"
                   disabled={createLeadMutation.isPending}
                 >
                   {createLeadMutation.isPending ? "Creating..." : "Create Lead"}

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Bell, 
@@ -204,7 +204,7 @@ export const NotificationPopover: React.FC = () => {
                 type="button"
                 onClick={handleMarkAllRead}
                 disabled={markAllAsReadMutation.isPending}
-                className="text-xs font-semibold text-[#1769AA] hover:text-[#F39A16] flex items-center gap-1 transition-colors cursor-pointer"
+                className="text-xs font-semibold text-[#2563EB] hover:text-[#F39A16] flex items-center gap-1 transition-colors cursor-pointer"
               >
                 <CheckCheck className="h-3.5 w-3.5" /> Mark all read
               </button>
@@ -215,7 +215,7 @@ export const NotificationPopover: React.FC = () => {
           <div className="max-h-96 overflow-y-auto divide-y divide-slate-100">
             {isLoading ? (
               <div className="py-8 text-center text-xs text-slate-400 flex flex-col items-center gap-2">
-                <Loader2 className="h-5 w-5 animate-spin text-[#1769AA]" />
+                <Loader2 className="h-5 w-5 animate-spin text-[#2563EB]" />
                 Loading alerts...
               </div>
             ) : notifications.length > 0 ? (
@@ -328,7 +328,7 @@ export const NotificationPopover: React.FC = () => {
                 setIsOpen(false);
                 navigate(`${rolePrefix}/notifications`);
               }}
-              className="text-xs font-bold text-[#1769AA] hover:text-[#F39A16] flex items-center justify-center gap-1 w-full py-1 transition-colors"
+              className="text-xs font-bold text-[#2563EB] hover:text-[#F39A16] flex items-center justify-center gap-1 w-full py-1 transition-colors"
             >
               View All Notifications <ChevronRight className="h-3.5 w-3.5" />
             </button>

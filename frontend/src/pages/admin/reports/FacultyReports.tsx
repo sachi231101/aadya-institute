@@ -1,4 +1,4 @@
-import React from "react";
+﻿import React from "react";
 import { 
   UserCheck, 
   Download, 
@@ -71,7 +71,7 @@ export const FacultyReports: React.FC = () => {
   if (isLoading) {
     return (
       <div className="py-20 flex flex-col justify-center items-center text-text-muted space-y-3">
-        <Loader2 className="h-9 w-9 animate-spin text-[#1769AA]" />
+        <Loader2 className="h-9 w-9 animate-spin text-[#2563EB]" />
         <p className="text-sm font-medium">Aggregating instructor workloads & feedback analytics...</p>
       </div>
     );
@@ -106,7 +106,7 @@ export const FacultyReports: React.FC = () => {
           className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
           onClick={handleExport}
         >
-          <Download className="mr-2 h-4 w-4 text-[#1769AA]" />
+          <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
           Export Faculty CSV
         </Button>
       </div>
@@ -115,7 +115,7 @@ export const FacultyReports: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-blue-50 text-[#1769AA]">
+            <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
               <UserCheck className="h-6 w-6" />
             </div>
             <div>
@@ -168,7 +168,7 @@ export const FacultyReports: React.FC = () => {
         <Card className="border-border/50 bg-white shadow-sm">
           <CardHeader className="p-5 pb-2 border-b border-slate-100">
             <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-[#1769AA]" />
+              <BarChart3 className="h-5 w-5 text-[#2563EB]" />
               Faculty Monthly Workload (Hours)
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
@@ -194,7 +194,7 @@ export const FacultyReports: React.FC = () => {
                         boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.5)",
                       }} 
                     />
-                    <Bar dataKey="hours" fill="#1769AA" radius={[4, 4, 0, 0]} name="Teaching Hours" />
+                    <Bar dataKey="hours" fill="#2563EB" radius={[4, 4, 0, 0]} name="Teaching Hours" />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
@@ -274,7 +274,7 @@ export const FacultyReports: React.FC = () => {
       <Card className="border-border/50 bg-white shadow-sm">
         <CardHeader className="p-5 pb-2 border-b border-slate-100">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <Award className="h-5 w-5 text-[#1769AA]" />
+            <Award className="h-5 w-5 text-[#2563EB]" />
             Faculty Performance Summary Directory
           </CardTitle>
         </CardHeader>
@@ -297,7 +297,7 @@ export const FacultyReports: React.FC = () => {
                   <TableRow key={faculty.id} className="hover:bg-slate-50">
                     <TableCell>
                       <div>
-                        <span className="font-mono text-xs font-bold text-[#1769AA] block">
+                        <span className="font-mono text-xs font-bold text-[#2563EB] block">
                           {faculty.facultyCode}
                         </span>
                         <span className="font-medium text-slate-900 text-xs">

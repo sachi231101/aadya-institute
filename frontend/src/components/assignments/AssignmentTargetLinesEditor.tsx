@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+﻿import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -134,7 +134,7 @@ export const AssignmentTargetLinesEditor: React.FC<Props> = ({
         type="button"
         variant="outline"
         size="sm"
-        className="text-[#1769AA]"
+        className="text-[#2563EB]"
         onClick={() => onChange([...lines, createEmptyTargetLine()])}
         disabled={noFacultyBatches}
       >
