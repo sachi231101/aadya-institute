@@ -25,6 +25,7 @@ import { useCourses } from "../../../hooks/useCourses";
 import { useFacultyList } from "../../../hooks/useFaculty";
 import { batchesApi } from "@/services/batches.api";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -459,7 +460,7 @@ export const Batches: React.FC = () => {
   };
 
   return (
-    <div className="pt-4 space-y-6 animate-in fade-in duration-300">
+    <PageContainer className="animate-in fade-in duration-300">
       {/* Header — Zenox-style action toolbar */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex items-center gap-2">
@@ -1146,6 +1147,6 @@ export const Batches: React.FC = () => {
         </div>,
         document.body
       )}
-    </div>
+    </PageContainer>
   );
 };
