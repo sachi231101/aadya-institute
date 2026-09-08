@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState, useMemo } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useState, useMemo } from "react";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar,
   Plus,
@@ -37,7 +37,6 @@ import {
 } from "@/components/ui/dialog";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
-import { usePermissions } from "@/hooks/usePermissions";
 import { useBatches } from "../../../hooks/useBatches";
 import { useBranches } from "../../../hooks/useBranches";
 import { useFacultyList } from "../../../hooks/useFaculty";
@@ -48,7 +47,7 @@ import {
   useUpdateClassSession,
 } from "../../../hooks/useClassSessions";
 import { type BackendClassSession } from "../../../services/class-sessions.api";
-import { formatBatchSubjectNames } from "@/utils/batch.utils";
+import { formatBatchSubjectNames, type BatchLike } from "@/utils/batch.utils";
 import {
   BOOKABLE_TIME_SLOTS,
   periodToTimes,
@@ -130,7 +129,7 @@ const mapSessionToScheduledClassItem = (
 ): ScheduledClassItem => {
   const branchObj = branchesList.find((b) => b.id === session.branchId);
   const batchSubjects = formatBatchSubjectNames(
-    (session.batch ?? { courseId: "" }) as any
+    (session.batch ?? { courseId: "" }) as unknown as BatchLike
   );
   const courseName =
     batchSubjects !== "N/A" ? batchSubjects : session.batch?.course?.name || "General Course";
@@ -178,9 +177,8 @@ const mapSessionToScheduledClassItem = (
 export const Classes: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { canEditItem } = usePermissions();
   const { data: branchData } = useBranches();
-  const branchesList = branchData?.data ?? [];
+  const branchesList = useMemo(() => branchData?.data ?? [], [branchData]);
   const { batches } = useBatches();
   const { courses } = useCourses();
   const { data: facultyData } = useFacultyList({ limit: 50 });
@@ -195,17 +193,19 @@ export const Classes: React.FC = () => {
 
   // Filters
   const [searchQuery, setSearchQuery] = useState<string>("");
-  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
+  const batchIdFromUrl = searchParams.get("batchId");
+  const matchedBatchCodeFromUrl = useMemo(() => {
+    if (!batchIdFromUrl || batches.length === 0) return null;
+    return batches.find((b) => b.id === batchIdFromUrl)?.code ?? null;
+  }, [batchIdFromUrl, batches]);
+
+  const [userSelectedBatch, setUserSelectedBatch] = useState<string | null>(null);
+  const selectedBatch = userSelectedBatch ?? matchedBatchCodeFromUrl ?? "ALL";
+  const setSelectedBatch = (batchCode: string) => setUserSelectedBatch(batchCode);
+
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
-
-  useEffect(() => {
-    const batchIdFromUrl = searchParams.get("batchId");
-    if (!batchIdFromUrl || batches.length === 0) return;
-    const match = batches.find((b) => b.id === batchIdFromUrl);
-    if (match) setSelectedBatch(match.code);
-  }, [searchParams, batches]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -286,7 +286,7 @@ export const Classes: React.FC = () => {
   const formEndTime = formTimes.end;
 
   const currentBranchInfo = useMemo(() => {
-    const found = branchesList.find((b: any) => b.id === selectedBranchId);
+    const found = branchesList.find((b) => b.id === selectedBranchId);
     if (found) return { id: found.id, name: found.name, code: found.code, location: found.address || found.name };
     const first = branchesList[0];
     if (first) return { id: first.id, name: first.name, code: first.code, location: first.address || first.name };
@@ -325,8 +325,8 @@ export const Classes: React.FC = () => {
   };
 
   const handleSaveClass = async () => {
-    const fac = formFacultyId && formFacultyId !== "none" ? facultyMembers.find((f: any) => f.id === formFacultyId) : null;
-    const batch = batches.find((b: any) => b.code === formBatch || b.id === formBatch);
+    const fac = formFacultyId && formFacultyId !== "none" ? facultyMembers.find((f) => f.id === formFacultyId) : null;
+    const batch = batches.find((b) => b.code === formBatch || b.id === formBatch);
 
     if (!batch) {
       setNotificationMsg("Please select a valid batch.");
@@ -486,7 +486,7 @@ export const Classes: React.FC = () => {
                   className="w-full h-11 pl-10 pr-9 text-xs font-bold text-foreground bg-background border border-border rounded-xl focus:ring-2 focus:ring-primary/30 outline-none transition-all appearance-none cursor-pointer"
                 >
                   <option value="ALL">🌐 All Branches</option>
-                  {branchesList.map((b: any) => (
+                  {branchesList.map((b) => (
                     <option key={b.id} value={b.id}>
                       📍 {b.name}
                     </option>
@@ -970,7 +970,7 @@ export const Classes: React.FC = () => {
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="">Select course</option>
-                  {courses.map((course: any) => (
+                  {courses.map((course) => (
                     <option key={course.id} value={course.name}>
                       {course.name}
                     </option>
@@ -985,13 +985,13 @@ export const Classes: React.FC = () => {
                   onChange={(e) => {
                     const code = e.target.value;
                     setFormBatch(code);
-                    const matched = batches.find((b: any) => b.code === code || b.id === code);
+                    const matched = batches.find((b) => b.code === code || b.id === code);
                     if (matched?.branchId) setFormBranch(matched.branchId);
                   }}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   <option value="">Select batch</option>
-                  {batches.map((batch: any) => (
+                  {batches.map((batch) => (
                     <option key={batch.id} value={batch.code}>
                       {batch.code} — {batch.name}
                     </option>
@@ -1018,7 +1018,7 @@ export const Classes: React.FC = () => {
                   onChange={(e) => setFormBranch(e.target.value)}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
-                  {branchesList.map((b: any) => (
+                  {branchesList.map((b) => (
                     <option key={b.id} value={b.id}>
                       {b.name}
                     </option>
@@ -1034,7 +1034,7 @@ export const Classes: React.FC = () => {
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-[#2563EB] outline-none"
                 >
                   <option value="none">⚠ Leave Unassigned for now</option>
-                  {facultyMembers.map((f: any) => (
+                  {facultyMembers.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
                     </option>
@@ -1125,232 +1125,6 @@ export const Classes: React.FC = () => {
               <Check className="h-3.5 w-3.5" /> Schedule Class
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── MODAL 2: CLASS DETAILS MODAL ───────────────────────────────── */}
-      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
-          {selectedClassItem && (
-            <>
-              <DialogHeader className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30">
-                    {selectedClassItem.batchCode}
-                  </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
-                    selectedClassItem.status === "LIVE"
-                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
-                      : "bg-blue-500/15 text-blue-600 dark:text-blue-400 border border-blue-500/30"
-                  }`}>
-                    {selectedClassItem.status}
-                  </span>
-                </div>
-                <DialogTitle className="text-xl font-black text-foreground">
-                  {selectedClassItem.topicName}
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground font-medium">
-                  {selectedClassItem.moduleName} • {selectedClassItem.branchName}
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-3.5 my-3 text-xs bg-muted/30 p-4 rounded-2xl border border-border">
-                {/* Faculty Section */}
-                <div>
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block mb-1">
-                    Assigned Faculty Instructor
-                  </span>
-                  {selectedClassItem.isFacultyAssigned ? (
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 rounded-full border border-border">
-                        <AvatarImage src={selectedClassItem.facultyAvatar} />
-                        <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                          {selectedClassItem.facultyName?.slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div>
-                        <span className="font-bold text-foreground text-xs block">{selectedClassItem.facultyName}</span>
-                        <span className="text-[11px] text-muted-foreground font-medium">{selectedClassItem.facultySpecialization}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-amber-600 dark:text-amber-300 font-bold flex items-center gap-1.5">
-                      <AlertTriangle className="h-4 w-4 text-amber-500" />
-                      <span>No faculty assigned yet</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-                  <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Timing</span>
-                    <p className="font-bold text-foreground text-xs mt-0.5">{selectedClassItem.startTime} – {selectedClassItem.endTime}</p>
-                    <p className="text-[10px] text-muted-foreground">{selectedClassItem.dateLabel}</p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Location / Mode</span>
-                    <p className="font-bold text-foreground text-xs mt-0.5">{selectedClassItem.locationOrLink}</p>
-                    <p className="text-[10px] text-muted-foreground font-semibold">{selectedClassItem.mode}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border">
-                  <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Students Enrolled</span>
-                    <p className="font-bold text-foreground text-xs mt-0.5 flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                      {selectedClassItem.enrolledStudentsCount} Students
-                    </p>
-                  </div>
-                  <div>
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase">Attendance</span>
-                    <p className="font-bold text-foreground text-xs mt-0.5">
-                      {selectedClassItem.attendanceMarked ? "Marked & Logged" : "Pending Session"}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsDetailsModalOpen(false)}
-                  className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
-                >
-                  Close
-                </Button>
-                <PermissionGate itemKey="schedule.classes" mode="write">
-                  <Button
-                    onClick={() => {
-                      setIsDetailsModalOpen(false);
-                      handleOpenAssignFaculty(selectedClassItem);
-                    }}
-                    className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
-                  >
-                    <UserPlus className="h-3.5 w-3.5" /> Reassign Faculty
-                  </Button>
-                </PermissionGate>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {/* ─── MODAL 3: ASSIGN / CHANGE FACULTY MODAL ─────────────────────── */}
-      <Dialog open={isAssignFacultyModalOpen} onOpenChange={setIsAssignFacultyModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card text-foreground rounded-3xl p-6 border-border shadow-2xl">
-          {selectedClassItem && (
-            <>
-              <DialogHeader className="space-y-1">
-                <DialogTitle className="text-xl font-black text-foreground">
-                  Assign Faculty Instructor
-                </DialogTitle>
-                <DialogDescription className="text-xs text-muted-foreground font-medium">
-                  Select a qualified faculty member for {selectedClassItem.topicName} ({selectedClassItem.batchCode}).
-                </DialogDescription>
-              </DialogHeader>
-
-              <div className="space-y-3 my-3 text-xs">
-                <Label className="text-[11px] font-bold text-foreground">Choose Faculty Member</Label>
-                <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
-                  {facultyMembers.map((fac: any) => {
-                    const isSelected = targetFacultyId === fac.id;
-                    const name = fac.user?.name || fac.employeeCode || "Faculty Member";
-                    const specialization = fac.specialization || "Technical Instructor";
-                    const avatar = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&q=80&w=150";
-                    return (
-                      <div
-                        key={fac.id}
-                        onClick={() => setTargetFacultyId(fac.id)}
-                        className={`p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
-                          isSelected
-                            ? "bg-blue-500/15 border-[#2563EB] ring-2 ring-[#2563EB]/20"
-                            : "bg-background border-border hover:border-border/80 hover:bg-muted/50"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-9 w-9 border border-border">
-                            <AvatarImage src={avatar} />
-                            <AvatarFallback className="bg-blue-600 text-white font-bold text-xs">
-                              {name.slice(0, 2).toUpperCase()}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div>
-                            <span className="font-bold text-foreground text-xs block">{name}</span>
-                            <span className="text-[10px] text-muted-foreground font-medium">{specialization}</span>
-                          </div>
-                        </div>
-
-                        {isSelected && (
-                          <div className="h-6 w-6 rounded-full bg-[#2563EB] text-white flex items-center justify-center shrink-0 shadow-xs">
-                            <Check className="h-3.5 w-3.5 stroke-[3]" />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <DialogFooter className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setIsAssignFacultyModalOpen(false)}
-                  className="text-xs font-bold rounded-xl border-border bg-card text-foreground hover:bg-muted"
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleSaveAssignFaculty}
-                  className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold rounded-xl gap-1.5"
-                >
-                  <Check className="h-3.5 w-3.5" /> Confirm Assignment
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isStudentsModalOpen} onOpenChange={setIsStudentsModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Enrolled Students</DialogTitle>
-            <DialogDescription>{selectedClassItem?.topicName} — {selectedClassItem?.batchCode}</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-72 overflow-y-auto space-y-2">
-            {batchStudents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No enrolled students found.</p>
-            ) : (
-              batchStudents.map((enrollment: any) => (
-                <div key={enrollment.id} className="flex items-center justify-between p-2 border border-border rounded-lg text-sm">
-                  <span className="font-medium">{enrollment.student?.user?.name ?? enrollment.student?.studentCode}</span>
-                  <span className="text-muted-foreground">{enrollment.student?.studentCode}</span>
-                </div>
-              ))
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={isAttendanceModalOpen} onOpenChange={setIsAttendanceModalOpen}>
-        <DialogContent className="sm:max-w-md bg-card rounded-2xl">
-          <DialogHeader>
-            <DialogTitle>Session Attendance</DialogTitle>
-            <DialogDescription>{selectedClassItem?.topicName}</DialogDescription>
-          </DialogHeader>
-          <div className="max-h-72 overflow-y-auto space-y-2">
-            {sessionAttendance.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No attendance records yet.</p>
-            ) : (
-              sessionAttendance.map((record: any) => (
-                <div key={record.id ?? record.studentId} className="flex items-center justify-between p-2 border border-border rounded-lg text-sm">
-                  <span className="font-medium">{record.student?.user?.name ?? record.studentName ?? record.studentId}</span>
-                  <span className="font-bold">{record.status}</span>
-                </div>
-              ))
-            )}
-          </div>
         </DialogContent>
       </Dialog>
     </div>
