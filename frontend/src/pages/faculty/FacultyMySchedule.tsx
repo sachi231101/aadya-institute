@@ -1,36 +1,26 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
   Clock,
   MapPin,
   Users,
-  Search,
   ChevronLeft,
   ChevronRight,
-  Radio,
   BookOpen,
   CheckCircle2,
-  AlertCircle,
-  Play,
-  Film,
   FileText,
-  RefreshCw,
   Loader2,
+  RefreshCw,
   CalendarDays,
-  Coffee,
-  ExternalLink,
-  ChevronDown,
   Video,
-  Check,
-  X,
   ArrowRight,
   UserCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
@@ -39,6 +29,7 @@ import { useClassSessions } from "@/hooks/useClassSessions";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
+import { type BackendClassSession } from "@/services/class-sessions.api";
 
 export interface FormattedTimetableClass {
   id: string;
@@ -125,17 +116,16 @@ export const FacultyMySchedule: React.FC = () => {
   const {
     activeLiveClass,
     setActiveLiveClass,
-    sessionStatuses,
     getSessionStatus,
     sessionAttendance,
   } = useSessionStore();
 
-  const { data: dashRes, isLoading: isDashLoading, refetch: refetchDash } = useFacultyDashboard();
+  const { data: dashRes, refetch: refetchDash } = useFacultyDashboard();
   const dashboard = dashRes?.data;
   const facultyId = user?.facultyId || dashboard?.profile?.id;
 
   // Query class sessions strictly for this faculty
-  const { data: sessionsRes, isLoading: isSessionsLoading, refetch: refetchSessions } = useClassSessions(
+  const { data: sessionsRes, refetch: refetchSessions } = useClassSessions(
     facultyId ? { facultyId, limit: 100 } : undefined
   );
 
@@ -150,10 +140,6 @@ export const FacultyMySchedule: React.FC = () => {
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
 
   // Filters State
-  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
-  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
-  const [selectedMode, setSelectedMode] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<"TIMETABLE" | "LIST">("TIMETABLE");
 
   // Selected Class in bottom details pane
@@ -220,23 +206,28 @@ export const FacultyMySchedule: React.FC = () => {
     const userName = (user?.name || dashboard?.profile?.name || "").toLowerCase();
 
     // 1. Process from class-sessions API & dashboard assigned sessions
-    const rawSessions = (sessionsRes?.data || []).filter((s: any) => {
+    let rawSessions: BackendClassSession[] = (sessionsRes?.data || []).filter((s: BackendClassSession) => {
       if (userFacultyId && (s.facultyId === userFacultyId || s.faculty?.id === userFacultyId)) return true;
+      if (user?.id && s.faculty?.user?.id === user.id) return true;
       if (userEmail && s.faculty?.user?.email && s.faculty.user.email.toLowerCase() === userEmail) return true;
       if (userName && s.faculty?.user?.name && s.faculty.user.name.toLowerCase() === userName) return true;
       return false;
     });
 
+    if (rawSessions.length === 0 && sessionsRes?.data && sessionsRes.data.length > 0 && facultyId) {
+      rawSessions = sessionsRes.data;
+    }
+
     const map = new Map<string, FormattedTimetableClass>();
 
     if (rawSessions.length > 0) {
       // Use live API sessions assigned to this faculty
-      rawSessions.forEach((s: any) => {
+      rawSessions.forEach((s: BackendClassSession) => {
         const scheduledDate = s.scheduledDate
           ? toISODateString(new Date(s.scheduledDate))
           : todayIso;
 
-        let status = (s.sessionStatus || s.status || "UPCOMING").toUpperCase() as any;
+        let status = (s.sessionStatus || s.status || "UPCOMING").toUpperCase() as FormattedTimetableClass["status"];
         if (activeLiveClass?.status === "LIVE" && (activeLiveClass?.id === s.id || activeLiveClass?.sessionId === s.id)) {
           status = "LIVE";
         }
@@ -260,10 +251,10 @@ export const FacultyMySchedule: React.FC = () => {
           endTime: s.endTime || "10:00 AM",
           timeRange: `${s.startTime || "09:00 AM"} – ${s.endTime || "10:00 AM"}`,
           roomNo: s.roomNo || "Room No 1",
-          mode: (s.mode as any) || "OFFLINE",
+          mode: (s.mode as FormattedTimetableClass["mode"]) || "OFFLINE",
           meetingUrl: s.meetingUrl || "https://meet.google.com/aadya-live",
           status,
-          studentCount: s.enrolledStudentsCount || s.batch?._count?.enrollments || 3,
+          studentCount: s.enrolledStudentsCount ?? 3,
           attendanceStatus: sessionAttendance[s.id]?.length ? "Updated" : "Pending",
           startHour: startParsed.hour,
           startMin: startParsed.min,
@@ -277,7 +268,7 @@ export const FacultyMySchedule: React.FC = () => {
       const isFaculty01 = !userEmail || userEmail.includes("sachin") || userEmail.includes("faculty01") || userName.includes("faculty01") || userName.includes("sachin") || userName.includes("faculty");
       const isFaculty02 = userEmail.includes("faculty02") || userName.includes("faculty02") || userEmail.includes("priya");
 
-      let initialFallbackClasses: FormattedTimetableClass[] = [];
+      let initialFallbackClasses: FormattedTimetableClass[];
       if (isFaculty01) {
         initialFallbackClasses = [
           // Mon
@@ -311,7 +302,14 @@ export const FacultyMySchedule: React.FC = () => {
           { id: "f2-fri-nlp", title: "Natural Language Processing", courseName: "AI & ML", subjectName: "NLP Foundations", batchId: "AI01", batchName: "Batch AI01", batchCode: "AI01", date: dFri, startTime: "04:00 PM", endTime: "06:00 PM", timeRange: "04:00 PM – 06:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-ai-002", status: "UPCOMING", studentCount: 6, attendanceStatus: "Pending", startHour: 16, startMin: 0, endHour: 18, endMin: 0, spanHours: 2 },
         ];
       } else {
-        initialFallbackClasses = [];
+        // Default demo timetable fallback for any logged-in faculty
+        initialFallbackClasses = [
+          { id: "mon-java-live", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", meetingUrl: "https://meet.google.com/aadya-java-001", status: "LIVE", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
+          { id: "mon-java-up", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "10:00 AM", endTime: "11:00 AM", timeRange: "10:00 AM – 11:00 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-java-002", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 11, endMin: 0, spanHours: 1 },
+          { id: "mon-dsa", title: "DSA", courseName: "DSA", subjectName: "DSA", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dMon, startTime: "11:00 AM", endTime: "12:00 PM", timeRange: "11:00 AM – 12:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-dsa-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 11, startMin: 0, endHour: 12, endMin: 0, spanHours: 1 },
+          { id: "tue-python", title: "Python", courseName: "Python", subjectName: "Python", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dTue, startTime: "10:00 AM", endTime: "11:30 AM", timeRange: "10:00 AM – 11:30 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-py-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 12, endMin: 0, spanHours: 2 },
+          { id: "wed-java", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dWed, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
+        ];
       }
 
       initialFallbackClasses.forEach((cls) => {
@@ -333,46 +331,10 @@ export const FacultyMySchedule: React.FC = () => {
     }
 
     return Array.from(map.values());
-  }, [weekDays, sessionsRes, dashboard, user, activeLiveClass, sessionStatuses, sessionAttendance, getSessionStatus, todayIso]);
+  }, [weekDays, sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, facultyId]);
 
-  // Extract filter option lists
-  const coursesList = useMemo(() => {
-    const set = new Set<string>();
-    assignedClasses.forEach((c) => {
-      if (c.courseName) set.add(c.courseName);
-    });
-    return Array.from(set);
-  }, [assignedClasses]);
-
-  const batchesList = useMemo(() => {
-    const set = new Set<string>();
-    assignedClasses.forEach((c) => {
-      if (c.batchCode) set.add(c.batchCode);
-    });
-    return Array.from(set);
-  }, [assignedClasses]);
-
-  // Filtered assigned classes
-  const filteredClasses = useMemo(() => {
-    return assignedClasses.filter((c) => {
-      if (selectedCourse !== "ALL" && c.courseName !== selectedCourse) return false;
-      if (selectedBatch !== "ALL" && c.batchCode !== selectedBatch) return false;
-      if (selectedMode !== "ALL" && c.mode !== selectedMode) return false;
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = c.title.toLowerCase().includes(q);
-        const matchCourse = c.courseName.toLowerCase().includes(q);
-        const matchSubject = c.subjectName.toLowerCase().includes(q);
-        const matchBatch = c.batchCode.toLowerCase().includes(q) || c.batchName.toLowerCase().includes(q);
-        const matchRoom = c.roomNo.toLowerCase().includes(q);
-        if (!matchTitle && !matchCourse && !matchSubject && !matchBatch && !matchRoom) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [assignedClasses, selectedCourse, selectedBatch, selectedMode, searchQuery]);
+  // Filtered assigned classes (direct alias to assignedClasses)
+  const filteredClasses = assignedClasses;
 
   // Today Classes
   const todayClasses = useMemo(() => {
@@ -436,6 +398,24 @@ export const FacultyMySchedule: React.FC = () => {
       status: "LIVE",
     });
 
+    setSelectedClassForModal({
+      id: cls.id,
+      title: cls.title,
+      courseName: cls.courseName,
+      subjectName: cls.subjectName,
+      batchId: cls.batchId,
+      batchCode: cls.batchCode,
+      batchName: cls.batchName,
+      date: cls.date,
+      startTime: cls.startTime,
+      endTime: cls.endTime,
+      roomNo: cls.roomNo,
+      mode: cls.mode,
+      meetingUrl: cls.meetingUrl,
+      status: cls.status,
+      enrolledStudentsCount: cls.studentCount,
+    });
+
     if (cls.meetingUrl) {
       window.open(cls.meetingUrl, "_blank", "noopener,noreferrer");
     }
@@ -450,7 +430,7 @@ export const FacultyMySchedule: React.FC = () => {
   }, [weekDays, currentWeekMonday]);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1680px] mx-auto min-h-screen bg-slate-50/50 dark:bg-slate-950/40">
+    <PageContainer className="bg-slate-50/50 dark:bg-slate-950/40">
       {/* ─── Top Header Banner ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -527,106 +507,9 @@ export const FacultyMySchedule: React.FC = () => {
               Class List
             </button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              refetchSessions();
-              refetchDash();
-            }}
-            className="rounded-2xl h-9 text-xs font-bold bg-white dark:bg-slate-900 border-slate-200 shadow-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-slate-500" /> Refresh
-          </Button>
         </div>
       </div>
 
-      {/* ─── Filters & Legend Bar ─── */}
-      <Card className="border-slate-200 dark:border-slate-800 shadow-xs rounded-2xl bg-white dark:bg-slate-900 overflow-hidden">
-        <CardContent className="p-3.5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Filter Controls */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-              {/* Search Input */}
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Search course, module, batch..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-xl bg-slate-50/70 border-slate-200 dark:bg-slate-800"
-                />
-              </div>
-
-              {/* Course Filter */}
-              <div>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Assigned Courses</option>
-                  {coursesList.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Batch Filter */}
-              <div>
-                <select
-                  value={selectedBatch}
-                  onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Batches</option>
-                  {batchesList.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Mode Filter */}
-              <div>
-                <select
-                  value={selectedMode}
-                  onChange={(e) => setSelectedMode(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Modes (Offline / Online)</option>
-                  <option value="OFFLINE">Offline / Classroom</option>
-                  <option value="ONLINE">Online / Virtual</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Status Legend */}
-            <div className="flex items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 self-start lg:self-center">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Now</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                <span>Upcoming</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                <span>Completed</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                <span>Cancelled</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* ─── Main Timetable Grid / List Display ─── */}
       {viewMode === "TIMETABLE" ? (
@@ -658,6 +541,26 @@ export const FacultyMySchedule: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                 {weekDays.map((day) => {
+                  // Sunday: Single light red box with Date
+                  if (day.dayShort === "SUN" || day.date.getDay() === 0) {
+                    return (
+                      <tr
+                        key={day.iso}
+                        className="transition-colors h-[54px] bg-rose-50/30 dark:bg-rose-950/10"
+                      >
+                        <td
+                          colSpan={FULL_TIME_SLOTS.length + 1}
+                          className="p-2.5 text-center align-middle"
+                        >
+                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-black shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                            <span>Sunday – {day.formattedDate}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   const dayClasses = filteredClasses.filter((c) => c.date === day.iso);
 
                   // Keep track of spanned slots to skip rendering empty cells
@@ -691,7 +594,7 @@ export const FacultyMySchedule: React.FC = () => {
                       </td>
 
                       {/* 12 Hour Time Slot Cells */}
-                      {FULL_TIME_SLOTS.map((slot, sIdx) => {
+                      {FULL_TIME_SLOTS.map((slot) => {
                         if (skipHoursRemaining > 0) {
                           skipHoursRemaining--;
                           return null;
@@ -835,7 +738,12 @@ export const FacultyMySchedule: React.FC = () => {
                     {activeDay.isToday && <Badge className="bg-[#2563EB] text-white text-[10px]">TODAY</Badge>}
                   </div>
 
-                  {dayClasses.length > 0 ? (
+                  {activeDay.dayShort === "SUN" || activeDay.date.getDay() === 0 ? (
+                    <div className="py-4 px-4 text-center text-xs font-black text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                      <span>Sunday – {activeDay.formattedDate}</span>
+                    </div>
+                  ) : dayClasses.length > 0 ? (
                     dayClasses.map((cls) => (
                       <Card
                         key={cls.id}
@@ -892,281 +800,303 @@ export const FacultyMySchedule: React.FC = () => {
               </div>
 
               <div className="space-y-3 max-h-[520px] overflow-y-auto pr-1">
-                {todayClasses.map((cls) => {
-                  const isSelected = selectedClassId === cls.id;
-                  const isLive = cls.status === "LIVE";
+                {todayClasses.length === 0 ? (
+                  <div className="text-center py-12 px-4 border border-dashed border-slate-200 dark:border-slate-800 rounded-2xl bg-white/50 dark:bg-slate-900/50">
+                    <CalendarDays className="w-8 h-8 text-slate-400 mx-auto mb-2 opacity-60" />
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No classes scheduled for today</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Check the timetable grid or switch dates to view other sessions.</p>
+                  </div>
+                ) : (
+                  todayClasses.map((cls) => {
+                    const isSelected = selectedClassId === cls.id;
+                    const isLive = cls.status === "LIVE";
 
-                  return (
-                    <Card
-                      key={cls.id}
-                      onClick={() => setSelectedClassId(cls.id)}
-                      className={`rounded-2xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? "border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-blue-50/30 dark:bg-slate-800"
-                          : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
-                      }`}
-                    >
-                      <CardContent className="p-4 flex items-center justify-between gap-3">
-                        <div className="space-y-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black text-slate-800 dark:text-slate-200">
-                              {cls.startTime} – {cls.endTime}
-                            </span>
-                            <Badge
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                isLive
-                                  ? "bg-emerald-600 text-white animate-pulse"
-                                  : "bg-blue-50 text-blue-600 border border-blue-200"
-                              }`}
-                            >
-                              {isLive ? "LIVE NOW" : "Upcoming"}
-                            </Badge>
+                    return (
+                      <Card
+                        key={cls.id}
+                        onClick={() => setSelectedClassId(cls.id)}
+                        className={`rounded-2xl border transition-all cursor-pointer ${
+                          isSelected
+                            ? "border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-blue-50/30 dark:bg-slate-800"
+                            : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
+                        }`}
+                      >
+                        <CardContent className="p-4 flex items-center justify-between gap-3">
+                          <div className="space-y-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-black text-slate-800 dark:text-slate-200">
+                                {cls.startTime} – {cls.endTime}
+                              </span>
+                              <Badge
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                  isLive
+                                    ? "bg-emerald-600 text-white animate-pulse"
+                                    : "bg-blue-50 text-blue-600 border border-blue-200"
+                                }`}
+                              >
+                                {isLive ? "LIVE NOW" : "Upcoming"}
+                              </Badge>
+                            </div>
+                            <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
+                              {cls.courseName}
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                              <span>Batch {cls.batchCode}</span>
+                              <span>|</span>
+                              <span>{cls.mode === "ONLINE" ? "Online" : "Offline"}</span>
+                              {cls.roomNo && cls.roomNo !== "Online" && (
+                                <>
+                                  <span>|</span>
+                                  <span>{cls.roomNo}</span>
+                                </>
+                              )}
+                              <span>|</span>
+                              <span className="flex items-center gap-1">
+                                <Users className="w-3 h-3 text-slate-400" /> {cls.studentCount} Students
+                              </span>
+                            </p>
                           </div>
-                          <h4 className="font-extrabold text-sm text-slate-900 dark:text-white">
-                            {cls.courseName}
-                          </h4>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
-                            <span>Batch {cls.batchCode}</span>
-                            <span>|</span>
-                            <span>{cls.mode === "ONLINE" ? "Online" : "Offline"}</span>
-                            {cls.roomNo && cls.roomNo !== "Online" && (
-                              <>
-                                <span>|</span>
-                                <span>{cls.roomNo}</span>
-                              </>
-                            )}
-                            <span>|</span>
-                            <span className="flex items-center gap-1">
-                              <Users className="w-3 h-3 text-slate-400" /> {cls.studentCount} Students
-                            </span>
-                          </p>
-                        </div>
 
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleNavigateToSession(cls);
-                          }}
-                          className="rounded-xl text-xs font-extrabold h-8 px-3.5 shrink-0 cursor-pointer text-[#2563EB] border-blue-200 hover:bg-[#2563EB] hover:text-white hover:border-[#2563EB] bg-white transition-all shadow-2xs"
-                        >
-                          View Class
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleNavigateToSession(cls);
+                            }}
+                            className="rounded-xl text-xs font-extrabold h-8 px-3.5 shrink-0 cursor-pointer text-[#2563EB] border-blue-200 hover:bg-[#2563EB] hover:text-white hover:border-[#2563EB] bg-white transition-all shadow-2xs"
+                          >
+                            View Class
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+                )}
               </div>
             </div>
 
             {/* Right Column: Class Details Card */}
             <div className="lg:col-span-6">
-              <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex flex-col justify-between">
-                <div>
-                  {/* Card Header */}
-                  <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <div className="flex items-center gap-2.5">
-                      <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                        {currentSelectedClass.courseName}
-                      </h3>
-                      <Badge
-                        className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                          currentSelectedClass.status === "LIVE"
-                            ? "bg-emerald-600 text-white animate-pulse"
-                            : "bg-blue-50 text-blue-600 border border-blue-200"
-                        }`}
-                      >
-                        {currentSelectedClass.status === "LIVE" ? "LIVE NOW" : "UPCOMING"}
-                      </Badge>
-                      {currentSelectedClass.status === "LIVE" && (
-                        <span className="text-xs font-mono font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-                          <Clock className="w-3 h-3 text-emerald-600" />
-                          {formatLiveTimer(liveSeconds)}
-                        </span>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleNavigateToSession(currentSelectedClass)}
-                      className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
-                    >
-                      Go to Class <ArrowRight className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-
-                  {/* 8-Point Metadata Grid */}
-                  <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
-                    {/* Row 1 */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
-                        <BookOpen className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Batch</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.batchCode}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <UserCheck className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Faculty</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {user?.name || "Faculty01"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Row 2 */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <FileText className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Subject / Module</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.subjectName}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <CalendarIcon className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Date</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.date
-                            ? new Date(currentSelectedClass.date).toLocaleDateString("en-IN", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                              })
-                            : "31 Aug 2026"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Row 3 */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <Clock className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Scheduled Time</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.timeRange}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <Users className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Enrolled Students</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.studentCount}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Row 4 */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <MapPin className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Mode</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.mode === "ONLINE" ? "Online" : "Offline"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Attendance Status</span>
-                        <span
-                          className={`font-extrabold ${
-                            currentSelectedClass.attendanceStatus === "Updated"
-                              ? "text-emerald-600 font-bold"
-                              : "text-amber-600"
+              {currentSelectedClass ? (
+                <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex flex-col justify-between">
+                  <div>
+                    {/* Card Header */}
+                    <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white">
+                          {currentSelectedClass.courseName}
+                        </h3>
+                        <Badge
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
+                            currentSelectedClass.status === "LIVE"
+                              ? "bg-emerald-600 text-white animate-pulse"
+                              : "bg-blue-50 text-blue-600 border border-blue-200"
                           }`}
                         >
-                          {currentSelectedClass.attendanceStatus || "Pending"}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Row 5 */}
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
-                        <MapPin className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Room</span>
-                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
-                          {currentSelectedClass.roomNo || "Room No 1"}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start gap-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
-                        <Video className="w-3.5 h-3.5" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] font-medium text-slate-400 block">Class Link</span>
-                        {currentSelectedClass.meetingUrl ? (
-                          <a
-                            href={currentSelectedClass.meetingUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-bold text-[#2563EB] hover:underline truncate block max-w-[150px]"
-                          >
-                            Google Meet link
-                          </a>
-                        ) : (
-                          <span className="font-extrabold text-slate-400">-</span>
+                          {currentSelectedClass.status === "LIVE" ? "LIVE NOW" : "UPCOMING"}
+                        </Badge>
+                        {currentSelectedClass.status === "LIVE" && (
+                          <span className="text-xs font-mono font-bold text-emerald-600 flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                            <Clock className="w-3 h-3 text-emerald-600" />
+                            {formatLiveTimer(liveSeconds)}
+                          </span>
                         )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleNavigateToSession(currentSelectedClass)}
+                        className="text-xs font-bold text-[#2563EB] hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        Go to Class <ArrowRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* 8-Point Metadata Grid */}
+                    <div className="p-5 grid grid-cols-2 gap-y-4 gap-x-6 text-xs">
+                      {/* Row 1 */}
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
+                          <BookOpen className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Batch</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.batchCode}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <UserCheck className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Faculty</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {user?.name || "Faculty01"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Row 2 */}
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <FileText className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Subject / Module</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.subjectName}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <CalendarIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Date</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.date
+                              ? new Date(currentSelectedClass.date).toLocaleDateString("en-IN", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : "31 Aug 2026"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Row 3 */}
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-sky-50 text-sky-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Clock className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Scheduled Time</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.timeRange}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <Users className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Enrolled Students</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.studentCount}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Row 4 */}
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Mode</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.mode === "ONLINE" ? "Online" : "Offline"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Attendance Status</span>
+                          <span
+                            className={`font-extrabold ${
+                              currentSelectedClass.attendanceStatus === "Updated"
+                                ? "text-emerald-600 font-bold"
+                                : "text-amber-600"
+                            }`}
+                          >
+                            {currentSelectedClass.attendanceStatus || "Pending"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Row 5 */}
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Room</span>
+                          <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                            {currentSelectedClass.roomNo || "Room No 1"}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0 mt-0.5">
+                          <Video className="w-3.5 h-3.5" />
+                        </div>
+                        <div>
+                          <span className="text-[11px] font-medium text-slate-400 block">Class Link</span>
+                          {currentSelectedClass.meetingUrl ? (
+                            <a
+                              href={currentSelectedClass.meetingUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="font-bold text-[#2563EB] hover:underline truncate block max-w-[150px]"
+                            >
+                              Google Meet link
+                            </a>
+                          ) : (
+                            <span className="font-extrabold text-slate-400">-</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Primary Dual Actions Bar */}
-                <div className="p-4 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
-                    className="flex-1 h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-extrabold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <UserCheck className="w-4 h-4 text-[#2563EB]" /> Update Attendance
-                  </Button>
+                  {/* Primary Dual Actions Bar */}
+                  <div className="p-4 bg-slate-50/60 dark:bg-slate-800/40 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleNavigateToSession(currentSelectedClass, "attendance")}
+                      className="flex-1 h-11 rounded-2xl border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-extrabold text-xs shadow-xs hover:bg-slate-50 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <UserCheck className="w-4 h-4 text-[#2563EB]" /> Update Attendance
+                    </Button>
 
-                  <Button
-                    type="button"
-                    onClick={() => handleGoLive(currentSelectedClass)}
-                    className="flex-1 h-11 rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <Video className="w-4 h-4" /> Join / Go Live Class
-                  </Button>
-                </div>
-              </Card>
+                    <Button
+                      type="button"
+                      onClick={() => handleGoLive(currentSelectedClass)}
+                      className="flex-1 h-11 rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Video className="w-4 h-4" /> Join / Go Live Class
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
+                <Card className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden h-full flex items-center justify-center p-8 text-center min-h-[360px]">
+                  <div className="max-w-xs space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-slate-800 text-[#2563EB] flex items-center justify-center mx-auto mb-3">
+                      <BookOpen className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">No Class Selected</h3>
+                    <p className="text-xs text-slate-400">
+                      Select a scheduled class from the list or timetable above to view session details, join live, or update attendance.
+                    </p>
+                  </div>
+                </Card>
+              )}
             </div>
           </div>
         </div>
@@ -1302,6 +1232,6 @@ export const FacultyMySchedule: React.FC = () => {
           }}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };

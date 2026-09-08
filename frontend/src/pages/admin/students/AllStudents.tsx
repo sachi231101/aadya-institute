@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
   Users,
@@ -14,6 +14,7 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useBranchStore } from "@/store/branch.store";
@@ -199,7 +200,7 @@ export const AllStudents: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto bg-[#f8fafc] min-h-screen relative overflow-x-hidden pb-16">
+    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
       {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
@@ -540,6 +541,6 @@ export const AllStudents: React.FC = () => {
           </table>
         </div>
       </Card>
-    </div>
+    </PageContainer>
   );
 };

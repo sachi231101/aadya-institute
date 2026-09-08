@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -13,7 +13,6 @@ import {
   Search,
   GraduationCap,
   Star,
-  FileText,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -24,7 +23,6 @@ import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
-import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import type { FacultyDashboardSession } from "@/types/faculty.types";
 
@@ -164,17 +162,12 @@ export const FacultyDashboard: React.FC = () => {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1680px] mx-auto space-y-7 animate-in fade-in duration-300">
-      <InstallDashboardBanner />
-
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-blue-900 via-[#2563EB] to-indigo-900 p-6 sm:p-8 text-white shadow-xl shadow-blue-950/15">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">
             <div className="flex items-center gap-2.5 flex-wrap">
               <Badge className="bg-white/20 text-white border-white/30 text-xs px-3 py-1 font-bold">
                 Faculty Teaching Desk
-              </Badge>
-              <Badge className="bg-emerald-400 text-slate-950 font-black text-xs px-3 py-1 border-0">
-                {branchName} • {dashboard.profile.designation || "Instructor"}
               </Badge>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight">
@@ -185,8 +178,8 @@ export const FacultyDashboard: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
-            {todayClasses[0] && (
+          {todayClasses[0] && (
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0">
               <Button
                 onClick={() => handleOpenClass(todayClasses[0])}
                 className="bg-amber-400 hover:bg-amber-500 text-slate-950 font-black text-xs sm:text-sm h-11 px-5 rounded-2xl shadow-lg gap-2"
@@ -196,63 +189,10 @@ export const FacultyDashboard: React.FC = () => {
                   Next: {todayClasses[0].courseName || todayClasses[0].title} ({todayClasses[0].startTime})
                 </span>
               </Button>
-            )}
-            <Button
-              variant="outline"
-              onClick={() => navigate("/faculty/assignments")}
-              className="bg-white/10 border-white/30 text-white hover:bg-white/20 font-bold text-xs h-11 px-4 rounded-2xl"
-            >
-              <FileText className="w-4 h-4 mr-2" /> All Assignments
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {[
-          {
-            title: "All Assignments",
-            desc: "View and manage your assignments",
-            path: "/faculty/assignments",
-            icon: FileText,
-          },
-          {
-            title: "Create Assignment",
-            desc: "Assign work to your batches",
-            path: "/faculty/assignments/create",
-            icon: BookOpen,
-          },
-          {
-            title: "Submissions Queue",
-            desc: "See student submissions",
-            path: "/faculty/assignments/submissions",
-            icon: Users,
-          },
-          {
-            title: "Grading Queue",
-            desc: `${counts?.pendingSubmissions ?? 0} waiting to grade`,
-            path: "/faculty/assignments/reviews",
-            icon: CheckCircle2,
-          },
-        ].map((item) => (
-          <button
-            key={item.path}
-            type="button"
-            onClick={() => navigate(item.path)}
-            className="text-left rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs hover:border-[#2563EB]/40 hover:shadow-sm transition-all"
-          >
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center shrink-0">
-                <item.icon className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-bold text-slate-900">{item.title}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{item.desc}</p>
-              </div>
-            </div>
-          </button>
-        ))}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
@@ -544,47 +484,6 @@ export const FacultyDashboard: React.FC = () => {
           )}
         </CardContent>
       </Card>
-
-      {dashboard.myBatches?.length > 0 && (
-        <Card className="rounded-2xl border-slate-200">
-          <CardHeader className="pb-2 pt-4 px-5">
-            <h3 className="text-sm font-bold">My Batches</h3>
-          </CardHeader>
-          <CardContent className="px-5 pb-4 flex flex-wrap gap-2">
-            {dashboard.myBatches.map((b) => (
-              <button
-                key={b.id}
-                type="button"
-                onClick={() => navigate("/faculty/batches")}
-                className="text-xs font-medium px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 hover:border-[#2563EB]"
-              >
-                <span className="font-bold">{b.name}</span>
-                <span className="text-slate-500"> · {b.courseName} · {b.studentCount} students</span>
-              </button>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      <div className="space-y-3 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-5 rounded-2xl bg-slate-50 border border-slate-200">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-[#2563EB]" />
-              Need Full Timetable Grid?
-            </h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Switch week, view room assignments, and manage all assigned classes in the dedicated academic timetable.
-            </p>
-          </div>
-          <Button
-            onClick={() => navigate("/faculty/timetable")}
-            className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs shrink-0"
-          >
-            Open My Schedule <ArrowRight className="w-4 h-4 ml-1.5" />
-          </Button>
-        </div>
-      </div>
 
       <StartClassModal
         isOpen={isModalOpen}
