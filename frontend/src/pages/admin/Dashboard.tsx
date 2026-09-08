@@ -11,6 +11,7 @@ import {
   GraduationCap,
   DollarSign,
   Briefcase,
+  AlertTriangle,
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
@@ -19,7 +20,6 @@ import { useStudentReport, useFinancialReport } from "@/hooks/useReports";
 import { useScheduleSummary } from "@/hooks/useScheduleSummary";
 import { useLeadDashboard } from "@/hooks/useLeads";
 import { usePayments } from "@/hooks/useFees";
-import { usePlacementSummary } from "@/hooks/usePlacement";
 import { useAssignmentStats } from "@/hooks/useAssignments";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -52,7 +52,6 @@ export const AdminDashboard: React.FC = () => {
   const { data: leadDashboardData } = useLeadDashboard(activeBranchId);
   const { data: scheduleSummary } = useScheduleSummary(activeBranchId);
   const { data: recentPaymentsData } = usePayments({ limit: 5 });
-  const { data: placementSummary } = usePlacementSummary();
   const { data: assignmentStatsRes } = useAssignmentStats();
   const assignmentStats = assignmentStatsRes?.data;
 
@@ -258,29 +257,15 @@ export const AdminDashboard: React.FC = () => {
             { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: kpiTotalStudents },
             { label: "Students", path: ROUTES.ADMIN.STUDENTS.ALL, count: kpiTotalStudents },
             { label: "Schedule", path: ROUTES.ADMIN.SCHEDULE.CLASSES, count: scheduleSummary?.todayClasses ?? 0 },
-            {
-              label: "Fees",
-              path: ROUTES.ADMIN.FEES.PENDING,
-              count: financialReport?.summary?.totalPending
-                ? `₹${(financialReport.summary.totalPending / 1000).toFixed(0)}k`
-                : 0,
-            },
-            { label: "Placement", path: ROUTES.ADMIN.PLACEMENT.ELIGIBLE, count: placementSummary?.eligibleCount ?? 0 },
-            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: 0 },
-            { label: "Reports", path: ROUTES.ADMIN.REPORTS.STUDENTS, count: 0 },
-            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: 0 },
-            {
-              label: "Counsellors",
-              path: ROUTES.ADMIN.COUNSELLORS.ALL,
-              count: usersResponse?.data?.filter((u) => u.roles.includes("COUNSELLOR")).length ?? 0,
-            },
+            { label: "Fees", path: ROUTES.ADMIN.FEES.PENDING, count: financialReport?.summary?.totalPending ? "Pending" : 0 },
+            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: "→" },
+            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "→" },
             { label: "Batches", path: ROUTES.ADMIN.BATCHES.ALL, count: kpiActiveBatches },
             {
               label: "Assignments",
               path: ROUTES.ADMIN.ASSIGNMENTS.ALL,
               count: assignmentStats?.activeAssignments ?? 0,
             },
-            { label: "Administration", path: ROUTES.ADMIN.ADMINISTRATION.ORGANIZATION, count: apiBranches.length },
           ].map((mod) => (
             <button
               key={mod.label}
@@ -293,98 +278,6 @@ export const AdminDashboard: React.FC = () => {
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Assignment KPIs */}
-      <div>
-        <div className="flex items-center justify-between mb-3 sm:mb-3.5">
-          <h3 className="text-sm font-bold text-foreground">Assignment Overview</h3>
-          <button
-            type="button"
-            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
-          >
-            Manage Assignments →
-          </button>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
-          <Card
-            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-blue-300 transition-colors"
-            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
-          >
-            <CardContent className="p-5">
-              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.activeAssignments ?? 0}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">Active assignments</p>
-            </CardContent>
-          </Card>
-          <Card
-            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-amber-300 transition-colors"
-            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.SUBMISSIONS)}
-          >
-            <CardContent className="p-5">
-              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingSubmissions ?? 0}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">Pending submissions</p>
-            </CardContent>
-          </Card>
-          <Card
-            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-emerald-300 transition-colors"
-            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.REVIEWS)}
-          >
-            <CardContent className="p-5">
-              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingGrading ?? 0}</p>
-              <p className="text-xs text-muted-foreground font-medium mt-0.5">Pending grading</p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      {/* Today's scheduled classes — refreshed when Classes Management creates sessions */}
-      <div>
-        <div className="flex items-center justify-between mb-3 sm:mb-3.5">
-          <h3 className="text-sm font-bold text-foreground">Today&apos;s Classes</h3>
-          <button
-            type="button"
-            onClick={() => navigate(ROUTES.ADMIN.SCHEDULE.TIMETABLE)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
-          >
-            Open Timetable →
-          </button>
-        </div>
-        <Card className="border border-border bg-card shadow-xs rounded-2xl overflow-hidden">
-          <CardContent className="p-0">
-            {(scheduleSummary?.todaySessions?.length ?? 0) === 0 ? (
-              <div className="p-8 text-center text-xs text-muted-foreground">
-                No classes scheduled for today. New classes created in Classes &amp; Sessions appear here automatically.
-              </div>
-            ) : (
-              <ul className="divide-y divide-border">
-                {(scheduleSummary?.todaySessions ?? []).slice(0, 8).map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-xs hover:bg-muted/40 transition-colors"
-                  >
-                    <div className="min-w-0">
-                      <p className="font-bold text-foreground truncate">
-                        {s.title || "Class Session"}
-                      </p>
-                      <p className="text-muted-foreground truncate mt-0.5">
-                        {s.batchName || "Batch"} · {s.facultyName || "Faculty"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2.5 shrink-0">
-                      <span className="font-medium text-foreground">
-                        {s.startTime} – {s.endTime}
-                      </span>
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">
-                        {s.sessionStatus || "UPCOMING"}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {/* 3. MAIN SECTION - BRANCH REVENUE PERFORMANCE */}
