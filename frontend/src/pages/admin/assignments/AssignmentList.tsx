@@ -1,9 +1,8 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   FileText,
   Plus,
-  Search,
   Loader2,
   AlertCircle,
   Eye,
@@ -13,9 +12,6 @@ import {
   Unlock,
   Download,
   Paperclip,
-  Calendar,
-  RotateCcw,
-  X,
 } from "lucide-react";
 import {
   useAssignments,
@@ -23,7 +19,6 @@ import {
   useUpdateAssignment,
 } from "@/hooks/useAssignments";
 import { assignmentsApi, type Assignment } from "@/services/assignments.api";
-import { MasterSelect } from "@/components/common/MasterSelect";
 import { getPortalBasePath } from "@/utils/portal-path";
 import {
   assignmentStatusLabel,
@@ -31,7 +26,6 @@ import {
 } from "@/utils/assignment.utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import {
@@ -81,36 +75,15 @@ export const AssignmentList: React.FC = () => {
   const basePath = getPortalBasePath(location.pathname);
   const assignmentsBase = `${basePath}/assignments`;
 
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [academicYearMasterId, setAcademicYearMasterId] = useState("");
-  const [assignmentTypeMasterId, setAssignmentTypeMasterId] = useState("");
-  const [assignedFrom, setAssignedFrom] = useState("");
-  const [assignedTo, setAssignedTo] = useState("");
   const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(10);
+  const limit = 10;
 
   const params = useMemo(
     () => ({
       page,
       limit,
-      ...(searchTerm.trim() ? { search: searchTerm.trim() } : {}),
-      ...(statusFilter !== "ALL" ? { status: statusFilter } : {}),
-      ...(academicYearMasterId ? { academicYearMasterId } : {}),
-      ...(assignmentTypeMasterId ? { assignmentTypeMasterId } : {}),
-      ...(assignedFrom ? { assignedFrom: new Date(assignedFrom).toISOString() } : {}),
-      ...(assignedTo ? { assignedTo: new Date(`${assignedTo}T23:59:59`).toISOString() } : {}),
     }),
-    [
-      page,
-      limit,
-      searchTerm,
-      statusFilter,
-      academicYearMasterId,
-      assignmentTypeMasterId,
-      assignedFrom,
-      assignedTo,
-    ]
+    [page, limit]
   );
 
   const { data, isLoading, isError, refetch } = useAssignments(params);
@@ -119,25 +92,6 @@ export const AssignmentList: React.FC = () => {
 
   const assignments = (data?.data || []) as Assignment[];
   const meta = data?.meta || { totalPages: 1, page: 1, total: 0 };
-
-  const hasActiveFilters = Boolean(
-    searchTerm.trim() ||
-    assignedFrom ||
-    assignedTo ||
-    academicYearMasterId ||
-    assignmentTypeMasterId ||
-    statusFilter !== "ALL"
-  );
-
-  const resetFilters = () => {
-    setSearchTerm("");
-    setAssignedFrom("");
-    setAssignedTo("");
-    setAcademicYearMasterId("");
-    setAssignmentTypeMasterId("");
-    setStatusFilter("ALL");
-    setPage(1);
-  };
 
   const handleCloseToggle = async (a: Assignment) => {
     const next = a.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
@@ -166,148 +120,7 @@ export const AssignmentList: React.FC = () => {
       </div>
 
       <Card className="border-border/50 shadow-sm">
-        <CardContent className="p-3.5 space-y-3">
-          <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
-            {/* Search Input */}
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-text-muted pointer-events-none" />
-              <Input
-                placeholder="Search by assignment title..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-9 pr-8 h-9 text-xs bg-background border-border/80 rounded-md"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => { setSearchTerm(""); setPage(1); }}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary p-0.5 rounded cursor-pointer"
-                  title="Clear search"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              )}
-            </div>
-
-            {/* Filter Controls Group */}
-            <div className="flex flex-wrap items-center gap-2">
-              {/* Date Range: From - To */}
-              <div className="flex items-center gap-1.5 bg-background border border-border/80 rounded-md px-2.5 h-9 text-xs shadow-2xs">
-                <Calendar className="h-3.5 w-3.5 text-text-muted shrink-0" />
-                <span className="text-text-muted text-[11px] font-medium">From:</span>
-                <input
-                  type="date"
-                  value={assignedFrom}
-                  onChange={(e) => {
-                    setAssignedFrom(e.target.value);
-                    setPage(1);
-                  }}
-                  className="bg-transparent text-xs text-text-primary focus:outline-none cursor-pointer"
-                  title="Assigned from date"
-                />
-                <span className="text-text-muted text-[11px] font-medium ml-1">To:</span>
-                <input
-                  type="date"
-                  value={assignedTo}
-                  onChange={(e) => {
-                    setAssignedTo(e.target.value);
-                    setPage(1);
-                  }}
-                  className="bg-transparent text-xs text-text-primary focus:outline-none cursor-pointer"
-                  title="Assigned to date"
-                />
-                {(assignedFrom || assignedTo) && (
-                  <button
-                    type="button"
-                    onClick={() => { setAssignedFrom(""); setAssignedTo(""); setPage(1); }}
-                    className="text-text-muted hover:text-text-primary ml-0.5 cursor-pointer p-0.5 rounded"
-                    title="Clear dates"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Academic Year */}
-              <div className="w-[130px]">
-                <MasterSelect
-                  entityType="academicyear"
-                  value={academicYearMasterId}
-                  onChange={(id) => {
-                    setAcademicYearMasterId(id);
-                    setPage(1);
-                  }}
-                  allowCreate={false}
-                  placeholder="Academic Year"
-                  className="!mt-0 !h-9 text-xs border-border/80"
-                />
-              </div>
-
-              {/* Assignment Type */}
-              <div className="w-[120px]">
-                <MasterSelect
-                  entityType="assignmenttype"
-                  value={assignmentTypeMasterId}
-                  onChange={(id) => {
-                    setAssignmentTypeMasterId(id);
-                    setPage(1);
-                  }}
-                  allowCreate={false}
-                  placeholder="All Types"
-                  className="!mt-0 !h-9 text-xs border-border/80"
-                />
-              </div>
-
-              {/* Status Select */}
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="h-9 px-2.5 border border-border/80 rounded-md text-xs bg-background text-text-primary focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
-              >
-                <option value="ALL">All Statuses</option>
-                <option value="ACTIVE">Active</option>
-                <option value="INACTIVE">Closed</option>
-              </select>
-
-              {/* Per Page */}
-              <select
-                value={limit}
-                onChange={(e) => {
-                  setLimit(Number(e.target.value));
-                  setPage(1);
-                }}
-                className="h-9 px-2 border border-border/80 rounded-md text-xs bg-background text-text-muted focus:outline-none focus:ring-1 focus:ring-ring cursor-pointer"
-                title="Rows per page"
-              >
-                {[10, 20, 50].map((n) => (
-                  <option key={n} value={n}>
-                    {n} / page
-                  </option>
-                ))}
-              </select>
-
-              {/* Reset Filters Button */}
-              {hasActiveFilters && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={resetFilters}
-                  className="h-9 px-2.5 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 gap-1 cursor-pointer font-medium"
-                  title="Reset all filters"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Reset
-                </Button>
-              )}
-            </div>
-          </div>
-
+        <CardContent className="p-3.5 space-y-4">
           <div className="rounded-lg border border-border shadow-xs bg-card w-full overflow-hidden">
             <Table className="w-full table-fixed border-collapse">
               <colgroup>
