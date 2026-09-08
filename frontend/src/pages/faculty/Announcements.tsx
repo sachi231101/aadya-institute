@@ -509,11 +509,10 @@ export const FacultyAnnouncements: React.FC = () => {
                               {item.title}
                             </h3>
                             <Badge
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
-                                isPublished
+                              className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${isPublished
                                   ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                                   : "bg-amber-50 text-amber-700 border-amber-200"
-                              }`}
+                                }`}
                             >
                               {item.status}
                             </Badge>
@@ -620,59 +619,59 @@ export const FacultyAnnouncements: React.FC = () => {
                   </div>
                 ) : (
                   <>
-                {/* 1. Select Course */}
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                    Select Course *
-                  </label>
-                  <select
-                    value={selectedCourse}
-                    onChange={(e) => {
-                      setSelectedCourse(e.target.value);
-                      const course = facultyCourseGroups.find((c) => c.name === e.target.value);
-                      if (course?.batches[0]) {
-                        setSelectedBatchId(course.batches[0].id);
-                      }
-                    }}
-                    disabled={loadingFacultyCourses || facultyCourseGroups.length === 0}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
-                  >
-                    {facultyCourseGroups.length === 0 ? (
-                      <option value="">
-                        {loadingFacultyCourses ? "Loading courses..." : "No assigned courses"}
-                      </option>
-                    ) : (
-                      facultyCourseGroups.map((course) => (
-                        <option key={course.id} value={course.name}>
-                          {course.name}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+                    {/* 1. Select Course */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Select Course *
+                      </label>
+                      <select
+                        value={selectedCourse}
+                        onChange={(e) => {
+                          setSelectedCourse(e.target.value);
+                          const course = facultyCourseGroups.find((c) => c.name === e.target.value);
+                          if (course?.batches[0]) {
+                            setSelectedBatchId(course.batches[0].id);
+                          }
+                        }}
+                        disabled={loadingFacultyCourses || facultyCourseGroups.length === 0}
+                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
+                      >
+                        {facultyCourseGroups.length === 0 ? (
+                          <option value="">
+                            {loadingFacultyCourses ? "Loading courses..." : "No assigned courses"}
+                          </option>
+                        ) : (
+                          facultyCourseGroups.map((course) => (
+                            <option key={course.id} value={course.name}>
+                              {course.name}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
 
-                {/* 2. Select Batch */}
-                <div>
-                  <label className="text-[11px] font-bold text-slate-700 block mb-1">
-                    Select Batch *
-                  </label>
-                  <select
-                    value={selectedBatchId}
-                    onChange={(e) => setSelectedBatchId(e.target.value)}
-                    disabled={currentCourseObj.batches.length === 0}
-                    className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
-                  >
-                    {currentCourseObj.batches.length === 0 ? (
-                      <option value="">No batches for this subject</option>
-                    ) : (
-                      currentCourseObj.batches.map((batch) => (
-                        <option key={batch.id} value={batch.id}>
-                          {batch.name} ({batch.studentCount} Students)
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
+                    {/* 2. Select Batch */}
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 block mb-1">
+                        Select Batch *
+                      </label>
+                      <select
+                        value={selectedBatchId}
+                        onChange={(e) => setSelectedBatchId(e.target.value)}
+                        disabled={currentCourseObj.batches.length === 0}
+                        className="w-full h-9 px-3 bg-slate-50 border border-slate-200/80 rounded-xl font-medium outline-none text-slate-800 focus:bg-white focus:border-[#1D4ED8] disabled:opacity-60"
+                      >
+                        {currentCourseObj.batches.length === 0 ? (
+                          <option value="">No batches for this subject</option>
+                        ) : (
+                          currentCourseObj.batches.map((batch) => (
+                            <option key={batch.id} value={batch.id}>
+                              {batch.name} ({batch.studentCount} Students)
+                            </option>
+                          ))
+                        )}
+                      </select>
+                    </div>
                   </>
                 )}
 
@@ -856,26 +855,25 @@ export const FacultyAnnouncements: React.FC = () => {
 
       {/* ─── MODAL: ANNOUNCEMENT FULL DETAILS VIEW ────────────────────────── */}
       <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
-        <DialogContent className="sm:max-w-lg bg-white rounded-3xl p-6 border-slate-200 shadow-2xl">
+        <DialogContent className="w-[92vw] sm:max-w-lg max-h-[85vh] overflow-y-auto bg-white rounded-3xl p-5 sm:p-6 border-slate-200 shadow-2xl">
           {selectedAnnouncement && (
             <>
-              <DialogHeader className="space-y-1">
-                <div className="flex items-center justify-between gap-2">
+              <DialogHeader className="space-y-1.5 text-left">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#1D4ED8] border border-blue-200 uppercase">
                     {selectedAnnouncement.type}
                   </span>
                   <Badge
-                    className={`text-[10px] font-bold ${
-                      selectedAnnouncement.status === "Published"
+                    className={`text-[10px] font-bold ${selectedAnnouncement.status === "Published"
                         ? "bg-emerald-50 text-emerald-700 border-emerald-200"
                         : "bg-amber-50 text-amber-700 border-amber-200"
-                    }`}
+                      }`}
                   >
                     {selectedAnnouncement.status}
                   </Badge>
                 </div>
 
-                <DialogTitle className="text-lg font-black text-slate-900 pt-1">
+                <DialogTitle className="text-base sm:text-lg font-black text-slate-900 pt-1 leading-snug">
                   {selectedAnnouncement.title}
                 </DialogTitle>
                 <DialogDescription className="text-xs text-slate-500 font-medium">
@@ -884,21 +882,21 @@ export const FacultyAnnouncements: React.FC = () => {
               </DialogHeader>
 
               {/* Message Body */}
-              <div className="my-3 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line">
+              <div className="my-2 p-4 bg-slate-50 rounded-2xl border border-slate-200/60 text-xs leading-relaxed text-slate-800 font-medium whitespace-pre-line max-h-56 overflow-y-auto">
                 {selectedAnnouncement.message}
               </div>
 
               {/* Attachment if present */}
               {selectedAnnouncement.attachmentName && (
-                <div className="p-2.5 px-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 font-semibold text-[#1D4ED8]">
-                    <Paperclip className="h-3.5 w-3.5" />
-                    <span>{selectedAnnouncement.attachmentName}</span>
-                    <span className="text-[10px] text-slate-400">
+                <div className="p-2.5 px-3 bg-blue-50/70 border border-blue-100 rounded-xl flex items-center justify-between text-xs flex-wrap gap-2">
+                  <div className="flex items-center gap-2 font-semibold text-[#1D4ED8] truncate">
+                    <Paperclip className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">{selectedAnnouncement.attachmentName}</span>
+                    <span className="text-[10px] text-slate-400 shrink-0">
                       ({selectedAnnouncement.attachmentSize})
                     </span>
                   </div>
-                  <Button variant="ghost" size="sm" className="h-7 text-xs text-[#1D4ED8] font-bold">
+                  <Button variant="ghost" size="sm" className="h-7 text-xs text-[#1D4ED8] font-bold shrink-0">
                     Download
                   </Button>
                 </div>
@@ -918,13 +916,12 @@ export const FacultyAnnouncements: React.FC = () => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Read by Students</span>
                   <p className="text-sm font-black text-emerald-600 mt-0.5">
                     {selectedAnnouncement.status === "Published"
-                      ? `${selectedAnnouncement.readCount} Students (${
-                          selectedAnnouncement.sentCount > 0
-                            ? Math.round(
-                                (selectedAnnouncement.readCount / selectedAnnouncement.sentCount) * 100
-                              )
-                            : 0
-                        }%)`
+                      ? `${selectedAnnouncement.readCount} Students (${selectedAnnouncement.sentCount > 0
+                        ? Math.round(
+                          (selectedAnnouncement.readCount / selectedAnnouncement.sentCount) * 100
+                        )
+                        : 0
+                      }%)`
                       : "0"}
                   </p>
                 </div>
@@ -934,7 +931,7 @@ export const FacultyAnnouncements: React.FC = () => {
               {selectedAnnouncement.readBy && selectedAnnouncement.readBy.length > 0 && (
                 <div className="mt-2 text-xs">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Read Log</span>
-                  <div className="mt-1 max-h-28 overflow-y-auto space-y-1">
+                  <div className="mt-1 max-h-28 overflow-y-auto space-y-1 pr-1">
                     {selectedAnnouncement.readBy.map((r, idx) => (
                       <div
                         key={idx}
@@ -952,7 +949,7 @@ export const FacultyAnnouncements: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={() => setIsDetailsModalOpen(false)}
-                  className="text-xs font-bold rounded-xl"
+                  className="w-full sm:w-auto text-xs font-bold rounded-xl"
                 >
                   Close
                 </Button>

@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   Users,
   Download,
@@ -54,13 +54,21 @@ import {
   Cell,
 } from "recharts";
 
-const PAGE_SIZE = 5;
+const PAGE_SIZE = 10;
 
 export const StudentReports: React.FC = () => {
   const { data, isLoading, isError, refetch } = useStudentReport();
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const analyticsRef = useRef<HTMLDivElement>(null);
+
+  const handleSelectStudent = (id: string) => {
+    setSelectedStudentId(id);
+    setTimeout(() => {
+      analyticsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 60);
+  };
 
   const enrollmentTrend = data?.enrollmentTrend || [];
   const attendanceDistribution = data?.attendanceDistribution || [];
@@ -296,19 +304,37 @@ export const StudentReports: React.FC = () => {
   }
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-slate-900">Student Analytics & Reports</h2>
-          <p className="text-sm text-slate-500">
-            Monitor student enrollment, attendance performance, and discontinuation risk metrics.
-          </p>
+    <div className="space-y-4 pb-10">
+      {/* ─── 1. PAGE HEADER WITH SEARCH BAR ───────────────────────────── */}
+      <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
+          <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 shrink-0">
+            Student Analytics & Reports
+          </h2>
+
+          <div className="relative w-full sm:max-w-md min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Search student by name, roll no, or student ID..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9 pr-8 h-9 text-xs sm:text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-[#2563EB]"
+            />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
 
         <Button
           variant="outline"
-          className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm"
+          className="bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm shrink-0 h-9 text-xs sm:text-sm self-start md:self-auto"
           onClick={handleExport}
         >
           <Download className="mr-2 h-4 w-4 text-[#2563EB]" />
@@ -316,27 +342,7 @@ export const StudentReports: React.FC = () => {
         </Button>
       </div>
 
-      {/* ─── 2. STUDENT SEARCH BAR ────────────────────────────────────── */}
-      <div className="relative w-full max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <Input
-          placeholder="Search student by name, roll no, or student ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 pr-8 h-10 text-sm bg-white border-slate-200 shadow-sm rounded-lg focus-visible:ring-1 focus-visible:ring-[#2563EB]"
-        />
-        {searchTerm && (
-          <button
-            type="button"
-            onClick={() => setSearchTerm("")}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full hover:bg-slate-100 transition-colors"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        )}
-      </div>
-
-      {/* ─── 3. STUDENT DIRECTORY TABLE & PAGINATION ────────────────────── */}
+      {/* ─── 2. STUDENT DIRECTORY TABLE & PAGINATION ────────────────────── */}
       <Card className="border-border/60 bg-white shadow-sm w-full overflow-hidden">
         <CardContent className="p-0">
           <div className="overflow-x-auto">
@@ -359,7 +365,7 @@ export const StudentReports: React.FC = () => {
                     return (
                       <TableRow
                         key={student.id}
-                        onClick={() => setSelectedStudentId(student.id)}
+                        onClick={() => handleSelectStudent(student.id)}
                         className={`cursor-pointer transition-colors border-b border-slate-100 ${isSelected
                           ? "bg-blue-50/80 border-l-4 border-l-[#2563EB] font-medium"
                           : "hover:bg-slate-50/90"
@@ -492,7 +498,7 @@ export const StudentReports: React.FC = () => {
 
       {/* ─── 4. SELECTED STUDENT PROFILE & 4-COLUMN COMPACT ANALYTICS ────── */}
       {studentAnalytics ? (
-        <div className="space-y-4 animate-in fade-in-50 duration-200">
+        <div ref={analyticsRef} className="space-y-4 animate-in fade-in-50 duration-200">
           {/* Selected Student Compact Header */}
           <div className="px-4 py-3 bg-white border border-slate-200/90 rounded-xl shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
             <div className="flex items-center gap-3">

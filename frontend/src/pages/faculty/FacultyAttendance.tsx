@@ -16,7 +16,6 @@ import {
   CalendarDays,
   FileSpreadsheet,
   Building2,
-  UserCheck,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -432,18 +431,9 @@ export const FacultyAttendance: React.FC = () => {
       {/* ─── Breadcrumb & Header ────────────────────────────────────────── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-border/40 pb-4">
         <div>
-          <div className="flex items-center gap-2 text-xs font-semibold tracking-wider text-muted-foreground uppercase mb-1">
-            <span>Faculty Portal</span>
-            <span>•</span>
-            <span className="text-primary font-bold">Attendance</span>
-          </div>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2.5">
-            <UserCheck className="w-7 h-7 text-indigo-600 dark:text-indigo-400" />
+          <h1 className="text-2xl md:text-3xl font-extrabold text-foreground tracking-tight">
             Faculty Attendance
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            View your attendance, working hours, and attendance history.
-          </p>
         </div>
 
         {/* Month Navigator & Today shortcut */}
@@ -485,32 +475,23 @@ export const FacultyAttendance: React.FC = () => {
         </div>
       </div>
 
-      {/* ─── Read-Only Information Alert Callout ────────────────────────── */}
-      <div className="flex items-center gap-3 p-3.5 bg-blue-50/80 dark:bg-blue-950/30 border border-blue-200/80 dark:border-blue-900/60 rounded-xl text-xs md:text-sm text-blue-900 dark:text-blue-200 shadow-xs">
-        <Info className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0" />
-        <div className="flex-1 leading-relaxed">
-          <span className="font-bold">Managed Record: </span>
-          Attendance is managed by Admin, Counsellor, or Center Manager. Faculty members can view their attendance records here. If you find any discrepancy, please contact your center management.
-        </div>
-      </div>
-
       {/* ─── Summary Cards (Present, Absent, Leave, Attendance %, Working Hours) ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3.5">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         {/* 1. PRESENT */}
         <Card className="border border-emerald-200/80 dark:border-emerald-900/50 bg-emerald-50/40 dark:bg-emerald-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
-              <CheckCircle2 className="w-6 h-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/30">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-emerald-800 dark:text-emerald-400 uppercase tracking-wider">
                 Present
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900 dark:text-slate-50">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
                   {summary.presentCount + (summary.halfDayCount > 0 ? ` (+${summary.halfDayCount} HD)` : "")}
                 </span>
-                <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                   {summary.workingDays > 0 ? `${Math.round((summary.presentCount / summary.workingDays) * 100)}%` : "0%"}
                 </span>
               </div>
@@ -520,19 +501,19 @@ export const FacultyAttendance: React.FC = () => {
 
         {/* 2. ABSENT */}
         <Card className="border border-rose-200/80 dark:border-rose-900/50 bg-rose-50/40 dark:bg-rose-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-500/30">
-              <XCircle className="w-6 h-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-rose-500/30">
+              <XCircle className="w-5 h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-rose-800 dark:text-rose-400 uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-rose-800 dark:text-rose-400 uppercase tracking-wider">
                 Absent
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900 dark:text-slate-50">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
                   {summary.absentCount}
                 </span>
-                <span className="text-xs font-semibold text-rose-700 dark:text-rose-400">
+                <span className="text-[11px] font-semibold text-rose-700 dark:text-rose-400">
                   {summary.workingDays > 0 ? `${Math.round((summary.absentCount / summary.workingDays) * 100)}%` : "0%"}
                 </span>
               </div>
@@ -542,19 +523,19 @@ export const FacultyAttendance: React.FC = () => {
 
         {/* 3. LEAVE */}
         <Card className="border border-amber-200/80 dark:border-amber-900/50 bg-amber-50/40 dark:bg-amber-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">
-              <Clock className="w-6 h-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-amber-500/30">
+              <Clock className="w-5 h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-amber-800 dark:text-amber-400 uppercase tracking-wider">
                 Leave
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900 dark:text-slate-50">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
                   {summary.leaveCount}
                 </span>
-                <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+                <span className="text-[11px] font-semibold text-amber-700 dark:text-amber-400">
                   {summary.workingDays > 0 ? `${Math.round((summary.leaveCount / summary.workingDays) * 100)}%` : "0%"}
                 </span>
               </div>
@@ -564,19 +545,19 @@ export const FacultyAttendance: React.FC = () => {
 
         {/* 4. ATTENDANCE % */}
         <Card className="border border-indigo-200/80 dark:border-indigo-900/50 bg-indigo-50/40 dark:bg-indigo-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
-              <TrendingUp className="w-6 h-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-indigo-600/30">
+              <TrendingUp className="w-5 h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-indigo-800 dark:text-indigo-400 uppercase tracking-wider">
                 Attendance %
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-900 dark:text-slate-50">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-xl font-black text-slate-900 dark:text-slate-50">
                   {summary.attendancePercentage}%
                 </span>
-                <span className="text-[11px] font-medium text-indigo-700 dark:text-indigo-400 truncate">
+                <span className="text-[10.5px] font-medium text-indigo-700 dark:text-indigo-400 truncate">
                   {summary.workingDays} days
                 </span>
               </div>
@@ -586,130 +567,25 @@ export const FacultyAttendance: React.FC = () => {
 
         {/* 5. WORKING HOURS */}
         <Card className="col-span-2 md:col-span-1 border border-cyan-200/80 dark:border-cyan-900/50 bg-cyan-50/40 dark:bg-cyan-950/20 shadow-xs hover:shadow-sm transition-all rounded-2xl">
-          <CardContent className="p-4 flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-cyan-600/30">
-              <Briefcase className="w-6 h-6" />
+          <CardContent className="p-3.5 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-cyan-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-cyan-600/30">
+              <Briefcase className="w-5 h-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-cyan-800 dark:text-cyan-400 uppercase tracking-wider">
+              <div className="text-[10px] font-bold text-cyan-800 dark:text-cyan-400 uppercase tracking-wider">
                 Working Hours
               </div>
-              <div className="flex items-baseline gap-2">
-                <span className="text-xl font-black text-slate-900 dark:text-slate-50 truncate">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-lg font-black text-slate-900 dark:text-slate-50 truncate">
                   {summary.totalHoursStr}
                 </span>
               </div>
-              <div className="text-[10px] text-muted-foreground truncate">
+              <div className="text-[9.5px] text-muted-foreground truncate">
                 Avg: {summary.avgHoursStr}
               </div>
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* ─── Filter Section (Today, This Week, This Month, Custom Date Range, Search) ── */}
-      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-card border border-border/60 rounded-2xl p-3 shadow-xs">
-        {/* Period Filter Buttons */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
-          <Button
-            type="button"
-            variant={timeFilter === "TODAY" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTimeFilter("TODAY")}
-            className="rounded-xl text-xs font-semibold px-3.5 h-8.5"
-          >
-            Today
-          </Button>
-          <Button
-            type="button"
-            variant={timeFilter === "THIS_WEEK" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTimeFilter("THIS_WEEK")}
-            className="rounded-xl text-xs font-semibold px-3.5 h-8.5"
-          >
-            This Week
-          </Button>
-          <Button
-            type="button"
-            variant={timeFilter === "THIS_MONTH" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTimeFilter("THIS_MONTH")}
-            className="rounded-xl text-xs font-semibold px-3.5 h-8.5"
-          >
-            This Month
-          </Button>
-          <Button
-            type="button"
-            variant={timeFilter === "ALL" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => setTimeFilter("ALL")}
-            className="rounded-xl text-xs font-semibold px-3.5 h-8.5"
-          >
-            All Records
-          </Button>
-        </div>
-
-        {/* Status Dropdown & Search & View Mode */}
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Status filter */}
-          <select
-            value={statusFilter}
-            aria-label="Filter records by status"
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-8.5 text-xs font-medium bg-background border border-border/70 rounded-xl px-3 focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-          >
-            <option value="ALL">All Statuses</option>
-            <option value="PRESENT">Present Only</option>
-            <option value="ABSENT">Absent Only</option>
-            <option value="LEAVE">Leave Only</option>
-            <option value="WEEKLY_OFF">Weekly Off</option>
-            <option value="HALF_DAY">Half Day</option>
-            <option value="HOLIDAY">Holidays</option>
-          </select>
-
-          {/* Search Input */}
-          <div className="relative flex-1 sm:w-56">
-            <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              type="text"
-              placeholder="Search date, remarks..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8.5 pl-8 text-xs rounded-xl border-border/70 bg-background"
-            />
-          </div>
-
-          {/* View Toggle */}
-          <div className="hidden sm:flex items-center border border-border/60 rounded-xl p-0.5 bg-muted/40">
-            <button
-              type="button"
-              onClick={() => setViewMode("UNIFIED")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                viewMode === "UNIFIED" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Unified
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("CALENDAR")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                viewMode === "CALENDAR" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Calendar
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode("TABLE")}
-              className={`px-2.5 py-1 text-xs font-semibold rounded-lg transition-colors ${
-                viewMode === "TABLE" ? "bg-card text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Table
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* ─── Calendar & Month Breakdown Grid ────────────────────────────── */}
