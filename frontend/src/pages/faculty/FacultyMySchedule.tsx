@@ -18,6 +18,7 @@ import {
   UserCheck,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuthStore } from "@/store/auth.store";
@@ -429,7 +430,7 @@ export const FacultyMySchedule: React.FC = () => {
   }, [weekDays, currentWeekMonday]);
 
   return (
-    <div className="p-4 md:p-6 lg:p-8 space-y-6 max-w-[1680px] mx-auto min-h-screen bg-slate-50/50 dark:bg-slate-950/40">
+    <PageContainer className="bg-slate-50/50 dark:bg-slate-950/40">
       {/* ─── Top Header Banner ─── */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -1231,6 +1232,6 @@ export const FacultyMySchedule: React.FC = () => {
           }}
         />
       )}
-    </div>
+    </PageContainer>
   );
 };
