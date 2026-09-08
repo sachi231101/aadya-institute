@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Search, Plus, Loader2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Button } from "@/components/ui/button";
 import { useBranchStore } from "@/store/branch.store";
 import { useBranches } from "@/hooks/useBranches";
@@ -112,7 +113,7 @@ export const AllFaculty: React.FC = () => {
   const isLoading = isListLoading;
 
   return (
-    <div className="p-6 max-w-[1600px] mx-auto min-h-screen relative overflow-x-hidden space-y-6 animate-in fade-in duration-300">
+    <PageContainer className="relative overflow-x-hidden animate-in fade-in duration-300">
       {/* ─── FACULTY DIRECTORY CONTENT ─── */}
       <div className="w-full space-y-6">
 
@@ -295,6 +296,6 @@ export const AllFaculty: React.FC = () => {
           </div>
         </Card>
       </div>
-    </div>
+    </PageContainer>
   );
 };

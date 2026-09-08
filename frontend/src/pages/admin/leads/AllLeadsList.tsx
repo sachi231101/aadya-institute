@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Search, Plus, Loader2, AlertCircle, Users, LayoutList, Columns3 } from "lucide-react";
 import { useLeads } from "@/hooks/useLeads";
@@ -37,18 +37,14 @@ export const AllLeadsList: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilter, setStageFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ACTIVE");
-  const [sourceFilter, setSourceFilter] = useState("ALL");
-  const [sourceMasterId, setSourceMasterId] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
   const [stageMasterId, setStageMasterId] = useState("");
   const [counsellorFilter, setCounsellorFilter] = useState("ALL");
-  const [priorityFilter, setPriorityFilter] = useState("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<ViewMode>("list");
 
   const { options: stageOptions } = useMasterDropdown("leadstage");
-  const { options: sourceOptions } = useMasterDropdown("leadsource");
   const { data: usersData } = useAdminUsers({ role: "COUNSELLOR", limit: 100 });
   const { data: branchesResponse } = useBranches({ limit: 100 });
   const counsellors = (usersData?.data ?? []) as { id: string; name: string }[];
@@ -56,9 +52,15 @@ export const AllLeadsList: React.FC = () => {
 
   const stagePipeline = useMemo(() => {
     if (stageOptions.length > 0) {
-      return stageOptions.map((opt) => opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"));
+      return stageOptions.map((opt) => ({
+        key: opt.code || opt.label.toUpperCase().replace(/\s+/g, "_"),
+        label: opt.label,
+      }));
     }
-    return [...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"];
+    return [...DEFAULT_LEAD_STAGE_PIPELINE, "LOST"].map((s) => ({
+      key: s,
+      label: s.replace(/_/g, " "),
+    }));
   }, [stageOptions]);
 
   const { data, isLoading, isError, refetch } = useLeads({
@@ -67,9 +69,7 @@ export const AllLeadsList: React.FC = () => {
     search: searchTerm || undefined,
     stage: stageFilter !== "ALL" ? stageFilter : undefined,
     status: statusFilter !== "ALL" ? statusFilter : undefined,
-    source: sourceFilter !== "ALL" ? sourceFilter : undefined,
     assignedCounsellorId: counsellorFilter !== "ALL" ? counsellorFilter : undefined,
-    priority: priorityFilter !== "ALL" ? priorityFilter : undefined,
     branchId: isAdmin && branchFilter !== "ALL" ? branchFilter : undefined,
   });
 
@@ -87,60 +87,62 @@ export const AllLeadsList: React.FC = () => {
       <ReadOnlyBanner itemKey="leads.all" label="All Leads" />
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">All Leads</h2>
-          <p className="text-sm text-text-secondary">
-            AI call first, then assign a counsellor. Convert when they are ready to join.
-          </p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">All Leads</h2>
         </div>
-        <div className="flex gap-2">
-          <div className="flex rounded-md border overflow-hidden">
+        <div className="flex items-center gap-2.5">
+          <div className="flex rounded-xl border border-border bg-muted/40 p-0.5 overflow-hidden shadow-xs">
             <Button
               type="button"
               variant={view === "list" ? "default" : "ghost"}
               size="sm"
-              className="rounded-none"
+              className={`rounded-lg text-xs font-bold h-8 px-3 transition-all ${
+                view === "list" ? "bg-white dark:bg-slate-800 text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
               onClick={() => setView("list")}
             >
-              <LayoutList className="h-4 w-4 mr-1" /> List
+              <LayoutList className="h-3.5 w-3.5 mr-1.5" /> List
             </Button>
             <Button
               type="button"
               variant={view === "kanban" ? "default" : "ghost"}
               size="sm"
-              className="rounded-none"
+              className={`rounded-lg text-xs font-bold h-8 px-3 transition-all ${
+                view === "kanban" ? "bg-white dark:bg-slate-800 text-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+              }`}
               onClick={() => setView("kanban")}
             >
-              <Columns3 className="h-4 w-4 mr-1" /> Pipeline
+              <Columns3 className="h-3.5 w-3.5 mr-1.5" /> Pipeline
             </Button>
           </div>
           <PermissionGate itemKey="leads.all" mode="write">
             <Button
-              className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
+              className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
               onClick={() => navigate(`${basePath}/leads/${basePath === "/admin" ? "new" : "add"}`)}
             >
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus className="h-4 w-4" />
               Add Lead
             </Button>
           </PermissionGate>
         </div>
       </div>
 
-      <Card className="border-border/50 shadow-sm">
+      <Card className="border-border/60 shadow-xs rounded-2xl">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col lg:flex-row gap-3 flex-wrap">
-            <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+          <div className="flex flex-col sm:flex-row items-center gap-3">
+            <div className="relative flex-1 w-full min-w-[200px]">
+              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search by name, phone, email..."
                 value={searchTerm}
                 onChange={(e) => { setSearchTerm(e.target.value); setPage(1); }}
-                className="pl-9"
+                className="pl-9 h-10 rounded-xl bg-background border-border"
               />
             </div>
-            <div className="min-w-[160px]">
+            <div className="w-full sm:w-[170px]">
               <MasterSelect
                 entityType="leadstage"
                 value={stageMasterId}
+                allowCreate={false}
                 onChange={(id) => {
                   setStageMasterId(id);
                   setPage(1);
@@ -156,58 +158,20 @@ export const AllLeadsList: React.FC = () => {
               />
             </div>
             <select
-              value={statusFilter}
-              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
-            >
-              <option value="ALL">All Statuses</option>
-              <option value="ACTIVE">Active</option>
-              <option value="CONVERTED">Converted</option>
-              <option value="LOST">Lost</option>
-            </select>
-            <div className="min-w-[160px]">
-              <MasterSelect
-                entityType="leadsource"
-                value={sourceMasterId}
-                onChange={(id) => {
-                  setSourceMasterId(id);
-                  setPage(1);
-                  if (!id) {
-                    setSourceFilter("ALL");
-                    return;
-                  }
-                  const opt = sourceOptions.find((o) => o.value === id);
-                  setSourceFilter(opt?.code || opt?.label || id);
-                }}
-                placeholder="All Sources"
-                className="mt-0"
-              />
-            </div>
-            <select
               value={counsellorFilter}
               onChange={(e) => { setCounsellorFilter(e.target.value); setPage(1); }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
+              className="h-10 px-3 border border-border rounded-xl text-xs sm:text-sm bg-card font-medium text-foreground cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
             >
               <option value="ALL">All Counsellors</option>
               {counsellors.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            <select
-              value={priorityFilter}
-              onChange={(e) => { setPriorityFilter(e.target.value); setPage(1); }}
-              className="h-10 px-3 border rounded-md text-sm bg-background"
-            >
-              <option value="ALL">All Priorities</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
             {isAdmin && (
               <select
                 value={branchFilter}
                 onChange={(e) => { setBranchFilter(e.target.value); setPage(1); }}
-                className="h-10 px-3 border rounded-md text-sm bg-background"
+                className="h-10 px-3 border border-border rounded-xl text-xs sm:text-sm bg-card font-medium text-foreground cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
               >
                 <option value="ALL">All Branches</option>
                 {branches.map((b: { id: string; name: string }) => (
@@ -218,7 +182,7 @@ export const AllLeadsList: React.FC = () => {
           </div>
 
           {isLoading ? (
-            <div className="text-center py-12 text-text-secondary">
+            <div className="text-center py-12 text-muted-foreground">
               <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
               Loading leads...
             </div>
@@ -230,28 +194,28 @@ export const AllLeadsList: React.FC = () => {
             </div>
           ) : view === "kanban" ? (
             <div className="flex gap-3 overflow-x-auto pb-2">
-              {stagePipeline.map((stage) => {
+              {stagePipeline.map(({ key: stage, label }) => {
                 const columnLeads = leads.filter((l) => l.stage === stage);
                 return (
-                  <div key={stage} className="min-w-[240px] w-[240px] shrink-0 rounded-lg bg-slate-50 dark:bg-slate-900/40 border p-3">
+                  <div key={stage} className="min-w-[250px] w-[250px] shrink-0 rounded-2xl bg-muted/20 border border-border p-3.5 shadow-xs flex flex-col">
                     <div className="flex items-center justify-between mb-3">
-                      <LeadStageBadge stage={stage} />
-                      <span className="text-xs text-text-muted">{columnLeads.length}</span>
+                      <LeadStageBadge stage={stage} label={label} />
+                      <span className="text-xs font-bold text-muted-foreground">{columnLeads.length}</span>
                     </div>
-                    <div className="space-y-2 max-h-[70vh] overflow-y-auto">
+                    <div className="space-y-2.5 max-h-[70vh] overflow-y-auto">
                       {columnLeads.length === 0 ? (
-                        <p className="text-xs text-text-muted py-6 text-center">No leads</p>
+                        <p className="text-xs text-muted-foreground py-8 text-center font-medium">No leads</p>
                       ) : columnLeads.map((lead) => (
                         <button
                           key={lead.id}
                           type="button"
                           onClick={() => openLead(lead.id)}
-                          className="w-full text-left rounded-md border bg-white dark:bg-slate-950 p-3 hover:border-[#2563EB] transition-colors"
+                          className="w-full text-left rounded-xl border border-border bg-card p-3 hover:border-primary/60 hover:shadow-xs transition-all cursor-pointer"
                         >
-                          <p className="font-semibold text-sm">{lead.name}</p>
-                          <p className="text-xs text-text-secondary mt-0.5">{lead.phoneNumber}</p>
-                          <p className="text-xs text-text-muted mt-1">{lead.course?.name || lead.interestedIn}</p>
-                          <p className="text-[11px] text-text-muted mt-1">
+                          <p className="font-bold text-sm text-foreground">{lead.name}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{lead.phoneNumber}</p>
+                          <p className="text-xs text-muted-foreground mt-1 font-medium">{lead.course?.name || lead.interestedIn}</p>
+                          <p className="text-[11px] text-muted-foreground mt-1">
                             {lead.assignedCounsellor?.name || "Unassigned"}
                           </p>
                         </button>
@@ -293,9 +257,12 @@ export const AllLeadsList: React.FC = () => {
                         >
                           <TableCell className="font-medium">{lead.name}</TableCell>
                           <TableCell>{lead.phoneNumber}</TableCell>
-                          <TableCell>{lead.course?.name || lead.interestedIn || "—"}</TableCell>
-                          <TableCell><LeadStageBadge stage={lead.stage} /></TableCell>
-                          <TableCell>{lead.source}</TableCell>
+                          <TableCell>
+                            <LeadStageBadge
+                              stage={lead.stage}
+                              label={stageOptions.find((o) => o.code === lead.stage || o.value === lead.stage)?.label}
+                            />
+                          </TableCell>
                           <TableCell>{lead.assignedCounsellor?.name || "Unassigned"}</TableCell>
                           <TableCell className="text-sm text-text-secondary">
                             {new Date(lead.createdAt).toLocaleDateString("en-IN")}
