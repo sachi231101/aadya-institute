@@ -420,7 +420,7 @@ export const StudentLayout: React.FC = () => {
       {/* ── Main Layout Body & Header ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="h-12 bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] border-b border-[#334155] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
+        <header className="sticky top-0 z-30 h-12 bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] border-b border-[#334155] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 shadow-md">
           {/* Hamburger + Greeting */}
           <div className="flex items-center gap-2">
             <button

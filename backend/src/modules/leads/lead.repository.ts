@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import type { Prisma, LeadStatus, LeadLostReason } from "@prisma/client";
 import { LeadActivityService } from "./services/lead-activity.service";
+import { normalizePhoneDigits } from "./services/lead-enquiry-sync.service";
 
 export interface LeadFindManyParams {
   instituteId: string;
@@ -51,11 +52,15 @@ export const leadInclude = {
 
 export const LeadRepository = {
   async findActiveLeadByPhone(phoneNumber: string, instituteId: string) {
+    const normalizedPhone = normalizePhoneDigits(phoneNumber);
     return prisma.lead.findFirst({
       where: {
-        phoneNumber,
         instituteId,
         status: "ACTIVE",
+        OR: [
+          ...(normalizedPhone ? [{ normalizedPhone }] : []),
+          { phoneNumber },
+        ],
       },
       include: {
         assignedCounsellor: { select: { id: true, name: true } },
@@ -81,6 +86,7 @@ export const LeadRepository = {
     notes?: string;
     createdById: string;
     assignedCounsellorId?: string;
+    importJobId?: string | null;
   }) {
     const {
       instituteId,
@@ -99,7 +105,10 @@ export const LeadRepository = {
       notes,
       createdById,
       assignedCounsellorId,
+      importJobId,
     } = params;
+
+    const normalizedPhone = normalizePhoneDigits(phoneNumber) || null;
 
     return prisma.$transaction(async (tx) => {
       // 1. Create Lead
@@ -107,8 +116,10 @@ export const LeadRepository = {
         data: {
           instituteId,
           branchId,
+          importJobId: importJobId ?? null,
           name,
           phoneNumber,
+          normalizedPhone,
           email: email ?? null,
           interestedIn,
           courseId: courseId ?? null,
@@ -516,6 +527,7 @@ export const LeadRepository = {
 
     const branchFilter = branchId ? { branchId } : {};
     const where: Prisma.CallLogWhereInput = {
+      instituteId,
       ...(status ? { status } : {}),
     };
 
@@ -525,10 +537,11 @@ export const LeadRepository = {
     } else if (studentId) {
       where.studentId = studentId;
       where.student = { instituteId, ...branchFilter };
-    } else {
+    } else if (branchId) {
       where.OR = [
-        { lead: { instituteId, ...branchFilter } },
-        { student: { instituteId, ...branchFilter } },
+        { branchId },
+        { lead: { instituteId, branchId } },
+        { student: { instituteId, branchId } },
       ];
     }
 
