@@ -237,6 +237,7 @@ const data = {
         { title: "Masters", url: A.ADMINISTRATION.MASTERS },
         { title: "Security", url: A.ADMINISTRATION.SECURITY },
         { title: "Integrations", url: A.ADMINISTRATION.INTEGRATIONS },
+        { title: "AI Calling Platform", url: A.ADMINISTRATION.AI_CALLING_PLATFORM },
         { title: "My Subscription", url: A.ADMINISTRATION.BILLING },
         { title: "Data Management", url: A.ADMINISTRATION.DATA_MANAGEMENT },
         { title: "Audit Logs", url: A.ADMINISTRATION.AUDIT_LOGS },

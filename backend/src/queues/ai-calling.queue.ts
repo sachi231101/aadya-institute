@@ -1,12 +1,16 @@
 import { createQueue, createWorker } from "./queue";
-import { initiateCall } from "../integrations/telephony/telephony.client";
+import type { AiCallingJobPayload } from "../modules/ai-calling/ai-calling.types";
+import { logger } from "../config/logger";
 
-export interface AICallingJob {
-  to: string;
-  from: string;
-  callbackUrl: string;
+/** Legacy shape kept for type compatibility; worker only processes callLogId jobs. */
+export interface AICallingJob extends Partial<AiCallingJobPayload> {
+  to?: string;
+  from?: string;
+  callbackUrl?: string;
   studentId?: string;
   leadId?: string;
+  callLogId?: string;
+  instituteId?: string;
 }
 
 export const aiCallingQueue = createQueue("ai-calling");
@@ -14,19 +18,21 @@ export const aiCallingQueue = createQueue("ai-calling");
 export const aiCallingWorker = createWorker<AICallingJob>(
   "ai-calling",
   async (job) => {
-    if (job.data.leadId) {
-      const { processQueuedLeadCall } = await import(
-        "../modules/leads/services/lead-ai-call.service"
+    const { callLogId, leadId, instituteId } = job.data;
+
+    if (callLogId && leadId && instituteId) {
+      const { AiCallingService } = await import(
+        "../modules/ai-calling/ai-calling.service"
       );
-      await processQueuedLeadCall(job.data.leadId);
+      await AiCallingService.processCallJob({ callLogId, leadId, instituteId });
       return;
     }
 
-    await initiateCall({
-      to: job.data.to,
-      from: job.data.from,
-      callbackUrl: job.data.callbackUrl,
-    });
+    // Legacy jobs without CallLog context are no longer dialed (cross-tenant risk).
+    logger.warn(
+      { jobData: job.data },
+      "[ai-calling.queue] Ignoring legacy job without callLogId/instituteId"
+    );
   },
   { concurrency: 3, peakConcurrency: 1, pauseInPeakMode: true }
 );
