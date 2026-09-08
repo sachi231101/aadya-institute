@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowLeft, Search, Video, Calendar, Clock,
@@ -77,7 +77,7 @@ export const FacultyRecordings: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#2563EB] mb-2"
+            className="inline-flex md:hidden items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#2563EB] mb-2"
           >
             <ArrowLeft className="w-4 h-4" /> Back
           </button>

@@ -5,12 +5,12 @@ import {
   Clock,
   MapPin,
   Users,
-  Search,
   ChevronLeft,
   ChevronRight,
   BookOpen,
   CheckCircle2,
   FileText,
+  Loader2,
   RefreshCw,
   CalendarDays,
   Video,
@@ -20,7 +20,6 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
@@ -140,10 +139,6 @@ export const FacultyMySchedule: React.FC = () => {
   const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
 
   // Filters State
-  const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
-  const [selectedBatch, setSelectedBatch] = useState<string>("ALL");
-  const [selectedMode, setSelectedMode] = useState<string>("ALL");
-  const [searchQuery, setSearchQuery] = useState<string>("");
   const [viewMode, setViewMode] = useState<"TIMETABLE" | "LIST">("TIMETABLE");
 
   // Selected Class in bottom details pane
@@ -337,44 +332,8 @@ export const FacultyMySchedule: React.FC = () => {
     return Array.from(map.values());
   }, [weekDays, sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, facultyId]);
 
-  // Extract filter option lists
-  const coursesList = useMemo(() => {
-    const set = new Set<string>();
-    assignedClasses.forEach((c) => {
-      if (c.courseName) set.add(c.courseName);
-    });
-    return Array.from(set);
-  }, [assignedClasses]);
-
-  const batchesList = useMemo(() => {
-    const set = new Set<string>();
-    assignedClasses.forEach((c) => {
-      if (c.batchCode) set.add(c.batchCode);
-    });
-    return Array.from(set);
-  }, [assignedClasses]);
-
-  // Filtered assigned classes
-  const filteredClasses = useMemo(() => {
-    return assignedClasses.filter((c) => {
-      if (selectedCourse !== "ALL" && c.courseName !== selectedCourse) return false;
-      if (selectedBatch !== "ALL" && c.batchCode !== selectedBatch) return false;
-      if (selectedMode !== "ALL" && c.mode !== selectedMode) return false;
-
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchTitle = c.title.toLowerCase().includes(q);
-        const matchCourse = c.courseName.toLowerCase().includes(q);
-        const matchSubject = c.subjectName.toLowerCase().includes(q);
-        const matchBatch = c.batchCode.toLowerCase().includes(q) || c.batchName.toLowerCase().includes(q);
-        const matchRoom = c.roomNo.toLowerCase().includes(q);
-        if (!matchTitle && !matchCourse && !matchSubject && !matchBatch && !matchRoom) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [assignedClasses, selectedCourse, selectedBatch, selectedMode, searchQuery]);
+  // Filtered assigned classes (direct alias to assignedClasses)
+  const filteredClasses = assignedClasses;
 
   // Today Classes
   const todayClasses = useMemo(() => {
@@ -547,106 +506,9 @@ export const FacultyMySchedule: React.FC = () => {
               Class List
             </button>
           </div>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              refetchSessions();
-              refetchDash();
-            }}
-            className="rounded-2xl h-9 text-xs font-bold bg-white dark:bg-slate-900 border-slate-200 shadow-xs"
-          >
-            <RefreshCw className="w-3.5 h-3.5 mr-1.5 text-slate-500" /> Refresh
-          </Button>
         </div>
       </div>
 
-      {/* ─── Filters & Legend Bar ─── */}
-      <Card className="border-slate-200 dark:border-slate-800 shadow-xs rounded-2xl bg-white dark:bg-slate-900 overflow-hidden">
-        <CardContent className="p-3.5">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-            {/* Filter Controls */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 flex-1">
-              {/* Search Input */}
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                <Input
-                  placeholder="Search course, module, batch..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 text-xs rounded-xl bg-slate-50/70 border-slate-200 dark:bg-slate-800"
-                />
-              </div>
-
-              {/* Course Filter */}
-              <div>
-                <select
-                  value={selectedCourse}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Assigned Courses</option>
-                  {coursesList.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Batch Filter */}
-              <div>
-                <select
-                  value={selectedBatch}
-                  onChange={(e) => setSelectedBatch(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Batches</option>
-                  {batchesList.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Mode Filter */}
-              <div>
-                <select
-                  value={selectedMode}
-                  onChange={(e) => setSelectedMode(e.target.value)}
-                  className="w-full h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800 text-xs text-slate-800 dark:text-slate-200 font-semibold focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20"
-                >
-                  <option value="ALL">All Modes (Offline / Online)</option>
-                  <option value="OFFLINE">Offline / Classroom</option>
-                  <option value="ONLINE">Online / Virtual</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Status Legend */}
-            <div className="flex items-center gap-4 text-xs font-bold text-slate-600 dark:text-slate-300 shrink-0 self-start lg:self-center">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>Live Now</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-600" />
-                <span>Upcoming</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
-                <span>Completed</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                <span>Cancelled</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* ─── Main Timetable Grid / List Display ─── */}
       {viewMode === "TIMETABLE" ? (
@@ -678,6 +540,26 @@ export const FacultyMySchedule: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                 {weekDays.map((day) => {
+                  // Sunday: Single light red box with Date
+                  if (day.dayShort === "SUN" || day.date.getDay() === 0) {
+                    return (
+                      <tr
+                        key={day.iso}
+                        className="transition-colors h-[54px] bg-rose-50/30 dark:bg-rose-950/10"
+                      >
+                        <td
+                          colSpan={FULL_TIME_SLOTS.length + 1}
+                          className="p-2.5 text-center align-middle"
+                        >
+                          <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-black shadow-2xs">
+                            <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                            <span>Sunday – {day.formattedDate}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   const dayClasses = filteredClasses.filter((c) => c.date === day.iso);
 
                   // Keep track of spanned slots to skip rendering empty cells
@@ -855,7 +737,12 @@ export const FacultyMySchedule: React.FC = () => {
                     {activeDay.isToday && <Badge className="bg-[#2563EB] text-white text-[10px]">TODAY</Badge>}
                   </div>
 
-                  {dayClasses.length > 0 ? (
+                  {activeDay.dayShort === "SUN" || activeDay.date.getDay() === 0 ? (
+                    <div className="py-4 px-4 text-center text-xs font-black text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
+                      <span>Sunday – {activeDay.formattedDate}</span>
+                    </div>
+                  ) : dayClasses.length > 0 ? (
                     dayClasses.map((cls) => (
                       <Card
                         key={cls.id}

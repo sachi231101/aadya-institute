@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft, Search, Check, X, Clock, Users, Video, BookOpen,
@@ -529,7 +529,7 @@ export const FacultyClassSession: React.FC = () => {
         <button
           type="button"
           onClick={() => navigate("/faculty/classes")}
-          className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2563EB] hover:underline transition-colors cursor-pointer"
+          className="inline-flex md:hidden items-center gap-1.5 text-xs font-bold text-[#2563EB] hover:underline transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" /> Back to My Classes
         </button>
