@@ -195,75 +195,74 @@ export const FacultyDashboard: React.FC = () => {
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-white/10 rounded-full blur-3xl pointer-events-none" />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+      {/* ─── Secondary Metric Cards (Compact) ─── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-3.5">
         <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Today's Classes</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900">{counts?.todayClasses ?? todayClasses.length}</div>
-              <p className="text-[11px] text-slate-500 font-medium">Scheduled for today</p>
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Today's Classes</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 leading-tight">{counts?.todayClasses ?? todayClasses.length}</div>
+              <p className="text-[10.5px] text-slate-500 font-medium truncate">Scheduled for today</p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB]">
-              <Calendar className="w-6 h-6" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-[#2563EB] shrink-0">
+              <Calendar className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Upcoming</span>
-              <div className="text-2xl sm:text-3xl font-black text-indigo-700">{upcomingCount}</div>
-              <p className="text-[11px] text-slate-500 font-medium">Next 7 days</p>
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Upcoming</span>
+              <div className="text-xl sm:text-2xl font-black text-indigo-700 leading-tight">{upcomingCount}</div>
+              <p className="text-[10.5px] text-slate-500 font-medium truncate">Next 7 days</p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600">
-              <BookOpen className="w-6 h-6" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+              <BookOpen className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
           </CardContent>
         </Card>
 
         <Card
-          className={`rounded-2xl shadow-2xs ${
-            liveCount > 0 ? "bg-rose-50/60 border-2 border-rose-400 animate-pulse" : "bg-white border-slate-200/80"
-          }`}
+          className={`rounded-2xl shadow-2xs ${liveCount > 0 ? "bg-rose-50/60 border-2 border-rose-400 animate-pulse" : "bg-white border-slate-200/80"
+            }`}
         >
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Live Classes</span>
-              <div className={`text-2xl sm:text-3xl font-black ${liveCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Live Classes</span>
+              <div className={`text-xl sm:text-2xl font-black leading-tight ${liveCount > 0 ? "text-rose-600" : "text-slate-900"}`}>
                 {liveCount > 0 ? `${liveCount} LIVE` : "0"}
               </div>
-              <p className="text-[11px] text-slate-500 font-medium">
+              <p className="text-[10.5px] text-slate-500 font-medium truncate">
                 {liveCount > 0 ? "Session in progress" : "No live session"}
               </p>
             </div>
             <div
-              className={`w-12 h-12 rounded-2xl flex items-center justify-center ${
-                liveCount > 0 ? "bg-rose-600 text-white" : "bg-rose-50 border border-rose-100 text-rose-600"
-              }`}
+              className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 ${liveCount > 0 ? "bg-rose-600 text-white" : "bg-rose-50 border border-rose-100 text-rose-600"
+                }`}
             >
-              <Radio className="w-6 h-6" />
+              <Radio className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
           </CardContent>
         </Card>
 
         <Card className="bg-white border-slate-200/80 rounded-2xl shadow-2xs">
-          <CardContent className="p-5 flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Completed (Week)</span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-700">{completedCount}</div>
-              <p className="text-[11px] text-slate-500 font-medium flex items-center gap-1">
+          <CardContent className="p-3.5 sm:p-4 flex items-center justify-between gap-3">
+            <div className="space-y-0.5 min-w-0">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block truncate">Completed (Week)</span>
+              <div className="text-xl sm:text-2xl font-black text-emerald-700 leading-tight">{completedCount}</div>
+              <p className="text-[10.5px] text-slate-500 font-medium flex items-center gap-1 truncate">
                 {counts?.avgRating != null && (
                   <>
-                    <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
-                    {counts.avgRating} avg ·{" "}
+                    <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" />
+                    <span>{counts.avgRating} avg ·</span>
                   </>
                 )}
-                {counts?.pendingSubmissions ?? 0} to grade
+                <span>{counts?.pendingSubmissions ?? 0} to grade</span>
               </p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600">
-              <CheckCircle2 className="w-6 h-6" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
+              <CheckCircle2 className="w-4.5 h-4.5 sm:w-5 sm:h-5" />
             </div>
           </CardContent>
         </Card>
@@ -335,15 +334,14 @@ export const FacultyDashboard: React.FC = () => {
                   key={tab}
                   type="button"
                   onClick={() => setActiveTab(tab)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${
-                    activeTab === tab ? "bg-white text-[#2563EB] shadow-xs" : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-black transition-all whitespace-nowrap ${activeTab === tab ? "bg-white text-[#2563EB] shadow-xs" : "text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   {tab === "TODAY"
                     ? `Today (${todayClasses.length})`
                     : tab === "ALL"
-                    ? `All (${myAssignedClasses.length})`
-                    : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                      ? `All (${myAssignedClasses.length})`
+                      : tab.charAt(0) + tab.slice(1).toLowerCase()}
                 </button>
               ))}
             </div>
@@ -380,11 +378,10 @@ export const FacultyDashboard: React.FC = () => {
                 return (
                   <div
                     key={cls.id}
-                    className={`rounded-3xl p-5 sm:p-6 flex flex-col justify-between gap-5 relative overflow-hidden group ${
-                      isLive
+                    className={`rounded-3xl p-5 sm:p-6 flex flex-col justify-between gap-5 relative overflow-hidden group ${isLive
                         ? "bg-rose-50/70 border-2 border-rose-400/90 shadow-lg"
                         : "bg-slate-50/50 hover:bg-white border border-slate-200/90 hover:border-blue-300 hover:shadow-md"
-                    }`}
+                      }`}
                   >
                     {isLive && (
                       <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-rose-500 to-rose-600 animate-pulse" />
@@ -460,11 +457,10 @@ export const FacultyDashboard: React.FC = () => {
                       <Button
                         type="button"
                         onClick={() => handleOpenClass(cls)}
-                        className={`font-black text-xs h-10 px-5 rounded-xl gap-2 ${
-                          isLive
+                        className={`font-black text-xs h-10 px-5 rounded-xl gap-2 ${isLive
                             ? "bg-rose-600 hover:bg-rose-700 text-white"
                             : "bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
-                        }`}
+                          }`}
                       >
                         {isLive ? (
                           <>

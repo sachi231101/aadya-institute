@@ -2,7 +2,6 @@ import React, { useMemo, useState } from "react";
 import {
   Star,
   MessageSquare,
-  Search,
   BookOpen,
   Calendar,
   Clock,
@@ -17,7 +16,6 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuthStore } from "@/store/auth.store";
 import { useFeedbackStore, type ClassFeedbackItem } from "@/store/feedback.store";
@@ -259,45 +257,7 @@ export const FacultyFeedback: React.FC = () => {
         </Card>
       </div>
 
-      {/* ─── 3. SEARCH & STAR RATING FILTER BAR ───────────────────────────── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-2xs">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-          <Input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by student name, course, batch, or review comments..."
-            className="pl-9 text-xs h-10 rounded-xl bg-slate-50/70 border-slate-200 focus:bg-white"
-          />
-        </div>
-
-        {/* Rating Pills */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {(
-            [
-              { key: "ALL", label: `All (${allFacultyFeedbacks.length})` },
-              { key: "5", label: `5 ★ (${metrics.fiveStarCount})` },
-              { key: "4", label: `4 ★ (${metrics.fourStarCount})` },
-              { key: "3", label: `3 ★ (${metrics.threeStarCount})` },
-            ] as const
-          ).map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setRatingFilter(tab.key)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                ratingFilter === tab.key
-                  ? "bg-[#2563EB] text-white shadow-xs"
-                  : "bg-slate-100/80 text-slate-600 hover:bg-slate-200/80"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ─── 4. FEEDBACK CARDS LIST ────────────────────────────────────────── */}
+      {/* ─── 3. FEEDBACK CARDS LIST ────────────────────────────────────────── */}
       <div className="space-y-4">
         {filteredFeedbacks.length === 0 ? (
           <Card className="rounded-2xl border-slate-200/80 p-12 text-center bg-white shadow-2xs">
