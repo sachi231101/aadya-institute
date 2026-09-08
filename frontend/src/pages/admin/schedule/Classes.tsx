@@ -23,6 +23,7 @@ import {
   Check,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -431,7 +432,7 @@ export const Classes: React.FC = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-7 space-y-6 text-foreground font-sans w-full max-w-[1720px] mx-auto pb-16 animate-in fade-in duration-200">
+    <PageContainer className="font-sans animate-in fade-in duration-200">
       {/* ─── 1. PAGE HEADER ────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -1127,6 +1128,6 @@ export const Classes: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </PageContainer>
   );
 };

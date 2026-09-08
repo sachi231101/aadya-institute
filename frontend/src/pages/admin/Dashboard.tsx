@@ -1,20 +1,16 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Building2,
-  GraduationCap,
-  Calendar,
   MapPin,
-  DollarSign,
   CheckCircle2,
-  TrendingUp,
   ArrowRight,
   UserPlus,
   Trash2,
   Loader2,
+  GraduationCap,
+  DollarSign,
   Briefcase,
-  AlertTriangle,
-  FileText,
 } from "lucide-react";
 import { useBranches, useCreateBranch, useUpdateBranch, useDeleteBranch } from "@/hooks/useBranches";
 import { useAdminUsers, useUpdateUser } from "@/hooks/useUsers";
@@ -31,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { PageContainer } from "@/components/layout/PageContainer";
 import { ROUTES } from "@/constants/routes";
 
 import { useNotificationStore } from "@/store/notification.store";
@@ -206,41 +203,14 @@ export const AdminDashboard: React.FC = () => {
   const isLoading = isBranchesLoading || isStudentLoading || isFinancialLoading;
 
   return (
-    <div className="space-y-6 max-w-[1600px] mx-auto pb-10">
-      {/* 1. PAGE HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[#0A2540]">Dashboard Overview</h2>
-          <p className="text-sm text-slate-500">
-            ERP module hub — leads, admissions, students, schedule, fees, placement, and operations at a glance.
-          </p>
-        </div>
+    <PageContainer className="animate-in fade-in duration-300">
+      {/* 1. PAGE HEADER & FILTERS IN ONE LINE */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">Dashboard Overview</h2>
 
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
-            className="bg-[#2563EB] hover:bg-[#13568c] text-white font-bold text-xs gap-1.5 shadow-sm"
-          >
-            <Building2 className="h-4 w-4" /> Manage Branches
-          </Button>
-        </div>
-      </div>
-
-      <InstallDashboardBanner />
-
-      {notificationMsg && (
-        <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-800 flex items-center gap-2">
-          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-          <p className="text-sm font-semibold">{notificationMsg}</p>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-wrap items-center gap-4 py-2">
-        <div className="flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-muted-foreground" />
+        <div className="flex flex-wrap items-center gap-2.5">
           <select
-            className="h-9 rounded-lg border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
+            className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
             value={selectedBranchId}
             onChange={(e) => setSelectedBranchId(e.target.value)}
           >
@@ -249,11 +219,8 @@ export const AdminDashboard: React.FC = () => {
               <option key={b.id} value={b.id}>{b.name}</option>
             ))}
           </select>
-        </div>
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-muted-foreground" />
           <select
-            className="h-9 rounded-lg border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
+            className="h-9 rounded-xl border border-border bg-card px-3 py-1 text-xs sm:text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary cursor-pointer shadow-xs"
             value={selectedDateFilter}
             onChange={(e) => setSelectedDateFilter(e.target.value)}
           >
@@ -263,24 +230,50 @@ export const AdminDashboard: React.FC = () => {
             <option>Last Month</option>
             <option>This Year</option>
           </select>
+
+          <Button
+            onClick={() => navigate(ROUTES.ADMIN.ADMINISTRATION.BRANCHES)}
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold text-xs gap-1.5 shadow-sm h-9 px-3.5 rounded-xl cursor-pointer"
+          >
+            <Building2 className="h-4 w-4" /> Manage Branches
+          </Button>
         </div>
       </div>
 
+      <InstallDashboardBanner />
+
+      {notificationMsg && (
+        <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          <p className="text-sm font-semibold">{notificationMsg}</p>
+        </div>
+      )}
+
       {/* ERP Module Quick Access */}
-      <div className="pt-2">
-        <h3 className="text-sm font-bold text-foreground mb-3">Module Quick Access</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
+      <div>
+        <h3 className="text-sm font-bold text-foreground mb-3 sm:mb-3.5">Module Quick Access</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-3.5">
           {[
             { label: "Leads", path: ROUTES.ADMIN.LEADS.ROOT, count: kpiTotalLeads },
             { label: "Admissions", path: ROUTES.ADMIN.ADMISSIONS.ALL, count: kpiTotalStudents },
             { label: "Students", path: ROUTES.ADMIN.STUDENTS.ALL, count: kpiTotalStudents },
             { label: "Schedule", path: ROUTES.ADMIN.SCHEDULE.CLASSES, count: scheduleSummary?.todayClasses ?? 0 },
-            { label: "Fees", path: ROUTES.ADMIN.FEES.PENDING, count: financialReport?.summary?.totalPending ? "Pending" : 0 },
+            {
+              label: "Fees",
+              path: ROUTES.ADMIN.FEES.PENDING,
+              count: financialReport?.summary?.totalPending
+                ? `₹${(financialReport.summary.totalPending / 1000).toFixed(0)}k`
+                : 0,
+            },
             { label: "Placement", path: ROUTES.ADMIN.PLACEMENT.ELIGIBLE, count: placementSummary?.eligibleCount ?? 0 },
-            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: "→" },
-            { label: "Reports", path: ROUTES.ADMIN.REPORTS.STUDENTS, count: "→" },
-            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: "→" },
-            { label: "Counsellors", path: ROUTES.ADMIN.COUNSELLORS.ALL, count: "→" },
+            { label: "Exams", path: ROUTES.ADMIN.EXAMS.ALL, count: 0 },
+            { label: "Reports", path: ROUTES.ADMIN.REPORTS.STUDENTS, count: 0 },
+            { label: "Communication", path: ROUTES.ADMIN.COMMUNICATION.NOTIFICATIONS, count: 0 },
+            {
+              label: "Counsellors",
+              path: ROUTES.ADMIN.COUNSELLORS.ALL,
+              count: usersResponse?.data?.filter((u) => u.roles.includes("COUNSELLOR")).length ?? 0,
+            },
             { label: "Batches", path: ROUTES.ADMIN.BATCHES.ALL, count: kpiActiveBatches },
             {
               label: "Assignments",
@@ -293,76 +286,74 @@ export const AdminDashboard: React.FC = () => {
               key={mod.label}
               type="button"
               onClick={() => navigate(mod.path)}
-              className="text-left p-3 rounded-xl border border-border bg-card hover:bg-blue-50/50 hover:border-blue-200 transition-all"
+              className="text-left p-3.5 sm:p-4 rounded-2xl border border-border bg-card hover:bg-blue-50/50 hover:border-blue-200 transition-all shadow-xs cursor-pointer"
             >
               <p className="text-xs font-bold text-foreground">{mod.label}</p>
-              <p className="text-lg font-extrabold text-[#2563EB] mt-1">{mod.count}</p>
+              <p className="text-xl font-black text-[#2563EB] mt-1.5">{mod.count}</p>
             </button>
           ))}
         </div>
       </div>
 
       {/* Assignment KPIs */}
-      <div className="pt-2">
-        <div className="flex items-center justify-between mb-3">
+      <div>
+        <div className="flex items-center justify-between mb-3 sm:mb-3.5">
           <h3 className="text-sm font-bold text-foreground">Assignment Overview</h3>
           <button
             type="button"
             onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
           >
             Manage Assignments →
           </button>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Card className="border border-border bg-card shadow-sm rounded-2xl">
-            <CardContent className="p-4 flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.activeAssignments ?? 0}</p>
-                <p className="text-xs text-muted-foreground font-medium">Active assignments</p>
-              </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+          <Card
+            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-blue-300 transition-colors"
+            onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.ALL)}
+          >
+            <CardContent className="p-5">
+              <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.activeAssignments ?? 0}</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">Active assignments</p>
             </CardContent>
           </Card>
           <Card
-            className="border border-border bg-card shadow-sm rounded-2xl cursor-pointer hover:border-amber-300"
+            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-amber-300 transition-colors"
             onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.SUBMISSIONS)}
           >
-            <CardContent className="p-4">
+            <CardContent className="p-5">
               <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingSubmissions ?? 0}</p>
-              <p className="text-xs text-muted-foreground font-medium">Pending submissions</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">Pending submissions</p>
             </CardContent>
           </Card>
           <Card
-            className="border border-border bg-card shadow-sm rounded-2xl cursor-pointer hover:border-emerald-300"
+            className="border border-border bg-card shadow-xs rounded-2xl cursor-pointer hover:border-emerald-300 transition-colors"
             onClick={() => navigate(ROUTES.ADMIN.ASSIGNMENTS.REVIEWS)}
           >
-            <CardContent className="p-4">
+            <CardContent className="p-5">
               <p className="text-2xl font-extrabold text-foreground">{assignmentStats?.pendingGrading ?? 0}</p>
-              <p className="text-xs text-muted-foreground font-medium">Pending grading</p>
+              <p className="text-xs text-muted-foreground font-medium mt-0.5">Pending grading</p>
             </CardContent>
           </Card>
         </div>
       </div>
 
       {/* Today's scheduled classes — refreshed when Classes Management creates sessions */}
-      <div className="pt-2">
-        <div className="flex items-center justify-between mb-3">
+      <div>
+        <div className="flex items-center justify-between mb-3 sm:mb-3.5">
           <h3 className="text-sm font-bold text-foreground">Today&apos;s Classes</h3>
           <button
             type="button"
             onClick={() => navigate(ROUTES.ADMIN.SCHEDULE.TIMETABLE)}
-            className="text-xs font-semibold text-[#2563EB] hover:underline"
+            className="text-xs font-semibold text-[#2563EB] hover:underline cursor-pointer"
           >
             Open Timetable →
           </button>
         </div>
-        <Card className="border border-border bg-card shadow-sm rounded-2xl">
+        <Card className="border border-border bg-card shadow-xs rounded-2xl overflow-hidden">
           <CardContent className="p-0">
             {(scheduleSummary?.todaySessions?.length ?? 0) === 0 ? (
-              <div className="p-6 text-center text-xs text-muted-foreground">
+              <div className="p-8 text-center text-xs text-muted-foreground">
                 No classes scheduled for today. New classes created in Classes &amp; Sessions appear here automatically.
               </div>
             ) : (
@@ -370,21 +361,21 @@ export const AdminDashboard: React.FC = () => {
                 {(scheduleSummary?.todaySessions ?? []).slice(0, 8).map((s) => (
                   <li
                     key={s.id}
-                    className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-xs"
+                    className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5 text-xs hover:bg-muted/40 transition-colors"
                   >
                     <div className="min-w-0">
                       <p className="font-bold text-foreground truncate">
                         {s.title || "Class Session"}
                       </p>
-                      <p className="text-muted-foreground truncate">
+                      <p className="text-muted-foreground truncate mt-0.5">
                         {s.batchName || "Batch"} · {s.facultyName || "Faculty"}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2.5 shrink-0">
                       <span className="font-medium text-foreground">
                         {s.startTime} – {s.endTime}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] font-bold uppercase text-slate-600">
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-[10px] font-bold uppercase text-slate-600 dark:text-slate-300">
                         {s.sessionStatus || "UPCOMING"}
                       </span>
                     </div>
@@ -397,11 +388,11 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* 3. MAIN SECTION - BRANCH REVENUE PERFORMANCE */}
-      <div className="pt-3">
+      <div>
         <div className="flex justify-between items-end mb-4">
           <div>
             <h3 className="text-lg font-extrabold text-foreground tracking-tight">Branch Revenue & Operations Performance</h3>
-            <p className="text-xs sm:text-sm text-muted-foreground">Live operational data from each branch in PostgreSQL.</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">Live operational data from each branch.</p>
           </div>
         </div>
 
@@ -577,8 +568,8 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div className="text-right">
                 <h4 className="text-xl font-extrabold text-foreground tracking-tight">{formattedRevenue}</h4>
-                <p className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center justify-end gap-1">
-                  <TrendingUp className="h-3 w-3" /> Real Data
+                <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                  Total Collected
                 </p>
               </div>
             </div>
@@ -651,21 +642,21 @@ export const AdminDashboard: React.FC = () => {
                     <div className="p-2 rounded-full bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border border-blue-100 dark:border-sky-900/40 h-fit"><GraduationCap className="h-3.5 w-3.5" /></div>
                     <div>
                       <p className="text-xs text-foreground font-semibold">{kpiTotalStudents} Total Active Enrolled Students</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">PostgreSQL Live Data</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Active Enrollment</p>
                     </div>
                   </div>
                   <div className="flex gap-3 items-center p-2 rounded-xl hover:bg-muted/30 transition-colors">
                     <div className="p-2 rounded-full bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border border-purple-100 dark:border-purple-900/40 h-fit"><Briefcase className="h-3.5 w-3.5" /></div>
                     <div>
                       <p className="text-xs text-foreground font-semibold">{kpiActiveBatches} Batches Scheduled across branches</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">PostgreSQL Live Data</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Active Batches</p>
                     </div>
                   </div>
                   <div className="flex gap-3 items-center p-2 rounded-xl hover:bg-muted/30 transition-colors">
                     <div className="p-2 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 h-fit"><DollarSign className="h-3.5 w-3.5" /></div>
                     <div>
                       <p className="text-xs text-foreground font-semibold">₹{kpiTotalRevenue.toLocaleString("en-IN")} Total Fees Realized</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">PostgreSQL Live Data</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">Collected Revenue</p>
                     </div>
                   </div>
                 </>
@@ -861,6 +852,6 @@ export const AdminDashboard: React.FC = () => {
           </div>
         );
       })()}
-    </div>
+    </PageContainer>
   );
 };

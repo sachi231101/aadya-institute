@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -155,6 +155,61 @@
 
   body {
     @apply bg-background text-foreground;
+  }
+
+  /* Standard Table Cell Spacing across all tables */
+  th {
+    @apply px-4 py-3.5 text-left align-middle font-semibold;
+  }
+  td {
+    @apply px-4 py-3.5 align-middle;
+  }
+}
+
+@layer components {
+  /* Global Page Container */
+  .page-container {
+    @apply w-full max-w-[1720px] mx-auto p-4 sm:p-6 lg:p-8 space-y-6 pb-16;
+  }
+
+  .page-container-dense {
+    @apply w-full max-w-[1720px] mx-auto p-3.5 sm:p-5 lg:p-6 space-y-5 pb-12;
+  }
+
+  /* Standard Section & Stack Spacing */
+  .section-stack {
+    @apply space-y-6;
+  }
+
+  .section-stack-compact {
+    @apply space-y-4;
+  }
+
+  .section-header-spacing {
+    @apply mb-3 sm:mb-4;
+  }
+
+  /* Standard Responsive Grid Gaps */
+  .grid-cards {
+    @apply grid gap-4 sm:gap-5 lg:gap-6;
+  }
+
+  .grid-cards-compact {
+    @apply grid gap-3 sm:gap-4;
+  }
+
+  /* Standard Card Paddings */
+  .card-padding {
+    @apply p-5 sm:p-6;
+  }
+
+  .card-padding-compact {
+    @apply p-3.5 sm:p-4;
+  }
+
+  /* Standard Filter Toolbar */
+  .toolbar-container {
+    @apply flex flex-wrap items-center gap-3 py-2;
   }
 }
 
