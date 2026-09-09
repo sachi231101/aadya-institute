@@ -271,7 +271,11 @@ export const CounselorDashboard: React.FC = () => {
   });
 
   const combinedLeadsList = useMemo(() => {
-    const rawDbLeads: any[] = dbLeadsResponse?.data || [];
+    const rawDbLeads: any[] = Array.isArray(dbLeadsResponse?.data?.data)
+      ? dbLeadsResponse.data.data
+      : Array.isArray(dbLeadsResponse?.data)
+        ? dbLeadsResponse.data
+        : [];
     return rawDbLeads.map(mapApiLeadToUnified);
   }, [dbLeadsResponse, user?.name]);
 

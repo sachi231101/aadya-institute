@@ -128,7 +128,7 @@ export const AdminDashboard: React.FC = () => {
   // Global Real KPIs
   const kpiTotalStudents = studentReport?.summary?.totalStudents ?? filteredBranches.reduce((acc, b) => acc + b.studentCount, 0);
   const kpiActiveBatches = allBatches?.filter(b => b.status === "ACTIVE").length ?? filteredBranches.reduce((acc, b) => acc + b.batchCount, 0);
-  const kpiTotalLeads = leadDashboardData?.totalLeads ?? 0;
+  const kpiTotalLeads = leadDashboardData?.data?.totalLeads ?? leadDashboardData?.totalLeads ?? 0;
   const kpiTotalRevenue = financialReport?.summary?.totalCollected ?? filteredBranches.reduce((acc, b) => acc + b.collected, 0);
   const formattedRevenue = kpiTotalRevenue >= 100000 
     ? `₹${(kpiTotalRevenue / 100000).toFixed(2)}L` 

@@ -391,8 +391,8 @@ export const LeadService = {
     return LeadFollowupService.getFollowUpsByLeadId(leadId);
   },
 
-  async getFollowUpDashboard(currentUser: AuthUser) {
-    const scope = getBranchScopeFilter(currentUser);
+  async getFollowUpDashboard(currentUser: AuthUser, branchId?: string) {
+    const scope = getBranchScopeFilter(currentUser, branchId);
     return LeadFollowupService.getFollowUpDashboard(scope.instituteId, scope.branchId);
   },
 
@@ -425,8 +425,8 @@ export const LeadService = {
   },
 
   // ─── Dashboards ─────────────────────────────────────────────────────────────
-  async getDashboardSummary(currentUser: AuthUser) {
-    const scope = getBranchScopeFilter(currentUser);
+  async getDashboardSummary(currentUser: AuthUser, branchId?: string) {
+    const scope = getBranchScopeFilter(currentUser, branchId);
     return LeadRepository.getDashboardSummary(scope.instituteId, scope.branchId);
   },
 

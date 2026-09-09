@@ -49,8 +49,12 @@ export const CallHistory: React.FC = () => {
     status: statusFilter !== "ALL" ? statusFilter : undefined,
   });
 
-  const callLogs: CallHistoryRow[] = data?.data || [];
-  const meta = data?.meta || { total: 0, page: 1, totalPages: 1 };
+  const callLogs: CallHistoryRow[] = Array.isArray(data?.data?.data)
+    ? data.data.data
+    : Array.isArray(data?.data)
+      ? data.data
+      : [];
+  const meta = data?.data?.meta || data?.meta || { total: 0, page: 1, totalPages: 1 };
 
   const filtered = callLogs.filter((log) => {
     if (!searchTerm.trim()) return true;

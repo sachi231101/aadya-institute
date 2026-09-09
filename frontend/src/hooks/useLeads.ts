@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { leadsApi, type LeadQueryParams } from "../services/leads.api";
 import { useAuthStore } from "@/store/auth.store";
-import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
+import { getScopedBranchId, mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
 export const useLeads = (params?: LeadQueryParams) => {
   const { user } = useAuthStore();
@@ -21,23 +21,29 @@ export const useLeadById = (id: string) => {
 };
 
 export const useLeadDashboard = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", branchId],
-    queryFn: () => leadsApi.getDashboardSummary({ branchId }),
+    queryKey: ["leads", "dashboard", scopedBranchId],
+    queryFn: () => leadsApi.getDashboardSummary({ branchId: scopedBranchId }),
   });
 };
 
 export const useCounsellorPerformance = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", "counsellors", branchId],
-    queryFn: () => leadsApi.getCounsellorPerformance({ branchId }),
+    queryKey: ["leads", "dashboard", "counsellors", scopedBranchId],
+    queryFn: () => leadsApi.getCounsellorPerformance({ branchId: scopedBranchId }),
   });
 };
 
 export const useFollowUpDashboard = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", "follow-ups", branchId],
-    queryFn: () => leadsApi.getFollowUpDashboard({ branchId }),
+    queryKey: ["leads", "dashboard", "follow-ups", scopedBranchId],
+    queryFn: () => leadsApi.getFollowUpDashboard({ branchId: scopedBranchId }),
   });
 };
 
@@ -49,9 +55,11 @@ export const useCallHistory = (params?: {
   studentId?: string;
   status?: string;
 }) => {
+  const { user } = useAuthStore();
+  const mergedParams = mergeBranchScopedParams(user, params);
   return useQuery({
-    queryKey: ["leads", "call-history", params],
-    queryFn: () => leadsApi.getCallHistory(params),
+    queryKey: ["leads", "call-history", mergedParams],
+    queryFn: () => leadsApi.getCallHistory(mergedParams),
   });
 };
 
