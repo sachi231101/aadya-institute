@@ -128,6 +128,7 @@ export const ROUTES = {
       MASTERS: "/admin/administration/masters",
       SECURITY: "/admin/administration/security",
       INTEGRATIONS: "/admin/administration/integrations",
+      AI_CALLING_PLATFORM: "/admin/administration/ai-calling-platform",
       BILLING: "/admin/administration/billing",
       DATA_MANAGEMENT: "/admin/administration/data-management",
       AUDIT_LOGS: "/admin/administration/audit-logs",

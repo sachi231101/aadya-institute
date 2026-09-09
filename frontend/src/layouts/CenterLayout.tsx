@@ -93,7 +93,7 @@ export const CenterLayout: React.FC = () => {
 
         <div className="flex-1 flex flex-col min-w-0">
           {/* ─── Top Header Navigation Bar ───────────────────────────────── */}
-          <header className="flex h-12 shrink-0 items-center justify-between border-b border-[#334155] bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] text-white px-4 sm:px-5 z-20 shadow-md">
+          <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between border-b border-[#334155] bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] text-white px-4 sm:px-5 shadow-md">
             <div className="flex items-center gap-2 md:gap-3">
               <SidebarTrigger className="-ml-1 h-7 w-7 text-white bg-white/10 hover:bg-white/20 border border-white/20 rounded-md transition-colors cursor-pointer" />
               <div className="flex items-center gap-1.5 text-white hidden sm:flex">

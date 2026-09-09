@@ -11,6 +11,8 @@ export const importPreviewSchema = z.object({
   entityType: importEntityTypeSchema,
   csv: z.string().min(1, "CSV content is required"),
   fileName: z.string().optional(),
+  /** When set (e.g. AI_CALLING), used as Lead.source if CSV row has no source. */
+  defaultLeadSource: z.string().max(64).optional(),
 });
 
 export const exportSchema = z.object({

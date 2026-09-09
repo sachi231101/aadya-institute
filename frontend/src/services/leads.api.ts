@@ -37,16 +37,28 @@ export interface Lead {
 
 export interface CallLog {
   id: string;
-  externalCallId?: string;
-  leadId?: string;
-  studentId?: string;
+  instituteId?: string;
+  branchId?: string | null;
+  externalCallId?: string | null;
+  leadId?: string | null;
+  studentId?: string | null;
+  agentId?: string | null;
+  fromNumber?: string | null;
   status: string;
   duration: number;
-  transcript?: string;
-  recordingUrl?: string;
-  aiScore?: string;
-  aiSummary?: string;
+  transcript?: string | null;
+  recordingUrl?: string | null;
+  recordingStorageKey?: string | null;
+  aiScore?: string | null;
+  aiSummary?: string | null;
+  interestStatus?: string | null;
+  outcome?: string | null;
+  attemptNumber?: number;
+  failureReason?: string | null;
+  startedAt?: string | null;
+  endedAt?: string | null;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface LeadFollowUp {

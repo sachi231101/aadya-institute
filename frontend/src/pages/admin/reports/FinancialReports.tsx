@@ -220,7 +220,7 @@ export const FinancialReports: React.FC = () => {
               Payment Gateway & Channel Share
             </CardTitle>
             <CardDescription className="text-xs text-muted-foreground">
-              Distribution of fee collections across UPI, NetBanking, Cards, and Cash.
+              Distribution of fee collections by master payment methods (UPI, Net Banking, Card, Cash, Cheque).
             </CardDescription>
           </CardHeader>
           <CardContent className="p-5 pt-4 flex flex-col md:flex-row items-center gap-6">

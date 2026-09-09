@@ -1,4 +1,5 @@
 ﻿import React, { useEffect, useMemo, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import {
   Bot,
   Phone,
@@ -28,6 +29,8 @@ import {
   UserPlus,
   FileText,
   VolumeX,
+  Upload,
+  Loader2,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -48,11 +51,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import type { UnifiedLead } from "@/store/lead.store";
 import { useAuthStore } from "@/store/auth.store";
 import { useCounselorStore } from "@/store/counselor.store";
@@ -68,65 +66,89 @@ import {
   useTriggerLeadCall,
   useChangeLeadStage,
 } from "@/hooks/useLeads";
+import { useAiCallingConfig } from "@/hooks/useAiCalling";
+import {
+  useConfirmImport,
+  useImportJobs,
+  usePreviewImport,
+} from "@/hooks/useDataManagement";
+import { useQueryClient } from "@tanstack/react-query";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { usePermissions } from "@/hooks/usePermissions";
+import { getPortalBasePath } from "@/utils/portal-path";
+import { ROUTES } from "@/constants/routes";
 
-interface AiTranscriptMessage {
-  speaker: "AI" | "LEAD";
-  speakerName: string;
-  time: string;
-  text: string;
+function attemptLabel(n: number): string {
+  if (n === 1) return "1st Attempt";
+  if (n === 2) return "2nd Attempt";
+  if (n === 3) return "3rd Attempt";
+  return `${n}th Attempt`;
 }
 
-interface AiCallingLead {
-  id: string;
-  name: string;
-  phone: string;
-  email?: string;
-  source: string;
-  sourceType: string;
-  course: string;
-  callStatus: "COMPLETED" | "IN_PROGRESS" | "NO_ANSWER" | "FAILED";
-  attempt: number;
-  aiOutcome: "INTERESTED" | "CALLBACK_REQUESTED" | "NEEDS_COUNSELLOR" | "NO_RESPONSE" | "NOT_INTERESTED";
-  aiSummaryShort: string;
-  aiSummaryDetailed: string;
-  keyDiscussionPoints: string[];
-  callDuration: string;
-  callDurationSeconds: number;
-  callTimestamp: string;
-  callDate: string;
-  campaign: string;
-  aiScore: number; // 0 to 100
-  starRating: number; // 1 to 5
-  nextActionType: "CONTACT_NOW" | "CALL_BACK" | "ASSIGN_CONTACT" | "RETRY_CALL" | "MARK_LOST" | "FOLLOW_UP";
-  nextActionLabel: string;
-  nextActionSubtext?: string;
-  hotLead?: boolean;
-  callbackTime?: string;
-  assignedCounsellor?: string;
-  audioRecordingUrl?: string;
-  transcript: AiTranscriptMessage[];
-  pipelineStage: "NEW" | "CONTACTED" | "INTERESTED" | "FOLLOW_UP" | "CONVERTED" | "LOST";
+function mapInterestToOutcome(
+  call: { interestStatus?: string | null; outcome?: string | null; status?: string } | undefined,
+  stage: string,
+  callStatus: string
+): UnifiedLead["aiOutcome"] {
+  const raw = String(call?.interestStatus || call?.outcome || "")
+    .toUpperCase()
+    .replace(/\s+/g, "_");
+  if (raw.includes("NOT_INTEREST")) return "NOT_INTERESTED";
+  if (raw.includes("INTEREST")) return "INTERESTED";
+  if (raw.includes("CALLBACK")) return "CALLBACK_REQUESTED";
+  if (raw.includes("NO_RESPONSE") || raw.includes("NO_ANSWER")) return "NO_RESPONSE";
+  if (raw.includes("COUNSEL")) return "NEEDS_COUNSELLOR";
+  if (stage === "LOST") return "NOT_INTERESTED";
+  if (stage === "FOLLOW_UP") return "CALLBACK_REQUESTED";
+  if (stage === "INTERESTED" || stage === "CONVERTED") return "INTERESTED";
+  if (callStatus === "NO_ANSWER" || callStatus === "FAILED") return "NO_RESPONSE";
+  return "NEEDS_COUNSELLOR";
 }
 
-const _INITIAL_AI_CALLING_LEADS: AiCallingLead[] = [];
+type ImportFileJob = {
+  fileName: string;
+  jobId?: string;
+  status: "pending" | "previewing" | "previewed" | "confirming" | "done" | "error";
+  validRows?: number;
+  errorRows?: number;
+  message?: string;
+};
 
 export const AiCallingQualification: React.FC = () => {
   const { user } = useAuthStore();
+  const location = useLocation();
+  const portalBase = getPortalBasePath(location.pathname);
+  const aiConfigHref =
+    portalBase === "/center"
+      ? "/center/integrations/ai-calling"
+      : ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS + "/ai-calling";
+  const queryClient = useQueryClient();
   const { counselors, fetchCounselors } = useCounselorStore();
   const { canEditItem } = usePermissions();
   const canEditAiCalling = canEditItem("leads.ai_calling");
-  const { data: leadsResponse } = useLeads({
-    limit: 100,
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+
+  const { data: leadsResponse, isFetching: leadsFetching } = useLeads({
+    page,
+    limit: pageSize,
     branchId: user?.branchId || undefined,
   });
+  const { data: aiConfigRes } = useAiCallingConfig(true);
+  const aiConfig = aiConfigRes?.data;
+  const configMissingOrDisabled =
+    !aiConfig || !aiConfig.isEnabled || !aiConfig.resolved?.hasTelephony;
+
   const createLeadMutation = useCreateLead();
   const markLostMutation = useMarkLeadLost();
   const createFollowUpMutation = useCreateFollowUp();
   const assignLeadMutation = useAssignLead();
   const triggerCallMutation = useTriggerLeadCall();
   const changeStageMutation = useChangeLeadStage();
+  const previewImportMutation = usePreviewImport();
+  const confirmImportMutation = useConfirmImport();
+  const { data: importJobsRes, refetch: refetchImportJobs } = useImportJobs({ limit: 10 });
 
   useEffect(() => {
     fetchCounselors(user?.branchId || undefined);
@@ -134,20 +156,23 @@ export const AiCallingQualification: React.FC = () => {
 
   const mapApiLead = (l: any): UnifiedLead => {
     const call = l.callLogs?.[0];
-    const transcriptLines: AiTranscriptMessage[] = call?.transcript
-      ? String(call.transcript)
-          .split("\n")
-          .filter(Boolean)
-          .map((line: string, idx: number) => {
-            const isAi = line.toLowerCase().startsWith("ai") || line.toLowerCase().startsWith("assistant");
-            return {
-              speaker: (isAi ? "AI" : "LEAD") as "AI" | "LEAD",
-              speakerName: isAi ? "AI Agent" : l.name,
-              time: `${idx + 1}:00`,
-              text: line.replace(/^(AI|LEAD|assistant|user)\s*:?\s*/i, ""),
-            };
-          })
-      : [];
+    const transcriptLines =
+      call?.transcript
+        ? String(call.transcript)
+            .split("\n")
+            .filter(Boolean)
+            .map((line: string, idx: number) => {
+              const isAi =
+                line.toLowerCase().startsWith("ai") ||
+                line.toLowerCase().startsWith("assistant");
+              return {
+                speaker: (isAi ? "AI" : "LEAD") as "AI" | "LEAD",
+                speakerName: isAi ? "AI Agent" : l.name,
+                time: `${idx + 1}:00`,
+                text: line.replace(/^(AI|LEAD|assistant|user)\s*:?\s*/i, ""),
+              };
+            })
+        : [];
 
     const status = (call?.status || "PENDING").toUpperCase();
     const callStatus =
@@ -157,9 +182,34 @@ export const AiCallingQualification: React.FC = () => {
           ? "NO_ANSWER"
           : status === "FAILED"
             ? "FAILED"
-            : status === "RINGING" || status === "INITIATED"
+            : status === "RINGING" || status === "INITIATED" || status === "ANSWERED"
               ? "IN_PROGRESS"
-              : "COMPLETED";
+              : status === "CALLBACK_REQUESTED"
+                ? "COMPLETED"
+                : "PENDING";
+
+    const attempt =
+      typeof call?.attemptNumber === "number"
+        ? call.attemptNumber
+        : Math.max(1, (l.callLogs || []).length || 1);
+    const summary = call?.aiSummary || l.notes || "No AI summary yet";
+    const outcome = mapInterestToOutcome(call, l.stage || "NEW", callStatus);
+
+    let nextActionType: UnifiedLead["nextActionType"] = "CONTACT_NOW";
+    let nextActionLabel = "Contact Now";
+    if (outcome === "CALLBACK_REQUESTED") {
+      nextActionType = "CALL_BACK";
+      nextActionLabel = "Call Back";
+    } else if (outcome === "NO_RESPONSE" || callStatus === "NO_ANSWER" || callStatus === "FAILED") {
+      nextActionType = "RETRY_CALL";
+      nextActionLabel = "Retry AI Call";
+    } else if (outcome === "NOT_INTERESTED") {
+      nextActionType = "MARK_LOST";
+      nextActionLabel = "Mark as Lost";
+    } else if (outcome === "NEEDS_COUNSELLOR") {
+      nextActionType = "ASSIGN_CONTACT";
+      nextActionLabel = "Assign & Contact";
+    }
 
     return {
       id: l.id,
@@ -176,41 +226,56 @@ export const AiCallingQualification: React.FC = () => {
       priorityColor: "text-emerald-600 bg-emerald-500",
       nextFollowUp: l.nextFollowUpAt ? new Date(l.nextFollowUpAt).toLocaleString() : "—",
       attemptsCount: (l.callLogs || []).length,
-      latestResponse: call?.aiSummary || l.notes || "—",
+      latestResponse: summary,
       assignedCounsellor: l.assignedCounsellor?.name || "—",
+      assignedDate: "",
       hotLead: l.priority === "HIGH",
-      campaign: "—",
-      callDate: call?.createdAt ? new Date(call.createdAt).toLocaleDateString() : "—",
-      callStatus: callStatus as any,
-      attempt: (l.callLogs || []).length,
-      aiOutcome:
-        l.stage === "LOST"
-          ? "NOT_INTERESTED"
-          : l.stage === "FOLLOW_UP"
-            ? "CALLBACK_REQUESTED"
-            : l.stage === "INTERESTED" || l.stage === "CONVERTED"
-              ? "INTERESTED"
-              : callStatus === "NO_ANSWER"
-                ? "NO_RESPONSE"
-                : "NEEDS_COUNSELLOR",
-      aiSummaryShort: call?.aiSummary || l.notes || "No AI summary yet",
-      aiDetailedSummary: call?.aiSummary || l.notes || "No AI summary yet",
-      keyHighlights: [`Stage: ${l.stage}`, `Source: ${l.source || "—"}`],
-      callDuration: call?.duration ? `${call.duration}s` : "—",
-      callTimestamp: call?.createdAt ? new Date(call.createdAt).toLocaleString() : "—",
+      campaign: l.importJobId ? "CSV Import" : "—",
+      callDate: call?.startedAt || call?.createdAt
+        ? new Date(call.startedAt || call.createdAt).toLocaleDateString()
+        : "—",
+      callStatus: callStatus as UnifiedLead["callStatus"],
+      attempt,
+      aiOutcome: outcome,
+      aiSummaryShort: summary,
+      aiDetailedSummary: summary,
+      aiSummaryDetailed: summary,
+      keyHighlights: [
+        `Stage: ${l.stage}`,
+        `Source: ${l.source || "—"}`,
+        call?.outcome ? `Outcome: ${call.outcome}` : "",
+        call?.interestStatus ? `Interest: ${call.interestStatus}` : "",
+      ].filter(Boolean),
+      callDuration: call?.duration != null ? `${call.duration}s` : "—",
+      callTimestamp: call?.startedAt || call?.createdAt
+        ? new Date(call.startedAt || call.createdAt).toLocaleString()
+        : "—",
       aiScore: Number(call?.aiScore) || 0,
       starRating: 0,
-      nextActionType: "CONTACT_NOW",
-      nextActionLabel: "Contact Now",
+      nextActionType,
+      nextActionLabel,
       transcript: transcriptLines,
       attemptsHistory: [],
-    } as unknown as UnifiedLead;
+      audioRecordingUrl: call?.recordingUrl || undefined,
+      callLogId: call?.id,
+    } as UnifiedLead;
   };
 
   const leads = useMemo(() => {
-    const raw = (leadsResponse?.data as any[]) || [];
+    const raw = Array.isArray(leadsResponse?.data?.data)
+      ? leadsResponse.data.data
+      : Array.isArray(leadsResponse?.data)
+        ? leadsResponse.data
+        : [];
     return raw.map(mapApiLead);
   }, [leadsResponse?.data]);
+
+  const paginationMeta = leadsResponse?.data?.meta || leadsResponse?.meta || {
+    total: leads.length,
+    page,
+    totalPages: 1,
+    limit: pageSize,
+  };
 
   // Search & Filter States
   const [searchTerm, setSearchTerm] = useState("");
@@ -263,12 +328,111 @@ export const AiCallingQualification: React.FC = () => {
   const [triggerImmediateCall, setTriggerImmediateCall] = useState(true);
   const { options: leadSourceOptions } = useMasterDropdown("leadsource");
 
+  // Multi-file CSV import
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importJobs, setImportJobs] = useState<ImportFileJob[]>([]);
+  const [importBusy, setImportBusy] = useState(false);
+
   // Toast / Banner Message
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const recentImportJobs = importJobsRes?.data?.data || importJobsRes?.data || [];
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4500);
+  };
+
+  const handlePickImportFiles = async (files: FileList | null) => {
+    if (!files?.length) return;
+    const csvFiles = Array.from(files).filter(
+      (f) => f.name.toLowerCase().endsWith(".csv") || f.type === "text/csv"
+    );
+    if (!csvFiles.length) {
+      showToast("Please select one or more CSV files");
+      return;
+    }
+    setImportBusy(true);
+    const next: ImportFileJob[] = csvFiles.map((f) => ({
+      fileName: f.name,
+      status: "previewing",
+    }));
+    setImportJobs(next);
+
+    for (let i = 0; i < csvFiles.length; i++) {
+      const file = csvFiles[i];
+      try {
+        const csv = await file.text();
+        const res = await previewImportMutation.mutateAsync({
+          entityType: "leads",
+          csv,
+          fileName: file.name,
+          defaultLeadSource: "AI_CALLING",
+        });
+        setImportJobs((prev) =>
+          prev.map((j, idx) =>
+            idx === i
+              ? {
+                  ...j,
+                  status: "previewed",
+                  jobId: res.data?.jobId,
+                  validRows: res.data?.validRows,
+                  errorRows: res.data?.errorRows,
+                  message: `${res.data?.validRows ?? 0} valid / ${res.data?.errorRows ?? 0} errors`,
+                }
+              : j
+          )
+        );
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Preview failed";
+        setImportJobs((prev) =>
+          prev.map((j, idx) => (idx === i ? { ...j, status: "error", message: msg } : j))
+        );
+      }
+    }
+    setImportBusy(false);
+    refetchImportJobs();
+  };
+
+  const handleConfirmAllImports = async () => {
+    const ready = importJobs.filter((j) => j.status === "previewed" && j.jobId);
+    if (!ready.length) {
+      showToast("No previewed imports to confirm");
+      return;
+    }
+    setImportBusy(true);
+    for (const job of ready) {
+      setImportJobs((prev) =>
+        prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "confirming" } : j))
+      );
+      try {
+        const res = await confirmImportMutation.mutateAsync(job.jobId!);
+        setImportJobs((prev) =>
+          prev.map((j) =>
+            j.jobId === job.jobId
+              ? {
+                  ...j,
+                  status: "done",
+                  message: `Import ${res.data?.status || "completed"} — AI calls will queue automatically`,
+                }
+              : j
+          )
+        );
+      } catch (err: unknown) {
+        const msg =
+          (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Confirm failed";
+        setImportJobs((prev) =>
+          prev.map((j) => (j.jobId === job.jobId ? { ...j, status: "error", message: msg } : j))
+        );
+      }
+    }
+    setImportBusy(false);
+    await queryClient.invalidateQueries({ queryKey: ["leads"] });
+    refetchImportJobs();
+    showToast("Import confirmed — leads refreshed and AI calls queued where applicable");
   };
 
   const mapLostReasonToApi = (reason: string): string => {
@@ -539,6 +703,23 @@ export const AiCallingQualification: React.FC = () => {
         </div>
       )}
 
+      {configMissingOrDisabled && (
+        <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold">
+          <div className="flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <span>
+              AI Calling is not fully configured for this institute
+              {!aiConfig?.isEnabled ? " (disabled)" : ""}
+              {!aiConfig?.resolved?.hasTelephony ? " — telephony credentials missing" : ""}. Imported
+              leads may not dial until config is enabled.
+            </span>
+          </div>
+          <Button asChild variant="outline" size="sm" className="shrink-0 h-8 text-xs font-bold">
+            <Link to={aiConfigHref}>Open AI Calling config</Link>
+          </Button>
+        </div>
+      )}
+
       {/* ─── 1. PAGE HEADER (WITH QUICK ACTION BUTTONS) ─── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-start gap-3">
@@ -561,8 +742,20 @@ export const AiCallingQualification: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+        <div className="flex items-center gap-2.5 self-start sm:self-auto flex-wrap">
           <PermissionGate itemKey="leads.ai_calling" mode="write">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setImportJobs([]);
+                setShowImportModal(true);
+              }}
+              className="font-bold px-4 py-2 rounded-xl gap-1.5 h-9.5 text-xs cursor-pointer"
+            >
+              <Upload className="h-3.5 w-3.5 stroke-[3]" />
+              <span>Import CSV</span>
+            </Button>
             <Button
               type="button"
               onClick={() => setShowAddLeadModal(true)}
@@ -887,9 +1080,10 @@ export const AiCallingQualification: React.FC = () => {
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-200 inline-flex items-center gap-1">
                               <X className="w-2.5 h-2.5 text-slate-400 stroke-[3]" /> No Answer
                             </span>
-                          ) : lead.callStatus === "IN_PROGRESS" ? (
+                          ) : lead.callStatus === "IN_PROGRESS" || lead.callStatus === "PENDING" ? (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1 animate-pulse">
-                              <Clock className="w-2.5 h-2.5 text-amber-600" /> In Progress
+                              <Clock className="w-2.5 h-2.5 text-amber-600" />{" "}
+                              {lead.callStatus === "PENDING" ? "Queued" : "In Progress"}
                             </span>
                           ) : (
                             <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
@@ -897,7 +1091,7 @@ export const AiCallingQualification: React.FC = () => {
                             </span>
                           )}
                           <p className="text-[9px] text-slate-400 font-medium pl-0.5">
-                            {lead.attempt === 1 ? "1st Attempt" : `${lead.attempt}nd Attempt`}
+                            {attemptLabel(lead.attempt || 1)}
                           </p>
                         </div>
                       </td>
@@ -1119,57 +1313,45 @@ export const AiCallingQualification: React.FC = () => {
         {/* ─── 5. TABLE PAGINATION FOOTER ─── */}
         <div className="p-4 border-t border-border bg-muted/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
           <div className="text-muted-foreground font-medium">
-            Showing <strong className="text-foreground font-bold">1 – {filteredLeads.length}</strong> of <strong className="text-foreground font-bold">96</strong> leads
+            {leadsFetching ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Refreshing…
+              </span>
+            ) : (
+              <>
+                Showing{" "}
+                <strong className="text-foreground font-bold">
+                  {filteredLeads.length === 0
+                    ? 0
+                    : (paginationMeta.page - 1) * pageSize + 1}
+                  {" – "}
+                  {(paginationMeta.page - 1) * pageSize + filteredLeads.length}
+                </strong>{" "}
+                of{" "}
+                <strong className="text-foreground font-bold">{paginationMeta.total ?? filteredLeads.length}</strong>{" "}
+                leads
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-1.5 self-center sm:self-auto">
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
               title="Previous Page"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
+            <span className="px-2 text-[11px] font-bold text-foreground">
+              Page {paginationMeta.page || page} / {paginationMeta.totalPages || 1}
+            </span>
             <button
               type="button"
-              className="w-7.5 h-7.5 rounded-lg bg-primary text-white font-black flex items-center justify-center shadow-xs"
-            >
-              1
-            </button>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              2
-            </button>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              3
-            </button>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              4
-            </button>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              5
-            </button>
-            <span className="text-muted-foreground px-1 font-bold">...</span>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-foreground hover:bg-muted/50 font-bold flex items-center justify-center cursor-pointer transition-colors"
-            >
-              14
-            </button>
-            <button
-              type="button"
-              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer"
+              disabled={page >= (paginationMeta.totalPages || 1)}
+              onClick={() => setPage((p) => p + 1)}
+              className="w-7.5 h-7.5 rounded-lg border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50 flex items-center justify-center transition-colors cursor-pointer disabled:opacity-40"
               title="Next Page"
             >
               <ChevronRight className="h-4 w-4" />
@@ -1178,7 +1360,14 @@ export const AiCallingQualification: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground font-medium">Show:</span>
-            <select className="h-8 px-2 text-xs bg-muted/30 border border-border rounded-lg font-bold text-foreground focus:outline-none focus:bg-background cursor-pointer">
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              className="h-8 px-2 text-xs bg-muted/30 border border-border rounded-lg font-bold text-foreground focus:outline-none focus:bg-background cursor-pointer"
+            >
               <option value="10">10 per page</option>
               <option value="20">20 per page</option>
               <option value="50">50 per page</option>
@@ -1365,7 +1554,7 @@ export const AiCallingQualification: React.FC = () => {
                       <div>
                         <span className="text-slate-400 block text-[10.5px]">Attempt Number</span>
                         <span className="font-bold text-slate-800">
-                          {activeLead.attempt === 1 ? "1st Attempt" : `${activeLead.attempt}nd Attempt`}
+                          {attemptLabel(activeLead.attempt || 1)}
                         </span>
                       </div>
                       <div>
@@ -1387,32 +1576,47 @@ export const AiCallingQualification: React.FC = () => {
                       <span className="text-[11px] font-mono text-slate-400">{activeLead.callDuration}</span>
                     </div>
 
-                    {/* Waveform Visualization */}
-                    <div className="flex items-center gap-1 h-10 px-2 bg-slate-800/80 rounded-xl overflow-hidden">
-                      {[30, 45, 75, 90, 60, 40, 85, 95, 70, 50, 80, 100, 65, 45, 90, 80, 55, 35, 70, 90, 60, 40, 75, 85, 50, 30].map((h, i) => (
-                        <div
-                          key={i}
-                          style={{ height: `${h}%` }}
-                          className={`flex-1 rounded-full transition-all duration-300 ${
-                            i < 10 ? "bg-emerald-400" : isPlayingAudio ? "bg-cyan-400 animate-pulse" : "bg-slate-600"
-                          }`}
-                        />
-                      ))}
-                    </div>
+                    {activeLead.audioRecordingUrl ? (
+                      <audio
+                        controls
+                        src={activeLead.audioRecordingUrl}
+                        className="w-full"
+                        muted={isAudioMuted}
+                        onPlay={() => setIsPlayingAudio(true)}
+                        onPause={() => setIsPlayingAudio(false)}
+                      />
+                    ) : (
+                      <div className="flex items-center gap-1 h-10 px-2 bg-slate-800/80 rounded-xl overflow-hidden opacity-60">
+                        {[30, 45, 75, 90, 60, 40, 85, 95, 70, 50, 80, 100, 65, 45].map((h, i) => (
+                          <div
+                            key={i}
+                            style={{ height: `${h}%` }}
+                            className="flex-1 rounded-full bg-slate-600"
+                          />
+                        ))}
+                      </div>
+                    )}
 
-                    {/* Player Controls */}
                     <div className="flex items-center justify-between pt-1">
                       <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setIsPlayingAudio(!isPlayingAudio)}
-                          className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 cursor-pointer"
-                        >
-                          {isPlayingAudio ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
-                        </button>
+                        {!activeLead.audioRecordingUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setIsPlayingAudio(!isPlayingAudio)}
+                            className="w-10 h-10 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 flex items-center justify-center font-bold shadow-lg transition-transform hover:scale-105 cursor-pointer"
+                          >
+                            {isPlayingAudio ? (
+                              <Pause className="w-5 h-5 fill-current" />
+                            ) : (
+                              <Play className="w-5 h-5 fill-current ml-0.5" />
+                            )}
+                          </button>
+                        )}
                         <div>
-                          <p className="text-[11px] font-mono font-bold text-slate-300">01:24 / {activeLead.callDuration}</p>
-                          <p className="text-[10px] text-slate-400">1.0x Speed</p>
+                          <p className="text-[11px] font-mono font-bold text-slate-300">
+                            {activeLead.audioRecordingUrl ? "Recording available" : "No recording URL"}
+                          </p>
+                          <p className="text-[10px] text-slate-400">{activeLead.callDuration}</p>
                         </div>
                       </div>
 
@@ -1935,6 +2139,89 @@ export const AiCallingQualification: React.FC = () => {
               </PermissionGate>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ─── CSV MULTI-FILE IMPORT MODAL ─── */}
+      <Dialog open={showImportModal} onOpenChange={setShowImportModal}>
+        <DialogContent className="max-w-lg bg-card rounded-3xl p-6 shadow-2xl border border-border text-foreground">
+          <DialogHeader className="pb-2">
+            <DialogTitle className="text-lg font-black text-foreground flex items-center gap-2">
+              <span className="p-2 rounded-xl bg-blue-50 text-primary border border-blue-100 inline-flex">
+                <Upload className="h-5 w-5" />
+              </span>
+              Import leads for AI Calling
+            </DialogTitle>
+            <p className="text-xs text-muted-foreground font-medium mt-1">
+              Upload one or more lead CSVs. Each file becomes an import job with source{" "}
+              <strong>AI_CALLING</strong>. After confirm, new leads queue for AI dial automatically.
+            </p>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2 text-xs">
+            <Input
+              type="file"
+              accept=".csv,text/csv"
+              multiple
+              disabled={importBusy}
+              onChange={(e) => handlePickImportFiles(e.target.files)}
+            />
+
+            {importJobs.length > 0 && (
+              <div className="space-y-2 max-h-56 overflow-y-auto">
+                {importJobs.map((job) => (
+                  <div
+                    key={`${job.fileName}-${job.jobId || "x"}`}
+                    className="p-3 rounded-xl border border-border bg-muted/30 flex items-start justify-between gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-bold truncate">{job.fileName}</p>
+                      <p className="text-muted-foreground mt-0.5">{job.message || job.status}</p>
+                    </div>
+                    <Badge variant="outline" className="shrink-0 capitalize">
+                      {job.status}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {Array.isArray(recentImportJobs) && recentImportJobs.length > 0 && (
+              <div className="pt-2 border-t border-border">
+                <p className="font-bold mb-2 text-muted-foreground">Recent import jobs</p>
+                <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                  {(recentImportJobs as { id: string; fileName?: string; status?: string; entityType?: string }[])
+                    .slice(0, 5)
+                    .map((j) => (
+                      <div key={j.id} className="flex justify-between gap-2 text-[11px]">
+                        <span className="truncate">{j.fileName || j.id}</span>
+                        <span className="font-semibold shrink-0">{j.status}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="pt-3 flex items-center justify-end gap-2.5">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowImportModal(false)}
+              className="rounded-xl text-xs font-bold h-9.5"
+            >
+              Close
+            </Button>
+            <Button
+              type="button"
+              disabled={importBusy || !importJobs.some((j) => j.status === "previewed")}
+              onClick={handleConfirmAllImports}
+              className="bg-primary text-white text-xs font-bold rounded-xl h-9.5"
+            >
+              {importBusy ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Check className="h-4 w-4 mr-1" />}
+              Confirm import
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

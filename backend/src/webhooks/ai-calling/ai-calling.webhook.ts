@@ -1,25 +1,42 @@
 import type { Request, Response } from "express";
 import { logger } from "../../config/logger";
-import { LeadService } from "../../modules/leads/lead.service";
-import type { SarvamWebhookPayload } from "../../integrations/sarvam/sarvam.types";
+import { AppError } from "../../middlewares/error.middleware";
+import { AiCallingService } from "../../modules/ai-calling/ai-calling.service";
+import type { SarvamWebhookPayload } from "../../modules/ai-calling/ai-calling.types";
+
+function extractWebhookSecret(req: Request): string | undefined {
+  const header =
+    req.header("x-webhook-secret") ||
+    req.header("x-sarvam-webhook-secret") ||
+    req.header("x-ai-calling-secret");
+  if (header) return header.trim();
+
+  const auth = req.header("authorization");
+  if (auth?.toLowerCase().startsWith("bearer ")) {
+    return auth.slice(7).trim();
+  }
+  return undefined;
+}
 
 /**
  * Sarvam AI Webhook Handler
- *
- * Sarvam calls this endpoint after every outbound call attempt completes.
- * Payload contains: attempt_id, status, transcript, duration, interaction_id
- *
- * This handler:
- *  1. Finds the Lead by attempt_id
- *  2. Saves transcript + call status to DB
- *  3. Triggers LLM scoring (Good / Average / Weak)
- *  4. Updates lead status (QUALIFIED / FOLLOW_UP / WEAK)
+ * Verifies secret (required in production), then updates CallLog by externalCallId.
  */
 export const sarvamWebhookHandler = async (
   req: Request,
   res: Response
 ): Promise<void> => {
-  // Always respond 200 immediately so Sarvam doesn't retry
+  try {
+    await AiCallingService.assertWebhookAuthorized(extractWebhookSecret(req));
+  } catch (err) {
+    const status = err instanceof AppError ? err.statusCode : 401;
+    const message = err instanceof Error ? err.message : "Unauthorized";
+    logger.warn({ message }, "[Sarvam Webhook] Rejected");
+    res.status(status).json({ success: false, message });
+    return;
+  }
+
+  // Ack quickly after auth
   res.status(200).json({ received: true });
 
   try {
@@ -35,7 +52,7 @@ export const sarvamWebhookHandler = async (
       return;
     }
 
-    await LeadService.handleSarvamWebhook(payload);
+    await AiCallingService.handleSarvamWebhook(payload);
   } catch (err) {
     logger.error({ err }, "[Sarvam Webhook] Handler error");
   }

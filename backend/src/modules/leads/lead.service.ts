@@ -7,7 +7,6 @@ import { LeadAssignmentService } from "./services/lead-assignment.service";
 import { LeadFollowupService } from "./services/lead-followup.service";
 import { LeadConversionService } from "./services/lead-conversion.service";
 import { LeadActivityService } from "./services/lead-activity.service";
-import { logger } from "../../config/logger";
 import {
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
@@ -109,6 +108,9 @@ export const LeadService = {
       id: lead.id,
       phoneNumber: lead.phoneNumber,
       createdById: lead.createdById,
+      instituteId: lead.instituteId,
+      branchId: lead.branchId,
+      importJobId: lead.importJobId ?? null,
     });
 
     const refreshed = await LeadRepository.findLeadById(lead.id, instituteId);
@@ -433,147 +435,16 @@ export const LeadService = {
     return LeadRepository.getCounsellorPerformance(scope.instituteId, scope.branchId);
   },
 
-  // ─── Sarvam AI Webhook Integration ──────────────────────────────────────────
+  // ─── Sarvam AI Webhook Integration (delegates to multi-tenant module) ────────
   async handleSarvamWebhook(payload: SarvamWebhookPayload): Promise<void> {
-    const { attempt_id, status, interaction_transcript, duration } = payload;
-
-    const transcriptText = interaction_transcript
-      ? interaction_transcript.map((t) => `${t.role}: ${t.text}`).join("\n")
-      : null;
-
-    // Check if there is an associated lead for this attempt
-    let matchedLeadId: string | null = null;
-    if (payload.customer_number) {
-      const normalized = payload.customer_number.replace(/\D/g, "");
-      const phoneDigits = normalized.slice(-10);
-      const lead = await prisma.lead.findFirst({
-        where: {
-          phoneNumber: { contains: phoneDigits },
-          status: "ACTIVE",
-        },
-      });
-      if (lead) {
-        matchedLeadId = lead.id;
-      }
-    }
-
-    await prisma.callLog.upsert({
-      where: { externalCallId: attempt_id },
-      update: {
-        status,
-        duration: duration ?? 0,
-        transcript: transcriptText,
-        ...(matchedLeadId ? { leadId: matchedLeadId } : {}),
-      },
-      create: {
-        externalCallId: attempt_id,
-        status,
-        duration: duration ?? 0,
-        transcript: transcriptText,
-        leadId: matchedLeadId,
-      },
-    });
-
-    if (matchedLeadId) {
-      await LeadActivityService.logActivity(
-        matchedLeadId,
-        "CALL_COMPLETED",
-        `AI Call completed with status: ${status}`,
-        {
-          description: `Duration: ${duration ?? 0}s. Attempt: ${attempt_id}`,
-          metadata: { attempt_id, status, duration },
-        }
-      );
-
-      const { applyTerminalCallStatus } = await import("./services/lead-ai-call.service");
-      await applyTerminalCallStatus(matchedLeadId, status);
-    }
-
-    logger.info(
-      { attempt_id, status, duration, matchedLeadId },
-      "[LeadService] CallLog upserted after Sarvam webhook"
-    );
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    await AiCallingService.handleSarvamWebhook(payload);
   },
 
   // ─── Trigger AI Call for Lead ───────────────────────────────────────────────
   async triggerLeadCall(leadId: string, currentUser: AuthUser) {
-    const lead = await this.getLeadById(leadId, currentUser);
-    const userId = currentUser.userId || currentUser.id;
-    const telephonyConfigured = Boolean(
-      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
-    );
-
-    let externalCallId = `call_${Date.now()}`;
-    let status = "INITIATED";
-    let providerMessage =
-      "AI call queued locally. Configure TELEPHONY_BASE_URL + TELEPHONY_API_KEY to place live calls; Sarvam webhook will complete the CallLog.";
-
-    if (telephonyConfigured) {
-      try {
-        const { initiateCall } = await import(
-          "../../integrations/telephony/telephony.client"
-        );
-        const callbackBase =
-          process.env.PUBLIC_API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5000}`;
-        const response = await initiateCall({
-          to: lead.phoneNumber,
-          from: process.env.TELEPHONY_FROM_NUMBER || "",
-          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
-          metadata: {
-            leadId: lead.id,
-            instituteId: lead.instituteId,
-            triggeredBy: userId,
-          },
-        });
-        externalCallId = response.callId || externalCallId;
-        status = response.status || "INITIATED";
-        providerMessage = "AI voice call initiated via telephony provider";
-      } catch (err) {
-        status = "FAILED";
-        providerMessage =
-          err instanceof Error
-            ? `Telephony initiate failed: ${err.message}`
-            : "Telephony initiate failed";
-        logger.error({ err, leadId: lead.id }, "[LeadService] triggerLeadCall telephony error");
-      }
-    }
-
-    const callLog = await prisma.callLog.create({
-      data: {
-        leadId: lead.id,
-        externalCallId,
-        status,
-        duration: 0,
-        transcript: null,
-      },
-    });
-
-    await LeadActivityService.logActivity(
-      lead.id,
-      status === "FAILED" ? "NOTE_ADDED" : "CALL_COMPLETED",
-      status === "FAILED"
-        ? "AI voice call failed to initiate"
-        : `AI voice call ${status.toLowerCase()}`,
-      {
-        userId,
-        description: providerMessage,
-        metadata: { callId: callLog.id, status, telephonyConfigured },
-      }
-    );
-
-    const { applyTerminalCallStatus, isTerminalCallStatus } = await import(
-      "./services/lead-ai-call.service"
-    );
-    if (isTerminalCallStatus(status) || !telephonyConfigured) {
-      await applyTerminalCallStatus(lead.id, telephonyConfigured ? status : "FAILED");
-    }
-
-    return {
-      success: status !== "FAILED",
-      call: callLog,
-      message: providerMessage,
-    };
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    return AiCallingService.triggerLeadCall(leadId, currentUser);
   },
 
   async getCallHistory(currentUser: AuthUser, query: QueryCallHistoryDTO) {
