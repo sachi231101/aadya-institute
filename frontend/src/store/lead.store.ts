@@ -86,6 +86,8 @@ export interface UnifiedLead {
   nextActionSubtext?: string;
   transcript: LeadTranscriptMessage[];
   lostReason?: string;
+  audioRecordingUrl?: string;
+  callLogId?: string;
 }
 
 import { persist } from "zustand/middleware";

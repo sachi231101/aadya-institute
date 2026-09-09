@@ -221,6 +221,9 @@ model Institute {
   dataExportJobs       DataExportJob[]
   backupStatuses        BackupStatus[]
   integrations         Integration[]
+  callLogs             CallLog[]
+  aiCallingConfig      InstituteAiCallingConfig?
+  aiCallingUsageDaily  AiCallingUsageDaily[]
 }
 
 model Branch {
@@ -270,6 +273,7 @@ model Branch {
   userBranchAccesses    UserBranchAccess[]
   invitations           UserInvitation[]
   activityLogs          ActivityLog[]
+  callLogs              CallLog[]
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -1082,20 +1086,48 @@ model WhatsappLog {
 }
 
 model CallLog {
-  id             String   @id @default(cuid())
-  externalCallId String?  @unique
-  studentId      String?
-  status         String
-  duration       Int      @default(0)
-  transcript     String?
-  createdAt      DateTime @default(now())
+  id                  String    @id @default(cuid())
+  instituteId         String
+  branchId            String?
+  importJobId         String?
+  agentId             String?
+  externalCallId      String?   @unique
+  studentId           String?
+  leadId              String?
+  fromNumber          String?
+  status              String
+  duration            Int       @default(0)
+  transcript          String?
+  recordingUrl        String?
+  recordingStorageKey String?
+  aiSummary           String?
+  interestStatus      String?
+  outcome             String?
+  attemptNumber       Int       @default(1)
+  failureReason       String?
+  providerPayload     Json?
+  idempotencyKey      String    @unique
+  startedAt           DateTime?
+  endedAt             DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
-  leadId         String?
-  student Student? @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  institute  Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch     Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  importJob  DataImportJob?     @relation(fields: [importJobId], references: [id], onDelete: SetNull)
+  agent      AiCallingAgent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  student    Student?           @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  lead       Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
 
   @@index([studentId])
   @@index([leadId])
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([importJobId])
+  @@index([agentId])
+  @@index([instituteId, createdAt])
+  @@index([instituteId, status])
+  @@index([leadId, attemptNumber])
 }
 
 model ActivityLog {
@@ -1396,8 +1428,10 @@ model Lead {
   id                   String          @id @default(cuid())
   instituteId          String
   branchId             String
+  importJobId          String?
   name                 String
   phoneNumber          String
+  normalizedPhone      String?
   email                String?
   interestedIn         String          // Text entered by counsellor
   courseId             String?         // Matched course relation if found
@@ -1424,6 +1458,7 @@ model Lead {
 
   institute            Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch               Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  importJob            DataImportJob?  @relation(fields: [importJobId], references: [id], onDelete: SetNull)
   course               Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
   createdBy            User            @relation("LeadCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   assignedCounsellor   User?           @relation("LeadAssignedTo", fields: [assignedCounsellorId], references: [id], onDelete: SetNull)
@@ -1444,6 +1479,8 @@ model Lead {
   @@index([branchId])
   @@index([instituteId, branchId])
   @@index([phoneNumber])
+  @@index([instituteId, normalizedPhone])
+  @@index([importJobId])
   @@index([stage])
   @@index([status])
   @@index([source])
@@ -2771,9 +2808,82 @@ model DataImportJob {
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   createdBy User      @relation("DataImportCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  leads     Lead[]
+  callLogs  CallLog[]
 
   @@index([instituteId, createdAt])
   @@index([status])
+}
+
+// ─── Multi-tenant AI Calling ─────────────────────────────────────────────────
+
+model AiCallingAgent {
+  id             String   @id @default(cuid())
+  name           String
+  provider       String   @default("SARVAM")
+  providerAppId  String?
+  defaultScript  String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  instituteConfigs InstituteAiCallingConfig[]
+  callLogs         CallLog[]
+
+  @@index([isActive])
+  @@index([provider])
+}
+
+/// Singleton platform credentials (id must be "default").
+model AiCallingPlatformSettings {
+  id                     String   @id // "default"
+  encryptedCredentials   String?
+  credentialFingerprint  String?
+  telephonyBaseUrl       String?
+  defaultConcurrency     Int      @default(3)
+  encryptedWebhookSecret String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+}
+
+model InstituteAiCallingConfig {
+  id                  String   @id @default(cuid())
+  instituteId         String   @unique
+  agentId             String?
+  fromNumber          String?
+  callingScript       String?
+  callingHoursStart   String?
+  callingHoursEnd     String?
+  callingDays         Json?
+  dailyCallLimit      Int?
+  maxAttemptsPerLead  Int      @default(3)
+  retryDelayMinutes   Int      @default(60)
+  isEnabled           Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  institute Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  agent     AiCallingAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([isEnabled])
+}
+
+model AiCallingUsageDaily {
+  id               String   @id @default(cuid())
+  instituteId      String
+  date             DateTime @db.Date
+  initiatedCount   Int      @default(0)
+  completedCount   Int      @default(0)
+  durationSeconds  Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+
+  @@unique([instituteId, date])
+  @@index([instituteId])
+  @@index([date])
 }
 
 model DataExportJob {

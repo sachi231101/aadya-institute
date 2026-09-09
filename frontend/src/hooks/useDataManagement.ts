@@ -22,8 +22,12 @@ export const useBackupStatus = () =>
 export const usePreviewImport = () => {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (data: { entityType: ImportEntityType; csv: string; fileName?: string }) =>
-      dataManagementApi.previewImport(data),
+    mutationFn: (data: {
+      entityType: ImportEntityType;
+      csv: string;
+      fileName?: string;
+      defaultLeadSource?: string;
+    }) => dataManagementApi.previewImport(data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["data-management", "imports"] }),
   });
 };
@@ -32,7 +36,10 @@ export const useConfirmImport = () => {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => dataManagementApi.confirmImport(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["data-management"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["data-management"] });
+      qc.invalidateQueries({ queryKey: ["leads"] });
+    },
   });
 };
 

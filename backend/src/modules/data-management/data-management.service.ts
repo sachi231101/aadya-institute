@@ -181,17 +181,25 @@ async function processStudentRow(instituteId: string, row: Record<string, string
   });
 }
 
-async function processLeadRow(instituteId: string, createdById: string, row: Record<string, string>) {
-  await prisma.lead.create({
-    data: {
-      instituteId,
+async function processLeadRow(
+  instituteId: string,
+  createdById: string,
+  row: Record<string, string>,
+  options?: { importJobId?: string; defaultSource?: string }
+) {
+  const { ingestLeadRow } = await import("../leads/services/lead-ingest.service");
+  await ingestLeadRow({
+    instituteId,
+    createdById,
+    importJobId: options?.importJobId ?? null,
+    defaultSource: options?.defaultSource,
+    row: {
+      name: row.name,
+      phoneNumber: row.phoneNumber,
+      email: row.email,
+      interestedIn: row.interestedIn,
       branchId: row.branchId,
-      name: row.name.trim(),
-      phoneNumber: row.phoneNumber.trim(),
-      email: row.email?.trim() || null,
-      interestedIn: row.interestedIn.trim(),
-      source: row.source?.trim() || "WALK_IN",
-      createdById,
+      source: row.source,
     },
   });
 }
@@ -228,7 +236,8 @@ async function processRows(
   entityType: ImportEntityType,
   instituteId: string,
   createdById: string,
-  rows: Record<string, string>[]
+  rows: Record<string, string>[],
+  options?: { importJobId?: string; defaultSource?: string }
 ): Promise<{ successRows: number; errorRows: number; errorReport: CsvRowError[] }> {
   let successRows = 0;
   const errorReport: CsvRowError[] = [];
@@ -237,7 +246,8 @@ async function processRows(
     const row = rows[i];
     try {
       if (entityType === "students") await processStudentRow(instituteId, row);
-      else if (entityType === "leads") await processLeadRow(instituteId, createdById, row);
+      else if (entityType === "leads")
+        await processLeadRow(instituteId, createdById, row, options);
       else await processUserRow(instituteId, row);
       successRows++;
     } catch (err) {
@@ -278,6 +288,9 @@ export const DataManagementService = {
       errorRows: errors.length,
       previewData: validRows as unknown as Prisma.InputJsonValue,
       errorReport: errors as unknown as Prisma.InputJsonValue,
+      resultSummary: {
+        defaultLeadSource: input.defaultLeadSource || null,
+      } as unknown as Prisma.InputJsonValue,
     });
 
     return {
@@ -304,6 +317,12 @@ export const DataManagementService = {
       ? (job.previewData as Record<string, string>[])
       : [];
 
+    const summary = (job.resultSummary || {}) as { defaultLeadSource?: string | null };
+    const importOptions = {
+      importJobId: jobId,
+      defaultSource: summary.defaultLeadSource || undefined,
+    };
+
     // Re-load full valid rows from previewData; for large jobs we only stored first 50 —
     // require client to re-preview with smaller sets or process what we have.
     const rowsToProcess = previewRows;
@@ -322,7 +341,8 @@ export const DataManagementService = {
             job.entityType as ImportEntityType,
             instituteId,
             currentUser.id,
-            rowsToProcess
+            rowsToProcess,
+            importOptions
           );
           await DataManagementRepository.updateImportJob(jobId, instituteId, {
             status: result.errorRows > 0 && result.successRows === 0 ? "FAILED" : "COMPLETED",
@@ -333,6 +353,7 @@ export const DataManagementService = {
               processed: rowsToProcess.length,
               successRows: result.successRows,
               errorRows: result.errorRows,
+              defaultLeadSource: summary.defaultLeadSource || null,
             } as unknown as Prisma.InputJsonValue,
             completedAt: new Date(),
           });
@@ -353,7 +374,8 @@ export const DataManagementService = {
       job.entityType as ImportEntityType,
       instituteId,
       currentUser.id,
-      rowsToProcess
+      rowsToProcess,
+      importOptions
     );
 
     const updated = await DataManagementRepository.updateImportJob(jobId, instituteId, {
@@ -365,6 +387,7 @@ export const DataManagementService = {
         processed: rowsToProcess.length,
         successRows: result.successRows,
         errorRows: result.errorRows,
+        defaultLeadSource: summary.defaultLeadSource || null,
       } as unknown as Prisma.InputJsonValue,
       completedAt: new Date(),
     });

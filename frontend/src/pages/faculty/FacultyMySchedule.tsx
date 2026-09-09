@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+﻿import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -144,6 +144,7 @@ export const FacultyMySchedule: React.FC = () => {
 
   // Selected Class in bottom details pane
   const [selectedClassId, setSelectedClassId] = useState<string>("mon-java-live");
+  const todayClassesSectionRef = useRef<HTMLDivElement>(null);
 
   // Live Timer State
   const [liveSeconds, setLiveSeconds] = useState<number>(42 * 60 + 18); // 00:42:18 initial demo timer
@@ -372,6 +373,9 @@ export const FacultyMySchedule: React.FC = () => {
 
   const handleOpenClassDetails = (cls: FormattedTimetableClass) => {
     setSelectedClassId(cls.id);
+    setTimeout(() => {
+      todayClassesSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 50);
   };
 
   const handleNavigateToSession = (cls: FormattedTimetableClass, defaultTab?: string) => {
@@ -487,22 +491,20 @@ export const FacultyMySchedule: React.FC = () => {
             <button
               type="button"
               onClick={() => setViewMode("TIMETABLE")}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                viewMode === "TIMETABLE"
-                  ? "bg-[#2563EB] text-white shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "TIMETABLE"
+                ? "bg-[#2563EB] text-white shadow-xs"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                }`}
             >
               Timetable Grid
             </button>
             <button
               type="button"
               onClick={() => setViewMode("LIST")}
-              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                viewMode === "LIST"
-                  ? "bg-[#2563EB] text-white shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
-              }`}
+              className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${viewMode === "LIST"
+                ? "bg-[#2563EB] text-white shadow-xs"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900"
+                }`}
             >
               Class List
             </button>
@@ -525,11 +527,10 @@ export const FacultyMySchedule: React.FC = () => {
                   {FULL_TIME_SLOTS.map((slot) => (
                     <th
                       key={slot.id}
-                      className={`p-2.5 border-r border-slate-200 dark:border-slate-800 text-center ${
-                        slot.isBreak
-                          ? "bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 w-24"
-                          : "min-w-[95px]"
-                      }`}
+                      className={`p-2.5 border-r border-slate-200 dark:border-slate-800 text-center ${slot.isBreak
+                        ? "bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 w-24"
+                        : "min-w-[95px]"
+                        }`}
                     >
                       <span className="block font-black text-xs text-slate-800 dark:text-slate-100">
                         {slot.title}
@@ -569,19 +570,17 @@ export const FacultyMySchedule: React.FC = () => {
                   return (
                     <tr
                       key={day.iso}
-                      className={`transition-colors h-[86px] ${
-                        day.isToday
-                          ? "bg-blue-50/20 dark:bg-blue-950/10"
-                          : "hover:bg-slate-50/30 dark:hover:bg-slate-800/20"
-                      }`}
+                      className={`transition-colors h-[86px] ${day.isToday
+                        ? "bg-blue-50/20 dark:bg-blue-950/10"
+                        : "hover:bg-slate-50/30 dark:hover:bg-slate-800/20"
+                        }`}
                     >
                       {/* Left Day/Date Cell */}
                       <td
-                        className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${
-                          day.isToday
-                            ? "bg-blue-50/60 text-[#2563EB] dark:bg-blue-950/40"
-                            : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
-                        }`}
+                        className={`p-3 border-r border-slate-200 dark:border-slate-800 text-center font-bold ${day.isToday
+                          ? "bg-blue-50/60 text-[#2563EB] dark:bg-blue-950/40"
+                          : "bg-slate-50/30 dark:bg-slate-800/30 text-slate-800 dark:text-slate-200"
+                          }`}
                       >
                         <div className="flex flex-col items-center justify-center">
                           <span className="text-xs uppercase tracking-wider font-black">
@@ -639,26 +638,24 @@ export const FacultyMySchedule: React.FC = () => {
                             >
                               <div
                                 onClick={() => handleOpenClassDetails(matchingClass)}
-                                className={`p-2 rounded-2xl border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[72px] flex flex-col justify-between ${
-                                  isLive
-                                    ? "bg-emerald-50/90 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 ring-2 ring-emerald-500/40 shadow-xs"
-                                    : isExam
+                                className={`p-2 rounded-2xl border text-left cursor-pointer transition-all duration-200 hover:shadow-md select-none relative h-[72px] flex flex-col justify-between ${isLive
+                                  ? "bg-emerald-50/90 border-emerald-300 dark:bg-emerald-950/40 dark:border-emerald-800 ring-2 ring-emerald-500/40 shadow-xs"
+                                  : isExam
                                     ? "bg-rose-50/70 border-rose-200 dark:bg-rose-950/30 dark:border-rose-800 hover:border-rose-400"
                                     : isSelected
-                                    ? "bg-blue-50 border-[#2563EB] ring-2 ring-[#2563EB]/30 shadow-xs"
-                                    : "bg-blue-50/50 border-blue-100 hover:border-[#2563EB]/60 dark:bg-slate-800/60 dark:border-slate-700"
-                                }`}
+                                      ? "bg-blue-50 border-[#2563EB] ring-2 ring-[#2563EB]/30 shadow-xs"
+                                      : "bg-blue-50/50 border-blue-100 hover:border-[#2563EB]/60 dark:bg-slate-800/60 dark:border-slate-700"
+                                  }`}
                               >
                                 <div className="flex items-center justify-between gap-1">
                                   <div className="flex items-center gap-1.5 min-w-0">
                                     <span
-                                      className={`w-2 h-2 rounded-full shrink-0 ${
-                                        isLive
-                                          ? "bg-emerald-500 animate-ping"
-                                          : isExam
+                                      className={`w-2 h-2 rounded-full shrink-0 ${isLive
+                                        ? "bg-emerald-500 animate-ping"
+                                        : isExam
                                           ? "bg-rose-500"
                                           : "bg-blue-600"
-                                      }`}
+                                        }`}
                                     />
                                     <p className="font-extrabold text-[11px] text-slate-900 dark:text-white truncate">
                                       {matchingClass.courseName}
@@ -713,11 +710,10 @@ export const FacultyMySchedule: React.FC = () => {
                   key={day.iso}
                   type="button"
                   onClick={() => setMobileDayIndex(idx)}
-                  className={`flex-1 min-w-[42px] py-2 px-1 text-center rounded-xl transition-all cursor-pointer ${
-                    mobileDayIndex === idx
-                      ? "bg-[#2563EB] text-white font-bold shadow-xs"
-                      : "text-slate-600 hover:text-slate-900"
-                  }`}
+                  className={`flex-1 min-w-[42px] py-2 px-1 text-center rounded-xl transition-all cursor-pointer ${mobileDayIndex === idx
+                    ? "bg-[#2563EB] text-white font-bold shadow-xs"
+                    : "text-slate-600 hover:text-slate-900"
+                    }`}
                 >
                   <span className="block text-[10px] uppercase font-mono">{day.dayShort}</span>
                   <span className="block text-xs font-black">{day.date.getDate()}</span>
@@ -747,10 +743,9 @@ export const FacultyMySchedule: React.FC = () => {
                     dayClasses.map((cls) => (
                       <Card
                         key={cls.id}
-                        onClick={() => setSelectedClassId(cls.id)}
-                        className={`rounded-2xl border cursor-pointer hover:shadow-md transition-all ${
-                          selectedClassId === cls.id ? "ring-2 ring-[#2563EB] border-[#2563EB]" : ""
-                        }`}
+                        onClick={() => handleOpenClassDetails(cls)}
+                        className={`rounded-2xl border cursor-pointer hover:shadow-md transition-all ${selectedClassId === cls.id ? "ring-2 ring-[#2563EB] border-[#2563EB]" : ""
+                          }`}
                       >
                         <CardContent className="p-4 space-y-2.5">
                           <div className="flex items-center justify-between gap-2">
@@ -783,7 +778,7 @@ export const FacultyMySchedule: React.FC = () => {
           </div>
 
           {/* ─── Bottom Two-Column Dashboard (Today's Classes + Class Details) ─── */}
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2">
+          <div ref={todayClassesSectionRef} className="grid grid-cols-1 lg:grid-cols-12 gap-6 pt-2 scroll-mt-6">
             {/* Left Column: Today's Classes List */}
             <div className="lg:col-span-6 space-y-3">
               <div className="flex items-center justify-between">
@@ -815,11 +810,10 @@ export const FacultyMySchedule: React.FC = () => {
                       <Card
                         key={cls.id}
                         onClick={() => setSelectedClassId(cls.id)}
-                        className={`rounded-2xl border transition-all cursor-pointer ${
-                          isSelected
+                        className={`rounded-2xl border transition-all cursor-pointer ${isSelected
                             ? "border-[#2563EB] ring-2 ring-[#2563EB]/20 bg-blue-50/30 dark:bg-slate-800"
                             : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-slate-300"
-                        }`}
+                          }`}
                       >
                         <CardContent className="p-4 flex items-center justify-between gap-3">
                           <div className="space-y-1 min-w-0">
@@ -828,11 +822,10 @@ export const FacultyMySchedule: React.FC = () => {
                                 {cls.startTime} – {cls.endTime}
                               </span>
                               <Badge
-                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                  isLive
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${isLive
                                     ? "bg-emerald-600 text-white animate-pulse"
                                     : "bg-blue-50 text-blue-600 border border-blue-200"
-                                }`}
+                                  }`}
                               >
                                 {isLive ? "LIVE NOW" : "Upcoming"}
                               </Badge>
@@ -889,11 +882,10 @@ export const FacultyMySchedule: React.FC = () => {
                           {currentSelectedClass.courseName}
                         </h3>
                         <Badge
-                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${
-                            currentSelectedClass.status === "LIVE"
+                          className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full ${currentSelectedClass.status === "LIVE"
                               ? "bg-emerald-600 text-white animate-pulse"
                               : "bg-blue-50 text-blue-600 border border-blue-200"
-                          }`}
+                            }`}
                         >
                           {currentSelectedClass.status === "LIVE" ? "LIVE NOW" : "UPCOMING"}
                         </Badge>
@@ -963,10 +955,10 @@ export const FacultyMySchedule: React.FC = () => {
                           <span className="font-extrabold text-slate-800 dark:text-slate-200">
                             {currentSelectedClass.date
                               ? new Date(currentSelectedClass.date).toLocaleDateString("en-IN", {
-                                  day: "numeric",
-                                  month: "short",
-                                  year: "numeric",
-                                })
+                                day: "numeric",
+                                month: "short",
+                                year: "numeric",
+                              })
                               : "31 Aug 2026"}
                           </span>
                         </div>
@@ -1017,11 +1009,10 @@ export const FacultyMySchedule: React.FC = () => {
                         <div>
                           <span className="text-[11px] font-medium text-slate-400 block">Attendance Status</span>
                           <span
-                            className={`font-extrabold ${
-                              currentSelectedClass.attendanceStatus === "Updated"
+                            className={`font-extrabold ${currentSelectedClass.attendanceStatus === "Updated"
                                 ? "text-emerald-600 font-bold"
                                 : "text-amber-600"
-                            }`}
+                              }`}
                           >
                             {currentSelectedClass.attendanceStatus || "Pending"}
                           </span>

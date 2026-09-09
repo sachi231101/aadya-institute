@@ -10,7 +10,6 @@ import {
   Loader2,
   AlertCircle,
   Building2,
-  ChevronRight,
   ArrowRight
 } from "lucide-react";
 import { useFacultyCourses, useAssignFacultyCourse, useFacultyList } from "../../../hooks/useFaculty";
@@ -168,18 +167,8 @@ export const CourseAssignment: React.FC = () => {
 
   return (
     <div className="p-6 md:p-8 max-w-[1680px] mx-auto space-y-6 min-h-screen relative overflow-x-hidden animate-in fade-in duration-300">
-      {/* ─── BREADCRUMB & HEADER ─── */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-          <span>Dashboard</span>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <span>Faculty Portal</span>
-          <ChevronRight className="h-3.5 w-3.5" />
-          <span className="text-primary font-bold">
-            {isFacultyOnly ? "My Batches & Courses" : "Assign Faculty to Courses"}
-          </span>
-        </div>
-
+      {/* ─── HEADER ─── */}
+      <div>
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
@@ -300,22 +289,6 @@ export const CourseAssignment: React.FC = () => {
               {allCoursesList.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Branch Filter */}
-          <div className="relative min-w-[180px]">
-            <select
-              value={selectedBranchFilter}
-              onChange={(e) => setSelectedBranchFilter(e.target.value)}
-              className="w-full h-9 pl-3 pr-8 text-xs font-bold text-foreground bg-muted/30 border border-border rounded-xl focus:ring-2 focus:ring-primary/20 focus:bg-background outline-none cursor-pointer"
-            >
-              <option value="ALL">All Branches</option>
-              {branches.map((b) => (
-                <option key={b.id} value={b.id}>
-                  {b.name}
                 </option>
               ))}
             </select>

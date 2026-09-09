@@ -126,58 +126,48 @@ export const AdmissionsService = {
       throw new Error("Enquiry not found");
     }
 
-    // Prefer linking CallLog to a matching Lead (CallLog has no enquiryId column)
     const { normalizePhoneDigits } = await import(
       "../leads/services/lead-enquiry-sync.service"
     );
     const phone = normalizePhoneDigits(enquiry.phone);
-    const leads = await prisma.lead.findMany({
-      where: { instituteId },
-      select: { id: true, phoneNumber: true },
-    });
-    const matchedLead = leads.find((l) => normalizePhoneDigits(l.phoneNumber) === phone);
-
-    const telephonyConfigured = Boolean(
-      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
-    );
-    let status = "INITIATED";
-    let externalCallId = `enq_call_${Date.now()}`;
-
-    if (telephonyConfigured && matchedLead) {
-      try {
-        const { initiateCall } = await import(
-          "../../integrations/telephony/telephony.client"
-        );
-        const callbackBase =
-          process.env.PUBLIC_API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5000}`;
-        const response = await initiateCall({
-          to: enquiry.phone,
-          from: process.env.TELEPHONY_FROM_NUMBER || "",
-          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
-          metadata: { enquiryId: id, leadId: matchedLead.id, instituteId },
-        });
-        externalCallId = response.callId || externalCallId;
-        status = response.status || "INITIATED";
-      } catch {
-        status = "FAILED";
-      }
+    if (!phone) {
+      throw new Error("Enquiry has no valid phone number");
     }
 
-    await prisma.callLog.create({
-      data: {
-        externalCallId: `call-${Date.now()}`,
-        status: "COMPLETED",
-        duration: 85,
-        transcript: "AI: Hello, this is Aadya Institute. We noticed your enquiry for our program. Prospect: Yes, I am looking to join the upcoming batch. AI: Great, our counselor will follow up with admission details.",
+    const matchedLead = await prisma.lead.findFirst({
+      where: {
+        instituteId,
+        status: "ACTIVE",
+        OR: [{ normalizedPhone: phone }, { phoneNumber: { contains: phone } }],
       },
     });
 
-    // Persist AI call note on the enquiry (no dedicated AI columns in schema)
+    if (!matchedLead) {
+      throw new Error(
+        "No matching active lead for this enquiry phone — create a lead first before AI calling"
+      );
+    }
+
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    const dial = await AiCallingService.enqueueLeadCall({
+      id: matchedLead.id,
+      phoneNumber: matchedLead.phoneNumber,
+      createdById: matchedLead.createdById,
+      instituteId: matchedLead.instituteId,
+      branchId: matchedLead.branchId,
+      importJobId: matchedLead.importJobId,
+    });
+
+    const status = dial.queued
+      ? "INITIATED"
+      : dial.skipped === "telephony_unavailable"
+        ? "FAILED"
+        : dial.skipped || "SKIPPED";
+
     await AdmissionsRepository.updateEnquiry(id, instituteId, {
       counselorNotes: [
         enquiry.counselorNotes,
-        `[AI Call ${status}] Queued ${new Date().toISOString()}`,
+        `[AI Call ${status}] Queued ${new Date().toISOString()} callLog=${dial.callLogId || "n/a"}`,
       ]
         .filter(Boolean)
         .join("\n"),

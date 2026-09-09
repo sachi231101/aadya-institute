@@ -563,27 +563,6 @@ export const FacultyClassSession: React.FC = () => {
               )}
             </div>
 
-            {/* Class Details Meta Info Badges */}
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-2.5 flex-wrap">
-              <span className="px-2.5 py-1 rounded-lg bg-blue-50 text-[#2563EB] border border-blue-200 font-bold">
-                Batch: {batchCode}
-              </span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-medium">
-                Subject: {subjectName}
-              </span>
-              <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 font-medium">
-                Faculty: {facultyName}
-              </span>
-              <span className="flex items-center gap-1 text-slate-600 font-medium px-2 py-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-400" /> {scheduledDate}
-              </span>
-              <span className="flex items-center gap-1 text-slate-600 font-medium px-2 py-1">
-                <Clock className="w-3.5 h-3.5 text-slate-400" /> {scheduledTime}
-              </span>
-              <span className="flex items-center gap-1 text-slate-600 font-medium px-2 py-1">
-                <MapPin className="w-3.5 h-3.5 text-slate-400" /> {roomNo}
-              </span>
-            </div>
           </div>
 
           {/* Live Timer if Active */}
@@ -604,13 +583,13 @@ export const FacultyClassSession: React.FC = () => {
       </div>
 
       {/* ─── 3-STEP PROGRESSION HEADER ─── */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-2xs">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-3 sm:p-4 shadow-2xs">
+        <div className="flex md:grid md:grid-cols-3 gap-3 overflow-x-auto pb-1 md:pb-0 snap-x">
           {/* Step 1 */}
           <button
             type="button"
             onClick={() => setActiveTab("attendance")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "attendance" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "attendance" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
@@ -627,7 +606,7 @@ export const FacultyClassSession: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("live_classroom")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "live_classroom" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "live_classroom" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${workflowStep === "LIVE"
@@ -653,7 +632,7 @@ export const FacultyClassSession: React.FC = () => {
           <button
             type="button"
             onClick={() => setActiveTab("session_history")}
-            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer ${activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50"
+            className={`flex items-center gap-3 p-2.5 rounded-xl text-left transition-colors cursor-pointer shrink-0 min-w-[220px] md:min-w-0 snap-start ${activeTab === "session_history" ? "bg-blue-50/70 border border-blue-200" : "hover:bg-slate-50 border border-transparent"
               }`}
           >
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${activeTab === "session_history" ? "bg-[#2563EB] text-white" : "bg-slate-100 text-slate-700"
@@ -696,7 +675,7 @@ export const FacultyClassSession: React.FC = () => {
         <div className="lg:col-span-2 space-y-4">
           {activeTab === "attendance" && (
             <div className="space-y-4">
-              <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-5 md:p-6 space-y-5">
+              <Card className="bg-white rounded-2xl border-slate-200/80 shadow-2xs p-4 sm:p-6 space-y-5">
                 {/* Header & Badges */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -711,18 +690,18 @@ export const FacultyClassSession: React.FC = () => {
                     </p>
                   </div>
 
-                  {/* Top Status Counters */}
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold">
+                  {/* Top Status Counters with Horizontal Slide on Mobile */}
+                  <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold whitespace-nowrap shrink-0">
                       {attendanceCounts.present} Present
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold">
+                    <span className="px-2.5 py-1 rounded-lg bg-rose-50 text-rose-700 border border-rose-200 text-xs font-bold whitespace-nowrap shrink-0">
                       {attendanceCounts.absent} Absent
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold whitespace-nowrap shrink-0">
                       {attendanceCounts.leave} Leave
                     </span>
-                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold">
+                    <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 border border-slate-200 text-xs font-bold whitespace-nowrap shrink-0">
                       {attendanceCounts.total} Total
                     </span>
                   </div>
@@ -739,82 +718,84 @@ export const FacultyClassSession: React.FC = () => {
                   />
                 </div>
 
-                {/* Students Table */}
+                {/* Students Table with Sliding / Horizontal Scroll on Mobile */}
                 <div className="rounded-xl border border-slate-200/80 overflow-hidden">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/60 text-[10.5px] uppercase tracking-wider">
-                      <tr>
-                        <th className="py-3 px-4 w-12 text-center">#</th>
-                        <th className="py-3 px-4">Student Name</th>
-                        <th className="py-3 px-4">Student ID</th>
-                        <th className="py-3 px-4 text-center">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-800">
-                      {filteredStudents.length === 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs min-w-[560px]">
+                      <thead className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-200/60 text-[10.5px] uppercase tracking-wider">
                         <tr>
-                          <td colSpan={4} className="py-8 text-center text-slate-500 text-xs">
-                            No students are assigned to this class.
-                          </td>
+                          <th className="py-3 px-4 w-12 text-center whitespace-nowrap">#</th>
+                          <th className="py-3 px-4 whitespace-nowrap">Student Name</th>
+                          <th className="py-3 px-4 whitespace-nowrap">Student ID</th>
+                          <th className="py-3 px-4 text-center whitespace-nowrap">Status</th>
                         </tr>
-                      ) : (
-                        filteredStudents.map((st, idx) => (
-                          <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-3.5 px-4 text-center text-slate-400 font-bold">{idx + 1}</td>
-                            <td className="py-3.5 px-4">
-                              <div className="flex items-center gap-3">
-                                <Avatar className="w-8 h-8 rounded-full border border-slate-200 shadow-2xs">
-                                  <AvatarImage src={st.avatar} />
-                                  <AvatarFallback className="bg-purple-600 text-white text-[10px] font-black">
-                                    {st.initials}
-                                  </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                  <span className="font-extrabold text-slate-900 block">{st.name}</span>
-                                  <span className="text-[10.5px] text-slate-500 font-normal">{batchCode}</span>
-                                </div>
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono font-bold text-slate-500 text-[11px]">{st.studentId}</td>
-                            <td className="py-3.5 px-4 text-center">
-                              <div className="inline-flex items-center rounded-xl bg-slate-50 p-1 border border-slate-200 gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleAttendance(st.id, "PRESENT")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "PRESENT"
-                                      ? "bg-[#00832D] text-white shadow-xs"
-                                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                    }`}
-                                >
-                                  <Check className="w-3.5 h-3.5" /> Present
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleAttendance(st.id, "ABSENT")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "ABSENT"
-                                      ? "bg-rose-600 text-white shadow-xs"
-                                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                    }`}
-                                >
-                                  <X className="w-3.5 h-3.5" /> Absent
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => handleToggleAttendance(st.id, "LEAVE")}
-                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${st.status === "LEAVE"
-                                      ? "bg-amber-500 text-white shadow-xs"
-                                      : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
-                                    }`}
-                                >
-                                  <Clock className="w-3.5 h-3.5" /> Leave
-                                </button>
-                              </div>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white font-medium text-slate-800">
+                        {filteredStudents.length === 0 ? (
+                          <tr>
+                            <td colSpan={4} className="py-8 text-center text-slate-500 text-xs">
+                              No students are assigned to this class.
                             </td>
                           </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
+                        ) : (
+                          filteredStudents.map((st, idx) => (
+                            <tr key={st.id} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-3.5 px-4 text-center text-slate-400 font-bold whitespace-nowrap">{idx + 1}</td>
+                              <td className="py-3.5 px-4 whitespace-nowrap">
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="w-8 h-8 rounded-full border border-slate-200 shadow-2xs shrink-0">
+                                    <AvatarImage src={st.avatar} />
+                                    <AvatarFallback className="bg-purple-600 text-white text-[10px] font-black">
+                                      {st.initials}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <span className="font-extrabold text-slate-900 block whitespace-nowrap">{st.name}</span>
+                                    <span className="text-[10.5px] text-slate-500 font-normal whitespace-nowrap">{batchCode}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4 font-mono font-bold text-slate-600 text-[11px] whitespace-nowrap">{st.studentId}</td>
+                              <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                                <div className="inline-flex items-center rounded-xl bg-slate-50 p-1 border border-slate-200 gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAttendance(st.id, "PRESENT")}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "PRESENT"
+                                        ? "bg-[#00832D] text-white shadow-xs"
+                                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                      }`}
+                                  >
+                                    <Check className="w-3.5 h-3.5" /> Present
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAttendance(st.id, "ABSENT")}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "ABSENT"
+                                        ? "bg-rose-600 text-white shadow-xs"
+                                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                      }`}
+                                  >
+                                    <X className="w-3.5 h-3.5" /> Absent
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleAttendance(st.id, "LEAVE")}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${st.status === "LEAVE"
+                                        ? "bg-amber-500 text-white shadow-xs"
+                                        : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/60"
+                                      }`}
+                                  >
+                                    <Clock className="w-3.5 h-3.5" /> Leave
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {/* ─── DYNAMIC BOTTOM PRIMARY ACTIONS BAR ─── */}
