@@ -62,6 +62,7 @@ import type { CallLog, Lead } from "@/services/leads.api";
 import { LeadScoreBadge } from "@/pages/admin/leads/components/LeadScoreBadge";
 import { AiCallingResultCard } from "@/pages/admin/leads/components/AiCallingResultCard";
 import { CallDetailDrawer } from "@/pages/admin/leads/components/CallDetailDrawer";
+import { LeadModuleNavLinks } from "@/pages/admin/leads/components/LeadModuleNavLinks";
 
 type WorkspaceTab = "queue" | "active" | "results";
 
@@ -135,10 +136,11 @@ export const AiCallingQualification: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const portalBase = getPortalBasePath(location.pathname);
+  const canOpenAiConfig = portalBase === "/admin" || portalBase === "/center";
   const aiConfigHref =
-    portalBase === "/center"
-      ? "/center/integrations/ai-calling"
-      : ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS + "/ai-calling";
+    portalBase === "/admin"
+      ? `${ROUTES.ADMIN.ADMINISTRATION.INTEGRATIONS}/ai-calling`
+      : `${portalBase}/integrations/ai-calling`;
   const queryClient = useQueryClient();
 
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("queue");
@@ -440,8 +442,9 @@ export const AiCallingQualification: React.FC = () => {
     }
   };
 
-  const openLead360 = (leadId: string) => {
-    navigate(`${portalBase}/leads/${leadId}`);
+  const openLead360 = (leadId: string, tab?: string) => {
+    const qs = tab ? `?tab=${encodeURIComponent(tab)}` : "";
+    navigate(`${portalBase}/leads/${leadId}${qs}`);
   };
 
   const openCallDetail = (call: CallLog) => {
@@ -491,9 +494,15 @@ export const AiCallingQualification: React.FC = () => {
               Imported leads may not dial until config is enabled.
             </span>
           </div>
-          <Button asChild variant="outline" size="sm" className="shrink-0 h-8 text-xs font-bold">
-            <Link to={aiConfigHref}>Open AI Calling config</Link>
-          </Button>
+          {canOpenAiConfig ? (
+            <Button asChild variant="outline" size="sm" className="shrink-0 h-8 text-xs font-bold">
+              <Link to={aiConfigHref}>Open AI Calling config</Link>
+            </Button>
+          ) : (
+            <span className="text-[11px] font-medium text-amber-800/80 shrink-0">
+              Ask an admin or center manager to enable AI Calling config.
+            </span>
+          )}
         </div>
       )}
 
@@ -509,6 +518,7 @@ export const AiCallingQualification: React.FC = () => {
             <p className="text-xs text-muted-foreground font-medium mt-0.5">
               Queue dials, monitor live calls, and review AI qualification results.
             </p>
+            <LeadModuleNavLinks className="mt-2" />
           </div>
         </div>
 

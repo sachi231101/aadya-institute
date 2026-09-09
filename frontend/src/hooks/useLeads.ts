@@ -195,17 +195,6 @@ export const useChangeLeadStage = () => {
   });
 };
 
-export const useConvertLead = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof leadsApi.convertLead>[1] }) =>
-      leadsApi.convertLead(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["leads"] });
-    },
-  });
-};
-
 export const useMarkLeadLost = () => {
   const queryClient = useQueryClient();
   return useMutation({

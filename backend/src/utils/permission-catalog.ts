@@ -90,7 +90,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "counsellor.all", label: "All Counsellors", readPermissions: ["user.read"], writePermissions: ["user.create", "user.update"] },
       { key: "counsellor.lead_allocation", label: "Assign Leads to Counsellors", readPermissions: ["lead.read"], writePermissions: ["lead.assign", "lead.update"] },
-      { key: "counsellor.performance", label: "Counsellor Performance", readPermissions: ["target.read", "report.read"], writePermissions: [] },
+      { key: "counsellor.performance", label: "Counsellor Performance", readPermissions: ["lead.read"], writePermissions: [] },
     ],
   },
   {

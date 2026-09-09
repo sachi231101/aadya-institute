@@ -3,6 +3,7 @@ import { logger } from "../../../config/logger";
 import { resolveAiCallingConfig } from "../../ai-calling/ai-calling.config";
 import { isTerminalCallStatus } from "../../ai-calling/ai-calling.types";
 import { LeadActivityService } from "./lead-activity.service";
+import { LeadNotifyService } from "./lead-notify.service";
 
 const RETRYABLE_STATUSES = new Set(["NO_ANSWER", "BUSY", "FAILED"]);
 
@@ -117,6 +118,7 @@ export const LeadAiOutcomeService = {
         lead: {
           select: {
             id: true,
+            name: true,
             instituteId: true,
             branchId: true,
             stage: true,
@@ -151,6 +153,12 @@ export const LeadAiOutcomeService = {
       aiSummary: callLog.aiSummary,
     });
 
+    let createdFollowUp: {
+      id: string;
+      scheduledAt: Date;
+      priority: string;
+    } | null = null;
+
     await prisma.$transaction(async (tx) => {
       await tx.lead.update({
         where: { id: lead.id },
@@ -159,16 +167,18 @@ export const LeadAiOutcomeService = {
           admissionProbability: derived.admissionProbability,
           nextBestAction: derived.nextBestAction,
           lastContactedAt: new Date(),
-          ...(callLog.nextAction
-            ? {}
-            : {}),
         },
       });
+
+      // Clear UI signal: "Follow-up created" is read by AI Results (followUpCreated / nextAction).
+      const nextActionSignal = derived.createFollowUp
+        ? `Follow-up created — ${callLog.nextAction || derived.nextBestAction}`
+        : callLog.nextAction || derived.nextBestAction;
 
       await tx.callLog.update({
         where: { id: callLog.id },
         data: {
-          nextAction: callLog.nextAction || derived.nextBestAction,
+          nextAction: nextActionSignal,
           qualification:
             callLog.qualification ||
             callLog.interestStatus ||
@@ -275,8 +285,27 @@ export const LeadAiOutcomeService = {
             tx,
           }
         );
+
+        createdFollowUp = {
+          id: followUp.id,
+          scheduledAt: followUp.scheduledAt,
+          priority: followUp.priority,
+        };
       }
     });
+
+    if (createdFollowUp) {
+      await LeadNotifyService.notifyFollowUpCreated({
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId: lead.id,
+        leadName: lead.name,
+        assignedCounsellorId: lead.assignedCounsellorId,
+        followUpId: createdFollowUp.id,
+        scheduledAt: createdFollowUp.scheduledAt,
+        priority: createdFollowUp.priority,
+      });
+    }
 
     // Honor retry for NO_ANSWER / BUSY / FAILED when under maxAttempts
     if (RETRYABLE_STATUSES.has(callLog.status)) {

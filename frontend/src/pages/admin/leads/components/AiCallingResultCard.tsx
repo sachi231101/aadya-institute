@@ -1,5 +1,5 @@
 import React from "react";
-import { ExternalLink, FileAudio, MessageSquareText, Sparkles } from "lucide-react";
+import { CalendarCheck, ExternalLink, FileAudio, MessageSquareText, Sparkles } from "lucide-react";
 import type { CallLog } from "@/services/leads.api";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,10 +19,38 @@ function formatDuration(seconds?: number | null): string {
   return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
 }
 
+/** Heuristic aligned with LeadAiOutcomeService.createFollowUp when API flag absent. */
+export function detectAiFollowUpCreated(call: CallLog): boolean {
+  if ((call as CallLog & { followUpCreated?: boolean }).followUpCreated === true) {
+    return true;
+  }
+  const interest = (call.interestStatus || "").toUpperCase();
+  const status = (call.status || "").toUpperCase();
+  const next = (call.nextAction || "").toLowerCase();
+
+  if (status === "CALLBACK_REQUESTED") return true;
+  if (interest.includes("HIGH") || interest.includes("INTERESTED") || interest === "HOT") {
+    return true;
+  }
+  if (interest.includes("WARM") || interest.includes("MAYBE")) return true;
+  if (interest.includes("NOT") || interest.includes("LOW") || interest === "COLD") {
+    return false;
+  }
+  if (status === "COMPLETED" && (call.duration ?? 0) >= 30) return true;
+  if (
+    next.includes("follow-up") ||
+    next.includes("follow up") ||
+    next.includes("schedule counselling")
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export interface AiCallingResultCardProps {
   call: CallLog;
   onOpenDetail?: (call: CallLog) => void;
-  onViewLead?: (leadId: string) => void;
+  onViewLead?: (leadId: string, tab?: string) => void;
   className?: string;
 }
 
@@ -40,6 +68,7 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
   const nextAction = call.nextAction || "Review and follow up";
   const interest = formatInterest(call.interestStatus || call.outcome);
   const summary = call.aiSummary || "No AI summary yet.";
+  const followUpCreated = detectAiFollowUpCreated(call);
 
   return (
     <Card
@@ -66,6 +95,33 @@ export const AiCallingResultCard: React.FC<AiCallingResultCardProps> = ({
             <LeadScoreBadge score={score} />
           </div>
         </div>
+
+        {followUpCreated ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge
+              variant="secondary"
+              className="gap-1 bg-amber-50 text-amber-900 border-amber-200"
+            >
+              <CalendarCheck className="h-3 w-3" />
+              Follow-up created
+            </Badge>
+            {leadId ? (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0 text-xs text-[#2563EB]"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onViewLead?.(leadId, "follow-ups");
+                }}
+              >
+                Open follow-ups
+                <ExternalLink className="h-3 w-3 ml-1" />
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
 
         <p className="text-sm font-medium text-foreground leading-snug">
           {bandLabel}

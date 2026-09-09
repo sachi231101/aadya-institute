@@ -648,8 +648,14 @@ export const LeadService = {
       take: limit,
     });
 
+    const callLogs = data.map((log) => {
+      const next = (log.nextAction || "").toLowerCase();
+      const followUpCreated = next.includes("follow-up created");
+      return followUpCreated ? { ...log, followUpCreated: true } : log;
+    });
+
     return {
-      callLogs: data,
+      callLogs,
       meta: buildMeta(total, page, limit),
     };
   },

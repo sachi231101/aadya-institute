@@ -26,6 +26,7 @@ export type FollowUpMenuAction =
   | "reschedule"
   | "cancel"
   | "call"
+  | "log-call"
   | "ai-call"
   | "whatsapp"
   | "add-note"
@@ -81,9 +82,15 @@ export const FollowUpActionMenu: React.FC<FollowUpActionMenuProps> = ({
             <DropdownMenuSeparator />
           </>
         )}
+        {canWrite && (
+          <DropdownMenuItem onClick={() => onAction("log-call")} className="cursor-pointer gap-2">
+            <Phone className="h-4 w-4" />
+            Log Manual Call
+          </DropdownMenuItem>
+        )}
         <DropdownMenuItem onClick={() => onAction("call")} className="cursor-pointer gap-2">
           <Phone className="h-4 w-4" />
-          Call
+          Dial phone
         </DropdownMenuItem>
         {canWrite && (
           <DropdownMenuItem onClick={() => onAction("ai-call")} className="cursor-pointer gap-2">
@@ -93,7 +100,7 @@ export const FollowUpActionMenu: React.FC<FollowUpActionMenuProps> = ({
         )}
         <DropdownMenuItem onClick={() => onAction("whatsapp")} className="cursor-pointer gap-2">
           <MessageCircle className="h-4 w-4 text-emerald-600" />
-          WhatsApp
+          Open WhatsApp
         </DropdownMenuItem>
         <DropdownMenuItem onClick={() => onAction("add-note")} className="cursor-pointer gap-2">
           <StickyNote className="h-4 w-4" />

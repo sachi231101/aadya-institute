@@ -98,7 +98,12 @@ export const AdmissionsController = {
     try {
       const instituteId = req.user!.instituteId;
       const id = req.params.id as string;
-      const data = await AdmissionsService.triggerEnquiryAiCall(id, instituteId);
+      const createdById = req.user!.userId || req.user!.id;
+      const data = await AdmissionsService.triggerEnquiryAiCall(
+        id,
+        instituteId,
+        createdById
+      );
       res.json({
         success: true,
         message: "AI calling initiated for enquiry",

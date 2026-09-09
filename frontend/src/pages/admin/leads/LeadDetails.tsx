@@ -1,5 +1,5 @@
-﻿import React, { useMemo, useState } from "react";
-import { useParams, useNavigate, useLocation } from "react-router-dom";
+﻿import React, { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, useLocation, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -92,11 +92,23 @@ export const LeadDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const queryClient = useQueryClient();
   const { canEditItem } = usePermissions();
   const canEditLeads = canEditItem("leads.all");
 
+  const tabFromUrl = searchParams.get("tab") || "profile";
+  const allowedTabs = new Set([
+    "profile",
+    "calls",
+    "follow-ups",
+    "communication",
+    "notes",
+    "timeline",
+  ]);
+  const initialTab = allowedTabs.has(tabFromUrl) ? tabFromUrl : "profile";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [showApplicationDialog, setShowApplicationDialog] = useState(false);
   const [showFollowUpDialog, setShowFollowUpDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
@@ -112,6 +124,14 @@ export const LeadDetails: React.FC = () => {
 
   const [appCourseId, setAppCourseId] = useState("");
   const [appNotes, setAppNotes] = useState("");
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("tab") || "profile";
+    if (allowedTabs.has(fromUrl) && fromUrl !== activeTab) {
+      setActiveTab(fromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL → tab
+  }, [searchParams]);
 
   const { data: leadResponse, isLoading } = useLeadById(id || "");
   const { options: leadStageOptions } = useMasterDropdown("leadstage");
@@ -257,10 +277,21 @@ export const LeadDetails: React.FC = () => {
     });
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     if (!lead) return;
     const phone = lead.phoneNumber.replace(/\D/g, "");
     const digits = phone.startsWith("91") ? phone : `91${phone}`;
+    try {
+      await leadsApi.addActivity(lead.id, {
+        type: "WHATSAPP_SENT",
+        title: "WhatsApp opened",
+        description: `Opened WhatsApp chat for ${lead.phoneNumber}`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["leads", id] });
+      await queryClient.invalidateQueries({ queryKey: ["leads", id, "history"] });
+    } catch {
+      // Non-blocking
+    }
     window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
   };
 
@@ -375,9 +406,9 @@ export const LeadDetails: React.FC = () => {
               <Button
                 variant="outline"
                 className="bg-white/10 border-white/30 text-white hover:bg-white/20 gap-2"
-                onClick={handleWhatsApp}
+                onClick={() => void handleWhatsApp()}
               >
-                <MessageCircle size={14} /> WhatsApp
+                <MessageCircle size={14} /> Open WhatsApp
               </Button>
               <Button
                 variant="outline"
@@ -487,7 +518,17 @@ export const LeadDetails: React.FC = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="profile" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          setActiveTab(value);
+          const next = new URLSearchParams(searchParams);
+          if (value === "profile") next.delete("tab");
+          else next.set("tab", value);
+          setSearchParams(next, { replace: true });
+        }}
+        className="space-y-4"
+      >
         <TabsList className="bg-slate-100 flex-wrap h-auto gap-1">
           <TabsTrigger value="profile" className="gap-1.5">
             <FileText size={14} /> Profile
@@ -901,9 +942,9 @@ export const LeadDetails: React.FC = () => {
                   size="sm"
                   variant="outline"
                   className="gap-1"
-                  onClick={handleWhatsApp}
+                  onClick={() => void handleWhatsApp()}
                 >
-                  <MessageCircle size={14} /> WhatsApp
+                  <MessageCircle size={14} /> Open WhatsApp
                 </Button>
               </PermissionGate>
             </CardHeader>
