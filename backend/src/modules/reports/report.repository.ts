@@ -608,36 +608,78 @@ export class ReportRepository {
   static async getFinancialReportData(instituteId: string, branchId?: string): Promise<FinancialReportResponse> {
     const whereBranch = branchId ? { branchId } : {};
 
-    // Payments strictly from DB
-    const payments = await prisma.payment.findMany({
-      where: {
-        instituteId,
-        ...whereBranch,
-      },
-    });
+    const METHOD_COLORS: Record<string, string> = {
+      UPI: "#10b981",
+      NET_BANKING: "#1769AA",
+      CARD: "#8b5cf6",
+      CASH: "#f59e0b",
+      CHEQUE: "#ef4444",
+    };
+    const FALLBACK_COLORS = ["#10b981", "#1769AA", "#8b5cf6", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899"];
 
-    // Pending Fees strictly from DB
-    const pendingFees = await prisma.pendingFee.findMany({
-      where: {
-        instituteId,
-        ...whereBranch,
-      },
-    });
+    const humanizeMethod = (method: string | null | undefined) => {
+      const code = (method || "").toUpperCase();
+      if (code === "UPI") return "UPI / QR Code";
+      if (code === "NET_BANKING") return "Net Banking (NEFT/RTGS)";
+      if (code === "CARD") return "Credit / Debit Card";
+      if (code === "CASH") return "Cash";
+      if (code === "CHEQUE") return "Cheque";
+      if (!method) return "Unknown";
+      return method.replace(/_/g, " ");
+    };
+
+    // Payments + master payment mode labels from DB
+    const [payments, paymentModeMasters, pendingFees] = await Promise.all([
+      prisma.payment.findMany({
+        where: {
+          instituteId,
+          ...whereBranch,
+        },
+        include: {
+          paymentModeMaster: { select: { id: true, name: true, code: true } },
+        },
+      }),
+      prisma.masterRecord.findMany({
+        where: {
+          instituteId,
+          entityType: "paymentmodes",
+          status: "ACTIVE",
+        },
+        select: { id: true, name: true, code: true },
+      }),
+      prisma.pendingFee.findMany({
+        where: {
+          instituteId,
+          ...whereBranch,
+        },
+      }),
+    ]);
+
+    const mastersByCode = new Map(
+      paymentModeMasters
+        .filter((m) => m.code)
+        .map((m) => [(m.code || "").toUpperCase(), m])
+    );
 
     let totalCollected = 0;
-    let upiAmount = 0;
-    let netbankingAmount = 0;
-    let cardAmount = 0;
-    let cashAmount = 0;
+    const methodTotals = new Map<string, { name: string; code: string; value: number }>();
 
     payments.forEach((p) => {
-      if (p.status === "SUCCESS") {
-        totalCollected += p.amount;
-        if (p.method === "UPI") upiAmount += p.amount;
-        else if (p.method === "NET_BANKING") netbankingAmount += p.amount;
-        else if (p.method === "CARD") cardAmount += p.amount;
-        else cashAmount += p.amount;
-      }
+      if (p.status !== "SUCCESS") return;
+      totalCollected += p.amount;
+
+      const methodCode = (p.method || "").toUpperCase();
+      const master =
+        p.paymentModeMaster ||
+        (methodCode ? mastersByCode.get(methodCode) : undefined);
+      const code = (master?.code || p.method || "OTHER").toUpperCase();
+      const name = master?.name || humanizeMethod(p.method);
+      const key = master?.id || code;
+
+      const existing = methodTotals.get(key) ?? { name, code, value: 0 };
+      existing.value += p.amount;
+      if (master?.name) existing.name = master.name;
+      methodTotals.set(key, existing);
     });
 
     let totalPending = 0;
@@ -680,27 +722,35 @@ export class ReportRepository {
       });
     }
 
-    const paymentMethodShare = [
-      { name: "UPI / QR", value: upiAmount, color: "#10b981" },
-      { name: "NetBanking", value: netbankingAmount, color: "#1769AA" },
-      { name: "Credit/Debit Card", value: cardAmount, color: "#8b5cf6" },
-      { name: "Cash / Desk", value: cashAmount, color: "#f59e0b" },
-    ];
+    const paymentMethodShare = Array.from(methodTotals.values())
+      .filter((m) => m.value > 0)
+      .sort((a, b) => b.value - a.value)
+      .map((m, index) => ({
+        name: m.name,
+        value: m.value,
+        color: METHOD_COLORS[m.code] || FALLBACK_COLORS[index % FALLBACK_COLORS.length],
+      }));
 
     const recentPayments = payments
       .sort((a, b) => new Date(b.date || b.createdAt).getTime() - new Date(a.date || a.createdAt).getTime())
       .slice(0, 15)
-      .map((p) => ({
-        id: p.id,
-        receiptNo: p.receiptNo,
-        studentName: p.studentName,
-        admissionNo: p.admissionNo,
-        courseName: p.courseName,
-        amount: p.amount,
-        date: (p.date || p.createdAt).toISOString(),
-        method: p.method,
-        status: p.status,
-      }));
+      .map((p) => {
+        const methodCode = (p.method || "").toUpperCase();
+        const master =
+          p.paymentModeMaster ||
+          (methodCode ? mastersByCode.get(methodCode) : undefined);
+        return {
+          id: p.id,
+          receiptNo: p.receiptNo,
+          studentName: p.studentName,
+          admissionNo: p.admissionNo,
+          courseName: p.courseName,
+          amount: p.amount,
+          date: (p.date || p.createdAt).toISOString(),
+          method: master?.name || humanizeMethod(p.method),
+          status: p.status,
+        };
+      });
 
     const branchTotals = new Map<string, { collected: number; pending: number }>();
     payments.forEach((p) => {
