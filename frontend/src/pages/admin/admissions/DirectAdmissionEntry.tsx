@@ -195,12 +195,25 @@ const buildEqualInstallments = (
   }));
 };
 
-const mapPaymentMethod = (label: string): CreateAdmissionPayload["paymentMethod"] => {
-  const value = label.toLowerCase();
-  if (value.includes("net") || value.includes("imps") || value.includes("neft")) return "NET_BANKING";
+const mapPaymentMethod = (
+  opt?: { code?: string | null; label?: string } | string
+): CreateAdmissionPayload["paymentMethod"] => {
+  const code =
+    typeof opt === "string"
+      ? ""
+      : (opt?.code || "").toUpperCase();
+  if (code === "UPI" || code === "NET_BANKING" || code === "CARD" || code === "CASH" || code === "CHEQUE") {
+    return code;
+  }
+
+  const value = (typeof opt === "string" ? opt : opt?.label || "").toLowerCase();
+  if (value.includes("net") || value.includes("imps") || value.includes("neft") || value.includes("rtgs") || value.includes("bank")) {
+    return "NET_BANKING";
+  }
   if (value.includes("card")) return "CARD";
   if (value.includes("cash")) return "CASH";
   if (value.includes("cheque") || value.includes("dd")) return "CHEQUE";
+  if (value.includes("upi") || value.includes("qr")) return "UPI";
   return "UPI";
 };
 
@@ -1165,7 +1178,9 @@ export const DirectAdmissionEntry: React.FC = () => {
           paymentModeMasterId: paymentModeMasterId || undefined,
           concessionHeadMasterId: isPrimary ? concessionHeadMasterId || undefined : undefined,
           areaMasterId: areaMasterId || undefined,
-          paymentMethod: mapPaymentMethod(getMasterLabel(paymentModeOptions, paymentModeMasterId)),
+          paymentMethod: mapPaymentMethod(
+            paymentModeOptions.find((o) => o.value === paymentModeMasterId)
+          ),
           transactionRef: transactionRef || undefined,
           sendCredentials: isPrimary && status === "CONFIRMED",
           totalFee: isPrimary ? finalPayableAmount : undefined,

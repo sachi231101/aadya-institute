@@ -148,16 +148,20 @@ export const BranchRevenueDetails: React.FC = () => {
   };
 
   const getMethodBadgeClass = (method: string) => {
-    switch (method?.toUpperCase()) {
-      case "UPI":
-        return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40";
-      case "NET_BANKING":
-        return "bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border-blue-200 dark:border-sky-900/40";
-      case "CARD":
-        return "bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/40";
-      default:
-        return "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/40";
+    const value = (method || "").toUpperCase();
+    if (value === "UPI" || value.includes("UPI") || value.includes("QR")) {
+      return "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900/40";
     }
+    if (value === "NET_BANKING" || value.includes("NET") || value.includes("BANK") || value.includes("NEFT") || value.includes("RTGS")) {
+      return "bg-blue-50 dark:bg-sky-950/40 text-primary dark:text-sky-400 border-blue-200 dark:border-sky-900/40";
+    }
+    if (value === "CARD" || value.includes("CARD")) {
+      return "bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 border-purple-200 dark:border-purple-900/40";
+    }
+    if (value === "CHEQUE" || value.includes("CHEQUE")) {
+      return "bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/40";
+    }
+    return "bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-900/40";
   };
 
   return (
@@ -638,7 +642,7 @@ export const BranchRevenueDetails: React.FC = () => {
                       </td>
                       <td className="py-3.5 px-4">
                         <Badge variant="outline" className={`text-[10.5px] font-bold ${getMethodBadgeClass(tx.method)}`}>
-                          {tx.method.replace("_", " ")}
+                          {tx.method.replace(/_/g, " ")}
                         </Badge>
                       </td>
                       <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-600 dark:text-emerald-400 text-sm">

@@ -260,8 +260,30 @@ export async function provisionAdmissionInTransaction(
   });
 
   const parsedAdmissionDate = dto.admissionDate ? new Date(dto.admissionDate) : undefined;
-  const paymentMethod = dto.paymentMethod || "UPI";
   const admissionStatus = dto.status || "CONFIRMED";
+
+  const VALID_PAYMENT_METHODS = new Set(["UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]);
+  let paymentMethod = dto.paymentMethod || "UPI";
+  let paymentModeMasterId: string | null = null;
+
+  if (dto.paymentModeMasterId) {
+    const paymentModeMaster = await tx.masterRecord.findFirst({
+      where: {
+        id: dto.paymentModeMasterId,
+        instituteId,
+        entityType: "paymentmodes",
+        status: "ACTIVE",
+      },
+      select: { id: true, code: true, name: true },
+    });
+    if (paymentModeMaster) {
+      paymentModeMasterId = paymentModeMaster.id;
+      const masterCode = (paymentModeMaster.code || "").toUpperCase();
+      if (VALID_PAYMENT_METHODS.has(masterCode)) {
+        paymentMethod = masterCode as typeof paymentMethod;
+      }
+    }
+  }
 
   // Scope PENDING reuse by course so multi-course / package admissions
   // create one row per course instead of overwriting a single draft.
@@ -378,6 +400,7 @@ export async function provisionAdmissionInTransaction(
           courseName,
           amount: amountPaid,
           method: paymentMethod,
+          paymentModeMasterId,
           status: "SUCCESS",
           transactionRef: dto.transactionRef || null,
           notes: "Initial admission payment",
