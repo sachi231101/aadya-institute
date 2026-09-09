@@ -151,6 +151,8 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
     "counsellor.overview": ["user.read"],
     "counsellor.manage": ["user.read"],
     "counsellor.batches": ["batch.read"],
+    "counsellor.lead_allocation": ["lead.read"],
+    "counsellor.performance": ["lead.read"],
     "targets.manage": ["target.read"],
     "targets.leaderboard": ["target.read"],
     "targets.incentives": ["incentive.read"],

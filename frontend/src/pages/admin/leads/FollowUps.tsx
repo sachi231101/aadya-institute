@@ -1,5 +1,6 @@
-﻿import React, { useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+﻿import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useLocation, useSearchParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CalendarDays,
   Clock,
@@ -13,12 +14,14 @@ import {
   CheckCircle2,
   User,
   Users,
+  PhoneCall,
 } from "lucide-react";
 import {
   useFollowUpDashboard,
   useUpdateFollowUp,
   useCreateFollowUp,
   useTriggerLeadCall,
+  useCreateManualCallLog,
   useLeads,
 } from "@/hooks/useLeads";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -45,11 +48,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ReadOnlyBanner, PermissionGate } from "@/components/permissions/PermissionGate";
-import type { Lead, LeadFollowUp } from "@/services/leads.api";
+import { leadsApi, type Lead, type LeadFollowUp } from "@/services/leads.api";
 import {
   FollowUpActionMenu,
   type FollowUpMenuAction,
 } from "./components/FollowUpActionMenu";
+import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
 
 type TabKey = "today" | "overdue" | "upcoming" | "completed" | "my" | "team";
 type HighlightKey = "overdue" | "hot" | "highRisk" | "today" | null;
@@ -104,19 +108,37 @@ function isHighRisk(item: LeadFollowUp, startOfToday: Date): boolean {
   return overdue && (item.priority === "HIGH" || isHot(item));
 }
 
+function tabFromSearch(raw: string | null): TabKey | null {
+  if (!raw) return null;
+  const key = raw.toLowerCase() as TabKey;
+  if (["today", "overdue", "upcoming", "completed", "my", "team"].includes(key)) {
+    return key;
+  }
+  return null;
+}
+
 export const FollowUps: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
+  const queryClient = useQueryClient();
 
-  const [activeTab, setActiveTab] = useState<TabKey>("today");
-  const [highlight, setHighlight] = useState<HighlightKey>(null);
+  const initialTab = tabFromSearch(searchParams.get("tab")) || "today";
+  const [activeTab, setActiveTab] = useState<TabKey>(initialTab);
+  const [highlight, setHighlight] = useState<HighlightKey>(
+    initialTab === "overdue" ? "overdue" : null
+  );
   const [useRecommendedOrder, setUseRecommendedOrder] = useState(true);
 
   const [actionFollowUp, setActionFollowUp] = useState<LeadFollowUp | null>(null);
   const [completeOpen, setCompleteOpen] = useState(false);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [noteText, setNoteText] = useState("");
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [logCallOpen, setLogCallOpen] = useState(false);
   const [outcome, setOutcome] = useState("");
   const [completeNotes, setCompleteNotes] = useState("");
   const [rescheduleAt, setRescheduleAt] = useState("");
@@ -132,6 +154,16 @@ export const FollowUps: React.FC = () => {
   const updateFollowUp = useUpdateFollowUp();
   const createFollowUp = useCreateFollowUp();
   const triggerAiCall = useTriggerLeadCall();
+  const manualCallMutation = useCreateManualCallLog();
+
+  useEffect(() => {
+    const fromUrl = tabFromSearch(searchParams.get("tab"));
+    if (fromUrl && fromUrl !== activeTab) {
+      setActiveTab(fromUrl);
+      if (fromUrl === "overdue") setHighlight("overdue");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync URL → tab only
+  }, [searchParams]);
 
   const { data: leadsResponse } = useLeads({
     search: createLeadSearch || undefined,
@@ -210,9 +242,18 @@ export const FollowUps: React.FC = () => {
     return items;
   }, [lists, activeTab, highlight, useRecommendedOrder, recommended, startOfToday]);
 
-  const openLead = (leadId?: string) => {
+  const openLead = (leadId?: string, tab?: string) => {
     if (!leadId) return;
-    navigate(`${basePath}/leads/${leadId}`);
+    const qs = tab ? `?tab=${tab}` : "";
+    navigate(`${basePath}/leads/${leadId}${qs}`);
+  };
+
+  const setTab = (tab: TabKey) => {
+    setActiveTab(tab);
+    const next = new URLSearchParams(searchParams);
+    if (tab === "today") next.delete("tab");
+    else next.set("tab", tab);
+    setSearchParams(next, { replace: true });
   };
 
   const handleHighlightClick = (key: HighlightKey) => {
@@ -221,10 +262,26 @@ export const FollowUps: React.FC = () => {
       return;
     }
     setHighlight(key);
-    if (key === "overdue") setActiveTab("overdue");
-    if (key === "today") setActiveTab("today");
+    if (key === "overdue") setTab("overdue");
+    if (key === "today") setTab("today");
     if (key === "hot" || key === "highRisk") {
-      if (activeTab === "completed") setActiveTab("today");
+      if (activeTab === "completed") setTab("today");
+    }
+  };
+
+  const logWhatsAppOpened = async (leadId?: string, phone?: string | null) => {
+    if (!leadId) return;
+    try {
+      await leadsApi.addActivity(leadId, {
+        type: "WHATSAPP_SENT",
+        title: "WhatsApp opened",
+        description: phone
+          ? `Opened WhatsApp chat for ${phone}`
+          : "Opened WhatsApp from follow-ups",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
+    } catch {
+      // Non-blocking: still open WhatsApp even if activity log fails
     }
   };
 
@@ -264,6 +321,10 @@ export const FollowUps: React.FC = () => {
           openLead(leadId);
         }
         break;
+      case "log-call":
+        setActionFollowUp(item);
+        setLogCallOpen(true);
+        break;
       case "ai-call":
         if (!leadId) return;
         triggerAiCall.mutate(leadId, {
@@ -279,6 +340,7 @@ export const FollowUps: React.FC = () => {
         const wa = formatPhoneForWhatsApp(phone);
         if (wa) {
           const name = item.lead?.name || "there";
+          void logWhatsAppOpened(leadId, phone);
           window.open(
             `https://wa.me/${wa}?text=${encodeURIComponent(`Hi ${name}, following up from Aadya Institute.`)}`,
             "_blank"
@@ -289,6 +351,10 @@ export const FollowUps: React.FC = () => {
         break;
       }
       case "add-note":
+        setActionFollowUp(item);
+        setNoteText("");
+        setNoteOpen(true);
+        break;
       case "view-lead":
         openLead(leadId);
         break;
@@ -432,7 +498,36 @@ export const FollowUps: React.FC = () => {
   ];
 
   const mutating =
-    updateFollowUp.isPending || createFollowUp.isPending || triggerAiCall.isPending;
+    updateFollowUp.isPending ||
+    createFollowUp.isPending ||
+    triggerAiCall.isPending ||
+    manualCallMutation.isPending ||
+    noteSaving;
+
+  const submitNote = async () => {
+    const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
+    const description = noteText.trim();
+    if (!leadId || !description) return;
+    setNoteSaving(true);
+    try {
+      await leadsApi.addActivity(leadId, {
+        type: "NOTE_ADDED",
+        title: "Note added",
+        description,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
+      setNoteOpen(false);
+      setActionFollowUp(null);
+      setNoteText("");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to add note";
+      alert(message);
+    } finally {
+      setNoteSaving(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -444,6 +539,7 @@ export const FollowUps: React.FC = () => {
           <p className="text-sm text-text-secondary">
             Daily action center for overdue, today, and upcoming counsellor tasks.
           </p>
+          <LeadModuleNavLinks className="mt-2" />
         </div>
         <PermissionGate itemKey="leads.followups" mode="write">
           <Button
@@ -503,8 +599,9 @@ export const FollowUps: React.FC = () => {
       <Tabs
         value={activeTab}
         onValueChange={(v) => {
-          setActiveTab(v as TabKey);
-          if (v === "completed") setHighlight(null);
+          const tab = v as TabKey;
+          setTab(tab);
+          if (tab === "completed") setHighlight(null);
         }}
       >
         <TabsList className="flex h-auto flex-wrap gap-1 w-full justify-start">
@@ -818,6 +915,172 @@ export const FollowUps: React.FC = () => {
                 disabled={!createLeadId || !createScheduledAt || createFollowUp.isPending}
               >
                 {createFollowUp.isPending ? "Scheduling..." : "Schedule Follow-up"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Inline add note */}
+      <Dialog
+        open={noteOpen}
+        onOpenChange={(open) => {
+          setNoteOpen(open);
+          if (!open) {
+            setNoteText("");
+            setActionFollowUp(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Add note
+              {actionFollowUp?.lead?.name ? ` — ${actionFollowUp.lead.name}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <Label htmlFor="fu-note">Note</Label>
+              <Textarea
+                id="fu-note"
+                className="mt-1"
+                rows={4}
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                placeholder="Call notes, objections, next steps…"
+              />
+            </div>
+            <p className="text-xs text-text-secondary">
+              Or{" "}
+              <button
+                type="button"
+                className="text-[#2563EB] underline"
+                onClick={() => {
+                  const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
+                  setNoteOpen(false);
+                  openLead(leadId, "notes");
+                }}
+              >
+                open Lead 360 Notes tab
+              </button>
+            </p>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setNoteOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              className="bg-[#2563EB] text-white"
+              disabled={!noteText.trim() || noteSaving}
+              onClick={() => void submitNote()}
+            >
+              {noteSaving ? "Saving..." : "Save note"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Log manual call (Call History pattern) */}
+      <Dialog
+        open={logCallOpen}
+        onOpenChange={(open) => {
+          setLogCallOpen(open);
+          if (!open) setActionFollowUp(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PhoneCall className="h-4 w-4" />
+              Log manual call
+              {actionFollowUp?.lead?.name ? ` — ${actionFollowUp.lead.name}` : ""}
+            </DialogTitle>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              const leadId = actionFollowUp?.lead?.id || actionFollowUp?.leadId;
+              if (!leadId) return;
+              const form = new FormData(e.currentTarget);
+              const phone = actionFollowUp?.lead?.phoneNumber;
+              manualCallMutation.mutate(
+                {
+                  leadId,
+                  status: String(form.get("status") || "COMPLETED"),
+                  duration: Number(form.get("duration") || 0) || undefined,
+                  outcome: String(form.get("outcome") || "") || null,
+                  notes: String(form.get("notes") || "") || null,
+                  interestStatus: String(form.get("interestStatus") || "") || null,
+                },
+                {
+                  onSuccess: () => {
+                    setLogCallOpen(false);
+                    setActionFollowUp(null);
+                    if (form.get("alsoDial") === "on" && phone) {
+                      window.open(`tel:${phone}`, "_self");
+                    }
+                  },
+                  onError: (err: unknown) => {
+                    const message =
+                      (err as { response?: { data?: { message?: string } } })?.response?.data
+                        ?.message || "Failed to log call";
+                    alert(message);
+                  },
+                }
+              );
+            }}
+            className="space-y-4"
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Status</Label>
+                <select
+                  name="status"
+                  defaultValue="COMPLETED"
+                  className="mt-1 w-full h-10 px-3 border rounded-md text-sm bg-background"
+                >
+                  <option value="COMPLETED">Completed</option>
+                  <option value="NO_ANSWER">No Answer</option>
+                  <option value="BUSY">Busy</option>
+                  <option value="FAILED">Failed</option>
+                  <option value="CALLBACK_REQUESTED">Callback Requested</option>
+                </select>
+              </div>
+              <div>
+                <Label>Duration (seconds)</Label>
+                <Input name="duration" type="number" min={0} className="mt-1" defaultValue={0} />
+              </div>
+            </div>
+            <div>
+              <Label>Outcome</Label>
+              <Input name="outcome" className="mt-1" placeholder="e.g. Interested, Callback" />
+            </div>
+            <div>
+              <Label>Interest</Label>
+              <Input name="interestStatus" className="mt-1" placeholder="HIGH / WARM / LOW" />
+            </div>
+            <div>
+              <Label>Notes</Label>
+              <Textarea name="notes" className="mt-1" rows={3} />
+            </div>
+            {actionFollowUp?.lead?.phoneNumber ? (
+              <label className="flex items-center gap-2 text-sm text-text-secondary">
+                <input type="checkbox" name="alsoDial" className="rounded border" />
+                Also open phone dialer ({actionFollowUp.lead.phoneNumber})
+              </label>
+            ) : null}
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setLogCallOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                className="bg-[#2563EB] text-white"
+                disabled={manualCallMutation.isPending}
+              >
+                {manualCallMutation.isPending ? "Saving..." : "Log call"}
               </Button>
             </DialogFooter>
           </form>

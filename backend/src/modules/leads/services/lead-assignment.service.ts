@@ -1,6 +1,7 @@
 import { prisma } from "../../../config/database";
 import { AppError } from "../../../middlewares/error.middleware";
 import { LeadActivityService } from "./lead-activity.service";
+import { LeadNotifyService } from "./lead-notify.service";
 import { syncEnquiryAssigneeFromLead } from "./lead-enquiry-sync.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { AssignLeadDTO, BulkAssignLeadsDTO } from "../lead.types";
@@ -148,6 +149,16 @@ export const LeadAssignmentService = {
       );
 
       return { lead: updatedLead, assignment };
+    }).then(async (result) => {
+      await LeadNotifyService.notifyLeadAssigned({
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId,
+        leadName: lead.name,
+        counsellorId,
+        assignedByName: currentUser.name,
+      });
+      return result;
     });
   },
 

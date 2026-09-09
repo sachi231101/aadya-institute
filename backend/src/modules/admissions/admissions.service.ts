@@ -120,7 +120,11 @@ export const AdmissionsService = {
     return AdmissionsRepository.findEnquiryById(id, instituteId);
   },
 
-  async triggerEnquiryAiCall(id: string, instituteId: string) {
+  async triggerEnquiryAiCall(
+    id: string,
+    instituteId: string,
+    createdById: string
+  ) {
     const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
     if (!enquiry) {
       throw new Error("Enquiry not found");
@@ -134,19 +138,14 @@ export const AdmissionsService = {
       throw new Error("Enquiry has no valid phone number");
     }
 
-    const matchedLead = await prisma.lead.findFirst({
-      where: {
-        instituteId,
-        status: "ACTIVE",
-        OR: [{ normalizedPhone: phone }, { phoneNumber: { contains: phone } }],
-      },
-    });
-
-    if (!matchedLead) {
-      throw new Error(
-        "No matching active lead for this enquiry phone — create a lead first before AI calling"
-      );
-    }
+    const { ensureLeadFromEnquiry } = await import(
+      "../leads/services/lead-enquiry-bridge.service"
+    );
+    const { lead: matchedLead, created: leadCreated } =
+      await ensureLeadFromEnquiry({
+        enquiry,
+        createdById,
+      });
 
     const { AiCallingService } = await import("../ai-calling/ai-calling.service");
     const dial = await AiCallingService.enqueueLeadCall({
@@ -167,7 +166,9 @@ export const AdmissionsService = {
     await AdmissionsRepository.updateEnquiry(id, instituteId, {
       counselorNotes: [
         enquiry.counselorNotes,
-        `[AI Call ${status}] Queued ${new Date().toISOString()} callLog=${dial.callLogId || "n/a"}`,
+        `[AI Call ${status}] Queued ${new Date().toISOString()} callLog=${dial.callLogId || "n/a"}${
+          leadCreated ? ` leadCreated=${matchedLead.id}` : ` leadId=${matchedLead.id}`
+        }`,
       ]
         .filter(Boolean)
         .join("\n"),

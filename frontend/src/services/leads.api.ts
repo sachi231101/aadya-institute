@@ -54,6 +54,8 @@ export interface CallLog {
   qualification?: string | null;
   sentiment?: string | null;
   nextAction?: string | null;
+  /** Set when LeadAiOutcomeService auto-created a follow-up for this call. */
+  followUpCreated?: boolean;
   duration: number;
   transcript?: string | null;
   recordingUrl?: string | null;
@@ -246,16 +248,6 @@ export const leadsApi = {
 
   markLost: async (id: string, data: { reason: string; notes?: string }) => {
     const response = await api.patch(`/leads/${id}/lost`, data);
-    return response.data;
-  },
-
-  convertLead: async (id: string, data: {
-    courseId: string;
-    batchId?: string;
-    feePlan?: "FULL_PAYMENT" | "INSTALLMENT";
-    notes?: string;
-  }) => {
-    const response = await api.post(`/leads/${id}/convert`, data);
     return response.data;
   },
 

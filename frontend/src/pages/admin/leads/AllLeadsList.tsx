@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Search,
@@ -93,6 +93,7 @@ import {
 import { BulkAssignDialog } from "./components/BulkAssignDialog";
 import { MergeLeadsDialog } from "./components/MergeLeadsDialog";
 import { LeadScoreBadge } from "./components/LeadScoreBadge";
+import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
 
 type ViewMode = "list" | "kanban";
 type RowAction =
@@ -139,15 +140,19 @@ function formatDateTime(value?: string | null) {
 export const AllLeadsList: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const queryClient = useQueryClient();
   const { user, token } = useAuthStore();
   const isAdmin = user?.roles?.includes("ADMIN");
 
+  const counsellorFromUrl = searchParams.get("assignedCounsellorId") || "";
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilter, setStageFilter] = useState("ALL");
   const [stageMasterId, setStageMasterId] = useState("");
-  const [counsellorFilter, setCounsellorFilter] = useState("ALL");
+  const [counsellorFilter, setCounsellorFilter] = useState(
+    counsellorFromUrl || "ALL"
+  );
   const [branchFilter, setBranchFilter] = useState("ALL");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<ViewMode>("list");
@@ -195,6 +200,14 @@ export const AllLeadsList: React.FC = () => {
   const triggerCallMutation = useTriggerLeadCall();
   const createFollowUpMutation = useCreateFollowUp();
   const manualCallMutation = useCreateManualCallLog();
+
+  useEffect(() => {
+    const fromUrl = searchParams.get("assignedCounsellorId");
+    if (fromUrl && fromUrl !== counsellorFilter) {
+      setCounsellorFilter(fromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hydrate filter from URL once / on param change
+  }, [searchParams]);
 
   const stagePipeline = useMemo(() => {
     if (stageOptions.length > 0) {
@@ -329,7 +342,8 @@ export const AllLeadsList: React.FC = () => {
       nextAdv.dateFrom = today;
       nextAdv.dateTo = today;
     } else if (key === "overdue") {
-      nextAdv.overdueFollowUps = true;
+      navigate(`${basePath}/leads/follow-ups?tab=overdue`);
+      return;
     }
     setAdvancedApplied(nextAdv);
     setAdvancedDraft(nextAdv);
@@ -483,9 +497,19 @@ export const AllLeadsList: React.FC = () => {
     showToast("Import confirmed — leads refreshed");
   };
 
-  const handleWhatsApp = (lead: Lead) => {
+  const handleWhatsApp = async (lead: Lead) => {
     const phone = lead.phoneNumber.replace(/\D/g, "");
     const digits = phone.startsWith("91") ? phone : `91${phone}`;
+    try {
+      await leadsApi.addActivity(lead.id, {
+        type: "WHATSAPP_SENT",
+        title: "WhatsApp opened",
+        description: `Opened WhatsApp chat for ${lead.phoneNumber}`,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["leads", lead.id] });
+    } catch {
+      // Non-blocking
+    }
     window.open(`https://wa.me/${digits}`, "_blank", "noopener,noreferrer");
   };
 
@@ -525,6 +549,7 @@ export const AllLeadsList: React.FC = () => {
           <p className="text-sm text-muted-foreground mt-0.5">
             Control center for lead pipeline, assignment, and follow-up
           </p>
+          <LeadModuleNavLinks className="mt-2" />
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
           <div className="flex rounded-xl border border-border bg-muted/40 p-0.5 overflow-hidden shadow-xs">
@@ -644,8 +669,13 @@ export const AllLeadsList: React.FC = () => {
             <select
               value={counsellorFilter}
               onChange={(e) => {
-                setCounsellorFilter(e.target.value);
+                const value = e.target.value;
+                setCounsellorFilter(value);
                 setPage(1);
+                const next = new URLSearchParams(searchParams);
+                if (value === "ALL") next.delete("assignedCounsellorId");
+                else next.set("assignedCounsellorId", value);
+                setSearchParams(next, { replace: true });
               }}
               className="h-10 px-3 border border-border rounded-xl text-xs sm:text-sm bg-card font-medium text-foreground cursor-pointer shadow-xs focus:outline-none focus:ring-2 focus:ring-primary w-full sm:w-auto"
             >
@@ -959,16 +989,17 @@ export const AllLeadsList: React.FC = () => {
                                     <Bot className="h-4 w-4" /> AI Call
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
-                                    onClick={() => handleWhatsApp(lead)}
+                                    onClick={() => void handleWhatsApp(lead)}
                                   >
-                                    <MessageCircle className="h-4 w-4" /> WhatsApp
+                                    <MessageCircle className="h-4 w-4" /> Open WhatsApp
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => openRowAction(lead, "followUp")}
                                   >
                                     <Calendar className="h-4 w-4" /> Follow-up
                                   </DropdownMenuItem>
-                                  {lead.stage !== "CONVERTED" &&
+                                  {lead.assignedCounsellorId &&
+                                    lead.stage !== "CONVERTED" &&
                                     lead.stage !== "LOST" && (
                                       <DropdownMenuItem
                                         onClick={() =>

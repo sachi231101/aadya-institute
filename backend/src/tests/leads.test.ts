@@ -234,6 +234,7 @@ describe("Lead Management Module Tests", () => {
     await prisma.leadFollowUp.deleteMany({ where: { lead: { instituteId } } });
     await prisma.leadAssignment.deleteMany({ where: { lead: { instituteId } } });
     await prisma.leadStageHistory.deleteMany({ where: { lead: { instituteId } } });
+    await prisma.notification.deleteMany({ where: { instituteId } });
     await prisma.lead.deleteMany({ where: { instituteId } });
   });
 
@@ -1279,6 +1280,208 @@ describe("Lead Management Module Tests", () => {
       const leadC = await LeadService.getLeadById(assignedToC, managerAUser);
       assert.strictEqual(leadA.id, assignedToA);
       assert.strictEqual(leadC.id, assignedToC);
+    });
+  });
+
+  describe("15. Notify on AI follow-up and lead assign", () => {
+    test("AI outcome follow-up notifies assigned counsellor", async () => {
+      const lead = await prisma.lead.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          name: "Notify FU Lead",
+          phoneNumber: "+919876501701",
+          interestedIn: "NEET",
+          source: "ONLINE",
+          stage: "ASSIGNED",
+          status: "ACTIVE",
+          createdById: managerAUser.id,
+          assignedCounsellorId: counsellorAUser.id,
+        },
+      });
+
+      const callLog = await prisma.callLog.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          leadId: lead.id,
+          status: "COMPLETED",
+          callType: "AI",
+          duration: 120,
+          interestStatus: "HIGH_INTEREST",
+          aiSummary: "Very interested in admission",
+          idempotencyKey: `test_notify_fu_${lead.id}`,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+
+      await LeadAiOutcomeService.process(callLog.id);
+
+      const notifications = await prisma.notification.findMany({
+        where: {
+          userId: counsellorAUser.id,
+          instituteId,
+          metadata: { path: ["leadId"], equals: lead.id },
+        },
+      });
+      assert.ok(notifications.length >= 1);
+      assert.ok(
+        notifications.some(
+          (n) =>
+            n.title.includes("follow-up") ||
+            (n.metadata as { event?: string } | null)?.event === "FOLLOW_UP_CREATED"
+        )
+      );
+    });
+
+    test("Assign notifies target counsellor", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "Notify Assign Lead",
+        phoneNumber: "+919876501702",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      await ensureTerminalAiCall(lead.id, instituteId, branchAId);
+
+      await LeadService.assignLead(lead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+        notes: "Notify test assign",
+      });
+
+      const notifications = await prisma.notification.findMany({
+        where: {
+          userId: counsellorAUser.id,
+          instituteId,
+          metadata: { path: ["event"], equals: "LEAD_ASSIGNED" },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 5,
+      });
+      assert.ok(
+        notifications.some(
+          (n) => (n.metadata as { leadId?: string } | null)?.leadId === lead.id
+        )
+      );
+    });
+
+    test("addActivity accepts WHATSAPP_SENT", async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "WhatsApp Activity Lead",
+        phoneNumber: "+919876501703",
+        interestedIn: "Full Stack Development",
+        source: "WHATSAPP",
+        branchId: branchAId,
+      });
+
+      const activity = await LeadService.addActivity(lead.id, managerAUser, {
+        type: "WHATSAPP_SENT",
+        title: "Opened WhatsApp",
+        description: "wa.me link opened from Lead 360",
+      });
+
+      assert.strictEqual(activity.type, "WHATSAPP_SENT");
+      assert.strictEqual(activity.title, "Opened WhatsApp");
+    });
+  });
+
+  describe("16. Enquiry → Lead bridge for AI call", () => {
+    test("ensureLeadFromEnquiry creates ACTIVE lead when none exists", async () => {
+      const { ensureLeadFromEnquiry } = await import(
+        "../modules/leads/services/lead-enquiry-bridge.service"
+      );
+
+      const phone = "+919876501801";
+      const enquiry = await prisma.enquiry.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          name: "Enquiry Bridge Person",
+          phone,
+          email: "bridge@aadya.test",
+          courseId,
+          source: "WEBSITE",
+          status: "NEW",
+          counselorNotes: "Wants demo",
+        },
+        include: { course: { select: { name: true } } },
+      });
+
+      const result = await ensureLeadFromEnquiry({
+        enquiry,
+        createdById: managerAUser.id,
+      });
+
+      assert.strictEqual(result.created, true);
+      assert.ok(result.lead.id);
+
+      const lead = await prisma.lead.findUnique({ where: { id: result.lead.id } });
+      assert.ok(lead);
+      assert.strictEqual(lead!.status, "ACTIVE");
+      assert.strictEqual(lead!.courseId, courseId);
+      assert.ok(lead!.phoneNumber.includes("9876501801"));
+
+      const again = await ensureLeadFromEnquiry({
+        enquiry,
+        createdById: managerAUser.id,
+      });
+      assert.strictEqual(again.created, false);
+      assert.strictEqual(again.lead.id, result.lead.id);
+
+      await prisma.enquiry.delete({ where: { id: enquiry.id } });
+    });
+
+    test("triggerEnquiryAiCall auto-creates lead then dials", async () => {
+      const { AdmissionsService } = await import(
+        "../modules/admissions/admissions.service"
+      );
+
+      const phone = "+919876501802";
+      const enquiry = await prisma.enquiry.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          name: "Enquiry Dial Person",
+          phone,
+          courseId,
+          source: "WEBSITE",
+          status: "NEW",
+        },
+        include: { course: { select: { name: true } } },
+      });
+
+      const before = await prisma.lead.findFirst({
+        where: {
+          instituteId,
+          status: "ACTIVE",
+          OR: [{ normalizedPhone: "9876501802" }, { phoneNumber: phone }],
+        },
+      });
+      assert.strictEqual(before, null);
+
+      const updated = await AdmissionsService.triggerEnquiryAiCall(
+        enquiry.id,
+        instituteId,
+        managerAUser.id
+      );
+
+      assert.ok(updated);
+      assert.ok(updated!.counselorNotes?.includes("AI Call"));
+
+      const lead = await prisma.lead.findFirst({
+        where: {
+          instituteId,
+          status: "ACTIVE",
+          OR: [{ normalizedPhone: "9876501802" }, { phoneNumber: phone }],
+        },
+      });
+      assert.ok(lead);
+
+      const callLogs = await prisma.callLog.findMany({ where: { leadId: lead!.id } });
+      assert.ok(callLogs.length >= 1);
+
+      await prisma.enquiry.delete({ where: { id: enquiry.id } });
     });
   });
 });

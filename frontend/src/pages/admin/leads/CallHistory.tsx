@@ -47,6 +47,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { CallDetailDrawer } from "./components/CallDetailDrawer";
+import { LeadModuleNavLinks } from "./components/LeadModuleNavLinks";
 
 type CallTypeTab = "ALL" | "AI" | "MANUAL";
 
@@ -214,6 +215,7 @@ export const CallHistory: React.FC = () => {
           <p className="text-sm text-text-secondary">
             Unified AI and manual call logs with recordings, outcomes, and next actions.
           </p>
+          <LeadModuleNavLinks className="mt-2" />
         </div>
         <PermissionGate itemKey="leads.all" mode="write">
           <Button
