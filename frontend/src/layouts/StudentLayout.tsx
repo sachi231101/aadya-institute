@@ -420,32 +420,32 @@ export const StudentLayout: React.FC = () => {
       {/* ── Main Layout Body & Header ───────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top Header */}
-        <header className="h-12 bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] border-b border-[#334155] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
+        <header className="h-14 bg-gradient-to-r from-[#172033] via-[#1D4ED8] to-[#2563EB] border-b border-[#334155] text-white px-4 sm:px-5 lg:px-6 flex items-center justify-between shrink-0 z-20 shadow-md">
           {/* Hamburger + Greeting */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setMobileMenuOpen(true)}
-              className="lg:hidden p-2 rounded-xl text-muted-foreground hover:bg-muted transition-colors cursor-pointer"
+              className="lg:hidden p-2 rounded-xl text-white/80 hover:bg-white/10 transition-colors cursor-pointer"
               aria-label="Open mobile menu"
             >
-              <Menu className="w-4 h-4" />
+              <Menu className="w-5 h-5" />
             </button>
 
             <div>
-              <h1 className="text-[11px] font-bold text-white flex items-center gap-1">
+              <h1 className="text-xs sm:text-sm font-black text-white flex items-center gap-1.5">
                 Hello, {studentName}! 👋
               </h1>
-              <p className="text-xs text-muted-foreground font-medium hidden sm:block">
+              <p className="text-[11px] text-blue-100/80 font-medium hidden sm:block">
                 Here's your class schedule (Only assigned by your Counsellor)
               </p>
             </div>
           </div>
 
           {/* Right Header Widgets */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Dynamic Date & Time Pill */}
-            <div className="hidden xl:flex items-center gap-1.5 bg-white/10 border border-white/20 rounded-lg px-2.5 py-1 text-[10px] font-semibold text-white">
-              <Calendar className="w-3 h-3 text-amber-300" />
+            <div className="hidden xl:flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-3 py-1.5 text-xs font-semibold text-white shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-amber-300" />
               <span>
                 {currentTime.toLocaleDateString("en-GB", {
                   weekday: "long",
@@ -459,28 +459,27 @@ export const StudentLayout: React.FC = () => {
 
             <InstallAppButton variant="header" />
             <ThemeToggle />
-            {/* Notification Bell */}
             <NotificationPopover />
 
             {/* Profile Avatar Pill */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex items-center gap-2 pl-1 sm:pl-1.5 pr-2 sm:pr-2.5 py-1 rounded-xl hover:bg-muted/50 border border-border/70 transition-colors cursor-pointer">
-                  <Avatar className="w-8 h-8 rounded-lg border border-border bg-[#8B5CF6] text-white font-bold text-xs">
+                <button className="flex items-center gap-2 pl-1.5 pr-2.5 py-1 rounded-xl hover:bg-white/10 border border-white/20 transition-colors cursor-pointer text-white">
+                  <Avatar className="w-8 h-8 rounded-xl border border-white/30 bg-[#8B5CF6] text-white font-black text-xs shadow-2xs">
                     <AvatarImage src={(user as any)?.avatar} alt={studentName} />
-                    <AvatarFallback className="bg-[#8B5CF6] text-white font-bold text-xs">
+                    <AvatarFallback className="bg-[#8B5CF6] text-white font-black text-xs">
                       {studentInitials}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left hidden sm:block">
-                    <span className="text-xs font-bold text-foreground block leading-tight">
+                    <span className="text-xs font-bold text-white block leading-tight">
                       {studentName}
                     </span>
-                    <span className="text-[10px] font-medium text-muted-foreground block leading-tight">
+                    <span className="text-[10px] font-medium text-blue-200 block leading-tight">
                       Student
                     </span>
                   </div>
-                  <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+                  <ChevronDown className="w-3.5 h-3.5 text-blue-200" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48 bg-popover rounded-xl shadow-lg border border-border p-1">
@@ -507,7 +506,7 @@ export const StudentLayout: React.FC = () => {
         </header>
 
         {/* Main Outlet with mobile bottom padding so it never covers content */}
-        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 lg:pb-8 overflow-y-auto bg-bg-primary">
+        <main className="flex-1 p-3 sm:p-5 lg:p-6 pb-24 lg:pb-6 overflow-y-auto bg-slate-50/60 dark:bg-bg-primary">
           <Outlet />
         </main>
 

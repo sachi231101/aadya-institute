@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar as CalendarIcon,
@@ -835,77 +835,6 @@ export const StudentSchedule: React.FC = () => {
               );
             })
           )}
-        </div>
-      </div>
-
-      {/* ─── 5. BOTTOM HORIZONTAL CLASS WORKFLOW VISUAL ───────────────────── */}
-      <div className="bg-white dark:bg-[#111C35] border border-slate-200/80 dark:border-slate-800/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-indigo-50 text-[#5B50EC] dark:bg-indigo-500/20 dark:text-indigo-400 flex items-center justify-center">
-            <Radio className="w-3.5 h-3.5" />
-          </div>
-          <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white">
-            Class Session Lifecycle
-          </h3>
-        </div>
-
-        {/* 4 Core Lifecycle Stages Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 items-center">
-          {/* Stage 1: Upcoming */}
-          <div className="p-3 bg-slate-50 dark:bg-[#0D1527] rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-1 h-full">
-            <div className="flex items-center justify-between">
-              <div className="h-7 w-7 rounded-lg bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400 flex items-center justify-center">
-                <Clock className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-[10px] font-black text-slate-400">STAGE 01</span>
-            </div>
-            <span className="text-[11px] font-bold text-slate-900 dark:text-white mt-0.5">1. UPCOMING</span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
-              Time &lt; Start. Join locked until allowed window.
-            </span>
-          </div>
-
-          {/* Stage 2: Live Now */}
-          <div className="p-3 bg-slate-50 dark:bg-[#0D1527] rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-1 h-full">
-            <div className="flex items-center justify-between">
-              <div className="h-7 w-7 rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400 flex items-center justify-center">
-                <Video className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-[10px] font-black text-slate-400">STAGE 02</span>
-            </div>
-            <span className="text-[11px] font-bold text-slate-900 dark:text-white mt-0.5">2. LIVE NOW</span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
-              Class is in session. Join Class opens Google Meet.
-            </span>
-          </div>
-
-          {/* Stage 3: Class Completed */}
-          <div className="p-3 bg-slate-50 dark:bg-[#0D1527] rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-1 h-full">
-            <div className="flex items-center justify-between">
-              <div className="h-7 w-7 rounded-lg bg-purple-100 text-purple-700 dark:bg-purple-500/20 dark:text-purple-400 flex items-center justify-center">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-              </div>
-              <span className="text-[10px] font-black text-slate-400">STAGE 03</span>
-            </div>
-            <span className="text-[11px] font-bold text-slate-900 dark:text-white mt-0.5">3. COMPLETED</span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
-              Class ends. Feedback &amp; recording buttons activate.
-            </span>
-          </div>
-
-          {/* Stage 4: Feedback Submitted */}
-          <div className="p-3 bg-slate-50 dark:bg-[#0D1527] rounded-xl border border-slate-200/80 dark:border-slate-800/80 flex flex-col gap-1 h-full">
-            <div className="flex items-center justify-between">
-              <div className="h-7 w-7 rounded-lg bg-teal-100 text-teal-700 dark:bg-teal-500/20 dark:text-teal-400 flex items-center justify-center">
-                <Check className="w-3.5 h-3.5 stroke-[3]" />
-              </div>
-              <span className="text-[10px] font-black text-slate-400">STAGE 04</span>
-            </div>
-            <span className="text-[11px] font-bold text-slate-900 dark:text-white mt-0.5">4. FEEDBACK LOGGED</span>
-            <span className="text-[10px] text-slate-500 dark:text-slate-400 leading-snug">
-              Feedback saved. Access recording &amp; study notes.
-            </span>
-          </div>
         </div>
       </div>
 
