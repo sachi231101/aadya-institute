@@ -114,23 +114,37 @@ export const Enquiries: React.FC = () => {
   const { options: timeslotOptions } = useMasterDropdown("timeslot");
 
   const apiLeads = useMemo(() => {
-    const rawList = leadsResponse?.data ?? [];
+    const rawList = Array.isArray(leadsResponse?.data?.data)
+      ? leadsResponse.data.data
+      : Array.isArray(leadsResponse?.data)
+        ? leadsResponse.data
+        : [];
     return rawList.map((l: any): EnrichedLead => ({
       id: l.id,
       enquiryNo: l.leadCode || `ENQ-${l.id.slice(0, 6)}`,
       name: l.name || "Anonymous Lead",
-      phone: l.phone || "N/A",
+      phone: l.phoneNumber || l.phone || "N/A",
       email: l.email || "N/A",
-      course: l.course?.name || "Full Stack Web Development",
+      course: l.course?.name || l.interestedIn || "Full Stack Web Development",
       altCourse: undefined,
       source: (l.source as any) || "Website",
-      status: (l.status === "ENROLLED" ? "Converted" : l.status === "LOST" ? "Lost" : l.status === "CONTACTED" ? "Contacted" : l.status === "INTERESTED" ? "Interested" : "New") as LeadStatus,
+      status: (l.stage === "CONVERTED" || l.status === "CONVERTED"
+        ? "Converted"
+        : l.stage === "LOST" || l.status === "LOST"
+          ? "Lost"
+          : l.stage === "CONTACTED"
+            ? "Contacted"
+            : l.stage === "INTERESTED"
+              ? "Interested"
+              : l.stage === "FOLLOW_UP"
+                ? "Follow-up"
+                : "New") as LeadStatus,
       priority: (l.priority === "HIGH" ? "Hot" : l.priority === "LOW" ? "Cold" : "Warm") as LeadPriority,
       nextFollowUp: l.followUps?.[0]?.scheduledAt ? new Date(l.followUps[0].scheduledAt).toLocaleDateString() : "No follow-up set",
       nextFollowUpType: "Call",
       lastContact: l.updatedAt ? new Date(l.updatedAt).toLocaleDateString() : "Recently",
       enquiryDate: l.createdAt ? new Date(l.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Recently",
-      assignedCounselor: l.assignedTo?.name || "Unassigned",
+      assignedCounselor: l.assignedCounsellor?.name || l.assignedTo?.name || "Unassigned",
       leadScore: l.score || 75,
       location: l.city ? `${l.city}, ${l.state || "India"}` : "Bengaluru, Karnataka",
       qualification: l.qualification || "Graduate",
@@ -149,7 +163,7 @@ export const Enquiries: React.FC = () => {
         ? [
             {
               id: `note-${l.id}`,
-              author: l.assignedTo?.name || "Counsellor",
+              author: l.assignedCounsellor?.name || l.assignedTo?.name || "Counsellor",
               date: l.createdAt ? new Date(l.createdAt).toLocaleDateString() : "Recently",
               time: "",
               text: l.notes,

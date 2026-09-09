@@ -68,8 +68,13 @@ export const CounsellorOverview: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
 
   const allLeads: Lead[] = useMemo(() => {
-    return (leadsResponse?.data as Lead[]) || [];
-  }, [leadsResponse?.data]);
+    const raw = Array.isArray(leadsResponse?.data?.data)
+      ? leadsResponse.data.data
+      : Array.isArray(leadsResponse?.data)
+        ? leadsResponse.data
+        : [];
+    return raw as Lead[];
+  }, [leadsResponse]);
 
   // Prefer server-side counsellor performance; fall back gracefully
   const counsellorPerformance: CounsellorPerf[] = useMemo(() => {

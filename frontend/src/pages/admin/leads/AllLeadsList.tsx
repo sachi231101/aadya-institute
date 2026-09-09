@@ -37,7 +37,6 @@ export const AllLeadsList: React.FC = () => {
 
   const [searchTerm, setSearchTerm] = useState("");
   const [stageFilter, setStageFilter] = useState("ALL");
-  const [statusFilter, setStatusFilter] = useState("ALL");
   const [stageMasterId, setStageMasterId] = useState("");
   const [counsellorFilter, setCounsellorFilter] = useState("ALL");
   const [branchFilter, setBranchFilter] = useState("ALL");
@@ -68,7 +67,6 @@ export const AllLeadsList: React.FC = () => {
     limit: view === "kanban" ? 100 : 20,
     search: searchTerm || undefined,
     stage: stageFilter !== "ALL" ? stageFilter : undefined,
-    status: statusFilter !== "ALL" ? statusFilter : undefined,
     assignedCounsellorId: counsellorFilter !== "ALL" ? counsellorFilter : undefined,
     branchId: isAdmin && branchFilter !== "ALL" ? branchFilter : undefined,
   });
@@ -257,12 +255,16 @@ export const AllLeadsList: React.FC = () => {
                         >
                           <TableCell className="font-medium">{lead.name}</TableCell>
                           <TableCell>{lead.phoneNumber}</TableCell>
+                          <TableCell className="text-sm">
+                            {lead.course?.name || lead.interestedIn || "—"}
+                          </TableCell>
                           <TableCell>
                             <LeadStageBadge
                               stage={lead.stage}
                               label={stageOptions.find((o) => o.code === lead.stage || o.value === lead.stage)?.label}
                             />
                           </TableCell>
+                          <TableCell className="text-sm">{lead.source || "—"}</TableCell>
                           <TableCell>{lead.assignedCounsellor?.name || "Unassigned"}</TableCell>
                           <TableCell className="text-sm text-text-secondary">
                             {new Date(lead.createdAt).toLocaleDateString("en-IN")}

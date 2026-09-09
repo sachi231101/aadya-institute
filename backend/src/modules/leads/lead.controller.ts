@@ -197,7 +197,14 @@ export const getDashboardSummary = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const summary = await LeadService.getDashboardSummary(req.user as unknown as AuthUser);
+    const branchId =
+      typeof req.query.branchId === "string" && req.query.branchId.trim()
+        ? req.query.branchId.trim()
+        : undefined;
+    const summary = await LeadService.getDashboardSummary(
+      req.user as unknown as AuthUser,
+      branchId
+    );
     sendSuccess(res, summary, 200, "Dashboard summary retrieved successfully");
   } catch (err) {
     next(err);
@@ -230,7 +237,14 @@ export const getFollowUpDashboard = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const dashboard = await LeadService.getFollowUpDashboard(req.user as unknown as AuthUser);
+    const branchId =
+      typeof req.query.branchId === "string" && req.query.branchId.trim()
+        ? req.query.branchId.trim()
+        : undefined;
+    const dashboard = await LeadService.getFollowUpDashboard(
+      req.user as unknown as AuthUser,
+      branchId
+    );
     sendSuccess(res, dashboard, 200, "Follow-up dashboard retrieved successfully");
   } catch (err) {
     next(err);
