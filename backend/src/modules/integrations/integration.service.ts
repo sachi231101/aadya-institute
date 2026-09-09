@@ -291,8 +291,19 @@ export const resolveWhatsappApiKey = async (
   instituteId: string
 ): Promise<string> => {
   const row = await repo.findByInstituteAndType(instituteId, "WHATSAPP");
+  if (row && row.isEnabled === false) {
+    return "";
+  }
   const creds = decryptCredentials(row?.encryptedCredentials);
   return creds.apiKey || env.AISENSY_API_KEY || "";
+};
+
+/** True when institute has a usable WhatsApp credential. */
+export const isWhatsappProviderConnected = async (
+  instituteId: string
+): Promise<boolean> => {
+  const key = await resolveWhatsappApiKey(instituteId);
+  return Boolean(key && key.trim());
 };
 
 export const resolveEmailSmtpConfig = async (instituteId: string) => {

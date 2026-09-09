@@ -25,10 +25,13 @@ describe("Notification Constants & Idempotency Key Unit Tests", () => {
     assert.strictEqual(key3, "FEEDBACK_REQUESTED:student-1:session-1");
 
     const key4 = buildIdempotencyKey.ADMISSION_CREATED("student-1", "admission-1");
-    assert.strictEqual(key4, "ADMISSION_CREATED:student-1:admission-1");
+    assert.strictEqual(key4, "STUDENT_WELCOME:student-1:admission-1");
 
     const key5 = buildIdempotencyKey.BATCH_ASSIGNED("student-1", "batch-1");
-    assert.strictEqual(key5, "BATCH_ASSIGNED:student-1:batch-1");
+    assert.strictEqual(key5, "STUDENT_BATCH_ASSIGNED:student-1:batch-1");
+
+    const key6 = buildIdempotencyKey.FEE_DUE_REMINDER("student-1", "fee-1", "2026-09-09");
+    assert.strictEqual(key6, "FEE_DUE_REMINDER:student-1:fee-1:2026-09-09");
   });
 
   test("should identify non-retriable error codes correctly", () => {

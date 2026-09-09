@@ -18,6 +18,8 @@ import {
   resolveOptionalMasterFields,
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
+import { triggerNotification } from "../whatsapp/whatsapp.service";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 
 async function resolvePaymentMasters(
   instituteId: string,
@@ -124,7 +126,7 @@ export const FeeService = {
 
     const masters = await resolvePaymentMasters(instituteId, dto, pendingItem.branchId);
 
-    return FeeRepository.recordPendingFeePayment(
+    const result = await FeeRepository.recordPendingFeePayment(
       pendingItem,
       receiptNo,
       {
@@ -136,6 +138,27 @@ export const FeeService = {
       },
       recordedById
     );
+
+    if (pendingItem.studentId && result.payment) {
+      void triggerNotification({
+        instituteId,
+        studentId: pendingItem.studentId,
+        event: NotificationEvent.PAYMENT_CONFIRMATION,
+        idempotencyKey: buildIdempotencyKey.PAYMENT_CONFIRMATION(
+          pendingItem.studentId,
+          result.payment.id
+        ),
+        templateParams: {
+          student_name: pendingItem.studentName,
+          amount: String(result.payment.amount),
+          receipt_no: result.payment.receiptNo,
+          course_name: pendingItem.courseName ?? "Course",
+        },
+        metadata: { paymentId: result.payment.id },
+      }).catch(() => {});
+    }
+
+    return result;
   },
 
   async sendFeeReminder(pendingFeeId: string, instituteId: string) {
@@ -143,23 +166,52 @@ export const FeeService = {
     if (!pendingItem) {
       throw new Error("Pending fee record not found");
     }
+    if (!pendingItem.studentId) {
+      throw new Error("Pending fee has no linked student");
+    }
 
-    // Create a WhatsappLog record for payment reminder
-    const waLog = await prisma.whatsappLog.create({
-      data: {
-        waMessageId: `REM-${Date.now()}`,
-        from: "+91 98765 43210",
-        to: pendingItem.phone,
-        type: "FEE_REMINDER",
-        body: `Dear ${pendingItem.studentName}, your fee installment of ₹${pendingItem.dueAmount} for ${pendingItem.courseName} is due on ${new Date(pendingItem.dueDate).toLocaleDateString()}. Please pay at the earliest.`,
-        direction: "OUTBOUND",
-        status: "SENT",
+    const due = new Date(pendingItem.dueDate);
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const isOverdue = due < startOfToday;
+    const event = isOverdue
+      ? NotificationEvent.FEE_OVERDUE_REMINDER
+      : NotificationEvent.FEE_DUE_REMINDER;
+    const dateKey = startOfToday.toISOString().slice(0, 10);
+
+    const notification = await triggerNotification({
+      instituteId,
+      studentId: pendingItem.studentId,
+      event,
+      idempotencyKey:
+        event === NotificationEvent.FEE_OVERDUE_REMINDER
+          ? buildIdempotencyKey.FEE_OVERDUE_REMINDER(
+              pendingItem.studentId,
+              pendingItem.id,
+              `manual-${dateKey}`
+            )
+          : buildIdempotencyKey.FEE_DUE_REMINDER(
+              pendingItem.studentId,
+              pendingItem.id,
+              `manual-${dateKey}`
+            ),
+      templateParams: {
+        student_name: pendingItem.studentName,
+        amount: String(pendingItem.dueAmount),
+        due_date: due.toLocaleDateString("en-IN"),
+        course_name: pendingItem.courseName ?? "Course",
       },
+      metadata: { pendingFeeId: pendingItem.id, manual: true },
     });
 
     return {
-      message: `WhatsApp reminder sent to ${pendingItem.phone}`,
-      logId: waLog.id,
+      message:
+        notification?.status === "SKIPPED"
+          ? `Reminder skipped (${notification.skipReason})`
+          : `WhatsApp reminder queued for ${pendingItem.phone}`,
+      notificationId: notification?.id ?? null,
+      status: notification?.status ?? "SKIPPED",
+      skipReason: notification?.skipReason ?? null,
       studentName: pendingItem.studentName,
       phone: pendingItem.phone,
     };

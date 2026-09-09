@@ -84,8 +84,10 @@ import { ExaminationReports } from "../pages/admin/reports/ExaminationReports";
 
 import { NotificationsHub } from "../pages/admin/communication/NotificationsHub";
 import { WhatsAppHub } from "../pages/admin/communication/WhatsAppHub";
+import { WhatsAppAutomations } from "../pages/admin/communication/WhatsAppAutomations";
+import { WhatsAppTemplates } from "../pages/admin/communication/WhatsAppTemplates";
+import { WhatsAppHistory } from "../pages/admin/communication/WhatsAppHistory";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
-import { AutomationRules } from "../pages/admin/communication/AutomationRules";
 
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
@@ -282,9 +284,14 @@ export const adminChildRoutes = (
     {/* Communication Management */}
     <Route path="communication">
       <Route path="notifications" element={<NotificationsHub />} />
-      <Route path="whatsapp" element={<WhatsAppHub />} />
+      <Route path="whatsapp" element={<WhatsAppHub />}>
+        <Route index element={<Navigate to="automations" replace />} />
+        <Route path="automations" element={<WhatsAppAutomations />} />
+        <Route path="templates" element={<WhatsAppTemplates />} />
+        <Route path="history" element={<WhatsAppHistory />} />
+      </Route>
       <Route path="email" element={<EmailManagement />} />
-      <Route path="automation" element={<AutomationRules />} />
+      <Route path="automation" element={<Navigate to="/admin/communication/whatsapp/automations" replace />} />
     </Route>
 
     {/* Placement Management */}
