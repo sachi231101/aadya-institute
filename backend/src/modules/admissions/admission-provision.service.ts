@@ -6,6 +6,7 @@ import { hashPassword } from "../../utils/password";
 import { SequenceService } from "../masters/sequence.service";
 import { LeadActivityService } from "../leads/services/lead-activity.service";
 import type { CreateAdmissionDTO } from "./admissions.types";
+import { applyFifoToPendingRows } from "../fees/fee-balance.util";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -422,7 +423,7 @@ export async function provisionAdmissionInTransaction(
             admissionId: admission.id,
             studentName: dto.studentName,
             admissionNo,
-            phone: dto.phone,
+            phone: dto.phone || "",
             courseName,
             totalFee,
             amountPaid: 0,
@@ -433,7 +434,28 @@ export async function provisionAdmissionInTransaction(
           };
         }),
       });
+
+      // FIFO-apply down payment onto earliest installments
+      if (amountPaid > 0) {
+        const createdRows = await tx.pendingFee.findMany({
+          where: { admissionId: admission.id, studentId: finalStudentId },
+          orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+        });
+        const { allocations } = applyFifoToPendingRows(createdRows, amountPaid);
+        for (const alloc of allocations) {
+          await tx.pendingFee.update({
+            where: { id: alloc.row.id },
+            data: {
+              amountPaid: alloc.amountPaid,
+              dueAmount: alloc.dueAmount,
+              status: alloc.status,
+              overdueDays: alloc.overdueDays,
+            },
+          });
+        }
+      }
     } else {
+      // Single remaining-balance row (amountPaid already recorded as Payment)
       const balance = Math.max(0, totalFee - amountPaid);
       if (balance > 0) {
         const dueDate = new Date();
@@ -446,10 +468,10 @@ export async function provisionAdmissionInTransaction(
             admissionId: admission.id,
             studentName: dto.studentName,
             admissionNo,
-            phone: dto.phone,
+            phone: dto.phone || "",
             courseName,
             totalFee,
-            amountPaid,
+            amountPaid: 0,
             dueAmount: balance,
             dueDate,
             installmentNo: 1,

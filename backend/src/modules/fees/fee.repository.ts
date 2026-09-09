@@ -4,35 +4,77 @@ import type {
   PaymentStatus,
   OverdueStatus,
   PendingFee,
+  Payment,
 } from "@prisma/client";
 import type {
   QueryPaymentsDTO,
   CreatePaymentDTO,
   QueryPendingFeesDTO,
   CollectPendingFeeDTO,
+  BranchScopeParams,
 } from "./fee.types";
+import {
+  applyAmountToPendingRow,
+  applyFifoToPendingRows,
+  derivePendingStatus,
+  getIstDayBounds,
+  overdueDaysFromDueDate,
+  reverseAmountOnPendingRow,
+  startOfDay,
+  withDerivedPendingStatus,
+} from "./fee-balance.util";
+
+const applyBranchToWhere = <T extends Record<string, unknown>>(
+  where: T,
+  scope?: BranchScopeParams
+): T => {
+  if (!scope) return where;
+  if (scope.branchId) {
+    return { ...where, branchId: scope.branchId };
+  }
+  if (scope.branchIds && scope.branchIds.length > 0) {
+    return { ...where, branchId: { in: scope.branchIds } };
+  }
+  return where;
+};
 
 export const FeeRepository = {
   // ─── PAYMENTS ──────────────────────────────────────────────────────────────
-  async findPayments(instituteId: string, params: QueryPaymentsDTO) {
-    const { search, method, status, page = 1, limit = 50 } = params;
+  async findPayments(
+    instituteId: string,
+    params: QueryPaymentsDTO & BranchScopeParams
+  ) {
+    const {
+      search,
+      method,
+      paymentModeMasterId,
+      status,
+      page = 1,
+      limit = 50,
+      branchId,
+      branchIds,
+    } = params;
 
-    const where: Prisma.PaymentWhereInput = {
-      instituteId,
-      ...(method && method !== "ALL" ? { method } : {}),
-      ...(status && status !== "ALL" ? { status: status as PaymentStatus } : {}),
-      ...(search
-        ? {
-            OR: [
-              { receiptNo: { contains: search, mode: "insensitive" } },
-              { studentName: { contains: search, mode: "insensitive" } },
-              { admissionNo: { contains: search, mode: "insensitive" } },
-              { courseName: { contains: search, mode: "insensitive" } },
-              { transactionRef: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    };
+    const where: Prisma.PaymentWhereInput = applyBranchToWhere(
+      {
+        instituteId,
+        ...(paymentModeMasterId ? { paymentModeMasterId } : {}),
+        ...(method && method !== "ALL" && !paymentModeMasterId ? { method } : {}),
+        ...(status && status !== "ALL" ? { status: status as PaymentStatus } : {}),
+        ...(search
+          ? {
+              OR: [
+                { receiptNo: { contains: search, mode: "insensitive" } },
+                { studentName: { contains: search, mode: "insensitive" } },
+                { admissionNo: { contains: search, mode: "insensitive" } },
+                { courseName: { contains: search, mode: "insensitive" } },
+                { transactionRef: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      { branchId, branchIds }
+    );
 
     const [total, data] = await Promise.all([
       prisma.payment.count({ where }),
@@ -53,6 +95,21 @@ export const FeeRepository = {
     });
   },
 
+  async findPaymentsByStudent(
+    instituteId: string,
+    studentId: string,
+    scope?: BranchScopeParams
+  ) {
+    const where = applyBranchToWhere(
+      { instituteId, studentId },
+      scope
+    ) as Prisma.PaymentWhereInput;
+    return prisma.payment.findMany({
+      where,
+      orderBy: { date: "desc" },
+    });
+  },
+
   async createPayment(
     instituteId: string,
     branchId: string | null | undefined,
@@ -65,9 +122,9 @@ export const FeeRepository = {
         receiptNo,
         instituteId,
         branchId: branchId || null,
-        studentName: dto.studentName,
-        admissionNo: dto.admissionNo,
-        courseName: dto.courseName,
+        studentName: dto.studentName || "",
+        admissionNo: dto.admissionNo || "",
+        courseName: dto.courseName || "",
         amount: dto.amount,
         date: dto.date ? new Date(dto.date) : new Date(),
         method: dto.method || "UPI",
@@ -86,42 +143,209 @@ export const FeeRepository = {
     });
   },
 
-  async deletePayment(id: string, instituteId: string) {
-    return prisma.payment.deleteMany({
-      where: { id, instituteId },
+  async recordFifoPayments(params: {
+    instituteId: string;
+    student: {
+      id: string;
+      name: string;
+      admissionNo: string;
+      courseName: string;
+      branchId: string | null;
+      admissionId: string | null;
+    };
+    openPending: PendingFee[];
+    amount: number;
+    masters: {
+      method: string;
+      paymentModeMasterId?: string;
+      bankAccountMasterId?: string;
+      feeHeadMasterId?: string;
+      feeHead?: string;
+    };
+    dto: CreatePaymentDTO;
+    receiptNumbers: string[];
+    recordedById?: string;
+  }): Promise<Payment[]> {
+    const {
+      instituteId,
+      student,
+      openPending,
+      amount,
+      masters,
+      dto,
+      receiptNumbers,
+      recordedById,
+    } = params;
+
+    const { allocations, remainingUnapplied } = applyFifoToPendingRows(openPending, amount);
+    if (allocations.length === 0) {
+      // No open dues — orphan payment (no reverse on delete)
+      const receiptNo = receiptNumbers[0];
+      const payment = await prisma.payment.create({
+        data: {
+          receiptNo,
+          instituteId,
+          branchId: student.branchId,
+          studentName: student.name,
+          admissionNo: student.admissionNo,
+          courseName: student.courseName,
+          amount,
+          date: dto.date ? new Date(dto.date) : new Date(),
+          method: masters.method,
+          paymentModeMasterId: masters.paymentModeMasterId || null,
+          bankAccountMasterId: masters.bankAccountMasterId || null,
+          feeHeadMasterId: masters.feeHeadMasterId || null,
+          feeHead: masters.feeHead || null,
+          transactionRef: dto.transactionRef || null,
+          status: (dto.status as PaymentStatus) || "SUCCESS",
+          notes: dto.notes || "Payment with no open installments",
+          studentId: student.id,
+          admissionId: student.admissionId,
+          pendingFeeId: null,
+          recordedById: recordedById || null,
+        },
+      });
+      return [payment];
+    }
+
+    if (remainingUnapplied > 0) {
+      throw new Error(
+        `Payment amount exceeds open installment dues by ₹${remainingUnapplied.toFixed(2)}`
+      );
+    }
+
+    return prisma.$transaction(async (tx) => {
+      const payments: Payment[] = [];
+      for (let i = 0; i < allocations.length; i++) {
+        const alloc = allocations[i];
+        const pending = alloc.row;
+        const receiptNo = receiptNumbers[i];
+        const payment = await tx.payment.create({
+          data: {
+            receiptNo,
+            instituteId,
+            branchId: pending.branchId ?? student.branchId,
+            studentName: student.name,
+            admissionNo: student.admissionNo,
+            courseName: student.courseName,
+            amount: alloc.applied,
+            date: dto.date ? new Date(dto.date) : new Date(),
+            method: masters.method,
+            paymentModeMasterId: masters.paymentModeMasterId || null,
+            bankAccountMasterId: masters.bankAccountMasterId || null,
+            feeHeadMasterId: masters.feeHeadMasterId || pending.feeHeadMasterId || null,
+            feeHead: masters.feeHead || pending.feeHead || null,
+            transactionRef: dto.transactionRef || null,
+            status: (dto.status as PaymentStatus) || "SUCCESS",
+            notes:
+              dto.notes ||
+              `FIFO collection for Installment #${pending.installmentNo}`,
+            studentId: student.id,
+            admissionId: pending.admissionId ?? student.admissionId,
+            pendingFeeId: pending.id,
+            recordedById: recordedById || null,
+          },
+        });
+        await tx.pendingFee.update({
+          where: { id: pending.id },
+          data: {
+            amountPaid: alloc.amountPaid,
+            dueAmount: alloc.dueAmount,
+            status: alloc.status,
+            overdueDays: alloc.overdueDays,
+          },
+        });
+        payments.push(payment);
+      }
+      return payments;
+    });
+  },
+
+  async deletePaymentWithReverse(id: string, instituteId: string) {
+    return prisma.$transaction(async (tx) => {
+      const payment = await tx.payment.findFirst({
+        where: { id, instituteId },
+      });
+      if (!payment) return null;
+
+      if (payment.pendingFeeId && payment.status === "SUCCESS") {
+        const pending = await tx.pendingFee.findFirst({
+          where: { id: payment.pendingFeeId, instituteId },
+        });
+        if (pending) {
+          const reversed = reverseAmountOnPendingRow(pending, payment.amount);
+          await tx.pendingFee.update({
+            where: { id: pending.id },
+            data: {
+              amountPaid: reversed.amountPaid,
+              dueAmount: reversed.dueAmount,
+              status: reversed.status,
+              overdueDays: reversed.overdueDays,
+            },
+          });
+        }
+      }
+
+      await tx.payment.delete({ where: { id: payment.id } });
+      return payment;
     });
   },
 
   // ─── PENDING FEES ──────────────────────────────────────────────────────────
-  async findPendingFees(instituteId: string, params: QueryPendingFeesDTO) {
-    const { search, status, page = 1, limit = 50 } = params;
+  async findPendingFees(
+    instituteId: string,
+    params: QueryPendingFeesDTO & BranchScopeParams
+  ) {
+    const {
+      search,
+      status,
+      studentId,
+      page = 1,
+      limit = 50,
+      branchId,
+      branchIds,
+    } = params;
 
-    const where: Prisma.PendingFeeWhereInput = {
-      instituteId,
-      ...(status && status !== "ALL" ? { status: status as OverdueStatus } : {}),
-      ...(search
-        ? {
-            OR: [
-              { studentName: { contains: search, mode: "insensitive" } },
-              { admissionNo: { contains: search, mode: "insensitive" } },
-              { phone: { contains: search, mode: "insensitive" } },
-              { courseName: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    };
+    const statusFilter =
+      status && status !== "ALL"
+        ? status === "UNPAID"
+          ? { status: { in: ["OVERDUE", "DUE_SOON", "PARTIAL"] as OverdueStatus[] } }
+          : { status: status as OverdueStatus }
+        : {};
+
+    const where: Prisma.PendingFeeWhereInput = applyBranchToWhere(
+      {
+        instituteId,
+        ...(studentId ? { studentId } : {}),
+        ...statusFilter,
+        ...(search
+          ? {
+              OR: [
+                { studentName: { contains: search, mode: "insensitive" } },
+                { admissionNo: { contains: search, mode: "insensitive" } },
+                { phone: { contains: search, mode: "insensitive" } },
+                { courseName: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      { branchId, branchIds }
+    );
 
     const [total, data] = await Promise.all([
       prisma.pendingFee.count({ where }),
       prisma.pendingFee.findMany({
         where,
-        orderBy: { dueDate: "asc" },
+        orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),
     ]);
 
-    return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
+    const today = startOfDay();
+    const derived = data.map((row) => withDerivedPendingStatus(row, today));
+
+    return { total, data: derived, page, limit, totalPages: Math.ceil(total / limit) };
   },
 
   async findPendingFeeById(id: string, instituteId: string) {
@@ -130,18 +354,58 @@ export const FeeRepository = {
     });
   },
 
+  async findOpenPendingFeesForStudent(
+    instituteId: string,
+    studentId: string,
+    opts?: { admissionId?: string | null; courseName?: string | null }
+  ) {
+    return prisma.pendingFee.findMany({
+      where: {
+        instituteId,
+        studentId,
+        dueAmount: { gt: 0 },
+        status: { not: "PAID" },
+        ...(opts?.admissionId ? { admissionId: opts.admissionId } : {}),
+        ...(opts?.courseName ? { courseName: opts.courseName } : {}),
+      },
+      orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+    });
+  },
+
+  async findPendingFeesByStudent(
+    instituteId: string,
+    studentId: string,
+    scope?: BranchScopeParams
+  ) {
+    const where = applyBranchToWhere(
+      { instituteId, studentId },
+      scope
+    ) as Prisma.PendingFeeWhereInput;
+    const rows = await prisma.pendingFee.findMany({
+      where,
+      orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+    });
+    const today = startOfDay();
+    return rows.map((row) => withDerivedPendingStatus(row, today));
+  },
+
   async recordPendingFeePayment(
     pendingItem: PendingFee,
     receiptNo: string,
     dto: CollectPendingFeeDTO,
     recordedById?: string
   ) {
-    const newAmountPaid = pendingItem.amountPaid + dto.amountPaidNow;
-    const newDueAmount = Math.max(0, pendingItem.totalFee - newAmountPaid);
-    const newStatus: OverdueStatus = newDueAmount === 0 ? "PAID" : "PARTIAL";
+    const applied = applyAmountToPendingRow(pendingItem, dto.amountPaidNow);
+    if (applied.applied <= 0) {
+      throw new Error("Nothing to collect on this installment");
+    }
+    if (applied.applied < dto.amountPaidNow) {
+      throw new Error(
+        `Amount paid (₹${dto.amountPaidNow}) exceeds due amount (₹${pendingItem.dueAmount})`
+      );
+    }
 
     return prisma.$transaction(async (tx) => {
-      // 1. Create Payment
       const payment = await tx.payment.create({
         data: {
           receiptNo,
@@ -150,7 +414,7 @@ export const FeeRepository = {
           studentName: pendingItem.studentName,
           admissionNo: pendingItem.admissionNo,
           courseName: pendingItem.courseName,
-          amount: dto.amountPaidNow,
+          amount: applied.applied,
           date: new Date(),
           method: dto.method || "UPI",
           paymentModeMasterId: dto.paymentModeMasterId || null,
@@ -166,13 +430,13 @@ export const FeeRepository = {
         },
       });
 
-      // 2. Update PendingFee
       const updatedPending = await tx.pendingFee.update({
         where: { id: pendingItem.id },
         data: {
-          amountPaid: newAmountPaid,
-          dueAmount: newDueAmount,
-          status: newStatus,
+          amountPaid: applied.amountPaid,
+          dueAmount: applied.dueAmount,
+          status: applied.status,
+          overdueDays: applied.overdueDays,
         },
       });
 
@@ -180,117 +444,183 @@ export const FeeRepository = {
     });
   },
 
+  async syncPendingFeeStatuses(instituteId?: string) {
+    const today = startOfDay();
+    const rows = await prisma.pendingFee.findMany({
+      where: {
+        ...(instituteId ? { instituteId } : {}),
+        status: { not: "PAID" },
+        dueAmount: { gt: 0 },
+      },
+      take: 2000,
+    });
+
+    let updated = 0;
+    for (const row of rows) {
+      const status = derivePendingStatus(row.dueAmount, row.dueDate, row.amountPaid, today);
+      const overdueDays = status === "OVERDUE" ? overdueDaysFromDueDate(row.dueDate, today) : 0;
+      if (row.status !== status || row.overdueDays !== overdueDays) {
+        await prisma.pendingFee.update({
+          where: { id: row.id },
+          data: { status, overdueDays },
+        });
+        updated += 1;
+      }
+    }
+    return { scanned: rows.length, updated };
+  },
+
   // ─── STATS & REPORTS ───────────────────────────────────────────────────────
-  async getFeeStats(instituteId: string) {
-    const [payments, pendingFees] = await Promise.all([
-      prisma.payment.findMany({ where: { instituteId } }),
-      prisma.pendingFee.findMany({ where: { instituteId } }),
+  async getFeeStats(instituteId: string, scope?: BranchScopeParams) {
+    const paymentWhere = applyBranchToWhere(
+      { instituteId },
+      scope
+    ) as Prisma.PaymentWhereInput;
+    const pendingWhere = applyBranchToWhere(
+      { instituteId },
+      scope
+    ) as Prisma.PendingFeeWhereInput;
+
+    const { start: todayStart, end: todayEnd } = getIstDayBounds();
+
+    const [
+      collectedAgg,
+      todayAgg,
+      paymentCount,
+      digitalCount,
+      pendingAgg,
+      overdueAgg,
+      overdueDaysAgg,
+    ] = await Promise.all([
+      prisma.payment.aggregate({
+        where: { ...paymentWhere, status: "SUCCESS" },
+        _sum: { amount: true },
+      }),
+      prisma.payment.aggregate({
+        where: {
+          ...paymentWhere,
+          status: "SUCCESS",
+          date: { gte: todayStart, lte: todayEnd },
+        },
+        _sum: { amount: true },
+      }),
+      prisma.payment.count({ where: paymentWhere }),
+      prisma.payment.count({
+        where: {
+          ...paymentWhere,
+          method: { in: ["UPI", "NET_BANKING", "CARD"] },
+        },
+      }),
+      prisma.pendingFee.aggregate({
+        where: { ...pendingWhere, dueAmount: { gt: 0 } },
+        _sum: { dueAmount: true },
+      }),
+      prisma.pendingFee.aggregate({
+        where: { ...pendingWhere, status: "OVERDUE", dueAmount: { gt: 0 } },
+        _sum: { dueAmount: true },
+        _count: true,
+      }),
+      prisma.pendingFee.aggregate({
+        where: { ...pendingWhere, status: "OVERDUE", dueAmount: { gt: 0 } },
+        _avg: { overdueDays: true },
+      }),
     ]);
 
-    const totalCollected = payments
-      .filter((p) => p.status === "SUCCESS")
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    const todayStr = new Date().toISOString().split("T")[0];
-    const todayCollected = payments
-      .filter((p) => p.status === "SUCCESS" && p.date.toISOString().split("T")[0] === todayStr)
-      .reduce((sum, p) => sum + p.amount, 0);
-
-    const digitalCount = payments.filter(
-      (p) => p.method === "UPI" || p.method === "NET_BANKING" || p.method === "CARD"
-    ).length;
-    const digitalPercent = payments.length > 0 ? Math.round((digitalCount / payments.length) * 100) : 0;
-
-    const totalPendingDues = pendingFees.reduce((sum, pf) => sum + pf.dueAmount, 0);
-    const overdueItems = pendingFees.filter((pf) => pf.status === "OVERDUE");
-    const overdueDues = overdueItems.reduce((sum, pf) => sum + pf.dueAmount, 0);
-    const overdueCount = overdueItems.length;
-
-    const avgOverdueDays =
-      overdueCount > 0
-        ? Math.round(overdueItems.reduce((sum, pf) => sum + pf.overdueDays, 0) / overdueCount)
-        : 0;
+    const totalCollected = collectedAgg._sum.amount || 0;
+    const todayCollected = todayAgg._sum.amount || 0;
+    const digitalPercent =
+      paymentCount > 0 ? Math.round((digitalCount / paymentCount) * 100) : 0;
 
     return {
       totalCollected,
       todayCollected,
       digitalPercent,
-      totalTransactionsCount: payments.length,
-      totalPendingDues,
-      overdueDues,
-      overdueCount,
-      avgOverdueDays,
+      totalTransactionsCount: paymentCount,
+      totalPendingDues: pendingAgg._sum.dueAmount || 0,
+      overdueDues: overdueAgg._sum.dueAmount || 0,
+      overdueCount: overdueAgg._count || 0,
+      avgOverdueDays: Math.round(overdueDaysAgg._avg.overdueDays || 0),
     };
   },
 
-  async getFeeReports(instituteId: string) {
-    const payments = await prisma.payment.findMany({
-      where: { instituteId, status: "SUCCESS" },
-    });
+  async getFeeReports(instituteId: string, scope?: BranchScopeParams) {
+    const paymentWhere = applyBranchToWhere(
+      { instituteId, status: "SUCCESS" },
+      scope
+    ) as Prisma.PaymentWhereInput;
+    const pendingWhere = applyBranchToWhere(
+      { instituteId },
+      scope
+    ) as Prisma.PendingFeeWhereInput;
 
-    const pendingFees = await prisma.pendingFee.findMany({
-      where: { instituteId },
-    });
+    const [payments, pendingAgg, dueStatusGroups, courseGroups, modeGroups] =
+      await Promise.all([
+        prisma.payment.findMany({
+          where: paymentWhere,
+          select: { amount: true, date: true, courseName: true, method: true },
+        }),
+        prisma.pendingFee.aggregate({
+          where: { ...pendingWhere, dueAmount: { gt: 0 } },
+          _sum: { dueAmount: true },
+        }),
+        prisma.pendingFee.groupBy({
+          by: ["status"],
+          where: pendingWhere,
+          _count: { _all: true },
+          _sum: { dueAmount: true },
+        }),
+        prisma.payment.groupBy({
+          by: ["courseName"],
+          where: paymentWhere,
+          _sum: { amount: true },
+        }),
+        prisma.payment.groupBy({
+          by: ["method"],
+          where: paymentWhere,
+          _count: { _all: true },
+          _sum: { amount: true },
+        }),
+      ]);
 
     const totalCollected = payments.reduce((sum, p) => sum + p.amount, 0);
-    const targetRevenue = 1500000;
-    const targetAchievedPercent = Math.min(100, Math.round((totalCollected / targetRevenue) * 100));
+    const openDues = pendingAgg._sum.dueAmount || 0;
+    const targetRevenue = totalCollected + openDues;
+    const targetAchievedPercent =
+      targetRevenue > 0
+        ? Math.min(100, Math.round((totalCollected / targetRevenue) * 100))
+        : 0;
 
-    // Monthly revenue grouping
     const monthMap: Record<string, number> = {};
     for (const p of payments) {
-      const monthYear = p.date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+      const monthYear = p.date.toLocaleDateString("en-US", {
+        month: "short",
+        year: "numeric",
+        timeZone: "Asia/Kolkata",
+      });
       monthMap[monthYear] = (monthMap[monthYear] || 0) + p.amount;
     }
-
     const monthlyRevenue = Object.entries(monthMap).map(([month, revenue]) => ({
       month,
       revenue,
     }));
 
-    // Course revenue grouping
-    const courseMap: Record<string, number> = {};
-    for (const p of payments) {
-      courseMap[p.courseName] = (courseMap[p.courseName] || 0) + p.amount;
-    }
-
     const colors = ["#1769AA", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899", "#6366f1"];
-    const courseRevenue = Object.entries(courseMap).map(([name, value], idx) => ({
-      name,
-      value,
+    const courseRevenue = courseGroups.map((g, idx) => ({
+      name: g.courseName,
+      value: g._sum.amount || 0,
       color: colors[idx % colors.length],
     }));
 
-    // Payment mode distribution
-    const modeMap: Record<string, { count: number; amount: number }> = {};
-    for (const p of payments) {
-      if (!modeMap[p.method]) {
-        modeMap[p.method] = { count: 0, amount: 0 };
-      }
-      modeMap[p.method].count += 1;
-      modeMap[p.method].amount += p.amount;
-    }
-
-    const paymentModeDistribution = Object.entries(modeMap).map(([mode, data]) => ({
-      mode,
-      count: data.count,
-      amount: data.amount,
+    const paymentModeDistribution = modeGroups.map((g) => ({
+      mode: g.method,
+      count: g._count._all,
+      amount: g._sum.amount || 0,
     }));
 
-    // Due status summary
-    const statusMap: Record<string, { count: number; totalAmount: number }> = {};
-    for (const pf of pendingFees) {
-      if (!statusMap[pf.status]) {
-        statusMap[pf.status] = { count: 0, totalAmount: 0 };
-      }
-      statusMap[pf.status].count += 1;
-      statusMap[pf.status].totalAmount += pf.dueAmount;
-    }
-
-    const dueStatusSummary = Object.entries(statusMap).map(([status, data]) => ({
-      status,
-      count: data.count,
-      totalAmount: data.totalAmount,
+    const dueStatusSummary = dueStatusGroups.map((g) => ({
+      status: g.status,
+      count: g._count._all,
+      totalAmount: g._sum.dueAmount || 0,
     }));
 
     return {
@@ -305,29 +635,35 @@ export const FeeRepository = {
   },
 
   // ─── FEE PLAN TEMPLATES ──────────────────────────────────────────────────────
-  async findFeePlans(instituteId: string, params: {
-    branchId?: string;
-    courseId?: string;
-    status?: string;
-    search?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    const { branchId, courseId, status, search, page = 1, limit = 20 } = params;
-    const where: Prisma.FeePlanTemplateWhereInput = {
-      instituteId,
-      ...(branchId ? { branchId } : {}),
-      ...(courseId ? { courseId } : {}),
-      ...(status ? { status: status as never } : {}),
-      ...(search
-        ? {
-            OR: [
-              { name: { contains: search, mode: "insensitive" } },
-              { code: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    };
+  async findFeePlans(
+    instituteId: string,
+    params: {
+      branchId?: string;
+      branchIds?: string[];
+      courseId?: string;
+      status?: string;
+      search?: string;
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const { branchId, branchIds, courseId, status, search, page = 1, limit = 20 } = params;
+    const where: Prisma.FeePlanTemplateWhereInput = applyBranchToWhere(
+      {
+        instituteId,
+        ...(courseId ? { courseId } : {}),
+        ...(status ? { status: status as never } : { status: { not: "DELETED" } }),
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { code: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      { branchId, branchIds }
+    );
 
     const [total, data] = await Promise.all([
       prisma.feePlanTemplate.count({ where }),
@@ -356,16 +692,19 @@ export const FeeRepository = {
     });
   },
 
-  async createFeePlan(instituteId: string, data: {
-    name: string;
-    code?: string;
-    branchId?: string;
-    courseId?: string;
-    totalAmount: number;
-    planType?: string;
-    installments?: unknown;
-    description?: string;
-  }) {
+  async createFeePlan(
+    instituteId: string,
+    data: {
+      name: string;
+      code?: string;
+      branchId?: string;
+      courseId?: string;
+      totalAmount: number;
+      planType?: string;
+      installments?: unknown;
+      description?: string;
+    }
+  ) {
     return prisma.feePlanTemplate.create({
       data: {
         instituteId,
@@ -390,37 +729,43 @@ export const FeeRepository = {
     return FeeRepository.findFeePlanById(id, instituteId);
   },
 
-  async findReceipts(instituteId: string, params: {
-    search?: string;
-    branchId?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    page?: number;
-    limit?: number;
-  }) {
-    const { search, branchId, dateFrom, dateTo, page = 1, limit = 50 } = params;
-    const where: Prisma.PaymentWhereInput = {
-      instituteId,
-      status: "SUCCESS",
-      ...(branchId ? { branchId } : {}),
-      ...(dateFrom || dateTo
-        ? {
-            date: {
-              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
-              ...(dateTo ? { lte: new Date(dateTo) } : {}),
-            },
-          }
-        : {}),
-      ...(search
-        ? {
-            OR: [
-              { receiptNo: { contains: search, mode: "insensitive" } },
-              { studentName: { contains: search, mode: "insensitive" } },
-              { admissionNo: { contains: search, mode: "insensitive" } },
-            ],
-          }
-        : {}),
-    };
+  async findReceipts(
+    instituteId: string,
+    params: {
+      search?: string;
+      branchId?: string;
+      branchIds?: string[];
+      dateFrom?: string;
+      dateTo?: string;
+      page?: number;
+      limit?: number;
+    }
+  ) {
+    const { search, branchId, branchIds, dateFrom, dateTo, page = 1, limit = 50 } = params;
+    const where: Prisma.PaymentWhereInput = applyBranchToWhere(
+      {
+        instituteId,
+        status: "SUCCESS",
+        ...(dateFrom || dateTo
+          ? {
+              date: {
+                ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+                ...(dateTo ? { lte: new Date(dateTo) } : {}),
+              },
+            }
+          : {}),
+        ...(search
+          ? {
+              OR: [
+                { receiptNo: { contains: search, mode: "insensitive" } },
+                { studentName: { contains: search, mode: "insensitive" } },
+                { admissionNo: { contains: search, mode: "insensitive" } },
+              ],
+            }
+          : {}),
+      },
+      { branchId, branchIds }
+    );
 
     const [total, data] = await Promise.all([
       prisma.payment.count({ where }),
@@ -449,3 +794,25 @@ export const FeeRepository = {
     return { total, data, page, limit, totalPages: Math.ceil(total / limit) };
   },
 };
+
+/** Apply a down-payment FIFO across newly created pending rows (shared by seeders). */
+export async function fifoApplyDownPaymentToPending(
+  tx: Prisma.TransactionClient,
+  pendingRows: PendingFee[],
+  downPayment: number
+): Promise<void> {
+  if (downPayment <= 0 || pendingRows.length === 0) return;
+  const { allocations } = applyFifoToPendingRows(pendingRows, downPayment);
+  for (const alloc of allocations) {
+    if (!alloc.row.id) continue;
+    await tx.pendingFee.update({
+      where: { id: alloc.row.id },
+      data: {
+        amountPaid: alloc.amountPaid,
+        dueAmount: alloc.dueAmount,
+        status: alloc.status,
+        overdueDays: alloc.overdueDays,
+      },
+    });
+  }
+}

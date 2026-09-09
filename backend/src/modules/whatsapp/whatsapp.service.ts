@@ -5,7 +5,7 @@
  */
 import { isValidIndianPhone, normalizePhone } from "../../utils/phone";
 import { logger } from "../../config/logger";
-import { aiSensyProvider } from "./integrations/aisensy.provider";
+import { msg91Provider } from "./integrations/msg91.provider";
 import type {
   IWhatsAppProvider,
   SendWhatsAppTemplateOptions,
@@ -71,7 +71,7 @@ class WhatsAppService {
   }
 }
 
-export const whatsAppService = new WhatsAppService(aiSensyProvider);
+export const whatsAppService = new WhatsAppService(msg91Provider);
 
 type EvaluateOptions = TriggerNotificationInput & {
   isTest?: boolean;
@@ -163,7 +163,7 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
   // 4. Provider connected
   const providerOk = await isWhatsappProviderConnected(instituteId);
   if (!providerOk) {
-    return persistSkip(input, SkipReason.PROVIDER_NOT_CONNECTED, { templateId: template.id });
+    return persistSkip(input, SkipReason.MSG91_NOT_CONFIGURED, { templateId: template.id });
   }
 
   // 5. Recipient
@@ -288,8 +288,10 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
         templateParams,
         recipientPhone: recipientUser.phone,
         recipientName: recipientUser.name,
-        provider: "AISENSY",
+        provider: "MSG91",
         campaignName: template.providerTemplateName,
+        language: template.language,
+        namespace: template.providerNamespace ?? undefined,
         isTest: input.isTest ?? false,
       },
     });
@@ -525,8 +527,10 @@ export const sendAutomationTest = async (
       templateParams: sample,
       recipientPhone: phone.startsWith("+") ? phone : `+91${local10}`,
       recipientName: name || "Test User",
-      provider: "AISENSY",
+      provider: "MSG91",
       campaignName: template.providerTemplateName,
+      language: template.language,
+      namespace: template.providerNamespace ?? undefined,
       isTest: true,
     },
   });
@@ -612,7 +616,8 @@ export const getHistory = async (
         n.student?.user?.phone ||
         n.user?.phone ||
         null,
-      provider: (meta.provider as string) || "AISENSY",
+      provider: (meta.provider as string) || "MSG91",
+      providerMessageId: n.providerMessageId,
     };
   });
 
@@ -701,10 +706,13 @@ export const createTemplate = async (
     name: string;
     event: string;
     providerTemplateName: string;
+    providerTemplateId?: string | null;
+    providerNamespace?: string | null;
     language?: string;
     variables: string[];
     category?: string;
     body?: string;
+    status?: string;
   }
 ) => {
   const event = normalizeAutomationEvent(data.event);
@@ -731,6 +739,8 @@ export const updateTemplate = async (
     name: string;
     event: string;
     providerTemplateName: string;
+    providerTemplateId: string | null;
+    providerNamespace: string | null;
     language: string;
     variables: string[];
     status: string;
@@ -754,7 +764,7 @@ export const updateTemplate = async (
     action:
       data.status === "ACTIVE"
         ? "WHATSAPP_TEMPLATE_ENABLED"
-        : data.status === "INACTIVE"
+        : data.status === "INACTIVE" || data.status === "SYNCED"
           ? "WHATSAPP_TEMPLATE_DISABLED"
           : "WHATSAPP_TEMPLATE_UPDATED",
     entityType: "NotificationTemplate",
@@ -783,8 +793,131 @@ export const deleteTemplate = async (currentUser: AuthUser, id: string) => {
 export const toggleTemplateStatus = async (
   currentUser: AuthUser,
   id: string,
-  status: "ACTIVE" | "INACTIVE"
+  status: "ACTIVE" | "INACTIVE" | "SYNCED"
 ) => updateTemplate(currentUser, id, { status });
+
+/** Fetch approved templates from MSG91 without mutating local DB. */
+export const listProviderTemplates = async (currentUser: AuthUser) => {
+  const templates = await msg91Provider.getTemplates(currentUser.instituteId, {
+    pageSize: 100,
+    pageNum: 1,
+  });
+  return templates.map((t) => ({
+    name: t.name,
+    language: t.language,
+    status: t.status,
+    namespace: t.namespace ?? null,
+    id: t.id ?? null,
+    category: t.category ?? null,
+  }));
+};
+
+/**
+ * Sync MSG91 templates into NotificationTemplate rows as SYNCED/INACTIVE.
+ * Never auto-activates templates or enables automations.
+ */
+export const syncTemplatesFromMsg91 = async (
+  currentUser: AuthUser,
+  options?: { templateStatus?: string; pageSize?: number }
+) => {
+  const providerOk = await isWhatsappProviderConnected(currentUser.instituteId);
+  if (!providerOk) {
+    throw new AppError("MSG91 is not configured", 400);
+  }
+
+  const remote = await msg91Provider.getTemplates(currentUser.instituteId, {
+    templateStatus: options?.templateStatus,
+    pageSize: Math.min(500, options?.pageSize ?? 100),
+    pageNum: 1,
+  });
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const results: Array<{ name: string; language: string; action: string; id?: string }> = [];
+
+  for (const t of remote) {
+    if (!t.name) {
+      skipped += 1;
+      continue;
+    }
+
+    // Prefer approved language variants; still import others as SYNCED for mapping later
+    const statusUpper = (t.status || "").toUpperCase();
+    const isApproved = statusUpper === "APPROVED" || statusUpper === "ACTIVE";
+
+    const existing = await repo.findTemplateByProviderName(
+      currentUser.instituteId,
+      t.name,
+      t.language
+    );
+
+    const rawVars = Array.isArray((t.raw as { variables?: unknown })?.variables)
+      ? ((t.raw as { variables: string[] }).variables || [])
+      : [];
+    const bodyVars = rawVars
+      .map((v) => String(v))
+      .filter((v) => v.startsWith("body_"))
+      .map((_, idx) => `var_${idx + 1}`);
+
+    if (existing) {
+      // Refresh provider metadata only; never force ACTIVE
+      await repo.updateTemplate(existing.id, currentUser.instituteId, {
+        providerTemplateId: t.id ?? existing.providerTemplateId,
+        providerNamespace: t.namespace ?? existing.providerNamespace,
+        language: t.language || existing.language,
+        category: t.category ?? existing.category ?? undefined,
+        ...(existing.status === "ACTIVE"
+          ? {}
+          : { status: existing.status === "INACTIVE" ? "INACTIVE" : "SYNCED" }),
+        ...(((existing.variables as string[]) || []).length === 0 && bodyVars.length
+          ? { variables: bodyVars }
+          : {}),
+      });
+      updated += 1;
+      results.push({
+        name: t.name,
+        language: t.language,
+        action: isApproved ? "updated" : "updated_pending",
+        id: existing.id,
+      });
+      continue;
+    }
+
+    const safeName = `msg91_${t.name}_${t.language || "en"}`.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 80);
+    const createdRow = await repo.createTemplate({
+      instituteId: currentUser.instituteId,
+      name: safeName,
+      event: "STUDENT_WELCOME",
+      providerTemplateName: t.name,
+      providerTemplateId: t.id ?? null,
+      providerNamespace: t.namespace ?? null,
+      language: t.language || "en",
+      variables: bodyVars,
+      category: t.category ?? undefined,
+      body: undefined,
+      status: "SYNCED",
+    });
+    created += 1;
+    results.push({
+      name: t.name,
+      language: t.language,
+      action: isApproved ? "created" : "created_pending",
+      id: createdRow.id,
+    });
+  }
+
+  await createAuditLog({
+    userId: currentUser.id,
+    instituteId: currentUser.instituteId,
+    action: "WHATSAPP_TEMPLATES_SYNCED",
+    entityType: "NotificationTemplate",
+    entityId: currentUser.instituteId,
+    newData: { created, updated, skipped, total: remote.length },
+  });
+
+  return { created, updated, skipped, total: remote.length, results };
+};
 
 export const listRules = async (instituteId: string) => repo.findAllRules(instituteId);
 

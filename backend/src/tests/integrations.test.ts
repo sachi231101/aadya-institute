@@ -221,8 +221,9 @@ describe("Integrations service", () => {
 
   test("institute A cannot read or mutate institute B integrations", async () => {
     await upsertIntegrationService(adminB, "WHATSAPP", {
-      provider: "AISENSY",
-      credentials: { apiKey: "aisensy-b-key-bbbb1111" },
+      provider: "MSG91",
+      configuration: { integratedNumber: "919876543210" },
+      credentials: { authKey: "msg91-b-key-bbbb1111" },
       replaceCredentials: true,
     });
 
@@ -239,8 +240,9 @@ describe("Integrations service", () => {
     assert.ok(waB?.maskedCredential?.endsWith("1111"));
 
     await upsertIntegrationService(adminA, "WHATSAPP", {
-      provider: "AISENSY",
-      credentials: { apiKey: "aisensy-a-key-aaaa2222" },
+      provider: "MSG91",
+      configuration: { integratedNumber: "919811112222" },
+      credentials: { authKey: "msg91-a-key-aaaa2222" },
       replaceCredentials: true,
     });
 

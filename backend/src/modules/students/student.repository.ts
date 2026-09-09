@@ -1,5 +1,6 @@
 import { prisma } from "../../config/database";
 import { SequenceService } from "../masters/sequence.service";
+import { applyFifoToPendingRows } from "../fees/fee-balance.util";
 
 export interface FindAllStudentsParams {
   instituteId: string;
@@ -322,73 +323,89 @@ export const createStudentWithUser = async (data: {
         });
       }
 
-      const balance = Math.max(0, totalFee - downPay);
-      if (balance > 0) {
-        if (data.feePlan === "FULL_PAYMENT") {
-          const dueDate = new Date();
-          dueDate.setDate(dueDate.getDate() + 30);
-          await tx.pendingFee.create({
-            data: {
+      // Create installment rows from full totalFee (amountPaid: 0), then FIFO-apply downPay
+      if (data.feePlan === "FULL_PAYMENT") {
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 30);
+        await tx.pendingFee.create({
+          data: {
+            instituteId: data.instituteId,
+            branchId: data.branchId,
+            studentId: student.id,
+            admissionId: admissionId,
+            studentName: data.name,
+            admissionNo,
+            phone: data.phone || "",
+            courseName,
+            totalFee,
+            amountPaid: 0,
+            dueAmount: totalFee,
+            dueDate,
+            installmentNo: 1,
+            status: "DUE_SOON",
+          },
+        });
+      } else {
+        const part1 = Math.floor(totalFee / 2);
+        const part2 = totalFee - part1;
+        const d1 = new Date();
+        d1.setDate(d1.getDate() + 30);
+        const d2 = new Date();
+        d2.setDate(d2.getDate() + 60);
+
+        await tx.pendingFee.createMany({
+          data: [
+            {
               instituteId: data.instituteId,
               branchId: data.branchId,
               studentId: student.id,
               admissionId: admissionId,
               studentName: data.name,
               admissionNo,
-              phone: data.phone || "9876543210",
+              phone: data.phone || "",
               courseName,
               totalFee,
-              amountPaid: downPay,
-              dueAmount: balance,
-              dueDate,
+              amountPaid: 0,
+              dueAmount: part1,
+              dueDate: d1,
               installmentNo: 1,
               status: "DUE_SOON",
             },
-          });
-        } else {
-          // 2 installments
-          const part1 = Math.floor(balance / 2);
-          const part2 = balance - part1;
-          const d1 = new Date();
-          d1.setDate(d1.getDate() + 30);
-          const d2 = new Date();
-          d2.setDate(d2.getDate() + 60);
+            {
+              instituteId: data.instituteId,
+              branchId: data.branchId,
+              studentId: student.id,
+              admissionId: admissionId,
+              studentName: data.name,
+              admissionNo,
+              phone: data.phone || "",
+              courseName,
+              totalFee,
+              amountPaid: 0,
+              dueAmount: part2,
+              dueDate: d2,
+              installmentNo: 2,
+              status: "DUE_SOON",
+            },
+          ],
+        });
+      }
 
-          await tx.pendingFee.createMany({
-            data: [
-              {
-                instituteId: data.instituteId,
-                branchId: data.branchId,
-                studentId: student.id,
-                admissionId: admissionId,
-                studentName: data.name,
-                admissionNo,
-                phone: data.phone || "9876543210",
-                courseName,
-                totalFee,
-                amountPaid: downPay,
-                dueAmount: part1,
-                dueDate: d1,
-                installmentNo: 1,
-                status: "DUE_SOON",
-              },
-              {
-                instituteId: data.instituteId,
-                branchId: data.branchId,
-                studentId: student.id,
-                admissionId: admissionId,
-                studentName: data.name,
-                admissionNo,
-                phone: data.phone || "9876543210",
-                courseName,
-                totalFee,
-                amountPaid: 0,
-                dueAmount: part2,
-                dueDate: d2,
-                installmentNo: 2,
-                status: "DUE_SOON",
-              },
-            ],
+      if (downPay > 0) {
+        const createdRows = await tx.pendingFee.findMany({
+          where: { studentId: student.id, admissionId },
+          orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+        });
+        const { allocations } = applyFifoToPendingRows(createdRows, downPay);
+        for (const alloc of allocations) {
+          await tx.pendingFee.update({
+            where: { id: alloc.row.id },
+            data: {
+              amountPaid: alloc.amountPaid,
+              dueAmount: alloc.dueAmount,
+              status: alloc.status,
+              overdueDays: alloc.overdueDays,
+            },
           });
         }
       }
@@ -567,7 +584,7 @@ export const updateStudent = async (
       const numTotal = Number(totalFee);
       const numDown = Number(downPayment || 0);
       const studentName = name || existing.user?.name || "Student";
-      const studentPhone = phone || existing.user?.phone || "9876543210";
+      const studentPhone = phone || existing.user?.phone || "";
       const courseRecord = courseId ? await tx.course.findUnique({ where: { id: courseId } }) : null;
       const courseName = courseRecord?.name || "Enrolled Course";
       const admissionNo = existing.admissions?.[0]?.admissionNo || "ADM-" + id.slice(-6);
@@ -592,39 +609,94 @@ export const updateStudent = async (
         });
       }
 
-      const balance = Math.max(0, numTotal - numDown);
-      if (balance > 0) {
-        const existingPending = await tx.pendingFee.findFirst({
-          where: { studentId: id },
-        });
-        if (existingPending) {
+      // Scope pending rows to this admission when present
+      const pendingWhere = {
+        studentId: id,
+        ...(admissionId ? { admissionId } : {}),
+        ...(courseRecord?.name ? { courseName } : {}),
+      };
+
+      const existingPendings = await tx.pendingFee.findMany({
+        where: pendingWhere,
+        orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+      });
+
+      if (existingPendings.length > 0) {
+        // Reset dues to cover total fee proportionally, then FIFO-apply down payment
+        const parts = existingPendings.length;
+        let remaining = numTotal;
+        for (let i = 0; i < existingPendings.length; i++) {
+          const share =
+            i === parts - 1 ? remaining : Math.floor(numTotal / parts);
+          remaining -= share;
           await tx.pendingFee.update({
-            where: { id: existingPending.id },
+            where: { id: existingPendings[i].id },
             data: {
-              dueAmount: balance,
               totalFee: numTotal,
-              amountPaid: numDown,
+              amountPaid: 0,
+              dueAmount: share,
               status: "DUE_SOON",
-            },
-          });
-        } else {
-          await tx.pendingFee.create({
-            data: {
-              instituteId: existing.instituteId,
-              branchId: finalBranchId,
-              studentId: id,
-              admissionId,
-              studentName,
-              admissionNo,
+              overdueDays: 0,
               phone: studentPhone,
               courseName,
-              dueAmount: balance,
-              totalFee: numTotal,
-              amountPaid: numDown,
-              dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-              status: "DUE_SOON",
+              admissionNo,
+              studentName,
             },
           });
+        }
+        if (numDown > 0) {
+          const refreshed = await tx.pendingFee.findMany({
+            where: pendingWhere,
+            orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+          });
+          const { allocations } = applyFifoToPendingRows(refreshed, numDown);
+          for (const alloc of allocations) {
+            await tx.pendingFee.update({
+              where: { id: alloc.row.id },
+              data: {
+                amountPaid: alloc.amountPaid,
+                dueAmount: alloc.dueAmount,
+                status: alloc.status,
+                overdueDays: alloc.overdueDays,
+              },
+            });
+          }
+        }
+      } else if (numTotal > 0) {
+        await tx.pendingFee.create({
+          data: {
+            instituteId: existing.instituteId,
+            branchId: finalBranchId,
+            studentId: id,
+            admissionId,
+            studentName,
+            admissionNo,
+            phone: studentPhone,
+            courseName,
+            dueAmount: numTotal,
+            totalFee: numTotal,
+            amountPaid: 0,
+            dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+            status: "DUE_SOON",
+          },
+        });
+        if (numDown > 0) {
+          const created = await tx.pendingFee.findMany({
+            where: pendingWhere,
+            orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+          });
+          const { allocations } = applyFifoToPendingRows(created, numDown);
+          for (const alloc of allocations) {
+            await tx.pendingFee.update({
+              where: { id: alloc.row.id },
+              data: {
+                amountPaid: alloc.amountPaid,
+                dueAmount: alloc.dueAmount,
+                status: alloc.status,
+                overdueDays: alloc.overdueDays,
+              },
+            });
+          }
         }
       }
     }

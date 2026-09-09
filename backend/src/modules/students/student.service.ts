@@ -73,6 +73,24 @@ const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any)
     totalPendingDue > 0 ? totalPendingDue : Math.max(0, calculatedTotalFee - finalAmountPaid);
   const nextDue = pendingFees.find((f) => f.dueAmount > 0);
 
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const hasOverdue = pendingFees.some((f) => {
+    if (!(f.dueAmount > 0)) return false;
+    if (f.status === "OVERDUE") return true;
+    const due = new Date(f.dueDate);
+    due.setHours(0, 0, 0, 0);
+    return due < today;
+  });
+  const hasPartial = pendingFees.some((f) => f.dueAmount > 0 && (f.amountPaid || 0) > 0);
+
+  let status: "Paid" | "Overdue" | "Partial" | "Pending" = "Pending";
+  if (finalDueAmount === 0 && calculatedTotalFee > 0) status = "Paid";
+  else if (calculatedTotalFee === 0) status = "Pending";
+  else if (hasOverdue) status = "Overdue";
+  else if (hasPartial || (finalAmountPaid > 0 && finalDueAmount > 0)) status = "Partial";
+  else status = "Pending";
+
   return {
     totalFee: calculatedTotalFee,
     discount: 0,
@@ -80,7 +98,7 @@ const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any)
     amountPaid: finalAmountPaid,
     dueAmount: finalDueAmount,
     feePlan: admission?.feePlan || "INSTALLMENT",
-    status: finalDueAmount === 0 && calculatedTotalFee > 0 ? "Paid" : calculatedTotalFee === 0 ? "Pending" : "Pending",
+    status,
     nextDueDate: nextDue?.dueDate ?? undefined,
   };
 };

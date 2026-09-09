@@ -58,6 +58,16 @@ router.get(
   requireAnyPermission("whatsapp.template.read", "notification.read"),
   controller.listTemplates
 );
+router.get(
+  "/provider-templates",
+  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  controller.listProviderTemplates
+);
+router.post(
+  "/templates/sync",
+  requireAnyPermission("whatsapp.template.create", "whatsapp.template.update", "notification.manage"),
+  controller.syncTemplates
+);
 router.post(
   "/templates",
   requireAnyPermission("whatsapp.template.create", "notification.manage"),

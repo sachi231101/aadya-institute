@@ -287,23 +287,63 @@ export const resolveAiCredentials = async (instituteId: string) => {
   };
 };
 
-export const resolveWhatsappApiKey = async (
+export interface WhatsappProviderConfig {
+  authKey: string;
+  integratedNumber: string;
+  namespace?: string;
+  isEnabled: boolean;
+}
+
+/**
+ * Resolve MSG91 WhatsApp credentials for an institute.
+ * Prefer encrypted Integration credentials; fall back to env.
+ */
+export const resolveWhatsappProviderConfig = async (
   instituteId: string
-): Promise<string> => {
+): Promise<WhatsappProviderConfig> => {
   const row = await repo.findByInstituteAndType(instituteId, "WHATSAPP");
   if (row && row.isEnabled === false) {
-    return "";
+    return { authKey: "", integratedNumber: "", isEnabled: false };
   }
+
   const creds = decryptCredentials(row?.encryptedCredentials);
-  return creds.apiKey || env.AISENSY_API_KEY || "";
+  const config = (row?.configuration || {}) as {
+    integratedNumber?: string;
+    phoneNumber?: string;
+    namespace?: string;
+  };
+
+  const authKey =
+    creds.authKey ||
+    creds.apiKey ||
+    env.MSG91_AUTH_KEY ||
+    "";
+  const integratedNumber =
+    config.integratedNumber ||
+    config.phoneNumber ||
+    env.MSG91_WHATSAPP_NUMBER ||
+    "";
+
+  return {
+    authKey,
+    integratedNumber,
+    namespace: config.namespace || undefined,
+    isEnabled: row?.isEnabled ?? true,
+  };
 };
 
-/** True when institute has a usable WhatsApp credential. */
+/** @deprecated Use resolveWhatsappProviderConfig — kept for transitional callers */
+export const resolveWhatsappApiKey = async (instituteId: string): Promise<string> => {
+  const cfg = await resolveWhatsappProviderConfig(instituteId);
+  return cfg.authKey;
+};
+
+/** True when institute has usable MSG91 auth key + integrated number. */
 export const isWhatsappProviderConnected = async (
   instituteId: string
 ): Promise<boolean> => {
-  const key = await resolveWhatsappApiKey(instituteId);
-  return Boolean(key && key.trim());
+  const cfg = await resolveWhatsappProviderConfig(instituteId);
+  return Boolean(cfg.authKey?.trim() && cfg.integratedNumber?.trim() && cfg.isEnabled !== false);
 };
 
 export const resolveEmailSmtpConfig = async (instituteId: string) => {

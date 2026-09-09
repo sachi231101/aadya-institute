@@ -125,6 +125,9 @@ export const processWhatsappJob = async (job: WhatsappJob): Promise<void> => {
       name,
       campaignName: template.providerTemplateName,
       templateParams,
+      language: template.language || "en",
+      namespace: template.providerNamespace || undefined,
+      notificationId: notificationId,
       instituteId: notification.instituteId,
     });
 

@@ -35,6 +35,8 @@ export {
   resendNotification,
   listTemplates,
   toggleTemplateStatus,
+  listProviderTemplates,
+  syncTemplatesFromMsg91,
   listRules,
   listAutomations,
   getAutomationConfig,
@@ -45,7 +47,7 @@ export { default as whatsappRoutes } from "./whatsapp.routes";
 export * from "./whatsapp.queue";
 export * from "./whatsapp.worker";
 export * from "./whatsapp.webhook";
-export * from "./integrations/aisensy.provider";
+export * from "./integrations/msg91.provider";
 export * from "./jobs/class-reminder.job";
 export * from "./jobs/feedback.job";
 export * from "./jobs/first-class.job";

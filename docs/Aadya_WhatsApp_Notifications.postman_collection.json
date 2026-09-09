@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Aadya Institute — WhatsApp & Notifications",
-    "description": "Phase 1 WhatsApp Notification & Automation System. Requires: Redis running, AiSensy API key configured, and a bearer token (obtained from POST /auth/login).",
+    "description": "Phase 1 WhatsApp Notification & Automation System. Requires: Redis running, MSG91 Auth Key + integrated WhatsApp number configured, and a bearer token (obtained from POST /auth/login).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -130,7 +130,7 @@
       "name": "WhatsApp Send",
       "item": [
         {
-          "name": "Send test message (requires AiSensy API key)",
+          "name": "Send test message (requires MSG91 Auth Key)",
           "request": {
             "method": "POST",
             "header": [
