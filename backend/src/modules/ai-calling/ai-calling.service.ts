@@ -838,6 +838,20 @@ export const AiCallingService = {
         }
       );
       await this.applyTerminalCallStatus(leadId, mappedStatus);
+
+      if (isTerminalCallStatus(mappedStatus)) {
+        try {
+          const { LeadAiOutcomeService } = await import(
+            "../leads/services/lead-ai-outcome.service"
+          );
+          await LeadAiOutcomeService.process(callLog.id);
+        } catch (err) {
+          logger.error(
+            { err, callLogId: callLog.id, leadId },
+            "[AiCalling] LeadAiOutcomeService.process failed"
+          );
+        }
+      }
     }
 
     logger.info(

@@ -144,6 +144,7 @@ function permSetHasItemKey(permSet: Set<string>, itemKey: string): boolean {
     "leads.all": ["lead.read"],
     "leads.ai_calling": ["ai_call.read"],
     "leads.followups": ["lead.read"],
+    "leads.call_history": ["ai_call.read", "lead.read"],
     "admissions.all": ["admission.read"],
     "admissions.applications": ["admission.read"],
     "admissions.enquiries": ["lead.read"],

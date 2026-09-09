@@ -13,6 +13,10 @@ export interface Lead {
   stage: string;
   status: string;
   priority: string;
+  leadScore?: number | null;
+  admissionProbability?: number | null;
+  tags?: string[];
+  nextBestAction?: string | null;
   notes?: string;
   createdById: string;
   assignedCounsellorId?: string;
@@ -45,6 +49,11 @@ export interface CallLog {
   agentId?: string | null;
   fromNumber?: string | null;
   status: string;
+  callType?: string;
+  callerUserId?: string | null;
+  qualification?: string | null;
+  sentiment?: string | null;
+  nextAction?: string | null;
   duration: number;
   transcript?: string | null;
   recordingUrl?: string | null;
@@ -59,6 +68,8 @@ export interface CallLog {
   endedAt?: string | null;
   createdAt: string;
   updatedAt?: string;
+  caller?: { id: string; name: string; email?: string | null };
+  lead?: { id: string; name: string; phoneNumber: string; leadScore?: number | null };
 }
 
 export interface LeadFollowUp {
@@ -68,12 +79,22 @@ export interface LeadFollowUp {
   createdById: string;
   type: string;
   status: string;
+  priority?: string;
+  recommendedRank?: number | null;
   scheduledAt: string;
   completedAt?: string;
   notes?: string;
   outcome?: string;
   createdAt: string;
   counsellor?: { id: string; name: string };
+  lead?: {
+    id: string;
+    name: string;
+    phoneNumber: string;
+    stage: string;
+    leadScore?: number | null;
+    priority?: string;
+  };
 }
 
 export interface LeadActivity {
@@ -86,6 +107,23 @@ export interface LeadActivity {
   metadata?: Record<string, unknown>;
   createdAt: string;
   user?: { id: string; name: string };
+}
+
+export interface LeadDashboardSummary {
+  totalLeads: number;
+  new: number;
+  assigned: number;
+  contacted: number;
+  interested: number;
+  followUp: number;
+  converted: number;
+  lost: number;
+  hot: number;
+  warm: number;
+  cold: number;
+  unassigned: number;
+  todayCreated: number;
+  overdueFollowUps: number;
 }
 
 export interface LeadQueryParams {
@@ -102,6 +140,25 @@ export interface LeadQueryParams {
   assignedCounsellorId?: string;
   sortBy?: string;
   sortOrder?: string;
+  scoreBand?: "hot" | "warm" | "cold" | "unscored";
+  unassigned?: boolean;
+  tag?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  followUpFrom?: string;
+  followUpTo?: string;
+}
+
+export interface CallHistoryQueryParams {
+  page?: number;
+  limit?: number;
+  branchId?: string;
+  leadId?: string;
+  studentId?: string;
+  status?: string;
+  statuses?: string;
+  callType?: "ALL" | "AI" | "MANUAL";
+  view?: "queue" | "active" | "results";
 }
 
 export const leadsApi = {
@@ -128,6 +185,7 @@ export const leadsApi = {
     priority?: string;
     branchId: string;
     notes?: string;
+    tags?: string[];
     assignedCounsellorId?: string;
   }) => {
     const response = await api.post("/leads", data);
@@ -139,9 +197,45 @@ export const leadsApi = {
     return response.data;
   },
 
+  archiveLead: async (id: string) => {
+    const response = await api.delete(`/leads/${id}`);
+    return response.data;
+  },
+
   // Lead Actions
   assignLead: async (id: string, data: { counsellorId: string; notes?: string }) => {
     const response = await api.post(`/leads/${id}/assign`, data);
+    return response.data;
+  },
+
+  bulkAssignLeads: async (data: {
+    leadIds: string[];
+    counsellorId: string;
+    notes?: string;
+  }) => {
+    const response = await api.post("/leads/bulk-assign", data);
+    return response.data;
+  },
+
+  mergeLeads: async (data: { primaryLeadId: string; duplicateLeadId: string }) => {
+    const response = await api.post("/leads/merge", data);
+    return response.data;
+  },
+
+  updateLeadTags: async (id: string, data: { tags: string[] }) => {
+    const response = await api.post(`/leads/${id}/tags`, data);
+    return response.data;
+  },
+
+  updateLeadScore: async (
+    id: string,
+    data: {
+      leadScore?: number | null;
+      admissionProbability?: number | null;
+      nextBestAction?: string | null;
+    }
+  ) => {
+    const response = await api.patch(`/leads/${id}/score`, data);
     return response.data;
   },
 
@@ -175,6 +269,23 @@ export const leadsApi = {
     return response.data;
   },
 
+  createManualCallLog: async (data: {
+    leadId: string;
+    status?: string;
+    duration?: number;
+    outcome?: string | null;
+    notes?: string | null;
+    qualification?: string | null;
+    sentiment?: string | null;
+    nextAction?: string | null;
+    interestStatus?: string | null;
+    startedAt?: string;
+    endedAt?: string;
+  }) => {
+    const response = await api.post("/leads/call-logs", data);
+    return response.data;
+  },
+
   // Follow-ups
   getFollowUps: async (id: string) => {
     const response = await api.get(`/leads/${id}/follow-ups`);
@@ -185,7 +296,8 @@ export const leadsApi = {
     type: string;
     scheduledAt: string;
     notes?: string;
-    counsellorId: string;
+    counsellorId?: string;
+    priority?: string;
   }) => {
     const response = await api.post(`/leads/${id}/follow-ups`, data);
     return response.data;
@@ -195,6 +307,8 @@ export const leadsApi = {
     status?: string;
     outcome?: string;
     notes?: string;
+    scheduledAt?: string;
+    priority?: string;
   }) => {
     const response = await api.patch(`/leads/${id}/follow-ups/${followUpId}`, data);
     return response.data;
@@ -227,14 +341,7 @@ export const leadsApi = {
     return response.data;
   },
 
-  getCallHistory: async (params?: {
-    page?: number;
-    limit?: number;
-    branchId?: string;
-    leadId?: string;
-    studentId?: string;
-    status?: string;
-  }) => {
+  getCallHistory: async (params?: CallHistoryQueryParams) => {
     const response = await api.get("/leads/call-history", { params });
     return response.data;
   },

@@ -16,6 +16,11 @@ import type {
   CreateLeadDTO,
   UpdateLeadDTO,
   AssignLeadDTO,
+  BulkAssignLeadsDTO,
+  MergeLeadsDTO,
+  UpdateLeadScoreDTO,
+  UpdateLeadTagsDTO,
+  CreateManualCallLogDTO,
   ChangeLeadStageDTO,
   MarkLeadLostDTO,
   ConvertLeadDTO,
@@ -26,6 +31,12 @@ import type {
   QueryCallHistoryDTO,
 } from "./lead.types";
 import type { SarvamWebhookPayload } from "../../integrations/sarvam/sarvam.types";
+
+const CALL_HISTORY_VIEW_STATUSES: Record<string, string[]> = {
+  queue: ["INITIATED"],
+  active: ["RINGING", "ANSWERED"],
+  results: ["COMPLETED", "NO_ANSWER", "BUSY", "FAILED", "CALLBACK_REQUESTED"],
+};
 
 export const LeadService = {
   // ─── Create Lead ────────────────────────────────────────────────────────────
@@ -100,6 +111,7 @@ export const LeadService = {
       stage: "NEW",
       priority: dto.priority ?? "MEDIUM",
       notes: dto.notes,
+      tags: dto.tags,
       createdById: currentUser.userId || currentUser.id,
     });
 
@@ -136,6 +148,9 @@ export const LeadService = {
       dateTo,
       followUpFrom,
       followUpTo,
+      scoreBand,
+      unassigned,
+      tag,
     } = query;
 
     const scope = getBranchScopeFilter(currentUser, query.branchId);
@@ -166,6 +181,9 @@ export const LeadService = {
       dateTo,
       followUpFrom,
       followUpTo,
+      scoreBand,
+      unassigned: isCounsellorOnly ? undefined : unassigned,
+      tag,
       skip,
       take: limit,
     });
@@ -215,6 +233,7 @@ export const LeadService = {
       ...(dto.priority ? { priority: dto.priority } : {}),
       ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
       ...(dto.courseId !== undefined ? { courseId: dto.courseId || null } : {}),
+      ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
     });
 
     await LeadActivityService.logActivity(
@@ -233,6 +252,155 @@ export const LeadService = {
   // ─── Assign Lead ────────────────────────────────────────────────────────────
   async assignLead(leadId: string, currentUser: AuthUser, dto: AssignLeadDTO) {
     return LeadAssignmentService.assignLead(leadId, currentUser, dto);
+  },
+
+  async bulkAssignLeads(currentUser: AuthUser, dto: BulkAssignLeadsDTO) {
+    return LeadAssignmentService.bulkAssignLeads(currentUser, dto);
+  },
+
+  async updateLeadTags(
+    leadId: string,
+    currentUser: AuthUser,
+    dto: UpdateLeadTagsDTO
+  ) {
+    await this.getLeadById(leadId, currentUser);
+    const updated = await LeadRepository.updateLead(leadId, { tags: dto.tags });
+    await LeadActivityService.logActivity(leadId, "NOTE_ADDED", "Lead tags updated", {
+      userId: currentUser.userId || currentUser.id,
+      description: `Tags: ${dto.tags.join(", ") || "(none)"}`,
+      metadata: { tags: dto.tags },
+    });
+    return updated;
+  },
+
+  async updateLeadScore(
+    leadId: string,
+    currentUser: AuthUser,
+    dto: UpdateLeadScoreDTO
+  ) {
+    await this.getLeadById(leadId, currentUser);
+    const updated = await LeadRepository.updateLead(leadId, {
+      ...(dto.leadScore !== undefined ? { leadScore: dto.leadScore } : {}),
+      ...(dto.admissionProbability !== undefined
+        ? { admissionProbability: dto.admissionProbability }
+        : {}),
+      ...(dto.nextBestAction !== undefined
+        ? { nextBestAction: dto.nextBestAction }
+        : {}),
+    });
+    await LeadActivityService.logActivity(
+      leadId,
+      "SCORE_UPDATED",
+      "Lead score manually updated",
+      {
+        userId: currentUser.userId || currentUser.id,
+        description: `Score override by ${currentUser.name ?? currentUser.userId}`,
+        metadata: {
+          leadScore: dto.leadScore,
+          admissionProbability: dto.admissionProbability,
+          nextBestAction: dto.nextBestAction,
+        },
+      }
+    );
+    return updated;
+  },
+
+  async archiveLead(leadId: string, currentUser: AuthUser) {
+    await this.getLeadById(leadId, currentUser);
+    const archived = await LeadRepository.archiveLead(
+      leadId,
+      currentUser.userId || currentUser.id
+    );
+    return archived;
+  },
+
+  async mergeLeads(currentUser: AuthUser, dto: MergeLeadsDTO) {
+    const primary = await this.getLeadById(dto.primaryLeadId, currentUser);
+    const duplicate = await this.getLeadById(dto.duplicateLeadId, currentUser);
+
+    if (primary.instituteId !== duplicate.instituteId) {
+      throw new AppError("Cannot merge leads from different institutes", 400);
+    }
+
+    const result = await LeadRepository.mergeLeads({
+      primaryLeadId: dto.primaryLeadId,
+      duplicateLeadId: dto.duplicateLeadId,
+      mergedById: currentUser.userId || currentUser.id,
+    });
+
+    if (!result) {
+      throw new AppError("One or both leads not found", 404);
+    }
+
+    return result;
+  },
+
+  async createManualCallLog(
+    currentUser: AuthUser,
+    dto: CreateManualCallLogDTO
+  ) {
+    const lead = await this.getLeadById(dto.leadId, currentUser);
+    const userId = currentUser.userId || currentUser.id;
+    const startedAt = dto.startedAt ? new Date(dto.startedAt) : new Date();
+    const endedAt = dto.endedAt ? new Date(dto.endedAt) : new Date();
+    const idempotencyKey = `manual_call:${lead.instituteId}:${lead.id}:${userId}:${startedAt.getTime()}`;
+
+    const callLog = await prisma.callLog.create({
+      data: {
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId: lead.id,
+        callType: "MANUAL",
+        callerUserId: userId,
+        status: dto.status || "COMPLETED",
+        duration: dto.duration ?? 0,
+        outcome: dto.outcome ?? null,
+        qualification: dto.qualification ?? null,
+        sentiment: dto.sentiment ?? null,
+        nextAction: dto.nextAction ?? null,
+        interestStatus: dto.interestStatus ?? null,
+        transcript: dto.notes ?? null,
+        aiSummary: dto.notes ?? null,
+        idempotencyKey,
+        startedAt,
+        endedAt,
+        attemptNumber: 1,
+      },
+      include: {
+        lead: {
+          select: { id: true, name: true, phoneNumber: true },
+        },
+        caller: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        lastContactedAt: endedAt,
+        ...(dto.nextAction ? { nextBestAction: dto.nextAction } : {}),
+      },
+    });
+
+    await LeadActivityService.logActivity(
+      lead.id,
+      "CALL_COMPLETED",
+      `Manual call logged (${callLog.status})`,
+      {
+        userId,
+        description: dto.notes ?? dto.outcome ?? undefined,
+        metadata: {
+          callLogId: callLog.id,
+          callType: "MANUAL",
+          status: callLog.status,
+          duration: callLog.duration,
+        },
+      }
+    );
+
+    return callLog;
   },
 
   // ─── Change Stage ───────────────────────────────────────────────────────────
@@ -393,7 +561,11 @@ export const LeadService = {
 
   async getFollowUpDashboard(currentUser: AuthUser, branchId?: string) {
     const scope = getBranchScopeFilter(currentUser, branchId);
-    return LeadFollowupService.getFollowUpDashboard(scope.instituteId, scope.branchId);
+    return LeadFollowupService.getFollowUpDashboard(
+      scope.instituteId,
+      scope.branchId,
+      currentUser.userId || currentUser.id
+    );
   },
 
   // ─── Activities & History ───────────────────────────────────────────────────
@@ -453,12 +625,25 @@ export const LeadService = {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const viewStatuses = query.view
+      ? CALL_HISTORY_VIEW_STATUSES[query.view]
+      : undefined;
+    const statusesFromQuery = query.statuses
+      ? query.statuses
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+    const statuses = viewStatuses || statusesFromQuery;
+
     const { total, data } = await LeadRepository.findCallHistory({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
       leadId: query.leadId,
       studentId: query.studentId,
-      status: query.status,
+      status: statuses ? undefined : query.status,
+      statuses,
+      callType: query.callType,
       skip,
       take: limit,
     });
