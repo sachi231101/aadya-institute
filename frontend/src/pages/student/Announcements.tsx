@@ -43,9 +43,6 @@ export const StudentAnnouncements: React.FC = () => {
   const enrolledBatch = academic.primaryBatch?.name || "Assigned Batch";
 
   // Filter States
-  const [activeTab, setActiveTab] = useState<
-    "All" | "Faculty" | "Counsellor" | "Unread" | "Important"
-  >("All");
   const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string>("");
@@ -79,24 +76,15 @@ export const StudentAnnouncements: React.FC = () => {
         return false;
       }
 
-      // Tabs filter
-      if (activeTab === "Faculty" && a.authorRole !== "Faculty") return false;
-      if (activeTab === "Counsellor" && a.authorRole !== "Counsellor") return false;
-
-      const isReadByMe = a.readBy.some((r) => r.studentId === studentId);
-      if (activeTab === "Unread" && isReadByMe) return false;
-      if (activeTab === "Important" && !a.isImportant) return false;
-
       return true;
     });
   }, [
     announcements,
     enrolledBatch,
     enrolledCourse,
-    studentId,
     searchQuery,
     selectedBatchFilter,
-    activeTab,
+    academic,
   ]);
 
   // Set default selected announcement
@@ -209,42 +197,24 @@ export const StudentAnnouncements: React.FC = () => {
         {/* ─── LEFT COLUMN: ANNOUNCEMENT LIST (5 cols) ─── */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-3xl shadow-xs flex flex-col h-full overflow-hidden">
           {/* Header Controls */}
-          <div className="p-4 border-b border-slate-100 space-y-3 bg-white">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
-              <Input
-                type="text"
-                placeholder="Search announcements by title, faculty, or counsellor..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-9 pl-9 pr-3 text-xs bg-slate-50 border-slate-200/80 rounded-xl font-medium focus:bg-white focus:ring-1 focus:ring-[#1D4ED8]"
-              />
-            </div>
-
-            {/* Filter Tabs & Batch Dropdown */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar py-0.5">
-                {(["All", "Faculty", "Counsellor", "Unread", "Important"] as const).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveTab(tab)}
-                    className={`px-2.5 py-1 text-[11px] font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                      activeTab === tab
-                        ? "bg-slate-900 text-white shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ))}
+          <div className="p-4 border-b border-slate-100 bg-white">
+            {/* Search & Batch Dropdown */}
+            <div className="flex items-center gap-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search announcements by title, faculty, or counsellor..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-9 pl-9 pr-3 text-xs bg-slate-50 border-slate-200/80 rounded-xl font-medium focus:bg-white focus:ring-1 focus:ring-[#1D4ED8]"
+                />
               </div>
 
               <select
                 value={selectedBatchFilter}
                 onChange={(e) => setSelectedBatchFilter(e.target.value)}
-                className="h-8 px-2 text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-lg outline-none cursor-pointer shrink-0"
+                className="h-9 px-3 text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none cursor-pointer shrink-0"
               >
                 <option value="ALL">All My Batches</option>
                 <option value={enrolledBatch}>{enrolledBatch}</option>
