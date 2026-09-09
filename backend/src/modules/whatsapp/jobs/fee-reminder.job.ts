@@ -2,20 +2,46 @@ import { prisma } from "../../../config/database";
 import { logger } from "../../../config/logger";
 import { triggerNotification } from "../whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp.constants";
+import {
+  derivePendingStatus,
+  overdueDaysFromDueDate,
+  startOfDay,
+} from "../../fees/fee-balance.util";
 
 /**
- * Daily fee due / overdue WhatsApp reminders.
- * Respects global + per-automation toggles via the automation engine.
+ * Sync OVERDUE / overdueDays on open pending fee rows, then send due/overdue WhatsApp reminders.
  */
 export const feeReminderJob = async (): Promise<void> => {
   const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
+  const startOfToday = startOfDay(now);
   const endOfTomorrow = new Date(startOfToday);
   endOfTomorrow.setDate(endOfTomorrow.getDate() + 2);
-  endOfTomorrow.setHours(0, 0, 0, 0);
 
   const dateKey = startOfToday.toISOString().slice(0, 10);
+
+  // Sync status for non-PAID open rows before sending reminders
+  const openRows = await prisma.pendingFee.findMany({
+    where: {
+      status: { not: "PAID" },
+      dueAmount: { gt: 0 },
+    },
+    take: 2000,
+  });
+
+  let synced = 0;
+  for (const row of openRows) {
+    const status = derivePendingStatus(row.dueAmount, row.dueDate, row.amountPaid, startOfToday);
+    const overdueDays =
+      status === "OVERDUE" ? overdueDaysFromDueDate(row.dueDate, startOfToday) : 0;
+    if (row.status !== status || row.overdueDays !== overdueDays) {
+      await prisma.pendingFee.update({
+        where: { id: row.id },
+        data: { status, overdueDays },
+      });
+      synced += 1;
+    }
+  }
+  logger.info(`[fee-reminder] Synced status on ${synced}/${openRows.length} pending fee rows`);
 
   const pending = await prisma.pendingFee.findMany({
     where: {
@@ -31,8 +57,7 @@ export const feeReminderJob = async (): Promise<void> => {
   for (const fee of pending) {
     if (!fee.studentId) continue;
 
-    const due = new Date(fee.dueDate);
-    due.setHours(0, 0, 0, 0);
+    const due = startOfDay(new Date(fee.dueDate));
     const isOverdue = due < startOfToday;
     const isDueSoon = due >= startOfToday && due < endOfTomorrow;
 

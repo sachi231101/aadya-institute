@@ -22,9 +22,11 @@ export const env = {
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || "7d",
   // Seeding
   SEED_ADMIN_PASSWORD: process.env.SEED_ADMIN_PASSWORD || "ChangeMe@123",
-  // AiSensy WhatsApp
-  AISENSY_API_KEY: process.env.AISENSY_API_KEY || "",
-  AISENSY_BASE_URL: process.env.AISENSY_BASE_URL || "https://backend.aisensy.com/campaign/t1/api/v2",
+  // MSG91 WhatsApp
+  MSG91_AUTH_KEY: process.env.MSG91_AUTH_KEY || "",
+  MSG91_WHATSAPP_NUMBER: process.env.MSG91_WHATSAPP_NUMBER || "",
+  MSG91_API_BASE_URL: process.env.MSG91_API_BASE_URL || "https://api.msg91.com",
+  MSG91_CONTROL_BASE_URL: process.env.MSG91_CONTROL_BASE_URL || "https://control.msg91.com",
   // Webhook security
   WHATSAPP_WEBHOOK_SECRET: process.env.WHATSAPP_WEBHOOK_SECRET || "",
   // Queue config

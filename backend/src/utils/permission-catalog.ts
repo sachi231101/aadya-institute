@@ -182,7 +182,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     items: [
       { key: "fees.plans", label: "Fee Plans", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.student_fees", label: "Student Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
+      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
       { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: [] },
       { key: "fees.reports", label: "Fee Collection Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },

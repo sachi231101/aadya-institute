@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Pencil } from "lucide-react";
+import { Loader2, Plus, Pencil, RefreshCw } from "lucide-react";
 import { whatsappApi, type WhatsAppTemplate } from "@/services/whatsapp.api";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ const emptyForm = {
   name: "",
   event: "STUDENT_WELCOME",
   providerTemplateName: "",
+  providerNamespace: "",
   language: "en",
   category: "",
   body: "",
@@ -55,7 +56,11 @@ export const WhatsAppTemplates: React.FC = () => {
     queryFn: () => whatsappApi.listTemplates(),
   });
 
-  const templates: WhatsAppTemplate[] = (data?.data || data || []) as WhatsAppTemplate[];
+  const templates: WhatsAppTemplate[] = Array.isArray(data?.data)
+    ? data.data
+    : Array.isArray(data)
+      ? data
+      : [];
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -67,6 +72,7 @@ export const WhatsAppTemplates: React.FC = () => {
         name: form.name,
         event: form.event,
         providerTemplateName: form.providerTemplateName,
+        providerNamespace: form.providerNamespace || undefined,
         language: form.language,
         category: form.category || undefined,
         body: form.body || undefined,
@@ -91,6 +97,26 @@ export const WhatsAppTemplates: React.FC = () => {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] }),
   });
 
+  const syncMutation = useMutation({
+    mutationFn: () => whatsappApi.syncTemplates(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "templates"] });
+      queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] });
+    },
+  });
+
+  const syncErrorMessage = (() => {
+    const err = syncMutation.error as
+      | Error
+      | { response?: { data?: { message?: string } } }
+      | null;
+    if (!err) return null;
+    if (typeof err === "object" && "response" in err) {
+      return err.response?.data?.message || (err as Error).message || "Sync failed";
+    }
+    return (err as Error).message || "Sync failed";
+  })();
+
   const openCreate = () => {
     setEditing(null);
     setForm(emptyForm);
@@ -103,6 +129,7 @@ export const WhatsAppTemplates: React.FC = () => {
       name: t.name,
       event: t.event,
       providerTemplateName: t.providerTemplateName,
+      providerNamespace: t.providerNamespace || "",
       language: t.language || "en",
       category: t.category || "",
       body: t.body || "",
@@ -116,14 +143,40 @@ export const WhatsAppTemplates: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-start gap-4">
         <p className="text-sm text-muted-foreground">
-          Map provider campaign names and required variables for each automation.
+          Map MSG91 approved template names and required variables for each automation. Synced
+          templates stay inactive until you map and enable them.
         </p>
-        <PermissionGate itemKey="communication.whatsapp" mode="write">
-          <Button className="bg-[#2563EB] text-white" onClick={openCreate}>
-            <Plus className="mr-2 h-4 w-4" /> Create Template
-          </Button>
-        </PermissionGate>
+        <div className="flex gap-2">
+          <PermissionGate itemKey="communication.whatsapp" mode="write">
+            <Button
+              variant="outline"
+              disabled={syncMutation.isPending}
+              onClick={() => syncMutation.mutate()}
+            >
+              {syncMutation.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="mr-2 h-4 w-4" />
+              )}
+              Sync from MSG91
+            </Button>
+            <Button className="bg-[#2563EB] text-white" onClick={openCreate}>
+              <Plus className="mr-2 h-4 w-4" /> Create Template
+            </Button>
+          </PermissionGate>
+        </div>
       </div>
+
+      {syncMutation.isSuccess && (
+        <p className="text-xs text-emerald-700">
+          Synced {(syncMutation.data as { data?: { created?: number; updated?: number } })?.data?.created ?? 0}{" "}
+          new, updated{" "}
+          {(syncMutation.data as { data?: { created?: number; updated?: number } })?.data?.updated ?? 0}.
+        </p>
+      )}
+      {syncMutation.isError && (
+        <p className="text-xs text-red-600">{syncErrorMessage}</p>
+      )}
 
       <Card className="border-border/50">
         <CardContent className="p-4">
@@ -143,10 +196,9 @@ export const WhatsAppTemplates: React.FC = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
+                  <TableHead>Internal Name</TableHead>
                   <TableHead>Event</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Campaign Name</TableHead>
+                  <TableHead>MSG91 Template</TableHead>
                   <TableHead>Language</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Updated</TableHead>
@@ -156,8 +208,8 @@ export const WhatsAppTemplates: React.FC = () => {
               <TableBody>
                 {templates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-10 text-muted-foreground">
-                      No templates yet. Create one and link it from Automations.
+                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
+                      No templates yet. Sync from MSG91 or create one, then link it from Automations.
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -165,7 +217,6 @@ export const WhatsAppTemplates: React.FC = () => {
                     <TableRow key={t.id}>
                       <TableCell className="font-medium">{t.name}</TableCell>
                       <TableCell className="font-mono text-xs">{t.event}</TableCell>
-                      <TableCell>{t.category || "—"}</TableCell>
                       <TableCell className="font-mono text-xs">{t.providerTemplateName}</TableCell>
                       <TableCell>{t.language}</TableCell>
                       <TableCell>
@@ -233,11 +284,18 @@ export const WhatsAppTemplates: React.FC = () => {
                 </select>
               </div>
               <div>
-                <Label>Campaign Name *</Label>
+                <Label>MSG91 Template Name *</Label>
                 <Input
                   value={form.providerTemplateName}
                   onChange={(e) => setForm({ ...form, providerTemplateName: e.target.value })}
-                  placeholder="Exact Live campaign name"
+                  placeholder="Approved MSG91 template name"
+                />
+              </div>
+              <div>
+                <Label>MSG91 Namespace (optional)</Label>
+                <Input
+                  value={form.providerNamespace}
+                  onChange={(e) => setForm({ ...form, providerNamespace: e.target.value })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">

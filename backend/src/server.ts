@@ -5,9 +5,14 @@ export { app };
 import { connectDatabase } from "./config/database";
 import { env } from "./config/env";
 import { initWebSocketServer } from "./websocket/ws.server";
+import { registerWorkers } from "./workers/register";
 
 const startServer = async () => {
   await connectDatabase();
+
+  if (env.RUN_WORKERS) {
+    await registerWorkers();
+  }
 
   const server = http.createServer(app);
   initWebSocketServer(server);

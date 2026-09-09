@@ -14,6 +14,8 @@ export interface WhatsAppTemplate {
   category?: string | null;
   body?: string | null;
   providerTemplateName: string;
+  providerTemplateId?: string | null;
+  providerNamespace?: string | null;
   language: string;
   variables: string[];
   status: string;
@@ -60,6 +62,7 @@ export interface WhatsAppHistoryItem {
   recipientName?: string | null;
   phone?: string | null;
   provider?: string;
+  providerMessageId?: string | null;
 }
 
 export const whatsappApi = {
@@ -93,6 +96,16 @@ export const whatsappApi = {
 
   listTemplates: async () => {
     const response = await api.get("/whatsapp/templates");
+    return response.data;
+  },
+
+  listProviderTemplates: async () => {
+    const response = await api.get("/whatsapp/provider-templates");
+    return response.data;
+  },
+
+  syncTemplates: async (data?: { templateStatus?: string; pageSize?: number }) => {
+    const response = await api.post("/whatsapp/templates/sync", data ?? {});
     return response.data;
   },
 

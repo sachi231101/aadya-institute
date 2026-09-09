@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import {
   Wallet,
   Search,
@@ -8,7 +8,8 @@ import {
   TrendingUp,
   Clock,
 } from "lucide-react";
-import { usePendingFees, usePayments, useFeeStats } from "@/hooks/useFees";
+import { useStudentFeeStatement, useFeeStats } from "@/hooks/useFees";
+import { useStudentList } from "@/hooks/useStudents";
 import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,54 +26,39 @@ import {
 } from "@/components/ui/table";
 
 export const StudentFees: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
-  const [page, setPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<"pending" | "payments">("pending");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [selectedStudentId, setSelectedStudentId] = useState("");
   const formatMoney = useFormatCurrency();
 
   const { data: statsData } = useFeeStats();
   const stats = statsData?.data;
+  const { data: studentsData } = useStudentList({
+    search: studentSearch || undefined,
+    limit: 30,
+  });
+  const students = useMemo(() => {
+    const raw = studentsData?.data;
+    return Array.isArray(raw) ? raw : [];
+  }, [studentsData]);
 
   const {
-    data: pendingData,
-    isLoading: pendingLoading,
-    isError: pendingError,
-    refetch: refetchPending,
-  } = usePendingFees({
-    search: searchTerm || undefined,
-    status: statusFilter !== "ALL" ? statusFilter : undefined,
-    page,
-    limit: 20,
-  });
+    data: statementRes,
+    isLoading,
+    isError,
+    refetch,
+  } = useStudentFeeStatement(selectedStudentId || undefined);
 
-  const {
-    data: paymentsData,
-    isLoading: paymentsLoading,
-    isError: paymentsError,
-    refetch: refetchPayments,
-  } = usePayments({
-    search: searchTerm || undefined,
-    page,
-    limit: 20,
-  });
-
-  const fees = pendingData?.data?.data || [];
-  const pendingMeta = pendingData?.data || { totalPages: 1, page: 1 };
-  const payments = paymentsData?.data?.data || [];
-  const paymentsMeta = paymentsData?.data || { totalPages: 1, page: 1 };
-
-  const meta = activeTab === "pending" ? pendingMeta : paymentsMeta;
-  const isLoading = activeTab === "pending" ? pendingLoading : paymentsLoading;
-  const isError = activeTab === "pending" ? pendingError : paymentsError;
-  const refetch = activeTab === "pending" ? refetchPending : refetchPayments;
+  const statement = statementRes?.data;
+  const pendingFees = statement?.pendingFees || [];
+  const payments = statement?.payments || [];
+  const summary = statement?.summary;
 
   return (
     <div className="space-y-6">
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Student Fees</h2>
         <p className="text-sm text-text-secondary">
-          View pending dues and payment collection summary.
+          Search a student to view their fee statement, installments, and payment history.
         </p>
       </div>
 
@@ -83,9 +69,7 @@ export const StudentFees: React.FC = () => {
               <TrendingUp className="h-5 w-5 text-[#2563EB]" />
             </div>
             <div>
-              <p className="text-lg font-bold">
-                {formatMoney(stats?.totalCollected ?? 0)}
-              </p>
+              <p className="text-lg font-bold">{formatMoney(stats?.totalCollected ?? 0)}</p>
               <p className="text-xs text-text-secondary">Total Collected</p>
             </div>
           </CardContent>
@@ -96,9 +80,7 @@ export const StudentFees: React.FC = () => {
               <Clock className="h-5 w-5 text-amber-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">
-                {formatMoney(stats?.totalPendingDues ?? 0)}
-              </p>
+              <p className="text-lg font-bold">{formatMoney(stats?.totalPendingDues ?? 0)}</p>
               <p className="text-xs text-text-secondary">Pending Dues</p>
             </div>
           </CardContent>
@@ -109,7 +91,7 @@ export const StudentFees: React.FC = () => {
               <CreditCard className="h-5 w-5 text-emerald-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">{stats?.totalTransactionsCount ?? payments.length}</p>
+              <p className="text-lg font-bold">{stats?.totalTransactionsCount ?? 0}</p>
               <p className="text-xs text-text-secondary">Total Payments</p>
             </div>
           </CardContent>
@@ -118,202 +100,172 @@ export const StudentFees: React.FC = () => {
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="flex gap-2">
-              <Button
-                variant={activeTab === "pending" ? "default" : "outline"}
-                size="sm"
-                className={activeTab === "pending" ? "bg-[#2563EB] text-white" : ""}
-                onClick={() => {
-                  setActiveTab("pending");
-                  setPage(1);
-                }}
-              >
-                <Wallet className="h-4 w-4 mr-1" /> Pending Fees
-              </Button>
-              <Button
-                variant={activeTab === "payments" ? "default" : "outline"}
-                size="sm"
-                className={activeTab === "payments" ? "bg-[#2563EB] text-white" : ""}
-                onClick={() => {
-                  setActiveTab("payments");
-                  setPage(1);
-                }}
-              >
-                <CreditCard className="h-4 w-4 mr-1" /> Payments
-              </Button>
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+              <Input
+                placeholder="Search students by name or code..."
+                value={studentSearch}
+                onChange={(e) => setStudentSearch(e.target.value)}
+                className="pl-9"
+              />
             </div>
-            <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto flex-1">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-                <Input
-                  placeholder="Search by student name or admission no..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
-              {activeTab === "pending" && (
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="h-10 px-3 border rounded-md text-sm"
-                >
-                  <option value="ALL">All Statuses</option>
-                  <option value="PENDING">Pending</option>
-                  <option value="OVERDUE">Overdue</option>
-                  <option value="PARTIAL">Partial</option>
-                </select>
-              )}
-            </div>
+            <select
+              value={selectedStudentId}
+              onChange={(e) => setSelectedStudentId(e.target.value)}
+              className="h-10 px-3 border rounded-md text-sm min-w-[260px]"
+            >
+              <option value="">Select a student</option>
+              {students.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.user?.name || "Student"} ({s.studentCode})
+                </option>
+              ))}
+            </select>
           </div>
 
-          {activeTab === "pending" ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Admission No</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Due Amount</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : isError ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-red-600">
-                      <AlertCircle className="w-5 h-5 inline mr-2" />
-                      Failed to load.
-                      <Button variant="link" onClick={() => refetch()}>
-                        Retry
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : fees.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-text-secondary">
-                      <Wallet className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      No pending fee records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  fees.map((f: PendingFee) => (
-                    <TableRow key={f.id}>
-                      <TableCell className="font-medium">{f.studentName}</TableCell>
-                      <TableCell className="font-mono text-sm">{f.admissionNo}</TableCell>
-                      <TableCell>{f.courseName}</TableCell>
-                      <TableCell className="font-bold">
-                        ₹{f.dueAmount?.toLocaleString("en-IN")}
-                      </TableCell>
-                      <TableCell>{new Date(f.dueDate).toLocaleDateString("en-IN")}</TableCell>
-                      <TableCell>
-                        <Badge variant={f.status === "OVERDUE" ? "destructive" : "outline"}>
-                          {f.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+          {!selectedStudentId ? (
+            <div className="text-center py-12 text-text-secondary">
+              <Wallet className="w-10 h-10 mx-auto mb-2 opacity-40" />
+              Select a student to load their fee statement.
+            </div>
+          ) : isLoading ? (
+            <div className="text-center py-12 text-text-secondary">
+              <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+              Loading statement...
+            </div>
+          ) : isError ? (
+            <div className="text-center py-12 text-red-600">
+              <AlertCircle className="w-5 h-5 inline mr-2" />
+              Failed to load statement.
+              <Button variant="link" onClick={() => refetch()}>
+                Retry
+              </Button>
+            </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Receipt No</TableHead>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Course</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {isLoading ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8">
-                      <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : isError ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-red-600">
-                      <AlertCircle className="w-5 h-5 inline mr-2" />
-                      Failed to load payments.
-                      <Button variant="link" onClick={() => refetch()}>
-                        Retry
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ) : payments.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-text-secondary">
-                      <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                      No payment records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  payments.map((p: Payment) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-mono text-sm">{p.receiptNo}</TableCell>
-                      <TableCell className="font-medium">{p.studentName}</TableCell>
-                      <TableCell>{p.courseName}</TableCell>
-                      <TableCell className="font-bold">₹{p.amount?.toLocaleString("en-IN")}</TableCell>
-                      <TableCell>{p.method}</TableCell>
-                      <TableCell>{new Date(p.date).toLocaleDateString("en-IN")}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            p.status === "SUCCESS"
-                              ? "outline"
-                              : p.status === "FAILED"
-                                ? "destructive"
-                                : "secondary"
-                          }
-                        >
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-text-secondary">Student</p>
+                  <p className="font-semibold">{statement?.student.name}</p>
+                  <p className="text-xs font-mono text-text-secondary">
+                    {statement?.student.studentCode}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-text-secondary">Total Fee</p>
+                  <p className="font-semibold">{formatMoney(summary?.totalFee ?? 0)}</p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-text-secondary">Paid / Due</p>
+                  <p className="font-semibold">
+                    {formatMoney(summary?.amountPaid ?? 0)} / {formatMoney(summary?.dueAmount ?? 0)}
+                  </p>
+                </div>
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs text-text-secondary">Status</p>
+                  <Badge
+                    variant={
+                      summary?.status === "Overdue"
+                        ? "destructive"
+                        : summary?.status === "Paid"
+                          ? "success"
+                          : "outline"
+                    }
+                  >
+                    {summary?.status || "Pending"}
+                  </Badge>
+                </div>
+              </div>
 
-          {meta.totalPages > 1 && (
-            <div className="flex justify-between text-sm">
-              <span>
-                Page {meta.page} of {meta.totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= meta.totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
+              <div>
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <Wallet className="h-4 w-4" /> Installments
+                </h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>#</TableHead>
+                      <TableHead>Course</TableHead>
+                      <TableHead>Due Amount</TableHead>
+                      <TableHead>Paid</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingFees.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-6 text-text-secondary">
+                          No installment records.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      pendingFees.map((f: PendingFee) => (
+                        <TableRow key={f.id}>
+                          <TableCell>{f.installmentNo}</TableCell>
+                          <TableCell>{f.courseName}</TableCell>
+                          <TableCell className="font-bold">
+                            ₹{f.dueAmount?.toLocaleString("en-IN")}
+                          </TableCell>
+                          <TableCell>₹{f.amountPaid?.toLocaleString("en-IN")}</TableCell>
+                          <TableCell>
+                            {new Date(f.dueDate).toLocaleDateString("en-IN")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={f.status === "OVERDUE" ? "destructive" : "outline"}
+                            >
+                              {f.status === "DUE_SOON" ? "Due soon" : f.status}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2 flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" /> Payments
+                </h3>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Receipt</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Method</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {payments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-center py-6 text-text-secondary">
+                          No payments recorded.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      payments.map((p: Payment) => (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-mono text-sm">{p.receiptNo}</TableCell>
+                          <TableCell className="font-bold">
+                            ₹{p.amount?.toLocaleString("en-IN")}
+                          </TableCell>
+                          <TableCell>{p.method}</TableCell>
+                          <TableCell>
+                            {new Date(p.date).toLocaleDateString("en-IN")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">{p.status}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}

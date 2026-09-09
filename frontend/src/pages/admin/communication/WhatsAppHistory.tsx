@@ -144,7 +144,13 @@ export const WhatsAppHistory: React.FC = () => {
                         <TableCell className="text-xs text-muted-foreground max-w-[180px] truncate">
                           {n.skipReason || n.errorMessage || "—"}
                         </TableCell>
-                        <TableCell className="text-xs">{n.provider === "AISENSY" ? "WhatsApp" : n.provider || "WhatsApp"}</TableCell>
+                        <TableCell className="text-xs">
+                          {n.provider === "AISENSY"
+                            ? "WhatsApp (legacy)"
+                            : n.provider === "MSG91"
+                              ? "MSG91"
+                              : n.provider || "MSG91"}
+                        </TableCell>
                       </TableRow>
                     ))
                   )}

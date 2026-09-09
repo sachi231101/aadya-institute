@@ -9,16 +9,22 @@ export interface SendWhatsAppTemplateOptions {
   phone: string;
   /** Recipient display name for personalisation */
   name: string;
-  /** Provider campaign/template name — must be active in provider dashboard */
+  /** Provider template name (MSG91 approved template name) */
   campaignName: string;
   /** Ordered variable values matching the template placeholders ({{1}}, {{2}}, ...) */
   templateParams: string[];
+  /** MSG91 template language code (default en) */
+  language?: string;
+  /** MSG91 template namespace when required by the WABA */
+  namespace?: string;
+  /** Internal notification id — passed as CRQID for webhook correlation */
+  notificationId?: string;
   /** Optional media for templates with a media header */
   media?: {
     url: string;
     filename: string;
   };
-  /** When set, resolve AiSensy API key from institute Integration (else env). */
+  /** When set, resolve MSG91 credentials from institute Integration (else env). */
   instituteId?: string;
 }
 
@@ -30,7 +36,7 @@ export interface SendWhatsAppResult {
 /**
  * WhatsApp provider interface.
  *
- * All provider implementations (AiSensy, Meta, etc.) must implement this.
+ * Provider implementations (MSG91, etc.) must implement this.
  */
 export interface IWhatsAppProvider {
   sendTemplate(options: SendWhatsAppTemplateOptions): Promise<SendWhatsAppResult>;

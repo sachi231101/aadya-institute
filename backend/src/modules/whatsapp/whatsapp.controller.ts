@@ -8,6 +8,7 @@ import {
   createTemplateSchema,
   updateTemplateSchema,
   toggleTemplateStatusSchema,
+  syncTemplatesSchema,
   upsertRuleSchema,
   listNotificationsQuerySchema,
   patchAutomationConfigSchema,
@@ -174,6 +175,25 @@ export const listTemplates = async (req: AuthenticatedRequest, res: Response): P
     sendSuccess(res, templates, 200, "Templates retrieved successfully");
   } catch (err) {
     handle(err, res, "Failed to list templates");
+  }
+};
+
+export const listProviderTemplates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const templates = await service.listProviderTemplates(toAuthUser(req));
+    sendSuccess(res, templates, 200, "MSG91 templates retrieved successfully");
+  } catch (err) {
+    handle(err, res, "Failed to list MSG91 templates");
+  }
+};
+
+export const syncTemplates = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const body = syncTemplatesSchema.parse(req.body ?? {});
+    const result = await service.syncTemplatesFromMsg91(toAuthUser(req), body);
+    sendSuccess(res, result, 200, "Templates synced from MSG91");
+  } catch (err) {
+    handle(err, res, "Failed to sync MSG91 templates");
   }
 };
 

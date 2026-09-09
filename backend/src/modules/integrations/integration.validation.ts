@@ -47,16 +47,18 @@ export const upsertAiSchema = upsertIntegrationSchema.extend({
 });
 
 export const upsertWhatsappSchema = upsertIntegrationSchema.extend({
-  provider: z.enum(["AISENSY"]).optional(),
+  provider: z.enum(["MSG91"]).optional(),
   configuration: z
     .object({
+      integratedNumber: z.string().optional(),
       phoneNumber: z.string().optional(),
-      campaignName: z.string().optional(),
+      namespace: z.string().optional(),
     })
     .passthrough()
     .optional(),
   credentials: z
     .object({
+      authKey: z.string().optional(),
       apiKey: z.string().optional(),
     })
     .optional(),

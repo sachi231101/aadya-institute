@@ -32,9 +32,9 @@ export const INTEGRATION_CATALOG: Record<
   },
   WHATSAPP: {
     name: "WhatsApp Integration",
-    description: "Send WhatsApp notifications and campaign messages.",
-    defaultProvider: "AISENSY",
-    providers: ["AISENSY"],
+    description: "Send WhatsApp notifications and campaign messages via MSG91.",
+    defaultProvider: "MSG91",
+    providers: ["MSG91"],
   },
   AI_CALLING: {
     name: "AI Calling",

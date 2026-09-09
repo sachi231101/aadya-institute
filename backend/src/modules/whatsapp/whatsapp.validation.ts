@@ -29,27 +29,36 @@ export const patchAutomationSchema = z.object({
 export const createTemplateSchema = z.object({
   name: z.string().min(2, "Template name is required"),
   event: eventEnum,
-  providerTemplateName: z.string().min(2, "Provider template name is required"),
+  providerTemplateName: z.string().trim().min(2, "MSG91 template name is required"),
+  providerTemplateId: z.string().optional().nullable(),
+  providerNamespace: z.string().optional().nullable(),
   language: z.string().default("en"),
   variables: z.array(z.string()).default([]),
   category: z.string().optional(),
   body: z.string().optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SYNCED"]).optional(),
 });
 
 export const updateTemplateSchema = z.object({
   name: z.string().min(2).optional(),
   event: eventEnum.optional(),
-  providerTemplateName: z.string().min(2).optional(),
+  providerTemplateName: z.string().trim().min(2).optional(),
+  providerTemplateId: z.string().optional().nullable(),
+  providerNamespace: z.string().optional().nullable(),
   language: z.string().optional(),
   variables: z.array(z.string()).optional(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  status: z.enum(["ACTIVE", "INACTIVE", "SYNCED"]).optional(),
   category: z.string().optional(),
   body: z.string().optional(),
 });
 
 export const toggleTemplateStatusSchema = z.object({
-  status: z.enum(["ACTIVE", "INACTIVE"]),
+  status: z.enum(["ACTIVE", "INACTIVE", "SYNCED"]),
+});
+
+export const syncTemplatesSchema = z.object({
+  templateStatus: z.string().optional(),
+  pageSize: z.number().int().min(1).max(500).optional(),
 });
 
 export const upsertRuleSchema = z.object({

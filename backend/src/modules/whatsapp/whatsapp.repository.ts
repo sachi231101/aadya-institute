@@ -114,6 +114,8 @@ export const createTemplate = async (data: {
   name: string;
   event: string;
   providerTemplateName: string;
+  providerTemplateId?: string | null;
+  providerNamespace?: string | null;
   language?: string;
   variables: string[];
   category?: string;
@@ -126,6 +128,8 @@ export const createTemplate = async (data: {
       name: data.name,
       event: data.event,
       providerTemplateName: data.providerTemplateName,
+      providerTemplateId: data.providerTemplateId ?? null,
+      providerNamespace: data.providerNamespace ?? null,
       language: data.language ?? "en",
       variables: data.variables as unknown as Prisma.InputJsonValue,
       category: data.category ?? null,
@@ -142,6 +146,8 @@ export const updateTemplate = async (
     name: string;
     event: string;
     providerTemplateName: string;
+    providerTemplateId: string | null;
+    providerNamespace: string | null;
     language: string;
     variables: string[];
     status: string;
@@ -157,6 +163,12 @@ export const updateTemplate = async (
       ...(data.providerTemplateName !== undefined
         ? { providerTemplateName: data.providerTemplateName }
         : {}),
+      ...(data.providerTemplateId !== undefined
+        ? { providerTemplateId: data.providerTemplateId }
+        : {}),
+      ...(data.providerNamespace !== undefined
+        ? { providerNamespace: data.providerNamespace }
+        : {}),
       ...(data.language !== undefined ? { language: data.language } : {}),
       ...(data.status !== undefined ? { status: data.status } : {}),
       ...(data.category !== undefined ? { category: data.category } : {}),
@@ -164,6 +176,20 @@ export const updateTemplate = async (
       ...(data.variables
         ? { variables: data.variables as unknown as Prisma.InputJsonValue }
         : {}),
+    },
+  });
+};
+
+export const findTemplateByProviderName = async (
+  instituteId: string,
+  providerTemplateName: string,
+  language?: string
+) => {
+  return prisma.notificationTemplate.findFirst({
+    where: {
+      instituteId,
+      providerTemplateName,
+      ...(language ? { language } : {}),
     },
   });
 };

@@ -92,7 +92,13 @@ export const PendingFees: React.FC = () => {
   const handleSendReminder = async (item: PendingFee) => {
     try {
       setReminderSentId(item.id);
-      await sendReminderMutation.mutateAsync(item.id);
+      const res = await sendReminderMutation.mutateAsync(item.id);
+      const payload = res?.data;
+      if (payload?.status === "SKIPPED") {
+        alert(payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`);
+      } else if (payload?.message) {
+        alert(payload.message);
+      }
       setTimeout(() => {
         setReminderSentId(null);
       }, 3000);

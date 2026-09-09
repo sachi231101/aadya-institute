@@ -502,26 +502,31 @@ export const IntegrationDetail: React.FC = () => {
               {type === "WHATSAPP" && (
                 <>
                   <div>
-                    <Label>Campaign name (optional)</Label>
+                    <Label>Integrated WhatsApp number</Label>
                     <Input
-                      value={String(config.campaignName ?? "")}
-                      onChange={setConfigField("campaignName")}
+                      value={String(config.integratedNumber ?? config.phoneNumber ?? "")}
+                      onChange={setConfigField("integratedNumber")}
+                      placeholder="9198XXXXXXXX"
                     />
+                    <p className="text-xs text-text-secondary mt-1">
+                      MSG91 WhatsApp Business number with country code (no +).
+                    </p>
                   </div>
                   <div>
-                    <Label>Phone number (optional)</Label>
+                    <Label>Template namespace (optional)</Label>
                     <Input
-                      value={String(config.phoneNumber ?? "")}
-                      onChange={setConfigField("phoneNumber")}
+                      value={String(config.namespace ?? "")}
+                      onChange={setConfigField("namespace")}
+                      placeholder="Optional WABA namespace"
                     />
                   </div>
                   <SecretField
-                    label="WhatsApp API Key"
-                    configured={hasCredential && !replaceSecrets.apiKey}
-                    value={secrets.apiKey ?? ""}
-                    onChange={setSecret("apiKey")}
-                    onReplace={() => markReplace("apiKey")}
-                    replacing={Boolean(replaceSecrets.apiKey)}
+                    label="MSG91 Auth Key"
+                    configured={hasCredential && !replaceSecrets.authKey}
+                    value={secrets.authKey ?? ""}
+                    onChange={setSecret("authKey")}
+                    onReplace={() => markReplace("authKey")}
+                    replacing={Boolean(replaceSecrets.authKey)}
                   />
                 </>
               )}

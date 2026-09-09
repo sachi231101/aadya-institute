@@ -1,22 +1,30 @@
-﻿import React, { useState } from "react";
-import { 
-  CreditCard, 
-  Plus, 
-  Search, 
-  Receipt, 
-  CheckCircle2, 
-  MoreVertical, 
-  Trash2, 
+﻿import React, { useMemo, useState } from "react";
+import {
+  CreditCard,
+  Plus,
+  Search,
+  Receipt,
+  CheckCircle2,
+  MoreVertical,
+  Trash2,
   DollarSign,
   TrendingUp,
   Building,
   Smartphone,
   Wallet,
   Loader2,
-  FileText
+  FileText,
 } from "lucide-react";
-import { usePayments, useFeeStats, useCreatePayment, useDeletePayment } from "../../../hooks/useFees";
-import { useCourseStore } from "../../../store/course.store";
+import {
+  usePayments,
+  useFeeStats,
+  useCreatePayment,
+  useDeletePayment,
+  usePendingFees,
+} from "../../../hooks/useFees";
+import { useCourses } from "../../../hooks/useCourses";
+import { useStudentList } from "../../../hooks/useStudents";
+import { usePermissions } from "@/hooks/usePermissions";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -39,41 +47,36 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
-import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Payments: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
-
-  const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
-
-  const resolvedMethodFilter =
-    methodFilter === "ALL"
-      ? "ALL"
-      : paymentModeOptions.find((opt) => opt.value === methodFilter)?.label || methodFilter;
+  const { hasPermission } = usePermissions();
+  const canDeletePayment = hasPermission("fee.delete");
 
   const { data: paymentsData, isLoading: paymentsLoading } = usePayments({
-    search: searchTerm,
-    method: resolvedMethodFilter,
+    search: searchTerm || undefined,
+    paymentModeMasterId: methodFilter !== "ALL" ? methodFilter : undefined,
     status: statusFilter,
   });
 
   const { data: statsData } = useFeeStats();
   const createPaymentMutation = useCreatePayment();
   const deletePaymentMutation = useDeletePayment();
+  const { courses } = useCourses();
+  const { data: studentsData } = useStudentList({ limit: 200 });
+  const students = useMemo(() => {
+    const raw = studentsData?.data;
+    return Array.isArray(raw) ? raw : [];
+  }, [studentsData]);
 
-  const { courses } = useCourseStore();
-
-  // Receipt Modal State
   const [viewReceiptItem, setViewReceiptItem] = useState<Payment | null>(null);
-
-  // Modal State for New Payment
   const [showModal, setShowModal] = useState(false);
-  const [studentName, setStudentName] = useState("");
-  const [admissionNo, setAdmissionNo] = useState("");
-  const [courseName, setCourseName] = useState(courses[0]?.name || "");
+  const [studentId, setStudentId] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const [pendingFeeId, setPendingFeeId] = useState("");
   const [amount, setAmount] = useState<number>(0);
   const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
   const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
@@ -82,11 +85,27 @@ export const Payments: React.FC = () => {
   const [feeHeadMasterId, setFeeHeadMasterId] = useState("");
   const [lateFee, setLateFee] = useState<number>(0);
   const [bankAccountMasterId, setBankAccountMasterId] = useState("");
-  const [chequeDate, setChequeDate] = useState("");
   const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
 
-  const selectedPaymentMode = paymentModeOptions.find((opt) => opt.value === paymentModeMasterId);
-  const isChequePayment = selectedPaymentMode?.code === "CHEQUE" || selectedPaymentMode?.label?.toLowerCase().includes("cheque");
+  const selectedStudent = students.find((s) => s.id === studentId);
+  const { data: openPendingData } = usePendingFees({
+    studentId: studentId || undefined,
+    status: "UNPAID",
+    limit: 50,
+  });
+  const openInstallments = openPendingData?.data?.data || [];
+
+  const filteredStudents = useMemo(() => {
+    const q = studentSearch.trim().toLowerCase();
+    if (!q) return students.slice(0, 50);
+    return students
+      .filter((s) => {
+        const name = s.user?.name?.toLowerCase() || "";
+        const code = s.studentCode?.toLowerCase() || "";
+        return name.includes(q) || code.includes(q);
+      })
+      .slice(0, 50);
+  }, [students, studentSearch]);
 
   const payments = paymentsData?.data?.data || [];
   const stats = statsData?.data || {
@@ -96,54 +115,88 @@ export const Payments: React.FC = () => {
     totalTransactionsCount: 0,
   };
 
+  const resetModal = () => {
+    setStudentId("");
+    setStudentSearch("");
+    setPendingFeeId("");
+    setAmount(0);
+    setLateFee(0);
+    setPaymentModeMasterId("");
+    setTransactionRef("");
+    setNotes("");
+    setFeeHeadMasterId("");
+    setBankAccountMasterId("");
+    setSendWhatsAppReceipt(true);
+    setShowModal(false);
+  };
+
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!studentName || !amount || !courseName || !paymentModeMasterId) return;
+    if (!studentId || !amount || !paymentModeMasterId) return;
 
+    const totalAmount = amount + (lateFee || 0);
     try {
       await createPaymentMutation.mutateAsync({
-        studentName,
-        admissionNo: admissionNo || `ADM-2026-${Math.floor(100 + Math.random() * 900)}`,
-        courseName,
-        amount,
+        studentId,
+        amount: totalAmount,
+        lateFee: 0,
         date,
         paymentModeMasterId,
         bankAccountMasterId: bankAccountMasterId || undefined,
         feeHeadMasterId: feeHeadMasterId || undefined,
-        transactionRef,
+        transactionRef: transactionRef || undefined,
         status: "SUCCESS",
-        notes,
+        notes: notes || undefined,
+        pendingFeeId: pendingFeeId || undefined,
+        sendWhatsAppReceipt,
       });
-
-      setStudentName("");
-      setAdmissionNo("");
-      setTransactionRef("");
-      setNotes("");
-      setShowModal(false);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to record payment");
+      resetModal();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to record payment";
+      alert(message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this payment receipt record?")) return;
+    if (!window.confirm("Delete this payment and reverse linked installment dues?")) return;
     try {
       await deletePaymentMutation.mutateAsync(id);
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to delete payment");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to delete payment";
+      alert(message);
     }
   };
 
   const getMethodBadge = (m: PaymentMethod) => {
     switch (m) {
       case "UPI":
-        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200"><Smartphone className="w-3 h-3 mr-1" /> UPI</Badge>;
+        return (
+          <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+            <Smartphone className="w-3 h-3 mr-1" /> UPI
+          </Badge>
+        );
       case "NET_BANKING":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><Building className="w-3 h-3 mr-1" /> NetBanking</Badge>;
+        return (
+          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
+            <Building className="w-3 h-3 mr-1" /> NetBanking
+          </Badge>
+        );
       case "CARD":
-        return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CreditCard className="w-3 h-3 mr-1" /> Card</Badge>;
+        return (
+          <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+            <CreditCard className="w-3 h-3 mr-1" /> Card
+          </Badge>
+        );
       case "CASH":
-        return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200"><Wallet className="w-3 h-3 mr-1" /> Cash</Badge>;
+        return (
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+            <Wallet className="w-3 h-3 mr-1" /> Cash
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{m}</Badge>;
     }
@@ -164,7 +217,6 @@ export const Payments: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">Fee Payment Receipts</h2>
@@ -174,7 +226,7 @@ export const Payments: React.FC = () => {
         </div>
 
         <PermissionGate itemKey="fees.payments" mode="write">
-          <Button 
+          <Button
             className="bg-[#2563EB] hover:bg-[#F39A16] text-white shadow-sm transition-colors"
             onClick={() => setShowModal(true)}
           >
@@ -184,7 +236,6 @@ export const Payments: React.FC = () => {
         </PermissionGate>
       </div>
 
-      {/* Summary Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
@@ -193,11 +244,12 @@ export const Payments: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Total Revenue Collected</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{stats.totalCollected.toLocaleString("en-IN")}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">
+                ₹{stats.totalCollected.toLocaleString("en-IN")}
+              </h3>
             </div>
           </CardContent>
         </Card>
-
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-blue-50 text-[#2563EB]">
@@ -205,11 +257,12 @@ export const Payments: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-text-secondary">Collected Today</p>
-              <h3 className="text-2xl font-bold text-text-primary">₹{stats.todayCollected.toLocaleString("en-IN")}</h3>
+              <h3 className="text-2xl font-bold text-text-primary">
+                ₹{stats.todayCollected.toLocaleString("en-IN")}
+              </h3>
             </div>
           </CardContent>
         </Card>
-
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
@@ -221,7 +274,6 @@ export const Payments: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
             <div className="p-3 rounded-lg bg-amber-50 text-amber-600">
@@ -235,11 +287,9 @@ export const Payments: React.FC = () => {
         </Card>
       </div>
 
-      {/* Main Table & Filters */}
       <Card className="border-border/50 shadow-sm bg-bg-primary">
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-col md:flex-row justify-between gap-4">
-            {/* Search Input */}
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
               <Input
@@ -249,8 +299,6 @@ export const Payments: React.FC = () => {
                 className="pl-9 bg-bg-secondary border-border/50"
               />
             </div>
-
-            {/* Filter Selectors */}
             <div className="flex flex-wrap items-center gap-3">
               <MasterSelect
                 entityType="paymentmodes"
@@ -259,7 +307,6 @@ export const Payments: React.FC = () => {
                 placeholder="All Payment Methods"
                 className="h-10 px-3 py-2 bg-bg-secondary border border-border/50 rounded-md text-sm mt-0"
               />
-
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
@@ -273,7 +320,6 @@ export const Payments: React.FC = () => {
             </div>
           </div>
 
-          {/* Payments Data Table */}
           <div className="rounded-md border border-border/50 overflow-hidden bg-white">
             <Table>
               <TableHeader className="bg-bg-secondary/50">
@@ -288,7 +334,6 @@ export const Payments: React.FC = () => {
                   <TableHead className="text-right font-semibold text-text-primary">Actions</TableHead>
                 </TableRow>
               </TableHeader>
-
               <TableBody>
                 {paymentsLoading ? (
                   <TableRow>
@@ -343,15 +388,17 @@ export const Payments: React.FC = () => {
                             <DropdownMenuItem onClick={() => setViewReceiptItem(p)}>
                               <FileText className="mr-2 h-4 w-4 text-[#2563EB]" /> View & Print Receipt
                             </DropdownMenuItem>
-                            <PermissionGate itemKey="fees.payments" mode="write">
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-red-600 focus:text-red-600"
-                                onClick={() => handleDelete(p.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
-                              </DropdownMenuItem>
-                            </PermissionGate>
+                            {canDeletePayment && (
+                              <>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  className="text-red-600 focus:text-red-600"
+                                  onClick={() => handleDelete(p.id)}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
+                                </DropdownMenuItem>
+                              </>
+                            )}
                           </DropdownMenuContent>
                         </DropdownMenu>
                       </TableCell>
@@ -364,10 +411,9 @@ export const Payments: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* View Receipt Modal */}
       {viewReceiptItem && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200">
             <div className="border-b border-slate-100 pb-4 flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-bold text-slate-900">Official Fee Receipt</h3>
@@ -375,7 +421,6 @@ export const Payments: React.FC = () => {
               </div>
               <Badge className="bg-[#2563EB] text-white font-mono">{viewReceiptItem.receiptNo}</Badge>
             </div>
-
             <div className="space-y-4 text-sm">
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-lg">
                 <div>
@@ -384,43 +429,28 @@ export const Payments: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-xs text-slate-500 block font-medium">Admission No</span>
-                  <span className="font-semibold text-slate-900 font-mono">{viewReceiptItem.admissionNo}</span>
+                  <span className="font-semibold text-slate-900 font-mono">
+                    {viewReceiptItem.admissionNo}
+                  </span>
                 </div>
               </div>
-
               <div>
                 <span className="text-xs text-slate-500 block font-medium">Enrolled Course</span>
                 <span className="font-semibold text-slate-900">{viewReceiptItem.courseName}</span>
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <span className="text-xs text-slate-500 block font-medium">Amount Received</span>
-                  <span className="text-xl font-bold text-emerald-600">₹{viewReceiptItem.amount.toLocaleString("en-IN")}</span>
+                  <span className="text-xl font-bold text-emerald-600">
+                    ₹{viewReceiptItem.amount.toLocaleString("en-IN")}
+                  </span>
                 </div>
                 <div>
                   <span className="text-xs text-slate-500 block font-medium">Payment Method</span>
                   <span className="font-semibold text-slate-900">{viewReceiptItem.method}</span>
                 </div>
               </div>
-
-              {viewReceiptItem.transactionRef && (
-                <div>
-                  <span className="text-xs text-slate-500 block font-medium">Transaction Reference</span>
-                  <span className="font-mono text-slate-800 text-xs bg-slate-100 px-2 py-1 rounded inline-block">
-                    {viewReceiptItem.transactionRef}
-                  </span>
-                </div>
-              )}
-
-              {viewReceiptItem.notes && (
-                <div>
-                  <span className="text-xs text-slate-500 block font-medium">Notes / Remarks</span>
-                  <span className="text-slate-700 text-xs italic">{viewReceiptItem.notes}</span>
-                </div>
-              )}
             </div>
-
             <div className="pt-4 border-t border-slate-100 flex justify-end gap-3">
               <Button variant="outline" onClick={() => window.print()}>
                 Print Receipt
@@ -433,68 +463,113 @@ export const Payments: React.FC = () => {
         </div>
       )}
 
-      {/* Record Payment Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <h3 className="text-lg font-bold text-slate-900">Record Student Fee Payment</h3>
-              <Button variant="ghost" size="icon" onClick={() => setShowModal(false)}>✕</Button>
+              <Button variant="ghost" size="icon" onClick={resetModal}>
+                ✕
+              </Button>
             </div>
 
             <form onSubmit={handleCreateSubmit} className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Student Name *</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Student *</label>
                 <Input
-                  required
-                  placeholder="e.g. Aarav Gupta"
-                  value={studentName}
-                  onChange={(e) => setStudentName(e.target.value)}
+                  placeholder="Search student by name or code..."
+                  value={studentSearch}
+                  onChange={(e) => setStudentSearch(e.target.value)}
+                  className="mb-2"
                 />
+                <select
+                  required
+                  value={studentId}
+                  onChange={(e) => {
+                    setStudentId(e.target.value);
+                    setPendingFeeId("");
+                  }}
+                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300"
+                >
+                  <option value="">Select student</option>
+                  {filteredStudents.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.user?.name || "Student"} ({s.studentCode})
+                      {s.courseName ? ` — ${s.courseName}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {selectedStudent && (
+                  <p className="text-xs text-slate-500 mt-1">
+                    Branch: {selectedStudent.branch?.name || "—"} · Course:{" "}
+                    {selectedStudent.courseName ||
+                      selectedStudent.courses?.[0]?.name ||
+                      "—"}
+                  </p>
+                )}
               </div>
+
+              {studentId && (
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Apply to installment (optional)
+                  </label>
+                  <select
+                    value={pendingFeeId}
+                    onChange={(e) => {
+                      setPendingFeeId(e.target.value);
+                      const item = openInstallments.find((i) => i.id === e.target.value);
+                      if (item) setAmount(item.dueAmount);
+                    }}
+                    className="w-full h-10 px-3 border rounded-md text-sm border-slate-300"
+                  >
+                    <option value="">FIFO across open installments</option>
+                    {openInstallments.map((i) => (
+                      <option key={i.id} value={i.id}>
+                        #{i.installmentNo} · ₹{i.dueAmount.toLocaleString("en-IN")} due ·{" "}
+                        {new Date(i.dueDate).toLocaleDateString("en-IN")}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Admission No</label>
-                  <Input
-                    placeholder="ADM-2026-XXX"
-                    value={admissionNo}
-                    onChange={(e) => setAdmissionNo(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Amount Paid (₹) *</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Amount Paid (₹) *
+                  </label>
                   <Input
                     type="number"
                     required
                     min={1}
-                    value={amount}
+                    value={amount || ""}
                     onChange={(e) => setAmount(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Late Fee / Fine (₹)
+                  </label>
+                  <Input
+                    type="number"
+                    min={0}
+                    value={lateFee}
+                    onChange={(e) => setLateFee(Number(e.target.value))}
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Course Enrolled *</label>
-                <select
-                  value={courseName}
-                  onChange={(e) => setCourseName(e.target.value)}
-                  className="w-full h-10 px-3 border rounded-md text-sm border-slate-300 focus:ring-2 focus:ring-[#2563EB]"
-                >
-                  {courses.map((c) => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                  <option value="Full Stack MERN Architecture">Full Stack MERN Architecture</option>
-                  <option value="Backend Engineering & Systems">Backend Engineering & Systems</option>
-                  <option value="Data Science & Applied Machine Learning">Data Science & Applied Machine Learning</option>
-                  <option value="Product UI/UX Design Masterclass">Product UI/UX Design Masterclass</option>
-                </select>
-              </div>
+              {(lateFee > 0 || amount > 0) && (
+                <p className="text-xs text-slate-600">
+                  Total charged: ₹{(amount + (lateFee || 0)).toLocaleString("en-IN")}
+                  {courses.length > 0 ? "" : ""}
+                </p>
+              )}
 
-              {/* ZenoxERP: Fee Head */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head *</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head</label>
                   <MasterSelect
                     entityType="feeheads"
                     value={feeHeadMasterId}
@@ -504,20 +579,9 @@ export const Payments: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Late Fee / Fine (₹)</label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={lateFee}
-                    onChange={(e) => setLateFee(Number(e.target.value))}
-                    placeholder="0"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method *</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Payment Method *
+                  </label>
                   <MasterSelect
                     entityType="paymentmodes"
                     value={paymentModeMasterId}
@@ -526,21 +590,19 @@ export const Payments: React.FC = () => {
                     className="mt-0 rounded-md"
                   />
                 </div>
-
-                <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Date</label>
-                  <Input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                  />
-                </div>
               </div>
 
-              {/* ZenoxERP: Bank Account & Cheque Date */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1">Bank / Deposit Account</label>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Payment Date
+                  </label>
+                  <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-700 block mb-1">
+                    Bank / Deposit Account
+                  </label>
                   <MasterSelect
                     entityType="bankaccounts"
                     value={bankAccountMasterId}
@@ -549,37 +611,23 @@ export const Payments: React.FC = () => {
                     className="mt-0 rounded-md"
                   />
                 </div>
-                {isChequePayment && (
-                  <div>
-                    <label className="text-xs font-semibold text-slate-700 block mb-1">Cheque Date</label>
-                    <Input
-                      type="date"
-                      value={chequeDate}
-                      onChange={(e) => setChequeDate(e.target.value)}
-                    />
-                  </div>
-                )}
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Transaction Ref / Cheque No</label>
+                <label className="text-xs font-semibold text-slate-700 block mb-1">
+                  Transaction Ref / Cheque No
+                </label>
                 <Input
-                  placeholder="e.g. UPI/602188491029 or HDFC/N291048102"
                   value={transactionRef}
                   onChange={(e) => setTransactionRef(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Remarks / Notes</label>
-                <Input
-                  placeholder="e.g. First Installment Token Fee"
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
+                <label className="text-xs font-semibold text-slate-700 block mb-1">Remarks</label>
+                <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
               </div>
 
-              {/* ZenoxERP: WhatsApp Receipt */}
               <div className="flex items-center gap-2 pt-1">
                 <input
                   type="checkbox"
@@ -587,19 +635,21 @@ export const Payments: React.FC = () => {
                   onChange={(e) => setSendWhatsAppReceipt(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-[#2563EB] focus:ring-[#2563EB]"
                 />
-                <label className="text-xs font-medium text-slate-600">Send WhatsApp Receipt to Student</label>
+                <label className="text-xs font-medium text-slate-600">
+                  Send WhatsApp receipt confirmation
+                </label>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                <Button type="button" variant="outline" onClick={resetModal}>
                   Cancel
                 </Button>
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
-                  disabled={createPaymentMutation.isPending}
+                  disabled={createPaymentMutation.isPending || !studentId}
                 >
-                  {createPaymentMutation.isPending ? "Generating Receipt..." : "Submit & Print Receipt"}
+                  {createPaymentMutation.isPending ? "Recording..." : "Submit Payment"}
                 </Button>
               </div>
             </form>

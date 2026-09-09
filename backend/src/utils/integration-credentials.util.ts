@@ -61,6 +61,7 @@ export const fingerprintSecret = (value: string | null | undefined): string | nu
 export const pickPrimarySecret = (
   credentials: Record<string, string>
 ): string | null =>
+  credentials.authKey ||
   credentials.apiKey ||
   credentials.keySecret ||
   credentials.password ||

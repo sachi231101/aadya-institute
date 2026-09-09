@@ -1189,9 +1189,11 @@ model NotificationTemplate {
   category             String?
   body                 String?
   providerTemplateName String
+  providerTemplateId   String?
+  providerNamespace    String?
   language             String   @default("en")
   variables            Json     // string[] of required variable names
-  status               String   @default("ACTIVE") // ACTIVE | INACTIVE
+  status               String   @default("ACTIVE") // ACTIVE | INACTIVE | SYNCED
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
@@ -1204,6 +1206,7 @@ model NotificationTemplate {
   @@index([instituteId, event])
   @@index([event])
   @@index([status])
+  @@index([instituteId, providerTemplateName])
 }
 
 model NotificationRule {

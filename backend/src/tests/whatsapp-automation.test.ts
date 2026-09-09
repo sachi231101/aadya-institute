@@ -50,6 +50,8 @@ describe("WhatsApp System Automation V1 catalog", () => {
     assert.ok(SkipReason.AUTOMATION_DISABLED);
     assert.ok(SkipReason.TEMPLATE_MISSING);
     assert.ok(SkipReason.PROVIDER_NOT_CONNECTED);
+    assert.ok(SkipReason.MSG91_NOT_CONFIGURED);
+    assert.ok(SkipReason.MSG91_AUTH_FAILED);
     assert.ok(SkipReason.BULK_IMPORT_SUPPRESSED);
     assert.ok(SkipReason.DUPLICATE_NOTIFICATION);
   });
