@@ -8,6 +8,7 @@ import {
   getLeadById,
   updateLead,
   assignLead,
+  bulkAssignLeads,
   changeLeadStage,
   markLeadLost,
   convertLead,
@@ -21,12 +22,22 @@ import {
   getCounsellorPerformance,
   getFollowUpDashboard,
   getCallHistory,
+  createManualCallLog,
+  updateLeadScore,
+  updateLeadTags,
+  archiveLead,
+  mergeLeads,
   triggerLeadCall,
 } from "./lead.controller";
 import {
   createLeadSchema,
   updateLeadSchema,
   assignLeadSchema,
+  bulkAssignLeadsSchema,
+  mergeLeadsSchema,
+  updateLeadScoreSchema,
+  updateLeadTagsSchema,
+  createManualCallLogSchema,
   changeLeadStageSchema,
   markLeadLostSchema,
   convertLeadSchema,
@@ -69,6 +80,27 @@ router.get(
   getCallHistory
 );
 
+router.post(
+  "/call-logs",
+  requirePermission("lead.update"),
+  validate(createManualCallLogSchema),
+  createManualCallLog
+);
+
+router.post(
+  "/bulk-assign",
+  requirePermission("lead.assign"),
+  validate(bulkAssignLeadsSchema),
+  bulkAssignLeads
+);
+
+router.post(
+  "/merge",
+  requirePermission("lead.delete"),
+  validate(mergeLeadsSchema),
+  mergeLeads
+);
+
 // ─── Core Lead Endpoints ─────────────────────────────────────────────────────
 router.get(
   "/",
@@ -97,12 +129,32 @@ router.patch(
   updateLead
 );
 
+router.delete(
+  "/:id",
+  requirePermission("lead.delete"),
+  archiveLead
+);
+
 // ─── Lead Actions ────────────────────────────────────────────────────────────
 router.post(
   "/:id/assign",
   requirePermission("lead.assign"),
   validate(assignLeadSchema),
   assignLead
+);
+
+router.post(
+  "/:id/tags",
+  requirePermission("lead.update"),
+  validate(updateLeadTagsSchema),
+  updateLeadTags
+);
+
+router.patch(
+  "/:id/score",
+  requirePermission("lead.update"),
+  validate(updateLeadScoreSchema),
+  updateLeadScore
 );
 
 router.patch(
@@ -135,7 +187,7 @@ router.post(
 
 router.post(
   "/:id/ai-call",
-  requirePermission("lead.update"),
+  requirePermission("ai_call.create"),
   triggerLeadCall
 );
 

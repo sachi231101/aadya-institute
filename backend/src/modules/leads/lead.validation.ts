@@ -66,10 +66,18 @@ export const LeadActivityTypeEnum = z.enum([
   "FOLLOW_UP_COMPLETED",
   "FOLLOW_UP_MISSED",
   "CALL_COMPLETED",
+  "SCORE_UPDATED",
   "WHATSAPP_SENT",
   "CONVERTED",
-  "MARKED_LOST"
+  "MARKED_LOST",
+  "ARCHIVED",
+  "MERGED",
 ]);
+
+export const CallTypeEnum = z.enum(["AI", "MANUAL"]);
+export const CallHistoryCallTypeFilterEnum = z.enum(["ALL", "AI", "MANUAL"]);
+export const CallHistoryViewEnum = z.enum(["queue", "active", "results"]);
+export const ScoreBandEnum = z.enum(["hot", "warm", "cold", "unscored"]);
 
 export const createLeadSchema = z.object({
   name: z.preprocess(
@@ -111,6 +119,7 @@ export const createLeadSchema = z.object({
   leadTypeMasterId: z.string().optional(),
   stageMasterId: z.string().optional(),
   priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().default("MEDIUM"),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   notes: z
     .preprocess(
       (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
@@ -142,6 +151,7 @@ export const updateLeadSchema = z.object({
   notes: z.string().optional(),
   sourceMasterId: z.string().optional(),
   leadTypeMasterId: z.string().optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
   courseId: z
     .preprocess(
       (v) => (typeof v === "string" && v.trim().length > 0 ? v.trim() : undefined),
@@ -152,6 +162,49 @@ export const updateLeadSchema = z.object({
 export const assignLeadSchema = z.object({
   counsellorId: z.string().min(1, "Counsellor ID is required"),
   notes: z.string().optional(),
+});
+
+export const bulkAssignLeadsSchema = z.object({
+  leadIds: z.array(z.string().min(1)).min(1).max(100),
+  counsellorId: z.string().min(1, "Counsellor ID is required"),
+  notes: z.string().optional(),
+});
+
+export const mergeLeadsSchema = z.object({
+  primaryLeadId: z.string().min(1),
+  duplicateLeadId: z.string().min(1),
+}).refine((d) => d.primaryLeadId !== d.duplicateLeadId, {
+  message: "primaryLeadId and duplicateLeadId must be different",
+});
+
+export const updateLeadScoreSchema = z.object({
+  leadScore: z.number().int().min(0).max(100).nullable().optional(),
+  admissionProbability: z.number().int().min(0).max(100).nullable().optional(),
+  nextBestAction: z.string().trim().max(500).nullable().optional(),
+}).refine(
+  (d) =>
+    d.leadScore !== undefined ||
+    d.admissionProbability !== undefined ||
+    d.nextBestAction !== undefined,
+  { message: "At least one of leadScore, admissionProbability, nextBestAction is required" }
+);
+
+export const updateLeadTagsSchema = z.object({
+  tags: z.array(z.string().trim().min(1).max(50)).max(20),
+});
+
+export const createManualCallLogSchema = z.object({
+  leadId: z.string().min(1),
+  status: z.string().trim().min(1).optional().default("COMPLETED"),
+  duration: z.coerce.number().int().min(0).optional().default(0),
+  outcome: z.string().trim().max(500).nullable().optional(),
+  notes: z.string().trim().max(2000).nullable().optional(),
+  qualification: z.string().trim().max(200).nullable().optional(),
+  sentiment: z.string().trim().max(100).nullable().optional(),
+  nextAction: z.string().trim().max(500).nullable().optional(),
+  interestStatus: z.string().trim().max(100).nullable().optional(),
+  startedAt: z.string().or(z.date()).optional().transform((val) => (val ? new Date(val) : undefined)),
+  endedAt: z.string().or(z.date()).optional().transform((val) => (val ? new Date(val) : undefined)),
 });
 
 export const changeLeadStageSchema = z.object({
@@ -186,12 +239,20 @@ export const createFollowUpSchema = z.object({
   type: FollowUpTypeEnum.optional().default("CALL"),
   scheduledAt: z.string().or(z.date()).transform((val) => new Date(val)),
   notes: z.string().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().default("MEDIUM"),
+  counsellorId: z.string().optional(),
 });
 
 export const updateFollowUpSchema = z.object({
   status: FollowUpStatusEnum.optional(),
   notes: z.string().optional(),
   outcome: z.string().optional(),
+  priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
+  scheduledAt: z
+    .string()
+    .or(z.date())
+    .optional()
+    .transform((val) => (val ? new Date(val) : undefined)),
 });
 
 export const addActivitySchema = z.object({
@@ -208,6 +269,9 @@ export const queryCallHistorySchema = z.object({
   leadId: z.string().optional(),
   studentId: z.string().optional(),
   status: z.string().optional(),
+  statuses: z.string().optional(),
+  callType: CallHistoryCallTypeFilterEnum.optional().default("ALL"),
+  view: CallHistoryViewEnum.optional(),
 });
 
 export const queryLeadsSchema = z.object({
@@ -227,4 +291,10 @@ export const queryLeadsSchema = z.object({
   dateTo: z.string().optional(),
   followUpFrom: z.string().optional(),
   followUpTo: z.string().optional(),
+  scoreBand: ScoreBandEnum.optional(),
+  unassigned: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .optional()
+    .transform((v) => (v === true || v === "true" ? true : v === false || v === "false" ? false : undefined)),
+  tag: z.string().trim().optional(),
 });

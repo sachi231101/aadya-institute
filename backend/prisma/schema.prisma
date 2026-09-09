@@ -340,6 +340,7 @@ model User {
   leadActivities       LeadActivity[]
   followUpsAssigned    LeadFollowUp[]     @relation("FollowUpCounsellor")
   followUpsCreated     LeadFollowUp[]     @relation("FollowUpCreatedBy")
+  manualCallLogs       CallLog[]          @relation("CallLogCaller")
   aiConversations      AIConversation[]
   permissionsGranted   UserPermission[]   @relation("PermissionGrantedBy")
   googleConnection     GoogleWorkspaceConnection?
@@ -1099,6 +1100,11 @@ model CallLog {
   leadId              String?
   fromNumber          String?
   status              String
+  callType            String    @default("AI") // AI | MANUAL
+  callerUserId        String?
+  qualification       String?
+  sentiment           String?
+  nextAction          String?
   duration            Int       @default(0)
   transcript          String?
   recordingUrl        String?
@@ -1121,6 +1127,7 @@ model CallLog {
   agent      AiCallingAgent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
   student    Student?           @relation(fields: [studentId], references: [id], onDelete: SetNull)
   lead       Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  caller     User?              @relation("CallLogCaller", fields: [callerUserId], references: [id], onDelete: SetNull)
 
   @@index([studentId])
   @@index([leadId])
@@ -1128,8 +1135,10 @@ model CallLog {
   @@index([branchId])
   @@index([importJobId])
   @@index([agentId])
+  @@index([callerUserId])
   @@index([instituteId, createdAt])
   @@index([instituteId, status])
+  @@index([instituteId, callType])
   @@index([leadId, attemptNumber])
 }
 
@@ -1454,9 +1463,12 @@ enum LeadActivityType {
   FOLLOW_UP_COMPLETED
   FOLLOW_UP_MISSED
   CALL_COMPLETED
+  SCORE_UPDATED
   WHATSAPP_SENT
   CONVERTED
   MARKED_LOST
+  ARCHIVED
+  MERGED
 }
 
 model Lead {
@@ -1477,6 +1489,10 @@ model Lead {
   leadTypeMasterId     String?
   status               LeadStatus      @default(ACTIVE)
   priority             String          @default("MEDIUM") // LOW, MEDIUM, HIGH
+  leadScore            Int?
+  admissionProbability Int?
+  tags                 String[]        @default([])
+  nextBestAction       String?
   notes                String?
   createdById          String
   assignedCounsellorId String?
@@ -1523,6 +1539,8 @@ model Lead {
   @@index([createdById])
   @@index([nextFollowUpAt])
   @@index([createdAt])
+  @@index([instituteId, leadScore])
+  @@index([instituteId, createdAt])
 }
 
 model LeadAssignment {
@@ -1580,18 +1598,20 @@ model LeadActivity {
 }
 
 model LeadFollowUp {
-  id           String         @id @default(cuid())
-  leadId       String
-  counsellorId String
-  createdById  String
-  type         FollowUpType   @default(CALL)
-  status       FollowUpStatus @default(PENDING)
-  scheduledAt  DateTime
-  completedAt  DateTime?
-  notes        String?
-  outcome      String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id              String         @id @default(cuid())
+  leadId          String
+  counsellorId    String
+  createdById     String
+  type            FollowUpType   @default(CALL)
+  status          FollowUpStatus @default(PENDING)
+  priority        String         @default("MEDIUM") // LOW | MEDIUM | HIGH
+  recommendedRank Int?
+  scheduledAt     DateTime
+  completedAt     DateTime?
+  notes           String?
+  outcome         String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
   lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
   counsellor   User           @relation("FollowUpCounsellor", fields: [counsellorId], references: [id], onDelete: Cascade)
@@ -1601,6 +1621,7 @@ model LeadFollowUp {
   @@index([counsellorId])
   @@index([status])
   @@index([scheduledAt])
+  @@index([priority])
 }
 
 model AIConversation {

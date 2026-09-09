@@ -4,6 +4,36 @@ import { LeadActivityService } from "./lead-activity.service";
 import type { AuthUser } from "../../auth/auth.types";
 import type { CreateFollowUpDTO, UpdateFollowUpDTO } from "../lead.types";
 
+const followUpInclude = {
+  lead: {
+    select: {
+      id: true,
+      name: true,
+      phoneNumber: true,
+      stage: true,
+      branchId: true,
+      leadScore: true,
+      priority: true,
+      assignedCounsellorId: true,
+    },
+  },
+  counsellor: { select: { id: true, name: true } },
+} as const;
+
+const PRIORITY_RANK: Record<string, number> = {
+  HIGH: 3,
+  MEDIUM: 2,
+  LOW: 1,
+};
+
+function startOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
+
 export const LeadFollowupService = {
   async createFollowUp(
     leadId: string,
@@ -18,7 +48,6 @@ export const LeadFollowupService = {
       throw new AppError("Lead not found", 404);
     }
 
-    // Branch isolation check
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
       !currentUser.roles.includes("ADMIN") &&
@@ -29,7 +58,11 @@ export const LeadFollowupService = {
     }
 
     const scheduledDate = new Date(dto.scheduledAt);
-    const counsellorId = lead.assignedCounsellorId ?? (currentUser.userId || currentUser.id);
+    const counsellorId =
+      dto.counsellorId ||
+      lead.assignedCounsellorId ||
+      currentUser.userId ||
+      currentUser.id;
 
     return prisma.$transaction(async (tx) => {
       const followUp = await tx.leadFollowUp.create({
@@ -39,6 +72,7 @@ export const LeadFollowupService = {
           createdById: currentUser.userId || currentUser.id,
           type: dto.type ?? "CALL",
           status: "PENDING",
+          priority: dto.priority ?? "MEDIUM",
           scheduledAt: scheduledDate,
           notes: dto.notes ?? null,
         },
@@ -49,7 +83,6 @@ export const LeadFollowupService = {
         },
       });
 
-      // Update lead's nextFollowUpAt if this is the earliest pending date
       const earliestPending = await tx.leadFollowUp.findFirst({
         where: { leadId, status: "PENDING" },
         orderBy: { scheduledAt: "asc" },
@@ -65,7 +98,6 @@ export const LeadFollowupService = {
         },
       });
 
-      // Log activity
       await LeadActivityService.logActivity(
         leadId,
         "FOLLOW_UP_CREATED",
@@ -96,7 +128,6 @@ export const LeadFollowupService = {
       throw new AppError("Follow-up not found", 404);
     }
 
-    // Branch check
     if (
       currentUser.roles.includes("CENTER_MANAGER") &&
       !currentUser.roles.includes("ADMIN") &&
@@ -114,11 +145,14 @@ export const LeadFollowupService = {
           status: dto.status ?? followUp.status,
           notes: dto.notes !== undefined ? dto.notes : followUp.notes,
           outcome: dto.outcome !== undefined ? dto.outcome : followUp.outcome,
+          priority: dto.priority ?? followUp.priority,
+          scheduledAt: dto.scheduledAt
+            ? new Date(dto.scheduledAt)
+            : followUp.scheduledAt,
           completedAt: isCompleted ? new Date() : followUp.completedAt,
         },
       });
 
-      // Recalculate next pending follow-up
       const nextPending = await tx.leadFollowUp.findFirst({
         where: { leadId: followUp.leadId, status: "PENDING" },
         orderBy: { scheduledAt: "asc" },
@@ -165,70 +199,154 @@ export const LeadFollowupService = {
     });
   },
 
-  async getFollowUpDashboard(instituteId: string, branchId?: string) {
+  async getFollowUpDashboard(
+    instituteId: string,
+    branchId?: string,
+    currentUserId?: string
+  ) {
     const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    const startOfToday = startOfDay(now);
+    const endOfToday = endOfDay(now);
 
-    const baseWhere = {
-      lead: {
-        instituteId,
-        ...(branchId ? { branchId } : {}),
-        status: "ACTIVE" as const,
-      },
+    const leadScope = {
+      instituteId,
+      ...(branchId ? { branchId } : {}),
+      status: "ACTIVE" as const,
+    };
+
+    const pendingBase = {
+      lead: leadScope,
       status: "PENDING" as const,
     };
 
-    const [overdue, today, upcoming, overdueList, todayList, upcomingList] = await prisma.$transaction([
+    const completedBase = {
+      lead: leadScope,
+      status: "COMPLETED" as const,
+    };
+
+    const listTake = 50;
+
+    const [
+      overdue,
+      today,
+      upcoming,
+      completedCount,
+      overdueList,
+      todayList,
+      upcomingList,
+      completedList,
+      allPending,
+    ] = await prisma.$transaction([
       prisma.leadFollowUp.count({
-        where: { ...baseWhere, scheduledAt: { lt: startOfToday } },
+        where: { ...pendingBase, scheduledAt: { lt: startOfToday } },
       }),
       prisma.leadFollowUp.count({
-        where: { ...baseWhere, scheduledAt: { gte: startOfToday, lte: endOfToday } },
-      }),
-      prisma.leadFollowUp.count({
-        where: { ...baseWhere, scheduledAt: { gt: endOfToday } },
-      }),
-      prisma.leadFollowUp.findMany({
-        where: { ...baseWhere, scheduledAt: { lt: startOfToday } },
-        include: {
-          lead: { select: { id: true, name: true, phoneNumber: true, stage: true, branchId: true } },
-          counsellor: { select: { id: true, name: true } },
+        where: {
+          ...pendingBase,
+          scheduledAt: { gte: startOfToday, lte: endOfToday },
         },
-        take: 10,
+      }),
+      prisma.leadFollowUp.count({
+        where: { ...pendingBase, scheduledAt: { gt: endOfToday } },
+      }),
+      prisma.leadFollowUp.count({ where: completedBase }),
+      prisma.leadFollowUp.findMany({
+        where: { ...pendingBase, scheduledAt: { lt: startOfToday } },
+        include: followUpInclude,
+        take: listTake,
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.leadFollowUp.findMany({
-        where: { ...baseWhere, scheduledAt: { gte: startOfToday, lte: endOfToday } },
-        include: {
-          lead: { select: { id: true, name: true, phoneNumber: true, stage: true, branchId: true } },
-          counsellor: { select: { id: true, name: true } },
+        where: {
+          ...pendingBase,
+          scheduledAt: { gte: startOfToday, lte: endOfToday },
         },
-        take: 10,
+        include: followUpInclude,
+        take: listTake,
         orderBy: { scheduledAt: "asc" },
       }),
       prisma.leadFollowUp.findMany({
-        where: { ...baseWhere, scheduledAt: { gt: endOfToday } },
-        include: {
-          lead: { select: { id: true, name: true, phoneNumber: true, stage: true, branchId: true } },
-          counsellor: { select: { id: true, name: true } },
-        },
-        take: 10,
+        where: { ...pendingBase, scheduledAt: { gt: endOfToday } },
+        include: followUpInclude,
+        take: listTake,
+        orderBy: { scheduledAt: "asc" },
+      }),
+      prisma.leadFollowUp.findMany({
+        where: completedBase,
+        include: followUpInclude,
+        take: listTake,
+        orderBy: { completedAt: "desc" },
+      }),
+      prisma.leadFollowUp.findMany({
+        where: pendingBase,
+        include: followUpInclude,
+        take: 200,
         orderBy: { scheduledAt: "asc" },
       }),
     ]);
+
+    const myList = currentUserId
+      ? allPending.filter((f) => f.counsellorId === currentUserId)
+      : [];
+    const teamList = currentUserId
+      ? allPending.filter((f) => f.counsellorId !== currentUserId)
+      : allPending;
+
+    const hotWithPending = allPending.filter(
+      (f) => (f.lead.leadScore ?? 0) >= 70
+    ).length;
+    const highRisk = allPending.filter((f) => {
+      const isOverdue = f.scheduledAt < startOfToday;
+      const highPriority = f.priority === "HIGH";
+      const hotScore = (f.lead.leadScore ?? 0) >= 70;
+      return isOverdue && (highPriority || hotScore);
+    }).length;
+
+    const recommended = [...allPending]
+      .sort((a, b) => {
+        const aOverdue = a.scheduledAt < startOfToday ? 1 : 0;
+        const bOverdue = b.scheduledAt < startOfToday ? 1 : 0;
+        if (bOverdue !== aOverdue) return bOverdue - aOverdue;
+
+        const scoreDiff = (b.lead.leadScore ?? 0) - (a.lead.leadScore ?? 0);
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const pDiff =
+          (PRIORITY_RANK[b.priority] ?? 0) - (PRIORITY_RANK[a.priority] ?? 0);
+        if (pDiff !== 0) return pDiff;
+
+        if (a.recommendedRank != null && b.recommendedRank != null) {
+          return a.recommendedRank - b.recommendedRank;
+        }
+
+        return a.scheduledAt.getTime() - b.scheduledAt.getTime();
+      })
+      .slice(0, 20);
 
     return {
       summary: {
         overdue,
         today,
         upcoming,
+        completed: completedCount,
         totalPending: overdue + today + upcoming,
+        hotWithPending,
+        highRisk,
+      },
+      highlights: {
+        overdue,
+        hot: hotWithPending,
+        highRisk,
+        today,
       },
       lists: {
         overdue: overdueList,
         today: todayList,
         upcoming: upcomingList,
+        completed: completedList,
+        my: myList.slice(0, listTake),
+        team: teamList.slice(0, listTake),
+        recommended,
       },
     };
   },

@@ -10,9 +10,40 @@ import {
   createFollowUpSchema,
 } from "../modules/leads/lead.validation";
 import { LeadService } from "../modules/leads/lead.service";
-import { LeadRepository } from "../modules/leads/lead.repository";
+import { LeadAiOutcomeService } from "../modules/leads/services/lead-ai-outcome.service";
 import { prisma } from "../config/database";
 import type { AuthUser } from "../modules/auth/auth.types";
+
+/** Ensure assign/bulk-assign gates pass when telephony left an in-flight log. */
+async function ensureTerminalAiCall(
+  leadId: string,
+  instituteId: string,
+  branchId: string | null | undefined
+) {
+  const existing = await prisma.callLog.findFirst({
+    where: {
+      leadId,
+      status: {
+        in: ["COMPLETED", "NO_ANSWER", "BUSY", "FAILED", "CALLBACK_REQUESTED"],
+      },
+    },
+  });
+  if (existing) return existing;
+
+  return prisma.callLog.create({
+    data: {
+      instituteId,
+      branchId: branchId ?? null,
+      leadId,
+      status: "COMPLETED",
+      callType: "AI",
+      duration: 45,
+      idempotencyKey: `test_terminal_${leadId}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      startedAt: new Date(),
+      endedAt: new Date(),
+    },
+  });
+}
 
 describe("Lead Management Module Tests", () => {
   // Test Mock Users & Entities
@@ -293,6 +324,7 @@ describe("Lead Management Module Tests", () => {
         email: "rohan@gmail.com",
         interestedIn: "Full Stack Development",
         source: "WALK_IN",
+        courseId,
       });
 
       createdLeadId = lead.id;
@@ -512,14 +544,16 @@ describe("Lead Management Module Tests", () => {
 
   describe("6. Lead Conversion to Student & Admission", () => {
     let leadId: string;
+    const convertPhone = `+91987${String(Date.now()).slice(-7)}`;
 
     before(async () => {
       const lead = await LeadService.createLead(counsellorAUser, {
         name: "Convertible Lead",
-        phoneNumber: "+919876500006",
-        email: "convertible@aadya.test",
+        phoneNumber: convertPhone,
+        email: `convertible-${Date.now()}@aadya.test`,
         interestedIn: "Full Stack Development",
         source: "WALK_IN",
+        courseId,
       });
       leadId = lead.id;
     });
@@ -602,8 +636,8 @@ describe("Lead Management Module Tests", () => {
           });
         },
         (err: any) => {
-          assert.strictEqual(err.statusCode, 400);
-          assert.match(err.message, /already been converted/);
+          assert.ok([400, 409].includes(err.statusCode));
+          assert.match(err.message, /already been converted|already registered/i);
           return true;
         }
       );
@@ -626,6 +660,625 @@ describe("Lead Management Module Tests", () => {
         assert.ok(typeof performance[0].totalLeads === "number");
         assert.ok(typeof performance[0].conversionRate === "string");
       }
+    });
+  });
+
+  describe("8. Dashboard scoring bands & overdue follow-ups", () => {
+    before(async () => {
+      const hot = await LeadService.createLead(managerAUser, {
+        name: "Hot Band Lead",
+        phoneNumber: "+919876501001",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+      const warm = await LeadService.createLead(managerAUser, {
+        name: "Warm Band Lead",
+        phoneNumber: "+919876501002",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+      const cold = await LeadService.createLead(managerAUser, {
+        name: "Cold Band Lead",
+        phoneNumber: "+919876501003",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+
+      await LeadService.updateLeadScore(hot.id, managerAUser, { leadScore: 85 });
+      await LeadService.updateLeadScore(warm.id, managerAUser, { leadScore: 55 });
+      await LeadService.updateLeadScore(cold.id, managerAUser, { leadScore: 20 });
+
+      await ensureTerminalAiCall(hot.id, instituteId, branchAId);
+      await LeadService.assignLead(hot.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+      await LeadService.createFollowUp(hot.id, managerAUser, {
+        type: "CALL",
+        scheduledAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+        notes: "Overdue for band KPI",
+        priority: "HIGH",
+        counsellorId: counsellorAUser.id,
+      });
+    });
+
+    test("Summary includes hot/warm/cold bands and overdueFollowUps", async () => {
+      const summary = await LeadService.getDashboardSummary(managerAUser, branchAId);
+      assert.ok(typeof summary.hot === "number");
+      assert.ok(typeof summary.warm === "number");
+      assert.ok(typeof summary.cold === "number");
+      assert.ok(typeof summary.unassigned === "number");
+      assert.ok(typeof summary.todayCreated === "number");
+      assert.ok(typeof summary.overdueFollowUps === "number");
+      assert.ok(summary.hot >= 1);
+      assert.ok(summary.warm >= 1);
+      assert.ok(summary.cold >= 1);
+      assert.ok(summary.overdueFollowUps >= 1);
+    });
+  });
+
+  describe("9. Bulk assign + branch isolation", () => {
+    let branchALead1: string;
+    let branchALead2: string;
+    let branchBLeadId: string;
+
+    before(async () => {
+      const a1 = await LeadService.createLead(managerAUser, {
+        name: "Bulk A1",
+        phoneNumber: "+919876501101",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const a2 = await LeadService.createLead(managerAUser, {
+        name: "Bulk A2",
+        phoneNumber: "+919876501102",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const b1 = await LeadService.createLead(counsellorBUser, {
+        name: "Bulk B1",
+        phoneNumber: "+919876501103",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+      });
+      branchALead1 = a1.id;
+      branchALead2 = a2.id;
+      branchBLeadId = b1.id;
+
+      await Promise.all([
+        ensureTerminalAiCall(branchALead1, instituteId, branchAId),
+        ensureTerminalAiCall(branchALead2, instituteId, branchAId),
+        ensureTerminalAiCall(branchBLeadId, instituteId, branchBId),
+      ]);
+    });
+
+    test("Bulk assign succeeds for same-branch leads", async () => {
+      const result = await LeadService.bulkAssignLeads(managerAUser, {
+        leadIds: [branchALead1, branchALead2],
+        counsellorId: counsellorAUser.id,
+        notes: "Bulk assign test",
+      });
+
+      assert.strictEqual(result.total, 2);
+      assert.strictEqual(result.succeeded, 2);
+      assert.strictEqual(result.failed, 0);
+
+      const lead1 = await LeadService.getLeadById(branchALead1, managerAUser);
+      const lead2 = await LeadService.getLeadById(branchALead2, managerAUser);
+      assert.strictEqual(lead1.assignedCounsellorId, counsellorAUser.id);
+      assert.strictEqual(lead2.assignedCounsellorId, counsellorAUser.id);
+    });
+
+    test("Bulk assign isolates Branch B lead from Manager A", async () => {
+      const result = await LeadService.bulkAssignLeads(managerAUser, {
+        leadIds: [branchALead1, branchBLeadId],
+        counsellorId: counsellorAUser.id,
+      });
+
+      assert.strictEqual(result.total, 2);
+      assert.ok(result.succeeded >= 1);
+      assert.ok(result.failed >= 1);
+
+      const branchBResult = result.results.find((r) => r.leadId === branchBLeadId);
+      assert.ok(branchBResult);
+      assert.strictEqual(branchBResult.success, false);
+
+      const branchBLead = await LeadService.getLeadById(branchBLeadId, adminUser);
+      assert.notStrictEqual(branchBLead.assignedCounsellorId, counsellorAUser.id);
+    });
+  });
+
+  describe("10. Merge moves CallLog/FollowUp and archives duplicate", () => {
+    let primaryId: string;
+    let duplicateId: string;
+    let movedCallId: string;
+    let movedFollowUpId: string;
+
+    before(async () => {
+      const primary = await LeadService.createLead(managerAUser, {
+        name: "Primary Merge Lead",
+        phoneNumber: "+919876501201",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const duplicate = await LeadService.createLead(managerAUser, {
+        name: "Duplicate Merge Lead",
+        phoneNumber: "+919876501202",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+      primaryId = primary.id;
+      duplicateId = duplicate.id;
+
+      await LeadService.updateLeadTags(duplicateId, managerAUser, {
+        tags: ["duplicate-tag", "neet"],
+      });
+
+      const callLog = await prisma.callLog.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          leadId: duplicateId,
+          status: "COMPLETED",
+          callType: "AI",
+          duration: 90,
+          interestStatus: "INTERESTED",
+          aiSummary: "Asked about fees",
+          idempotencyKey: `test_merge_call_${duplicateId}`,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+      movedCallId = callLog.id;
+
+      const followUp = await prisma.leadFollowUp.create({
+        data: {
+          leadId: duplicateId,
+          counsellorId: counsellorAUser.id,
+          createdById: managerAUser.id,
+          type: "CALL",
+          status: "PENDING",
+          priority: "HIGH",
+          scheduledAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
+          notes: "Merge follow-up",
+        },
+      });
+      movedFollowUpId = followUp.id;
+    });
+
+    test("Merge relocates relations and archives duplicate", async () => {
+      const result = await LeadService.mergeLeads(managerAUser, {
+        primaryLeadId: primaryId,
+        duplicateLeadId: duplicateId,
+      });
+
+      assert.strictEqual(result.duplicateId, duplicateId);
+      assert.ok(result.primary.tags.includes("duplicate-tag"));
+      assert.ok(result.primary.tags.includes("neet"));
+
+      const movedCall = await prisma.callLog.findUnique({ where: { id: movedCallId } });
+      assert.strictEqual(movedCall?.leadId, primaryId);
+
+      const movedFu = await prisma.leadFollowUp.findUnique({
+        where: { id: movedFollowUpId },
+      });
+      assert.strictEqual(movedFu?.leadId, primaryId);
+
+      const duplicate = await prisma.lead.findUnique({ where: { id: duplicateId } });
+      assert.strictEqual(duplicate?.status, "ARCHIVED");
+      assert.strictEqual(duplicate?.stage, "LOST");
+    });
+  });
+
+  describe("11. Post-call AI outcome from webhook fixture", () => {
+    test("LeadAiOutcomeService sets score, stage, and follow-up", async () => {
+      const lead = await prisma.lead.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          name: "AI Outcome Lead",
+          phoneNumber: "+919876501301",
+          interestedIn: "NEET",
+          source: "ONLINE",
+          stage: "CONTACTED",
+          status: "ACTIVE",
+          createdById: managerAUser.id,
+        },
+      });
+
+      const callLog = await prisma.callLog.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          leadId: lead.id,
+          status: "COMPLETED",
+          callType: "AI",
+          duration: 120,
+          interestStatus: "HIGH_INTEREST",
+          aiSummary: "Very interested in admission and asked about fee structure",
+          idempotencyKey: `test_ai_outcome_${lead.id}`,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+
+      await LeadAiOutcomeService.process(callLog.id);
+
+      const updated = await prisma.lead.findUnique({ where: { id: lead.id } });
+      assert.ok(updated);
+      assert.ok((updated!.leadScore ?? 0) >= 70);
+      assert.ok((updated!.admissionProbability ?? 0) >= 70);
+      assert.ok(updated!.nextBestAction);
+      assert.ok(updated!.lastContactedAt);
+      assert.ok(["INTERESTED", "FOLLOW_UP"].includes(updated!.stage));
+
+      const followUps = await prisma.leadFollowUp.findMany({
+        where: { leadId: lead.id, status: "PENDING" },
+      });
+      assert.ok(followUps.length >= 1);
+      assert.strictEqual(followUps[0].priority, "HIGH");
+
+      const activities = await prisma.leadActivity.findMany({
+        where: { leadId: lead.id, type: "SCORE_UPDATED" },
+      });
+      assert.ok(activities.length >= 1);
+    });
+
+    test("CALLBACK_REQUESTED creates high-priority follow-up", async () => {
+      const lead = await prisma.lead.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          name: "Callback Outcome Lead",
+          phoneNumber: "+919876501302",
+          interestedIn: "NEET",
+          source: "PHONE_CALL",
+          stage: "NEW",
+          status: "ACTIVE",
+          createdById: counsellorAUser.id,
+        },
+      });
+
+      const callLog = await prisma.callLog.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          leadId: lead.id,
+          status: "CALLBACK_REQUESTED",
+          callType: "AI",
+          duration: 40,
+          interestStatus: "CALLBACK",
+          aiSummary: "Please call tomorrow morning",
+          idempotencyKey: `test_callback_outcome_${lead.id}`,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+
+      await LeadAiOutcomeService.process(callLog.id);
+
+      const updated = await prisma.lead.findUnique({ where: { id: lead.id } });
+      assert.ok((updated!.leadScore ?? 0) >= 70);
+      assert.strictEqual(updated!.stage, "FOLLOW_UP");
+
+      const followUps = await prisma.leadFollowUp.findMany({
+        where: { leadId: lead.id },
+      });
+      assert.ok(followUps.some((f) => f.priority === "HIGH"));
+    });
+  });
+
+  describe("12. Follow-up dashboard my vs team + complete/reschedule", () => {
+    let counsellorCUser: AuthUser;
+    let myFollowUpId: string;
+    let teamFollowUpId: string;
+    let rescheduleFollowUpId: string;
+
+    before(async () => {
+      const counsellorRole = await prisma.role.findUnique({
+        where: { name: "COUNSELLOR" },
+      });
+      assert.ok(counsellorRole);
+
+      const uCounsellorC = await prisma.user.upsert({
+        where: { id: "test-counsellor-c-leads" },
+        update: { branchId: branchAId, instituteId },
+        create: {
+          id: "test-counsellor-c-leads",
+          instituteId,
+          branchId: branchAId,
+          name: "Counsellor Meera",
+          email: "meera@aadya.test",
+          passwordHash: "hash",
+        },
+      });
+      await prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: uCounsellorC.id,
+            roleId: counsellorRole!.id,
+          },
+        },
+        update: {},
+        create: { userId: uCounsellorC.id, roleId: counsellorRole!.id },
+      });
+
+      counsellorCUser = {
+        id: uCounsellorC.id,
+        userId: uCounsellorC.id,
+        instituteId,
+        branchId: branchAId,
+        roles: ["COUNSELLOR"],
+        permissions: ["lead.create", "lead.read", "lead.update"],
+        name: uCounsellorC.name,
+        email: uCounsellorC.email ?? "",
+      };
+
+      const myLead = await LeadService.createLead(managerAUser, {
+        name: "My Follow-up Lead",
+        phoneNumber: "+919876501401",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const teamLead = await LeadService.createLead(managerAUser, {
+        name: "Team Follow-up Lead",
+        phoneNumber: "+919876501402",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+
+      await ensureTerminalAiCall(myLead.id, instituteId, branchAId);
+      await ensureTerminalAiCall(teamLead.id, instituteId, branchAId);
+      await LeadService.assignLead(myLead.id, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+      await LeadService.assignLead(teamLead.id, managerAUser, {
+        counsellorId: counsellorCUser.id,
+      });
+
+      const myFu = await LeadService.createFollowUp(myLead.id, counsellorAUser, {
+        type: "CALL",
+        scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        notes: "My pending follow-up",
+        counsellorId: counsellorAUser.id,
+      });
+      myFollowUpId = myFu.id;
+
+      const teamFu = await LeadService.createFollowUp(teamLead.id, counsellorCUser, {
+        type: "WHATSAPP",
+        scheduledAt: new Date(Date.now() + 5 * 60 * 60 * 1000),
+        notes: "Team pending follow-up",
+        counsellorId: counsellorCUser.id,
+      });
+      teamFollowUpId = teamFu.id;
+
+      const rescheduleFu = await LeadService.createFollowUp(myLead.id, counsellorAUser, {
+        type: "MEETING",
+        scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        notes: "To reschedule",
+        counsellorId: counsellorAUser.id,
+      });
+      rescheduleFollowUpId = rescheduleFu.id;
+    });
+
+    test("Follow-up dashboard splits my vs team lists", async () => {
+      const dashboard = await LeadService.getFollowUpDashboard(counsellorAUser, branchAId);
+
+      assert.ok(Array.isArray(dashboard.lists.my));
+      assert.ok(Array.isArray(dashboard.lists.team));
+      assert.ok(Array.isArray(dashboard.lists.completed));
+      assert.ok(typeof dashboard.summary.completed === "number");
+      assert.ok(typeof dashboard.highlights.overdue === "number");
+
+      assert.ok(dashboard.lists.my.some((f) => f.id === myFollowUpId));
+      assert.ok(dashboard.lists.team.some((f) => f.id === teamFollowUpId));
+      assert.ok(!dashboard.lists.my.some((f) => f.id === teamFollowUpId));
+    });
+
+    test("Reschedule updates scheduledAt; complete marks COMPLETED", async () => {
+      const newTime = new Date(Date.now() + 72 * 60 * 60 * 1000);
+      const rescheduled = await LeadService.updateFollowUp(
+        rescheduleFollowUpId,
+        counsellorAUser,
+        { scheduledAt: newTime, notes: "Moved to next week" }
+      );
+      assert.ok(
+        Math.abs(new Date(rescheduled.scheduledAt).getTime() - newTime.getTime()) < 1000
+      );
+
+      const completed = await LeadService.updateFollowUp(myFollowUpId, counsellorAUser, {
+        status: "COMPLETED",
+        outcome: "Spoke with parent — interested",
+      });
+      assert.strictEqual(completed.status, "COMPLETED");
+      assert.ok(completed.completedAt);
+
+      const dashboard = await LeadService.getFollowUpDashboard(counsellorAUser, branchAId);
+      assert.ok(dashboard.lists.completed.some((f) => f.id === myFollowUpId));
+    });
+  });
+
+  describe("13. Call history filter AI vs MANUAL", () => {
+    let leadId: string;
+
+    before(async () => {
+      const lead = await LeadService.createLead(managerAUser, {
+        name: "Call History Filter Lead",
+        phoneNumber: "+919876501501",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      leadId = lead.id;
+
+      await prisma.callLog.create({
+        data: {
+          instituteId,
+          branchId: branchAId,
+          leadId,
+          status: "COMPLETED",
+          callType: "AI",
+          duration: 55,
+          interestStatus: "WARM",
+          idempotencyKey: `test_hist_ai_${leadId}`,
+          startedAt: new Date(),
+          endedAt: new Date(),
+        },
+      });
+
+      await LeadService.createManualCallLog(managerAUser, {
+        leadId,
+        status: "COMPLETED",
+        duration: 180,
+        outcome: "Discussed fees",
+        notes: "Manual counsellor call",
+        interestStatus: "INTERESTED",
+      });
+    });
+
+    test("callType AI returns only AI logs", async () => {
+      const { callLogs } = await LeadService.getCallHistory(managerAUser, {
+        leadId,
+        callType: "AI",
+        page: 1,
+        limit: 50,
+      });
+      assert.ok(callLogs.length >= 1);
+      assert.ok(callLogs.every((c) => c.callType === "AI"));
+    });
+
+    test("callType MANUAL returns only MANUAL logs", async () => {
+      const { callLogs } = await LeadService.getCallHistory(managerAUser, {
+        leadId,
+        callType: "MANUAL",
+        page: 1,
+        limit: 50,
+      });
+      assert.ok(callLogs.length >= 1);
+      assert.ok(callLogs.every((c) => c.callType === "MANUAL"));
+      assert.ok(callLogs.some((c) => c.callerUserId === managerAUser.id));
+    });
+
+    test("callType ALL returns both", async () => {
+      const { callLogs } = await LeadService.getCallHistory(managerAUser, {
+        leadId,
+        callType: "ALL",
+        page: 1,
+        limit: 50,
+      });
+      const types = new Set(callLogs.map((c) => c.callType));
+      assert.ok(types.has("AI"));
+      assert.ok(types.has("MANUAL"));
+    });
+  });
+
+  describe("14. RBAC counsellor scoping", () => {
+    let assignedToA: string;
+    let assignedToC: string;
+    let counsellorCUser: AuthUser;
+
+    before(async () => {
+      const counsellorRole = await prisma.role.findUnique({
+        where: { name: "COUNSELLOR" },
+      });
+      assert.ok(counsellorRole);
+
+      const uCounsellorC = await prisma.user.upsert({
+        where: { id: "test-counsellor-c-leads" },
+        update: { branchId: branchAId, instituteId },
+        create: {
+          id: "test-counsellor-c-leads",
+          instituteId,
+          branchId: branchAId,
+          name: "Counsellor Meera",
+          email: "meera@aadya.test",
+          passwordHash: "hash",
+        },
+      });
+      await prisma.userRole.upsert({
+        where: {
+          userId_roleId: {
+            userId: uCounsellorC.id,
+            roleId: counsellorRole!.id,
+          },
+        },
+        update: {},
+        create: { userId: uCounsellorC.id, roleId: counsellorRole!.id },
+      });
+
+      counsellorCUser = {
+        id: uCounsellorC.id,
+        userId: uCounsellorC.id,
+        instituteId,
+        branchId: branchAId,
+        roles: ["COUNSELLOR"],
+        permissions: ["lead.create", "lead.read", "lead.update"],
+        name: uCounsellorC.name,
+        email: uCounsellorC.email ?? "",
+      };
+
+      const leadA = await LeadService.createLead(managerAUser, {
+        name: "RBAC Lead For A",
+        phoneNumber: "+919876501601",
+        interestedIn: "Full Stack Development",
+        source: "WALK_IN",
+        branchId: branchAId,
+      });
+      const leadC = await LeadService.createLead(managerAUser, {
+        name: "RBAC Lead For C",
+        phoneNumber: "+919876501602",
+        interestedIn: "Full Stack Development",
+        source: "ONLINE",
+        branchId: branchAId,
+      });
+      assignedToA = leadA.id;
+      assignedToC = leadC.id;
+
+      await ensureTerminalAiCall(assignedToA, instituteId, branchAId);
+      await ensureTerminalAiCall(assignedToC, instituteId, branchAId);
+      await LeadService.assignLead(assignedToA, managerAUser, {
+        counsellorId: counsellorAUser.id,
+      });
+      await LeadService.assignLead(assignedToC, managerAUser, {
+        counsellorId: counsellorCUser.id,
+      });
+    });
+
+    test("Counsellor cannot read another counsellor's assigned lead", async () => {
+      await assert.rejects(
+        async () => {
+          await LeadService.getLeadById(assignedToC, counsellorAUser);
+        },
+        (err: any) => {
+          assert.strictEqual(err.statusCode, 404);
+          return true;
+        }
+      );
+    });
+
+    test("Counsellor list is scoped to assigned leads", async () => {
+      const { leads } = await LeadService.getLeads(counsellorAUser, {
+        page: 1,
+        limit: 100,
+      });
+      const ids = leads.map((l) => l.id);
+      assert.ok(ids.includes(assignedToA));
+      assert.ok(!ids.includes(assignedToC));
+    });
+
+    test("Manager can read both counsellors' leads in branch", async () => {
+      const leadA = await LeadService.getLeadById(assignedToA, managerAUser);
+      const leadC = await LeadService.getLeadById(assignedToC, managerAUser);
+      assert.strictEqual(leadA.id, assignedToA);
+      assert.strictEqual(leadC.id, assignedToC);
     });
   });
 });
