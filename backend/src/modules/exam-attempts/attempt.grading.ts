@@ -223,6 +223,38 @@ export const gradeExamAttempt = async (
     });
   });
 
+  if (nextStatus === "COMPLETED" && exam.showResults !== false) {
+    try {
+      const { triggerNotification } = await import("../whatsapp/whatsapp.service");
+      const { NotificationEvent, buildIdempotencyKey } = await import(
+        "../whatsapp/whatsapp.constants"
+      );
+      const full = await prisma.examAttempt.findFirst({
+        where: { id: attemptId },
+        include: {
+          student: { include: { user: true } },
+        },
+      });
+      if (full?.studentId && full.student?.user) {
+        await triggerNotification({
+          instituteId,
+          studentId: full.studentId,
+          event: NotificationEvent.RESULT_PUBLISHED,
+          idempotencyKey: buildIdempotencyKey.RESULT_PUBLISHED(full.studentId, attemptId),
+          templateParams: {
+            student_name: full.student.user.name ?? "Student",
+            exam_name: exam.name ?? "Exam",
+            score: String(finalScore),
+            max_score: String(totalMaxMarks),
+          },
+          metadata: { attemptId, examId: exam.id },
+        });
+      }
+    } catch (err) {
+      logger.error({ err, attemptId }, "[gradeExamAttempt] RESULT_PUBLISHED notify failed");
+    }
+  }
+
   return repository.findAttemptById(attemptId, instituteId);
 };
 

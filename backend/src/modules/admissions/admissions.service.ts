@@ -32,7 +32,7 @@ const triggerAdmissionNotification = async (admissionId: string) => {
     if (!admission) return;
 
     const studentId = admission.studentId ?? undefined;
-    const idempotencyKey = buildIdempotencyKey.ADMISSION_CREATED(
+    const idempotencyKey = buildIdempotencyKey.STUDENT_WELCOME(
       studentId ?? admission.id,
       admission.id
     );
@@ -40,7 +40,7 @@ const triggerAdmissionNotification = async (admissionId: string) => {
     await triggerNotification({
       instituteId: admission.instituteId,
       studentId,
-      event: NotificationEvent.ADMISSION_CREATED,
+      event: NotificationEvent.STUDENT_WELCOME,
       idempotencyKey,
       templateParams: {
         student_name: admission.studentName ?? "Student",

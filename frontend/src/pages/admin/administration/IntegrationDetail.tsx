@@ -516,7 +516,7 @@ export const IntegrationDetail: React.FC = () => {
                     />
                   </div>
                   <SecretField
-                    label="AiSensy API Key"
+                    label="WhatsApp API Key"
                     configured={hasCredential && !replaceSecrets.apiKey}
                     value={secrets.apiKey ?? ""}
                     onChange={setSecret("apiKey")}

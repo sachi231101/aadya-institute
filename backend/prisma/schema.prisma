@@ -224,6 +224,9 @@ model Institute {
   callLogs             CallLog[]
   aiCallingConfig      InstituteAiCallingConfig?
   aiCallingUsageDaily  AiCallingUsageDaily[]
+  whatsappAutomationConfig WhatsAppAutomationConfig?
+  notificationTemplates    NotificationTemplate[]
+  notificationRules        NotificationRule[]
 }
 
 model Branch {
@@ -1158,10 +1161,24 @@ model ActivityLog {
 
 // ─── Notification System ────────────────────────────────────────────────────
 
+model WhatsAppAutomationConfig {
+  id          String   @id @default(cuid())
+  instituteId String   @unique
+  enabled     Boolean  @default(false)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+}
+
 model NotificationTemplate {
   id                   String   @id @default(cuid())
-  name                 String   @unique
+  instituteId          String
+  name                 String
   event                String
+  category             String?
+  body                 String?
   providerTemplateName String
   language             String   @default("en")
   variables            Json     // string[] of required variable names
@@ -1169,23 +1186,35 @@ model NotificationTemplate {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
+  institute     Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   notifications Notification[]
+  rules         NotificationRule[]
 
+  @@unique([instituteId, name])
+  @@index([instituteId])
+  @@index([instituteId, event])
   @@index([event])
   @@index([status])
 }
 
 model NotificationRule {
   id            String   @id @default(cuid())
+  instituteId   String
   event         String
   channel       String   @default("WHATSAPP")
-  enabled       Boolean  @default(true)
+  enabled       Boolean  @default(false)
+  templateId    String?
   configuration Json?    // e.g. { "offsetMinutes": -120 } for CLASS_REMINDER
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([event, channel])
+  institute Institute             @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  template  NotificationTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+
+  @@unique([instituteId, event, channel])
+  @@index([instituteId])
   @@index([event])
+  @@index([templateId])
 }
 
 model Notification {
@@ -1203,6 +1232,8 @@ model Notification {
   channel           String            @default("WHATSAPP")
   templateId        String?
   status            String            @default("PENDING")
+  skipReason        String?
+  isTest            Boolean           @default(false)
   scheduledAt       DateTime?
   sentAt            DateTime?
   deliveredAt       DateTime?
@@ -1230,14 +1261,18 @@ model Notification {
   @@index([isRead])
   @@index([scheduledAt])
   @@index([providerMessageId])
+  @@index([instituteId, channel, createdAt])
+  @@index([isTest])
 }
 
 model NotificationIdempotency {
-  id        String   @id @default(cuid())
-  key       String   @unique
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  instituteId String?
+  key         String   @unique
+  createdAt   DateTime @default(now())
 
   @@index([key])
+  @@index([instituteId])
 }
 model Payment {
   id                   String        @id @default(cuid())

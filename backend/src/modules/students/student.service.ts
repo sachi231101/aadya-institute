@@ -295,7 +295,7 @@ export const getStudentById = async (id: string, currentUser: AuthUser) => {
 
 import { prisma } from "../../config/database";
 import { triggerNotification } from "../whatsapp/whatsapp.service";
-import { NotificationEvent } from "../whatsapp/whatsapp.constants";
+import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 
 /**
  * Create a new student (User + Student + STUDENT role + optional Course/Batch/Fee).
@@ -391,30 +391,8 @@ export const createStudent = async (instituteId: string, dto: CreateStudentDto) 
     downPayment: dto.downPayment,
   });
 
-  // Asynchronous WhatsApp notification
-  setImmediate(async () => {
-    try {
-      const courseName = student.admissions?.[0]?.course?.name || "Program";
-      await triggerNotification({
-        instituteId,
-        studentId: student.id,
-        event: NotificationEvent.ADMISSION_CREATED,
-        idempotencyKey: `STUDENT_WELCOME_${student.id}`,
-        templateParams: {
-          student_name: student.user?.name || student.studentCode,
-          course_name: courseName,
-          admission_no: student.studentCode,
-        },
-        metadata: {
-          studentId: student.id,
-          phone: student.user?.phone,
-        },
-      });
-    } catch {
-      // Async failure is logged internally by triggerNotification
-    }
-  });
-
+  // Welcome WhatsApp is triggered only from confirmed admission flows (not raw createStudent),
+  // so bulk import / direct creates do not fan out messages.
   return student;
 };
 
@@ -602,44 +580,39 @@ export const sendStudentCredentialsWhatsAppService = async (
     throw new AppError("Student has no registered mobile number on record from admission.", 400);
   }
 
-  const cleanPhone = rawPhone.replace(/\D/g, "");
-  const formattedPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
   const initialPassword = "Aadya@123";
   const portalHost = process.env.CLIENT_URL || "http://localhost:5173";
   const loginUrl = `${portalHost.replace(/\/+$/, "")}/login`;
+  const stamp = new Date().toISOString().slice(0, 13);
 
-  const messageText = `≡ƒÄô *Welcome to Aadya Institute!*
-
-Dear *${studentName}*,
-
-Your admission has been confirmed. Below are your Student Portal login credentials:
-
-≡ƒåö *Student ID / Username:* \`${studentCode}\`
-≡ƒöæ *Initial Password:* \`${initialPassword}\`
-≡ƒîÉ *Portal URL:* ${loginUrl}
-
-≡ƒôî *Important Instructions:*
-1. Sign in to your Student Dashboard using your Student ID and Initial Password.
-2. Go to *Profile* ΓåÆ *Change Password* to set your personal secure password.
-3. Access your class timetables, attendance history, assignments, and recordings.
-
-For any assistance or questions, please contact your center counsellor or manager.
-
-Best regards,
-*Aadya Institute Management*`;
-
-  const whatsappWebUrl = `https://wa.me/${formattedPhone}?text=${encodeURIComponent(messageText)}`;
+  const notification = await triggerNotification({
+    instituteId: currentUser.instituteId,
+    studentId: student.id,
+    event: NotificationEvent.STUDENT_CREDENTIALS,
+    idempotencyKey: buildIdempotencyKey.STUDENT_CREDENTIALS(student.id, stamp),
+    templateParams: {
+      student_name: studentName,
+      student_code: studentCode,
+      password: initialPassword,
+      portal_url: loginUrl,
+    },
+    metadata: {
+      studentId: student.id,
+      manualSend: true,
+    },
+  });
 
   return {
     success: true,
+    queued: Boolean(notification && notification.status !== "SKIPPED"),
+    notificationId: notification?.id ?? null,
+    status: notification?.status ?? "SKIPPED",
+    skipReason: notification?.skipReason ?? null,
     recipient: {
       name: studentName,
       phone: rawPhone,
-      formattedPhone: `+${formattedPhone}`,
       studentCode,
     },
-    message: messageText,
-    whatsappWebUrl,
   };
 };
 

@@ -209,7 +209,6 @@ const data = {
         { title: "Notifications", url: A.COMMUNICATION.NOTIFICATIONS },
         { title: "WhatsApp", url: A.COMMUNICATION.WHATSAPP },
         { title: "Email", url: A.COMMUNICATION.EMAIL },
-        { title: L["communication.automation"] ?? "Message Automation Rules", url: A.COMMUNICATION.AUTOMATION },
       ],
     },
     {

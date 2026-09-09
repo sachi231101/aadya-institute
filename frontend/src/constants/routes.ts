@@ -109,8 +109,11 @@ export const ROUTES = {
     COMMUNICATION: {
       NOTIFICATIONS: "/admin/communication/notifications",
       WHATSAPP: "/admin/communication/whatsapp",
+      WHATSAPP_AUTOMATIONS: "/admin/communication/whatsapp/automations",
+      WHATSAPP_TEMPLATES: "/admin/communication/whatsapp/templates",
+      WHATSAPP_HISTORY: "/admin/communication/whatsapp/history",
       EMAIL: "/admin/communication/email",
-      AUTOMATION: "/admin/communication/automation",
+      AUTOMATION: "/admin/communication/whatsapp/automations",
     },
     PLACEMENT: {
       ELIGIBLE: "/admin/placement/eligible",

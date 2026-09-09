@@ -26,12 +26,12 @@ const triggerBatchAssignedNotification = async (studentId: string, batchId: stri
         ? batch.batchCourses.map((bc) => bc.course?.name).filter(Boolean).join(", ")
         : batch.course?.name ?? "Course";
 
-    const idempotencyKey = buildIdempotencyKey.BATCH_ASSIGNED(studentId, batchId);
+    const idempotencyKey = buildIdempotencyKey.STUDENT_BATCH_ASSIGNED(studentId, batchId);
 
     await triggerNotification({
       instituteId: student.instituteId,
       studentId: student.id,
-      event: NotificationEvent.BATCH_ASSIGNED,
+      event: NotificationEvent.STUDENT_BATCH_ASSIGNED,
       idempotencyKey,
       templateParams: {
         student_name: student.user?.name ?? "Student",

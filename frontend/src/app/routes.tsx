@@ -84,6 +84,9 @@ import { AiCallingQualification } from "../pages/counselor/AiCallingQualificatio
 import { Recordings } from "../pages/admin/schedule/Recordings";
 import { AdminAssignments } from "../pages/admin/schedule/Assignments";
 import { WhatsAppHub } from "../pages/admin/communication/WhatsAppHub";
+import { WhatsAppAutomations } from "../pages/admin/communication/WhatsAppAutomations";
+import { WhatsAppTemplates } from "../pages/admin/communication/WhatsAppTemplates";
+import { WhatsAppHistory } from "../pages/admin/communication/WhatsAppHistory";
 import { PlacementExport } from "../pages/admin/reports/PlacementExport";
 import { TargetManagement } from "../pages/admin/targets/TargetManagement";
 import { TargetPerformance } from "../pages/admin/targets/TargetPerformance";
@@ -105,7 +108,6 @@ import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
 import { Receipts } from "../pages/admin/fees/Receipts";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
-import { AutomationRules } from "../pages/admin/communication/AutomationRules";
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
 import { Jobs } from "../pages/admin/placement/Jobs";
@@ -292,7 +294,13 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="communication">
           <Route path="email" element={<EmailManagement />} />
-          <Route path="automation" element={<AutomationRules />} />
+          <Route path="whatsapp" element={<WhatsAppHub />}>
+            <Route index element={<Navigate to="automations" replace />} />
+            <Route path="automations" element={<WhatsAppAutomations />} />
+            <Route path="templates" element={<WhatsAppTemplates />} />
+            <Route path="history" element={<WhatsAppHistory />} />
+          </Route>
+          <Route path="automation" element={<Navigate to="/center/communication/whatsapp/automations" replace />} />
         </Route>
 
         <Route path="placement">
@@ -313,7 +321,7 @@ export const AppRoutes: React.FC = () => {
         <Route path="system-settings" element={<SettingsHub />} />
         <Route path="settings" element={<Settings />} />
         <Route path="notifications" element={<NotificationsPage />} />
-        <Route path="notifications/whatsapp" element={<WhatsAppHub />} />
+      <Route path="notifications/whatsapp" element={<Navigate to="/center/communication/whatsapp/history" replace />} />
 
         {/* Center Manager: Leads (branch-filtered) */}
         <Route path="leads">

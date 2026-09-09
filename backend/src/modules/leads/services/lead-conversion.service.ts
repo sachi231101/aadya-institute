@@ -106,7 +106,7 @@ export const LeadConversionService = {
     };
 
     try {
-      const idempotencyKey = buildIdempotencyKey.ADMISSION_CREATED(
+      const idempotencyKey = buildIdempotencyKey.STUDENT_WELCOME(
         conversionResult.student?.id ?? admission.id,
         admission.id
       );
@@ -114,7 +114,7 @@ export const LeadConversionService = {
       await triggerNotification({
         instituteId: lead.instituteId,
         studentId: conversionResult.student?.id,
-        event: NotificationEvent.ADMISSION_CREATED,
+        event: NotificationEvent.STUDENT_WELCOME,
         idempotencyKey,
         templateParams: {
           student_name: lead.name,
