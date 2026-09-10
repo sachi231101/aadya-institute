@@ -12,6 +12,8 @@ interface MasterSeed {
   sortOrder?: number;
 }
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 const TIER1_MASTERS: MasterSeed[] = [
   // Classrooms
   { entityType: "classroom", name: "Lab 101 (Frontend Studio)", code: "LAB-101", data: { capacity: 35 }, sortOrder: 1 },
@@ -115,6 +117,33 @@ const TIER1_MASTERS: MasterSeed[] = [
   { entityType: "assignmenttype", name: "Project", code: "PROJECT", sortOrder: 2 },
   { entityType: "assignmenttype", name: "Lab Work", code: "LAB", sortOrder: 3 },
   { entityType: "assignmenttype", name: "Assessment", code: "ASSESSMENT", sortOrder: 4 },
+
+  // Fee types
+  { entityType: "feetypes", name: "Tuition", code: "TUITION", sortOrder: 1 },
+  { entityType: "feetypes", name: "One-time", code: "ONE_TIME", sortOrder: 2 },
+  { entityType: "feetypes", name: "Recurring", code: "RECURRING", sortOrder: 3 },
+  { entityType: "feetypes", name: "Miscellaneous", code: "MISCELLANEOUS", sortOrder: 4 },
+
+  // Admission terms
+  {
+    entityType: "termsconditions",
+    name: "Academy Terms & Conditions",
+    code: "ACADEMY_TERMS",
+    data: { body: "I have read and understood all the academy terms and conditions." },
+    sortOrder: 1,
+  },
+  {
+    entityType: "termsconditions",
+    name: "Information Accuracy Declaration",
+    code: "INFORMATION_ACCURACY",
+    data: { body: "I confirm that all information provided is correct and verified." },
+    sortOrder: 2,
+  },
+
+  // Institute-wide holidays for the current calendar year
+  { entityType: "holiday", name: "Republic Day", code: `REPUBLIC_DAY_${CURRENT_YEAR}`, data: { date: `${CURRENT_YEAR}-01-26` }, sortOrder: 1 },
+  { entityType: "holiday", name: "Independence Day", code: `INDEPENDENCE_DAY_${CURRENT_YEAR}`, data: { date: `${CURRENT_YEAR}-08-15` }, sortOrder: 2 },
+  { entityType: "holiday", name: "Gandhi Jayanti", code: `GANDHI_JAYANTI_${CURRENT_YEAR}`, data: { date: `${CURRENT_YEAR}-10-02` }, sortOrder: 3 },
 
   // ─── Numbering Series (auto-generation patterns) ──────────────────────────
   {
@@ -235,6 +264,32 @@ export async function seedMastersForInstitute(
       });
       created++;
     }
+  }
+
+  const feeTypes = await prisma.masterRecord.findMany({
+    where: { instituteId, entityType: "feetypes", status: "ACTIVE" },
+    select: { id: true, name: true },
+  });
+  const feeTypeByName = new Map(feeTypes.map((item) => [item.name, item]));
+  const feeHeadTypes: Record<string, string> = {
+    "Tuition Fee": "Tuition",
+    "Exam Fee": "One-time",
+    "Registration Fee": "One-time",
+    "Lab / Kit Fee": "Miscellaneous",
+    "Certification Fee": "One-time",
+  };
+  for (const [feeHeadName, feeTypeName] of Object.entries(feeHeadTypes)) {
+    const feeType = feeTypeByName.get(feeTypeName);
+    if (!feeType) continue;
+    await prisma.masterRecord.updateMany({
+      where: { instituteId, entityType: "feeheads", name: feeHeadName },
+      data: {
+        data: {
+          type: feeType.name,
+          feeTypeMasterId: feeType.id,
+        },
+      },
+    });
   }
   return created;
 }

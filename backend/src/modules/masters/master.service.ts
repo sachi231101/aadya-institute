@@ -21,6 +21,7 @@ import {
 import type { Status } from "@prisma/client";
 import { isAllowedMasterEntityType } from "./master.entity-types";
 import type { NumberingSeriesData } from "./master.types";
+import { assertActiveMaster } from "./master.validator";
 
 const NUMBERING_SERIES_TARGETS = [
   "ADMISSION",
@@ -38,6 +39,48 @@ const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
   EMPLOYEE: "FAC-{YEAR}-{SEQ:4}",
+};
+
+const normalizeEntityData = async (
+  instituteId: string,
+  branchId: string | null | undefined,
+  entityType: string,
+  data: Record<string, unknown> | undefined
+): Promise<Record<string, unknown> | undefined> => {
+  const normalizedType = entityType.toLowerCase();
+  const normalizedData = data ? { ...data } : undefined;
+
+  if (normalizedType === "holiday") {
+    const date = typeof normalizedData?.date === "string" ? normalizedData.date.trim() : "";
+    const parsed = /^\d{4}-\d{2}-\d{2}$/.test(date)
+      ? new Date(`${date}T00:00:00.000Z`)
+      : null;
+    if (!parsed || Number.isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== date) {
+      throw new AppError("Holiday date is required in YYYY-MM-DD format", 400);
+    }
+    normalizedData!.date = date;
+  }
+
+  if (normalizedType === "termsconditions") {
+    const body = typeof normalizedData?.body === "string" ? normalizedData.body.trim() : "";
+    if (!body) {
+      throw new AppError("Terms & Conditions content is required", 400);
+    }
+    normalizedData!.body = body;
+  }
+
+  if (normalizedType === "feeheads" && normalizedData?.feeTypeMasterId) {
+    const feeType = await assertActiveMaster({
+      instituteId,
+      branchId,
+      entityType: "feetypes",
+      masterRecordId: String(normalizedData.feeTypeMasterId),
+    });
+    normalizedData.feeTypeMasterId = feeType.id;
+    normalizedData.type = feeType.name;
+  }
+
+  return normalizedData;
 };
 
 const normalizeNumberingSeriesData = (
@@ -148,7 +191,11 @@ export const createMasterService = async (
     ? (currentUser.branchId || input.branchId || undefined)
     : input.branchId;
 
-  let payload: CreateMasterRecordInput = { ...input, branchId };
+  let payload: CreateMasterRecordInput = {
+    ...input,
+    branchId,
+    data: await normalizeEntityData(instituteId, branchId, input.entityType, input.data),
+  };
 
   // Code is only used for numbering series (document target). Ignore for all other masters.
   if (input.entityType !== "numberingseries") {
@@ -271,6 +318,15 @@ export const updateMasterService = async (
   }
 
   let updatePayload: UpdateMasterRecordInput = { ...input };
+
+  if (input.data !== undefined) {
+    updatePayload.data = await normalizeEntityData(
+      instituteId,
+      input.branchId === undefined ? existing.branchId : input.branchId,
+      existing.entityType,
+      input.data
+    );
+  }
 
   // Code is only used for numbering series; do not overwrite legacy codes on other masters from forms.
   if (existing.entityType !== "numberingseries") {

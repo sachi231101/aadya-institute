@@ -1,4 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect, useRef } from "react";
+import { Link } from "react-router-dom";
 import {
   Users,
   Calendar,
@@ -58,6 +59,7 @@ import {
   addDaysToDateKey,
   formatDateKeyLabel,
   getWeekRangeFromOffset,
+  toHolidayDateKey,
   localTodayKey,
 } from "@/constants/timetable-slots";
 
@@ -111,6 +113,7 @@ export interface WorkingDayConfig {
   key: DayKey;
   label: string;
   fullDay: string;
+  dateKey: string;
   dateStr: string;
   isWorking: boolean;
   statusType: "WORKING" | "HOLIDAY" | "CUSTOM";
@@ -128,7 +131,16 @@ const dayKeyForDateKey = (mondayKey: string, dateKey: string): DayKey | null => 
   return null;
 };
 
-const buildDaysConfig = (mondayKey: string, overrides?: WorkingDayConfig[]): WorkingDayConfig[] => {
+interface HolidayOption {
+  label: string;
+  data?: Record<string, unknown> | null;
+}
+
+const buildDaysConfig = (
+  mondayKey: string,
+  overrides?: WorkingDayConfig[],
+  holidays: HolidayOption[] = []
+): WorkingDayConfig[] => {
   const labels: Record<DayKey, { label: string; fullDay: string }> = {
     MON: { label: "MONDAY", fullDay: "Monday" },
     TUE: { label: "TUESDAY", fullDay: "Tuesday" },
@@ -143,15 +155,17 @@ const buildDaysConfig = (mondayKey: string, overrides?: WorkingDayConfig[]): Wor
     const dateKey = addDaysToDateKey(mondayKey, idx);
     const dateStr = formatDateKeyLabel(dateKey);
     const override = overrides?.find((d) => d.key === key);
+    const holiday = holidays.find((item) => toHolidayDateKey(item.data?.date) === dateKey);
     const isSunday = key === "SUN";
     return {
       key,
       label: labels[key].label,
       fullDay: labels[key].fullDay,
+      dateKey,
       dateStr,
-      isWorking: override?.isWorking ?? !isSunday,
-      statusType: override?.statusType ?? (isSunday ? "HOLIDAY" : "WORKING"),
-      note: override?.note ?? (isSunday ? "Holiday" : undefined),
+      isWorking: holiday ? false : override?.isWorking ?? !isSunday,
+      statusType: holiday ? "HOLIDAY" : override?.statusType ?? (isSunday ? "HOLIDAY" : "WORKING"),
+      note: holiday?.label ?? override?.note ?? (isSunday ? "Weekly Off" : undefined),
     };
   });
 };
@@ -201,6 +215,8 @@ import { useFacultyList } from "@/hooks/useFaculty";
 import { useBatches } from "@/hooks/useBatches";
 import { useBranches } from "@/hooks/useBranches";
 import { useCourses } from "@/hooks/useCourses";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { ROUTES } from "@/constants/routes";
 import {
   batchIncludesFaculty,
   formatBatchSubjectNames,
@@ -256,6 +272,10 @@ export const Timetable: React.FC = () => {
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const { options: holidayOptions } = useMasterDropdown(
+    "holiday",
+    selectedBranch !== "ALL" ? selectedBranch : undefined
+  );
 
   const branchLabel = useMemo(() => {
     if (isAdmin && selectedBranch === "ALL") return "All branches";
@@ -283,13 +303,21 @@ export const Timetable: React.FC = () => {
   const { data: sessionsResponse, isLoading: sessionsLoading } = useClassSessions(sessionQueryParams);
   const classSessions = sessionsResponse?.data ?? [];
 
-  // Working Days Configuration (UI-only holiday toggles)
+  // Working Days Configuration (weekday overrides + master holidays)
   const [workingDayOverrides, setWorkingDayOverrides] = useState<WorkingDayConfig[]>([]);
   const [isWorkingDaysModalOpen, setIsWorkingDaysModalOpen] = useState(false);
 
   const daysConfig = useMemo(
-    () => buildDaysConfig(weekRange.mondayKey, workingDayOverrides),
-    [weekRange.mondayKey, workingDayOverrides]
+    () => buildDaysConfig(weekRange.mondayKey, workingDayOverrides, holidayOptions),
+    [weekRange.mondayKey, workingDayOverrides, holidayOptions]
+  );
+  const visibleWeekHolidays = useMemo(
+    () =>
+      holidayOptions.filter((holiday) => {
+        const date = toHolidayDateKey(holiday.data?.date);
+        return Boolean(date) && date >= weekRange.from && date <= weekRange.to;
+      }),
+    [holidayOptions, weekRange.from, weekRange.to]
   );
 
   const mapSessionToCell = (raw: BackendClassSession, period: number): TimetableCellItem => {
@@ -526,6 +554,8 @@ export const Timetable: React.FC = () => {
   const currentDayConfig = useMemo(() => {
     return daysConfig.find((d) => d.key === selectedDayKey) || daysConfig[0];
   }, [daysConfig, selectedDayKey]);
+  const isSelectedDayOff = !currentDayConfig.isWorking;
+  const selectedDayHolidayNote = currentDayConfig.note || "Holiday / Off";
 
   // Filtered Faculty Roster according to role & UI filters
   const filteredFaculty = useMemo(() => {
@@ -640,6 +670,15 @@ export const Timetable: React.FC = () => {
     period: number,
     existingSlot?: TimetableCellItem
   ) => {
+    const dayConfig = daysConfig.find((d) => d.key === dayKey);
+    if (dayConfig && !dayConfig.isWorking) {
+      setNotificationMsg(
+        `${dayConfig.note || "Holiday"} — scheduling is closed for this day. Manage holidays in Master Setup.`
+      );
+      setTimeout(() => setNotificationMsg(null), 4000);
+      return;
+    }
+
     const fac = facultyRoster.find((f) => f.id === facultyId);
     if (!fac) return;
 
@@ -909,11 +948,14 @@ export const Timetable: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
+              disabled={isSelectedDayOff}
               onClick={() => {
+                if (isSelectedDayOff) return;
                 const defaultFac = filteredFaculty[0] || facultyRoster[0];
                 if (defaultFac) handleOpenAddOrEditModal(defaultFac.id, selectedDayKey, 1);
               }}
               className="text-xs h-9 gap-1.5"
+              title={isSelectedDayOff ? selectedDayHolidayNote : undefined}
             >
               <Plus className="h-3.5 w-3.5" /> Add class
             </Button>
@@ -1046,12 +1088,21 @@ export const Timetable: React.FC = () => {
                 }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                   isSelected
-                    ? "bg-[#2563EB] text-white"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    ? d.isWorking
+                      ? "bg-[#2563EB] text-white"
+                      : "bg-rose-600 text-white"
+                    : d.isWorking
+                      ? "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                      : "bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100"
                 }`}
+                title={d.isWorking ? undefined : d.note || "Holiday / Off"}
               >
                 {d.fullDay.slice(0, 3)} {d.dateStr}
-                {!d.isWorking ? " · Off" : classCount > 0 ? ` · ${classCount}` : ""}
+                {!d.isWorking
+                  ? ` · ${d.statusType === "HOLIDAY" ? "Holiday" : "Off"}`
+                  : classCount > 0
+                    ? ` · ${classCount}`
+                    : ""}
               </button>
             );
           })}
@@ -1068,16 +1119,39 @@ export const Timetable: React.FC = () => {
 
       {/* Timetable grid */}
       <Card className="border border-border shadow-xs bg-card rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground">
-          <span>
-            <strong className="text-foreground">{currentDayConfig.fullDay}</strong>
-            {" · "}{totalFacultyCount} faculty
+        <div
+          className={`flex items-center justify-between px-4 py-2 border-b text-xs ${
+            isSelectedDayOff
+              ? "border-rose-200 bg-rose-50 text-rose-800"
+              : "border-border bg-muted/30 text-muted-foreground"
+          }`}
+        >
+          <span className="flex items-center gap-2 min-w-0">
+            {isSelectedDayOff && <Calendar className="h-3.5 w-3.5 shrink-0" />}
+            <span>
+              <strong className={isSelectedDayOff ? "text-rose-900" : "text-foreground"}>
+                {currentDayConfig.fullDay}
+              </strong>
+              {isSelectedDayOff ? (
+                <>
+                  {" · "}
+                  <span className="font-semibold">{selectedDayHolidayNote}</span>
+                </>
+              ) : (
+                <>
+                  {" · "}
+                  {totalFacultyCount} faculty
+                </>
+              )}
+            </span>
           </span>
-          <span className="hidden sm:inline">
-            <span className="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1" /> Class
-            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mx-1 ml-3" /> Free
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mx-1 ml-3" /> Break
-          </span>
+          {!isSelectedDayOff && (
+            <span className="hidden sm:inline">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-600 mr-1" /> Class
+              <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mx-1 ml-3" /> Free
+              <span className="inline-block w-2 h-2 rounded-full bg-amber-500 mx-1 ml-3" /> Break
+            </span>
+          )}
         </div>
 
         <div className="overflow-x-auto w-full">
@@ -1107,7 +1181,26 @@ export const Timetable: React.FC = () => {
             </thead>
 
             <tbody className="divide-y divide-border bg-card">
-              {sessionsLoading ? (
+              {isSelectedDayOff ? (
+                <tr>
+                  <td colSpan={10} className="p-10 text-center">
+                    <div className="inline-flex flex-col items-center gap-2 max-w-md mx-auto">
+                      <div className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-rose-100/80 border border-rose-200 text-rose-700 text-xs font-bold tracking-wide uppercase">
+                        <Calendar className="h-3.5 w-3.5" />
+                        <span>{selectedDayHolidayNote}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {currentDayConfig.statusType === "HOLIDAY"
+                          ? "This date is marked as a holiday in Master Setup. Class scheduling is closed for the day."
+                          : "This day is marked non-working. Open Working days to adjust weekday settings, or manage dated holidays in Master Setup."}
+                      </p>
+                      <Button asChild variant="outline" size="sm" className="mt-1 text-xs h-8">
+                        <Link to={ROUTES.ADMIN.ADMINISTRATION.MASTERS}>Open Master Setup</Link>
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ) : sessionsLoading ? (
                 <tr>
                   <td colSpan={10} className="p-12 text-center text-muted-foreground text-sm font-medium">
                     Loading timetable sessions...
@@ -1622,7 +1715,11 @@ export const Timetable: React.FC = () => {
           </DialogHeader>
 
           <div className="space-y-3.5 my-3 text-xs max-h-[60vh] overflow-y-auto pr-1">
-            {daysConfig.map((d) => (
+            {daysConfig.map((d) => {
+              const isMasterHoliday = visibleWeekHolidays.some(
+                (holiday) => toHolidayDateKey(holiday.data?.date) === d.dateKey
+              );
+              return (
               <div key={d.key} className="p-3.5 rounded-2xl border border-slate-200/80 bg-slate-50/60 flex items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
@@ -1635,13 +1732,17 @@ export const Timetable: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {d.key === "SUN" ? (
+                  {isMasterHoliday ? (
+                    <span className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1 text-[10px] font-bold text-rose-700">
+                      Master holiday
+                    </span>
+                  ) : d.key === "SUN" ? (
                     <select
                       value={d.statusType}
                       onChange={(e) => {
                         const val = e.target.value as "WORKING" | "HOLIDAY" | "CUSTOM";
                         setWorkingDayOverrides((prev) => {
-                          const base = buildDaysConfig(weekRange.mondayKey, prev);
+                          const base = buildDaysConfig(weekRange.mondayKey, prev, holidayOptions);
                           return base.map((item) =>
                             item.key === "SUN"
                               ? {
@@ -1665,13 +1766,14 @@ export const Timetable: React.FC = () => {
                       type="button"
                       onClick={() => {
                         setWorkingDayOverrides((prev) => {
-                          const base = buildDaysConfig(weekRange.mondayKey, prev);
+                          const base = buildDaysConfig(weekRange.mondayKey, prev, holidayOptions);
                           return base.map((item) =>
                             item.key === d.key
                               ? {
                                   ...item,
                                   isWorking: !item.isWorking,
-                                  statusType: !item.isWorking ? "WORKING" : "HOLIDAY",
+                                  statusType: !item.isWorking ? "WORKING" : "CUSTOM",
+                                  note: !item.isWorking ? undefined : "Non-working day",
                                 }
                               : item
                           );
@@ -1683,12 +1785,43 @@ export const Timetable: React.FC = () => {
                           : "bg-slate-200 text-slate-600"
                       }`}
                     >
-                      {d.isWorking ? "Working" : "Holiday"}
+                      {d.isWorking ? "Working" : "Closed"}
                     </button>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
+            <div className="rounded-2xl border border-blue-200 bg-blue-50/60 p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-bold text-slate-900">Dated holidays this week</p>
+                  <p className="mt-0.5 text-[10px] text-slate-500">
+                    Holidays are read-only here and managed in Master Setup.
+                  </p>
+                </div>
+                <Link
+                  to="/admin/masters"
+                  className="text-[11px] font-bold text-blue-700 hover:text-blue-800"
+                >
+                  Open Master Setup
+                </Link>
+              </div>
+              {visibleWeekHolidays.length > 0 ? (
+                <ul className="mt-2 space-y-1">
+                  {visibleWeekHolidays.map((holiday) => (
+                    <li key={holiday.value} className="text-xs text-slate-700">
+                      <span className="font-semibold">{holiday.label}</span>
+                      {" · "}
+                      {String(holiday.data?.date)}
+                      {holiday.data?.note ? ` · ${String(holiday.data.note)}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-xs text-slate-500">No holiday masters fall in this week.</p>
+              )}
+            </div>
           </div>
 
           <DialogFooter>

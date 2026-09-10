@@ -22,12 +22,15 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeDef[] = [
   { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG" },
   { id: "academicyear", name: "Academic Year", category: "ACADEMIC_ORG" },
   { id: "assignmenttype", name: "Assignment Type", category: "ACADEMIC_ORG" },
+  { id: "holiday", name: "Holiday", category: "ACADEMIC_ORG" },
   // Admissions & Leads
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS" },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS" },
   { id: "admissionstatus", name: "Admission Status", category: "ADMISSIONS_LEADS" },
+  { id: "termsconditions", name: "Terms & Conditions", category: "ADMISSIONS_LEADS" },
   // Accounting & Fees
   { id: "bankaccounts", name: "Bank Accounts", category: "ACCOUNTING_FEES" },
+  { id: "feetypes", name: "Fees Types", category: "ACCOUNTING_FEES" },
   { id: "feeheads", name: "Fee Heads", category: "ACCOUNTING_FEES" },
   { id: "paymentmodes", name: "Payment Modes", category: "ACCOUNTING_FEES" },
   { id: "concessionheads", name: "Concession Heads", category: "ACCOUNTING_FEES" },

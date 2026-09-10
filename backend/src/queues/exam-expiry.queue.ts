@@ -87,15 +87,25 @@ export const examExpiryWorker = createWorker<ExamExpirySweepJob>(
 
 /** Schedule repeating sweep every minute when workers run. */
 export const scheduleExamExpirySweep = async () => {
-  await examExpiryQueue.add(
-    "sweep",
-    { limit: 200 },
-    {
-      repeat: { every: 60_000 },
-      jobId: "exam-expiry-repeat",
-      removeOnComplete: 100,
-      removeOnFail: 500,
-      attempts: 2,
-    } as any
-  );
+  try {
+    const addPromise = examExpiryQueue.add(
+      "sweep",
+      { limit: 200 },
+      {
+        repeat: { every: 60_000 },
+        jobId: "exam-expiry-repeat",
+        removeOnComplete: 100,
+        removeOnFail: 500,
+        attempts: 2,
+      } as any
+    );
+    await Promise.race([
+      addPromise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Redis offline / timeout")), 2000)
+      ),
+    ]);
+  } catch {
+    logger.info("ℹ Skipping exam expiry repeating sweep schedule (Redis is offline)");
+  }
 };

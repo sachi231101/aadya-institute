@@ -113,6 +113,14 @@ export const addDaysToDateKey = (dateKey: string, days: number): string => {
   return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
 };
 
+/** Normalize master holiday `data.date` (or similar) to YYYY-MM-DD for matching. */
+export const toHolidayDateKey = (value: unknown): string => {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? "";
+};
+
 export const formatDateKeyLabel = (dateKey: string, options?: Intl.DateTimeFormatOptions): string => {
   const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!match) return dateKey;

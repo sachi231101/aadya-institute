@@ -10,10 +10,6 @@ import { registerWorkers } from "./workers/register";
 const startServer = async () => {
   await connectDatabase();
 
-  if (env.RUN_WORKERS) {
-    await registerWorkers();
-  }
-
   const server = http.createServer(app);
   initWebSocketServer(server);
 
@@ -21,6 +17,12 @@ const startServer = async () => {
     console.log(`🚀 Server running on http://localhost:${env.PORT}`);
     console.log(`💬 Chat WebSocket available at ws://localhost:${env.PORT}/ws/chat`);
   });
+
+  if (env.RUN_WORKERS) {
+    registerWorkers().catch((err) => {
+      console.warn("⚠️ Background workers failed to register:", err?.message || err);
+    });
+  }
 };
 
 // Server initialized with updated PostgreSQL Prisma schema

@@ -22,6 +22,45 @@ import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.con
 import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import { assertActiveMaster } from "../masters/master.validator";
+
+const resolveRequiredTermsAcceptance = async (
+  instituteId: string,
+  branchId: string,
+  acceptance: CreateAdmissionDTO["termsAcceptance"]
+) => {
+  const activeTerms = await prisma.masterRecord.findMany({
+    where: {
+      instituteId,
+      entityType: "termsconditions",
+      status: "ACTIVE",
+      OR: [{ branchId }, { branchId: null }],
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+
+  const acceptedIds = new Set((acceptance ?? []).map((item) => item.masterId));
+  const activeIds = new Set(activeTerms.map((item) => item.id));
+  if (
+    acceptedIds.size !== activeIds.size ||
+    [...activeIds].some((id) => !acceptedIds.has(id)) ||
+    [...acceptedIds].some((id) => !activeIds.has(id))
+  ) {
+    throw new AppError("All active Terms & Conditions must be accepted", 400);
+  }
+
+  for (const term of activeTerms) {
+    await assertActiveMaster({
+      instituteId,
+      branchId,
+      entityType: "termsconditions",
+      masterRecordId: term.id,
+    });
+  }
+
+  return activeTerms.map((term) => ({ masterId: term.id, name: term.name }));
+};
 
 const triggerAdmissionNotification = async (admissionId: string) => {
   try {
@@ -304,6 +343,13 @@ export const AdmissionsService = {
       branchCode: branch?.code,
     });
 
+    const status = dto.totalFee && dto.totalFee > 0 ? "CONFIRMED" : "PROVISIONAL";
+    const termsAcceptance = await resolveRequiredTermsAcceptance(
+      instituteId,
+      branchId,
+      dto.termsAcceptance
+    );
+
     const admission = await AdmissionsRepository.createAdmission(
       instituteId,
       branchId,
@@ -317,11 +363,12 @@ export const AdmissionsService = {
         applicationId: app.id,
         leadId: app.leadId || undefined,
         feePlan: dto.feePlan || "INSTALLMENT",
-        status: dto.totalFee && dto.totalFee > 0 ? "CONFIRMED" : "PROVISIONAL",
+        status,
         notes: dto.notes || `Converted from Application ${app.applicationNo}`,
         totalFee: dto.totalFee,
         amountPaid: dto.amountPaid,
         installments: dto.installments,
+        termsAcceptance,
       },
       currentUser?.userId
     );
@@ -335,9 +382,6 @@ export const AdmissionsService = {
 
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
   async getAdmissions(currentUser: AuthUser, params: QueryAdmissionsDTO) {
-    // #region agent log
-    fetch('http://127.0.0.1:7913/ingest/73746203-13ab-48c1-bcb6-4becdf54f2cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ed66da'},body:JSON.stringify({sessionId:'ed66da',runId:'post-fix',hypothesisId:'H1',location:'admissions.service.ts:getAdmissions',message:'getAdmissions service entry',data:{hasRoles:Array.isArray(currentUser?.roles),roles:currentUser?.roles,instituteId:currentUser?.instituteId,paramsBranchId:params.branchId},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const scope = getBranchScopeFilter(currentUser, params.branchId);
     return AdmissionsRepository.findAdmissions(scope.instituteId, params, scope.branchId);
   },
@@ -399,6 +443,18 @@ export const AdmissionsService = {
       select: { code: true },
     });
 
+    const normalizedDto: CreateAdmissionDTO =
+      (dto.status || "CONFIRMED") === "PENDING"
+        ? dto
+        : {
+            ...dto,
+            termsAcceptance: await resolveRequiredTermsAcceptance(
+              instituteId,
+              branchId,
+              dto.termsAcceptance
+            ),
+          };
+
     const admissionNo = await SequenceService.getNextNumber(instituteId, "ADMISSION", {
       branchCode: branch?.code,
     });
@@ -407,7 +463,7 @@ export const AdmissionsService = {
       instituteId,
       branchId,
       admissionNo,
-      dto,
+      normalizedDto,
       options?.userId
     );
 
@@ -431,7 +487,20 @@ export const AdmissionsService = {
     if (!hasBranchAccess(currentUser, existing.branchId)) {
       throw new AppError("Admission not found", 404);
     }
-    await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, dto);
+    const normalizedDto: UpdateAdmissionDTO =
+      dto.status && dto.status !== "PENDING"
+        ? {
+            ...dto,
+            termsAcceptance: await resolveRequiredTermsAcceptance(
+              currentUser.instituteId,
+              existing.branchId,
+              dto.termsAcceptance
+            ),
+          }
+        : dto.status === "PENDING"
+          ? { ...dto, termsAcceptance: undefined }
+          : dto;
+    await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, normalizedDto);
     return this.getAdmissionById(id, currentUser);
   },
 

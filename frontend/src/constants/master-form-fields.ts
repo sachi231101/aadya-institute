@@ -11,7 +11,9 @@ export interface MasterFormField {
   label: string;
   required?: boolean;
   /** HTML input type when rendered in create/edit forms */
-  inputType?: "text" | "time" | "number";
+  inputType?: "text" | "time" | "number" | "date" | "textarea";
+  /** Render a MasterSelect backed by this entity type. */
+  masterEntityType?: string;
   /** When true, field is derived (e.g. timeslot name from start/end). */
   readOnly?: boolean;
 }
@@ -62,6 +64,11 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
   assignmenttype: [
     { key: "name", label: "Assignment Type", required: true },
   ],
+  holiday: [
+    { key: "name", label: "Holiday Name", required: true },
+    { key: "date", label: "Holiday Date", required: true, inputType: "date" },
+    { key: "note", label: "Note", inputType: "textarea" },
+  ],
   leadsource: [
     { key: "name", label: "Source Channel", required: true },
     { key: "channelType", label: "Channel Type" },
@@ -75,15 +82,22 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "name", label: "Status Title", required: true },
     { key: "step", label: "Enrollment Step" },
   ],
+  termsconditions: [
+    { key: "name", label: "Terms Title", required: true },
+    { key: "body", label: "Terms Content", required: true, inputType: "textarea" },
+  ],
   bankaccounts: [
     { key: "name", label: "Bank Name", required: true },
     { key: "accountNumber", label: "Account No" },
     { key: "ifsc", label: "IFSC Code" },
     { key: "branch", label: "Bank Branch" },
   ],
+  feetypes: [
+    { key: "name", label: "Fee Type", required: true },
+  ],
   feeheads: [
     { key: "name", label: "Fee Head Title", required: true },
-    { key: "type", label: "Fee Type" },
+    { key: "feeTypeMasterId", label: "Fee Type", masterEntityType: "feetypes" },
     { key: "gstApplicable", label: "GST Rate" },
   ],
   paymentmodes: [

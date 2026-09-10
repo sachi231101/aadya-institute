@@ -26,6 +26,8 @@ import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { toHolidayDateKey } from "@/constants/timetable-slots";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
@@ -128,6 +130,10 @@ export const FacultyMySchedule: React.FC = () => {
   const { data: sessionsRes, refetch: refetchSessions } = useClassSessions(
     facultyId ? { facultyId, limit: 100 } : undefined
   );
+  const { options: holidayOptions } = useMasterDropdown(
+    "holiday",
+    user?.branchId || undefined
+  );
 
   // Week Navigator State (Base Monday date: fixed default anchor or dynamic current Monday)
   const [currentWeekMonday, setCurrentWeekMonday] = useState<Date>(() => {
@@ -182,6 +188,10 @@ export const FacultyMySchedule: React.FC = () => {
         name: "Day",
         short: "DAY",
       };
+      const holiday = holidayOptions.find(
+        (item) => toHolidayDateKey(item.data?.date) === iso
+      );
+      const isSunday = dayNum === 0;
       return {
         date: d,
         iso,
@@ -189,9 +199,11 @@ export const FacultyMySchedule: React.FC = () => {
         dayShort: dayMeta.short,
         formattedDate: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
         isToday: i === 0 || iso === todayIso,
+        isHoliday: Boolean(holiday) || isSunday,
+        holidayTitle: holiday?.label || (isSunday ? "Sunday" : undefined),
       };
     });
-  }, [currentWeekMonday, todayIso]);
+  }, [currentWeekMonday, todayIso, holidayOptions]);
 
   // Master Assigned Classes strictly for the logged-in Faculty
   const assignedClasses: FormattedTimetableClass[] = useMemo(() => {
@@ -542,8 +554,8 @@ export const FacultyMySchedule: React.FC = () => {
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                 {weekDays.map((day) => {
-                  // Sunday: Single light red box with Date
-                  if (day.dayShort === "SUN" || day.date.getDay() === 0) {
+                  // Holiday / weekly off: full-width banner
+                  if (day.isHoliday) {
                     return (
                       <tr
                         key={day.iso}
@@ -555,7 +567,9 @@ export const FacultyMySchedule: React.FC = () => {
                         >
                           <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-black shadow-2xs">
                             <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                            <span>Sunday – {day.formattedDate}</span>
+                            <span>
+                              {day.holidayTitle || "Holiday"} – {day.formattedDate}
+                            </span>
                           </div>
                         </td>
                       </tr>
@@ -734,10 +748,12 @@ export const FacultyMySchedule: React.FC = () => {
                     {activeDay.isToday && <Badge className="bg-[#2563EB] text-white text-[10px]">TODAY</Badge>}
                   </div>
 
-                  {activeDay.dayShort === "SUN" || activeDay.date.getDay() === 0 ? (
+                  {activeDay.isHoliday ? (
                     <div className="py-4 px-4 text-center text-xs font-black text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 rounded-2xl border border-rose-200 dark:border-rose-900/60 shadow-2xs flex items-center justify-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-rose-500 shrink-0" />
-                      <span>Sunday – {activeDay.formattedDate}</span>
+                      <span>
+                        {activeDay.holidayTitle || "Holiday"} – {activeDay.formattedDate}
+                      </span>
                     </div>
                   ) : dayClasses.length > 0 ? (
                     dayClasses.map((cls) => (
