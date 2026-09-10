@@ -38,15 +38,25 @@ export interface WhatsAppAutomation {
     name: string;
     status: string;
     providerTemplateName: string;
+    variables: string[];
   } | null;
-  configuration: Record<string, unknown>;
+  configuration: Record<string, unknown> & {
+    variableMap?: Record<string, string>;
+  };
   ruleId: string | null;
 }
 
 export interface AutomationsResponse {
   globalEnabled: boolean;
   automations: WhatsAppAutomation[];
-  templates: Array<{ id: string; name: string; event: string; status: string; category?: string | null }>;
+  templates: Array<{
+    id: string;
+    name: string;
+    event: string;
+    status: string;
+    category?: string | null;
+    variables?: string[];
+  }>;
 }
 
 export interface WhatsAppHistoryItem {

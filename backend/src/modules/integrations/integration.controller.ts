@@ -91,3 +91,24 @@ export const disconnectIntegration = async (
     next(err);
   }
 };
+
+export const fetchWhatsappNumber = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const type = normalizeIntegrationType(String(req.params.type));
+    if (type !== "WHATSAPP") {
+      res.status(400).json({
+        success: false,
+        message: "Fetch number is only supported for WhatsApp (MSG91)",
+      });
+      return;
+    }
+    const data = await service.fetchWhatsappNumberService(toAuthUser(req));
+    sendSuccess(res, data, 200, "WhatsApp number fetched from MSG91");
+  } catch (err) {
+    next(err);
+  }
+};

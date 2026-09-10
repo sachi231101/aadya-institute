@@ -18,6 +18,36 @@ const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICS: "Academics",
 };
 
+const fieldLabel = (key: string) =>
+  key
+    .split("_")
+    .map((p) => p.charAt(0).toUpperCase() + p.slice(1))
+    .join(" ");
+
+const getVariableMap = (item: WhatsAppAutomation): Record<string, string> => {
+  const map = item.configuration?.variableMap;
+  if (!map || typeof map !== "object") return {};
+  return map as Record<string, string>;
+};
+
+const resolveTemplateVariables = (
+  item: WhatsAppAutomation,
+  templates: AutomationsTemplates
+): string[] => {
+  if (item.template?.variables?.length) return item.template.variables;
+  const selected = templates.find((t) => t.id === item.templateId);
+  return selected?.variables ?? [];
+};
+
+type AutomationsTemplates = Array<{
+  id: string;
+  name: string;
+  event: string;
+  status: string;
+  category?: string | null;
+  variables?: string[];
+}>;
+
 export const WhatsAppAutomations: React.FC = () => {
   const queryClient = useQueryClient();
   const [testFor, setTestFor] = useState<WhatsAppAutomation | null>(null);
@@ -32,7 +62,7 @@ export const WhatsAppAutomations: React.FC = () => {
   const payload = data?.data;
   const globalEnabled = payload?.globalEnabled ?? false;
   const automations = payload?.automations ?? [];
-  const templates = payload?.templates ?? [];
+  const templates = (payload?.templates ?? []) as AutomationsTemplates;
 
   const grouped = useMemo(() => {
     const map: Record<string, WhatsAppAutomation[]> = {};
@@ -53,7 +83,11 @@ export const WhatsAppAutomations: React.FC = () => {
       body,
     }: {
       type: string;
-      body: { enabled?: boolean; templateId?: string | null };
+      body: {
+        enabled?: boolean;
+        templateId?: string | null;
+        configuration?: Record<string, unknown>;
+      };
     }) => whatsappApi.patchAutomation(type, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["whatsapp", "automations"] }),
   });
@@ -68,10 +102,51 @@ export const WhatsAppAutomations: React.FC = () => {
     },
   });
 
+  const saveVariableMap = (item: WhatsAppAutomation, variableMap: Record<string, string>) => {
+    patchMutation.mutate({
+      type: item.event,
+      body: {
+        configuration: {
+          ...item.configuration,
+          variableMap,
+        },
+      },
+    });
+  };
+
+  const onTemplateChange = (item: WhatsAppAutomation, templateId: string) => {
+    const selected = templates.find((t) => t.id === templateId);
+    const slots = selected?.variables ?? [];
+    const fields = Object.keys(item.sampleVariables || {});
+    const variableMap: Record<string, string> = {};
+    slots.forEach((slot, index) => {
+      if (fields[index]) variableMap[slot] = fields[index];
+    });
+
+    patchMutation.mutate({
+      type: item.event,
+      body: {
+        templateId: templateId || null,
+        configuration: {
+          ...item.configuration,
+          variableMap,
+        },
+      },
+    });
+  };
+
+  const mappingIncomplete = (item: WhatsAppAutomation) => {
+    const slots = resolveTemplateVariables(item, templates);
+    if (!slots.length) return false;
+    const map = getVariableMap(item);
+    return slots.some((s) => !map[s]);
+  };
+
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Enable only the system messages you want. Everything stays off until you turn it on.
+        Enable only the system messages you want. Map MSG91 template variables to Aadya fields on
+        each card. Everything stays off until you turn it on.
       </p>
 
       <Card className="border-border/50">
@@ -116,80 +191,130 @@ export const WhatsAppAutomations: React.FC = () => {
               {CATEGORY_LABEL[cat]}
             </h3>
             <div className="grid gap-3">
-              {(grouped[cat] || []).map((item) => (
-                <Card key={item.event} className="border-border/50">
-                  <CardHeader className="pb-2">
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                      <div>
-                        <CardTitle className="text-base">{item.label}</CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
-                      </div>
-                      <PermissionGate itemKey="communication.whatsapp" mode="write">
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-xs font-semibold text-muted-foreground">
-                            {item.enabled ? "ON" : "OFF"}
-                          </span>
-                          <Switch
-                            checked={item.enabled}
-                            disabled={patchMutation.isPending || !globalEnabled}
-                            onCheckedChange={(v) =>
-                              patchMutation.mutate({ type: item.event, body: { enabled: v } })
-                            }
-                          />
+              {(grouped[cat] || []).map((item) => {
+                const slots = resolveTemplateVariables(item, templates);
+                const map = getVariableMap(item);
+                const fields = Object.keys(item.sampleVariables || {});
+                const incomplete = mappingIncomplete(item);
+                const activeTemplates = templates.filter((t) => t.status === "ACTIVE");
+                const otherTemplates = templates.filter((t) => t.status !== "ACTIVE");
+
+                return (
+                  <Card key={item.event} className="border-border/50">
+                    <CardHeader className="pb-2">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div>
+                          <CardTitle className="text-base">{item.label}</CardTitle>
+                          <p className="text-sm text-muted-foreground mt-1">{item.description}</p>
                         </div>
-                      </PermissionGate>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0 space-y-3">
-                    <div className="grid sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
-                      <p>
-                        <span className="font-semibold text-foreground">Timing:</span> {item.timingLabel}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-foreground">Recipient:</span>{" "}
-                        {item.recipientLabel}
-                      </p>
-                      <p>
-                        <span className="font-semibold text-foreground">Template:</span>{" "}
-                        {item.template?.name || "Not mapped"}
-                      </p>
-                    </div>
-                    <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                      <PermissionGate itemKey="communication.whatsapp" mode="write">
-                        <select
-                          className="h-9 rounded-md border border-border bg-background px-2 text-xs"
-                          value={item.templateId || ""}
-                          onChange={(e) =>
-                            patchMutation.mutate({
-                              type: item.event,
-                              body: { templateId: e.target.value || null },
-                            })
-                          }
-                        >
-                          <option value="">Select template</option>
-                          {templates
-                            .filter((t) => t.event === item.event || !t.event)
-                            .concat(templates.filter((t) => t.event !== item.event))
-                            .map((t) => (
+                        <PermissionGate itemKey="communication.whatsapp" mode="write">
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-xs font-semibold text-muted-foreground">
+                              {item.enabled ? "ON" : "OFF"}
+                            </span>
+                            <Switch
+                              checked={item.enabled}
+                              disabled={
+                                patchMutation.isPending ||
+                                !globalEnabled ||
+                                (incomplete && !item.enabled)
+                              }
+                              onCheckedChange={(v) =>
+                                patchMutation.mutate({ type: item.event, body: { enabled: v } })
+                              }
+                            />
+                          </div>
+                        </PermissionGate>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-3">
+                      <div className="grid sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <p>
+                          <span className="font-semibold text-foreground">Timing:</span>{" "}
+                          {item.timingLabel}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Recipient:</span>{" "}
+                          {item.recipientLabel}
+                        </p>
+                        <p>
+                          <span className="font-semibold text-foreground">Template:</span>{" "}
+                          {item.template?.name || "Not mapped"}
+                        </p>
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                        <PermissionGate itemKey="communication.whatsapp" mode="write">
+                          <select
+                            className="h-9 rounded-md border border-border bg-background px-2 text-xs min-w-[220px]"
+                            value={item.templateId || ""}
+                            onChange={(e) => onTemplateChange(item, e.target.value)}
+                          >
+                            <option value="">Select template</option>
+                            {activeTemplates.map((t) => (
+                              <option key={t.id} value={t.id}>
+                                {t.name} (ACTIVE)
+                              </option>
+                            ))}
+                            {otherTemplates.map((t) => (
                               <option key={t.id} value={t.id}>
                                 {t.name} ({t.status})
                               </option>
                             ))}
-                        </select>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => setTestFor(item)}
-                          disabled={!item.enabled || !globalEnabled}
-                        >
-                          <Send className="h-3.5 w-3.5" /> Test Message
-                        </Button>
-                      </PermissionGate>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                          </select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="gap-1.5"
+                            onClick={() => setTestFor(item)}
+                            disabled={!item.enabled || !globalEnabled || incomplete}
+                          >
+                            <Send className="h-3.5 w-3.5" /> Test Message
+                          </Button>
+                        </PermissionGate>
+                      </div>
+
+                      {item.templateId && slots.length > 0 && (
+                        <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+                          <p className="text-xs font-semibold text-foreground">Variable mapping</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Map each MSG91 template slot to an Aadya field for this automation.
+                          </p>
+                          {slots.map((slot) => (
+                            <div
+                              key={slot}
+                              className="flex flex-col sm:flex-row sm:items-center gap-2"
+                            >
+                              <Label className="text-xs font-mono w-24 shrink-0">{slot}</Label>
+                              <select
+                                className="h-9 flex-1 rounded-md border border-border bg-background px-2 text-xs"
+                                value={map[slot] || ""}
+                                disabled={patchMutation.isPending}
+                                onChange={(e) => {
+                                  const next = { ...map, [slot]: e.target.value };
+                                  if (!e.target.value) delete next[slot];
+                                  saveVariableMap(item, next);
+                                }}
+                              >
+                                <option value="">Select field</option>
+                                {fields.map((f) => (
+                                  <option key={f} value={f}>
+                                    {fieldLabel(f)}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          ))}
+                          {incomplete && (
+                            <p className="text-[11px] text-amber-700">
+                              Map all variables before enabling or sending a test message.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           </div>
         ))
@@ -200,7 +325,8 @@ export const WhatsAppAutomations: React.FC = () => {
           <div className="bg-card rounded-xl max-w-md w-full p-6 space-y-4 border border-border shadow-lg">
             <h3 className="text-lg font-bold">Test: {testFor.label}</h3>
             <p className="text-xs text-muted-foreground">
-              Sends sample variables via WhatsApp. Requires global + automation ON and a mapped template.
+              Sends sample variables via WhatsApp using your variable mapping. Requires global +
+              automation ON and a mapped template.
             </p>
             <div className="space-y-2">
               <Label>Phone *</Label>
@@ -216,7 +342,10 @@ export const WhatsAppAutomations: React.FC = () => {
             </div>
             {testMutation.isError && (
               <p className="text-xs text-red-600">
-                {(testMutation.error as Error)?.message || "Test failed"}
+                {(testMutation.error as { response?: { data?: { message?: string } } })?.response
+                  ?.data?.message ||
+                  (testMutation.error as Error)?.message ||
+                  "Test failed"}
               </p>
             )}
             <div className="flex justify-end gap-2">

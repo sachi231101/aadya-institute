@@ -52,6 +52,11 @@ export interface Msg91GetTemplatesParams {
   pageNum?: number;
 }
 
+export interface Msg91IntegratedNumbersResult {
+  numbers: string[];
+  primary?: string;
+}
+
 const sanitizeErrorData = (data: unknown): unknown => {
   if (!data || typeof data !== "object") return data;
   const clone = { ...(data as Record<string, unknown>) };
@@ -175,6 +180,133 @@ const extractTemplates = (data: any): Msg91ProviderTemplate[] => {
   }
 
   return out;
+};
+
+const digitsOnly = (value: unknown): string | null => {
+  if (value === null || value === undefined) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const digits = raw.replace(/\D/g, "");
+  return digits.length >= 10 ? digits : null;
+};
+
+/**
+ * Extract integrated WhatsApp numbers from MSG91 whatsapp-activation payloads.
+ * Response shapes vary; prefer documented fields then deep-scan digit strings.
+ */
+export const extractIntegratedNumbers = (data: unknown): Msg91IntegratedNumbersResult => {
+  const found = new Set<string>();
+
+  const consider = (value: unknown) => {
+    const n = digitsOnly(value);
+    if (n) found.add(n);
+  };
+
+  const walk = (node: unknown, depth = 0) => {
+    if (!node || depth > 6) return;
+    if (typeof node === "string" || typeof node === "number") {
+      consider(node);
+      return;
+    }
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item, depth + 1);
+      return;
+    }
+    if (typeof node === "object") {
+      const obj = node as Record<string, unknown>;
+      for (const key of Object.keys(obj)) {
+        if (/integrated.?number|whatsapp.?number|phone|mobile|msisdn|^number$/i.test(key)) {
+          consider(obj[key]);
+        }
+      }
+      for (const value of Object.values(obj)) walk(value, depth + 1);
+    }
+  };
+
+  walk(data);
+  const numbers = Array.from(found);
+  return { numbers, primary: numbers[0] };
+};
+
+/**
+ * Fetch integrated WhatsApp number(s) for the MSG91 account.
+ * GET {MSG91_CONTROL_BASE_URL}/api/v5/whatsapp/whatsapp-activation/
+ * Auth: authkey header. Does not send any WhatsApp message.
+ */
+export const msg91GetIntegratedNumbers = async (
+  authKey: string
+): Promise<Msg91IntegratedNumbersResult> => {
+  if (!authKey) {
+    const err = new Error("MSG91 auth key is not configured") as Error & {
+      code?: string;
+      nonRetriable?: boolean;
+    };
+    err.code = "MSG91_CONFIGURATION_MISSING";
+    err.nonRetriable = true;
+    throw err;
+  }
+
+  try {
+    const res = await axios.get(
+      `${env.MSG91_CONTROL_BASE_URL.replace(/\/$/, "")}/api/v5/whatsapp/whatsapp-activation/`,
+      {
+        headers: {
+          accept: "application/json",
+          authkey: authKey,
+        },
+        timeout: 20_000,
+      }
+    );
+
+    const result = extractIntegratedNumbers(res.data);
+    if (result.numbers.length === 0) {
+      const err = new Error("No integrated WhatsApp number found on MSG91") as Error & {
+        code?: string;
+        nonRetriable?: boolean;
+      };
+      err.code = "MSG91_NUMBER_FETCH_FAILED";
+      err.nonRetriable = true;
+      throw err;
+    }
+
+    logger.info(
+      { count: result.numbers.length, primary: result.primary },
+      "msg91.number.fetch.success"
+    );
+    return result;
+  } catch (err) {
+    if ((err as Error & { code?: string }).code?.startsWith("MSG91_")) {
+      throw err;
+    }
+    const axiosErr = err as AxiosError;
+    const status = axiosErr.response?.status;
+    const data = axiosErr.response?.data;
+    logger.error(
+      { status, data: sanitizeErrorData(data) },
+      "msg91.number.fetch.failed"
+    );
+    const mapped = mapHttpError(status, data);
+    const apiError = new Error(
+      mapped.code === "MSG91_AUTHENTICATION_FAILED"
+        ? mapped.message
+        : "Failed to fetch MSG91 WhatsApp number"
+    ) as Error & {
+      code?: string;
+      statusCode?: number;
+      nonRetriable?: boolean;
+    };
+    apiError.code =
+      mapped.code === "MSG91_AUTHENTICATION_FAILED"
+        ? mapped.code
+        : mapped.code === "MSG91_PROVIDER_UNAVAILABLE"
+          ? mapped.code
+          : "MSG91_NUMBER_FETCH_FAILED";
+    apiError.statusCode = status;
+    apiError.nonRetriable =
+      apiError.code === "MSG91_AUTHENTICATION_FAILED" ||
+      apiError.code === "MSG91_CONFIGURATION_MISSING";
+    throw apiError;
+  }
 };
 
 export const msg91GetTemplates = async (

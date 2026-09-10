@@ -51,7 +51,16 @@ export interface UpsertIntegrationPayload {
 export interface IntegrationTestResult {
   success: boolean;
   message: string;
+  status?: string;
   integration?: IntegrationDetail;
+}
+
+export interface FetchWhatsappNumberResult {
+  provider: "MSG91";
+  connected: boolean;
+  integratedNumber: string;
+  numbers: string[];
+  integration: IntegrationDetail;
 }
 
 export const INTEGRATIONS_QUERY_KEY = ["integrations"] as const;
@@ -103,6 +112,11 @@ export const integrationsApi = {
   disconnect: async (type: IntegrationType): Promise<IntegrationDetail> => {
     const res = await api.post(`/integrations/${type}/disconnect`);
     return res.data.data as IntegrationDetail;
+  },
+
+  fetchWhatsappNumber: async (): Promise<FetchWhatsappNumberResult> => {
+    const res = await api.post("/integrations/WHATSAPP/fetch-number");
+    return res.data.data as FetchWhatsappNumberResult;
   },
 
   connectGoogle: async (): Promise<{ url?: string; authUrl?: string; connectUrl?: string }> => {

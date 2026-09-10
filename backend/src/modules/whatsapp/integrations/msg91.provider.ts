@@ -3,6 +3,7 @@
  *
  * @module modules/whatsapp/integrations/msg91.provider
  */
+import { logger } from "../../../config/logger";
 import { normalizePhone } from "../../../utils/phone";
 import type {
   IWhatsAppProvider,
@@ -10,11 +11,17 @@ import type {
   SendWhatsAppResult,
 } from "../whatsapp.types";
 import { NON_RETRIABLE_ERROR_CODES } from "../whatsapp.constants";
-import { msg91GetTemplates, msg91SendTemplate, type Msg91ProviderTemplate } from "./msg91.client";
+import {
+  msg91GetIntegratedNumbers,
+  msg91GetTemplates,
+  msg91SendTemplate,
+  type Msg91IntegratedNumbersResult,
+  type Msg91ProviderTemplate,
+} from "./msg91.client";
 
 export interface Msg91ConnectionTestResult {
   success: boolean;
-  status: "CONNECTED" | "NOT_CONFIGURED" | "AUTH_FAILED" | "ERROR";
+  status: "CONNECTED" | "NOT_CONFIGURED" | "AUTH_FAILED" | "PROVIDER_ERROR" | "ERROR";
   message: string;
 }
 
@@ -97,32 +104,78 @@ export class Msg91WhatsAppProvider implements IWhatsAppProvider {
     );
   }
 
+  async getIntegratedNumbers(instituteId: string): Promise<Msg91IntegratedNumbersResult> {
+    const { resolveWhatsappProviderConfig } = await import("../../integrations/integration.service");
+    const config = await resolveWhatsappProviderConfig(instituteId);
+    if (!config.authKey) {
+      const err = new Error("MSG91 auth key is not configured") as Error & {
+        code?: string;
+        nonRetriable?: boolean;
+      };
+      err.code = "MSG91_CONFIGURATION_MISSING";
+      err.nonRetriable = true;
+      throw err;
+    }
+    return msg91GetIntegratedNumbers(config.authKey);
+  }
+
+  /**
+   * Validate MSG91 credentials without sending a WhatsApp message.
+   * Auth-only: whatsapp-activation. With number: get-templates probe.
+   */
   async testConnection(instituteId: string): Promise<Msg91ConnectionTestResult> {
     const { resolveWhatsappProviderConfig } = await import("../../integrations/integration.service");
     const config = await resolveWhatsappProviderConfig(instituteId);
 
-    if (!config.authKey || !config.integratedNumber) {
+    logger.info({ instituteId }, "msg91.connection.test.started");
+
+    if (!config.authKey) {
+      logger.info({ instituteId }, "msg91.connection.test.failed");
       return {
         success: false,
         status: "NOT_CONFIGURED",
-        message: "MSG91 auth key and integrated number are required",
+        message: "MSG91 Auth Key is not configured",
       };
     }
 
     try {
-      await msg91GetTemplates(
-        { number: config.integratedNumber, pageSize: 1, pageNum: 1 },
-        config.authKey
-      );
+      if (!config.integratedNumber) {
+        await msg91GetIntegratedNumbers(config.authKey);
+      } else {
+        await msg91GetTemplates(
+          { number: config.integratedNumber, pageSize: 1, pageNum: 1 },
+          config.authKey
+        );
+      }
+      logger.info({ instituteId }, "msg91.connection.test.success");
       return { success: true, status: "CONNECTED", message: "Connection successful" };
     } catch (err: any) {
+      logger.info({ instituteId, code: err?.code }, "msg91.connection.test.failed");
       if (err?.code === "MSG91_AUTHENTICATION_FAILED") {
-        return { success: false, status: "AUTH_FAILED", message: "MSG91 authentication failed" };
+        return {
+          success: false,
+          status: "AUTH_FAILED",
+          message: "MSG91 authentication failed. Please verify the configured Auth Key.",
+        };
+      }
+      if (err?.code === "MSG91_PROVIDER_UNAVAILABLE") {
+        return {
+          success: false,
+          status: "PROVIDER_ERROR",
+          message: "MSG91 provider is temporarily unavailable. Try again later.",
+        };
+      }
+      if (err?.code === "MSG91_CONFIGURATION_MISSING" || err?.code === "MSG91_NUMBER_FETCH_FAILED") {
+        return {
+          success: false,
+          status: "NOT_CONFIGURED",
+          message: err?.message || "MSG91 is not fully configured",
+        };
       }
       return {
         success: false,
         status: "ERROR",
-        message: err?.message || "MSG91 connection failed",
+        message: "MSG91 connection failed. Please verify configuration.",
       };
     }
   }
