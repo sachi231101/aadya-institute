@@ -23,7 +23,12 @@ export const patchAutomationConfigSchema = z.object({
 export const patchAutomationSchema = z.object({
   enabled: z.boolean().optional(),
   templateId: z.string().nullable().optional(),
-  configuration: z.record(z.string(), z.unknown()).optional(),
+  configuration: z
+    .object({
+      variableMap: z.record(z.string(), z.string()).optional(),
+    })
+    .passthrough()
+    .optional(),
 });
 
 export const createTemplateSchema = z.object({

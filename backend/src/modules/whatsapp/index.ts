@@ -6,6 +6,7 @@
 export * from "./whatsapp.constants";
 export * from "./whatsapp.types";
 export * from "./whatsapp.validation";
+export * from "./variable-map.util";
 export {
   createIdempotencyKey,
   deleteIdempotencyKey,

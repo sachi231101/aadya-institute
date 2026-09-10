@@ -28,6 +28,12 @@ import {
   normalizeAutomationEvent,
   getAutomationMeta,
 } from "./whatsapp.constants";
+import {
+  applyTemplateVariableMap,
+  getVariableMapFromConfig,
+  invalidVariableMapTargets,
+  isVariableMapComplete,
+} from "./variable-map.util";
 import { getBranchScopeFilter, hasBranchAccess } from "../../utils/branch-isolation.util";
 import type { AuthUser } from "../auth/auth.types";
 import { buildMeta } from "../../utils/pagination";
@@ -124,7 +130,7 @@ const persistSkip = async (
 export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions) => {
   const instituteId = input.instituteId;
   const event = normalizeAutomationEvent(input.event);
-  const templateParams = input.templateParams || {};
+  let templateParams: Record<string, string> = { ...(input.templateParams || {}) };
   const key = input.idempotencyKey
     ? `${instituteId}:${input.idempotencyKey}`
     : undefined;
@@ -232,8 +238,11 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
     });
   }
 
-  // 6. Required variables
+  // 6. Required variables — apply rule variableMap (MSG91 slots ← Aadya fields)
   const requiredVars = (template.variables as string[]) || [];
+  const variableMap = getVariableMapFromConfig(rule.configuration);
+  templateParams = applyTemplateVariableMap(templateParams, variableMap, requiredVars);
+
   const missingVars = requiredVars.filter(
     (v) => templateParams[v] === undefined || templateParams[v] === null || templateParams[v] === ""
   );
@@ -241,7 +250,8 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
     return persistSkip(
       {
         ...input,
-        metadata: { ...input.metadata, missingVars },
+        templateParams,
+        metadata: { ...input.metadata, missingVars, variableMap },
       },
       SkipReason.MISSING_VARIABLE,
       {
@@ -388,6 +398,9 @@ export const listAutomations = async (instituteId: string) => {
             name: rule.template.name,
             status: rule.template.status,
             providerTemplateName: rule.template.providerTemplateName,
+            variables: Array.isArray(rule.template.variables)
+              ? (rule.template.variables as string[])
+              : [],
           }
         : null,
       configuration: (rule?.configuration as Record<string, unknown>) ?? meta.defaultConfiguration ?? {},
@@ -404,6 +417,7 @@ export const listAutomations = async (instituteId: string) => {
       event: t.event,
       status: t.status,
       category: t.category,
+      variables: Array.isArray(t.variables) ? (t.variables as string[]) : [],
     })),
   };
 };
@@ -422,23 +436,77 @@ export const patchAutomation = async (
     throw new AppError("Unknown system automation type", 400);
   }
 
+  const meta = getAutomationMeta(event);
+  const allowedFields = Object.keys(meta?.sampleVariables ?? {});
+
+  let resolvedTemplateId =
+    data.templateId !== undefined ? data.templateId : undefined;
+  let templateForValidation: Awaited<ReturnType<typeof repo.findTemplateById>> = null;
+
   if (data.templateId) {
-    const tmpl = await repo.findTemplateById(data.templateId, currentUser.instituteId);
-    if (!tmpl) throw new AppError("Template not found", 404);
+    templateForValidation = await repo.findTemplateById(data.templateId, currentUser.instituteId);
+    if (!templateForValidation) throw new AppError("Template not found", 404);
   }
 
   await repo.ensureInstituteAutomationRules(currentUser.instituteId);
   const existing = await repo.findRuleByEvent(currentUser.instituteId, event);
+
+  if (resolvedTemplateId === undefined) {
+    resolvedTemplateId = existing?.templateId ?? null;
+  }
+  if (!templateForValidation && resolvedTemplateId) {
+    templateForValidation = await repo.findTemplateById(
+      resolvedTemplateId,
+      currentUser.instituteId
+    );
+  }
+
+  const existingConfig =
+    (existing?.configuration as Record<string, unknown>) ||
+    meta?.defaultConfiguration ||
+    {};
+
+  let nextConfig: Record<string, unknown> = { ...existingConfig };
+  if (data.configuration !== undefined) {
+    nextConfig = { ...existingConfig, ...data.configuration };
+    if (data.configuration.variableMap !== undefined) {
+      nextConfig.variableMap = data.configuration.variableMap;
+    }
+  }
+
+  const variableMap = getVariableMapFromConfig(nextConfig);
+  if (Object.keys(variableMap).length > 0) {
+    const bad = invalidVariableMapTargets(variableMap, allowedFields);
+    if (bad.length > 0) {
+      throw new AppError(
+        `Invalid variable mapping for this automation: ${bad.join(", ")}`,
+        400
+      );
+    }
+  }
+
+  const requiredVars = templateForValidation
+    ? ((templateForValidation.variables as string[]) || [])
+    : [];
+
+  const willEnable = data.enabled === true;
+  if (willEnable && requiredVars.length > 0 && !isVariableMapComplete(requiredVars, variableMap)) {
+    throw new AppError(
+      "Map all template variables before enabling this automation",
+      400
+    );
+  }
+
+  const previousMap = getVariableMapFromConfig(existingConfig);
+  const mapChanged =
+    JSON.stringify(previousMap) !== JSON.stringify(variableMap);
+
   const updated = await repo.upsertRule({
     instituteId: currentUser.instituteId,
     event,
     enabled: data.enabled ?? existing?.enabled ?? false,
     templateId: data.templateId !== undefined ? data.templateId : existing?.templateId,
-    configuration:
-      data.configuration ??
-      ((existing?.configuration as Record<string, unknown>) ||
-        getAutomationMeta(event)?.defaultConfiguration ||
-        {}),
+    configuration: nextConfig,
   });
 
   await createAuditLog({
@@ -449,16 +517,23 @@ export const patchAutomation = async (
         ? "WHATSAPP_AUTOMATION_ENABLED"
         : data.enabled === false
           ? "WHATSAPP_AUTOMATION_DISABLED"
-          : "WHATSAPP_AUTOMATION_UPDATED",
+          : mapChanged
+            ? "WHATSAPP_AUTOMATION_VARIABLE_MAP_UPDATED"
+            : "WHATSAPP_AUTOMATION_UPDATED",
     entityType: "NotificationRule",
     entityId: updated.id,
     oldData: existing
-      ? { enabled: existing.enabled, templateId: existing.templateId }
+      ? {
+          enabled: existing.enabled,
+          templateId: existing.templateId,
+          variableMap: previousMap,
+        }
       : null,
     newData: {
       enabled: updated.enabled,
       templateId: updated.templateId,
       event,
+      variableMap: mapChanged ? variableMap : undefined,
     },
   });
 
@@ -498,10 +573,39 @@ export const sendAutomationTest = async (
   if (!config.enabled) throw new AppError("Global WhatsApp automation is OFF", 400);
   if (!rule?.enabled) throw new AppError("This automation is OFF", 400);
 
+  // Prefer explicit variableMap from rule; fall back to positional sample fill.
   const requiredVars = (template.variables as string[]) || [];
+  const sampleValues = Object.values(sample);
+  let templateParams: Record<string, string> = { ...sample };
+  if (name?.trim()) {
+    templateParams.student_name = name.trim();
+    templateParams.recipient_name = name.trim();
+  }
+
+  const variableMap = getVariableMapFromConfig(rule?.configuration);
+  if (Object.keys(variableMap).length > 0) {
+    templateParams = applyTemplateVariableMap(templateParams, variableMap, requiredVars);
+  } else {
+    requiredVars.forEach((varName, index) => {
+      if (templateParams[varName]) return;
+      const positional = /^(?:var_|body_|header_)(\d+)$/i.exec(varName);
+      if (positional) {
+        const pos = Number(positional[1]) - 1;
+        templateParams[varName] = sampleValues[pos] ?? `Sample ${positional[1]}`;
+        return;
+      }
+      templateParams[varName] = sampleValues[index] ?? `Sample ${varName}`;
+    });
+  }
+
   for (const v of requiredVars) {
-    if (!sample[v]) {
-      throw new AppError(`Sample value missing for variable: ${v}`, 400);
+    if (!templateParams[v]) {
+      throw new AppError(
+        Object.keys(variableMap).length > 0
+          ? `Mapped sample value missing for variable: ${v}. Check variable mapping.`
+          : `Sample value missing for variable: ${v}. Map template variables on this automation.`,
+        400
+      );
     }
   }
 
@@ -524,7 +628,7 @@ export const sendAutomationTest = async (
     message: template.body ?? undefined,
     status: NotificationStatus.PENDING,
     metadata: {
-      templateParams: sample,
+      templateParams,
       recipientPhone: phone.startsWith("+") ? phone : `+91${local10}`,
       recipientName: name || "Test User",
       provider: "MSG91",

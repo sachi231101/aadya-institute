@@ -6,6 +6,7 @@ import * as repo from "../integration.repository";
 export interface TestResult {
   success: boolean;
   message: string;
+  status?: string;
 }
 
 export const testAiConnection = async (
@@ -41,7 +42,7 @@ export const testWhatsappConnection = async (
 ): Promise<TestResult> => {
   const { msg91Provider } = await import("../../whatsapp/integrations/msg91.provider");
   const result = await msg91Provider.testConnection(instituteId);
-  return { success: result.success, message: `${result.status}: ${result.message}` };
+  return { success: result.success, message: result.message, status: result.status };
 };
 
 export const testAiCallingConnection = async (

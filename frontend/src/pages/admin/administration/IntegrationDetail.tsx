@@ -19,6 +19,7 @@ import {
   useConnectGoogle,
   useDisconnectGoogle,
   useDisconnectIntegration,
+  useFetchWhatsappNumber,
   useIntegrationDetail,
   useTestIntegration,
   useUpsertIntegration,
@@ -133,6 +134,7 @@ export const IntegrationDetail: React.FC = () => {
   const upsert = useUpsertIntegration(type ?? "AI");
   const test = useTestIntegration(type ?? "AI");
   const disconnect = useDisconnectIntegration(type ?? "AI");
+  const fetchWhatsappNumber = useFetchWhatsappNumber();
   const connectGoogle = useConnectGoogle();
   const disconnectGoogle = useDisconnectGoogle();
 
@@ -324,6 +326,26 @@ export const IntegrationDetail: React.FC = () => {
     }
   };
 
+  const handleFetchWhatsappNumber = async () => {
+    setMessage(null);
+    setErrorMsg(null);
+    try {
+      const result = await fetchWhatsappNumber.mutateAsync();
+      setConfig((prev) => ({
+        ...prev,
+        integratedNumber: result.integratedNumber,
+      }));
+      setMessage(`Integrated WhatsApp number: ${result.integratedNumber}`);
+      await refetch();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Failed to fetch WhatsApp number";
+      setErrorMsg(msg);
+    }
+  };
+
   const handleDisconnect = async () => {
     setMessage(null);
     setErrorMsg(null);
@@ -358,7 +380,22 @@ export const IntegrationDetail: React.FC = () => {
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl font-bold text-text-primary">{data.name}</h2>
-            <Badge variant="outline">{data.status.replace(/_/g, " ")}</Badge>
+            <Badge
+              variant={
+                data.status === "CONNECTED"
+                  ? "success"
+                  : data.status === "ERROR"
+                    ? "destructive"
+                    : "outline"
+              }
+            >
+              {data.status.replace(/_/g, " ")}
+            </Badge>
+            {type === "WHATSAPP" ? (
+              <Badge variant="outline">Provider: MSG91</Badge>
+            ) : data.provider ? (
+              <Badge variant="outline">{data.provider}</Badge>
+            ) : null}
           </div>
           <p className="text-sm text-text-secondary">{data.description}</p>
         </div>
@@ -503,13 +540,29 @@ export const IntegrationDetail: React.FC = () => {
                 <>
                   <div>
                     <Label>Integrated WhatsApp number</Label>
-                    <Input
-                      value={String(config.integratedNumber ?? config.phoneNumber ?? "")}
-                      onChange={setConfigField("integratedNumber")}
-                      placeholder="9198XXXXXXXX"
-                    />
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        value={String(config.integratedNumber ?? config.phoneNumber ?? "")}
+                        onChange={setConfigField("integratedNumber")}
+                        placeholder="9198XXXXXXXX"
+                        className="flex-1"
+                      />
+                      <PermissionGate itemKey="admin.integrations" mode="write">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={fetchWhatsappNumber.isPending || !hasCredential}
+                          onClick={handleFetchWhatsappNumber}
+                        >
+                          {fetchWhatsappNumber.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : null}
+                          Fetch WhatsApp Number
+                        </Button>
+                      </PermissionGate>
+                    </div>
                     <p className="text-xs text-text-secondary mt-1">
-                      MSG91 WhatsApp Business number with country code (no +).
+                      Prefer Fetch from MSG91 after saving Auth Key. Manual entry is allowed if fetch fails.
                     </p>
                   </div>
                   <div>
