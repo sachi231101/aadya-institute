@@ -57,6 +57,8 @@ export interface Admission {
   feePlan: FeePlan;
   status: AdmissionStatus | string;
   admissionDate: string;
+  termsAcceptedAt?: string | null;
+  termsAcceptance?: Array<{ masterId: string; name: string }> | null;
   notes?: string | null;
   createdAt?: string;
   student?: { id: string; studentCode: string; user?: { id: string; name: string; email?: string; phone?: string } };
@@ -118,6 +120,7 @@ export interface CreateAdmissionPayload {
   paymentModeMasterId?: string;
   areaMasterId?: string;
   concessionHeadMasterId?: string;
+  termsAcceptance?: Array<{ masterId: string; name: string }>;
   sendCredentials?: boolean;
 }
 
@@ -130,4 +133,5 @@ export interface ConvertApplicationPayload {
   batchId?: string;
   feePlan?: FeePlan;
   notes?: string;
+  termsAcceptance?: Array<{ masterId: string; name: string }>;
 }

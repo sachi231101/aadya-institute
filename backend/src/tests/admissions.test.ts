@@ -113,6 +113,7 @@ describe("Admissions Workflow Integration Tests", () => {
   let adminUser: AuthUser;
   let leadId: string;
   let creatorUserId: string;
+  let termsAcceptance: Array<{ masterId: string; name: string }>;
 
   before(async () => {
     const institute = await prisma.institute.upsert({
@@ -135,6 +136,33 @@ describe("Admissions Workflow Integration Tests", () => {
       create: { instituteId, name: "Admission Branch B", code: "ADM-B" },
     });
     branchBId = branchB.id;
+
+    const terms = await Promise.all(
+      [
+        ["Test Academy Terms", "Accept academy policies"],
+        ["Test Accuracy Declaration", "Confirm submitted information"],
+      ].map(([name, body], index) =>
+        prisma.masterRecord.upsert({
+          where: {
+            instituteId_entityType_name: {
+              instituteId,
+              entityType: "termsconditions",
+              name,
+            },
+          },
+          update: { status: "ACTIVE", data: { body }, sortOrder: index + 1 },
+          create: {
+            instituteId,
+            entityType: "termsconditions",
+            name,
+            status: "ACTIVE",
+            data: { body },
+            sortOrder: index + 1,
+          },
+        })
+      )
+    );
+    termsAcceptance = terms.map((term) => ({ masterId: term.id, name: term.name }));
 
     const course = await prisma.course.upsert({
       where: { instituteId_code: { instituteId, code: "ADM-COURSE" } },
@@ -269,11 +297,59 @@ describe("Admissions Workflow Integration Tests", () => {
             studentName: "Invalid Course Student",
             phone: `7${Date.now().toString().slice(-9)}`,
             courseId: "non-existent-course-id",
+            termsAcceptance,
           },
           { userId: adminUser.userId }
         ),
       (err: Error) => err.message.includes("course")
     );
+  });
+
+  test("confirmed admission requires all active terms", async () => {
+    await assert.rejects(
+      () =>
+        AdmissionsService.createAdmission(
+          instituteId,
+          branchAId,
+          {
+            studentName: "Terms Missing Student",
+            phone: `2${Date.now().toString().slice(-9)}`,
+            courseId,
+            status: "CONFIRMED",
+          },
+          { userId: adminUser.userId }
+        ),
+      (err: Error) => err.message.includes("Terms & Conditions")
+    );
+  });
+
+  test("draft confirmation validates and persists terms acceptance", async () => {
+    const draft = await prisma.admission.create({
+      data: {
+        instituteId,
+        branchId: branchAId,
+        admissionNo: `ADM-DRAFT-TERMS-${Date.now()}`,
+        studentName: "Draft Terms Student",
+        phone: `1${Date.now().toString().slice(-9)}`,
+        courseId,
+        status: "PENDING",
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        AdmissionsService.updateAdmission(draft.id, adminUser, {
+          status: "CONFIRMED",
+        }),
+      (err: Error) => err.message.includes("Terms & Conditions")
+    );
+
+    const confirmed = await AdmissionsService.updateAdmission(draft.id, adminUser, {
+      status: "CONFIRMED",
+      termsAcceptance,
+    });
+    assert.ok(confirmed.termsAcceptedAt);
+    assert.deepStrictEqual(confirmed.termsAcceptance, termsAcceptance);
   });
 
   test("direct admission creates student, admission, payment, pending fee, and batch enrollment", async () => {
@@ -291,6 +367,7 @@ describe("Admissions Workflow Integration Tests", () => {
         totalFee: 45000,
         amountPaid: 15000,
         status: "CONFIRMED",
+        termsAcceptance,
         installments: [{ installmentNo: 1, dueDate: "2026-05-01", amount: 15000 }],
       },
       { userId: adminUser.userId, currentUser: adminUser }
@@ -298,6 +375,8 @@ describe("Admissions Workflow Integration Tests", () => {
 
     assert.ok(admission.studentId);
     assert.ok(admission.admissionNo);
+    assert.ok(admission.termsAcceptedAt);
+    assert.deepStrictEqual(admission.termsAcceptance, termsAcceptance);
 
     const student = await prisma.student.findUnique({ where: { id: admission.studentId! } });
     assert.ok(student);
@@ -328,6 +407,7 @@ describe("Admissions Workflow Integration Tests", () => {
         phone,
         courseId,
         status: "CONFIRMED",
+        termsAcceptance,
       },
       { userId: adminUser.userId }
     );
@@ -342,6 +422,7 @@ describe("Admissions Workflow Integration Tests", () => {
             phone,
             courseId,
             status: "CONFIRMED",
+            termsAcceptance,
           },
           { userId: adminUser.userId }
         ),
@@ -359,6 +440,7 @@ describe("Admissions Workflow Integration Tests", () => {
         phone,
         courseId,
         status: "CONFIRMED",
+        termsAcceptance,
       },
       { userId: adminUser.userId }
     );
@@ -374,5 +456,46 @@ describe("Admissions Workflow Integration Tests", () => {
     assert.ok(Array.isArray(result.data));
     assert.ok(typeof result.total === "number");
     assert.ok(result.total >= 1);
+  });
+
+  test("application conversion requires and persists terms acceptance", async () => {
+    const phone = `3${Date.now().toString().slice(-9)}`;
+    const application = await prisma.application.create({
+      data: {
+        instituteId,
+        branchId: branchAId,
+        applicationNo: `APP-TERMS-${Date.now()}`,
+        applicantName: "Convert Terms Applicant",
+        phone,
+        courseId,
+        status: "SUBMITTED",
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        AdmissionsService.convertApplicationToAdmission(
+          application.id,
+          instituteId,
+          { batchId, totalFee: 10000, amountPaid: 0 },
+          adminUser
+        ),
+      (err: Error) => err.message.includes("Terms & Conditions")
+    );
+
+    const admission = await AdmissionsService.convertApplicationToAdmission(
+      application.id,
+      instituteId,
+      {
+        batchId,
+        totalFee: 10000,
+        amountPaid: 0,
+        termsAcceptance,
+      },
+      adminUser
+    );
+
+    assert.ok(admission.termsAcceptedAt);
+    assert.deepStrictEqual(admission.termsAcceptance, termsAcceptance);
   });
 });

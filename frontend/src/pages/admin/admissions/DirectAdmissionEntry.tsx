@@ -286,6 +286,11 @@ export const DirectAdmissionEntry: React.FC = () => {
   const { options: paymentModeOptions } = useMasterDropdown("paymentmodes");
   const { options: admissionStatusOptions } = useMasterDropdown("admissionstatus");
   const { options: educationOptions } = useMasterDropdown("education");
+  const {
+    options: termsOptions,
+    isLoading: termsLoading,
+    isError: termsError,
+  } = useMasterDropdown("termsconditions", branchId || undefined);
   const [referralSourceMasterId, setReferralSourceMasterId] = useState("");
   const [statusMasterId, setStatusMasterId] = useState("");
   const [admissionStatus, setAdmissionStatus] = useState<"Draft" | "Provisional" | "Confirmed" | "Cancelled">("Confirmed");
@@ -333,8 +338,7 @@ export const DirectAdmissionEntry: React.FC = () => {
 
   // ─── 6. REMARKS & TERMS STATE ───────────────────────────────────────────
   const [remarks, setRemarks] = useState("");
-  const [termsAccepted1, setTermsAccepted1] = useState(false);
-  const [termsAccepted2, setTermsAccepted2] = useState(false);
+  const [acceptedTermIds, setAcceptedTermIds] = useState<string[]>([]);
 
   // ─── 7. MODALS STATE ───────────────────────────────────────────────────
   const [showReviewStepModal, setShowReviewStepModal] = useState(false);
@@ -1059,7 +1063,11 @@ export const DirectAdmissionEntry: React.FC = () => {
       notifyError("Amount paid cannot exceed the total payable amount.");
       return false;
     }
-    if (statusOverride !== "Draft" && (!termsAccepted1 || !termsAccepted2)) {
+    if (statusOverride !== "Draft" && (termsLoading || termsError)) {
+      notifyError("Terms and conditions must load before confirming.");
+      return false;
+    }
+    if (statusOverride !== "Draft" && termsOptions.some((term) => !acceptedTermIds.includes(term.value))) {
       notifyError("Please accept the terms and conditions before confirming.");
       return false;
     }
@@ -1178,6 +1186,15 @@ export const DirectAdmissionEntry: React.FC = () => {
           paymentModeMasterId: paymentModeMasterId || undefined,
           concessionHeadMasterId: isPrimary ? concessionHeadMasterId || undefined : undefined,
           areaMasterId: areaMasterId || undefined,
+          termsAcceptance:
+            status === "PENDING"
+              ? undefined
+              : termsOptions
+                  .filter((term) => acceptedTermIds.includes(term.value))
+                  .map((term) => ({
+                    masterId: term.value,
+                    name: term.label,
+                  })),
           paymentMethod: mapPaymentMethod(
             paymentModeOptions.find((o) => o.value === paymentModeMasterId)
           ),
@@ -2633,24 +2650,49 @@ export const DirectAdmissionEntry: React.FC = () => {
 
                   <div className="space-y-3 pt-1">
                     <label className="text-xs font-bold text-foreground block">Terms & Conditions</label>
-                    <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={termsAccepted1}
-                        onChange={(e) => setTermsAccepted1(e.target.checked)}
-                        className="mt-0.5 rounded text-primary focus:ring-primary"
-                      />
-                      <span>I have read and understood all the academy terms & conditions.</span>
-                    </label>
-                    <label className="flex items-start gap-2 text-xs text-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={termsAccepted2}
-                        onChange={(e) => setTermsAccepted2(e.target.checked)}
-                        className="mt-0.5 rounded text-primary focus:ring-primary"
-                      />
-                      <span>I confirm that all the information provided is correct and verified.</span>
-                    </label>
+                    {termsLoading && (
+                      <p className="text-xs text-muted-foreground">Loading active terms...</p>
+                    )}
+                    {termsError && (
+                      <p className="text-xs text-red-600">
+                        Terms could not be loaded. Confirmation is unavailable.
+                      </p>
+                    )}
+                    {!termsLoading && !termsError && termsOptions.length === 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        No active admission terms are configured in Master Setup.
+                      </p>
+                    )}
+                    {termsOptions.map((term) => {
+                      const body = typeof term.data?.body === "string" ? term.data.body : "";
+                      return (
+                        <label
+                          key={term.value}
+                          className="flex items-start gap-2 text-xs text-foreground cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={acceptedTermIds.includes(term.value)}
+                            onChange={(e) =>
+                              setAcceptedTermIds((current) =>
+                                e.target.checked
+                                  ? [...current, term.value]
+                                  : current.filter((id) => id !== term.value)
+                              )
+                            }
+                            className="mt-0.5 rounded text-primary focus:ring-primary"
+                          />
+                          <span>
+                            <strong className="block">{term.label}</strong>
+                            {body && (
+                              <span className="mt-0.5 block text-muted-foreground line-clamp-3">
+                                {body}
+                              </span>
+                            )}
+                          </span>
+                        </label>
+                      );
+                    })}
                   </div>
                 </div>
               </CardContent>

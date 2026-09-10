@@ -10,6 +10,7 @@ import {
 } from "@/constants/master-form-fields";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -254,6 +255,47 @@ export const MasterSelect: React.FC<MasterSelectProps> = ({
                 field.readOnly && isTimeslot && field.key === "name"
                   ? buildTimeslotName(formValues.startTime, formValues.endTime)
                   : formValues[field.key] || "";
+
+              if (field.masterEntityType) {
+                return (
+                  <div key={field.key}>
+                    <Label className="text-xs">
+                      {field.label}
+                      {field.required ? " *" : ""}
+                    </Label>
+                    <MasterSelect
+                      entityType={field.masterEntityType}
+                      value={displayValue}
+                      onChange={(nextValue) =>
+                        setFormValues((prev) => ({ ...prev, [field.key]: nextValue }))
+                      }
+                      branchId={branchId}
+                      placeholder={`Select ${field.label.toLowerCase()}`}
+                      className="mt-1"
+                    />
+                  </div>
+                );
+              }
+
+              if (field.inputType === "textarea") {
+                return (
+                  <div key={field.key}>
+                    <Label className="text-xs">
+                      {field.label}
+                      {field.required ? " *" : ""}
+                    </Label>
+                    <Textarea
+                      value={displayValue}
+                      onChange={(e) =>
+                        setFormValues((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      rows={4}
+                      className="mt-1 text-xs"
+                      placeholder={field.label}
+                    />
+                  </div>
+                );
+              }
 
               return (
                 <div key={field.key}>

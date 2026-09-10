@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
 import { batchIncludesCourse } from "../../utils/batch-course.util";
@@ -315,6 +315,11 @@ export async function provisionAdmissionInTransaction(
     applicationId: dto.applicationId || null,
     feePlan: dto.feePlan || "INSTALLMENT",
     status: admissionStatus,
+    termsAcceptedAt: admissionStatus !== "PENDING" ? new Date() : null,
+    termsAcceptance:
+      admissionStatus !== "PENDING" && dto.termsAcceptance
+        ? (dto.termsAcceptance as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
     notes: dto.notes || null,
     ...(dto.statusMasterId ? { statusMasterId: dto.statusMasterId } : {}),
     ...(dto.concessionHeadMasterId ? { concessionHeadMasterId: dto.concessionHeadMasterId } : {}),

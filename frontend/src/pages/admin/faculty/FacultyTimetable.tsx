@@ -33,8 +33,10 @@ import {
 import { useAuthStore } from "@/store/auth.store";
 import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useClassSessions } from "@/hooks/useClassSessions";
+import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { usePermissions } from "@/hooks/usePermissions";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { toHolidayDateKey } from "@/constants/timetable-slots";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
@@ -253,6 +255,10 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
     endDate: weekRange.to,
     limit: 100,
   });
+  const { options: holidayOptions } = useMasterDropdown(
+    "holiday",
+    user?.branchId || undefined
+  );
 
   // State
   const [scheduleData, setScheduleData] = useState<FacultyDaySchedule[]>(INITIAL_FACULTY_WEEK);
@@ -276,10 +282,19 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
     const built: FacultyDaySchedule[] = dayKeys.map((dayKey, idx) => {
       const date = new Date(weekRange.monday);
       date.setDate(weekRange.monday.getDate() + idx);
+      const dateKey = [
+        date.getFullYear(),
+        String(date.getMonth() + 1).padStart(2, "0"),
+        String(date.getDate()).padStart(2, "0"),
+      ].join("-");
       const dateStr = date.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
       const dayName = date.toLocaleDateString("en-IN", { weekday: "long" });
       const dayShort = date.toLocaleDateString("en-IN", { weekday: "short" });
       const isSunday = dayKey === "SUN";
+      const holiday = holidayOptions.find(
+        (item) => toHolidayDateKey(item.data?.date) === dateKey
+      );
+      const isHoliday = Boolean(holiday) || isSunday;
       const slots = createDefaultDaySlots();
 
       sessions.forEach((raw: any) => {
@@ -316,14 +331,14 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
         dayName,
         dayShort,
         dateStr,
-        isHoliday: isSunday,
-        holidayTitle: isSunday ? "HOLIDAY" : undefined,
+        isHoliday,
+        holidayTitle: holiday?.label || (isSunday ? "Weekly Off" : undefined),
         slots,
       };
     });
 
     setScheduleData(built);
-  }, [sessionsRes, weekRange.monday, isFacultyUser]);
+  }, [sessionsRes, weekRange.monday, isFacultyUser, holidayOptions]);
 
   // Modals
   const [selectedSlot, setSelectedSlot] = useState<{ day: FacultyDaySchedule; slot: FacultyTimetableSlot } | null>(null);

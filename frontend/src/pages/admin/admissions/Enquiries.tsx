@@ -103,8 +103,8 @@ export const Enquiries: React.FC = () => {
   const rolePrefix = location.pathname.startsWith("/counselor")
     ? "/counselor"
     : location.pathname.startsWith("/center")
-    ? "/center"
-    : "/admin";
+      ? "/center"
+      : "/admin";
 
   const { data: leadsResponse, isLoading: isLoadingLeads } = useLeads({ limit: 100 });
   const createLeadMutation = useCreateLead();
@@ -153,14 +153,14 @@ export const Enquiries: React.FC = () => {
       preferredTime: "Morning",
       notesList: Array.isArray(l.notes)
         ? l.notes.map((n: any) => ({
-            id: n.id || String(Math.random()),
-            author: n.user?.name || n.author || "Counsellor",
-            date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "Recently",
-            time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-            text: n.content || n.text || "",
-          }))
+          id: n.id || String(Math.random()),
+          author: n.user?.name || n.author || "Counsellor",
+          date: n.createdAt ? new Date(n.createdAt).toLocaleDateString() : "Recently",
+          time: n.createdAt ? new Date(n.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+          text: n.content || n.text || "",
+        }))
         : typeof l.notes === "string" && l.notes.trim()
-        ? [
+          ? [
             {
               id: `note-${l.id}`,
               author: l.assignedCounsellor?.name || l.assignedTo?.name || "Counsellor",
@@ -169,15 +169,15 @@ export const Enquiries: React.FC = () => {
               text: l.notes,
             },
           ]
-        : [],
+          : [],
       timeline: Array.isArray(l.activities)
         ? l.activities.map((a: any) => ({
-            id: a.id || String(Math.random()),
-            date: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "Recently",
-            time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
-            text: a.description || a.action || "Activity logged",
-            mode: a.type || "System",
-          }))
+          id: a.id || String(Math.random()),
+          date: a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "Recently",
+          time: a.createdAt ? new Date(a.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "",
+          text: a.description || a.action || "Activity logged",
+          mode: a.type || "System",
+        }))
         : [],
     }));
   }, [leadsResponse]);
@@ -379,14 +379,14 @@ export const Enquiries: React.FC = () => {
       preferredTime: "Morning",
       notesList: newFormNotes
         ? [
-            {
-              id: `note-${Date.now()}`,
-              author: user?.name || "Priya Singh",
-              date: "Today",
-              time: "Just now",
-              text: newFormNotes,
-            },
-          ]
+          {
+            id: `note-${Date.now()}`,
+            author: user?.name || "Priya Singh",
+            date: "Today",
+            time: "Just now",
+            text: newFormNotes,
+          },
+        ]
         : [],
       timeline: [
         {
@@ -708,7 +708,7 @@ export const Enquiries: React.FC = () => {
 
   return (
     <div className="p-4 md:p-6 max-w-[1750px] w-full mx-auto space-y-5 bg-[#f8fafc] min-h-screen">
-      
+
       {/* ─── 1. PAGE HEADER ─── */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
@@ -955,11 +955,10 @@ export const Enquiries: React.FC = () => {
             <button
               key={tab.label}
               onClick={() => setActiveTab(tab.label)}
-              className={`px-3 py-2 rounded-t-lg transition-all flex items-center gap-1.5 whitespace-nowrap border-b-2 font-bold ${
-                activeTab === tab.label
+              className={`px-3 py-2 rounded-t-lg transition-all flex items-center gap-1.5 whitespace-nowrap border-b-2 font-bold ${activeTab === tab.label
                   ? "border-[#2563EB] text-[#2563EB] bg-blue-50/40"
                   : "border-transparent text-slate-600 hover:text-slate-900"
-              }`}
+                }`}
             >
               {tab.label}
               {tab.count !== null && (
@@ -975,21 +974,19 @@ export const Enquiries: React.FC = () => {
         <div className="flex items-center gap-1 bg-white border border-slate-200 p-1 rounded-xl shrink-0">
           <button
             onClick={() => setViewMode("List")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              viewMode === "List"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "List"
                 ? "bg-blue-50 text-[#2563EB] shadow-2xs"
                 : "text-slate-500 hover:text-slate-900"
-            }`}
+              }`}
           >
             <LayoutList className="h-3.5 w-3.5" /> List View
           </button>
           <button
             onClick={() => setViewMode("Pipeline")}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              viewMode === "Pipeline"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === "Pipeline"
                 ? "bg-blue-50 text-[#2563EB] shadow-2xs"
                 : "text-slate-500 hover:text-slate-900"
-            }`}
+              }`}
           >
             <Columns3 className="h-3.5 w-3.5" /> Pipeline View
           </button>
@@ -1034,9 +1031,8 @@ export const Enquiries: React.FC = () => {
                         <tr
                           key={lead.id}
                           onClick={() => setSelectedLead(lead)}
-                          className={`hover:bg-blue-50/40 transition-colors cursor-pointer whitespace-nowrap ${
-                            isSelected ? "bg-blue-50/70 font-medium" : ""
-                          }`}
+                          className={`hover:bg-blue-50/40 transition-colors cursor-pointer whitespace-nowrap ${isSelected ? "bg-blue-50/70 font-medium" : ""
+                            }`}
                         >
                           <td className="py-3.5 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                             <input

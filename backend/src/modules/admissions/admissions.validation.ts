@@ -50,6 +50,11 @@ const installmentItemSchema = z.object({
   amount: z.coerce.number().min(0),
 });
 
+const termsAcceptanceItemSchema = z.object({
+  masterId: z.string().min(1),
+  name: z.string().min(1),
+});
+
 export const createAdmissionSchema = z.object({
   studentName: z.string().min(2, "Student name must be at least 2 characters"),
   email: z.string().email("Invalid email address").optional().or(z.literal("")),
@@ -74,6 +79,7 @@ export const createAdmissionSchema = z.object({
   paymentModeMasterId: z.string().optional(),
   areaMasterId: z.string().optional(),
   concessionHeadMasterId: z.string().optional(),
+  termsAcceptance: z.array(termsAcceptanceItemSchema).optional(),
   sendCredentials: z.boolean().optional(),
 });
 
@@ -101,4 +107,5 @@ export const convertApplicationSchema = z.object({
   totalFee: z.coerce.number().optional(),
   amountPaid: z.coerce.number().optional(),
   installments: z.array(installmentItemSchema).optional(),
+  termsAcceptance: z.array(termsAcceptanceItemSchema).optional(),
 });

@@ -104,7 +104,6 @@ enum OverdueStatus {
   PAID
 }
 
-
 enum BatchStatus {
   UPCOMING
   ACTIVE
@@ -173,57 +172,57 @@ model Institute {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  branches   Branch[]
-  users      User[]
-  students   Student[]
-  faculty    Faculty[]
-  courses    Course[]
-  admissions Admission[]
-  enquiries  Enquiry[]
+  branches     Branch[]
+  users        User[]
+  students     Student[]
+  faculty      Faculty[]
+  courses      Course[]
+  admissions   Admission[]
+  enquiries    Enquiry[]
   applications Application[]
 
-  batches    Batch[]
+  batches Batch[]
 
-  payments    Payment[]
-  pendingFees PendingFee[]
-  createdAtLogs ActivityLog[]
-  notifications Notification[]
-  leads       Lead[]
-  aiConversations AIConversation[]
-  masterRecords MasterRecord[]
-  googleConnections GoogleWorkspaceConnection[]
-  conversations Conversation[]
-  targetPlans TargetPlan[]
-  targets     Target[]
-  incentives  Incentive[]
-  exams       Exam[]
-  questions   Question[]
-  questionBanks QuestionBank[]
-  examAttempts ExamAttempt[]
-  examProctoringEvents ExamProctoringEvent[]
-  documents            Document[]
-  feePlanTemplates     FeePlanTemplate[]
-  placementCompanies   PlacementCompany[]
-  placementJobs        PlacementJob[]
-  placementApplications PlacementApplication[]
-  placementRecords     PlacementRecord[]
-  emailTemplates       EmailTemplate[]
-  emailLogs            EmailLog[]
-  subscriptions        Subscription[]
-  invoices             Invoice[]
-  invitations          UserInvitation[]
-  securityPolicy       InstituteSecurityPolicy?
-  loginHistories       LoginHistory[]
-  securityAlerts       SecurityAlert[]
-  allowedIps           AllowedIp[]
-  systemSettings       SystemSetting[]
-  dataImportJobs       DataImportJob[]
-  dataExportJobs       DataExportJob[]
-  backupStatuses        BackupStatus[]
-  integrations         Integration[]
-  callLogs             CallLog[]
-  aiCallingConfig      InstituteAiCallingConfig?
-  aiCallingUsageDaily  AiCallingUsageDaily[]
+  payments                 Payment[]
+  pendingFees              PendingFee[]
+  createdAtLogs            ActivityLog[]
+  notifications            Notification[]
+  leads                    Lead[]
+  aiConversations          AIConversation[]
+  masterRecords            MasterRecord[]
+  googleConnections        GoogleWorkspaceConnection[]
+  conversations            Conversation[]
+  targetPlans              TargetPlan[]
+  targets                  Target[]
+  incentives               Incentive[]
+  exams                    Exam[]
+  questions                Question[]
+  questionBanks            QuestionBank[]
+  examAttempts             ExamAttempt[]
+  examProctoringEvents     ExamProctoringEvent[]
+  documents                Document[]
+  feePlanTemplates         FeePlanTemplate[]
+  placementCompanies       PlacementCompany[]
+  placementJobs            PlacementJob[]
+  placementApplications    PlacementApplication[]
+  placementRecords         PlacementRecord[]
+  emailTemplates           EmailTemplate[]
+  emailLogs                EmailLog[]
+  subscriptions            Subscription[]
+  invoices                 Invoice[]
+  invitations              UserInvitation[]
+  securityPolicy           InstituteSecurityPolicy?
+  loginHistories           LoginHistory[]
+  securityAlerts           SecurityAlert[]
+  allowedIps               AllowedIp[]
+  systemSettings           SystemSetting[]
+  dataImportJobs           DataImportJob[]
+  dataExportJobs           DataExportJob[]
+  backupStatuses           BackupStatus[]
+  integrations             Integration[]
+  callLogs                 CallLog[]
+  aiCallingConfig          InstituteAiCallingConfig?
+  aiCallingUsageDaily      AiCallingUsageDaily[]
   whatsappAutomationConfig WhatsAppAutomationConfig?
   notificationTemplates    NotificationTemplate[]
   notificationRules        NotificationRule[]
@@ -247,28 +246,28 @@ model Branch {
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   manager   User?     @relation("BranchManager", fields: [managerUserId], references: [id], onDelete: SetNull)
 
-  users      User[]
-  students   Student[]
-  faculty    Faculty[]
-  admissions Admission[]
-  enquiries  Enquiry[]
+  users        User[]
+  students     Student[]
+  faculty      Faculty[]
+  admissions   Admission[]
+  enquiries    Enquiry[]
   applications Application[]
 
-  batches    Batch[]
+  batches Batch[]
 
-  payments    Payment[]
-  pendingFees PendingFee[]
-  notifications Notification[]
-  leads       Lead[]
-  masterRecords MasterRecord[]
-  conversations Conversation[]
-  targetPlans TargetPlan[]
-  targets     Target[]
-  incentives  Incentive[]
-  exams       Exam[]
-  questions   Question[]
-  questionBanks QuestionBank[]
-  examAttempts ExamAttempt[]
+  payments              Payment[]
+  pendingFees           PendingFee[]
+  notifications         Notification[]
+  leads                 Lead[]
+  masterRecords         MasterRecord[]
+  conversations         Conversation[]
+  targetPlans           TargetPlan[]
+  targets               Target[]
+  incentives            Incentive[]
+  exams                 Exam[]
+  questions             Question[]
+  questionBanks         QuestionBank[]
+  examAttempts          ExamAttempt[]
   documents             Document[]
   feePlanTemplates      FeePlanTemplate[]
   placementApplications PlacementApplication[]
@@ -321,52 +320,52 @@ model User {
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  userRoles      UserRole[]
-  userPermissions UserPermission[]
-  refreshTokens  RefreshToken[]
-  student        Student?
-  faculty        Faculty?
+  userRoles         UserRole[]
+  userPermissions   UserPermission[]
+  refreshTokens     RefreshToken[]
+  student           Student?
+  faculty           Faculty?
   assignedEnquiries Enquiry[]
-  settings UserSettings?
+  settings          UserSettings?
 
-  activityLogs   ActivityLog[]
-  notifications  Notification[]
+  activityLogs  ActivityLog[]
+  notifications Notification[]
 
-  createdLeads         Lead[]             @relation("LeadCreatedBy")
-  assignedLeads        Lead[]             @relation("LeadAssignedTo")
-  assignedLeadRecords  LeadAssignment[]   @relation("LeadAssignmentCounsellor")
-  assignmentsGiven     LeadAssignment[]   @relation("LeadAssignmentAssignedBy")
+  createdLeads         Lead[]                     @relation("LeadCreatedBy")
+  assignedLeads        Lead[]                     @relation("LeadAssignedTo")
+  assignedLeadRecords  LeadAssignment[]           @relation("LeadAssignmentCounsellor")
+  assignmentsGiven     LeadAssignment[]           @relation("LeadAssignmentAssignedBy")
   stageChanges         LeadStageHistory[]
   leadActivities       LeadActivity[]
-  followUpsAssigned    LeadFollowUp[]     @relation("FollowUpCounsellor")
-  followUpsCreated     LeadFollowUp[]     @relation("FollowUpCreatedBy")
-  manualCallLogs       CallLog[]          @relation("CallLogCaller")
+  followUpsAssigned    LeadFollowUp[]             @relation("FollowUpCounsellor")
+  followUpsCreated     LeadFollowUp[]             @relation("FollowUpCreatedBy")
+  manualCallLogs       CallLog[]                  @relation("CallLogCaller")
   aiConversations      AIConversation[]
-  permissionsGranted   UserPermission[]   @relation("PermissionGrantedBy")
+  permissionsGranted   UserPermission[]           @relation("PermissionGrantedBy")
   googleConnection     GoogleWorkspaceConnection?
   organizedMeetSpaces  GoogleMeetSpace[]
   chatMemberships      ConversationMember[]
   sentMessages         Message[]
-  createdTargetPlans   TargetPlan[]       @relation("TargetPlanCreatedBy")
-  assignedTargets      Target[]           @relation("TargetAssignedTo")
-  createdTargets       Target[]           @relation("TargetCreatedBy")
-  incentivesEarned     Incentive[]        @relation("IncentiveUser")
-  incentivesApproved   Incentive[]        @relation("IncentiveApprovedBy")
+  createdTargetPlans   TargetPlan[]               @relation("TargetPlanCreatedBy")
+  assignedTargets      Target[]                   @relation("TargetAssignedTo")
+  createdTargets       Target[]                   @relation("TargetCreatedBy")
+  incentivesEarned     Incentive[]                @relation("IncentiveUser")
+  incentivesApproved   Incentive[]                @relation("IncentiveApprovedBy")
   targetProgress       TargetProgress[]
-  createdExams         Exam[]             @relation("ExamCreatedBy")
-  createdQuestions     Question[]         @relation("QuestionCreatedBy")
-  gradedExamAnswers    ExamAnswer[]       @relation("ExamAnswerGradedBy")
-  createdQuestionBanks QuestionBank[]     @relation("QuestionBankCreatedBy")
+  createdExams         Exam[]                     @relation("ExamCreatedBy")
+  createdQuestions     Question[]                 @relation("QuestionCreatedBy")
+  gradedExamAnswers    ExamAnswer[]               @relation("ExamAnswerGradedBy")
+  createdQuestionBanks QuestionBank[]             @relation("QuestionBankCreatedBy")
   examAttempts         ExamAttempt[]
-  documentsUploaded    Document[]     @relation("DocumentUploadedBy")
-  documentsVerified    Document[]     @relation("DocumentVerifiedBy")
-  emailLogsSent        EmailLog[]     @relation("EmailLogSentBy")
-  managedBranches      Branch[]       @relation("BranchManager")
+  documentsUploaded    Document[]                 @relation("DocumentUploadedBy")
+  documentsVerified    Document[]                 @relation("DocumentVerifiedBy")
+  emailLogsSent        EmailLog[]                 @relation("EmailLogSentBy")
+  managedBranches      Branch[]                   @relation("BranchManager")
   branchAccesses       UserBranchAccess[]
-  invitationsSent      UserInvitation[] @relation("InvitationInvitedBy")
+  invitationsSent      UserInvitation[]           @relation("InvitationInvitedBy")
   loginHistories       LoginHistory[]
-  dataImportJobs       DataImportJob[]  @relation("DataImportCreatedBy")
-  dataExportJobs       DataExportJob[]  @relation("DataExportCreatedBy")
+  dataImportJobs       DataImportJob[]            @relation("DataImportCreatedBy")
+  dataExportJobs       DataExportJob[]            @relation("DataExportCreatedBy")
 
   @@index([instituteId])
   @@index([branchId])
@@ -418,24 +417,24 @@ model RolePermission {
 }
 
 model Student {
-  id                      String        @id @default(cuid())
-  userId                  String?       @unique
-  instituteId             String
-  branchId                String
-  studentCode             String
-  dateOfBirth             DateTime?
-  qualification           String?
-  qualificationMasterId   String?
-  areaMasterId            String?
-  status                  StudentStatus @default(ACTIVE)
-  createdAt               DateTime      @default(now())
-  updatedAt               DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  userId                String?       @unique
+  instituteId           String
+  branchId              String
+  studentCode           String
+  dateOfBirth           DateTime?
+  qualification         String?
+  qualificationMasterId String?
+  areaMasterId          String?
+  status                StudentStatus @default(ACTIVE)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  user                  User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  institute             Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch                Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  qualificationMaster   MasterRecord?  @relation("StudentQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
-  areaMaster            MasterRecord?  @relation("StudentAreaMaster", fields: [areaMasterId], references: [id], onDelete: SetNull)
+  user                User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  institute           Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch              Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  qualificationMaster MasterRecord? @relation("StudentQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
+  areaMaster          MasterRecord? @relation("StudentAreaMaster", fields: [areaMasterId], references: [id], onDelete: SetNull)
 
   admissions            Admission[]
   batchEnrollments      BatchEnrollment[]
@@ -460,25 +459,25 @@ model Student {
 }
 
 model Faculty {
-  id                     String        @id @default(cuid())
-  userId                 String        @unique
-  instituteId            String
-  branchId               String
-  employeeCode           String
-  specialization         String?
-  designation            String?
-  designationMasterId    String?
-  qualification          String?
-  qualificationMasterId  String?
-  status                 FacultyStatus @default(ACTIVE)
-  createdAt              DateTime      @default(now())
-  updatedAt              DateTime      @updatedAt
+  id                    String        @id @default(cuid())
+  userId                String        @unique
+  instituteId           String
+  branchId              String
+  employeeCode          String
+  specialization        String?
+  designation           String?
+  designationMasterId   String?
+  qualification         String?
+  qualificationMasterId String?
+  status                FacultyStatus @default(ACTIVE)
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  user                  User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  institute             Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch                Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  designationMaster     MasterRecord? @relation("FacultyDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
-  qualificationMaster   MasterRecord? @relation("FacultyQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute           Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch              Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  designationMaster   MasterRecord? @relation("FacultyDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
+  qualificationMaster MasterRecord? @relation("FacultyQualificationMaster", fields: [qualificationMasterId], references: [id], onDelete: SetNull)
 
   batches                Batch[]
   batchCourses           BatchCourse[]
@@ -513,18 +512,18 @@ model Course {
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
-  modules    CourseModule[]
-  admissions Admission[]
-  enquiries  Enquiry[]
+  modules      CourseModule[]
+  admissions   Admission[]
+  enquiries    Enquiry[]
   applications Application[]
 
-  batches    Batch[]
-  batchCourses BatchCourse[]
-  leads      Lead[]
-  exams      Exam[]
-  questions  Question[]
-  questionBanks QuestionBank[]
-  feePlanTemplates FeePlanTemplate[]
+  batches           Batch[]
+  batchCourses      BatchCourse[]
+  leads             Lead[]
+  exams             Exam[]
+  questions         Question[]
+  questionBanks     QuestionBank[]
+  feePlanTemplates  FeePlanTemplate[]
   assignmentTargets AssignmentTarget[]
 
   @@unique([instituteId, code])
@@ -546,9 +545,9 @@ model CourseModule {
 
   course Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
 
-  batchModules BatchModule[]
-  questions    Question[]
-  exams        Exam[]
+  batchModules      BatchModule[]
+  questions         Question[]
+  exams             Exam[]
   assignmentTargets AssignmentTarget[]
 
   @@unique([courseId, sequence])
@@ -634,6 +633,8 @@ model Admission {
   statusMasterId         String?
   concessionHeadMasterId String?
   admissionDate          DateTime  @default(now())
+  termsAcceptedAt        DateTime?
+  termsAcceptance        Json?
   notes                  String?
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -647,9 +648,9 @@ model Admission {
   statusMaster         MasterRecord? @relation("AdmissionStatusMaster", fields: [statusMasterId], references: [id], onDelete: SetNull)
   concessionHeadMaster MasterRecord? @relation("AdmissionConcessionMaster", fields: [concessionHeadMasterId], references: [id], onDelete: SetNull)
 
-  batchEnrollments BatchEnrollment[]
-  payments         Payment[]
-  pendingFees      PendingFee[]
+  batchEnrollments   BatchEnrollment[]
+  payments           Payment[]
+  pendingFees        PendingFee[]
   convertedFromLeads Lead[]
 
   @@index([studentId])
@@ -661,42 +662,41 @@ model Admission {
 }
 
 model Batch {
-  id              String      @id @default(cuid())
-  instituteId     String
-  branchId        String
-  courseId        String
-  facultyId       String?
-  name            String
-  code            String
-  startDate       DateTime
-  expectedEndDate DateTime?
-  schedulePattern String?     @default("MWF")
-  timeSlot        String?     @default("10:00 AM - 12:00 PM")
+  id                String      @id @default(cuid())
+  instituteId       String
+  branchId          String
+  courseId          String
+  facultyId         String?
+  name              String
+  code              String
+  startDate         DateTime
+  expectedEndDate   DateTime?
+  schedulePattern   String?     @default("MWF")
+  timeSlot          String?     @default("10:00 AM - 12:00 PM")
   timeslotMasterId  String?
   classroomMasterId String?
-  capacity        Int         @default(35)
-  remark          String?
-  status          BatchStatus @default(UPCOMING)
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  capacity          Int         @default(35)
+  remark            String?
+  status            BatchStatus @default(UPCOMING)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
 
-  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch    Branch    @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  course    Course    @relation(fields: [courseId], references: [id], onDelete: Restrict)
-  faculty   Faculty?  @relation(fields: [facultyId], references: [id], onDelete: SetNull)
+  institute       Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch          Branch        @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  faculty         Faculty?      @relation(fields: [facultyId], references: [id], onDelete: SetNull)
   timeslotMaster  MasterRecord? @relation("BatchTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
   classroomMaster MasterRecord? @relation("BatchClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
 
-  schedules     BatchSchedule[]
-  batchModules  BatchModule[]
-  batchCourses  BatchCourse[]
-  enrollments   BatchEnrollment[]
-  classSessions ClassSession[]
-  admissions    Admission[]
-  examAssignments ExamBatch[]
-  assignments   Assignment[]
+  schedules         BatchSchedule[]
+  batchModules      BatchModule[]
+  batchCourses      BatchCourse[]
+  enrollments       BatchEnrollment[]
+  classSessions     ClassSession[]
+  admissions        Admission[]
+  examAssignments   ExamBatch[]
+  assignments       Assignment[]
   assignmentTargets AssignmentTarget[] @relation("AssignmentTargetBatch")
-
 
   @@unique([instituteId, code])
   @@index([instituteId])
@@ -805,13 +805,13 @@ model BatchEnrollment {
 }
 
 model ClassSession {
-  id                String    @id @default(cuid())
+  id                String             @id @default(cuid())
   batchId           String
   batchCourseId     String?
   batchModuleId     String?
   facultyId         String
   branchId          String
-  title             String?   @default("Class Session")
+  title             String?            @default("Class Session")
   scheduledDate     DateTime
   startTime         String
   endTime           String
@@ -820,21 +820,21 @@ model ClassSession {
   roomNo            String?
   classroomMasterId String?
   timeslotMasterId  String?
-  mode              String?   @default("OFFLINE")
+  mode              String?            @default("OFFLINE")
   meetingUrl        String?
   notes             String?
-  sessionType       SessionType @default(THEORY)
+  sessionType       SessionType        @default(THEORY)
   sessionStatus     ClassSessionStatus @default(UPCOMING)
-  status            Status    @default(ACTIVE)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  status            Status             @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
 
-  batch            Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  batchCourse      BatchCourse?  @relation(fields: [batchCourseId], references: [id], onDelete: SetNull)
-  batchModule      BatchModule?  @relation(fields: [batchModuleId], references: [id], onDelete: SetNull)
-  faculty          Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
-  classroomMaster  MasterRecord? @relation("ClassSessionClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
-  timeslotMaster   MasterRecord? @relation("ClassSessionTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
+  batch           Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batchCourse     BatchCourse?  @relation(fields: [batchCourseId], references: [id], onDelete: SetNull)
+  batchModule     BatchModule?  @relation(fields: [batchModuleId], references: [id], onDelete: SetNull)
+  faculty         Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  classroomMaster MasterRecord? @relation("ClassSessionClassroomMaster", fields: [classroomMasterId], references: [id], onDelete: SetNull)
+  timeslotMaster  MasterRecord? @relation("ClassSessionTimeslotMaster", fields: [timeslotMasterId], references: [id], onDelete: SetNull)
 
   attendance        StudentAttendance[]
   facultyAttendance FacultyAttendance[]
@@ -880,16 +880,16 @@ model FacultyAttendance {
 }
 
 model FacultyDailyAttendance {
-  id        String                        @id @default(cuid())
+  id        String                       @id @default(cuid())
   facultyId String
-  date      DateTime                      @db.Date
+  date      DateTime                     @db.Date
   status    FacultyDailyAttendanceStatus
   inTime    String?
   outTime   String?
   comments  String?
   markedBy  String?
-  createdAt DateTime                      @default(now())
-  updatedAt DateTime                      @updatedAt
+  createdAt DateTime                     @default(now())
+  updatedAt DateTime                     @updatedAt
 
   faculty Faculty @relation(fields: [facultyId], references: [id], onDelete: Cascade)
 
@@ -947,9 +947,9 @@ model GoogleWorkspaceConnection {
 model GoogleMeetSpace {
   id                           String              @id @default(cuid())
   classSessionId               String              @unique
-  spaceName                    String              // e.g. "spaces/xxx-yyyy-zzz"
-  meetingUri                   String              // e.g. "https://meet.google.com/xxx-yyyy-zzz"
-  meetingCode                  String?             // e.g. "xxx-yyyy-zzz"
+  spaceName                    String // e.g. "spaces/xxx-yyyy-zzz"
+  meetingUri                   String // e.g. "https://meet.google.com/xxx-yyyy-zzz"
+  meetingCode                  String? // e.g. "xxx-yyyy-zzz"
   organizerUserId              String
   recordingEnabled             Boolean             @default(false)
   recordingConfigurationStatus MeetRecordingStatus @default(UNKNOWN)
@@ -987,11 +987,11 @@ model Assignment {
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
 
-  classSession         ClassSession? @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
-  batch                Batch         @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  faculty              Faculty       @relation(fields: [facultyId], references: [id], onDelete: Restrict)
-  assignmentTypeMaster MasterRecord? @relation("AssignmentTypeMaster", fields: [assignmentTypeMasterId], references: [id], onDelete: SetNull)
-  academicYearMaster   MasterRecord? @relation("AssignmentAcademicYearMaster", fields: [academicYearMasterId], references: [id], onDelete: SetNull)
+  classSession         ClassSession?          @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
+  batch                Batch                  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  faculty              Faculty                @relation(fields: [facultyId], references: [id], onDelete: Restrict)
+  assignmentTypeMaster MasterRecord?          @relation("AssignmentTypeMaster", fields: [assignmentTypeMasterId], references: [id], onDelete: SetNull)
+  academicYearMaster   MasterRecord?          @relation("AssignmentAcademicYearMaster", fields: [academicYearMasterId], references: [id], onDelete: SetNull)
   submissions          AssignmentSubmission[]
   targets              AssignmentTarget[]
   recipients           AssignmentRecipient[]
@@ -1082,7 +1082,7 @@ model WhatsappLog {
   to          String?
   type        String
   body        String
-  direction   String   // INBOUND | OUTBOUND
+  direction   String // INBOUND | OUTBOUND
   status      String?
   createdAt   DateTime @default(now())
 
@@ -1121,13 +1121,13 @@ model CallLog {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  institute  Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch     Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  importJob  DataImportJob?     @relation(fields: [importJobId], references: [id], onDelete: SetNull)
-  agent      AiCallingAgent?    @relation(fields: [agentId], references: [id], onDelete: SetNull)
-  student    Student?           @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  lead       Lead?              @relation(fields: [leadId], references: [id], onDelete: SetNull)
-  caller     User?              @relation("CallLogCaller", fields: [callerUserId], references: [id], onDelete: SetNull)
+  institute Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?         @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  importJob DataImportJob?  @relation(fields: [importJobId], references: [id], onDelete: SetNull)
+  agent     AiCallingAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  student   Student?        @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  lead      Lead?           @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  caller    User?           @relation("CallLogCaller", fields: [callerUserId], references: [id], onDelete: SetNull)
 
   @@index([studentId])
   @@index([leadId])
@@ -1192,7 +1192,7 @@ model NotificationTemplate {
   providerTemplateId   String?
   providerNamespace    String?
   language             String   @default("en")
-  variables            Json     // string[] of required variable names
+  variables            Json // string[] of required variable names
   status               String   @default("ACTIVE") // ACTIVE | INACTIVE | SYNCED
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
@@ -1216,7 +1216,7 @@ model NotificationRule {
   channel       String   @default("WHATSAPP")
   enabled       Boolean  @default(false)
   templateId    String?
-  configuration Json?    // e.g. { "offsetMinutes": -120 } for CLASS_REMINDER
+  configuration Json? // e.g. { "offsetMinutes": -120 } for CLASS_REMINDER
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -1286,39 +1286,40 @@ model NotificationIdempotency {
   @@index([key])
   @@index([instituteId])
 }
-model Payment {
-  id                   String        @id @default(cuid())
-  receiptNo            String        @unique
-  instituteId          String
-  branchId             String?
-  studentId            String?
-  admissionId          String?
-  pendingFeeId         String?
-  studentName          String
-  admissionNo          String
-  courseName           String
-  amount               Float
-  date                 DateTime      @default(now())
-  method               String        @default("UPI")
-  paymentModeMasterId  String?
-  bankAccountMasterId  String?
-  feeHeadMasterId      String?
-  feeHead              String?
-  transactionRef       String?
-  status               PaymentStatus @default(SUCCESS)
-  notes                String?
-  recordedById         String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
 
-  institute           Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch              Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  student             Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  admission           Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
-  pendingFee          PendingFee?   @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
-  paymentModeMaster   MasterRecord? @relation("PaymentModeMaster", fields: [paymentModeMasterId], references: [id], onDelete: SetNull)
-  bankAccountMaster   MasterRecord? @relation("PaymentBankAccountMaster", fields: [bankAccountMasterId], references: [id], onDelete: SetNull)
-  feeHeadMaster       MasterRecord? @relation("PaymentFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
+model Payment {
+  id                  String        @id @default(cuid())
+  receiptNo           String        @unique
+  instituteId         String
+  branchId            String?
+  studentId           String?
+  admissionId         String?
+  pendingFeeId        String?
+  studentName         String
+  admissionNo         String
+  courseName          String
+  amount              Float
+  date                DateTime      @default(now())
+  method              String        @default("UPI")
+  paymentModeMasterId String?
+  bankAccountMasterId String?
+  feeHeadMasterId     String?
+  feeHead             String?
+  transactionRef      String?
+  status              PaymentStatus @default(SUCCESS)
+  notes               String?
+  recordedById        String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  institute         Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch            Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student           Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission         Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  pendingFee        PendingFee?   @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
+  paymentModeMaster MasterRecord? @relation("PaymentModeMaster", fields: [paymentModeMasterId], references: [id], onDelete: SetNull)
+  bankAccountMaster MasterRecord? @relation("PaymentBankAccountMaster", fields: [bankAccountMasterId], references: [id], onDelete: SetNull)
+  feeHeadMaster     MasterRecord? @relation("PaymentFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
 
   @@index([instituteId])
   @@index([branchId])
@@ -1364,28 +1365,28 @@ model PendingFee {
 }
 
 model UserSettings {
-  id                    String   @id @default(cuid())
-  userId                String   @unique
-  designation           String?  @default("")
-  designationMasterId   String?
-  department            String?  @default("")
-  language              String?  @default("English (US)")
-  timezone              String?  @default("(GMT+05:30) India Standard Time")
-  twoFactorEnabled      Boolean  @default(false)
-  emailAdmissions       Boolean  @default(true)
-  emailFeeAlerts        Boolean  @default(true)
-  emailAttendance       Boolean  @default(false)
-  whatsappReminders     Boolean  @default(true)
-  aiCallAlerts          Boolean  @default(true)
-  primaryBranch         String?  @default("")
-  currencyFormat        String?  @default("INR (₹)")
-  themeMode             String?  @default("LIGHT")
-  autoLogoutMinutes     Int?     @default(30)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  designation         String?  @default("")
+  designationMasterId String?
+  department          String?  @default("")
+  language            String?  @default("English (US)")
+  timezone            String?  @default("(GMT+05:30) India Standard Time")
+  twoFactorEnabled    Boolean  @default(false)
+  emailAdmissions     Boolean  @default(true)
+  emailFeeAlerts      Boolean  @default(true)
+  emailAttendance     Boolean  @default(false)
+  whatsappReminders   Boolean  @default(true)
+  aiCallAlerts        Boolean  @default(true)
+  primaryBranch       String?  @default("")
+  currencyFormat      String?  @default("INR (₹)")
+  themeMode           String?  @default("LIGHT")
+  autoLogoutMinutes   Int?     @default(30)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  designationMaster   MasterRecord? @relation("UserSettingsDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
+  user              User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  designationMaster MasterRecord? @relation("UserSettingsDesignationMaster", fields: [designationMasterId], references: [id], onDelete: SetNull)
 }
 
 enum NotificationType {
@@ -1483,8 +1484,8 @@ model Lead {
   phoneNumber          String
   normalizedPhone      String?
   email                String?
-  interestedIn         String          // Text entered by counsellor
-  courseId             String?         // Matched course relation if found
+  interestedIn         String // Text entered by counsellor
+  courseId             String? // Matched course relation if found
   source               String          @default("WALK_IN")
   sourceMasterId       String?
   stage                String          @default("NEW")
@@ -1510,24 +1511,24 @@ model Lead {
   createdAt            DateTime        @default(now())
   updatedAt            DateTime        @updatedAt
 
-  institute            Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch               Branch          @relation(fields: [branchId], references: [id], onDelete: Cascade)
-  importJob            DataImportJob?  @relation(fields: [importJobId], references: [id], onDelete: SetNull)
-  course               Course?         @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  createdBy            User            @relation("LeadCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  assignedCounsellor   User?           @relation("LeadAssignedTo", fields: [assignedCounsellorId], references: [id], onDelete: SetNull)
-  convertedStudent     Student?        @relation(fields: [convertedStudentId], references: [id], onDelete: SetNull)
-  convertedAdmission   Admission?      @relation(fields: [convertedAdmissionId], references: [id], onDelete: SetNull)
-  sourceMaster         MasterRecord?   @relation("LeadSourceMaster", fields: [sourceMasterId], references: [id], onDelete: SetNull)
-  stageMaster          MasterRecord?   @relation("LeadStageMaster", fields: [stageMasterId], references: [id], onDelete: SetNull)
-  leadTypeMaster       MasterRecord?   @relation("LeadTypeMaster", fields: [leadTypeMasterId], references: [id], onDelete: SetNull)
+  institute          Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch             Branch         @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  importJob          DataImportJob? @relation(fields: [importJobId], references: [id], onDelete: SetNull)
+  course             Course?        @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  createdBy          User           @relation("LeadCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  assignedCounsellor User?          @relation("LeadAssignedTo", fields: [assignedCounsellorId], references: [id], onDelete: SetNull)
+  convertedStudent   Student?       @relation(fields: [convertedStudentId], references: [id], onDelete: SetNull)
+  convertedAdmission Admission?     @relation(fields: [convertedAdmissionId], references: [id], onDelete: SetNull)
+  sourceMaster       MasterRecord?  @relation("LeadSourceMaster", fields: [sourceMasterId], references: [id], onDelete: SetNull)
+  stageMaster        MasterRecord?  @relation("LeadStageMaster", fields: [stageMasterId], references: [id], onDelete: SetNull)
+  leadTypeMaster     MasterRecord?  @relation("LeadTypeMaster", fields: [leadTypeMasterId], references: [id], onDelete: SetNull)
 
-  assignments          LeadAssignment[]
-  stageHistory         LeadStageHistory[]
-  activities           LeadActivity[]
-  followUps            LeadFollowUp[]
-  callLogs             CallLog[]
-  applications         Application[]
+  assignments  LeadAssignment[]
+  stageHistory LeadStageHistory[]
+  activities   LeadActivity[]
+  followUps    LeadFollowUp[]
+  callLogs     CallLog[]
+  applications Application[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -1547,19 +1548,19 @@ model Lead {
 }
 
 model LeadAssignment {
-  id             String    @id @default(cuid())
-  leadId         String
-  counsellorId   String
-  assignedById   String
-  assignedAt     DateTime  @default(now())
-  unassignedAt   DateTime?
-  isCurrent      Boolean   @default(true)
-  notes          String?
-  createdAt      DateTime  @default(now())
+  id           String    @id @default(cuid())
+  leadId       String
+  counsellorId String
+  assignedById String
+  assignedAt   DateTime  @default(now())
+  unassignedAt DateTime?
+  isCurrent    Boolean   @default(true)
+  notes        String?
+  createdAt    DateTime  @default(now())
 
-  lead           Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  counsellor     User      @relation("LeadAssignmentCounsellor", fields: [counsellorId], references: [id], onDelete: Cascade)
-  assignedBy     User      @relation("LeadAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
+  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  counsellor User @relation("LeadAssignmentCounsellor", fields: [counsellorId], references: [id], onDelete: Cascade)
+  assignedBy User @relation("LeadAssignmentAssignedBy", fields: [assignedById], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([counsellorId])
@@ -1575,8 +1576,8 @@ model LeadStageHistory {
   notes       String?
   createdAt   DateTime @default(now())
 
-  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  changedBy   User       @relation(fields: [changedById], references: [id], onDelete: Cascade)
+  lead      Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedBy User @relation(fields: [changedById], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([createdAt])
@@ -1592,8 +1593,8 @@ model LeadActivity {
   metadata    Json?
   createdAt   DateTime         @default(now())
 
-  lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([leadId])
   @@index([type])
@@ -1616,9 +1617,9 @@ model LeadFollowUp {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  counsellor   User           @relation("FollowUpCounsellor", fields: [counsellorId], references: [id], onDelete: Cascade)
-  createdBy    User           @relation("FollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  lead       Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  counsellor User @relation("FollowUpCounsellor", fields: [counsellorId], references: [id], onDelete: Cascade)
+  createdBy  User @relation("FollowUpCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
   @@index([leadId])
   @@index([counsellorId])
@@ -1628,33 +1629,33 @@ model LeadFollowUp {
 }
 
 model AIConversation {
-  id           String      @id @default(cuid())
-  instituteId  String
-  userId       String
-  title        String?
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  messages     AIMessage[]
+  id          String      @id @default(cuid())
+  instituteId String
+  userId      String
+  title       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  messages    AIMessage[]
 
-  institute    Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, instituteId])
   @@index([updatedAt])
 }
 
 model AIMessage {
-  id              String         @id @default(cuid())
-  conversationId  String
-  role            String         // "user" | "assistant" | "system" | "tool"
-  content         String
-  toolName        String?
-  toolCallId      String?
-  toolArgs        Json?
-  toolResult      Json?
-  createdAt       DateTime       @default(now())
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String // "user" | "assistant" | "system" | "tool"
+  content        String
+  toolName       String?
+  toolCallId     String?
+  toolArgs       Json?
+  toolResult     Json?
+  createdAt      DateTime @default(now())
 
-  conversation    AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId])
 }
@@ -1679,49 +1680,49 @@ model UserPermission {
 // ─── Master Module / Master Data Management ──────────────────────────────────
 
 model MasterRecord {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   instituteId String
   branchId    String?
-  entityType  String    // e.g. "classroom", "leadsource", "leadstage", "feehead", etc.
+  entityType  String // e.g. "classroom", "leadsource", "leadstage", "feehead", etc.
   code        String?
   name        String
   description String?
-  status      Status    @default(ACTIVE)
-  sortOrder   Int       @default(0)
-  data        Json?     // Custom entity-specific key-values (capacity, color, slaHours, etc.)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  status      Status   @default(ACTIVE)
+  sortOrder   Int      @default(0)
+  data        Json? // Custom entity-specific key-values (capacity, color, slaHours, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  institute   Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch      Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: Cascade)
 
   // Reverse relations for master FK references
-  leadsAsSource              Lead[]         @relation("LeadSourceMaster")
-  leadsAsStage               Lead[]         @relation("LeadStageMaster")
-  leadsAsType                Lead[]         @relation("LeadTypeMaster")
-  enquiriesAsSource          Enquiry[]      @relation("EnquirySourceMaster")
-  studentsAsQualification    Student[]      @relation("StudentQualificationMaster")
-  studentsAsArea             Student[]      @relation("StudentAreaMaster")
-  facultyAsDesignation       Faculty[]      @relation("FacultyDesignationMaster")
-  facultyAsQualification     Faculty[]      @relation("FacultyQualificationMaster")
-  classSessionsAsClassroom   ClassSession[] @relation("ClassSessionClassroomMaster")
-  classSessionsAsTimeslot    ClassSession[] @relation("ClassSessionTimeslotMaster")
-  batchesAsClassroom         Batch[]        @relation("BatchClassroomMaster")
-  batchesAsTimeslot          Batch[]        @relation("BatchTimeslotMaster")
-  batchCoursesAsClassroom    BatchCourse[]  @relation("BatchCourseClassroomMaster")
-  batchCoursesAsTimeslot     BatchCourse[]  @relation("BatchCourseTimeslotMaster")
-  batchSchedulesAsClassroom  BatchSchedule[] @relation("BatchScheduleClassroomMaster")
-  batchSchedulesAsTimeslot   BatchSchedule[] @relation("BatchScheduleTimeslotMaster")
-  paymentsAsMode             Payment[]      @relation("PaymentModeMaster")
-  paymentsAsBankAccount      Payment[]      @relation("PaymentBankAccountMaster")
-  paymentsAsFeeHead          Payment[]      @relation("PaymentFeeHeadMaster")
-  pendingFeesAsFeeHead       PendingFee[]   @relation("PendingFeeHeadMaster")
-  admissionsAsStatus         Admission[]    @relation("AdmissionStatusMaster")
-  admissionsAsConcession     Admission[]    @relation("AdmissionConcessionMaster")
-  assignmentsAsType          Assignment[]   @relation("AssignmentTypeMaster")
-  assignmentsAsAcademicYear  Assignment[]   @relation("AssignmentAcademicYearMaster")
-  examsAsTerm                Exam[]         @relation("ExamTermMaster")
-  userSettingsAsDesignation  UserSettings[] @relation("UserSettingsDesignationMaster")
+  leadsAsSource             Lead[]          @relation("LeadSourceMaster")
+  leadsAsStage              Lead[]          @relation("LeadStageMaster")
+  leadsAsType               Lead[]          @relation("LeadTypeMaster")
+  enquiriesAsSource         Enquiry[]       @relation("EnquirySourceMaster")
+  studentsAsQualification   Student[]       @relation("StudentQualificationMaster")
+  studentsAsArea            Student[]       @relation("StudentAreaMaster")
+  facultyAsDesignation      Faculty[]       @relation("FacultyDesignationMaster")
+  facultyAsQualification    Faculty[]       @relation("FacultyQualificationMaster")
+  classSessionsAsClassroom  ClassSession[]  @relation("ClassSessionClassroomMaster")
+  classSessionsAsTimeslot   ClassSession[]  @relation("ClassSessionTimeslotMaster")
+  batchesAsClassroom        Batch[]         @relation("BatchClassroomMaster")
+  batchesAsTimeslot         Batch[]         @relation("BatchTimeslotMaster")
+  batchCoursesAsClassroom   BatchCourse[]   @relation("BatchCourseClassroomMaster")
+  batchCoursesAsTimeslot    BatchCourse[]   @relation("BatchCourseTimeslotMaster")
+  batchSchedulesAsClassroom BatchSchedule[] @relation("BatchScheduleClassroomMaster")
+  batchSchedulesAsTimeslot  BatchSchedule[] @relation("BatchScheduleTimeslotMaster")
+  paymentsAsMode            Payment[]       @relation("PaymentModeMaster")
+  paymentsAsBankAccount     Payment[]       @relation("PaymentBankAccountMaster")
+  paymentsAsFeeHead         Payment[]       @relation("PaymentFeeHeadMaster")
+  pendingFeesAsFeeHead      PendingFee[]    @relation("PendingFeeHeadMaster")
+  admissionsAsStatus        Admission[]     @relation("AdmissionStatusMaster")
+  admissionsAsConcession    Admission[]     @relation("AdmissionConcessionMaster")
+  assignmentsAsType         Assignment[]    @relation("AssignmentTypeMaster")
+  assignmentsAsAcademicYear Assignment[]    @relation("AssignmentAcademicYearMaster")
+  examsAsTerm               Exam[]          @relation("ExamTermMaster")
+  userSettingsAsDesignation UserSettings[]  @relation("UserSettingsDesignationMaster")
 
   @@unique([instituteId, entityType, name])
   @@index([instituteId, entityType])
@@ -1746,11 +1747,11 @@ model Conversation {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
 
-  institute   Institute        @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch      Branch?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
 
-  members     ConversationMember[]
-  messages    Message[]
+  members  ConversationMember[]
+  messages Message[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -1759,14 +1760,14 @@ model Conversation {
 }
 
 model ConversationMember {
-  id             String       @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   userId         String
-  joinedAt       DateTime     @default(now())
+  joinedAt       DateTime  @default(now())
   lastReadAt     DateTime?
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
   @@index([userId])
@@ -1774,15 +1775,15 @@ model ConversationMember {
 }
 
 model Message {
-  id             String       @id @default(cuid())
+  id             String    @id @default(cuid())
   conversationId String
   senderId       String
-  content        String       @db.Text
+  content        String    @db.Text
   readAt         DateTime?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime  @default(now())
 
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
   @@index([senderId])
@@ -1874,7 +1875,7 @@ model Target {
   instituteId  String
   branchId     String?
   targetPlanId String?
-  userId       String?      // Nullable for branch targets, populated for individual counselor targets
+  userId       String? // Nullable for branch targets, populated for individual counselor targets
   title        String
   targetType   TargetType   @default(INDIVIDUAL)
   metric       TargetMetric
@@ -1911,8 +1912,8 @@ model IncentiveRule {
   targetId      String        @unique
   incentiveType IncentiveType @default(SLAB)
   fixedAmount   Decimal?      @db.Decimal(12, 2)
-  slabs         Json?         // [{ minPercent: 50, maxPercent: 74, amount: 2000 }, ...]
-  percentages   Json?         // [{ minPercent: 100, maxPercent: 109, ratePercent: 1.0 }, ...]
+  slabs         Json? // [{ minPercent: 50, maxPercent: 74, amount: 2000 }, ...]
+  percentages   Json? // [{ minPercent: 100, maxPercent: 109, ratePercent: 1.0 }, ...]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -1948,7 +1949,7 @@ model Incentive {
   branchId              String?
   targetId              String
   targetPlanId          String?
-  userId                String          // Counselor who earned the incentive
+  userId                String // Counselor who earned the incentive
   periodStart           DateTime
   periodEnd             DateTime
   targetValue           Decimal         @db.Decimal(14, 2)
@@ -2022,7 +2023,7 @@ enum QuestionStatus {
 }
 
 model QuestionBank {
-  id          String        @id @default(cuid())
+  id          String         @id @default(cuid())
   instituteId String
   branchId    String?
   name        String
@@ -2030,15 +2031,15 @@ model QuestionBank {
   courseId    String?
   status      QuestionStatus @default(ACTIVE)
   createdById String
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 
-  institute   Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch      Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  course      Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  createdBy   User          @relation("QuestionBankCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  course    Course?   @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  createdBy User      @relation("QuestionBankCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
-  questions   Question[]
+  questions Question[]
 
   @@unique([instituteId, name])
   @@index([instituteId])
@@ -2048,24 +2049,24 @@ model QuestionBank {
 }
 
 model Question {
-  id             String         @id @default(cuid())
+  id             String          @id @default(cuid())
   instituteId    String
   branchId       String?
   questionBankId String?
   courseId       String?
   moduleId       String?
   questionType   QuestionType
-  questionText   String         @db.Text
+  questionText   String          @db.Text
   difficulty     DifficultyLevel @default(MEDIUM)
-  marks          Float          @default(1)
-  negativeMarks  Float          @default(0)
-  explanation    String?        @db.Text
+  marks          Float           @default(1)
+  negativeMarks  Float           @default(0)
+  explanation    String?         @db.Text
   /// Expected value for NUMERICAL, or sample/key for text types (admin grading aid)
-  correctAnswer  String?        @db.Text
-  status         QuestionStatus @default(ACTIVE)
+  correctAnswer  String?         @db.Text
+  status         QuestionStatus  @default(ACTIVE)
   createdById    String
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   institute    Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   branch       Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
@@ -2074,7 +2075,7 @@ model Question {
   module       CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
   createdBy    User          @relation("QuestionCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
 
-  options      QuestionOption[]
+  options       QuestionOption[]
   examQuestions ExamQuestion[]
   examAnswers   ExamAnswer[]
 
@@ -2102,54 +2103,54 @@ model QuestionOption {
 }
 
 model Exam {
-  id                   String     @id @default(cuid())
-  instituteId          String
-  branchId             String?
-  name                 String
-  description          String?    @db.Text
-  instructions         String?    @db.Text
-  courseId             String?
-  moduleId             String?
-  examTermMasterId     String?
-  createdById          String
-  durationMinutes      Int        @default(60)
-  totalMarks           Float      @default(0)
-  passingMarks         Float      @default(0)
-  attemptsAllowed      Int        @default(1)
-  status               ExamStatus @default(DRAFT)
-  examType             ExamType   @default(ONLINE)
-  startAt              DateTime?
-  endAt                DateTime?
-  negativeMarkingEnabled Boolean  @default(false)
-  showResults          Boolean    @default(true)
-  randomizeQuestions   Boolean    @default(false)
-  randomizeOptions     Boolean    @default(false)
+  id                           String     @id @default(cuid())
+  instituteId                  String
+  branchId                     String?
+  name                         String
+  description                  String?    @db.Text
+  instructions                 String?    @db.Text
+  courseId                     String?
+  moduleId                     String?
+  examTermMasterId             String?
+  createdById                  String
+  durationMinutes              Int        @default(60)
+  totalMarks                   Float      @default(0)
+  passingMarks                 Float      @default(0)
+  attemptsAllowed              Int        @default(1)
+  status                       ExamStatus @default(DRAFT)
+  examType                     ExamType   @default(ONLINE)
+  startAt                      DateTime?
+  endAt                        DateTime?
+  negativeMarkingEnabled       Boolean    @default(false)
+  showResults                  Boolean    @default(true)
+  randomizeQuestions           Boolean    @default(false)
+  randomizeOptions             Boolean    @default(false)
   // Proctoring config
-  proctoringEnabled          Boolean    @default(false)
-  fullscreenRequired         Boolean    @default(true)
-  maxWarnings                Int        @default(3)
-  tabSwitchDetection         Boolean    @default(true)
-  windowBlurDetection        Boolean    @default(true)
-  fullscreenExitDetection    Boolean    @default(true)
-  keyboardShortcutDetection  Boolean    @default(true)
-  copyPasteDetection         Boolean    @default(true)
-  rightClickDetection        Boolean    @default(false)
-  networkGracePeriodSeconds  Int        @default(30)
-  autoTerminateOnMaxViolations Boolean  @default(true)
-  createdAt                  DateTime   @default(now())
-  updatedAt                  DateTime   @updatedAt
+  proctoringEnabled            Boolean    @default(false)
+  fullscreenRequired           Boolean    @default(true)
+  maxWarnings                  Int        @default(3)
+  tabSwitchDetection           Boolean    @default(true)
+  windowBlurDetection          Boolean    @default(true)
+  fullscreenExitDetection      Boolean    @default(true)
+  keyboardShortcutDetection    Boolean    @default(true)
+  copyPasteDetection           Boolean    @default(true)
+  rightClickDetection          Boolean    @default(false)
+  networkGracePeriodSeconds    Int        @default(30)
+  autoTerminateOnMaxViolations Boolean    @default(true)
+  createdAt                    DateTime   @default(now())
+  updatedAt                    DateTime   @updatedAt
 
-  institute  Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch     Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  course     Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
-  module     CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
-  createdBy  User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  institute      Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  course         Course?       @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  module         CourseModule? @relation(fields: [moduleId], references: [id], onDelete: SetNull)
+  createdBy      User          @relation("ExamCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
   examTermMaster MasterRecord? @relation("ExamTermMaster", fields: [examTermMasterId], references: [id], onDelete: SetNull)
 
-  examQuestions    ExamQuestion[]
-  batchAssignments ExamBatch[]
+  examQuestions      ExamQuestion[]
+  batchAssignments   ExamBatch[]
   studentAssignments ExamStudent[]
-  attempts         ExamAttempt[]
+  attempts           ExamAttempt[]
 
   @@index([instituteId])
   @@index([branchId])
@@ -2163,12 +2164,12 @@ model Exam {
 }
 
 model ExamQuestion {
-  id           String   @id @default(cuid())
-  examId       String
-  questionId   String
-  displayOrder Int      @default(0)
-  marksOverride Float?  // Override question's default marks for this exam
-  createdAt    DateTime @default(now())
+  id            String   @id @default(cuid())
+  examId        String
+  questionId    String
+  displayOrder  Int      @default(0)
+  marksOverride Float? // Override question's default marks for this exam
+  createdAt     DateTime @default(now())
 
   exam     Exam     @relation(fields: [examId], references: [id], onDelete: Cascade)
   question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -2179,9 +2180,9 @@ model ExamQuestion {
 }
 
 model ExamBatch {
-  id        String   @id @default(cuid())
-  examId    String
-  batchId   String
+  id         String   @id @default(cuid())
+  examId     String
+  batchId    String
   assignedAt DateTime @default(now())
 
   exam  Exam  @relation(fields: [examId], references: [id], onDelete: Cascade)
@@ -2239,41 +2240,41 @@ enum ProctoringEventType {
 }
 
 model ExamAttempt {
-  id                   String        @id @default(cuid())
-  instituteId          String
-  branchId             String?
-  examId               String
-  studentId            String
-  userId               String
-  status               AttemptStatus @default(NOT_STARTED)
-  attemptNumber        Int           @default(1)
-  startedAt            DateTime?
-  expiresAt            DateTime?     // Server-authoritative timer deadline
-  submittedAt          DateTime?
-  terminatedAt         DateTime?
-  terminationReason    String?
-  proctoringEnabled    Boolean       @default(true)
-  violationCount       Int           @default(0)
-  warningCount         Int           @default(0)
-  maxViolations        Int           @default(3)
+  id                    String        @id @default(cuid())
+  instituteId           String
+  branchId              String?
+  examId                String
+  studentId             String
+  userId                String
+  status                AttemptStatus @default(NOT_STARTED)
+  attemptNumber         Int           @default(1)
+  startedAt             DateTime?
+  expiresAt             DateTime? // Server-authoritative timer deadline
+  submittedAt           DateTime?
+  terminatedAt          DateTime?
+  terminationReason     String?
+  proctoringEnabled     Boolean       @default(true)
+  violationCount        Int           @default(0)
+  warningCount          Int           @default(0)
+  maxViolations         Int           @default(3)
   lastProctoringEventAt DateTime?
-  score                Float?
-  totalMarks           Float?
-  percentage           Float?
-  passed               Boolean?
-  feedback             String?       @db.Text
-  countsTowardLimit    Boolean       @default(true)
-  retryGrantedAt       DateTime?
-  retryGrantedById     String?
-  retryGrantReason     String?
-  createdAt            DateTime      @default(now())
-  updatedAt            DateTime      @updatedAt
+  score                 Float?
+  totalMarks            Float?
+  percentage            Float?
+  passed                Boolean?
+  feedback              String?       @db.Text
+  countsTowardLimit     Boolean       @default(true)
+  retryGrantedAt        DateTime?
+  retryGrantedById      String?
+  retryGrantReason      String?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
 
-  institute   Institute   @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch      Branch?     @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  exam        Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
-  student     Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch    Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  exam      Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   answers          ExamAnswer[]
   proctoringEvents ExamProctoringEvent[]
@@ -2290,21 +2291,21 @@ model ExamAttempt {
 }
 
 model ExamAnswer {
-  id                 String               @id @default(cuid())
-  attemptId          String
-  questionId         String
-  selectedOptionIds  Json?                // String array of option IDs
-  textAnswer         String?              @db.Text
-  numericalAnswer    Float?
-  isCorrect          Boolean?
-  marksAwarded       Float?               @default(0)
-  gradingStatus      AnswerGradingStatus?
-  gradedById         String?
-  gradedAt           DateTime?
-  graderComment      String?              @db.Text
-  isFlagged          Boolean              @default(false)
-  savedAt            DateTime             @default(now())
-  updatedAt          DateTime             @updatedAt
+  id                String               @id @default(cuid())
+  attemptId         String
+  questionId        String
+  selectedOptionIds Json? // String array of option IDs
+  textAnswer        String?              @db.Text
+  numericalAnswer   Float?
+  isCorrect         Boolean?
+  marksAwarded      Float?               @default(0)
+  gradingStatus     AnswerGradingStatus?
+  gradedById        String?
+  gradedAt          DateTime?
+  graderComment     String?              @db.Text
+  isFlagged         Boolean              @default(false)
+  savedAt           DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
 
   attempt  ExamAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
@@ -2322,10 +2323,10 @@ model ExamProctoringEvent {
   attemptId          String
   instituteId        String
   eventType          ProctoringEventType
-  clientEventId      String?             // For client-side idempotency
-  occurredAt         DateTime            // When browser detected it
+  clientEventId      String? // For client-side idempotency
+  occurredAt         DateTime // When browser detected it
   receivedAt         DateTime            @default(now()) // When server received it
-  metadata           Json?               // Safe diagnostic payload
+  metadata           Json? // Safe diagnostic payload
   sequenceNumber     Int                 @default(1)
   isCountedViolation Boolean             @default(true) // False if suppressed by debounce
   warningNumber      Int?
@@ -2474,7 +2475,7 @@ model PlacementCompany {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  institute Institute      @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  institute Institute         @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   jobs      PlacementJob[]
   records   PlacementRecord[]
 
@@ -2519,10 +2520,10 @@ model PlacementApplication {
   createdAt   DateTime                   @default(now())
   updatedAt   DateTime                   @updatedAt
 
-  institute  Institute              @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch     Branch?                @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  job        PlacementJob           @relation(fields: [jobId], references: [id], onDelete: Cascade)
-  student    Student                @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  institute  Institute            @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch     Branch?              @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  job        PlacementJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  student    Student              @relation(fields: [studentId], references: [id], onDelete: Cascade)
   interviews PlacementInterview[]
 
   @@unique([jobId, studentId])
@@ -2762,15 +2763,15 @@ enum LoginEventStatus {
 }
 
 model LoginHistory {
-  id          String           @id @default(cuid())
-  instituteId String
-  userId      String?
+  id           String           @id @default(cuid())
+  instituteId  String
+  userId       String?
   emailOrPhone String?
-  status      LoginEventStatus
-  ipAddress   String?
-  userAgent   String?
-  message     String?
-  createdAt   DateTime         @default(now())
+  status       LoginEventStatus
+  ipAddress    String?
+  userAgent    String?
+  message      String?
+  createdAt    DateTime         @default(now())
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
@@ -2877,14 +2878,14 @@ model DataImportJob {
 // ─── Multi-tenant AI Calling ─────────────────────────────────────────────────
 
 model AiCallingAgent {
-  id             String   @id @default(cuid())
-  name           String
-  provider       String   @default("SARVAM")
-  providerAppId  String?
-  defaultScript  String?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  provider      String   @default("SARVAM")
+  providerAppId String?
+  defaultScript String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   instituteConfigs InstituteAiCallingConfig[]
   callLogs         CallLog[]
@@ -2906,20 +2907,20 @@ model AiCallingPlatformSettings {
 }
 
 model InstituteAiCallingConfig {
-  id                  String   @id @default(cuid())
-  instituteId         String   @unique
-  agentId             String?
-  fromNumber          String?
-  callingScript       String?
-  callingHoursStart   String?
-  callingHoursEnd     String?
-  callingDays         Json?
-  dailyCallLimit      Int?
-  maxAttemptsPerLead  Int      @default(3)
-  retryDelayMinutes   Int      @default(60)
-  isEnabled           Boolean  @default(false)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  instituteId        String   @unique
+  agentId            String?
+  fromNumber         String?
+  callingScript      String?
+  callingHoursStart  String?
+  callingHoursEnd    String?
+  callingDays        Json?
+  dailyCallLimit     Int?
+  maxAttemptsPerLead Int      @default(3)
+  retryDelayMinutes  Int      @default(60)
+  isEnabled          Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   institute Institute       @relation(fields: [instituteId], references: [id], onDelete: Cascade)
   agent     AiCallingAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
@@ -2929,14 +2930,14 @@ model InstituteAiCallingConfig {
 }
 
 model AiCallingUsageDaily {
-  id               String   @id @default(cuid())
-  instituteId      String
-  date             DateTime @db.Date
-  initiatedCount   Int      @default(0)
-  completedCount   Int      @default(0)
-  durationSeconds  Int      @default(0)
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id              String   @id @default(cuid())
+  instituteId     String
+  date            DateTime @db.Date
+  initiatedCount  Int      @default(0)
+  completedCount  Int      @default(0)
+  durationSeconds Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
@@ -2969,13 +2970,13 @@ model DataExportJob {
 }
 
 model BackupStatus {
-  id                   String   @id @default(cuid())
-  instituteId          String
-  lastSuccessfulAt     DateTime?
-  status               String   @default("UNKNOWN")
-  message              String?
-  updatedAt            DateTime @updatedAt
-  createdAt            DateTime @default(now())
+  id               String    @id @default(cuid())
+  instituteId      String
+  lastSuccessfulAt DateTime?
+  status           String    @default("UNKNOWN")
+  message          String?
+  updatedAt        DateTime  @updatedAt
+  createdAt        DateTime  @default(now())
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
@@ -3009,22 +3010,22 @@ enum IntegrationTestStatus {
 }
 
 model Integration {
-  id                   String                 @id @default(cuid())
-  instituteId          String
-  type                 IntegrationType
-  provider             String
-  status               IntegrationStatus      @default(NOT_CONFIGURED)
-  isEnabled            Boolean                @default(true)
-  configuration        Json?
-  encryptedCredentials String?
+  id                    String                 @id @default(cuid())
+  instituteId           String
+  type                  IntegrationType
+  provider              String
+  status                IntegrationStatus      @default(NOT_CONFIGURED)
+  isEnabled             Boolean                @default(true)
+  configuration         Json?
+  encryptedCredentials  String?
   credentialFingerprint String?
-  lastTestedAt         DateTime?
-  lastTestStatus       IntegrationTestStatus?
-  lastError            String?
-  connectedById        String?
-  connectedAt          DateTime?
-  createdAt            DateTime               @default(now())
-  updatedAt            DateTime               @updatedAt
+  lastTestedAt          DateTime?
+  lastTestStatus        IntegrationTestStatus?
+  lastError             String?
+  connectedById         String?
+  connectedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
 
   institute Institute @relation(fields: [instituteId], references: [id], onDelete: Cascade)
 
@@ -3032,4 +3033,3 @@ model Integration {
   @@index([instituteId])
   @@index([type])
 }
-

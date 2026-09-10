@@ -16,16 +16,20 @@ export const registerWorkers = async (): Promise<void> => {
   if (registered) return;
   registered = true;
 
-  // Side-effect imports register BullMQ workers
-  await import("../modules/whatsapp/whatsapp.worker");
-  await import("../queues/recording.queue");
-  await import("../queues/google-recording.queue");
-  await import("../queues/ai-calling.queue");
-  await import("../queues/automation.queue");
-  await import("../queues/exam-grading.queue");
-  await import("../queues/exam-expiry.queue");
+  try {
+    // Side-effect imports register BullMQ workers
+    await import("../modules/whatsapp/whatsapp.worker");
+    await import("../queues/recording.queue");
+    await import("../queues/google-recording.queue");
+    await import("../queues/ai-calling.queue");
+    await import("../queues/automation.queue");
+    await import("../queues/exam-grading.queue");
+    await import("../queues/exam-expiry.queue");
 
-  await scheduleExamExpirySweep();
+    await scheduleExamExpirySweep();
 
-  logger.info({ peakMode: env.PEAK_MODE }, "🚀 Aadya BullMQ workers running");
+    logger.info({ peakMode: env.PEAK_MODE }, "🚀 Aadya BullMQ workers running");
+  } catch (err) {
+    logger.warn({ err }, "BullMQ workers failed to start (Redis may be offline)");
+  }
 };

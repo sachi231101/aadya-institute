@@ -3,6 +3,7 @@ import assert from "node:assert";
 import { prisma } from "../config/database";
 import { assertActiveMaster } from "../modules/masters/master.validator";
 import { isAllowedMasterEntityType } from "../modules/masters/master.entity-types";
+import { createMasterService } from "../modules/masters/master.service";
 
 describe("Master Module Integration Tests", () => {
   let instituteId: string;
@@ -53,13 +54,66 @@ describe("Master Module Integration Tests", () => {
     await prisma.masterRecord.deleteMany({ where: { instituteId } });
     await prisma.branch.deleteMany({ where: { instituteId } });
     await prisma.institute.delete({ where: { id: instituteId } });
+    const { getRedis } = await import("../config/redis");
+    getRedis()?.disconnect();
     await prisma.$disconnect();
   });
 
   test("isAllowedMasterEntityType accepts tier 1 types", () => {
     assert.strictEqual(isAllowedMasterEntityType("classroom"), true);
     assert.strictEqual(isAllowedMasterEntityType("leadsource"), true);
+    assert.strictEqual(isAllowedMasterEntityType("feetypes"), true);
+    assert.strictEqual(isAllowedMasterEntityType("termsconditions"), true);
+    assert.strictEqual(isAllowedMasterEntityType("holiday"), true);
     assert.strictEqual(isAllowedMasterEntityType("invalid_type"), false);
+  });
+
+  test("holiday create requires a valid date", async () => {
+    await assert.rejects(
+      () =>
+        createMasterService(
+          { userId: "admin", instituteId, roles: ["ADMIN"] },
+          { entityType: "holiday", name: "Missing Date", data: {} }
+        ),
+      (err: Error) => err.message.includes("YYYY-MM-DD")
+    );
+  });
+
+  test("fee head rejects an invalid fee type master", async () => {
+    await assert.rejects(
+      () =>
+        createMasterService(
+          { userId: "admin", instituteId, roles: ["ADMIN"] },
+          {
+            entityType: "feeheads",
+            name: "Invalid Typed Fee",
+            data: { feeTypeMasterId: "missing-fee-type" },
+          }
+        ),
+      (err: Error) => err.message.includes("not found or inactive")
+    );
+  });
+
+  test("fee head stores the selected fee type id and synchronized name", async () => {
+    const feeType = await prisma.masterRecord.create({
+      data: {
+        instituteId,
+        entityType: "feetypes",
+        name: "Test Recurring",
+        status: "ACTIVE",
+      },
+    });
+    const feeHead = await createMasterService(
+      { userId: "admin", instituteId, roles: ["ADMIN"] },
+      {
+        entityType: "feeheads",
+        name: "Test Monthly Fee",
+        data: { feeTypeMasterId: feeType.id },
+      }
+    );
+    const data = feeHead.data as { feeTypeMasterId?: string; type?: string };
+    assert.strictEqual(data.feeTypeMasterId, feeType.id);
+    assert.strictEqual(data.type, feeType.name);
   });
 
   test("assertActiveMaster resolves active classroom for branch", async () => {
