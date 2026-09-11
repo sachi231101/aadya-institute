@@ -3,7 +3,15 @@ import { api } from "./api";
 export interface Recording {
   id: string;
   classSessionId: string;
-  storageKey: string;
+  name?: string | null;
+  storageKey?: string;
+  googleDriveFileId?: string | null;
+  storageProvider?: string;
+  recordingStatus: RecordingStatus;
+  playbackUrl?: string | null;
+  lastSyncAt?: string | null;
+  lastSyncError?: string | null;
+  deletedAt?: string | null;
   duration?: number;
   startedAt?: string;
   endedAt?: string;
@@ -19,6 +27,15 @@ export interface Recording {
     batchModule?: { courseModule?: { name: string } };
   };
 }
+
+export type RecordingStatus =
+  | "AVAILABLE"
+  | "PROCESSING"
+  | "EXPIRED"
+  | "DELETED"
+  | "FAILED"
+  | "PENDING"
+  | "RECORDING";
 
 export interface RecordingQueryParams {
   page?: number;
@@ -68,6 +85,16 @@ export const recordingsApi = {
 
   deleteRecording: async (id: string) => {
     const response = await api.delete(`/recordings/${id}`);
+    return response.data;
+  },
+
+  syncRecording: async (id: string) => {
+    const response = await api.post(`/recordings/${id}/sync`);
+    return response.data;
+  },
+
+  expireRecording: async (id: string) => {
+    const response = await api.post(`/recordings/${id}/expire`);
     return response.data;
   },
 

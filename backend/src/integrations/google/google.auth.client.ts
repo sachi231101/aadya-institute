@@ -4,6 +4,7 @@ import { env } from "../../config/env";
 import { logger } from "../../config/logger";
 import { encrypt, decrypt } from "../../utils/encryption";
 import type { GoogleOAuthTokens, GoogleUserProfile } from "./google.types";
+import { getGoogleHttpStatus, toGoogleAppError } from "./google-error.util";
 
 /**
  * Returns a configured Google OAuth2 Client instance
@@ -35,6 +36,12 @@ export const getRequiredScopes = (): string[] => {
  * Generates the Google OAuth authorization URL
  */
 export const generateAuthorizationUrl = (state: string): string => {
+  if (!env.GOOGLE_CLIENT_ID?.trim() || !env.GOOGLE_CLIENT_SECRET?.trim()) {
+    throw new Error(
+      "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in backend/.env, then restart the API server."
+    );
+  }
+
   const oauth2Client = getOAuth2Client();
   const scopes = getRequiredScopes();
 
@@ -90,9 +97,12 @@ export const exchangeAuthorizationCode = async (
         picture: userProfile.picture || undefined,
       },
     };
-  } catch (err: any) {
-    logger.error({ err: err?.message || err }, "Failed to exchange Google authorization code");
-    throw new Error("Google authorization failed. Please try connecting again.");
+  } catch (error: unknown) {
+    logger.error(
+      { status: getGoogleHttpStatus(error) },
+      "Failed to exchange Google authorization code"
+    );
+    throw toGoogleAppError(error, "OAUTH_FAILED");
   }
 };
 
@@ -111,7 +121,7 @@ export const decryptRefreshToken = (encryptedRefreshToken: string): string => {
     return decrypt(encryptedRefreshToken, env.GOOGLE_TOKEN_ENCRYPTION_KEY);
   } catch (err) {
     logger.error("Failed to decrypt Google refresh token — key mismatch or corruption");
-    throw new Error("Invalid or corrupted Google authorization credentials");
+    throw toGoogleAppError({ status: 401 }, "OAUTH_FAILED");
   }
 };
 

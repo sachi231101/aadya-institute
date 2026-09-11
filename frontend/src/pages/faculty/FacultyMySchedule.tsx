@@ -27,11 +27,20 @@ import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
-import { toHolidayDateKey } from "@/constants/timetable-slots";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
+import {
+  periodFromStartTime,
+  spanSlotsForSession,
+  toHolidayDateKey,
+  toDateKey,
+  getWeekRangeFromOffset,
+  localTodayKey,
+  findSlotByMasterId,
+} from "@/constants/timetable-slots";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
 import { UploadRecordingModal } from "@/components/faculty/UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "@/components/faculty/UploadStudyMaterialsModal";
-import { type BackendClassSession } from "@/services/class-sessions.api";
+import { classSessionsApi, type BackendClassSession } from "@/services/class-sessions.api";
 
 export interface FormattedTimetableClass {
   id: string;
@@ -58,6 +67,8 @@ export interface FormattedTimetableClass {
   endHour: number;
   endMin: number;
   spanHours?: number;
+  startPeriod?: number | null;
+  timeslotMasterId?: string;
   isLunch?: boolean;
   isExam?: boolean;
 }
@@ -70,22 +81,6 @@ const DAYS_OF_WEEK = [
   { key: 5, name: "Friday", short: "FRI" },
   { key: 6, name: "Saturday", short: "SAT" },
   { key: 0, name: "Sunday", short: "SUN" },
-];
-
-// 12-Hour Schedule Matrix: 09:00 AM -> 09:00 PM
-const FULL_TIME_SLOTS = [
-  { id: "1", title: "09:00", ampm: "AM", label: "09:00 – 10:00", hour24: 9, isBreak: false },
-  { id: "2", title: "10:00", ampm: "AM", label: "10:00 – 11:00", hour24: 10, isBreak: false },
-  { id: "3", title: "11:00", ampm: "AM", label: "11:00 – 12:00", hour24: 11, isBreak: false },
-  { id: "4", title: "12:00", ampm: "PM", label: "12:00 – 01:00", hour24: 12, isBreak: false },
-  { id: "5", title: "01:00", ampm: "PM", label: "01:00 – 02:00", hour24: 13, isBreak: true, breakTitle: "Lunch" },
-  { id: "6", title: "02:00", ampm: "PM", label: "02:00 – 03:00", hour24: 14, isBreak: false },
-  { id: "7", title: "03:00", ampm: "PM", label: "03:00 – 04:00", hour24: 15, isBreak: false },
-  { id: "8", title: "04:00", ampm: "PM", label: "04:00 – 05:00", hour24: 16, isBreak: false },
-  { id: "9", title: "05:00", ampm: "PM", label: "05:00 – 06:00", hour24: 17, isBreak: false },
-  { id: "10", title: "06:00", ampm: "PM", label: "06:00 – 07:00", hour24: 18, isBreak: false },
-  { id: "11", title: "07:00", ampm: "PM", label: "07:00 – 08:00", hour24: 19, isBreak: false },
-  { id: "12", title: "08:00", ampm: "PM", label: "08:00 – 09:00", hour24: 20, isBreak: false },
 ];
 
 const parseTimeTo24Hour = (timeStr: string): { hour: number; min: number } => {
@@ -105,13 +100,6 @@ const parseTimeTo24Hour = (timeStr: string): { hour: number; min: number } => {
   return { hour: h, min: m };
 };
 
-const toISODateString = (date: Date) => {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-
 export const FacultyMySchedule: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
@@ -126,34 +114,43 @@ export const FacultyMySchedule: React.FC = () => {
   const dashboard = dashRes?.data;
   const facultyId = user?.facultyId || dashboard?.profile?.id;
 
-  // Query class sessions strictly for this faculty
-  const { data: sessionsRes, refetch: refetchSessions } = useClassSessions(
-    facultyId ? { facultyId, limit: 100 } : undefined
-  );
-  const { options: holidayOptions } = useMasterDropdown(
-    "holiday",
-    user?.branchId || undefined
-  );
+  // Week Navigator — real current week's Monday (local), not a hardcoded demo week
+  const [weekOffset, setWeekOffset] = useState(0);
+  const weekRange = useMemo(() => getWeekRangeFromOffset(weekOffset), [weekOffset]);
 
-  // Week Navigator State (Base Monday date: fixed default anchor or dynamic current Monday)
-  const [currentWeekMonday, setCurrentWeekMonday] = useState<Date>(() => {
-    const base = new Date(2026, 7, 31); // 31 Aug 2026 Monday default
-    base.setHours(0, 0, 0, 0);
-    return base;
+  // Query sessions for this faculty within the visible week
+  const sessionQueryParams = useMemo(() => {
+    const params: Record<string, string | number> = {
+      startDate: weekRange.from,
+      endDate: weekRange.to,
+      limit: 200,
+    };
+    if (facultyId) params.facultyId = facultyId;
+    return params;
+  }, [facultyId, weekRange.from, weekRange.to]);
+
+  const { data: sessionsRes, refetch: refetchSessions, isLoading: sessionsLoading } =
+    useClassSessions(sessionQueryParams);
+  const branchId = user?.branchId || undefined;
+  const { options: holidayOptions } = useMasterDropdown("holiday", branchId);
+  const {
+    slots: timeSlotColumns,
+    isLoading: slotsLoading,
+    isEmpty: slotsEmpty,
+  } = useTimetableSlotColumns(branchId);
+
+  // Mobile selected day index (0 to 6) — default to local today within the week
+  const [mobileDayIndex, setMobileDayIndex] = useState<number>(() => {
+    const todayKey = localTodayKey();
+    const [y, m, d] = todayKey.split("-").map(Number);
+    const jsDay = new Date(y, m - 1, d).getDay();
+    return (jsDay + 6) % 7;
   });
 
-  // Mobile selected day index (0 to 6)
-  const [mobileDayIndex, setMobileDayIndex] = useState<number>(0);
-
-  // Filters State
   const [viewMode, setViewMode] = useState<"TIMETABLE" | "LIST">("TIMETABLE");
-
-  // Selected Class in bottom details pane
-  const [selectedClassId, setSelectedClassId] = useState<string>("mon-java-live");
+  const [selectedClassId, setSelectedClassId] = useState<string>("");
   const todayClassesSectionRef = useRef<HTMLDivElement>(null);
-
-  // Live Timer State
-  const [liveSeconds, setLiveSeconds] = useState<number>(42 * 60 + 18); // 00:42:18 initial demo timer
+  const [liveSeconds, setLiveSeconds] = useState<number>(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -165,25 +162,27 @@ export const FacultyMySchedule: React.FC = () => {
   const formatLiveTimer = (secs: number) => {
     const hrs = Math.floor(secs / 3600);
     const mins = Math.floor((secs % 3600) / 60);
-    const s = secs % 60;
-    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+    const sec = secs % 60;
+    return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
   };
 
-  // Active selected modal state
   const [selectedClassForModal, setSelectedClassForModal] = useState<ClassSessionModalData | null>(null);
   const [isClassModalOpen, setIsClassModalOpen] = useState(false);
   const [recordingModalSession, setRecordingModalSession] = useState<ClassSessionModalData | null>(null);
   const [materialsModalSession, setMaterialsModalSession] = useState<ClassSessionModalData | null>(null);
 
-  const todayIso = useMemo(() => toISODateString(currentWeekMonday), [currentWeekMonday]);
+  const todayIso = useMemo(() => localTodayKey(), []);
 
-  // Compute 7 days for current week view
   const weekDays = useMemo(() => {
     return Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date(currentWeekMonday);
-      d.setDate(d.getDate() + i);
-      const iso = toISODateString(d);
-      const dayNum = d.getDay();
+      const iso = (() => {
+        const [y, m, d] = weekRange.mondayKey.split("-").map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d + i, 12, 0, 0));
+        return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+      })();
+      const [yy, mm, dd] = iso.split("-").map(Number);
+      const localDate = new Date(yy, mm - 1, dd);
+      const dayNum = localDate.getDay();
       const dayMeta = DAYS_OF_WEEK.find((item) => item.key === dayNum) || {
         name: "Day",
         short: "DAY",
@@ -193,33 +192,25 @@ export const FacultyMySchedule: React.FC = () => {
       );
       const isSunday = dayNum === 0;
       return {
-        date: d,
+        date: localDate,
         iso,
         dayName: dayMeta.name,
         dayShort: dayMeta.short,
-        formattedDate: d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
-        isToday: i === 0 || iso === todayIso,
+        formattedDate: localDate.toLocaleDateString("en-IN", { day: "numeric", month: "short" }),
+        isToday: iso === todayIso,
         isHoliday: Boolean(holiday) || isSunday,
         holidayTitle: holiday?.label || (isSunday ? "Sunday" : undefined),
       };
     });
-  }, [currentWeekMonday, todayIso, holidayOptions]);
+  }, [weekRange.mondayKey, todayIso, holidayOptions]);
 
-  // Master Assigned Classes strictly for the logged-in Faculty
   const assignedClasses: FormattedTimetableClass[] = useMemo(() => {
-    const dMon = weekDays[0]?.iso || "2026-08-31";
-    const dTue = weekDays[1]?.iso || "2026-09-01";
-    const dWed = weekDays[2]?.iso || "2026-09-02";
-    const dThu = weekDays[3]?.iso || "2026-09-03";
-    const dFri = weekDays[4]?.iso || "2026-09-04";
-    const dSat = weekDays[5]?.iso || "2026-09-05";
-
-    const userFacultyId = user?.facultyId || dashboard?.profile?.id || user?.id;
+    const userFacultyId = user?.facultyId || dashboard?.profile?.id || undefined;
     const userEmail = (user?.email || dashboard?.profile?.email || "").toLowerCase();
     const userName = (user?.name || dashboard?.profile?.name || "").toLowerCase();
 
-    // 1. Process from class-sessions API & dashboard assigned sessions
     let rawSessions: BackendClassSession[] = (sessionsRes?.data || []).filter((s: BackendClassSession) => {
+      if (!userFacultyId && !userEmail && !userName) return true;
       if (userFacultyId && (s.facultyId === userFacultyId || s.faculty?.id === userFacultyId)) return true;
       if (user?.id && s.faculty?.user?.id === user.id) return true;
       if (userEmail && s.faculty?.user?.email && s.faculty.user.email.toLowerCase() === userEmail) return true;
@@ -227,135 +218,74 @@ export const FacultyMySchedule: React.FC = () => {
       return false;
     });
 
-    if (rawSessions.length === 0 && sessionsRes?.data && sessionsRes.data.length > 0 && facultyId) {
-      rawSessions = sessionsRes.data;
+    // Server already scopes pure FACULTY; keep sessions if client identity fields are incomplete.
+    if (rawSessions.length === 0 && (sessionsRes?.data?.length ?? 0) > 0) {
+      rawSessions = sessionsRes!.data;
     }
 
     const map = new Map<string, FormattedTimetableClass>();
 
-    if (rawSessions.length > 0) {
-      // Use live API sessions assigned to this faculty
-      rawSessions.forEach((s: BackendClassSession) => {
-        const scheduledDate = s.scheduledDate
-          ? toISODateString(new Date(s.scheduledDate))
-          : todayIso;
+    rawSessions.forEach((s: BackendClassSession) => {
+      const scheduledDate = s.scheduledDate ? toDateKey(s.scheduledDate) : todayIso;
 
-        let status = (s.sessionStatus || s.status || "UPCOMING").toUpperCase() as FormattedTimetableClass["status"];
-        if (activeLiveClass?.status === "LIVE" && (activeLiveClass?.id === s.id || activeLiveClass?.sessionId === s.id)) {
-          status = "LIVE";
-        }
-        const storeStatus = getSessionStatus(s.id);
-        if (storeStatus) status = storeStatus;
-
-        const startParsed = parseTimeTo24Hour(s.startTime || "09:00");
-        const endParsed = parseTimeTo24Hour(s.endTime || "10:00");
-        const span = Math.max(1, endParsed.hour - startParsed.hour);
-
-        map.set(s.id, {
-          id: s.id,
-          title: s.title || s.batchModule?.courseModule?.name || "Class Session",
-          courseName: getSessionSubjectLabel({ title: s.title, batch: s.batch }),
-          subjectName: s.batchModule?.courseModule?.name || s.title || "Subject Module",
-          batchId: s.batchId,
-          batchName: s.batch?.name || s.batch?.code || "B001",
-          batchCode: s.batch?.code || "B001",
-          date: scheduledDate,
-          startTime: s.startTime || "09:00 AM",
-          endTime: s.endTime || "10:00 AM",
-          timeRange: `${s.startTime || "09:00 AM"} – ${s.endTime || "10:00 AM"}`,
-          roomNo: s.roomNo || "Room No 1",
-          mode: (s.mode as FormattedTimetableClass["mode"]) || "OFFLINE",
-          meetingUrl: s.meetingUrl || "https://meet.google.com/aadya-live",
-          status,
-          studentCount: s.enrolledStudentsCount ?? 3,
-          attendanceStatus: sessionAttendance[s.id]?.length ? "Updated" : "Pending",
-          startHour: startParsed.hour,
-          startMin: startParsed.min,
-          endHour: endParsed.hour,
-          endMin: endParsed.min,
-          spanHours: span,
-        });
-      });
-    } else {
-      // 2. Multi-Faculty Isolated Fallback Mapping (when offline/demo without backend DB rows)
-      const isFaculty01 = !userEmail || userEmail.includes("sachin") || userEmail.includes("faculty01") || userName.includes("faculty01") || userName.includes("sachin") || userName.includes("faculty");
-      const isFaculty02 = userEmail.includes("faculty02") || userName.includes("faculty02") || userEmail.includes("priya");
-
-      let initialFallbackClasses: FormattedTimetableClass[];
-      if (isFaculty01) {
-        initialFallbackClasses = [
-          // Mon
-          { id: "mon-java-live", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", meetingUrl: "https://meet.google.com/aadya-java-001", status: "LIVE", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
-          { id: "mon-java-up", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "10:00 AM", endTime: "11:00 AM", timeRange: "10:00 AM – 11:00 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-java-002", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 11, endMin: 0, spanHours: 1 },
-          { id: "mon-dsa", title: "DSA", courseName: "DSA", subjectName: "DSA", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dMon, startTime: "11:00 AM", endTime: "12:00 PM", timeRange: "11:00 AM – 12:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-dsa-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 11, startMin: 0, endHour: 12, endMin: 0, spanHours: 1 },
-          { id: "mon-webdev", title: "Web Dev", courseName: "Web Dev", subjectName: "Web Dev", batchId: "B003", batchName: "Batch B003", batchCode: "B003", date: dMon, startTime: "02:00 PM", endTime: "03:00 PM", timeRange: "02:00 PM – 03:00 PM", roomNo: "Room 102", mode: "OFFLINE", status: "UPCOMING", studentCount: 4, attendanceStatus: "Pending", startHour: 14, startMin: 0, endHour: 15, endMin: 0, spanHours: 1 },
-          { id: "mon-dbms", title: "DBMS", courseName: "DBMS", subjectName: "DBMS", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "04:00 PM", endTime: "05:00 PM", timeRange: "04:00 PM – 05:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-dbms-001", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 16, startMin: 0, endHour: 17, endMin: 0, spanHours: 1 },
-          { id: "mon-react", title: "React", courseName: "React", subjectName: "React", batchId: "B003", batchName: "Batch B003", batchCode: "B003", date: dMon, startTime: "06:00 PM", endTime: "08:00 PM", timeRange: "06:00 PM – 08:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-react-001", status: "UPCOMING", studentCount: 6, attendanceStatus: "Pending", startHour: 18, startMin: 0, endHour: 20, endMin: 0, spanHours: 2 },
-          // Tue
-          { id: "tue-python", title: "Python", courseName: "Python", subjectName: "Python", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dTue, startTime: "10:00 AM", endTime: "11:30 AM", timeRange: "10:00 AM – 11:30 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-py-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 12, endMin: 0, spanHours: 2 },
-          { id: "tue-softskills", title: "Soft Skills", courseName: "Soft Skills", subjectName: "Soft Skills", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dTue, startTime: "03:00 PM", endTime: "04:00 PM", timeRange: "03:00 PM – 04:00 PM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 15, startMin: 0, endHour: 16, endMin: 0, spanHours: 1 },
-          { id: "tue-sysdesign", title: "System Design", courseName: "System Design", subjectName: "System Design", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dTue, startTime: "07:00 PM", endTime: "09:00 PM", timeRange: "07:00 PM – 09:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-sd-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 19, startMin: 0, endHour: 21, endMin: 0, spanHours: 2 },
-          // Wed
-          { id: "wed-java", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dWed, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
-          { id: "wed-docker", title: "Docker", courseName: "Docker", subjectName: "Docker", batchId: "B003", batchName: "Batch B003", batchCode: "B003", date: dWed, startTime: "12:00 PM", endTime: "01:00 PM", timeRange: "12:00 PM – 01:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-docker-001", status: "UPCOMING", studentCount: 4, attendanceStatus: "Pending", startHour: 12, startMin: 0, endHour: 13, endMin: 0, spanHours: 1 },
-          { id: "wed-aws", title: "AWS", courseName: "AWS", subjectName: "AWS", batchId: "B003", batchName: "Batch B003", batchCode: "B003", date: dWed, startTime: "05:00 PM", endTime: "06:00 PM", timeRange: "05:00 PM – 06:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-aws-001", status: "UPCOMING", studentCount: 4, attendanceStatus: "Pending", startHour: 17, startMin: 0, endHour: 18, endMin: 0, spanHours: 1 },
-          // Thu
-          { id: "thu-spring", title: "Spring Boot", courseName: "Spring Boot", subjectName: "Spring Boot", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dThu, startTime: "11:00 AM", endTime: "12:00 PM", timeRange: "11:00 AM – 12:00 PM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 11, startMin: 0, endHour: 12, endMin: 0, spanHours: 1 },
-          { id: "thu-micro", title: "Microservices", courseName: "Microservices", subjectName: "Microservices", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dThu, startTime: "02:00 PM", endTime: "03:00 PM", timeRange: "02:00 PM – 03:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-micro-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 14, startMin: 0, endHour: 15, endMin: 0, spanHours: 1 },
-          // Fri
-          { id: "fri-apt", title: "Aptitude", courseName: "Aptitude", subjectName: "Aptitude", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dFri, startTime: "10:00 AM", endTime: "11:00 AM", timeRange: "10:00 AM – 11:00 AM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 11, endMin: 0, spanHours: 1 },
-          { id: "fri-project", title: "Project Mentoring", courseName: "Project Mentoring", subjectName: "Project Mentoring", batchId: "B003", batchName: "Batch B003", batchCode: "B003", date: dFri, startTime: "04:00 PM", endTime: "06:00 PM", timeRange: "04:00 PM – 06:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-project-001", status: "UPCOMING", studentCount: 4, attendanceStatus: "Pending", startHour: 16, startMin: 0, endHour: 18, endMin: 0, spanHours: 2 },
-          // Sat
-          { id: "sat-mock", title: "Mock Test", courseName: "Mock Test", subjectName: "Mock Test", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dSat, startTime: "09:00 AM", endTime: "11:00 AM", timeRange: "09:00 AM – 11:00 AM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 11, endMin: 0, spanHours: 2, isExam: true },
-        ];
-      } else if (isFaculty02) {
-        initialFallbackClasses = [
-          { id: "f2-mon-ds", title: "Data Science with Python", courseName: "Data Science", subjectName: "Data Analytics & Pandas", batchId: "DS01", batchName: "Batch DS01", batchCode: "DS01", date: dMon, startTime: "10:00 AM", endTime: "11:30 AM", timeRange: "10:00 AM – 11:30 AM", roomNo: "Room 103", mode: "OFFLINE", status: "UPCOMING", studentCount: 4, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 12, endMin: 0, spanHours: 2 },
-          { id: "f2-wed-ml", title: "Machine Learning", courseName: "AI & ML", subjectName: "Supervised Learning", batchId: "AI01", batchName: "Batch AI01", batchCode: "AI01", date: dWed, startTime: "02:00 PM", endTime: "04:00 PM", timeRange: "02:00 PM – 04:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-ai-001", status: "UPCOMING", studentCount: 6, attendanceStatus: "Pending", startHour: 14, startMin: 0, endHour: 16, endMin: 0, spanHours: 2 },
-          { id: "f2-fri-nlp", title: "Natural Language Processing", courseName: "AI & ML", subjectName: "NLP Foundations", batchId: "AI01", batchName: "Batch AI01", batchCode: "AI01", date: dFri, startTime: "04:00 PM", endTime: "06:00 PM", timeRange: "04:00 PM – 06:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-ai-002", status: "UPCOMING", studentCount: 6, attendanceStatus: "Pending", startHour: 16, startMin: 0, endHour: 18, endMin: 0, spanHours: 2 },
-        ];
-      } else {
-        // Default demo timetable fallback for any logged-in faculty
-        initialFallbackClasses = [
-          { id: "mon-java-live", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", meetingUrl: "https://meet.google.com/aadya-java-001", status: "LIVE", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
-          { id: "mon-java-up", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dMon, startTime: "10:00 AM", endTime: "11:00 AM", timeRange: "10:00 AM – 11:00 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-java-002", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 11, endMin: 0, spanHours: 1 },
-          { id: "mon-dsa", title: "DSA", courseName: "DSA", subjectName: "DSA", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dMon, startTime: "11:00 AM", endTime: "12:00 PM", timeRange: "11:00 AM – 12:00 PM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-dsa-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 11, startMin: 0, endHour: 12, endMin: 0, spanHours: 1 },
-          { id: "tue-python", title: "Python", courseName: "Python", subjectName: "Python", batchId: "B002", batchName: "Batch B002", batchCode: "B002", date: dTue, startTime: "10:00 AM", endTime: "11:30 AM", timeRange: "10:00 AM – 11:30 AM", roomNo: "Online", mode: "ONLINE", meetingUrl: "https://meet.google.com/aadya-py-001", status: "UPCOMING", studentCount: 5, attendanceStatus: "Pending", startHour: 10, startMin: 0, endHour: 12, endMin: 0, spanHours: 2 },
-          { id: "wed-java", title: "Java Class", courseName: "Java Class", subjectName: "Java Class", batchId: "B001", batchName: "Batch B001", batchCode: "B001", date: dWed, startTime: "09:00 AM", endTime: "10:00 AM", timeRange: "09:00 AM – 10:00 AM", roomNo: "Room No 1", mode: "OFFLINE", status: "UPCOMING", studentCount: 3, attendanceStatus: "Pending", startHour: 9, startMin: 0, endHour: 10, endMin: 0, spanHours: 1 },
-        ];
+      let status = (s.sessionStatus || s.status || "UPCOMING").toUpperCase() as FormattedTimetableClass["status"];
+      if (activeLiveClass?.status === "LIVE" && (activeLiveClass?.id === s.id || activeLiveClass?.sessionId === s.id)) {
+        status = "LIVE";
       }
+      const storeStatus = getSessionStatus(s.id);
+      if (storeStatus) status = storeStatus;
 
-      initialFallbackClasses.forEach((cls) => {
-        let status = cls.status;
-        const storeStatus = getSessionStatus(cls.id);
-        if (storeStatus) status = storeStatus;
-        if (activeLiveClass?.id === cls.id || activeLiveClass?.sessionId === cls.id) {
-          status = "LIVE";
-        }
-        const attendance = sessionAttendance[cls.id];
-        const attendanceStatus = attendance && attendance.length > 0 ? "Updated" : cls.attendanceStatus;
+      const masterSlot = findSlotByMasterId(
+        (s as BackendClassSession & { timeslotMasterId?: string }).timeslotMasterId,
+        timeSlotColumns
+      );
+      const startTime = s.startTime || masterSlot?.start || "09:00 AM";
+      const endTime = s.endTime || masterSlot?.end || "10:00 AM";
+      const startParsed = parseTimeTo24Hour(startTime);
+      const endParsed = parseTimeTo24Hour(endTime);
+      const startPeriod =
+        masterSlot?.period ?? periodFromStartTime(startTime, timeSlotColumns);
+      const span = spanSlotsForSession(startTime, endTime, timeSlotColumns, startPeriod);
 
-        map.set(cls.id, {
-          ...cls,
-          status,
-          attendanceStatus,
-        });
+      map.set(s.id, {
+        id: s.id,
+        title: s.title || s.batchModule?.courseModule?.name || "Class Session",
+        courseName: getSessionSubjectLabel({ title: s.title, batch: s.batch }),
+        subjectName: s.batchModule?.courseModule?.name || s.title || "Subject Module",
+        batchId: s.batchId,
+        batchName: s.batch?.name || s.batch?.code || "B001",
+        batchCode: s.batch?.code || "B001",
+        date: scheduledDate,
+        startTime,
+        endTime,
+        timeRange: `${startTime} – ${endTime}`,
+        roomNo: s.roomNo || "Room No 1",
+        mode: (s.mode as FormattedTimetableClass["mode"]) || "OFFLINE",
+        meetingUrl: s.meetingUrl || undefined,
+        status,
+        studentCount: s.enrolledStudentsCount ?? 0,
+        attendanceStatus: sessionAttendance[s.id]?.length ? "Updated" : "Pending",
+        startHour: startParsed.hour,
+        startMin: startParsed.min,
+        endHour: endParsed.hour,
+        endMin: endParsed.min,
+        spanHours: span,
+        startPeriod,
+        timeslotMasterId:
+          (s as BackendClassSession & { timeslotMasterId?: string }).timeslotMasterId ||
+          masterSlot?.timeslotMasterId,
       });
-    }
+    });
 
     return Array.from(map.values());
-  }, [weekDays, sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, facultyId]);
+  }, [sessionsRes, dashboard, user, activeLiveClass, sessionAttendance, getSessionStatus, todayIso, timeSlotColumns]);
 
-  // Filtered assigned classes (direct alias to assignedClasses)
   const filteredClasses = assignedClasses;
 
-  // Today Classes
   const todayClasses = useMemo(() => {
-    const targetDate = weekDays[0]?.iso;
-    return assignedClasses.filter((c) => c.date === targetDate);
-  }, [assignedClasses, weekDays]);
+    return assignedClasses.filter((c) => c.date === todayIso);
+  }, [assignedClasses, todayIso]);
 
-  // Currently selected class for bottom right pane
   const currentSelectedClass = useMemo(() => {
     return (
       assignedClasses.find((c) => c.id === selectedClassId) ||
@@ -364,24 +294,9 @@ export const FacultyMySchedule: React.FC = () => {
     );
   }, [assignedClasses, selectedClassId, todayClasses]);
 
-  // Week navigation helpers
-  const handlePrevWeek = () => {
-    const prev = new Date(currentWeekMonday);
-    prev.setDate(prev.getDate() - 7);
-    setCurrentWeekMonday(prev);
-  };
-
-  const handleNextWeek = () => {
-    const next = new Date(currentWeekMonday);
-    next.setDate(next.getDate() + 7);
-    setCurrentWeekMonday(next);
-  };
-
-  const handleCurrentWeek = () => {
-    const base = new Date(2026, 7, 31);
-    base.setHours(0, 0, 0, 0);
-    setCurrentWeekMonday(base);
-  };
+  const handlePrevWeek = () => setWeekOffset((o) => o - 1);
+  const handleNextWeek = () => setWeekOffset((o) => o + 1);
+  const handleCurrentWeek = () => setWeekOffset(0);
 
   const handleOpenClassDetails = (cls: FormattedTimetableClass) => {
     setSelectedClassId(cls.id);
@@ -396,25 +311,11 @@ export const FacultyMySchedule: React.FC = () => {
     );
   };
 
-  const handleGoLive = (cls: FormattedTimetableClass) => {
-    setActiveLiveClass({
-      id: cls.id,
-      sessionId: cls.id,
-      courseName: cls.courseName,
-      batchCode: cls.batchCode,
-      batchName: cls.batchName,
-      moduleName: cls.subjectName,
-      facultyName: user?.name || "Faculty01",
-      date: cls.date,
-      time: cls.timeRange,
-      meetUrl: cls.meetingUrl || "https://meet.google.com/aadya-live",
-      meetId: "aadya-live-01",
-      startedAt: new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }),
-      studentCount: cls.studentCount,
-      status: "LIVE",
-    });
+  const isRealGoogleMeetUrl = (url?: string | null) =>
+    Boolean(url?.trim() && url.includes("meet.google.com"));
 
-    setSelectedClassForModal({
+  const handleGoLive = async (cls: FormattedTimetableClass) => {
+    const modalData: ClassSessionModalData = {
       id: cls.id,
       title: cls.title,
       courseName: cls.courseName,
@@ -430,20 +331,80 @@ export const FacultyMySchedule: React.FC = () => {
       meetingUrl: cls.meetingUrl,
       status: cls.status,
       enrolledStudentsCount: cls.studentCount,
-    });
+    };
 
-    if (cls.meetingUrl) {
-      window.open(cls.meetingUrl, "_blank", "noopener,noreferrer");
+    // Prefer StartClassModal for the full startLive path (same as Dashboard).
+    // If already LIVE, open modal so faculty can rejoin Meet / manage attendance.
+    if (cls.status === "LIVE") {
+      setSelectedClassForModal(modalData);
+      setIsClassModalOpen(true);
+      return;
     }
-    handleNavigateToSession(cls);
+
+    try {
+      let meetingUrl = isRealGoogleMeetUrl(cls.meetingUrl) ? cls.meetingUrl : undefined;
+
+      if (cls.mode === "ONLINE" || cls.mode === "HYBRID") {
+        if (!meetingUrl) {
+          const current = await classSessionsApi.getMeeting(cls.id);
+          meetingUrl = current.data.meetingUrl || undefined;
+        }
+        if (!isRealGoogleMeetUrl(meetingUrl)) {
+          const created = await classSessionsApi.createGoogleMeet(cls.id);
+          meetingUrl = created.data.meetingUri;
+        }
+        if (!isRealGoogleMeetUrl(meetingUrl)) {
+          throw new Error("No Google Meet is available for this class.");
+        }
+      }
+
+      await classSessionsApi.startLive(cls.id, meetingUrl);
+
+      const startedAt = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      setActiveLiveClass({
+        id: cls.id,
+        sessionId: cls.id,
+        courseName: cls.courseName,
+        batchCode: cls.batchCode,
+        batchName: cls.batchName,
+        moduleName: cls.subjectName,
+        facultyName: user?.name || "Faculty01",
+        date: cls.date,
+        time: cls.timeRange,
+        meetUrl: meetingUrl || "",
+        meetId: meetingUrl?.split("/").pop() || "",
+        startedAt,
+        studentCount: cls.studentCount,
+        status: "LIVE",
+      });
+
+      setSelectedClassForModal({
+        ...modalData,
+        meetingUrl,
+        status: "LIVE",
+      });
+      setIsClassModalOpen(true);
+
+      if (meetingUrl) {
+        window.open(meetingUrl, "_blank", "noopener,noreferrer");
+      }
+
+      refetchSessions();
+      refetchDash();
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          (err as Error)?.message ||
+          "Connect or reauthorize Google Workspace before joining this class."
+      );
+    }
   };
 
-  const weekRangeLabel = useMemo(() => {
-    const start = weekDays[0]?.formattedDate || "31 Aug";
-    const end = weekDays[6]?.formattedDate || "6 Sept";
-    const year = currentWeekMonday.getFullYear();
-    return `${start} – ${end} ${year}`;
-  }, [weekDays, currentWeekMonday]);
+  const weekRangeLabel = useMemo(() => weekRange.label, [weekRange.label]);
 
   return (
     <PageContainer className="bg-slate-50/50 dark:bg-slate-950/40">
@@ -528,26 +489,46 @@ export const FacultyMySchedule: React.FC = () => {
       {/* ─── Main Timetable Grid / List Display ─── */}
       {viewMode === "TIMETABLE" ? (
         <div className="space-y-6">
-          {/* ─── Full 9:00 AM to 9:00 PM Timetable Matrix (Desktop/Tablet) ─── */}
+          {slotsLoading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-sm text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin text-[#2563EB]" />
+              Loading time slots from Master Setup…
+            </div>
+          ) : slotsEmpty ? (
+            <Card className="rounded-3xl border-dashed">
+              <CardContent className="py-14 text-center space-y-2">
+                <Clock className="mx-auto h-8 w-8 text-slate-300" />
+                <p className="text-sm font-bold text-slate-800">No time slots configured</p>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Ask an admin to add Time Slots in Master Setup (for example 9:00 AM – 10:00 AM). This timetable uses those slots as its base structure.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+          <>
+          {sessionsLoading && (
+            <div className="flex items-center justify-center gap-2 py-4 text-xs text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin text-[#2563EB]" />
+              Loading your assigned classes for this week…
+            </div>
+          )}
+          {/* ─── Master Time Slot Timetable Matrix (Desktop/Tablet) ─── */}
           <div className="hidden md:block overflow-x-auto rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-            <table className="w-full border-collapse text-left min-w-[1300px]">
+            <table className="w-full border-collapse text-left min-w-[900px]">
               <thead>
                 <tr className="bg-slate-50/90 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-800 text-[11px] font-extrabold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
                   <th className="p-3.5 border-r border-slate-200 dark:border-slate-800 w-32 text-center shrink-0">
                     DAY / DATE
                   </th>
-                  {FULL_TIME_SLOTS.map((slot) => (
+                  {timeSlotColumns.map((slot) => (
                     <th
-                      key={slot.id}
-                      className={`p-2.5 border-r border-slate-200 dark:border-slate-800 text-center ${slot.isBreak
-                        ? "bg-amber-50/40 dark:bg-amber-950/20 text-amber-800 dark:text-amber-300 w-24"
-                        : "min-w-[95px]"
-                        }`}
+                      key={slot.timeslotMasterId || slot.period}
+                      className="p-2.5 border-r border-slate-200 dark:border-slate-800 text-center min-w-[95px]"
                     >
                       <span className="block font-black text-xs text-slate-800 dark:text-slate-100">
-                        {slot.title}
+                        {slot.start.replace(/\s*(AM|PM)$/i, "")}
                       </span>
-                      <span className="text-[10px] text-slate-500 font-bold block">{slot.ampm}</span>
+                      <span className="text-[10px] text-slate-500 font-bold block">{slot.subTitle || "—"}</span>
                     </th>
                   ))}
                 </tr>
@@ -562,7 +543,7 @@ export const FacultyMySchedule: React.FC = () => {
                         className="transition-colors h-[54px] bg-rose-50/30 dark:bg-rose-950/10"
                       >
                         <td
-                          colSpan={FULL_TIME_SLOTS.length + 1}
+                          colSpan={timeSlotColumns.length + 1}
                           className="p-2.5 text-center align-middle"
                         >
                           <div className="flex items-center justify-center gap-2 py-2 px-4 rounded-xl bg-rose-50 border border-rose-200/90 text-rose-700 dark:bg-rose-950/40 dark:border-rose-900/60 dark:text-rose-300 text-xs font-black shadow-2xs">
@@ -579,7 +560,7 @@ export const FacultyMySchedule: React.FC = () => {
                   const dayClasses = filteredClasses.filter((c) => c.date === day.iso);
 
                   // Keep track of spanned slots to skip rendering empty cells
-                  let skipHoursRemaining = 0;
+                  let skipSlotsRemaining = 0;
 
                   return (
                     <tr
@@ -606,38 +587,23 @@ export const FacultyMySchedule: React.FC = () => {
                         </div>
                       </td>
 
-                      {/* 12 Hour Time Slot Cells */}
-                      {FULL_TIME_SLOTS.map((slot) => {
-                        if (skipHoursRemaining > 0) {
-                          skipHoursRemaining--;
+                      {timeSlotColumns.map((slot) => {
+                        if (skipSlotsRemaining > 0) {
+                          skipSlotsRemaining--;
                           return null;
                         }
 
-                        // Lunch Slot (01:00 PM - 02:00 PM)
-                        if (slot.isBreak) {
-                          return (
-                            <td
-                              key={slot.id}
-                              className="p-1 border-r border-slate-200 dark:border-slate-800 bg-amber-50/30 dark:bg-amber-950/10 text-center align-middle"
-                            >
-                              <div className="flex flex-col items-center justify-center bg-amber-50 border border-amber-200/80 rounded-xl py-2 px-1 text-amber-800 text-[10px] font-extrabold shadow-2xs">
-                                <div className="flex items-center gap-1">
-                                  <span>🥪</span>
-                                  <span>Lunch</span>
-                                </div>
-                                <span className="text-[9px] text-amber-700/80 font-mono mt-0.5">01:00 – 02:00</span>
-                              </div>
-                            </td>
-                          );
-                        }
-
-                        // Find class starting at this hour
-                        const matchingClass = dayClasses.find((c) => c.startHour === slot.hour24);
+                        const matchingClass = dayClasses.find((c) => {
+                          if (c.timeslotMasterId && slot.timeslotMasterId) {
+                            return c.timeslotMasterId === slot.timeslotMasterId;
+                          }
+                          return (c.startPeriod ?? periodFromStartTime(c.startTime, timeSlotColumns)) === slot.period;
+                        });
 
                         if (matchingClass) {
                           const span = matchingClass.spanHours || 1;
                           if (span > 1) {
-                            skipHoursRemaining = span - 1;
+                            skipSlotsRemaining = span - 1;
                           }
 
                           const isSelected = selectedClassId === matchingClass.id;
@@ -646,7 +612,7 @@ export const FacultyMySchedule: React.FC = () => {
 
                           return (
                             <td
-                              key={slot.id}
+                              key={slot.timeslotMasterId || slot.period}
                               colSpan={span}
                               className="p-1 border-r border-slate-200 dark:border-slate-800 align-middle"
                             >
@@ -697,10 +663,9 @@ export const FacultyMySchedule: React.FC = () => {
                           );
                         }
 
-                        // Empty Slot Cell
                         return (
                           <td
-                            key={slot.id}
+                            key={slot.timeslotMasterId || slot.period}
                             className="p-1 border-r border-slate-200 dark:border-slate-800 align-middle text-center"
                           >
                             <span className="text-slate-300 dark:text-slate-700 text-xs font-bold select-none">
@@ -799,7 +764,7 @@ export const FacultyMySchedule: React.FC = () => {
             <div className="lg:col-span-6 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="text-base font-black text-slate-900 dark:text-white flex items-center gap-2">
-                  Today's Classes ({weekDays[0]?.dayShort}, {weekDays[0]?.formattedDate} 2026)
+                  Today's Classes ({weekDays.find((d) => d.isToday)?.dayShort || weekDays[0]?.dayShort}, {weekDays.find((d) => d.isToday)?.formattedDate || weekDays[0]?.formattedDate})
                 </h3>
                 <button
                   type="button"
@@ -1106,6 +1071,8 @@ export const FacultyMySchedule: React.FC = () => {
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
       ) : (
         /* ─── Class List View ─── */

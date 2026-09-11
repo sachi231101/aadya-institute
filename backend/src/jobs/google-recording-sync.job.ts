@@ -1,22 +1,34 @@
 import { prisma } from "../config/database";
 import { logger } from "../config/logger";
 import { googleRecordingQueue } from "../queues/google-recording.queue";
+import { getMaxRecordingRetentionMs } from "../modules/recordings/recording-retention.service";
 
 /**
  * Scheduled job: Finds active/ended online class sessions that have a Google Meet space
- * and whose recording is missing or not yet marked READY, then queues sync jobs.
+ * and whose recording is missing or not yet AVAILABLE, then queues sync jobs.
  */
 export const googleRecordingSyncJob = async (): Promise<void> => {
   try {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const retentionMs = await getMaxRecordingRetentionMs();
+    const retentionWindowStart = new Date(Date.now() - retentionMs);
+    const now = new Date();
 
     const candidates = await prisma.classSession.findMany({
       where: {
         googleMeetSpace: { isNot: null },
-        scheduledDate: { gte: oneDayAgo },
         OR: [
-          { recording: null },
-          { recording: { recordingStatus: { in: ["PENDING", "RECORDING", "PROCESSING"] } } },
+          {
+            recording: null,
+            scheduledDate: { gte: retentionWindowStart },
+          },
+          {
+            recording: {
+              recordingStatus: {
+                in: ["PENDING", "RECORDING", "PROCESSING", "FAILED"],
+              },
+              expiresAt: { gte: now },
+            },
+          },
         ],
       },
       include: {

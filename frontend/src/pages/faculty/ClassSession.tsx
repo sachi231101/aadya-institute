@@ -99,14 +99,34 @@ export const FacultyClassSession: React.FC = () => {
     enabled: !hasValidSessionId && !batchId,
   });
 
-  // Google Meet Config
-  const defaultMeetId = useMemo(() => {
-    const cleanBatch = batchCode.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 4) || "b001";
-    const cleanCourse = courseName.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 4) || "java";
-    return `aady-${cleanBatch}-${cleanCourse}`;
-  }, [batchCode, courseName]);
+  // Google Meet — only real meet.google.com URLs (never synthetic aady-* links)
+  const isRealGoogleMeetUrl = (url?: string | null) =>
+    Boolean(url?.trim() && url.includes("meet.google.com"));
 
-  const [customMeetUrl, setCustomMeetUrl] = useState(`https://meet.google.com/${defaultMeetId}`);
+  const [customMeetUrl, setCustomMeetUrl] = useState("");
+  const [isPreparingMeet, setIsPreparingMeet] = useState(false);
+
+  useEffect(() => {
+    if (!hasValidSessionId) return;
+    let cancelled = false;
+
+    const loadMeeting = async () => {
+      try {
+        const current = await classSessionsApi.getMeeting(sessionId);
+        const url = current.data.meetingUrl;
+        if (!cancelled && isRealGoogleMeetUrl(url)) {
+          setCustomMeetUrl(url!.trim());
+        }
+      } catch {
+        // Meeting may not exist yet; created on Go Live
+      }
+    };
+
+    void loadMeeting();
+    return () => {
+      cancelled = true;
+    };
+  }, [hasValidSessionId, sessionId]);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<"attendance" | "live_classroom" | "session_history">("attendance");
@@ -306,10 +326,34 @@ export const FacultyClassSession: React.FC = () => {
     addNotification(`Attendance updated for ${courseName} (${batchCode}): ${attendanceCounts.present} Present, ${attendanceCounts.absent} Absent, ${attendanceCounts.leave} Leave.`, "success");
   };
 
+  // ─── Resolve real Google Meet URL (get or create) ───────────────────────────
+  const resolveMeetingUrl = async (): Promise<string> => {
+    if (!hasValidSessionId) {
+      throw new Error("A real scheduled class is required to create a Google Meet.");
+    }
+    if (isRealGoogleMeetUrl(customMeetUrl)) {
+      return customMeetUrl.trim();
+    }
+
+    const current = await classSessionsApi.getMeeting(sessionId);
+    if (isRealGoogleMeetUrl(current.data.meetingUrl)) {
+      const url = current.data.meetingUrl!.trim();
+      setCustomMeetUrl(url);
+      return url;
+    }
+
+    const created = await classSessionsApi.createGoogleMeet(sessionId);
+    if (!isRealGoogleMeetUrl(created.data.meetingUri)) {
+      throw new Error("Google Meet did not return a valid meet.google.com URL.");
+    }
+    setCustomMeetUrl(created.data.meetingUri);
+    return created.data.meetingUri;
+  };
+
   // ─── ACTION 2: GO LIVE CLASS (Open Confirmation Modal) ──────────────────────
   const handleGoLiveClick = () => {
-    if (!customMeetUrl.trim()) {
-      triggerToast("Google Meet link is not available for this class.", "error");
+    if (!hasValidSessionId) {
+      triggerToast("A real scheduled class is required to go live.", "error");
       return;
     }
     setShowGoLiveModal(true);
@@ -318,46 +362,57 @@ export const FacultyClassSession: React.FC = () => {
   // ─── START LIVE CLASS (Confirmed) ──────────────────────────────────────────
   const handleConfirmStartLive = async () => {
     setShowGoLiveModal(false);
-    const meetUrl = customMeetUrl.trim() || `https://meet.google.com/${defaultMeetId}`;
-    const currentTimeStr = new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
+    setIsPreparingMeet(true);
 
-    // 1. Update backend if valid session id
-    if (hasValidSessionId) {
-      try {
-        await classSessionsApi.startLive(sessionId, meetUrl);
-      } catch (err: any) {
-        console.warn("Server startLive skipped:", err?.message);
+    try {
+      const meetUrl = await resolveMeetingUrl();
+      if (!isRealGoogleMeetUrl(meetUrl)) {
+        throw new Error("Cannot start live with a non-Google Meet URL.");
       }
+
+      const currentTimeStr = new Date().toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+
+      await classSessionsApi.startLive(sessionId, meetUrl);
+
+      setWorkflowStep("LIVE");
+      setSessionStatus(sessionId, "LIVE");
+      setSessionStartTime(currentTimeStr);
+
+      setActiveLiveClass({
+        id: sessionId,
+        sessionId,
+        courseName,
+        batchCode,
+        batchName: batchCode,
+        moduleName: subjectName,
+        facultyName,
+        date: scheduledDate,
+        time: scheduledTime,
+        meetUrl,
+        meetId: meetUrl.split("/").pop() || "",
+        startedAt: currentTimeStr,
+        studentCount: attendanceCounts.present || students.length,
+        status: "LIVE",
+      });
+
+      addNotification(
+        `Live class for ${courseName} started. Enrolled students in ${batchCode} notified.`,
+        "success"
+      );
+      triggerToast(`Live class started. ${attendanceCounts.total} students notified.`);
+      window.open(meetUrl, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Connect or reauthorize Google Workspace before going live.";
+      triggerToast(message, "error");
+    } finally {
+      setIsPreparingMeet(false);
     }
-
-    // 2. Update frontend state: UPCOMING -> LIVE
-    setWorkflowStep("LIVE");
-    setSessionStatus(sessionId, "LIVE");
-    setSessionStartTime(currentTimeStr);
-
-    // 3. Set global active live class for student portal join button
-    setActiveLiveClass({
-      id: sessionId,
-      sessionId,
-      courseName,
-      batchCode,
-      batchName: batchCode,
-      moduleName: subjectName,
-      facultyName,
-      date: scheduledDate,
-      time: scheduledTime,
-      meetUrl,
-      meetId: defaultMeetId,
-      startedAt: currentTimeStr,
-      studentCount: attendanceCounts.present || students.length,
-      status: "LIVE",
-    });
-
-    addNotification(`Live class for ${courseName} started. Enrolled students in ${batchCode} notified.`, "success");
-    triggerToast(`Live class started. ${attendanceCounts.total} students notified.`);
-
-    // 4. Open Google Meet in a new browser tab and keep Faculty Portal open
-    window.open(meetUrl, "_blank", "noopener,noreferrer");
   };
 
   // ─── ACTION 3: END LIVE CLASS (Open End Confirm Modal) ──────────────────────
@@ -378,7 +433,8 @@ export const FacultyClassSession: React.FC = () => {
 
     const recDuration = Math.max(1, Math.round(secondsElapsed / 60));
     const recId = `rec-${Date.now()}`;
-    const meetUrl = customMeetUrl.trim() || `https://meet.google.com/${defaultMeetId}`;
+    const meetUrl = isRealGoogleMeetUrl(customMeetUrl) ? customMeetUrl.trim() : "";
+    const meetId = meetUrl ? meetUrl.split("/").pop() || "" : "";
 
     endActiveLiveClass();
 
@@ -396,7 +452,7 @@ export const FacultyClassSession: React.FC = () => {
       absentCount: attendanceCounts.absent,
       totalCount: attendanceCounts.total,
       meetUrl,
-      meetId: defaultMeetId,
+      meetId,
       notes: savedNotes,
       recordingId: recId,
     });
@@ -421,7 +477,7 @@ export const FacultyClassSession: React.FC = () => {
       status: "Available" as const,
       expiresAt: "2026-09-30",
       meetUrl,
-      meetId: defaultMeetId,
+      meetId,
       startTime: sessionStartTime || "09:00 AM",
       endTime: endTimeStr,
       source: "Google Meet" as const,
@@ -498,19 +554,40 @@ export const FacultyClassSession: React.FC = () => {
   };
 
   // ─── Open Google Meet Session ───────────────────────────────────────────────
-  const handleOpenGoogleMeet = () => {
-    const meetUrl = customMeetUrl.trim() || `https://meet.google.com/${defaultMeetId}`;
-    window.open(meetUrl, "_blank", "noopener,noreferrer");
-    triggerToast("Opening Google Meet session in new tab...", "info");
+  const handleOpenGoogleMeet = async () => {
+    setIsPreparingMeet(true);
+    try {
+      const meetUrl = await resolveMeetingUrl();
+      window.open(meetUrl, "_blank", "noopener,noreferrer");
+      triggerToast("Opening Google Meet session in new tab...", "info");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Google Meet link is not available for this class.";
+      triggerToast(message, "error");
+    } finally {
+      setIsPreparingMeet(false);
+    }
   };
 
   // ─── Copy Google Meet Link ──────────────────────────────────────────────────
-  const handleCopyMeetLink = () => {
-    const meetUrl = customMeetUrl.trim() || `https://meet.google.com/${defaultMeetId}`;
-    navigator.clipboard.writeText(meetUrl);
-    setCopiedMeetLink(true);
-    triggerToast("Google Meet link copied to clipboard.", "success");
-    setTimeout(() => setCopiedMeetLink(false), 3000);
+  const handleCopyMeetLink = async () => {
+    try {
+      const meetUrl = isRealGoogleMeetUrl(customMeetUrl)
+        ? customMeetUrl.trim()
+        : await resolveMeetingUrl();
+      await navigator.clipboard.writeText(meetUrl);
+      setCopiedMeetLink(true);
+      triggerToast("Google Meet link copied to clipboard.", "success");
+      setTimeout(() => setCopiedMeetLink(false), 3000);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Google Meet link is not available for this class.";
+      triggerToast(message, "error");
+    }
   };
 
   const handleSaveNotes = () => {
@@ -843,9 +920,14 @@ export const FacultyClassSession: React.FC = () => {
                       <Button
                         type="button"
                         onClick={handleGoLiveClick}
+                        disabled={isPreparingMeet}
                         className="w-full sm:w-auto bg-[#0066DA] hover:bg-[#0055b8] text-white font-extrabold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all"
                       >
-                        <Video className="w-4 h-4 text-white" />
+                        {isPreparingMeet ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        ) : (
+                          <Video className="w-4 h-4 text-white" />
+                        )}
                         Go Live Class
                       </Button>
                     )}
@@ -955,7 +1037,10 @@ export const FacultyClassSession: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-slate-600 font-medium mt-0.5">
-                      Meeting URL: <span className="font-mono font-bold text-teal-900">{customMeetUrl}</span>
+                      Meeting URL:{" "}
+                      <span className="font-mono font-bold text-teal-900">
+                        {customMeetUrl || "Will be created when you go live"}
+                      </span>
                     </p>
                   </div>
                 </div>
@@ -1165,7 +1250,9 @@ export const FacultyClassSession: React.FC = () => {
                   <span>Meeting Link</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-2 px-3">
-                  <span className="font-mono text-[11px] text-slate-700 truncate flex-1">{customMeetUrl}</span>
+                  <span className="font-mono text-[11px] text-slate-700 truncate flex-1">
+                    {customMeetUrl || "No Meet link yet — created on Go Live"}
+                  </span>
                   <button
                     type="button"
                     onClick={handleCopyMeetLink}
@@ -1286,9 +1373,15 @@ export const FacultyClassSession: React.FC = () => {
             <Button
               type="button"
               onClick={handleConfirmStartLive}
+              disabled={isPreparingMeet}
               className="h-10 text-xs font-extrabold bg-[#0066DA] hover:bg-[#0055b8] text-white rounded-xl shadow-md cursor-pointer gap-2"
             >
-              <Video className="w-4 h-4" /> Start Live Class
+              {isPreparingMeet ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Video className="w-4 h-4" />
+              )}
+              {isPreparingMeet ? "Starting…" : "Start Live Class"}
             </Button>
           </DialogFooter>
         </DialogContent>

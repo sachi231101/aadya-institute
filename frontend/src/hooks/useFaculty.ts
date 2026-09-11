@@ -44,6 +44,9 @@ export const useFacultyDashboard = () => {
   return useQuery({
     queryKey: [FACULTY_DASHBOARD_KEY],
     queryFn: () => facultyApi.getMyDashboard(),
+    // Pick up admin Timetable assignments without requiring a full page reload
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
   });
 };
 

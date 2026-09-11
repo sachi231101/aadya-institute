@@ -50,10 +50,45 @@ export const upsertIntegrationService = async (
 ) => {
   const type = assertType(typeParam);
   if (type === "GOOGLE_WORKSPACE") {
-    throw new AppError(
-      "Use Google OAuth Connect to configure Google Workspace",
-      400
+    const existing = await repo.findByInstituteAndType(
+      currentUser.instituteId,
+      type
     );
+    const currentConfiguration =
+      existing?.configuration &&
+      typeof existing.configuration === "object" &&
+      !Array.isArray(existing.configuration)
+        ? existing.configuration
+        : {};
+    const recordingRetentionDays = Number(
+      input.configuration?.recordingRetentionDays
+    );
+
+    const updated = await repo.upsertIntegration(currentUser.instituteId, type, {
+      provider: "GOOGLE",
+      status: existing?.status || "NOT_CONFIGURED",
+      isEnabled: existing?.isEnabled ?? true,
+      configuration: {
+        ...currentConfiguration,
+        recordingRetentionDays,
+      } as Prisma.InputJsonValue,
+    });
+
+    await createAuditLog({
+      userId: actorId(currentUser),
+      instituteId: currentUser.instituteId,
+      action: "GOOGLE_WORKSPACE_RETENTION_UPDATED",
+      entityType: "Integration",
+      entityId: updated.id,
+      oldData: {
+        recordingRetentionDays:
+          (currentConfiguration as Record<string, unknown>)
+            .recordingRetentionDays,
+      },
+      newData: { recordingRetentionDays },
+    });
+
+    return toDetailDto(type, updated);
   }
 
   const meta = INTEGRATION_CATALOG[type];
@@ -333,12 +368,26 @@ export const syncGoogleWorkspaceIntegration = async (params: {
   const hasSheetsScope = scopes.some(
     (s) => s.includes("spreadsheets") || s.includes("drive")
   );
+  const existingWorkspace = await repo.findByInstituteAndType(
+    instituteId,
+    "GOOGLE_WORKSPACE"
+  );
+  const existingConfiguration =
+    existingWorkspace?.configuration &&
+    typeof existingWorkspace.configuration === "object" &&
+    !Array.isArray(existingWorkspace.configuration)
+      ? existingWorkspace.configuration
+      : {};
 
   await repo.upsertIntegration(instituteId, "GOOGLE_WORKSPACE", {
     provider: "GOOGLE",
     status: connected ? "CONNECTED" : "DISCONNECTED",
     isEnabled: connected,
-    configuration: { email, scopes } as Prisma.InputJsonValue,
+    configuration: {
+      ...existingConfiguration,
+      email,
+      scopes,
+    } as Prisma.InputJsonValue,
     encryptedCredentials: null,
     credentialFingerprint: null,
     lastTestedAt: connected ? new Date() : null,

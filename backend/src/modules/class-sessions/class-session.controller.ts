@@ -16,7 +16,7 @@ export const getSessions = async (
     const authUser = toAuthUser(req);
     const instituteId = authUser.instituteId;
     // ADMIN: optional query branchId only. Branch-locked roles: always user.branchId.
-    const branchId = resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
+    // Pure students: enrollment batchIds are the isolation boundary (not session.branchId).
     const roles = authUser.roles || [];
     const isPureFaculty = roles.includes("FACULTY") &&
       !roles.includes("ADMIN") &&
@@ -28,6 +28,10 @@ export const getSessions = async (
       !roles.includes("CENTER_MANAGER") &&
       !roles.includes("COUNSELLOR") &&
       !roles.includes("FACULTY");
+
+    const branchId = (isPureStudent || isPureFaculty)
+      ? undefined
+      : resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
 
     let facultyFilter = req.query.facultyId as string;
     let batchFilter = req.query.batchId as string;
@@ -191,10 +195,12 @@ export const getActiveLiveSessions = async (
   try {
     const authUser = toAuthUser(req);
     const instituteId = authUser.instituteId;
-    const branchId = resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
     const roles = authUser.roles || [];
     const isPureStudent = roles.includes("STUDENT") && !roles.includes("ADMIN") && !roles.includes("FACULTY");
     const isPureFaculty = roles.includes("FACULTY") && !roles.includes("ADMIN");
+    const branchId = isPureStudent
+      ? undefined
+      : resolveEffectiveBranchId(authUser, req.query.branchId as string | undefined);
 
     let studentBatchIds: string[] | undefined = undefined;
     let facultyId: string | undefined = undefined;

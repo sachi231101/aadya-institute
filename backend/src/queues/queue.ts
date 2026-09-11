@@ -57,9 +57,17 @@ export type WorkerCreateOptions = {
   pauseInPeakMode?: boolean;
 };
 
+export type WorkerJob<T> = {
+  data: T;
+  attemptsMade: number;
+  opts: JobsOptions;
+  updateData?: (data: T) => Promise<void>;
+  moveToDelayed?: (timestamp: number, token?: string) => Promise<void>;
+};
+
 export const createWorker = <T>(
   name: string,
-  processor: (job: { data: T }) => Promise<void>,
+  processor: (job: WorkerJob<T>, token?: string) => Promise<void>,
   options: WorkerCreateOptions = {}
 ) => {
   if (isTestMode()) return workerStub(name);

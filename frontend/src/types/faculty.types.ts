@@ -136,6 +136,7 @@ export interface FacultyDashboardData {
   counts: {
     todayClasses: number;
     upcomingClasses: number;
+    weekClasses?: number;
     liveClasses: number;
     completedThisWeek: number;
     pendingSubmissions: number;
@@ -144,6 +145,10 @@ export interface FacultyDashboardData {
   };
   todaySessions: FacultyDashboardSession[];
   upcomingSessions: FacultyDashboardSession[];
+  /** Current calendar week (Mon–Sun) — admin-assigned sessions for this faculty */
+  weekSessions?: FacultyDashboardSession[];
+  /** Week start → +14 days flat list for Scheduled Classes UI */
+  scheduledSessions?: FacultyDashboardSession[];
   myBatches: {
     id: string;
     name: string;

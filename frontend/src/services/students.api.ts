@@ -12,7 +12,22 @@ import type {
 
 export interface StudentDashboardData {
   profile: { id: string; studentCode: string; name: string | null; email: string | null };
-  course: { id: string; name: string; code: string; batchName: string | null; subjects?: string } | null;
+  course: {
+    id: string;
+    name: string;
+    code: string;
+    batchId?: string | null;
+    batchName: string | null;
+    batchCode?: string | null;
+    subjects?: string;
+  } | null;
+  batches?: Array<{
+    id: string;
+    name: string;
+    code: string;
+    courseId?: string | null;
+    status?: string;
+  }>;
   courses?: Array<{ id: string; name: string; code: string }>;
   instructor: { id: string; name: string | null; email: string | null; phone: string | null } | null;
   counts: {
@@ -44,6 +59,14 @@ export interface StudentDashboardData {
     sessionStatus: string | null;
     mode: string | null;
     meetingUrl?: string | null;
+    batchId?: string | null;
+    courseId?: string | null;
+    batch?: {
+      id: string;
+      code: string;
+      name: string;
+      courseId?: string | null;
+    } | null;
     courseName: string | null;
     facultyName: string | null;
   }>;
@@ -52,6 +75,14 @@ export interface StudentDashboardData {
     id: string;
     title: string | null;
     meetingUrl?: string | null;
+    batchId?: string | null;
+    courseId?: string | null;
+    batch?: {
+      id: string;
+      code: string;
+      name: string;
+      courseId?: string | null;
+    } | null;
     courseName: string | null;
     facultyName: string | null;
   }>;

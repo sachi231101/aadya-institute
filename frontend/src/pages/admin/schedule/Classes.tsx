@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import {
   Calendar,
@@ -21,6 +21,7 @@ import {
   BarChart3,
   Globe,
   Check,
+  Video,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { PageContainer } from "@/components/layout/PageContainer";
@@ -47,13 +48,13 @@ import {
   useCreateClassSession,
   useUpdateClassSession,
 } from "../../../hooks/useClassSessions";
-import { type BackendClassSession } from "../../../services/class-sessions.api";
+import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
 import { formatBatchSubjectNames, type BatchLike } from "@/utils/batch.utils";
 import {
-  BOOKABLE_TIME_SLOTS,
   periodToTimes,
   toDateKey,
 } from "@/constants/timetable-slots";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -277,12 +278,25 @@ export const Classes: React.FC = () => {
   const [formBranch, setFormBranch] = useState("");
   const [formFacultyId, setFormFacultyId] = useState("");
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
-  const [formPeriod, setFormPeriod] = useState<number>(2);
+  const [formPeriod, setFormPeriod] = useState<number>(1);
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
   const [formClassroomMasterId, setFormClassroomMasterId] = useState("");
-  const [formMeetingUrl, setFormMeetingUrl] = useState("");
 
-  const formTimes = periodToTimes(formPeriod);
+  const slotBranchId =
+    formBranch && formBranch !== "ALL"
+      ? formBranch
+      : selectedBranchId !== "ALL"
+        ? selectedBranchId
+        : undefined;
+  const { bookableSlots, isEmpty: slotsEmpty } = useTimetableSlotColumns(slotBranchId);
+
+  useEffect(() => {
+    if (bookableSlots.length > 0 && !bookableSlots.some((s) => s.period === formPeriod)) {
+      setFormPeriod(bookableSlots[0].period);
+    }
+  }, [bookableSlots, formPeriod]);
+
+  const formTimes = periodToTimes(formPeriod, bookableSlots);
   const formStartTime = formTimes.start;
   const formEndTime = formTimes.end;
 
@@ -349,18 +363,25 @@ export const Classes: React.FC = () => {
       scheduledDate: formDate,
       startTime: formStartTime,
       endTime: formEndTime,
+      timeslotMasterId: formTimes.timeslotMasterId,
       classroomMasterId: formMode !== "ONLINE" ? formClassroomMasterId || undefined : undefined,
       mode: formMode,
-      meetingUrl: formMode === "ONLINE" ? formMeetingUrl : undefined,
     };
 
     try {
+      let savedSession: BackendClassSession;
       if (editingSessionId) {
-        await updateSession.mutateAsync({ id: editingSessionId, payload });
+        const response = await updateSession.mutateAsync({ id: editingSessionId, payload });
+        savedSession = response.data;
         setNotificationMsg(`✓ Successfully updated class session.`);
       } else {
-        await createSession.mutateAsync(payload);
+        const response = await createSession.mutateAsync(payload);
+        savedSession = response.data;
         setNotificationMsg(`✓ Successfully scheduled new class: ${payload.title} (${batch.code}).`);
+      }
+      if (formMode === "ONLINE" && !savedSession.meetingUrl) {
+        await classSessionsApi.createGoogleMeet(savedSession.id);
+        setNotificationMsg("✓ Class scheduled and Google Meet created.");
       }
       setIsScheduleModalOpen(false);
       setEditingSessionId(null);
@@ -386,7 +407,6 @@ export const Classes: React.FC = () => {
     setFormPeriod(2);
     setFormMode("OFFLINE");
     setFormClassroomMasterId("");
-    setFormMeetingUrl("");
   };
 
   // Helper Icon Renderer
@@ -1061,15 +1081,20 @@ export const Classes: React.FC = () => {
                   value={formPeriod}
                   onChange={(e) => setFormPeriod(Number(e.target.value))}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none text-xs"
+                  disabled={slotsEmpty}
                 >
-                  {BOOKABLE_TIME_SLOTS.map((slot) => (
-                    <option key={slot.period} value={slot.period}>
-                      {slot.label}
-                    </option>
-                  ))}
+                  {slotsEmpty ? (
+                    <option value={formPeriod}>Configure Time Slots in Master Setup</option>
+                  ) : (
+                    bookableSlots.map((slot) => (
+                      <option key={slot.timeslotMasterId || slot.period} value={slot.period}>
+                        {slot.label}
+                      </option>
+                    ))
+                  )}
                 </select>
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Matches Timetable periods
+                  From Time Slot Master (Master Setup)
                 </p>
               </div>
             </div>
@@ -1090,15 +1115,13 @@ export const Classes: React.FC = () => {
 
               <div>
                 <Label className="text-[11px] font-bold text-foreground">
-                  {formMode === "ONLINE" ? "Meeting URL Link" : "Classroom / Lab"}
+                  {formMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
                 </Label>
                 {formMode === "ONLINE" ? (
-                  <Input
-                    value={formMeetingUrl}
-                    onChange={(e) => setFormMeetingUrl(e.target.value)}
-                    placeholder="https://meet.google.com/..."
-                    className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                  />
+                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-600 dark:text-blue-400 flex items-center gap-2 font-bold">
+                    <Video className="h-4 w-4" />
+                    Google Meet (auto-created)
+                  </div>
                 ) : (
                   <ClassroomDropdown
                     value={formClassroomMasterId}

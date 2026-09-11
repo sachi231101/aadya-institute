@@ -29,37 +29,53 @@ import type {
   FacultyDailyAttendanceStatus,
 } from "./faculty.validation";
 
-const startOfDay = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
+const toCalendarDateKey = (value: Date | string): string => {
+  if (typeof value === "string") {
+    const match = value.trim().match(/^(\d{4}-\d{2}-\d{2})/);
+    if (match) return match[1];
+    const parsed = new Date(value);
+    if (!Number.isNaN(parsed.getTime())) {
+      return `${parsed.getUTCFullYear()}-${String(parsed.getUTCMonth() + 1).padStart(2, "0")}-${String(parsed.getUTCDate()).padStart(2, "0")}`;
+    }
+    return value.slice(0, 10);
+  }
+  return `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, "0")}-${String(value.getUTCDate()).padStart(2, "0")}`;
 };
 
-const endOfDay = (d: Date) => {
-  const x = new Date(d);
-  x.setHours(23, 59, 59, 999);
-  return x;
+/** Local "today" as YYYY-MM-DD (institute staff timezone = server local). */
+const localTodayKey = (): string => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
-const addDays = (d: Date, days: number) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
+const addDaysToDateKey = (dateKey: string, days: number): string => {
+  const match = dateKey.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return dateKey;
+  const dt = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]) + days, 12, 0, 0));
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+};
+
+/** Inclusive UTC bounds for a calendar YYYY-MM-DD (covers noon- and midnight-stored dates). */
+const dateKeyToUtcDayStart = (dateKey: string): Date => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
+};
+
+const dateKeyToUtcDayEnd = (dateKey: string): Date => {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d, 23, 59, 59, 999));
 };
 
 const mapSessionCard = (s: Awaited<ReturnType<typeof repo.findFacultySessionsInRange>>[number]) => {
-  const now = new Date();
-  const sessionDate = new Date(s.scheduledDate);
-  const isToday =
-    sessionDate.getFullYear() === now.getFullYear() &&
-    sessionDate.getMonth() === now.getMonth() &&
-    sessionDate.getDate() === now.getDate();
+  const todayKey = localTodayKey();
+  const sessionKey = toCalendarDateKey(s.scheduledDate);
+  const isToday = sessionKey === todayKey;
 
   let derivedStatus = (s.sessionStatus || "UPCOMING").toUpperCase();
-  if (derivedStatus !== "LIVE" && derivedStatus !== "COMPLETED") {
+  if (derivedStatus !== "LIVE" && derivedStatus !== "COMPLETED" && derivedStatus !== "CANCELLED") {
     if (s.actualEndTime) derivedStatus = "COMPLETED";
     else if (isToday) derivedStatus = "UPCOMING";
-    else if (sessionDate < startOfDay(now)) derivedStatus = "COMPLETED";
+    else if (sessionKey < todayKey) derivedStatus = "COMPLETED";
     else derivedStatus = "UPCOMING";
   }
 
@@ -72,7 +88,7 @@ const mapSessionCard = (s: Awaited<ReturnType<typeof repo.findFacultySessionsInR
     batchId: s.batch?.id ?? null,
     batchName: s.batch?.name ?? null,
     batchCode: s.batch?.code ?? null,
-    scheduledDate: s.scheduledDate,
+    scheduledDate: sessionKey,
     startTime: s.startTime,
     endTime: s.endTime,
     roomNo: s.roomNo ?? s.classroomMaster?.name ?? null,
@@ -626,16 +642,23 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
   const faculty = await repo.findFacultyById(facultyId);
   if (!faculty) throw new AppError("Faculty not found", 404);
 
-  const now = new Date();
-  const todayStart = startOfDay(now);
-  const todayEnd = endOfDay(now);
-  const upcomingEnd = endOfDay(addDays(now, 7));
-  const weekStart = startOfDay(addDays(now, -((now.getDay() + 6) % 7))); // Monday
-  const weekEnd = endOfDay(addDays(weekStart, 6));
+  const todayKey = localTodayKey();
+  const tomorrowKey = addDaysToDateKey(todayKey, 1);
+  const upcomingEndKey = addDaysToDateKey(todayKey, 14);
+  // Monday–Sunday of the current local week (matches admin Timetable week)
+  const jsDay = new Date().getDay(); // 0 Sun … 6 Sat
+  const daysSinceMonday = (jsDay + 6) % 7;
+  const weekStartKey = addDaysToDateKey(todayKey, -daysSinceMonday);
+  const weekEndKey = addDaysToDateKey(weekStartKey, 6);
+
+  // One continuous window: current week start → next 14 days (covers admin-assigned week + upcoming)
+  const scheduleFrom = dateKeyToUtcDayStart(weekStartKey);
+  const scheduleTo = dateKeyToUtcDayEnd(
+    upcomingEndKey > weekEndKey ? upcomingEndKey : weekEndKey
+  );
 
   const [
-    todayRaw,
-    upcomingRaw,
+    scheduledRaw,
     statusCounts,
     myBatches,
     recentFeedback,
@@ -643,9 +666,12 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     pendingSubmissions,
     ratingStats,
   ] = await Promise.all([
-    repo.findFacultySessionsInRange(facultyId, todayStart, todayEnd),
-    repo.findFacultySessionsInRange(facultyId, addDays(todayStart, 1), upcomingEnd),
-    repo.countFacultySessionsByStatus(facultyId, weekStart, weekEnd),
+    repo.findFacultySessionsInRange(facultyId, scheduleFrom, scheduleTo),
+    repo.countFacultySessionsByStatus(
+      facultyId,
+      dateKeyToUtcDayStart(weekStartKey),
+      dateKeyToUtcDayEnd(weekEndKey)
+    ),
     repo.findFacultyBatchesSummary(facultyId),
     repo.findRecentFacultyFeedback(facultyId, 5),
     repo.findPendingGrading(facultyId, 10),
@@ -653,11 +679,16 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     repo.getFacultyAvgRating(facultyId),
   ]);
 
-  const todaySessions = todayRaw.map(mapSessionCard);
-  const upcomingSessions = upcomingRaw.map(mapSessionCard);
+  const allScheduled = scheduledRaw.map(mapSessionCard);
+  const todaySessions = allScheduled.filter((s) => s.scheduledDate === todayKey);
+  const upcomingSessions = allScheduled.filter(
+    (s) => s.scheduledDate >= tomorrowKey && s.scheduledDate <= upcomingEndKey
+  );
+  const weekSessions = allScheduled.filter(
+    (s) => s.scheduledDate >= weekStartKey && s.scheduledDate <= weekEndKey
+  );
 
   const liveFromToday = todaySessions.filter((s) => s.sessionStatus === "LIVE").length;
-  const completedToday = todaySessions.filter((s) => s.sessionStatus === "COMPLETED").length;
 
   return {
     profile: {
@@ -675,14 +706,18 @@ export const getMyDashboard = async (currentUser: AuthUser) => {
     counts: {
       todayClasses: todaySessions.length,
       upcomingClasses: upcomingSessions.length,
+      weekClasses: weekSessions.length,
       liveClasses: Math.max(statusCounts.live, liveFromToday),
-      completedThisWeek: statusCounts.completedThisWeek + completedToday,
+      completedThisWeek: weekSessions.filter((s) => s.sessionStatus === "COMPLETED").length,
       pendingSubmissions,
       avgRating: ratingStats.avgRating,
       totalRatings: ratingStats.totalRatings,
     },
     todaySessions,
     upcomingSessions,
+    weekSessions,
+    /** Flat list used by faculty Scheduled Classes UI (week + upcoming window). */
+    scheduledSessions: allScheduled,
     myBatches: myBatches.map((b) => ({
       id: b.id,
       name: b.name,

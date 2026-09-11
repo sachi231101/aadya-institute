@@ -14,6 +14,49 @@ import {
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
 
+const getRecordingStatus = (rec: { recordingStatus?: string; status?: string }) =>
+  rec.recordingStatus || rec.status || "PENDING";
+
+const recordingStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case "AVAILABLE":
+      return "bg-green-50 text-green-700 border-green-200";
+    case "PROCESSING":
+      return "bg-blue-50 text-blue-700 border-blue-200";
+    case "PENDING":
+    case "RECORDING":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "FAILED":
+      return "bg-red-50 text-red-700 border-red-200";
+    case "EXPIRED":
+    case "DELETED":
+      return "bg-slate-100 text-slate-600 border-slate-200";
+    default:
+      return "bg-slate-50 text-slate-600 border-slate-200";
+  }
+};
+
+const recordingStatusLabel = (status: string) => {
+  switch (status) {
+    case "AVAILABLE":
+      return "Available";
+    case "PROCESSING":
+      return "Syncing";
+    case "PENDING":
+      return "Queued";
+    case "RECORDING":
+      return "Recording";
+    case "FAILED":
+      return "Failed";
+    case "EXPIRED":
+      return "Expired";
+    case "DELETED":
+      return "Deleted";
+    default:
+      return status;
+  }
+};
+
 export const FacultyRecordings: React.FC = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -86,7 +129,7 @@ export const FacultyRecordings: React.FC = () => {
             Class Recordings
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Recordings from your class sessions.
+            Recordings from your class sessions. After you end a class, Google Drive sync runs in the background.
           </p>
         </div>
       </div>
@@ -127,6 +170,9 @@ export const FacultyRecordings: React.FC = () => {
               }) || "Course";
             const batch = rec.classSession?.batch?.name || rec.classSession?.batch?.code || "";
             const date = rec.classSession?.scheduledDate || rec.createdAt;
+            const status = getRecordingStatus(rec);
+            const isAvailable = status === "AVAILABLE";
+            const isExpired = rec.expiresAt && new Date(rec.expiresAt).getTime() <= Date.now();
             return (
               <Card key={rec.id} className="rounded-2xl overflow-hidden border-slate-200 hover:shadow-md transition-shadow">
                 <CardContent className="p-5 space-y-3">
@@ -134,7 +180,30 @@ export const FacultyRecordings: React.FC = () => {
                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-[#2563EB] flex items-center justify-center">
                       <Video className="w-5 h-5" />
                     </div>
-                    <Badge variant="outline" className="text-[10px]">{rec.status || "ACTIVE"}</Badge>
+                    <div className="text-right max-w-[60%]">
+                      <Badge
+                        variant="outline"
+                        className={`text-[10px] border ${recordingStatusBadgeClass(status)}`}
+                      >
+                        {status === "PROCESSING" && (
+                          <Loader2 className="w-3 h-3 mr-1 inline animate-spin" />
+                        )}
+                        {recordingStatusLabel(status)}
+                      </Badge>
+                      {status === "FAILED" && rec.lastSyncError && (
+                        <p
+                          className="text-[10px] text-rose-600 mt-1 line-clamp-2 text-left"
+                          title={rec.lastSyncError}
+                        >
+                          {rec.lastSyncError}
+                        </p>
+                      )}
+                      {(status === "PENDING" || status === "PROCESSING") && (
+                        <p className="text-[10px] text-slate-500 mt-1 text-left">
+                          Syncing from Google Drive…
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <h3 className="font-bold text-slate-900 line-clamp-2">{title}</h3>
                   <div className="text-xs text-slate-500 space-y-1">
@@ -156,7 +225,7 @@ export const FacultyRecordings: React.FC = () => {
                         })}
                       </div>
                     )}
-                    {rec.expiresAt && (
+                    {rec.expiresAt && isAvailable && (
                       <div className="flex items-center gap-1.5 text-amber-600">
                         <Clock className="w-3.5 h-3.5" />
                         Expires{" "}
@@ -171,11 +240,23 @@ export const FacultyRecordings: React.FC = () => {
                     size="sm"
                     className="w-full bg-[#2563EB] hover:bg-[#1D4ED8] text-white"
                     onClick={() => handleViewRecording(rec)}
-                    disabled={accessMutation.isPending && activeRecording?.id === rec.id}
+                    disabled={
+                      !isAvailable ||
+                      Boolean(isExpired) ||
+                      (accessMutation.isPending && activeRecording?.id === rec.id)
+                    }
                   >
                     {accessMutation.isPending && activeRecording?.id === rec.id ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Loading...
+                      </>
+                    ) : status === "FAILED" ? (
+                      <>
+                        <AlertCircle className="w-4 h-4 mr-2" /> Unavailable
+                      </>
+                    ) : status === "PROCESSING" || status === "PENDING" ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Syncing…
                       </>
                     ) : (
                       <>

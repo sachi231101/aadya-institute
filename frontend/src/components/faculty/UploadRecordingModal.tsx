@@ -212,7 +212,7 @@ export const UploadRecordingModal: React.FC<UploadRecordingModalProps> = ({
                 </Label>
                 <div className="h-10 px-3 flex items-center bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 text-xs text-slate-600 dark:text-slate-300">
                   <Clock className="w-3.5 h-3.5 mr-1.5 text-slate-400" />
-                  30 Days (Standard)
+                  7 Days (Standard)
                 </div>
               </div>
             </div>

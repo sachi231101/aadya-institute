@@ -41,6 +41,7 @@ const recordingInclude = {
           spaceName: true,
           meetingUri: true,
           meetingCode: true,
+          organizerUserId: true,
           recordingEnabled: true,
           recordingConfigurationStatus: true,
           status: true,

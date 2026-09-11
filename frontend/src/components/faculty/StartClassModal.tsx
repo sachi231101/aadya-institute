@@ -104,6 +104,9 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
   const [isCompleting, setIsCompleting] = useState(false);
   const [showRecordingModal, setShowRecordingModal] = useState(false);
   const [showMaterialsModal, setShowMaterialsModal] = useState(false);
+  const [meetingUrl, setMeetingUrl] = useState<string | null>(null);
+  const [isPreparingMeet, setIsPreparingMeet] = useState(false);
+  const [recordingSyncNotice, setRecordingSyncNotice] = useState<string | null>(null);
 
   const sessionId = session?.id || "";
   const isRealSessionId =
@@ -143,9 +146,15 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
     setIsLive(sessionIsLive);
     setIsCompleted(sessionIsCompleted);
+    setMeetingUrl(
+      session.meetingUrl?.trim() && session.meetingUrl.includes("meet.google.com")
+        ? session.meetingUrl.trim()
+        : null
+    );
 
     if (sessionIsLive) {
       setStartedAtTime(activeLiveClass?.startedAt || new Date().toLocaleTimeString());
+      setRecordingSyncNotice(null);
     } else {
       setStartedAtTime(null);
       setElapsedSeconds(0);
@@ -249,39 +258,93 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     );
   }, [students, searchQuery]);
 
+  const isRealGoogleMeetUrl = (url?: string | null) =>
+    Boolean(url?.trim() && url.includes("meet.google.com"));
+
+  const resolveMeetingUrl = async (): Promise<string | null> => {
+    if (!session) return null;
+    const needsMeet = session.mode === "ONLINE" || session.mode === "HYBRID";
+    if (!needsMeet) return null;
+    if (isRealGoogleMeetUrl(meetingUrl)) return meetingUrl!.trim();
+    if (!isRealSessionId) {
+      throw new Error("A real scheduled class is required to create a Google Meet.");
+    }
+
+    const current = await classSessionsApi.getMeeting(session.id);
+    if (isRealGoogleMeetUrl(current.data.meetingUrl)) {
+      setMeetingUrl(current.data.meetingUrl!);
+      return current.data.meetingUrl!;
+    }
+
+    const created = await classSessionsApi.createGoogleMeet(session.id);
+    if (!isRealGoogleMeetUrl(created.data.meetingUri)) {
+      throw new Error("Google Meet did not return a valid meet.google.com URL.");
+    }
+    setMeetingUrl(created.data.meetingUri);
+    return created.data.meetingUri;
+  };
+
+  const handleOpenMeet = async () => {
+    setAttendanceError(null);
+    setIsPreparingMeet(true);
+    try {
+      const url = await resolveMeetingUrl();
+      if (!url) throw new Error("No Google Meet is available for this class.");
+      window.open(url, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Connect or reauthorize Google Workspace before starting this online class.";
+      setAttendanceError(message);
+    } finally {
+      setIsPreparingMeet(false);
+    }
+  };
+
   const handleStartClass = async () => {
     if (!session) return;
-    setIsLive(true);
-    setStartedAtTime(new Date().toLocaleTimeString());
-    setElapsedSeconds(0);
+    setAttendanceError(null);
+    setIsPreparingMeet(true);
 
-    // Update global session store
-    setActiveLiveClass({
-      id: `live-${session.id}`,
-      sessionId: session.id,
-      courseName: session.courseName,
-      batchCode: session.batchCode || "BATCH",
-      batchName: session.batchName || session.batchCode || "BATCH",
-      moduleName: session.subjectName || session.title,
-      facultyName: user?.name || "Faculty",
-      date: session.date,
-      time: `${session.startTime} – ${session.endTime}`,
-      meetUrl: session.meetingUrl || `https://meet.google.com/aady-${(session.batchCode || "cls").toLowerCase()}`,
-      meetId: `aady-${(session.batchCode || "cls").toLowerCase()}`,
-      startedAt: new Date().toLocaleTimeString(),
-      studentCount: totalStudents || session.enrolledStudentsCount || 0,
-      status: "LIVE",
-    });
-
-    onSessionStatusChange?.(session.id, "LIVE");
-
-    // Try backend call
-    if (isRealSessionId) {
-      try {
-        await classSessionsApi.startLive(session.id, session.meetingUrl);
-      } catch {
-        // Soft fail
+    try {
+      const resolvedMeetUrl = await resolveMeetingUrl();
+      const needsMeet = session.mode === "ONLINE" || session.mode === "HYBRID";
+      if (needsMeet && !resolvedMeetUrl?.includes("meet.google.com")) {
+        throw new Error("Cannot start an online class without a valid Google Meet URL.");
       }
+      if (isRealSessionId) {
+        await classSessionsApi.startLive(session.id, resolvedMeetUrl || undefined);
+      }
+      setIsLive(true);
+      setStartedAtTime(new Date().toLocaleTimeString());
+      setElapsedSeconds(0);
+      setActiveLiveClass({
+        id: `live-${session.id}`,
+        sessionId: session.id,
+        courseName: session.courseName,
+        batchCode: session.batchCode || "BATCH",
+        batchName: session.batchName || session.batchCode || "BATCH",
+        moduleName: session.subjectName || session.title,
+        facultyName: user?.name || "Faculty",
+        date: session.date,
+        time: `${session.startTime} – ${session.endTime}`,
+        meetUrl: resolvedMeetUrl || "",
+        meetId: resolvedMeetUrl?.split("/").pop() || "",
+        startedAt: new Date().toLocaleTimeString(),
+        studentCount: totalStudents || session.enrolledStudentsCount || 0,
+        status: "LIVE",
+      });
+      onSessionStatusChange?.(session.id, "LIVE");
+      if (resolvedMeetUrl) window.open(resolvedMeetUrl, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Unable to start class. Connect or reauthorize Google Workspace and try again.";
+      setAttendanceError(message);
+    } finally {
+      setIsPreparingMeet(false);
     }
   };
 
@@ -320,6 +383,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
   const handleConfirmCompleteClass = async () => {
     if (!session) return;
     setIsCompleting(true);
+    setRecordingSyncNotice(null);
 
     try {
       // 1. Save attendance first if students exist
@@ -334,10 +398,12 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
         }
       }
 
-      // 2. End Live session
+      // 2. End Live session — recording sync is queued in the background (do not wait for Drive)
+      let syncQueued = false;
       if (isRealSessionId) {
         try {
           await classSessionsApi.endLive(session.id);
+          syncQueued = true;
         } catch {
           await classSessionsApi.update(session.id, { status: "COMPLETED" });
         }
@@ -348,6 +414,11 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       setIsCompleted(true);
       setShowCompleteConfirm(false);
       onSessionStatusChange?.(session.id, "COMPLETED");
+      if (syncQueued) {
+        setRecordingSyncNotice(
+          "Class ended. Recording will sync from Google Drive in the background. You can leave now — check Class Recordings later for status."
+        );
+      }
     } catch (err: any) {
       setAttendanceError(err?.message || "Failed to complete class.");
     } finally {
@@ -448,18 +519,18 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
             </div>
 
             {/* Online Meet Banner (if applicable) */}
-            {session.meetingUrl && (
+            {meetingUrl && (
               <div className="p-3 bg-blue-50/80 dark:bg-blue-950/40 border border-blue-100 dark:border-blue-900/50 rounded-xl flex items-center justify-between gap-3 text-xs">
                 <div className="flex items-center gap-2 min-w-0">
                   <Video className="w-4 h-4 text-[#2563EB] shrink-0" />
                   <span className="text-slate-700 dark:text-slate-300 truncate">
-                    Meeting Link: <strong className="font-mono text-[#2563EB]">{session.meetingUrl}</strong>
+                    Meeting Link: <strong className="font-mono text-[#2563EB]">{meetingUrl}</strong>
                   </span>
                 </div>
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => window.open(session.meetingUrl, "_blank")}
+                  onClick={handleOpenMeet}
                   className="h-7 text-xs px-2.5 rounded-lg border-blue-200 text-[#2563EB] hover:bg-blue-100/50 shrink-0"
                 >
                   <ExternalLink className="w-3 h-3 mr-1" /> Open Meet
@@ -642,18 +713,14 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                       <span className="text-[10px] text-blue-200">Google Meet</span>
                     </div>
                     <p className="font-mono text-xs text-blue-100 truncate mt-0.5 max-w-[240px] sm:max-w-xs">
-                      {session.meetingUrl || `https://meet.google.com/aady-${(session.batchCode || "live").toLowerCase()}`}
+                      {meetingUrl || "Google Meet link is being prepared"}
                     </p>
                   </div>
                 </div>
                 <Button
                   type="button"
-                  onClick={() =>
-                    window.open(
-                      session.meetingUrl || `https://meet.google.com/aady-${(session.batchCode || "live").toLowerCase()}`,
-                      "_blank"
-                    )
-                  }
+                  onClick={handleOpenMeet}
+                  disabled={isPreparingMeet}
                   className="bg-white hover:bg-slate-100 text-[#2563EB] font-black text-xs rounded-xl shadow-xs h-9 px-4 shrink-0"
                 >
                   <Video className="w-4 h-4 mr-1.5 fill-current text-blue-600" /> Go Live to Class (Google Meet)
@@ -663,36 +730,53 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
 
             {/* Post-Completion Action Panels */}
             {isCompleted && (
-              <div className="p-4 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl space-y-3 shadow-xs">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold text-xs">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+              <div className="space-y-3">
+                {recordingSyncNotice && (
+                  <div className="p-3.5 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-2xl text-xs text-blue-800 dark:text-blue-200 flex items-start gap-2.5">
+                    <Film className="w-4 h-4 mt-0.5 shrink-0 text-[#2563EB]" />
                     <div>
-                      <p className="font-extrabold text-sm">Class Completed & Attendance Finalized</p>
-                      <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-normal">
-                        Upload the lecture recording and study materials now so students can access them in their Student Portal.
+                      <p className="font-bold text-sm text-blue-900 dark:text-blue-100">
+                        Recording sync queued
+                      </p>
+                      <p className="mt-0.5 font-normal text-blue-700 dark:text-blue-300">
+                        {recordingSyncNotice}
                       </p>
                     </div>
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => setShowRecordingModal(true)}
-                    className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold justify-center shadow-xs h-9"
-                  >
-                    <Film className="w-4 h-4 mr-2" /> Upload Recording to Student Portal
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowMaterialsModal(true)}
-                    className="rounded-xl border-emerald-300 bg-white dark:bg-slate-800 text-xs font-bold text-emerald-800 dark:text-emerald-200 justify-center h-9 hover:bg-emerald-50"
-                  >
-                    <FileText className="w-4 h-4 mr-2 text-emerald-600" /> Attach Study Materials
-                  </Button>
+                )}
+                <div className="p-4 bg-emerald-50/90 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl space-y-3 shadow-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-emerald-900 dark:text-emerald-200 font-bold text-xs">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      <div>
+                        <p className="font-extrabold text-sm">Class Completed & Attendance Finalized</p>
+                        <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-normal">
+                          {recordingSyncNotice
+                            ? "Google Meet recording syncs automatically in the background. Optionally upload a file or attach study materials for students."
+                            : "Upload the lecture recording and study materials now so students can access them in their Student Portal."}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => setShowRecordingModal(true)}
+                      className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-xs font-bold justify-center shadow-xs h-9"
+                    >
+                      <Film className="w-4 h-4 mr-2" /> Upload Recording to Student Portal
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowMaterialsModal(true)}
+                      className="rounded-xl border-emerald-300 bg-white dark:bg-slate-800 text-xs font-bold text-emerald-800 dark:text-emerald-200 justify-center h-9 hover:bg-emerald-50"
+                    >
+                      <FileText className="w-4 h-4 mr-2 text-emerald-600" /> Attach Study Materials
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
@@ -715,9 +799,15 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 <Button
                   type="button"
                   onClick={handleStartClass}
+                  disabled={isPreparingMeet}
                   className="rounded-xl bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-bold px-5 h-9 text-xs"
                 >
-                  <Play className="w-4 h-4 mr-1.5 fill-current" /> START CLASS
+                  {isPreparingMeet ? (
+                    <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                  ) : (
+                    <Play className="w-4 h-4 mr-1.5 fill-current" />
+                  )}
+                  START CLASS
                 </Button>
               )}
 
@@ -726,12 +816,8 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                   <Button
                     type="button"
                     size="sm"
-                    onClick={() =>
-                      window.open(
-                        session.meetingUrl || `https://meet.google.com/aady-${(session.batchCode || "live").toLowerCase()}`,
-                        "_blank"
-                      )
-                    }
+                    onClick={handleOpenMeet}
+                    disabled={isPreparingMeet || !meetingUrl}
                     className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 px-3"
                   >
                     <Video className="w-3.5 h-3.5 mr-1" /> Go Live (Google Meet)

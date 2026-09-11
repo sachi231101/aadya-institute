@@ -24,6 +24,7 @@ import {
   AlertCircle,
   Sparkle,
   BookOpen,
+  Loader2,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,9 @@ import { useSessionStore } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
+import { useRecordings } from "@/hooks/useRecordings";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
+import { periodFromStartTime } from "@/constants/timetable-slots";
 
 const toLocalDateString = (d: Date): string => {
   const y = d.getFullYear();
@@ -120,6 +124,7 @@ const mapApiSessionToStudentSession = (raw: any): StudentClassSession => {
     avatarBg: "bg-blue-500/20 text-blue-500 border border-blue-500/30",
     avatarColor: "text-blue-500",
     meetingUrl: raw.meetingUrl,
+    timeslotMasterId: raw.timeslotMasterId,
   };
 };
 
@@ -151,6 +156,7 @@ interface StudentClassSession {
   attendanceStatus?: "PRESENT" | "ABSENT" | "LATE";
   attendanceMarkedTime?: string;
   meetingUrl?: string;
+  timeslotMasterId?: string;
   submittedRating?: number;
   submittedAtFormatted?: string;
 }
@@ -221,9 +227,28 @@ export const StudentSchedule: React.FC = () => {
   const academic = useStudentAcademicAccess();
   const { feedbacks, submitFeedback, getFeedbackForSession } = useFeedbackStore();
   const { activeLiveClass } = useSessionStore();
+  const { data: recordingsRes } = useRecordings({ limit: 100, recordingStatus: "AVAILABLE" });
+  const [recordingsNow] = useState(() => Date.now());
+  const availableRecordingSessionIds = useMemo(
+    () =>
+      new Set(
+        (recordingsRes?.data ?? [])
+          .filter(
+            (recording: { expiresAt: string }) =>
+              new Date(recording.expiresAt).getTime() > recordingsNow
+          )
+          .map((recording: { classSessionId: string }) => recording.classSessionId)
+      ),
+    [recordingsRes, recordingsNow]
+  );
 
   const studentId = academic.studentId || user?.studentId || user?.id || "";
   const studentName = academic.studentName || user?.name || "Student";
+  const {
+    slots: timeSlotColumns,
+    isLoading: slotsLoading,
+    isEmpty: slotsEmpty,
+  } = useTimetableSlotColumns(user?.branchId || undefined);
   const [apiSessions, setApiSessions] = useState<StudentClassSession[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState(() => toLocalDateString(new Date()));
@@ -250,14 +275,22 @@ export const StudentSchedule: React.FC = () => {
       const endDate = days[6]?.fullDate;
       try {
         const res = await classSessionsApi.getAll({ startDate, endDate, limit: 100 });
-        const filtered = (res.data || []).filter((raw: any) => {
-          return academic.isAuthorizedForSession({
-            courseId: raw.batch?.courseId || raw.courseId,
-            batchId: raw.batchId || raw.batch?.id,
-            courseName: getSessionSubjectLabel({ title: raw.title, batch: raw.batch }) || raw.courseName,
-            batch: raw.batch,
-          });
-        });
+        // Backend already scopes STUDENT lists to ACTIVE enrollments.
+        // Keep a soft client check only when we have real assigned batch/course ids.
+        const hasRealAssignments =
+          academic.assignedBatchIds.some((id) => id !== "dash-batch") ||
+          academic.assignedCourseIds.length > 0;
+        const filtered = hasRealAssignments
+          ? (res.data || []).filter((raw: any) =>
+              academic.isAuthorizedForSession({
+                courseId: raw.batch?.courseId || raw.courseId,
+                batchId: raw.batchId || raw.batch?.id,
+                courseName:
+                  getSessionSubjectLabel({ title: raw.title, batch: raw.batch }) || raw.courseName,
+                batch: raw.batch,
+              })
+            )
+          : res.data || [];
         const mapped = filtered.map(mapApiSessionToStudentSession);
         if (mounted) {
           setApiSessions(mapped);
@@ -309,6 +342,7 @@ export const StudentSchedule: React.FC = () => {
 
   // Modals
   const [liveJoiningSession, setLiveJoiningSession] = useState<StudentClassSession | null>(null);
+  const [isJoiningMeeting, setIsJoiningMeeting] = useState(false);
   const [viewingFeedbackSession, setViewingFeedbackSession] = useState<ClassFeedbackItem | null>(null);
 
   // Filter sessions for the active selected day — prefer live API data once loaded
@@ -597,6 +631,62 @@ export const StudentSchedule: React.FC = () => {
           </div>
         </div>
 
+        {/* Master Time Slot day grid */}
+        {slotsLoading ? (
+          <div className="flex items-center gap-2 text-xs text-slate-500 py-4">
+            <Loader2 className="h-4 w-4 animate-spin" /> Loading time slots…
+          </div>
+        ) : slotsEmpty ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 dark:border-slate-700 p-6 text-center text-xs text-slate-500">
+            Time slots are not configured yet. Your institute admin should add Time Slots in Master Setup.
+          </div>
+        ) : (
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#111C35]">
+            <table className="w-full border-collapse min-w-[640px] text-left">
+              <thead>
+                <tr className="bg-slate-50/90 dark:bg-slate-800/50 text-[10px] font-extrabold uppercase tracking-wider text-slate-600">
+                  <th className="p-2.5 border-r border-slate-200 dark:border-slate-800 w-28">Time Slot</th>
+                  <th className="p-2.5">Class</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-xs">
+                {timeSlotColumns.map((slot) => {
+                  const session = daySessions.find((s) => {
+                    if (s.timeslotMasterId && slot.timeslotMasterId) {
+                      return s.timeslotMasterId === slot.timeslotMasterId;
+                    }
+                    return periodFromStartTime(s.startTime, timeSlotColumns) === slot.period;
+                  });
+                  return (
+                    <tr key={slot.timeslotMasterId || slot.period} className="h-14">
+                      <td className="p-2.5 border-r border-slate-200 dark:border-slate-800 font-mono font-bold text-slate-700 dark:text-slate-200 whitespace-nowrap">
+                        {slot.label}
+                      </td>
+                      <td className="p-2">
+                        {session ? (
+                          <div className="rounded-xl border border-blue-100 bg-blue-50/70 dark:bg-blue-950/30 dark:border-blue-900 px-3 py-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-extrabold text-slate-900 dark:text-white truncate">{session.title}</p>
+                              <p className="text-[10px] text-slate-500">
+                                {session.facultyName} · {session.batchCode || session.courseCode} · {session.mode}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-[10px] shrink-0">
+                              {session.forceStatus || "UPCOMING"}
+                            </Badge>
+                          </div>
+                        ) : (
+                          <span className="text-slate-300 dark:text-slate-600 font-bold px-2">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* ─── 4. CLASS CARDS WITH AUTOMATIC LIFECYCLE ────────────────────────── */}
         <div className="space-y-3">
           {isLoading ? (
@@ -760,14 +850,16 @@ export const StudentSchedule: React.FC = () => {
                       {/* ── 3. CLASS COMPLETED & MANDATORY FEEDBACK REQUIRED ─── */}
                       {lifecycle.stage === "FEEDBACK_REQUIRED" && (
                         <div className="flex items-center gap-2">
-                          <Button
-                            variant="outline"
-                            onClick={() => navigate("/student/recordings")}
-                            className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
-                          >
-                            <Video className="w-3 h-3 mr-1" />
-                            <span>Recording</span>
-                          </Button>
+                          {availableRecordingSessionIds.has(session.id) && (
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(`/student/recordings?classSessionId=${encodeURIComponent(session.id)}`)}
+                              className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            >
+                              <Video className="w-3 h-3 mr-1" />
+                              <span>Watch Recording</span>
+                            </Button>
+                          )}
                           <Button
                             onClick={() => handleOpenFeedbackModal(session)}
                             className="h-8 px-3 text-xs font-bold text-white bg-gradient-to-r from-[#6366F1] to-[#8B5CF6] hover:from-[#4F46E5] hover:to-[#7C3AED] rounded-xl shadow-xs flex items-center gap-1 cursor-pointer transition-all hover:scale-102"
@@ -781,14 +873,16 @@ export const StudentSchedule: React.FC = () => {
                       {/* ── 4. CLASS COMPLETED & FEEDBACK SUBMITTED ─────────── */}
                       {lifecycle.stage === "FEEDBACK_SUBMITTED" && (
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <Button
-                            variant="outline"
-                            onClick={() => navigate("/student/recordings")}
-                            className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
-                          >
-                            <Video className="w-3 h-3 mr-1" />
-                            <span>Recording</span>
-                          </Button>
+                          {availableRecordingSessionIds.has(session.id) && (
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(`/student/recordings?classSessionId=${encodeURIComponent(session.id)}`)}
+                              className="h-8 px-2.5 text-xs font-bold text-[#2563EB] border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl"
+                            >
+                              <Video className="w-3 h-3 mr-1" />
+                              <span>Watch Recording</span>
+                            </Button>
+                          )}
                           <Button
                             variant="outline"
                             onClick={() => navigate("/student/study-materials")}
@@ -1088,23 +1182,48 @@ export const StudentSchedule: React.FC = () => {
                   Cancel
                 </Button>
                 <Button
-                  onClick={() => {
-                    academic.verifyAndJoinMeeting(
-                      {
-                        courseId: liveJoiningSession.courseId,
-                        batchId: liveJoiningSession.batchId,
-                        courseName: liveJoiningSession.courseName,
-                        meetingUrl: liveJoiningSession.meetingUrl,
-                        status: liveJoiningSession.forceStatus || "LIVE",
-                      },
-                      (errMsg) => alert(errMsg)
-                    );
-                    setLiveJoiningSession(null);
+                  onClick={async () => {
+                    if (!liveJoiningSession) return;
+                    setIsJoiningMeeting(true);
+                    try {
+                      // Enrollment-scoped Meet URL — never trust list meetingUrl alone
+                      const meeting = await classSessionsApi.getMeeting(liveJoiningSession.id);
+                      const meetingUrl = meeting.data.meetingUrl?.trim();
+                      if (!meetingUrl || !meetingUrl.includes("meet.google.com")) {
+                        alert("No valid meeting link found for this class.");
+                        return;
+                      }
+                      academic.verifyAndJoinMeeting(
+                        {
+                          courseId: liveJoiningSession.courseId,
+                          batchId: liveJoiningSession.batchId,
+                          courseName: liveJoiningSession.courseName,
+                          meetingUrl,
+                          status: liveJoiningSession.forceStatus || "LIVE",
+                        },
+                        (errMsg) => alert(errMsg)
+                      );
+                      setLiveJoiningSession(null);
+                    } catch (err: unknown) {
+                      alert(
+                        (err as { response?: { data?: { message?: string } } })?.response?.data
+                          ?.message ||
+                          (err as Error)?.message ||
+                          "Unable to join this class. You may not be enrolled."
+                      );
+                    } finally {
+                      setIsJoiningMeeting(false);
+                    }
                   }}
+                  disabled={isJoiningMeeting}
                   className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl h-10 flex-1 gap-2 cursor-pointer shadow-md shadow-emerald-600/20"
                 >
-                  <Video className="w-4 h-4 text-white" />
-                  <span>Launch Google Meet</span>
+                  {isJoiningMeeting ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  ) : (
+                    <Video className="w-4 h-4 text-white" />
+                  )}
+                  <span>{isJoiningMeeting ? "Joining…" : "Launch Google Meet"}</span>
                 </Button>
               </DialogFooter>
             </>

@@ -24,6 +24,7 @@ export const FACULTY_ALLOWED_MODULES = [
   "students",
   "schedule",
   "assignments",
+  "recordings",
   "reports",
   "settings",
 ] as const;
@@ -69,6 +70,7 @@ export const inferNotificationModule = (
   if (roleContext === "FACULTY") {
     if (link.includes("/reports") || title.includes("report") || title.includes("performance") || title.includes("insight")) return "reports";
     if (link.includes("/assignments") || type === "ASSIGNMENT" || title.includes("assignment") || title.includes("submission") || title.includes("grading")) return "assignments";
+    if (link.includes("/recordings") || title.includes("recording") || title.includes("video")) return "recordings";
     if (link.includes("/courses") || title.includes("course") || title.includes("curriculum") || title.includes("syllabus")) return "courses";
     if (link.includes("/schedule") || type === "CLASS_SESSION" || title.includes("schedule") || title.includes("timetable") || title.includes("lecture")) return "schedule";
     if (link.includes("/students") || type === "ATTENDANCE" || type === "DISCONTINUATION_RISK" || title.includes("student") || title.includes("attendance")) return "students";

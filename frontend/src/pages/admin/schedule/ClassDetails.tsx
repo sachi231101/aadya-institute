@@ -62,11 +62,11 @@ import { batchesApi } from "@/services/batches.api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatBatchSubjectNames } from "@/utils/batch.utils";
 import {
-  BOOKABLE_TIME_SLOTS,
   findPeriodByTimes,
   periodToTimes,
   toDateKey,
 } from "@/constants/timetable-slots";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import type { ClassMode, ClassStatus } from "@/pages/admin/schedule/Classes";
 
 export const ClassDetails: React.FC = () => {
@@ -125,10 +125,13 @@ export const ClassDetails: React.FC = () => {
   const [editBranch, setEditBranch] = useState("");
   const [editFacultyId, setEditFacultyId] = useState("");
   const [editDate, setEditDate] = useState("");
-  const [editPeriod, setEditPeriod] = useState<number>(2);
+  const [editPeriod, setEditPeriod] = useState<number>(1);
   const [editMode, setEditMode] = useState<ClassMode>("OFFLINE");
   const [editClassroomMasterId, setEditClassroomMasterId] = useState("");
-  const [editMeetingUrl, setEditMeetingUrl] = useState("");
+
+  const { bookableSlots, isEmpty: slotsEmpty } = useTimetableSlotColumns(
+    editBranch || session?.branchId || undefined
+  );
 
   // Change Faculty State
   const [targetFacultyId, setTargetFacultyId] = useState("");
@@ -302,10 +305,9 @@ export const ClassDetails: React.FC = () => {
     setEditBranch(session.branchId || "");
     setEditFacultyId(session.facultyId || "none");
     setEditDate(session.scheduledDate ? toDateKey(session.scheduledDate) : "");
-    setEditPeriod(findPeriodByTimes(session.startTime, session.endTime) ?? 2);
+    setEditPeriod(findPeriodByTimes(session.startTime, session.endTime, bookableSlots) ?? bookableSlots[0]?.period ?? 1);
     setEditMode((session.mode || "OFFLINE") as ClassMode);
     setEditClassroomMasterId(session.classroomMasterId || "");
-    setEditMeetingUrl(session.meetingUrl || "");
     setIsEditModalOpen(true);
   };
 
@@ -328,7 +330,7 @@ export const ClassDetails: React.FC = () => {
       return;
     }
 
-    const formTimes = periodToTimes(editPeriod);
+    const formTimes = periodToTimes(editPeriod, bookableSlots);
     const payload = {
       title: editModule || editTopic || editCourse,
       batchId: batch.id,
@@ -337,22 +339,49 @@ export const ClassDetails: React.FC = () => {
       scheduledDate: editDate,
       startTime: formTimes.start,
       endTime: formTimes.end,
+      timeslotMasterId: formTimes.timeslotMasterId,
       classroomMasterId: editMode !== "ONLINE" ? editClassroomMasterId || undefined : undefined,
       mode: editMode,
-      meetingUrl: editMode === "ONLINE" ? editMeetingUrl : undefined,
     };
 
     setIsActionLoading(true);
     try {
       await updateSession.mutateAsync({ id: session.id, payload });
+      if (editMode === "ONLINE" && !session.meetingUrl) {
+        await classSessionsApi.createGoogleMeet(session.id);
+      }
       await queryClient.invalidateQueries({ queryKey: ["class-sessions", session.id] });
       setIsEditModalOpen(false);
-      showNotification("Class details updated successfully.");
+      showNotification(
+        editMode === "ONLINE" && !session.meetingUrl
+          ? "Class updated and Google Meet created."
+          : "Class details updated successfully."
+      );
     } catch (err: unknown) {
       const apiMessage =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err as { message?: string })?.message;
       showNotification(apiMessage || "Failed to update class details.", "error");
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleCreateGoogleMeet = async () => {
+    if (!session) return;
+    setIsActionLoading(true);
+    try {
+      await classSessionsApi.createGoogleMeet(session.id);
+      await queryClient.invalidateQueries({ queryKey: ["class-sessions", session.id] });
+      showNotification("Google Meet created successfully.");
+    } catch (err: unknown) {
+      const apiMessage =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message;
+      showNotification(
+        apiMessage || "Connect Google Workspace in Integrations before creating a Meet.",
+        "error"
+      );
     } finally {
       setIsActionLoading(false);
     }
@@ -621,7 +650,20 @@ export const ClassDetails: React.FC = () => {
                     <span>{session.meetingUrl}</span>
                   </a>
                 ) : (
-                  <span className="text-muted-foreground font-semibold">Online Meeting Link Pending</span>
+                  <div className="space-y-2">
+                    <span className="text-muted-foreground font-semibold block">Google Meet pending</span>
+                    {canEditClasses && (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateGoogleMeet}
+                        disabled={isActionLoading}
+                        className="h-8 rounded-xl bg-[#2563EB] text-white text-xs font-bold"
+                      >
+                        {isActionLoading ? "Creating…" : "Create Google Meet"}
+                      </Button>
+                    )}
+                  </div>
                 )
               ) : (
                 <div className="font-bold text-foreground text-xs flex items-center gap-1.5">
@@ -1069,12 +1111,17 @@ export const ClassDetails: React.FC = () => {
                   value={editPeriod}
                   onChange={(e) => setEditPeriod(Number(e.target.value))}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none text-xs"
+                  disabled={slotsEmpty}
                 >
-                  {BOOKABLE_TIME_SLOTS.map((slot) => (
-                    <option key={slot.period} value={slot.period}>
-                      {slot.label}
-                    </option>
-                  ))}
+                  {slotsEmpty ? (
+                    <option value={editPeriod}>Configure Time Slots in Master Setup</option>
+                  ) : (
+                    bookableSlots.map((slot) => (
+                      <option key={slot.timeslotMasterId || slot.period} value={slot.period}>
+                        {slot.label}
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
             </div>
@@ -1095,15 +1142,13 @@ export const ClassDetails: React.FC = () => {
 
               <div>
                 <Label className="text-[11px] font-bold text-foreground">
-                  {editMode === "ONLINE" ? "Meeting URL Link" : "Classroom / Lab"}
+                  {editMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
                 </Label>
                 {editMode === "ONLINE" ? (
-                  <Input
-                    value={editMeetingUrl}
-                    onChange={(e) => setEditMeetingUrl(e.target.value)}
-                    placeholder="https://meet.google.com/..."
-                    className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
-                  />
+                  <div className="h-9 mt-1 px-3 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400 flex items-center gap-2 font-bold">
+                    <Video className="h-4 w-4" />
+                    Google Meet {session.meetingUrl ? "(connected)" : "(auto-created on save)"}
+                  </div>
                 ) : (
                   <ClassroomDropdown
                     value={editClassroomMasterId}
