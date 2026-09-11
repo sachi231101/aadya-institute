@@ -147,7 +147,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
       { key: "schedule.timetable", label: "Timetable", readPermissions: ["schedule.read"], writePermissions: ["schedule.update"] },
       { key: "schedule.classes", label: "Classes & Sessions", readPermissions: ["schedule.read"], writePermissions: ["schedule.create", "schedule.update", "schedule.delete"] },
       { key: "schedule.live", label: "Live Classes", readPermissions: ["schedule.read", "google_meet.read"], writePermissions: ["google_meet.create", "schedule.update"] },
-      { key: "schedule.recordings", label: "Recordings", readPermissions: ["recording.read"], writePermissions: ["recording.create", "recording.delete"] },
+      { key: "schedule.recordings", label: "Recordings", readPermissions: ["recording.read"], writePermissions: ["recording.create", "recording.manage", "recording.delete"] },
     ],
   },
   {

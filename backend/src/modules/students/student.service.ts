@@ -963,6 +963,39 @@ export const getMyDashboard = async (
 
   const dashboardCourses = collectStudentCourses(student);
 
+  const mapStudentDashboardSession = (session: (typeof todaySessions)[number]) => ({
+    id: session.id,
+    title: session.title,
+    scheduledDate: session.scheduledDate,
+    startTime: session.startTime,
+    endTime: session.endTime,
+    sessionStatus: session.sessionStatus,
+    mode: session.mode,
+    meetingUrl: session.meetingUrl,
+    batchId: session.batchId,
+    courseId:
+      session.batch?.courseId ??
+      session.batch?.course?.id ??
+      null,
+    batch: session.batch
+      ? {
+          id: session.batch.id,
+          code: session.batch.code,
+          name: session.batch.name,
+          courseId:
+            session.batch.courseId ??
+            session.batch.course?.id ??
+            null,
+        }
+      : null,
+    courseName:
+      getSessionSubjectLabel({
+        title: session.title,
+        batch: session.batch,
+      }) || null,
+    facultyName: session.faculty?.user?.name ?? null,
+  });
+
   return {
     profile: {
       id: student.id,
@@ -990,8 +1023,12 @@ export const getMyDashboard = async (
           code:
             primaryEnrollment.batch.course.code,
 
+          batchId: primaryEnrollment.batch.id,
+
           batchName:
             primaryEnrollment.batch.name,
+
+          batchCode: primaryEnrollment.batch.code,
 
           subjects:
             formatBatchSubjectNames(primaryEnrollment.batch),
@@ -1001,10 +1038,20 @@ export const getMyDashboard = async (
             id: dashboardCourses[0].id,
             name: dashboardCourses[0].name,
             code: dashboardCourses[0].code,
+            batchId: null,
             batchName: null,
+            batchCode: null,
             subjects: dashboardCourses.map((c) => c.name).join(", "),
           }
         : null,
+
+    batches: student.batchEnrollments.map((be) => ({
+      id: be.batch.id,
+      name: be.batch.name,
+      code: be.batch.code,
+      courseId: be.batch.courseId ?? be.batch.course?.id ?? null,
+      status: be.status,
+    })),
 
     courses: dashboardCourses,
 
@@ -1061,94 +1108,36 @@ export const getMyDashboard = async (
         attendanceSummary.presentCount,
     },
 
-    todaySessions:
-      todaySessions.map((session) => ({
-        id: session.id,
+    todaySessions: todaySessions.map(mapStudentDashboardSession),
 
-        title:
-          session.title,
+    upcomingSessions: upcomingSessions.map(mapStudentDashboardSession),
 
-        scheduledDate:
-          session.scheduledDate,
-
-        startTime:
-          session.startTime,
-
-        endTime:
-          session.endTime,
-
-        sessionStatus:
-          session.sessionStatus,
-
-        mode:
-          session.mode,
-
-        meetingUrl:
-          session.meetingUrl,
-
-        courseName:
-          getSessionSubjectLabel({
-            title: session.title,
-            batch: session.batch,
-          }) || null,
-
-        facultyName:
-          session.faculty?.user?.name ??
-          null,
-      })),
-
-    upcomingSessions:
-      upcomingSessions.map((session) => ({
-        id: session.id,
-
-        title:
-          session.title,
-
-        scheduledDate:
-          session.scheduledDate,
-
-        startTime:
-          session.startTime,
-
-        endTime:
-          session.endTime,
-
-        sessionStatus:
-          session.sessionStatus,
-
-        mode:
-          session.mode,
-
-        courseName:
-          getSessionSubjectLabel({
-            title: session.title,
-            batch: session.batch,
-          }) || null,
-
-        facultyName:
-          session.faculty?.user?.name ??
-          null,
-      })),
-
-    activeLiveSessions:
-      activeLiveSessions.map((session) => ({
-        id: session.id,
-
-        title:
-          session.title,
-
-        meetingUrl:
-          session.meetingUrl,
-
-        courseName:
-          getSessionSubjectLabel({
-            title: session.title,
-            batch: session.batch,
-          }) || null,
-
-        facultyName:
-          session.faculty?.user?.name ??
-          null,
-      })),
+    activeLiveSessions: activeLiveSessions.map((session) => ({
+      id: session.id,
+      title: session.title,
+      meetingUrl: session.meetingUrl,
+      batchId: session.batchId,
+      courseId:
+        session.batch?.courseId ??
+        session.batch?.course?.id ??
+        null,
+      batch: session.batch
+        ? {
+            id: session.batch.id,
+            code: session.batch.code,
+            name: session.batch.name,
+            courseId:
+              session.batch.courseId ??
+              session.batch.course?.id ??
+              null,
+          }
+        : null,
+      courseName:
+        getSessionSubjectLabel({
+          title: session.title,
+          batch: session.batch,
+        }) || null,
+      facultyName: session.faculty?.user?.name ?? null,
+    })),
   };
 };

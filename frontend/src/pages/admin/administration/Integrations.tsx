@@ -33,6 +33,10 @@ const STATUS_STYLES: Record<
     className: "bg-red-50 text-red-700 border-red-200",
     icon: <AlertCircle className="h-3 w-3 mr-1 inline" />,
   },
+  REAUTH_REQUIRED: {
+    className: "bg-amber-50 text-amber-800 border-amber-300",
+    icon: <AlertCircle className="h-3 w-3 mr-1 inline" />,
+  },
   DISCONNECTED: {
     className: "bg-amber-50 text-amber-700 border-amber-200",
     icon: <XCircle className="h-3 w-3 mr-1 inline" />,

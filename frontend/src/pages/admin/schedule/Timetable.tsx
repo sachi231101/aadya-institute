@@ -51,8 +51,6 @@ import {
 } from "@/hooks/useClassSessions";
 import type { BackendClassSession } from "@/services/class-sessions.api";
 import {
-  TIME_SLOT_COLUMNS,
-  BOOKABLE_TIME_SLOTS,
   periodFromStartTime,
   periodToTimes,
   toDateKey,
@@ -61,7 +59,9 @@ import {
   getWeekRangeFromOffset,
   toHolidayDateKey,
   localTodayKey,
+  type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 
 // ─── TYPES & SCHEDULE DATA STRUCTURES ──────────────────────────────────────
 
@@ -170,12 +170,13 @@ const buildDaysConfig = (
   });
 };
 
-// Helper to generate a default day schedule for a faculty
+// Helper to generate a default day schedule for a faculty from master time slots
 const createDefaultDaySlots = (
+  columns: TimetablePeriodSlot[],
   customSlots?: Partial<Record<number, Partial<TimetableCellItem>>>
 ): Record<number, TimetableCellItem> => {
   const slots: Record<number, TimetableCellItem> = {};
-  TIME_SLOT_COLUMNS.forEach((col) => {
+  columns.forEach((col) => {
     if (col.isBreak) {
       slots[col.period] = {
         id: `slot-break-${col.period}`,
@@ -276,6 +277,12 @@ export const Timetable: React.FC = () => {
     "holiday",
     selectedBranch !== "ALL" ? selectedBranch : undefined
   );
+  const {
+    slots: timeSlotColumns,
+    bookableSlots,
+    isLoading: slotsLoading,
+    isEmpty: slotsEmpty,
+  } = useTimetableSlotColumns(selectedBranch !== "ALL" ? selectedBranch : undefined);
 
   const branchLabel = useMemo(() => {
     if (isAdmin && selectedBranch === "ALL") return "All branches";
@@ -321,7 +328,7 @@ export const Timetable: React.FC = () => {
   );
 
   const mapSessionToCell = (raw: BackendClassSession, period: number): TimetableCellItem => {
-    const col = TIME_SLOT_COLUMNS.find((c) => c.period === period);
+    const col = timeSlotColumns.find((c) => c.period === period);
     const batchCourse =
       raw.batchCourseId && raw.batch?.batchCourses
         ? raw.batch.batchCourses.find((bc) => bc.id === raw.batchCourseId)
@@ -386,14 +393,15 @@ export const Timetable: React.FC = () => {
 
       DAY_KEYS.forEach((dayKey, idx) => {
         const dayKeyStr = addDaysToDateKey(weekRange.mondayKey, idx);
-        const slots = createDefaultDaySlots();
+        const slots = createDefaultDaySlots(timeSlotColumns);
 
         classSessions.forEach((raw: BackendClassSession) => {
           if (raw.facultyId !== f.id) return;
           if (toDateKey(raw.scheduledDate) !== dayKeyStr) return;
           if (raw.sessionStatus === "CANCELLED") return;
 
-          const period = periodFromStartTime(raw.startTime) ?? 2;
+          const period = periodFromStartTime(raw.startTime, timeSlotColumns) ?? timeSlotColumns[0]?.period ?? 1;
+          if (!slots[period]) return;
           slots[period] = mapSessionToCell(raw, period);
         });
 
@@ -413,7 +421,7 @@ export const Timetable: React.FC = () => {
         weeklySchedule,
       };
     });
-  }, [facultyMembers, classSessions, weekRange.mondayKey, branches]);
+  }, [facultyMembers, classSessions, weekRange.mondayKey, branches, timeSlotColumns]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -682,7 +690,7 @@ export const Timetable: React.FC = () => {
     const fac = facultyRoster.find((f) => f.id === facultyId);
     if (!fac) return;
 
-    const periodMeta = TIME_SLOT_COLUMNS.find((c) => c.period === period);
+    const periodMeta = timeSlotColumns.find((c) => c.period === period);
     // Break / lunch are structural — do not open CLASS scheduler on them unless editing an existing class.
     if (
       (periodMeta?.isBreak || periodMeta?.isLunch) &&
@@ -781,23 +789,24 @@ export const Timetable: React.FC = () => {
     const subjectName = getCourseNameInBatch(batch, subjectCourseId) || batch.name;
     const subjectRow = subjectRows.find((r) => r.courseId === subjectCourseId);
 
-    const periodMeta = TIME_SLOT_COLUMNS.find((c) => c.period === modalPeriod);
+    const periodMeta = timeSlotColumns.find((c) => c.period === modalPeriod);
     if (periodMeta?.isBreak || periodMeta?.isLunch) {
       setNotificationMsg("Cannot schedule a class during Break or Lunch.");
       setTimeout(() => setNotificationMsg(null), 3500);
       return;
     }
 
-    const { start, end } = periodToTimes(modalPeriod);
+    const { start, end, timeslotMasterId } = periodToTimes(modalPeriod, timeSlotColumns);
     const payload = {
       title: modalTitle.trim() || subjectName || batch.name || "Class Session",
       batchId: batch.id,
       batchCourseId: subjectRow?.id || undefined,
       facultyId: sessionFacultyId,
-      branchId: ("branchId" in fac ? fac.branchId : undefined) || batch.branchId,
+      branchId: batch.branchId || ("branchId" in fac ? fac.branchId : undefined),
       scheduledDate: getDateForDayKey(modalDayKey),
       startTime: start,
       endTime: end,
+      timeslotMasterId: timeslotMasterId || undefined,
       classroomMasterId: modalClassroomMasterId || undefined,
       mode: "OFFLINE" as const,
     };
@@ -851,8 +860,8 @@ export const Timetable: React.FC = () => {
   const handleOpenMoveModal = (facultyId: string, dayKey: DayKey, period: number) => {
     setMoveSource({ facultyId, dayKey, period });
     const nextBookable =
-      BOOKABLE_TIME_SLOTS.find((s) => s.period > period)?.period ||
-      BOOKABLE_TIME_SLOTS.find((s) => s.period !== period)?.period ||
+      bookableSlots.find((s) => s.period > period)?.period ||
+      bookableSlots.find((s) => s.period !== period)?.period ||
       period;
     setTargetPeriod(nextBookable);
     setIsMoveModalOpen(true);
@@ -871,8 +880,8 @@ export const Timetable: React.FC = () => {
       return;
     }
 
-    const { start, end } = periodToTimes(targetPeriod);
-    const targetMeta = TIME_SLOT_COLUMNS.find((c) => c.period === targetPeriod);
+    const { start, end, timeslotMasterId } = periodToTimes(targetPeriod, timeSlotColumns);
+    const targetMeta = timeSlotColumns.find((c) => c.period === targetPeriod);
     if (targetMeta?.isBreak || targetMeta?.isLunch) {
       setNotificationMsg("Cannot move a class into Break or Lunch.");
       setTimeout(() => setNotificationMsg(null), 3500);
@@ -892,6 +901,7 @@ export const Timetable: React.FC = () => {
         payload: {
           startTime: start,
           endTime: end,
+          timeslotMasterId: timeslotMasterId || undefined,
           scheduledDate: getDateForDayKey(dayKey),
         },
       });
@@ -913,7 +923,7 @@ export const Timetable: React.FC = () => {
     const rows = filteredFaculty
       .map((fac) => {
         const daySlots = fac.weeklySchedule[selectedDayKey] || {};
-        const slotValues = TIME_SLOT_COLUMNS.map((col) => {
+        const slotValues = timeSlotColumns.map((col) => {
           const s = daySlots[col.period];
           if (!s) return "Not Assigned";
           if (s.type === "CLASS") return `${s.courseName} (${s.batchCode}) [${s.roomNo}]`;
@@ -1155,6 +1165,16 @@ export const Timetable: React.FC = () => {
         </div>
 
         <div className="overflow-x-auto w-full">
+          {slotsLoading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Loading time slots from Master Setup…</div>
+          ) : slotsEmpty ? (
+            <div className="py-16 text-center space-y-2">
+              <p className="text-sm font-bold text-foreground">No time slots configured</p>
+              <p className="text-xs text-muted-foreground">
+                Configure Time Slots in Admin Master Setup. This timetable uses those slots as its columns.
+              </p>
+            </div>
+          ) : (
           <table className="w-full min-w-[980px] border-collapse text-left table-fixed">
             <thead>
               <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
@@ -1164,7 +1184,7 @@ export const Timetable: React.FC = () => {
                 <th className="py-2 px-1.5 text-center w-[72px] border-r border-border font-bold text-foreground sticky left-[160px] bg-card z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.06)]">
                   BRANCH
                 </th>
-                {TIME_SLOT_COLUMNS.map((col) => (
+                {timeSlotColumns.map((col) => (
                   <th
                     key={col.period}
                     className="py-2 px-1 text-center w-[96px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
@@ -1246,7 +1266,7 @@ export const Timetable: React.FC = () => {
                       </td>
 
                       {/* Columns 3..10: Time Slots */}
-                      {TIME_SLOT_COLUMNS.map((col) => {
+                      {timeSlotColumns.map((col) => {
                         const cell = daySlots[col.period] || {
                           id: `slot-free-${col.period}`,
                           period: col.period,
@@ -1437,6 +1457,7 @@ export const Timetable: React.FC = () => {
               )}
             </tbody>
           </table>
+          )}
         </div>
 
         <div className="p-3 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -1474,7 +1495,7 @@ export const Timetable: React.FC = () => {
           <DialogHeader className="space-y-1">
             <div className="flex items-center gap-2">
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-50 text-[#2563EB] border border-blue-200 uppercase">
-                {modalDayKey} • Period {modalPeriod} ({TIME_SLOT_COLUMNS.find((c) => c.period === modalPeriod)?.label})
+                {modalDayKey} • Period {modalPeriod} ({timeSlotColumns.find((c) => c.period === modalPeriod)?.label})
               </span>
             </div>
             <DialogTitle className="text-xl font-black text-slate-900">
@@ -1531,7 +1552,7 @@ export const Timetable: React.FC = () => {
                   onChange={(e) => setModalPeriod(Number(e.target.value))}
                   className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
                 >
-                  {BOOKABLE_TIME_SLOTS.map((col) => (
+                  {bookableSlots.map((col) => (
                     <option key={col.period} value={col.period}>
                       Period {col.period} ({col.label})
                     </option>
@@ -1554,7 +1575,7 @@ export const Timetable: React.FC = () => {
               </div>
               <div className="flex items-end">
                 <p className="text-[10px] text-slate-500 pb-2">
-                  {TIME_SLOT_COLUMNS.find((c) => c.period === modalPeriod)?.label}
+                  {timeSlotColumns.find((c) => c.period === modalPeriod)?.label}
                 </p>
               </div>
             </div>
@@ -1677,7 +1698,7 @@ export const Timetable: React.FC = () => {
                 onChange={(e) => setTargetPeriod(Number(e.target.value))}
                 className="w-full h-10 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-bold text-[#2563EB] outline-none"
               >
-                {BOOKABLE_TIME_SLOTS.map((col) => (
+                {bookableSlots.map((col) => (
                   <option key={col.period} value={col.period}>
                     Period {col.period} ({col.label})
                   </option>

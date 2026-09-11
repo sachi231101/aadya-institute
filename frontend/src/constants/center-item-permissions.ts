@@ -104,7 +104,7 @@ export const CENTER_ITEM_WRITE_PERMISSIONS: Record<string, string[]> = {
   "schedule.timetable": ["schedule.update"],
   "schedule.classes": ["schedule.create", "schedule.update", "schedule.delete"],
   "schedule.live": ["google_meet.create", "schedule.update"],
-  "schedule.recordings": ["recording.create", "recording.delete"],
+  "schedule.recordings": ["recording.create", "recording.delete", "recording.manage"],
   "assignments.all": ["assignment.create", "assignment.update", "assignment.delete"],
   "assignments.create": ["assignment.create"],
   "assignments.submissions": ["assignment.grade"],

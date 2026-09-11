@@ -5,6 +5,8 @@ export const useRecordings = (params?: RecordingQueryParams) => {
   return useQuery({
     queryKey: ["recordings", params],
     queryFn: () => recordingsApi.getRecordings(params),
+    // Refresh status when faculty returns to the tab (PENDING → PROCESSING → AVAILABLE)
+    refetchOnWindowFocus: true,
   });
 };
 
@@ -30,6 +32,26 @@ export const useDeleteRecording = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: recordingsApi.deleteRecording,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recordings"] });
+    },
+  });
+};
+
+export const useSyncRecording = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: recordingsApi.syncRecording,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["recordings"] });
+    },
+  });
+};
+
+export const useExpireRecording = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: recordingsApi.expireRecording,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["recordings"] });
     },

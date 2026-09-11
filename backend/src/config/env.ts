@@ -1,6 +1,8 @@
+import path from "path";
 import dotenv from "dotenv";
 
-dotenv.config({ override: true });
+// Always load backend/.env regardless of process cwd (fixes missing client_id in OAuth).
+dotenv.config({ path: path.resolve(__dirname, "../../.env"), override: true });
 
 const bool = (value: string | undefined, fallback: boolean) => {
   if (value === undefined || value === "") return fallback;
@@ -38,7 +40,11 @@ export const env = {
   GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI || "http://localhost:5000/api/v1/integrations/google/callback",
   GOOGLE_PROJECT_ID: process.env.GOOGLE_PROJECT_ID || "",
   GOOGLE_MEET_SCOPES: process.env.GOOGLE_MEET_SCOPES || "https://www.googleapis.com/auth/meetings.space.created https://www.googleapis.com/auth/meetings.space.readonly",
-  GOOGLE_DRIVE_SCOPES: process.env.GOOGLE_DRIVE_SCOPES || "https://www.googleapis.com/auth/drive.readonly https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive.metadata.readonly",
+  GOOGLE_DRIVE_SCOPES: process.env.GOOGLE_DRIVE_SCOPES || "https://www.googleapis.com/auth/drive",
+  RECORDING_RETENTION_DAYS:
+    Number(process.env.RECORDING_RETENTION_DAYS) > 0
+      ? Number(process.env.RECORDING_RETENTION_DAYS)
+      : 7,
   GOOGLE_TOKEN_ENCRYPTION_KEY: process.env.GOOGLE_TOKEN_ENCRYPTION_KEY || process.env.JWT_SECRET || "aadya-google-token-encryption-secret-key-32",
   /** Master key for encrypting Integration credentials (API keys, SMTP passwords, etc.). */
   INTEGRATION_ENCRYPTION_KEY:

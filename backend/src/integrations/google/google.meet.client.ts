@@ -7,6 +7,7 @@ import type {
   GoogleConferenceRecord,
   GoogleRecordingArtifact,
 } from "./google.types";
+import { getGoogleHttpStatus, toGoogleAppError } from "./google-error.util";
 
 /**
  * Creates a Google Meet space via official Google Meet REST API v2
@@ -55,15 +56,12 @@ export const createGoogleMeetSpace = async (
       recordingConfigurationStatus: recordingStatus,
       rawConfig: spaceData.config,
     };
-  } catch (err: any) {
-    logger.error({ err: err?.message || err, code: err?.code }, "Google Meet space creation failed");
-    if (err?.code === 403 || err?.status === 403) {
-      throw new Error("Permission denied by Google Meet. Verify Google Workspace admin permissions and scopes.");
-    }
-    if (err?.code === 401 || err?.status === 401) {
-      throw new Error("Google Workspace authentication expired. Re-authorization required.");
-    }
-    throw new Error("Failed to create Google Meet space. Please try again.");
+  } catch (error: unknown) {
+    logger.error(
+      { status: getGoogleHttpStatus(error) },
+      "Google Meet space creation failed"
+    );
+    throw toGoogleAppError(error, "MEET_CREATE_FAILED");
   }
 };
 
@@ -87,9 +85,12 @@ export const getGoogleMeetSpace = async (
       recordingConfigurationStatus: "UNKNOWN",
       rawConfig: spaceData.config,
     };
-  } catch (err: any) {
-    logger.error({ err: err?.message || err, spaceName }, "Failed to get Google Meet space");
-    throw new Error("Unable to retrieve Google Meet space details");
+  } catch (error: unknown) {
+    logger.error(
+      { status: getGoogleHttpStatus(error), spaceName },
+      "Failed to get Google Meet space"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
   }
 };
 
@@ -114,9 +115,12 @@ export const listConferenceRecords = async (
       endTime: rec.endTime || undefined,
       space: rec.space || spaceName,
     }));
-  } catch (err: any) {
-    logger.warn({ err: err?.message || err, spaceName }, "Failed to list conference records for space");
-    return [];
+  } catch (error: unknown) {
+    logger.warn(
+      { status: getGoogleHttpStatus(error), spaceName },
+      "Failed to list conference records for space"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
   }
 };
 
@@ -147,9 +151,12 @@ export const listConferenceRecordings = async (
           }
         : undefined,
     }));
-  } catch (err: any) {
-    logger.warn({ err: err?.message || err, conferenceRecordName }, "Failed to list conference recordings");
-    return [];
+  } catch (error: unknown) {
+    logger.warn(
+      { status: getGoogleHttpStatus(error), conferenceRecordName },
+      "Failed to list conference recordings"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
   }
 };
 
@@ -180,8 +187,13 @@ export const getRecordingArtifact = async (
           }
         : undefined,
     };
-  } catch (err: any) {
-    logger.error({ err: err?.message || err, recordingName }, "Failed to get recording artifact");
-    return null;
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    if (status === 404) return null;
+    logger.error(
+      { status, recordingName },
+      "Failed to get recording artifact"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
   }
 };

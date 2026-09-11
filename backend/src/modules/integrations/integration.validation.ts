@@ -128,6 +128,12 @@ export const upsertGoogleSheetsSchema = upsertIntegrationSchema.extend({
     .optional(),
 });
 
+export const upsertGoogleWorkspaceSchema = z.object({
+  configuration: z.object({
+    recordingRetentionDays: z.coerce.number().int().min(1).max(365),
+  }),
+});
+
 export type UpsertIntegrationDto = z.infer<typeof upsertIntegrationSchema>;
 
 export const schemaForType = (type: string) => {
@@ -145,7 +151,7 @@ export const schemaForType = (type: string) => {
     case "GOOGLE_SHEETS":
       return upsertGoogleSheetsSchema;
     case "GOOGLE_WORKSPACE":
-      return upsertIntegrationSchema;
+      return upsertGoogleWorkspaceSchema;
     default:
       return upsertIntegrationSchema;
   }

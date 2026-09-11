@@ -184,13 +184,14 @@ describe("Center Manager Notification Module Isolation Tests", () => {
 });
 
 describe("Faculty Notification Module Isolation Tests", () => {
-  test("should contain exact 7 Faculty modules", () => {
+  test("should contain exact 8 Faculty modules", () => {
     const expectedModules = [
       "dashboard",
       "courses",
       "students",
       "schedule",
       "assignments",
+      "recordings",
       "reports",
       "settings",
     ];
@@ -213,6 +214,13 @@ describe("Faculty Notification Module Isolation Tests", () => {
     assert.strictEqual(
       inferNotificationModule({ type: "ASSIGNMENT", link: "/faculty/assignments" }, "FACULTY"),
       "assignments"
+    );
+    assert.strictEqual(
+      inferNotificationModule(
+        { type: "CLASS_SESSION", link: "/faculty/recordings", title: "Recording ready" },
+        "FACULTY"
+      ),
+      "recordings"
     );
     assert.strictEqual(
       inferNotificationModule({ title: "Batch Performance Report", link: "/faculty/reports/students" }, "FACULTY"),

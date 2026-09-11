@@ -1,13 +1,13 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+﻿import React, { useMemo, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router-dom";
-import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X } from "lucide-react";
+import { Video, Play, Clock, Search, Trash2, ChevronLeft, ChevronRight, Loader2, X, RefreshCw, Ban, HardDrive, AlertCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useRecordings, useDeleteRecording, useRecordingAccess } from "@/hooks/useRecordings";
+import { useRecordings, useDeleteRecording, useExpireRecording, useRecordingAccess, useSyncRecording } from "@/hooks/useRecordings";
 import { useBatches } from "@/hooks/useBatches";
 import type { Recording } from "@/services/recordings.api";
 import { ROUTES } from "@/constants/routes";
@@ -19,19 +19,14 @@ const getDaysRemaining = (expiresAt: string) => {
   return Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 };
 
-const formatDuration = (seconds?: number) => {
-  if (!seconds) return "—";
-  const mins = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-};
-
 export const Recordings: React.FC = () => {
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
-  const [batchFilter, setBatchFilter] = useState("ALL");
+  const [batchFilter, setBatchFilter] = useState(
+    () => searchParams.get("batchId") || "ALL"
+  );
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
 
@@ -40,11 +35,6 @@ export const Recordings: React.FC = () => {
   const [playError, setPlayError] = useState<string | null>(null);
 
   const { batches } = useBatches();
-
-  useEffect(() => {
-    const batchIdFromUrl = searchParams.get("batchId");
-    if (batchIdFromUrl) setBatchFilter(batchIdFromUrl);
-  }, [searchParams]);
 
   const classesPath = location.pathname.startsWith("/center")
     ? "/center/schedule/classes"
@@ -60,8 +50,10 @@ export const Recordings: React.FC = () => {
     [page, limit, statusFilter, batchFilter]
   );
 
-  const { data: recordingsResponse, isLoading } = useRecordings(queryParams);
+  const { data: recordingsResponse, isLoading, isError, refetch } = useRecordings(queryParams);
   const deleteMutation = useDeleteRecording();
+  const syncMutation = useSyncRecording();
+  const expireMutation = useExpireRecording();
   const accessMutation = useRecordingAccess();
 
   const recordings: Recording[] = recordingsResponse?.data || [];
@@ -115,6 +107,30 @@ export const Recordings: React.FC = () => {
     }
   };
 
+  const handleSync = async (rec: Recording) => {
+    try {
+      await syncMutation.mutateAsync(rec.id);
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Recording sync failed. Google Workspace may need reauthorization."
+      );
+    }
+  };
+
+  const handleExpire = async (rec: Recording) => {
+    const title = rec.classSession?.title || "this recording";
+    if (!window.confirm(`Expire "${title}" now and remove its Drive file?`)) return;
+    try {
+      await expireMutation.mutateAsync(rec.id);
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Failed to expire recording."
+      );
+    }
+  };
+
   const getStatus = (rec: Recording) =>
     (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status;
 
@@ -127,7 +143,7 @@ export const Recordings: React.FC = () => {
             Class Recordings
           </h1>
           <p className="text-sm text-text-secondary mt-1">
-            Manage class session recordings — 30 day retention policy
+            Manage Google Drive class recordings — default 7-day retention
           </p>
         </div>
         <Button asChild variant="outline" size="sm" className="text-xs">
@@ -154,9 +170,9 @@ export const Recordings: React.FC = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-text-primary">
-                {recordings.filter((r) => getStatus(r) === "READY" || getStatus(r) === "ACTIVE").length}
+                {recordings.filter((r) => getStatus(r) === "AVAILABLE").length}
               </p>
-              <p className="text-xs text-text-secondary font-medium">Ready / Active</p>
+              <p className="text-xs text-text-secondary font-medium">Available</p>
             </div>
           </CardContent>
         </Card>
@@ -195,10 +211,10 @@ export const Recordings: React.FC = () => {
             className="h-9 px-3 border border-border rounded-md bg-background text-sm"
           >
             <option value="ALL">All Statuses</option>
-            <option value="READY">Ready</option>
-            <option value="PENDING">Pending</option>
+            <option value="AVAILABLE">Available</option>
             <option value="PROCESSING">Processing</option>
             <option value="EXPIRED">Expired</option>
+            <option value="DELETED">Deleted</option>
             <option value="FAILED">Failed</option>
           </select>
           <select
@@ -224,14 +240,14 @@ export const Recordings: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow className="bg-slate-50/50">
-                <TableHead className="font-semibold">Session</TableHead>
+                <TableHead className="font-semibold">Class</TableHead>
                 <TableHead className="font-semibold">Batch</TableHead>
                 <TableHead className="font-semibold">Faculty</TableHead>
-                <TableHead className="font-semibold">Date</TableHead>
-                <TableHead className="font-semibold">Duration</TableHead>
-                <TableHead className="font-semibold">Expires In</TableHead>
                 <TableHead className="font-semibold">Status</TableHead>
-                <TableHead className="font-semibold w-[100px]">Actions</TableHead>
+                <TableHead className="font-semibold">Created</TableHead>
+                <TableHead className="font-semibold">Expiration</TableHead>
+                <TableHead className="font-semibold">Drive ref</TableHead>
+                <TableHead className="font-semibold w-[150px]">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -240,6 +256,16 @@ export const Recordings: React.FC = () => {
                   <TableCell colSpan={8} className="text-center py-12 text-text-secondary">
                     <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
                     Loading recordings...
+                  </TableCell>
+                </TableRow>
+              ) : isError ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-12">
+                    <AlertCircle className="h-10 w-10 text-rose-400 mx-auto mb-2" />
+                    <p className="font-semibold">Unable to load recordings</p>
+                    <Button variant="outline" size="sm" className="mt-3" onClick={() => refetch()}>
+                      Retry
+                    </Button>
                   </TableCell>
                 </TableRow>
               ) : filteredRecordings.length === 0 ? (
@@ -267,38 +293,35 @@ export const Recordings: React.FC = () => {
                       <TableCell className="text-sm">
                         {rec.classSession?.faculty?.user?.name || "—"}
                       </TableCell>
-                      <TableCell className="text-sm">
-                        {rec.classSession?.scheduledDate
-                          ? new Date(rec.classSession.scheduledDate).toLocaleDateString("en-IN", {
-                              day: "2-digit",
-                              month: "short",
-                            })
-                          : "—"}
-                      </TableCell>
-                      <TableCell className="text-sm">{formatDuration(rec.duration)}</TableCell>
                       <TableCell>
                         <Badge
                           className={`text-xs border ${
-                            daysRemaining <= 3
-                              ? "bg-red-50 text-red-700 border-red-200"
-                              : daysRemaining <= 7
-                              ? "bg-amber-50 text-amber-700 border-amber-200"
-                              : "bg-green-50 text-green-700 border-green-200"
-                          }`}
-                        >
-                          {daysRemaining > 0 ? `${daysRemaining} days` : "Expired"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={`text-xs border ${
-                            status === "READY" || status === "ACTIVE"
+                            status === "AVAILABLE"
                               ? "bg-green-50 text-green-700 border-green-200"
-                              : "bg-slate-50 text-slate-600 border-slate-200"
+                              : status === "FAILED"
+                                ? "bg-red-50 text-red-700 border-red-200"
+                                : "bg-slate-50 text-slate-600 border-slate-200"
                           }`}
                         >
                           {status}
                         </Badge>
+                        {rec.lastSyncError && (
+                          <p className="text-[10px] text-rose-600 mt-1 max-w-40 truncate" title={rec.lastSyncError}>
+                            {rec.lastSyncError}
+                          </p>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {new Date(rec.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      </TableCell>
+                      <TableCell className="text-sm">
+                        {status === "DELETED" ? "Deleted" : daysRemaining > 0 ? `${daysRemaining} days` : "Expired"}
+                      </TableCell>
+                      <TableCell>
+                        <span className="inline-flex items-center gap-1 text-xs" title={rec.googleDriveFileId || undefined}>
+                          <HardDrive className="h-3.5 w-3.5" />
+                          {status === "DELETED" ? "Deleted" : rec.googleDriveFileId ? "Present" : "Missing"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1">
@@ -308,7 +331,7 @@ export const Recordings: React.FC = () => {
                             className="h-8 w-8 p-0 text-[#2563EB]"
                             title="Play recording"
                             onClick={() => handlePlay(rec)}
-                            disabled={accessMutation.isPending && playTarget?.id === rec.id}
+                            disabled={status !== "AVAILABLE" || daysRemaining <= 0 || (accessMutation.isPending && playTarget?.id === rec.id)}
                           >
                             {accessMutation.isPending && playTarget?.id === rec.id ? (
                               <Loader2 size={14} className="animate-spin" />
@@ -316,6 +339,30 @@ export const Recordings: React.FC = () => {
                               <Play size={14} />
                             )}
                           </Button>
+                          <PermissionGate itemKey="schedule.recordings" mode="write">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-amber-600"
+                              title="Retry Drive sync"
+                              onClick={() => handleSync(rec)}
+                              disabled={syncMutation.isPending || status === "DELETED"}
+                            >
+                              <RefreshCw size={14} className={syncMutation.isPending ? "animate-spin" : ""} />
+                            </Button>
+                          </PermissionGate>
+                          <PermissionGate itemKey="schedule.recordings" mode="write">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0 text-orange-600"
+                              title="Expire and delete Drive file"
+                              onClick={() => handleExpire(rec)}
+                              disabled={expireMutation.isPending || status === "DELETED" || status === "EXPIRED"}
+                            >
+                              <Ban size={14} />
+                            </Button>
+                          </PermissionGate>
                           <PermissionGate itemKey="schedule.recordings" mode="write">
                             <Button
                               variant="ghost"

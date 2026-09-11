@@ -24,6 +24,7 @@ export type FacultyModule =
   | "students"
   | "schedule"
   | "assignments"
+  | "recordings"
   | "reports"
   | "settings";
 

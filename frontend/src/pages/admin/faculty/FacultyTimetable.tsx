@@ -35,8 +35,13 @@ import { ClassroomDropdown } from "@/components/common/ClassroomDropdown";
 import { useClassSessions } from "@/hooks/useClassSessions";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
 import { usePermissions } from "@/hooks/usePermissions";
+import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
 import { getSessionSubjectLabel } from "@/utils/batch.utils";
-import { toHolidayDateKey } from "@/constants/timetable-slots";
+import {
+  periodFromStartTime as mapPeriodFromStartTime,
+  toHolidayDateKey,
+  type TimetablePeriodSlot,
+} from "@/constants/timetable-slots";
 
 // ─── TYPES & SLOTS ──────────────────────────────────────────────────────────
 
@@ -70,44 +75,18 @@ export interface FacultyDaySchedule {
   slots: Record<number, FacultyTimetableSlot>;
 }
 
-const TIME_SLOT_COLUMNS = [
-  { period: 1, label: "09:00 – 10:00 AM", timeTitle: "09:00 – 10:00", subTitle: "AM" },
-  { period: 2, label: "10:00 – 11:00 AM", timeTitle: "10:00 – 11:00", subTitle: "AM" },
-  { period: 3, label: "11:00 – 12:00 PM", timeTitle: "11:00 – 12:00", subTitle: "PM" },
-  { period: 4, label: "12:00 – 01:00 PM", timeTitle: "12:00 – 01:00", subTitle: "PM", isBreak: true },
-  { period: 5, label: "01:00 – 02:00 PM", timeTitle: "01:00 – 02:00", subTitle: "PM", isLunch: true },
-  { period: 6, label: "02:00 – 03:00 PM", timeTitle: "02:00 – 03:00", subTitle: "PM" },
-  { period: 7, label: "03:00 – 04:00 PM", timeTitle: "03:00 – 04:00", subTitle: "PM" },
-  { period: 8, label: "04:00 – 05:00 PM", timeTitle: "04:00 – 05:00", subTitle: "PM" },
-];
-
 const createDefaultDaySlots = (
+  columns: TimetablePeriodSlot[],
   custom?: Partial<Record<number, Partial<FacultyTimetableSlot>>>
 ): Record<number, FacultyTimetableSlot> => {
   const slots: Record<number, FacultyTimetableSlot> = {};
-  TIME_SLOT_COLUMNS.forEach((col) => {
-    if (col.isBreak) {
-      slots[col.period] = {
-        id: `slot-break-${col.period}`,
-        period: col.period,
-        timeRange: col.label,
-        type: "BREAK",
-      };
-    } else if (col.isLunch) {
-      slots[col.period] = {
-        id: `slot-lunch-${col.period}`,
-        period: col.period,
-        timeRange: col.label,
-        type: "LUNCH",
-      };
-    } else {
-      slots[col.period] = {
-        id: `slot-free-${col.period}`,
-        period: col.period,
-        timeRange: col.label,
-        type: "FREE",
-      };
-    }
+  columns.forEach((col) => {
+    slots[col.period] = {
+      id: `slot-free-${col.period}`,
+      period: col.period,
+      timeRange: col.label,
+      type: "FREE",
+    };
   });
 
   if (custom) {
@@ -120,104 +99,6 @@ const createDefaultDaySlots = (
   }
   return slots;
 };
-
-// ─── INITIAL LOGGED-IN FACULTY WEEKLY SCHEDULE (MATCHING IMAGE SPEC) ──────────
-
-const INITIAL_FACULTY_WEEK: FacultyDaySchedule[] = [
-  {
-    dayKey: "MON",
-    dayName: "Monday",
-    dayShort: "Mon",
-    dateStr: "18 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "mon-1", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "COMPLETED" },
-      2: { id: "mon-2", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "COMPLETED" },
-      3: { id: "mon-3", type: "FREE" },
-      6: { id: "mon-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
-      7: { id: "mon-7", type: "FREE" },
-      8: { id: "mon-8", type: "NOT_ASSIGNED" },
-    }),
-  },
-  {
-    dayKey: "TUE",
-    dayName: "Tuesday",
-    dayShort: "Tue",
-    dateStr: "19 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "tue-1", type: "FREE" },
-      2: { id: "tue-2", type: "FREE" },
-      3: { id: "tue-3", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "PENDING" },
-      6: { id: "tue-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
-      7: { id: "tue-7", type: "FREE" },
-      8: { id: "tue-8", type: "NOT_ASSIGNED" },
-    }),
-  },
-  {
-    dayKey: "WED",
-    dayName: "Wednesday",
-    dayShort: "Wed",
-    dateStr: "20 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "wed-1", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "PENDING" },
-      2: { id: "wed-2", type: "CLASS", courseName: "Java Programming", batchCode: "Batch C", roomNo: "Room 301", studentCount: 28, attendanceStatus: "PENDING" },
-      3: { id: "wed-3", type: "FREE" },
-      6: { id: "wed-6", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
-      7: { id: "wed-7", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
-      8: { id: "wed-8", type: "FREE" },
-    }),
-  },
-  {
-    dayKey: "THU",
-    dayName: "Thursday",
-    dayShort: "Thu",
-    dateStr: "21 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "thu-1", type: "FREE" },
-      2: { id: "thu-2", type: "CLASS", courseName: "Advanced Java", batchCode: "Batch A", roomNo: "Room 301", studentCount: 25, attendanceStatus: "PENDING" },
-      3: { id: "thu-3", type: "CLASS", courseName: "OOP Concepts", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
-      6: { id: "thu-6", type: "FREE" },
-      7: { id: "thu-7", type: "CLASS", courseName: "Data Structures", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
-      8: { id: "thu-8", type: "NOT_ASSIGNED" },
-    }),
-  },
-  {
-    dayKey: "FRI",
-    dayName: "Friday",
-    dayShort: "Fri",
-    dateStr: "22 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "fri-1", type: "CLASS", courseName: "Data Structures", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
-      2: { id: "fri-2", type: "CLASS", courseName: "Database Systems", batchCode: "Batch D", roomNo: "Room 304", studentCount: 22, attendanceStatus: "PENDING" },
-      3: { id: "fri-3", type: "FREE" },
-      6: { id: "fri-6", type: "CLASS", courseName: "Python Basics", batchCode: "Batch B", roomNo: "Room 302", studentCount: 24, attendanceStatus: "PENDING" },
-      7: { id: "fri-7", type: "FREE" },
-      8: { id: "fri-8", type: "FREE" },
-    }),
-  },
-  {
-    dayKey: "SAT",
-    dayName: "Saturday",
-    dayShort: "Sat",
-    dateStr: "23 Aug",
-    slots: createDefaultDaySlots({
-      1: { id: "sat-1", type: "CLASS", courseName: "OOP Concepts", batchCode: "Batch C", roomNo: "Room 303", studentCount: 26, attendanceStatus: "PENDING" },
-      2: { id: "sat-2", type: "FREE" },
-      3: { id: "sat-3", type: "CLASS", courseName: "Mini Project", batchCode: "Batch C", roomNo: "Room 305", studentCount: 18, attendanceStatus: "PENDING" },
-      6: { id: "sat-6", type: "CLASS", courseName: "Mini Project", batchCode: "Batch C", roomNo: "Room 305", studentCount: 18, attendanceStatus: "PENDING" },
-      7: { id: "sat-7", type: "FREE" },
-      8: { id: "sat-8", type: "NOT_ASSIGNED" },
-    }),
-  },
-  {
-    dayKey: "SUN",
-    dayName: "Sunday",
-    dayShort: "Sun",
-    dateStr: "24 Aug",
-    isHoliday: true,
-    holidayTitle: "HOLIDAY",
-    slots: createDefaultDaySlots(),
-  },
-];
 
 export interface FacultyTimetableProps {
   readOnly?: boolean;
@@ -259,24 +140,28 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
     "holiday",
     user?.branchId || undefined
   );
+  const {
+    slots: timeSlotColumns,
+    isLoading: slotsLoading,
+    isEmpty: slotsEmpty,
+  } = useTimetableSlotColumns(user?.branchId || undefined);
 
   // State
-  const [scheduleData, setScheduleData] = useState<FacultyDaySchedule[]>(INITIAL_FACULTY_WEEK);
+  const [scheduleData, setScheduleData] = useState<FacultyDaySchedule[]>([]);
   const [selectedBranch, setSelectedBranch] = useState<string>("Bangalore Center");
   const [selectedCourse, setSelectedCourse] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
-  const periodFromStartTime = (startTime: string): number | null => {
-    const hour = parseInt(String(startTime).slice(0, 2), 10);
-    if (Number.isNaN(hour)) return null;
-    const map: Record<number, number> = { 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 7, 16: 8 };
-    return map[hour] ?? null;
-  };
-
   useEffect(() => {
+    if (!timeSlotColumns.length) {
+      setScheduleData([]);
+      return;
+    }
     const sessions = sessionsRes?.data ?? [];
-    if (!sessions.length && !isFacultyUser) return;
+    if (!sessions.length && !isFacultyUser) {
+      // still build empty day grid from masters
+    }
 
     const dayKeys: FacultyDaySchedule["dayKey"][] = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
     const built: FacultyDaySchedule[] = dayKeys.map((dayKey, idx) => {
@@ -295,7 +180,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
         (item) => toHolidayDateKey(item.data?.date) === dateKey
       );
       const isHoliday = Boolean(holiday) || isSunday;
-      const slots = createDefaultDaySlots();
+      const slots = createDefaultDaySlots(timeSlotColumns);
 
       sessions.forEach((raw: any) => {
         const sched = new Date(raw.scheduledDate);
@@ -306,8 +191,8 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
         ) {
           return;
         }
-        const period = periodFromStartTime(raw.startTime);
-        if (!period || slots[period]?.type === "BREAK" || slots[period]?.type === "LUNCH") return;
+        const period = mapPeriodFromStartTime(raw.startTime, timeSlotColumns);
+        if (!period) return;
         slots[period] = {
           id: raw.id,
           period,
@@ -338,7 +223,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
     });
 
     setScheduleData(built);
-  }, [sessionsRes, weekRange.monday, isFacultyUser, holidayOptions]);
+  }, [sessionsRes, weekRange.monday, isFacultyUser, holidayOptions, timeSlotColumns]);
 
   // Modals
   const [selectedSlot, setSelectedSlot] = useState<{ day: FacultyDaySchedule; slot: FacultyTimetableSlot } | null>(null);
@@ -448,7 +333,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
     setScheduleData((prev) =>
       prev.map((d) => {
         if (d.dayKey !== formDayKey) return d;
-        const col = TIME_SLOT_COLUMNS.find((c) => c.period === formPeriod);
+        const col = timeSlotColumns.find((c) => c.period === formPeriod);
         const updatedSlots = { ...d.slots };
 
         if (formType === "CLASS") {
@@ -508,13 +393,13 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
 
   // Export CSV
   const handleExportCSV = () => {
-    const headers = "Day,Date,09-10 AM,10-11 AM,11-12 PM,12-01 PM,01-02 PM,02-03 PM,03-04 PM,04-05 PM\n";
+    const headers = ["Day", "Date", ...timeSlotColumns.map((c) => c.label)].join(",") + "\n";
     const rows = scheduleData
       .map((day) => {
         if (day.isHoliday) {
           return `"${day.dayName}","${day.dateStr}","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY","HOLIDAY"`;
         }
-        const slotsStr = TIME_SLOT_COLUMNS.map((col) => {
+        const slotsStr = timeSlotColumns.map((col) => {
           const s = day.slots[col.period];
           if (!s) return "Not Assigned";
           if (s.type === "CLASS") return `${s.courseName} (${s.batchCode}) [${s.roomNo}]`;
@@ -664,6 +549,16 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
       {/* ─── 4. TIMETABLE MATRIX TABLE (DAYS AS ROWS × TIME SLOTS) ───────── */}
       <Card className="border border-border shadow-xs bg-card rounded-2xl overflow-hidden">
         <div className="overflow-x-auto w-full scrollbar-thin">
+          {slotsLoading ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Loading time slots from Master Setup…</div>
+          ) : slotsEmpty ? (
+            <div className="py-16 text-center space-y-2">
+              <p className="text-sm font-bold text-foreground">No time slots configured</p>
+              <p className="text-xs text-muted-foreground">
+                Configure Time Slots in Admin Master Setup. This timetable uses those slots as its columns.
+              </p>
+            </div>
+          ) : (
           <table className="w-full min-w-[1240px] border-collapse text-left table-fixed">
             <thead>
               <tr className="bg-muted/50 border-b border-border text-[11px] font-bold text-foreground uppercase tracking-wider">
@@ -673,7 +568,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                 </th>
 
                 {/* 8 Time Slot Columns */}
-                {TIME_SLOT_COLUMNS.map((col) => (
+                {timeSlotColumns.map((col) => (
                   <th
                     key={col.period}
                     className="py-3 px-2 text-center w-[135px] border-r border-border last:border-r-0 font-bold text-foreground whitespace-nowrap"
@@ -707,7 +602,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                       </td>
 
                       {/* Full-width Holiday banner across all time slots */}
-                      <td colSpan={8} className="py-3 px-4 text-center align-middle">
+                      <td colSpan={Math.max(timeSlotColumns.length, 1)} className="py-3 px-4 text-center align-middle">
                         <div className="inline-flex items-center justify-center gap-2 px-6 py-2 rounded-xl bg-rose-100/70 border border-rose-200 text-rose-700 text-xs font-black tracking-wider uppercase shadow-2xs">
                           <Calendar className="h-3.5 w-3.5" />
                           <span>{day.holidayTitle || "HOLIDAY"}</span>
@@ -731,12 +626,12 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                     </td>
 
                     {/* 8 Time Slot Cells */}
-                    {TIME_SLOT_COLUMNS.map((col) => {
+                    {timeSlotColumns.map((col) => {
                       const slot = day.slots[col.period] || {
                         id: `slot-${col.period}`,
                         period: col.period,
                         timeRange: col.label,
-                        type: col.isBreak ? "BREAK" : col.isLunch ? "LUNCH" : "FREE",
+                        type: "FREE",
                       };
 
                       // 1. CLASS CARD
@@ -856,6 +751,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
               })}
             </tbody>
           </table>
+          )}
         </div>
 
         {/* ─── 5. TABLE PAGINATION & STATS BAR ───────────────────────────── */}
@@ -1035,7 +931,7 @@ export const FacultyTimetable: React.FC<FacultyTimetableProps> = ({ readOnly = t
                   onChange={(e) => setFormPeriod(Number(e.target.value))}
                   className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
                 >
-                  {TIME_SLOT_COLUMNS.map((col) => (
+                  {timeSlotColumns.map((col) => (
                     <option key={col.period} value={col.period}>
                       {col.label}
                     </option>

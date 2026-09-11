@@ -901,18 +901,22 @@ model FacultyDailyAttendance {
 model Recording {
   id                       String    @id @default(cuid())
   classSessionId           String    @unique
+  name                     String?
   storageKey               String    @default("")
   googleConferenceRecordId String?
   googleRecordingId        String?   @unique
-  googleDriveFileId        String?
+  googleDriveFileId        String?   @unique
   playbackUrl              String?
   duration                 Int?
   startedAt                DateTime?
   endedAt                  DateTime?
   expiresAt                DateTime
-  recordingStatus          String    @default("PENDING") // PENDING, RECORDING, PROCESSING, READY, FAILED, DELETED
+  recordingStatus          String    @default("PENDING") // PENDING, RECORDING, PROCESSING, AVAILABLE, EXPIRED, FAILED, DELETED
   storageProvider          String    @default("GOOGLE_DRIVE")
   metadata                 Json?
+  lastSyncAt               DateTime?
+  lastSyncError            String?
+  deletedAt                DateTime?
   status                   Status    @default(ACTIVE)
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @default(now()) @updatedAt
@@ -920,8 +924,8 @@ model Recording {
   classSession ClassSession @relation(fields: [classSessionId], references: [id], onDelete: Cascade)
 
   @@index([googleRecordingId])
-  @@index([googleDriveFileId])
   @@index([recordingStatus])
+  @@index([expiresAt, recordingStatus, status])
 }
 
 model GoogleWorkspaceConnection {

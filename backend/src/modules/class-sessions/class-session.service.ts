@@ -5,6 +5,9 @@ import { classSessionRepository } from "./class-session.repository";
 import { CreateClassSessionDto, UpdateClassSessionDto, QueryClassSessionsDto } from "./class-session.types";
 import { resolveOptionalMasterFields } from "../masters/master-resolve.service";
 import { buildMeta } from "../../utils/pagination";
+import { getRecordingRetentionMs } from "../recordings/recording-retention.service";
+import { googleRecordingQueue } from "../../queues/google-recording.queue";
+import { hasBranchAccess } from "../../utils/branch-isolation.util";
 
 async function applyClassSessionMasters(
   instituteId: string,
@@ -43,6 +46,20 @@ async function applyClassSessionMasters(
       });
       if (timeslot) {
         result.timeslotMasterId = timeslot.masterId;
+        // Keep timetable grids aligned: fill clock times from Time Slot Master when missing.
+        const masterData = timeslot.data as { startTime?: unknown; endTime?: unknown } | undefined;
+        if (
+          (!result.startTime || String(result.startTime).trim() === "") &&
+          typeof masterData?.startTime === "string"
+        ) {
+          result.startTime = masterData.startTime;
+        }
+        if (
+          (!result.endTime || String(result.endTime).trim() === "") &&
+          typeof masterData?.endTime === "string"
+        ) {
+          result.endTime = masterData.endTime;
+        }
       }
     }
   }
@@ -107,7 +124,7 @@ export const classSessionService = {
       throw new AppError("Faculty not found", 404);
     }
 
-    const branchId = data.branchId || faculty.branchId || batch.branchId;
+    const branchId = data.branchId || batch.branchId || faculty.branchId;
     if (!branchId) {
       throw new AppError("Branch is required to schedule a class", 400);
     }
@@ -168,7 +185,7 @@ export const classSessionService = {
     const facultyName = updatedSession.faculty?.user?.name || "Faculty Instructor";
     const batchName = updatedSession.batch?.name || "Batch";
     const timeStr = `${updatedSession.startTime} – ${updatedSession.endTime}`;
-    const activeMeetUrl = updatedSession.meetingUrl || meetingUrl || `https://meet.google.com/aady-${updatedSession.batchId.slice(0, 4)}`;
+    const activeMeetUrl = updatedSession.meetingUrl || meetingUrl || undefined;
 
     let notifiedCount = 0;
     const notificationPromises = enrollments.map(async (enr) => {
@@ -227,11 +244,11 @@ export const classSessionService = {
 
     const session = await classSessionRepository.endLive(id, instituteId);
 
-    // Auto-create or ensure Recording metadata entry exists with 30-day retention
+    // Auto-create or ensure Recording metadata entry exists with configured retention.
     let recording = session.recording;
     if (!recording) {
-      const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 30);
+      const retentionMs = await getRecordingRetentionMs(instituteId);
+      const expiresAt = new Date(Date.now() + retentionMs);
 
       try {
         recording = await prisma.recording.create({
@@ -250,10 +267,50 @@ export const classSessionService = {
       }
     }
 
+    // Immediately enqueue Drive sync so recordings appear without waiting for the 10m cron.
+    const organizerUserId = existing.googleMeetSpace?.organizerUserId;
+    const shouldEnqueueSync =
+      Boolean(organizerUserId) &&
+      Boolean(recording) &&
+      recording?.recordingStatus !== "AVAILABLE" &&
+      recording?.recordingStatus !== "DELETED" &&
+      recording?.recordingStatus !== "EXPIRED";
+
+    if (shouldEnqueueSync && organizerUserId) {
+      try {
+        await googleRecordingQueue.add(
+          "sync-session-recording",
+          {
+            classSessionId: session.id,
+            instituteId,
+            userId: organizerUserId,
+          },
+          {
+            jobId: `sync-recording-${session.id}`,
+            removeOnComplete: true,
+            attempts: 3,
+            backoff: {
+              type: "exponential",
+              delay: 10000,
+            },
+          }
+        );
+      } catch (err) {
+        logger.error(
+          { err, classSessionId: session.id },
+          "Failed to enqueue google recording sync after end-live"
+        );
+      }
+    }
+
     return {
       session,
       recording,
-      message: "Class session ended successfully and recording linked.",
+      message: shouldEnqueueSync
+        ? "Class ended. Recording sync was queued in the background and will appear when Google Drive finishes processing."
+        : recording?.recordingStatus === "AVAILABLE"
+          ? "Class session ended successfully. Recording is already available."
+          : "Class session ended successfully.",
     };
   },
 
@@ -350,51 +407,67 @@ export const classSessionService = {
       throw err;
     }
 
-    // Branch isolation for non-ADMIN
-    if (
-      !currentUser.roles.includes("ADMIN") &&
-      currentUser.branchId &&
-      session.branchId !== currentUser.branchId
-    ) {
-      const err: any = new Error("Class session not found");
-      err.statusCode = 404;
-      throw err;
-    }
+    const roles: string[] = (currentUser.roles || []).map((r: string) => String(r).toUpperCase());
+    const isAdmin = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+    const isCenterManager = roles.includes("CENTER_MANAGER");
+    const isFaculty = roles.includes("FACULTY");
+    const isStudent = roles.includes("STUDENT");
 
-    // Role-specific authorization
-    const isStudent = currentUser.roles.includes("STUDENT");
-    const isFaculty = currentUser.roles.includes("FACULTY");
+    if (!isAdmin) {
+      const userAuth = {
+        id: currentUser.id || currentUser.userId,
+        userId: currentUser.userId || currentUser.id,
+        instituteId: currentUser.instituteId,
+        branchId: currentUser.branchId,
+        allowedBranchIds: currentUser.allowedBranchIds,
+        roles,
+        permissions: [],
+        name: "",
+      };
 
-    if (isStudent && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
-      const student = await prisma.student.findFirst({
-        where: {
-          userId: currentUser.id || currentUser.userId,
-          instituteId: currentUser.instituteId,
-        },
-      });
+      if (isFaculty && !isCenterManager) {
+        // Faculty access: allowed if assigned to this session, or has branch access
+        const faculty = await prisma.faculty.findFirst({
+          where: { userId: currentUser.id || currentUser.userId },
+        });
 
-      if (!student) {
-        const err: any = new Error("Student profile not found");
-        err.statusCode = 403;
-        throw err;
-      }
+        const isAssignedFaculty = faculty && faculty.id === session.facultyId;
+        const branchAllowed = hasBranchAccess(userAuth, session.branchId);
 
-      // Check active enrollment in this session's batch
-      const isEnrolled = session.batch.enrollments.some((e: any) => e.studentId === student.id);
-      if (!isEnrolled) {
-        const err: any = new Error("You are not enrolled in this class session's batch");
-        err.statusCode = 403;
-        throw err;
-      }
-    } else if (isFaculty && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
-      const faculty = await prisma.faculty.findUnique({
-        where: { userId: currentUser.id || currentUser.userId },
-      });
+        if (!isAssignedFaculty && !branchAllowed) {
+          const err: any = new Error("You are not authorized to access this class meeting");
+          err.statusCode = 403;
+          throw err;
+        }
+      } else if (isStudent && !isCenterManager) {
+        // Student access: allowed if actively enrolled in this batch
+        const student = await prisma.student.findFirst({
+          where: {
+            userId: currentUser.id || currentUser.userId,
+            instituteId: currentUser.instituteId,
+          },
+        });
 
-      if (!faculty || faculty.id !== session.facultyId) {
-        const err: any = new Error("You are not authorized to access this class meeting");
-        err.statusCode = 403;
-        throw err;
+        if (!student) {
+          const err: any = new Error("Student profile not found");
+          err.statusCode = 403;
+          throw err;
+        }
+
+        const isEnrolled = session.batch.enrollments.some((e: any) => e.studentId === student.id);
+        if (!isEnrolled) {
+          const err: any = new Error("You are not enrolled in this class session's batch");
+          err.statusCode = 403;
+          throw err;
+        }
+      } else {
+        // Center Manager / Counsellor / Staff: enforce branch isolation
+        const branchAllowed = hasBranchAccess(userAuth, session.branchId);
+        if (!branchAllowed) {
+          const err: any = new Error("Class session not found");
+          err.statusCode = 404;
+          throw err;
+        }
       }
     }
 
@@ -419,7 +492,13 @@ export const classSessionService = {
     const session = await prisma.classSession.findUnique({
       where: { id },
       include: {
-        batch: true,
+        batch: {
+          include: {
+            enrollments: {
+              where: { status: "ACTIVE" },
+            },
+          },
+        },
         googleMeetSpace: {
           include: {
             organizer: {
@@ -436,14 +515,60 @@ export const classSessionService = {
       throw err;
     }
 
-    if (
-      !currentUser.roles.includes("ADMIN") &&
-      currentUser.branchId &&
-      session.branchId !== currentUser.branchId
-    ) {
-      const err: any = new Error("Class session not found");
-      err.statusCode = 404;
-      throw err;
+    const roles: string[] = (currentUser.roles || []).map((r: string) => String(r).toUpperCase());
+    const isAdmin = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+    const isFaculty = roles.includes("FACULTY");
+    const isStudent = roles.includes("STUDENT");
+
+    if (!isAdmin) {
+      const userAuth = {
+        id: currentUser.id || currentUser.userId,
+        userId: currentUser.userId || currentUser.id,
+        instituteId: currentUser.instituteId,
+        branchId: currentUser.branchId,
+        allowedBranchIds: currentUser.allowedBranchIds,
+        roles,
+        permissions: [],
+        name: "",
+      };
+
+      let isAuthorized = false;
+
+      if (isFaculty) {
+        const faculty = await prisma.faculty.findFirst({
+          where: { userId: currentUser.id || currentUser.userId },
+        });
+        if (faculty && faculty.id === session.facultyId) {
+          isAuthorized = true;
+        }
+      }
+
+      if (!isAuthorized && isStudent) {
+        const student = await prisma.student.findFirst({
+          where: {
+            userId: currentUser.id || currentUser.userId,
+            instituteId: currentUser.instituteId,
+          },
+        });
+        if (student && session.batch.enrollments.some((e: any) => e.studentId === student.id)) {
+          isAuthorized = true;
+        }
+      }
+
+      if (!isAuthorized) {
+        const branchAllowed = hasBranchAccess(userAuth, session.branchId);
+        if (!branchAllowed) {
+          const err: any = new Error("Class session not found");
+          err.statusCode = 404;
+          throw err;
+        }
+
+        if (isFaculty || isStudent) {
+          const err: any = new Error("You are not authorized to access this class meeting");
+          err.statusCode = 403;
+          throw err;
+        }
+      }
     }
 
     if (!session.googleMeetSpace) {

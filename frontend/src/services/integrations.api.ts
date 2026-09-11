@@ -13,6 +13,7 @@ export type IntegrationStatus =
   | "NOT_CONFIGURED"
   | "CONFIGURED"
   | "CONNECTED"
+  | "REAUTH_REQUIRED"
   | "DISCONNECTED"
   | "ERROR";
 

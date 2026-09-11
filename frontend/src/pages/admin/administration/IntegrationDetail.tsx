@@ -1,5 +1,5 @@
 ﻿import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   AlertCircle,
   ArrowLeft,
@@ -125,6 +125,7 @@ export const IntegrationDetail: React.FC = () => {
   const type = parseType(typeParam);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const integrationsBase =
     getPortalBasePath(location.pathname) === "/center"
       ? "/center/integrations"
@@ -173,12 +174,31 @@ export const IntegrationDetail: React.FC = () => {
         next[k] = v;
       }
     }
+    if (type === "GOOGLE_WORKSPACE" && next.recordingRetentionDays == null) {
+      next.recordingRetentionDays = 7;
+    }
     setConfig(next);
     setSecrets({});
     setReplaceSecrets({});
     setMessage(null);
     setErrorMsg(null);
-  }, [data]);
+  }, [data, type]);
+
+  useEffect(() => {
+    if (type !== "GOOGLE_WORKSPACE") return;
+    const googleResult = searchParams.get("google");
+    if (!googleResult) return;
+    if (googleResult === "connected") {
+      setMessage("Google Workspace connected successfully.");
+      setErrorMsg(null);
+      void refetch();
+    } else {
+      const reason = searchParams.get("reason") || "OAUTH_FAILED";
+      setErrorMsg(`Google connection failed (${reason.replace(/_/g, " ")}).`);
+      setMessage(null);
+    }
+    setSearchParams({}, { replace: true });
+  }, [type, searchParams, setSearchParams, refetch]);
 
   useEffect(() => {
     const cfg = aiConfigRes?.data;
@@ -366,6 +386,28 @@ export const IntegrationDetail: React.FC = () => {
     }
   };
 
+  const handleSaveGoogleRetention = async () => {
+    const days = Number(config.recordingRetentionDays ?? 7);
+    if (!Number.isInteger(days) || days < 1 || days > 365) {
+      setErrorMsg("Recording retention must be a whole number from 1 to 365.");
+      return;
+    }
+    setMessage(null);
+    setErrorMsg(null);
+    try {
+      await upsert.mutateAsync({
+        configuration: { recordingRetentionDays: days },
+      });
+      setMessage("Recording retention updated.");
+      await refetch();
+    } catch (err: unknown) {
+      setErrorMsg(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Failed to save recording retention."
+      );
+    }
+  };
+
   return (
     <div className="space-y-6 max-w-2xl">
       <div className="flex items-start gap-3">
@@ -384,7 +426,7 @@ export const IntegrationDetail: React.FC = () => {
               variant={
                 data.status === "CONNECTED"
                   ? "success"
-                  : data.status === "ERROR"
+                  : data.status === "ERROR" || data.status === "REAUTH_REQUIRED"
                     ? "destructive"
                     : "outline"
               }
@@ -424,6 +466,46 @@ export const IntegrationDetail: React.FC = () => {
                   Connected as <span className="font-medium">{String(data.configuration.email)}</span>
                 </p>
               ) : null}
+              {type === "GOOGLE_WORKSPACE" && data.status === "REAUTH_REQUIRED" ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  Google permissions have changed or expired. Reauthorize to create Meets and manage Drive recordings.
+                </div>
+              ) : null}
+              {type === "GOOGLE_WORKSPACE" ? (
+                <div className="space-y-2 rounded-xl border border-border p-4">
+                  <Label htmlFor="recording-retention-days">Recording retention (days)</Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="recording-retention-days"
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={String(config.recordingRetentionDays ?? 7)}
+                      onChange={(e) =>
+                        setConfig((prev) => ({
+                          ...prev,
+                          recordingRetentionDays: Number(e.target.value),
+                        }))
+                      }
+                      className="sm:max-w-32"
+                    />
+                    <PermissionGate itemKey="admin.integrations" mode="write">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={upsert.isPending}
+                        onClick={handleSaveGoogleRetention}
+                      >
+                        {upsert.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                        Save retention
+                      </Button>
+                    </PermissionGate>
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    Recordings are retained for 7 days by default, then removed from Drive.
+                  </p>
+                </div>
+              ) : null}
               {type === "GOOGLE_SHEETS" ? (
                 <div>
                   <Label>Spreadsheet ID (optional)</Label>
@@ -457,8 +539,20 @@ export const IntegrationDetail: React.FC = () => {
                 </div>
               ) : null}
               <div className="flex flex-wrap gap-2">
-                {data.status === "CONNECTED" ? (
+                {data.status === "CONNECTED" || data.status === "REAUTH_REQUIRED" ? (
+                  <>
                   <PermissionGate itemKey="admin.integrations" mode="write">
+                    {data.status === "REAUTH_REQUIRED" && (
+                      <Button
+                        type="button"
+                        className="bg-[#2563EB] text-white"
+                        disabled={connectGoogle.isPending}
+                        onClick={() => connectGoogle.mutate()}
+                      >
+                        {connectGoogle.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <ExternalLink className="h-4 w-4 mr-1" />}
+                        Reauthorize Google
+                      </Button>
+                    )}
                     <Button
                       type="button"
                       variant="outline"
@@ -472,6 +566,7 @@ export const IntegrationDetail: React.FC = () => {
                       Disconnect
                     </Button>
                   </PermissionGate>
+                  </>
                 ) : (
                   <PermissionGate itemKey="admin.integrations" mode="write">
                     <Button

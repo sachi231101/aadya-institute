@@ -156,7 +156,7 @@ describe("Google Workspace & Recording Validation Schema Tests", () => {
       googleRecordingId: "conferenceRecords/xxx/recordings/yyy",
       googleDriveFileId: "1abcDriveFileId",
       playbackUrl: "https://drive.google.com/file/d/1abcDriveFileId/view",
-      recordingStatus: "READY",
+      recordingStatus: "AVAILABLE",
       duration: 60,
     });
     assert.strictEqual(valid.success, true);
@@ -167,7 +167,7 @@ describe("Google Workspace & Recording Validation Schema Tests", () => {
       batchId: "batch-123",
       courseId: "course-456",
       status: "ACTIVE",
-      recordingStatus: "READY",
+      recordingStatus: "AVAILABLE",
       startDate: "2026-01-01",
       endDate: "2026-01-31",
       page: "1",
@@ -275,6 +275,28 @@ describe("Google Meet Class Sessions & Multi-Branch / Student Authorization Test
     };
 
     const meeting = await classSessionService.getSessionMeeting(studentUser, seededData.session1Id);
+    assert.strictEqual(meeting.classSessionId, seededData.session1Id);
+  });
+
+  test("14b. Assigned faculty should be authorized to retrieve meeting details even if assigned session is in another branch", async () => {
+    if (!seededData) return;
+
+    const session = await prisma.classSession.findUnique({
+      where: { id: seededData.session1Id },
+      include: { faculty: true },
+    });
+    if (!session || !session.faculty) return;
+
+    const facultyUser: any = {
+      id: session.faculty.userId,
+      userId: session.faculty.userId,
+      instituteId: seededData.instituteId,
+      branchId: "different-branch-uuid", // Different from session.branchId
+      roles: ["FACULTY"],
+      permissions: ["google_meet.read"],
+    };
+
+    const meeting = await classSessionService.getSessionMeeting(facultyUser, seededData.session1Id);
     assert.strictEqual(meeting.classSessionId, seededData.session1Id);
   });
 
@@ -447,7 +469,7 @@ describe("Google Meet Class Sessions & Multi-Branch / Student Authorization Test
         googleRecordingId: "conferenceRecords/conf-12345/recordings/rec-67890",
         googleDriveFileId: "drive-file-id-abc123xyz",
         playbackUrl: "https://drive.google.com/file/d/drive-file-id-abc123xyz/preview",
-        recordingStatus: "READY",
+        recordingStatus: "AVAILABLE",
         storageProvider: "GOOGLE_DRIVE",
         duration: 90,
       },
@@ -457,15 +479,15 @@ describe("Google Meet Class Sessions & Multi-Branch / Student Authorization Test
         googleRecordingId: "conferenceRecords/conf-12345/recordings/rec-67890",
         googleDriveFileId: "drive-file-id-abc123xyz",
         playbackUrl: "https://drive.google.com/file/d/drive-file-id-abc123xyz/preview",
-        recordingStatus: "READY",
+        recordingStatus: "AVAILABLE",
         storageProvider: "GOOGLE_DRIVE",
         duration: 90,
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
     });
 
     assert.strictEqual(recording.googleDriveFileId, "drive-file-id-abc123xyz");
-    assert.strictEqual(recording.recordingStatus, "READY");
+    assert.strictEqual(recording.recordingStatus, "AVAILABLE");
     assert.strictEqual(recording.storageProvider, "GOOGLE_DRIVE");
     assert.strictEqual(recording.duration, 90);
   });
@@ -491,7 +513,7 @@ describe("Google Meet Class Sessions & Multi-Branch / Student Authorization Test
       assert.strictEqual(access.recordingId, existingRec.id);
       assert.strictEqual(access.playbackUrl, existingRec.playbackUrl);
       assert.strictEqual(access.storageProvider, "GOOGLE_DRIVE");
-      assert.strictEqual(access.recordingStatus, "READY");
+      assert.strictEqual(access.recordingStatus, "AVAILABLE");
     }
   });
 

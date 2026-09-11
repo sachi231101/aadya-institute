@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { sendSuccess, sendError } from "../../utils/response";
+import { sendSuccess } from "../../utils/response";
+import { env } from "../../config/env";
+import { AppError } from "../../middlewares/error.middleware";
 import type { AuthUser } from "../auth/auth.types";
 import * as service from "./google-workspace.service";
 
@@ -20,20 +22,47 @@ export const getConnectUrl = async (
 export const handleOAuthCallback = async (
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): Promise<void> => {
+  const integrationsPath =
+    "/admin/administration/integrations/GOOGLE_WORKSPACE";
+  const frontendUrl = env.FRONTEND_URL || "http://localhost:5173";
+  const redirectUrl = new URL(integrationsPath, frontendUrl);
+
   try {
-    const { code, state } = req.query as { code: string; state: string };
+    const { code, state, error } = req.query as {
+      code?: string;
+      state?: string;
+      error?: string;
+    };
+    if (error) {
+      throw new AppError(
+        "Google authorization was cancelled or denied.",
+        400,
+        "OAUTH_FAILED"
+      );
+    }
     if (!code || !state) {
-      sendError(res, "Missing authorization code or state parameter", 400);
-      return;
+      throw new AppError(
+        "Missing authorization code or state parameter",
+        400,
+        "OAUTH_FAILED"
+      );
     }
 
-    const result = await service.handleOAuthCallback(code, state);
-    sendSuccess(res, result, 200, "Google Workspace account connected successfully");
-  } catch (error) {
-    next(error);
+    await service.handleOAuthCallback(code, state);
+    redirectUrl.searchParams.set("google", "connected");
+  } catch (error: unknown) {
+    redirectUrl.searchParams.set("google", "error");
+    redirectUrl.searchParams.set(
+      "reason",
+      error instanceof AppError && error.errorCode
+        ? error.errorCode
+        : "OAUTH_FAILED"
+    );
   }
+
+  res.redirect(302, redirectUrl.toString());
 };
 
 export const getConnectionStatus = async (

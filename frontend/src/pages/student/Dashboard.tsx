@@ -13,6 +13,7 @@ import {
   BarChart3,
   UserCircle,
   ChevronRight,
+  Play,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,8 @@ import { useSessionStore } from "../../store/session.store";
 import { useStudentDashboard } from "../../hooks/useStudentDashboard";
 import { useStudentAcademicAccess } from "../../hooks/useStudentAcademicAccess";
 import { InstallDashboardBanner } from "@/components/common/InstallDashboardBanner";
+import { useRecordingAccess, useRecordings } from "@/hooks/useRecordings";
+import { classSessionsApi } from "@/services/class-sessions.api";
 
 export const StudentDashboard: React.FC = () => {
   const navigate = useNavigate();
@@ -29,6 +32,9 @@ export const StudentDashboard: React.FC = () => {
   const academic = useStudentAcademicAccess();
   const { activeLiveClass } = useSessionStore();
   const { data: dashRes, isLoading } = useStudentDashboard();
+  const { data: recordingsRes } = useRecordings({ limit: 5, recordingStatus: "AVAILABLE" });
+  const recordingAccess = useRecordingAccess();
+  const [recordingsNow] = React.useState(() => Date.now());
 
   const dashboard = dashRes?.data;
   const studentName = academic.studentName || dashboard?.profile?.name || user?.name || "SACHIN GA";
@@ -46,25 +52,32 @@ export const StudentDashboard: React.FC = () => {
   const hasAttendanceData = Boolean(attendanceSummary && attendanceSummary.totalClasses > 0);
   const pendingAssignments = dashboard?.counts?.pendingAssignments ?? 0;
   const pendingAssignmentList = dashboard?.pendingAssignmentList ?? [];
+  const latestRecording = useMemo(
+    () =>
+      (recordingsRes?.data ?? []).find(
+        (recording: { expiresAt: string; recordingStatus?: string }) =>
+          recording.recordingStatus === "AVAILABLE" &&
+          new Date(recording.expiresAt).getTime() > recordingsNow
+      ),
+    [recordingsRes, recordingsNow]
+  );
 
   const rawTodaySessions = dashboard?.todaySessions ?? [];
-  const rawUpcomingSessions = dashboard?.upcomingSessions ?? [];
   const rawActiveLiveSessions = dashboard?.activeLiveSessions ?? [];
 
-  const todaySessions = useMemo(() => {
-    return rawTodaySessions.filter((s: any) => academic.isAuthorizedForSession(s));
-  }, [rawTodaySessions, academic]);
-
-  const activeLiveSessions = useMemo(() => {
-    return rawActiveLiveSessions.filter((s: any) => academic.isAuthorizedForSession(s));
-  }, [rawActiveLiveSessions, academic]);
+  // Dashboard sessions are already scoped to ACTIVE enrollments on the backend.
+  // Do not re-filter them away when academic batch ids are still hydrating.
+  const todaySessions = rawTodaySessions;
+  const activeLiveSessions = rawActiveLiveSessions;
 
   const currentLive = useMemo(() => {
     if (activeLiveClass?.status === "LIVE" && academic.isAuthorizedForCourse(activeLiveClass.courseName)) {
       return {
+        sessionId: activeLiveClass.sessionId || activeLiveClass.id,
         courseName: activeLiveClass.courseName || courseName,
         facultyName: activeLiveClass.facultyName || instructor?.name || "Faculty01",
         batchName: activeLiveClass.batchName || batchName || "B001",
+        batchId: undefined as string | undefined,
         time: activeLiveClass.time || "",
         meetUrl: activeLiveClass.meetUrl,
       };
@@ -72,26 +85,63 @@ export const StudentDashboard: React.FC = () => {
     const live = activeLiveSessions[0];
     if (!live) return null;
     return {
+      sessionId: live.id,
       courseName: live.courseName || live.title || courseName,
       facultyName: live.facultyName || instructor?.name || "Faculty01",
-      batchName: batchName || "B001",
+      batchName: live.batch?.name || batchName || "B001",
+      batchId: live.batchId || live.batch?.id || undefined,
       time: "",
       meetUrl: live.meetingUrl,
     };
   }, [activeLiveClass, activeLiveSessions, academic, batchName, courseName, instructor?.name]);
 
   const isClassLive = Boolean(currentLive);
+  const [isJoiningMeeting, setIsJoiningMeeting] = React.useState(false);
 
-  const handleJoinGoogleMeet = () => {
-    if (!currentLive) return;
-    academic.verifyAndJoinMeeting(
-      {
-        courseName: currentLive.courseName,
-        meetingUrl: currentLive.meetUrl,
-        status: "LIVE",
-      },
-      (errMsg) => alert(errMsg)
-    );
+  const handleJoinGoogleMeet = async () => {
+    if (!currentLive?.sessionId) return;
+    setIsJoiningMeeting(true);
+    try {
+      // Enrollment-scoped Meet URL — never trust cached list/store meetingUrl alone
+      const meeting = await classSessionsApi.getMeeting(currentLive.sessionId);
+      const meetingUrl = meeting.data.meetingUrl?.trim();
+      if (!meetingUrl || !meetingUrl.includes("meet.google.com")) {
+        alert("No valid meeting link found for this class.");
+        return;
+      }
+      academic.verifyAndJoinMeeting(
+        {
+          courseName: currentLive.courseName,
+          batchId: currentLive.batchId,
+          meetingUrl,
+          status: "LIVE",
+        },
+        (errMsg) => alert(errMsg)
+      );
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          (err as Error)?.message ||
+          "Unable to join this class. You may not be enrolled."
+      );
+    } finally {
+      setIsJoiningMeeting(false);
+    }
+  };
+
+  const handleWatchLatestRecording = async () => {
+    if (!latestRecording) return;
+    try {
+      const response = await recordingAccess.mutateAsync(latestRecording.id);
+      if (response?.data?.playbackUrl) {
+        window.open(response.data.playbackUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "This recording is no longer available."
+      );
+    }
   };
 
   if (isLoading && !dashboard) {
@@ -138,16 +188,19 @@ export const StudentDashboard: React.FC = () => {
               ) : null}
             </div>
 
-            {currentLive.meetUrl ? (
-              <Button
-                type="button"
-                onClick={handleJoinGoogleMeet}
-                className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 font-black text-xs sm:text-sm h-10 px-5 rounded-xl shadow-lg shadow-black/20 gap-2 transform hover:scale-105 transition-all cursor-pointer whitespace-nowrap"
-              >
+            <Button
+              type="button"
+              onClick={handleJoinGoogleMeet}
+              disabled={isJoiningMeeting}
+              className="bg-white hover:bg-rose-50 text-rose-700 hover:text-rose-800 font-black text-xs sm:text-sm h-10 px-5 rounded-xl shadow-lg shadow-black/20 gap-2 transform hover:scale-105 transition-all cursor-pointer whitespace-nowrap"
+            >
+              {isJoiningMeeting ? (
+                <Loader2 className="w-4 h-4 animate-spin text-rose-600" />
+              ) : (
                 <Video className="w-4 h-4 text-rose-600" />
-                Join Google Meet
-              </Button>
-            ) : null}
+              )}
+              {isJoiningMeeting ? "Joining…" : "Join Google Meet"}
+            </Button>
           </div>
         </div>
       )}
@@ -182,6 +235,33 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       <InstallDashboardBanner />
+
+      {latestRecording && (
+        <Card className="bg-blue-50/70 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="h-10 w-10 rounded-xl bg-[#2563EB] text-white flex items-center justify-center shrink-0">
+              <Video className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900 dark:text-white truncate">
+                {latestRecording.classSession?.title || "Latest class recording"}
+              </p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Available for up to 7 days · View only
+              </p>
+            </div>
+          </div>
+          <Button
+            type="button"
+            onClick={handleWatchLatestRecording}
+            disabled={recordingAccess.isPending}
+            className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white rounded-xl text-xs font-bold"
+          >
+            {recordingAccess.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Play className="h-4 w-4 mr-1 fill-current" />}
+            Watch Recording
+          </Button>
+        </Card>
+      )}
 
       {/* ─── 4. DASHBOARD CARDS — SIDE BY SIDE ON MOBILE (2 cols) ─── */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-2.5 sm:gap-4">

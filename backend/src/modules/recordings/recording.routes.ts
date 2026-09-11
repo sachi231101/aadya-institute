@@ -3,7 +3,15 @@ import { authMiddleware } from "../../middlewares/auth.middleware";
 import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import { createRecordingSchema, queryRecordingSchema } from "./recording.validation";
-import { getRecordings, getRecordingById, getRecordingAccess, createRecording, deleteRecording } from "./recording.controller";
+import {
+  getRecordings,
+  getRecordingById,
+  getRecordingAccess,
+  createRecording,
+  deleteRecording,
+  syncRecording,
+  expireRecording,
+} from "./recording.controller";
 
 const router = Router();
 
@@ -13,6 +21,8 @@ router.get("/", requirePermission("recording.read"), validate(queryRecordingSche
 router.get("/:id", requirePermission("recording.read"), getRecordingById);
 router.get("/:id/access", requirePermission("recording.read"), getRecordingAccess);
 router.post("/", requirePermission("recording.create"), validate(createRecordingSchema), createRecording);
+router.post("/:id/sync", requirePermission("recording.manage"), syncRecording);
+router.post("/:id/expire", requirePermission("recording.manage"), expireRecording);
 router.delete("/:id", requirePermission("recording.delete"), deleteRecording);
 
 export default router;

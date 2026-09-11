@@ -2,6 +2,22 @@ import { google } from "googleapis";
 import type { OAuth2Client } from "google-auth-library";
 import { logger } from "../../config/logger";
 import type { GoogleDriveFileMetadata } from "./google.types";
+import { getGoogleHttpStatus, toGoogleAppError } from "./google-error.util";
+
+export type RestrictedViewerPermission =
+  | { domain: string; expiresAt?: never; emailAddress?: never }
+  | { emailAddress: string; expiresAt: Date; domain?: never };
+
+export const normalizeDriveFileId = (fileId: string): string =>
+  fileId.trim().replace(/^files\//, "");
+
+const isValidDriveFileId = (fileId: string): boolean =>
+  /^[A-Za-z0-9_-]{10,200}$/.test(normalizeDriveFileId(fileId));
+
+const isDomainPermission = (
+  permission: RestrictedViewerPermission
+): permission is Extract<RestrictedViewerPermission, { domain: string }> =>
+  typeof permission.domain === "string";
 
 /**
  * Retrieves metadata for a recording file in Google Drive
@@ -11,10 +27,11 @@ export const getDriveFileMetadata = async (
   fileId: string
 ): Promise<GoogleDriveFileMetadata | null> => {
   const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
 
   try {
     const response = await drive.files.get({
-      fileId,
+      fileId: normalizedFileId,
       fields: "id, name, mimeType, webViewLink, webContentLink, size, createdTime, modifiedTime, videoMediaMetadata",
     });
 
@@ -38,19 +55,131 @@ export const getDriveFileMetadata = async (
           }
         : undefined,
     };
-  } catch (err: any) {
-    logger.error({ err: err?.message || err, fileId }, "Failed to fetch Google Drive file metadata");
-    return null;
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    if (status === 404) return null;
+    logger.error(
+      { status, fileId: normalizedFileId },
+      "Failed to fetch Google Drive file metadata"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
   }
 };
 
 /**
- * Validates whether the authenticated client has access to read the given Drive file
+ * Validates the identifier and confirms the authenticated account can see it.
  */
-export const checkDriveFileAccess = async (
+export const validateFileId = async (
   authClient: OAuth2Client,
   fileId: string
 ): Promise<boolean> => {
+  if (!isValidDriveFileId(fileId)) return false;
   const metadata = await getDriveFileMetadata(authClient, fileId);
   return metadata !== null;
+};
+
+export const checkDriveFileAccess = validateFileId;
+
+/**
+ * Grants restricted playback access. Domain access is preferred when configured;
+ * otherwise a specific user permission must include the recording expiry.
+ */
+export const setRestrictedViewerPermission = async (
+  authClient: OAuth2Client,
+  fileId: string,
+  permission: RestrictedViewerPermission
+): Promise<void> => {
+  if (!isValidDriveFileId(fileId)) {
+    throw toGoogleAppError({ status: 404 }, "RECORDING_NOT_READY");
+  }
+
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
+  try {
+    const existingPermissions = await drive.permissions.list({
+      fileId: normalizedFileId,
+      supportsAllDrives: true,
+      fields: "permissions(id,type,role,emailAddress,domain,expirationTime)",
+    });
+    const domainPermission = isDomainPermission(permission);
+    const existing = existingPermissions.data.permissions?.find((entry) =>
+      domainPermission
+        ? entry.type === "domain" &&
+          entry.domain?.toLowerCase() === permission.domain.toLowerCase()
+        : entry.type === "user" &&
+          entry.emailAddress?.toLowerCase() ===
+            permission.emailAddress.toLowerCase()
+    );
+
+    if (existing?.id) {
+      if (!domainPermission) {
+        await drive.permissions.update({
+          fileId: normalizedFileId,
+          permissionId: existing.id,
+          supportsAllDrives: true,
+          requestBody: {
+            role: "reader",
+            expirationTime: permission.expiresAt.toISOString(),
+          },
+        });
+      }
+      return;
+    }
+
+    await drive.permissions.create({
+      fileId: normalizedFileId,
+      supportsAllDrives: true,
+      sendNotificationEmail: false,
+      requestBody: domainPermission
+        ? {
+            type: "domain",
+            role: "reader",
+            domain: permission.domain,
+            allowFileDiscovery: false,
+          }
+        : {
+            type: "user",
+            role: "reader",
+            emailAddress: permission.emailAddress,
+            expirationTime: permission.expiresAt.toISOString(),
+          },
+    });
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    logger.error(
+      { status, fileId: normalizedFileId },
+      "Failed to restrict Google Drive recording access"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
+  }
+};
+
+/**
+ * Deletes a Drive file. A missing file is already in the desired state.
+ */
+export const deleteDriveFile = async (
+  authClient: OAuth2Client,
+  fileId: string
+): Promise<{ alreadyDeleted: boolean }> => {
+  if (!isValidDriveFileId(fileId)) {
+    return { alreadyDeleted: true };
+  }
+
+  const drive = google.drive({ version: "v3", auth: authClient });
+  const normalizedFileId = normalizeDriveFileId(fileId);
+  try {
+    await drive.files.delete({
+      fileId: normalizedFileId,
+      supportsAllDrives: true,
+    });
+    return { alreadyDeleted: false };
+  } catch (error: unknown) {
+    const status = getGoogleHttpStatus(error);
+    if (status === 404) return { alreadyDeleted: true };
+    logger.error(
+      { status, fileId: normalizedFileId },
+      "Failed to delete Google Drive recording"
+    );
+    throw toGoogleAppError(error, "GOOGLE_UNAVAILABLE");
+  }
 };

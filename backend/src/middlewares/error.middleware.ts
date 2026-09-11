@@ -5,7 +5,8 @@ import { sendError } from "../utils/response";
 export class AppError extends Error {
   constructor(
     public message: string,
-    public statusCode: number = 500
+    public statusCode: number = 500,
+    public errorCode?: string
   ) {
     super(message);
     this.name = "AppError";
@@ -20,7 +21,12 @@ export const errorMiddleware = (
   _next: NextFunction
 ): void => {
   if (err instanceof AppError) {
-    sendError(res, err.message, err.statusCode);
+    sendError(
+      res,
+      err.message,
+      err.statusCode,
+      err.errorCode ? { code: err.errorCode } : undefined
+    );
     return;
   }
 

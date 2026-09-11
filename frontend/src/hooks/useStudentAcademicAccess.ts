@@ -189,18 +189,34 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       }
     }
 
-    if (dashData?.course?.batchName) {
-      const matchingBatch = Array.from(batchesMap.values()).find(
-        (b) => b.name === dashData.course?.batchName || b.code === dashData.course?.batchName
-      );
-      if (!matchingBatch) {
-        batchesMap.set("dash-batch", {
-          id: "dash-batch",
-          name: dashData.course.batchName,
-          code: dashData.course.batchName,
-          courseId: dashData.course.id,
+    // Prefer real enrollment batch IDs from dashboard (students cannot call getById)
+    if (dashData?.batches?.length) {
+      dashData.batches.forEach((b) => {
+        batchesMap.set(b.id, {
+          id: b.id,
+          name: b.name,
+          code: b.code,
+          courseId: b.courseId ?? undefined,
+          status: b.status,
         });
-      }
+      });
+    }
+
+    if (dashData?.course?.batchId) {
+      batchesMap.set(dashData.course.batchId, {
+        id: dashData.course.batchId,
+        name: dashData.course.batchName || dashData.course.batchCode || "Batch",
+        code: dashData.course.batchCode || dashData.course.batchName || dashData.course.batchId,
+        courseId: dashData.course.id,
+      });
+    } else if (dashData?.course?.batchName && batchesMap.size === 0) {
+      // Legacy fallback only when no real batch id is available
+      batchesMap.set("dash-batch", {
+        id: "dash-batch",
+        name: dashData.course.batchName,
+        code: dashData.course.batchName,
+        courseId: dashData.course.id,
+      });
     }
 
     const assignedCourses = Array.from(coursesMap.values());
@@ -280,6 +296,7 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       batch?: {
         id?: string;
         code?: string;
+        name?: string;
         courseId?: string;
         batchCourses?: Array<{ courseId: string }>;
       };
@@ -287,6 +304,12 @@ export const useStudentAcademicAccess = (): StudentAcademicAccess => {
       if (session.batchId && assignedBatchIds.includes(session.batchId)) return true;
       if (session.batch?.id && assignedBatchIds.includes(session.batch.id)) return true;
       if (session.batch?.code && assignedBatchCodes.includes(session.batch.code)) return true;
+      if (
+        session.batch?.name &&
+        assignedBatches.some((b) => b.name.toLowerCase() === session.batch!.name!.toLowerCase())
+      ) {
+        return true;
+      }
       if (session.courseId && assignedCourseIds.includes(session.courseId)) return true;
       if (session.batch?.courseId && assignedCourseIds.includes(session.batch.courseId)) return true;
       if (

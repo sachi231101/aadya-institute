@@ -19,6 +19,7 @@ export interface BackendClassSession {
   startTime: string;
   endTime: string;
   roomNo?: string;
+  timeslotMasterId?: string | null;
   classroomMasterId?: string | null;
   mode?: "OFFLINE" | "ONLINE" | "HYBRID";
   sessionType?: "THEORY" | "PRACTICAL";
@@ -83,6 +84,35 @@ export interface ListResponse<T> {
   };
 }
 
+export interface ClassMeeting {
+  classSessionId: string;
+  title?: string;
+  scheduledDate: string;
+  startTime: string;
+  endTime: string;
+  mode?: string;
+  meetingUrl?: string | null;
+  meetingCode?: string;
+  spaceName?: string;
+  recordingEnabled: boolean;
+  sessionStatus?: string;
+}
+
+export interface GoogleMeetResult {
+  meetSpace: {
+    id: string;
+    spaceName: string;
+    meetingUri: string;
+    meetingCode?: string;
+    recordingEnabled: boolean;
+    recordingConfigurationStatus?: string;
+  };
+  meetingUri: string;
+  meetingCode?: string;
+  recordingEnabled: boolean;
+  recordingConfigurationStatus?: string;
+}
+
 export const mapBackendSession = (raw: BackendClassSession): ClassSession => {
   const sessionStatus = (raw.sessionStatus as any) || "UPCOMING";
   let attendanceStatus: "PENDING" | "IN_PROGRESS" | "MARKED" = "PENDING";
@@ -136,6 +166,31 @@ export const classSessionsApi = {
 
   update: async (id: string, payload: UpdateClassSessionPayload): Promise<SingleResponse<BackendClassSession>> => {
     const response = await api.patch<SingleResponse<BackendClassSession>>(`/class-sessions/${id}`, payload);
+    return response.data;
+  },
+
+  createGoogleMeet: async (
+    id: string,
+    options: { accessType?: "OPEN" | "TRUSTED" | "RESTRICTED"; enableAutomaticRecording?: boolean } = {}
+  ): Promise<SingleResponse<GoogleMeetResult>> => {
+    const response = await api.post<SingleResponse<GoogleMeetResult>>(
+      `/class-sessions/${id}/google-meet`,
+      { accessType: "TRUSTED", enableAutomaticRecording: true, ...options }
+    );
+    return response.data;
+  },
+
+  getMeeting: async (id: string): Promise<SingleResponse<ClassMeeting>> => {
+    const response = await api.get<SingleResponse<ClassMeeting>>(
+      `/class-sessions/${id}/meeting`
+    );
+    return response.data;
+  },
+
+  getGoogleMeet: async (id: string): Promise<SingleResponse<GoogleMeetResult["meetSpace"]>> => {
+    const response = await api.get<SingleResponse<GoogleMeetResult["meetSpace"]>>(
+      `/class-sessions/${id}/google-meet`
+    );
     return response.data;
   },
 

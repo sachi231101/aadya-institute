@@ -8,11 +8,15 @@ import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.con
 import * as repo from "./recording.repository";
 import type { AuthUser } from "../auth/auth.types";
 import type { CreateRecordingDTO, RecordingQueryDTO } from "./recording.types";
-
-/**
- * Default recording retention: 1 month (AGENTS.md Section 31).
- */
-const DEFAULT_RECORDING_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+import { getRecordingRetentionMs } from "./recording-retention.service";
+import {
+  resolveGoogleAuthClient,
+  syncSessionRecordings,
+} from "../google-workspace/google-workspace.service";
+import {
+  deleteDriveFile,
+  setRestrictedViewerPermission,
+} from "../../integrations/google/google.drive.client";
 
 /**
  * Send RECORDING_AVAILABLE WhatsApp notifications to all ACTIVE enrolled students
@@ -135,9 +139,25 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
     throw new AppError("Recording not found", 404);
   }
 
-  // Branch isolation for non-ADMIN
-  if (!currentUser.roles.includes("ADMIN") && currentUser.branchId && batch.branchId !== currentUser.branchId) {
-    throw new AppError("Recording not found", 404);
+  // Branch isolation for non-ADMIN staff, including multi-branch managers.
+  if (!currentUser.roles.includes("ADMIN")) {
+    const allowedBranchIds = new Set(
+      [currentUser.branchId, ...(currentUser.allowedBranchIds || [])].filter(
+        (branchId): branchId is string => Boolean(branchId)
+      )
+    );
+    if (
+      allowedBranchIds.size > 0 &&
+      !allowedBranchIds.has(batch.branchId)
+    ) {
+      throw new AppError("Recording not found", 404);
+    }
+    if (
+      currentUser.roles.includes("CENTER_MANAGER") &&
+      allowedBranchIds.size === 0
+    ) {
+      throw new AppError("Recording not found", 404);
+    }
   }
 
   // Student enrollment check
@@ -165,8 +185,116 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
       where: { userId: currentUser.id || currentUser.userId! },
     });
 
-    if (faculty && session.facultyId !== faculty.id && batch.branchId !== currentUser.branchId) {
+    if (!faculty || session.facultyId !== faculty.id) {
       throw new AppError("Recording not found", 404);
+    }
+  }
+
+  return recording;
+};
+
+export const getRecordingAccess = async (currentUser: AuthUser, id: string) => {
+  const recording = await getRecordingById(currentUser, id);
+  const now = new Date();
+
+  if (
+    recording.status !== "ACTIVE" ||
+    recording.recordingStatus === "DELETED"
+  ) {
+    throw new AppError(
+      "This recording has been deleted.",
+      410,
+      "RECORDING_EXPIRED"
+    );
+  }
+  if (
+    recording.recordingStatus === "EXPIRED" ||
+    recording.expiresAt.getTime() <= now.getTime()
+  ) {
+    if (recording.recordingStatus !== "EXPIRED") {
+      await prisma.recording.update({
+        where: { id: recording.id },
+        data: { recordingStatus: "EXPIRED" },
+      });
+    }
+    throw new AppError(
+      "This recording has expired.",
+      410,
+      "RECORDING_EXPIRED"
+    );
+  }
+  if (
+    recording.recordingStatus !== "AVAILABLE" ||
+    !recording.playbackUrl
+  ) {
+    throw new AppError(
+      "This recording is still being processed.",
+      409,
+      "RECORDING_NOT_READY"
+    );
+  }
+
+  const isStudent =
+    currentUser.roles.includes("STUDENT") &&
+    !currentUser.roles.includes("ADMIN") &&
+    !currentUser.roles.includes("FACULTY");
+  if (
+    isStudent &&
+    recording.storageProvider === "GOOGLE_DRIVE" &&
+    recording.googleDriveFileId
+  ) {
+    if (!currentUser.email) {
+      throw new AppError(
+        "A Google-compatible email address is required to view this recording.",
+        403,
+        "INSUFFICIENT_GOOGLE_PERMISSIONS"
+      );
+    }
+    const { authClient, connection } = await resolveGoogleAuthClient(
+      currentUser,
+      recording.classSession?.googleMeetSpace?.organizerUserId
+    );
+    const integration = await prisma.integration.findUnique({
+      where: {
+        instituteId_type: {
+          instituteId: currentUser.instituteId,
+          type: "GOOGLE_WORKSPACE",
+        },
+      },
+      select: { configuration: true },
+    });
+    const configuration =
+      integration?.configuration &&
+      typeof integration.configuration === "object" &&
+      !Array.isArray(integration.configuration)
+        ? (integration.configuration as Record<string, unknown>)
+        : {};
+    const workspaceDomain =
+      typeof configuration.workspaceDomain === "string"
+        ? configuration.workspaceDomain
+        : typeof configuration.domain === "string"
+          ? configuration.domain
+          : null;
+
+    try {
+      await setRestrictedViewerPermission(
+        authClient,
+        recording.googleDriveFileId,
+        workspaceDomain
+          ? { domain: workspaceDomain }
+          : { emailAddress: currentUser.email, expiresAt: recording.expiresAt }
+      );
+    } catch (error: unknown) {
+      if (
+        error instanceof AppError &&
+        (error.statusCode === 401 || error.statusCode === 403)
+      ) {
+        await prisma.googleWorkspaceConnection.updateMany({
+          where: { userId: connection.userId },
+          data: { status: "REAUTH_REQUIRED" },
+        });
+      }
+      throw error;
     }
   }
 
@@ -177,16 +305,10 @@ export const getRecordingById = async (currentUser: AuthUser, id: string) => {
     entityType: "Recording",
     entityId: recording.id,
     newData: {
-      classSessionId: session.id,
+      classSessionId: recording.classSession?.id,
       recordingStatus: recording.recordingStatus,
     },
   });
-
-  return recording;
-};
-
-export const getRecordingAccess = async (currentUser: AuthUser, id: string) => {
-  const recording = await getRecordingById(currentUser, id);
 
   return {
     recordingId: recording.id,
@@ -220,7 +342,15 @@ export const createRecording = async (currentUser: AuthUser, dto: CreateRecordin
     }
   }
 
-  const expiresAt = new Date(Date.now() + DEFAULT_RECORDING_RETENTION_MS);
+  const retentionMs = await getRecordingRetentionMs(currentUser.instituteId);
+  const recordingStartedAt = dto.startedAt
+    ? new Date(dto.startedAt)
+    : new Date();
+  const expiresAt = new Date(recordingStartedAt.getTime() + retentionMs);
+  const recordingStatus =
+    !dto.recordingStatus || dto.recordingStatus === "READY"
+      ? "AVAILABLE"
+      : dto.recordingStatus;
 
   const recording = await repo.createRecording({
     classSessionId: session.id,
@@ -229,10 +359,10 @@ export const createRecording = async (currentUser: AuthUser, dto: CreateRecordin
     googleRecordingId: dto.googleRecordingId,
     googleDriveFileId: dto.googleDriveFileId,
     playbackUrl: dto.playbackUrl,
-    recordingStatus: dto.recordingStatus || "READY",
+    recordingStatus,
     storageProvider: dto.storageProvider || "GOOGLE_DRIVE",
     duration: dto.duration,
-    startedAt: dto.startedAt ? new Date(dto.startedAt) : undefined,
+    startedAt: recordingStartedAt,
     endedAt: dto.endedAt ? new Date(dto.endedAt) : undefined,
     expiresAt,
     metadata: dto.metadata,
@@ -268,6 +398,7 @@ export const deleteRecording = async (currentUser: AuthUser, id: string) => {
     }
   }
 
+  await deleteGoogleDriveRecording(currentUser, existing);
   await repo.deleteRecording(id);
 
   await createAuditLog({
@@ -280,4 +411,90 @@ export const deleteRecording = async (currentUser: AuthUser, id: string) => {
   });
 
   return { id, deleted: true };
+};
+
+const deleteGoogleDriveRecording = async (
+  currentUser: AuthUser,
+  recording: Awaited<ReturnType<typeof getRecordingById>>
+) => {
+  if (
+    recording.storageProvider !== "GOOGLE_DRIVE" ||
+    !recording.googleDriveFileId
+  ) {
+    return;
+  }
+
+  const { authClient, connection } = await resolveGoogleAuthClient(
+    currentUser,
+    recording.classSession?.googleMeetSpace?.organizerUserId
+  );
+  let result: Awaited<ReturnType<typeof deleteDriveFile>>;
+  try {
+    result = await deleteDriveFile(authClient, recording.googleDriveFileId);
+  } catch (error: unknown) {
+    if (
+      error instanceof AppError &&
+      (error.statusCode === 401 || error.statusCode === 403)
+    ) {
+      await prisma.googleWorkspaceConnection.updateMany({
+        where: { userId: connection.userId },
+        data: { status: "REAUTH_REQUIRED" },
+      });
+    }
+    throw error;
+  }
+
+  await createAuditLog({
+    userId: currentUser.id || currentUser.userId!,
+    instituteId: currentUser.instituteId,
+    action: "GOOGLE_DRIVE_RECORDING_DELETED",
+    entityType: "Recording",
+    entityId: recording.id,
+    newData: {
+      googleDriveFileId: recording.googleDriveFileId,
+      alreadyDeleted: result.alreadyDeleted,
+    },
+  });
+};
+
+export const syncRecording = async (currentUser: AuthUser, id: string) => {
+  const recording = await getRecordingById(currentUser, id);
+  return syncSessionRecordings(currentUser, recording.classSessionId);
+};
+
+export const expireRecording = async (currentUser: AuthUser, id: string) => {
+  const recording = await getRecordingById(currentUser, id);
+
+  if (recording.recordingStatus === "DELETED") {
+    return recording;
+  }
+
+  await deleteGoogleDriveRecording(currentUser, recording);
+  const expired = await prisma.recording.update({
+    where: { id: recording.id },
+    data: {
+      recordingStatus: "DELETED",
+      status: "INACTIVE",
+      deletedAt: new Date(),
+      expiresAt:
+        recording.expiresAt.getTime() <= Date.now()
+          ? recording.expiresAt
+          : new Date(),
+    },
+  });
+
+  await createAuditLog({
+    userId: currentUser.id || currentUser.userId!,
+    instituteId: currentUser.instituteId,
+    action: "CLASS_RECORDING_EXPIRED",
+    entityType: "Recording",
+    entityId: recording.id,
+    oldData: { recordingStatus: recording.recordingStatus },
+    newData: {
+      recordingStatus: expired.recordingStatus,
+      deletedAt: expired.deletedAt,
+    },
+  });
+
+  return expired;
 };

@@ -24,6 +24,7 @@ import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { useFacultyDashboard } from "@/hooks/useFaculty";
 import { StartClassModal, type ClassSessionModalData } from "@/components/faculty/StartClassModal";
+import { classSessionsApi } from "@/services/class-sessions.api";
 import type { FacultyDashboardSession } from "@/types/faculty.types";
 
 type SessionCard = FacultyDashboardSession & {
@@ -34,7 +35,19 @@ type SessionCard = FacultyDashboardSession & {
 
 const formatSessionDate = (iso: string, isToday: boolean) => {
   if (isToday) return "Today";
-  return new Date(iso).toLocaleDateString("en-IN", {
+  const key = String(iso).slice(0, 10);
+  const match = key.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    return new Date(iso).toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }
+  const dt = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12, 0, 0));
+  return dt.toLocaleDateString("en-IN", {
+    timeZone: "UTC",
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -48,8 +61,9 @@ export const FacultyDashboard: React.FC = () => {
   const { activeLiveClass } = useSessionStore();
   const { data: dashRes, isLoading, isError, refetch } = useFacultyDashboard();
 
-  const [activeTab, setActiveTab] = useState<"TODAY" | "ALL" | "UPCOMING" | "COMPLETED">("TODAY");
+  const [activeTab, setActiveTab] = useState<"TODAY" | "ALL" | "UPCOMING" | "COMPLETED">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [tabInitialized, setTabInitialized] = useState(false);
 
   const dashboard = dashRes?.data;
   const facultyName = dashboard?.profile?.name || user?.name || "Faculty";
@@ -62,43 +76,89 @@ export const FacultyDashboard: React.FC = () => {
 
   const myAssignedClasses: SessionCard[] = useMemo(() => {
     if (!dashboard) return [];
-    const today = (dashboard.todaySessions || []).map((s) => {
+
+    const toCard = (s: FacultyDashboardSession): SessionCard => {
       let status = (s.sessionStatus || "UPCOMING").toUpperCase();
-      if (
-        activeLiveClass?.status === "LIVE" &&
-        activeLiveClass.sessionId === s.id
-      ) {
+      if (activeLiveClass?.status === "LIVE" && activeLiveClass.sessionId === s.id) {
         status = "LIVE";
       }
+      const rawDate = s.scheduledDate as string | Date;
+      const dateKey =
+        typeof rawDate === "string"
+          ? rawDate.slice(0, 10)
+          : rawDate instanceof Date
+            ? `${rawDate.getUTCFullYear()}-${String(rawDate.getUTCMonth() + 1).padStart(2, "0")}-${String(rawDate.getUTCDate()).padStart(2, "0")}`
+            : todayIso;
+      const isToday = dateKey === todayIso;
       return {
         ...s,
+        scheduledDate: dateKey,
         sessionStatus: status,
-        isToday: true,
-        dateLabel: formatSessionDate(s.scheduledDate, true),
+        isToday,
+        dateLabel: formatSessionDate(dateKey, isToday),
         timeRange: `${s.startTime} – ${s.endTime}`,
       };
+    };
+
+    const byId = new Map<string, SessionCard>();
+    const sources = [
+      ...(dashboard.scheduledSessions || []),
+      ...(dashboard.weekSessions || []),
+      ...(dashboard.todaySessions || []),
+      ...(dashboard.upcomingSessions || []),
+    ];
+    for (const s of sources) {
+      byId.set(s.id, toCard(s));
+    }
+
+    return Array.from(byId.values()).sort((a, b) => {
+      const dateCmp = String(a.scheduledDate).localeCompare(String(b.scheduledDate));
+      if (dateCmp !== 0) return dateCmp;
+      return String(a.startTime).localeCompare(String(b.startTime));
     });
-    const upcoming = (dashboard.upcomingSessions || []).map((s) => ({
-      ...s,
-      sessionStatus: (s.sessionStatus || "UPCOMING").toUpperCase(),
-      isToday: false,
-      dateLabel: formatSessionDate(s.scheduledDate, false),
-      timeRange: `${s.startTime} – ${s.endTime}`,
-    }));
-    return [...today, ...upcoming];
-  }, [dashboard, activeLiveClass]);
+  }, [dashboard, activeLiveClass, todayIso]);
+
+  // Once data loads: if today is empty but other scheduled classes exist, stay on ALL
+  React.useEffect(() => {
+    if (tabInitialized || !dashboard) return;
+    const todayCount = (dashboard.todaySessions || []).length;
+    const total =
+      (dashboard.scheduledSessions || []).length ||
+      (dashboard.weekSessions || []).length ||
+      (dashboard.todaySessions || []).length + (dashboard.upcomingSessions || []).length;
+    if (todayCount > 0) setActiveTab("TODAY");
+    else if (total > 0) setActiveTab("ALL");
+    setTabInitialized(true);
+  }, [dashboard, tabInitialized]);
 
   const counts = dashboard?.counts;
   const todayClasses = myAssignedClasses.filter((c) => c.isToday);
   const liveCount = counts?.liveClasses ?? myAssignedClasses.filter((c) => c.sessionStatus === "LIVE").length;
-  const upcomingCount = counts?.upcomingClasses ?? myAssignedClasses.filter((c) => c.sessionStatus === "UPCOMING").length;
-  const completedCount = counts?.completedThisWeek ?? 0;
+  const upcomingCount =
+    counts?.upcomingClasses ??
+    myAssignedClasses.filter(
+      (c) =>
+        String(c.scheduledDate).slice(0, 10) >= todayIso &&
+        c.sessionStatus !== "COMPLETED" &&
+        c.sessionStatus !== "CANCELLED"
+    ).length;
+  const completedCount =
+    counts?.completedThisWeek ??
+    myAssignedClasses.filter((c) => c.sessionStatus === "COMPLETED").length;
 
   const displayedClasses = useMemo(() => {
     return myAssignedClasses.filter((c) => {
-      if (activeTab === "TODAY" && !c.isToday && c.sessionStatus !== "LIVE") return false;
-      if (activeTab === "UPCOMING" && c.sessionStatus !== "UPCOMING" && c.sessionStatus !== "LIVE") return false;
-      if (activeTab === "COMPLETED" && c.sessionStatus !== "COMPLETED") return false;
+      const dateKey = String(c.scheduledDate).slice(0, 10);
+      if (activeTab === "TODAY") {
+        if (!c.isToday && c.sessionStatus !== "LIVE") return false;
+      } else if (activeTab === "UPCOMING") {
+        if (c.sessionStatus === "COMPLETED" || c.sessionStatus === "CANCELLED") return false;
+        if (dateKey < todayIso) return false;
+        // Include today + future scheduled (not only status === UPCOMING)
+      } else if (activeTab === "COMPLETED") {
+        if (c.sessionStatus !== "COMPLETED") return false;
+      }
+      // ALL: no date/status gate
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -107,12 +167,14 @@ export const FacultyDashboard: React.FC = () => {
           (c.subjectName || "").toLowerCase().includes(q) ||
           (c.batchName || "").toLowerCase().includes(q) ||
           (c.batchCode || "").toLowerCase().includes(q) ||
-          (c.roomNo || "").toLowerCase().includes(q);
+          (c.roomNo || "").toLowerCase().includes(q) ||
+          dateKey.includes(q) ||
+          (c.dateLabel || "").toLowerCase().includes(q);
         if (!matches) return false;
       }
       return true;
     });
-  }, [myAssignedClasses, activeTab, searchQuery]);
+  }, [myAssignedClasses, activeTab, searchQuery, todayIso]);
 
   const [selectedModalClass, setSelectedModalClass] = useState<ClassSessionModalData | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -136,6 +198,30 @@ export const FacultyDashboard: React.FC = () => {
       enrolledStudentsCount: cls.assignedStudents,
     });
     setIsModalOpen(true);
+  };
+
+  const handleJoinGoogleMeet = async (cls: SessionCard, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      let meetingUrl = cls.meetingUrl;
+      if (!meetingUrl) {
+        const current = await classSessionsApi.getMeeting(cls.id);
+        meetingUrl = current.data.meetingUrl || undefined;
+      }
+      if (!meetingUrl) {
+        const created = await classSessionsApi.createGoogleMeet(cls.id);
+        meetingUrl = created.data.meetingUri;
+      }
+      if (!meetingUrl) {
+        throw new Error("No Google Meet is available for this class.");
+      }
+      window.open(meetingUrl, "_blank", "noopener,noreferrer");
+    } catch (err: unknown) {
+      alert(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Connect or reauthorize Google Workspace before joining this class."
+      );
+    }
   };
 
   if (isLoading) {
@@ -341,7 +427,9 @@ export const FacultyDashboard: React.FC = () => {
                     ? `Today (${todayClasses.length})`
                     : tab === "ALL"
                       ? `All (${myAssignedClasses.length})`
-                      : tab.charAt(0) + tab.slice(1).toLowerCase()}
+                      : tab === "UPCOMING"
+                        ? `Upcoming (${upcomingCount})`
+                        : `Completed (${completedCount})`}
                 </button>
               ))}
             </div>
@@ -368,7 +456,7 @@ export const FacultyDashboard: React.FC = () => {
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
                 {searchQuery
                   ? "No teaching slots matched your search."
-                  : "You have no classes under this filter. Ask admin to assign batches and schedule sessions."}
+                  : "No scheduled classes yet. When admin assigns you on Timetable, they appear here and under My Classes."}
               </p>
             </div>
           ) : (
@@ -417,25 +505,32 @@ export const FacultyDashboard: React.FC = () => {
                         <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight group-hover:text-[#2563EB]">
                           {cls.courseName || cls.title || "Class Session"}
                         </h3>
-                        <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
-                          {cls.subjectName || "Session"}
+                        {cls.subjectName &&
+                          cls.subjectName !== cls.courseName &&
+                          cls.subjectName !== cls.title && (
+                          <p className="text-xs sm:text-sm font-semibold text-slate-600 mt-0.5">
+                            {cls.subjectName}
+                          </p>
+                        )}
+                        <p className="text-[11px] font-bold text-slate-500 mt-1">
+                          {cls.batchCode || "Batch"}
+                          {cls.batchName ? ` · ${cls.batchName}` : ""}
                         </p>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
-                          <Clock className="w-4 h-4 text-[#2563EB] shrink-0" />
-                          <span className="font-bold">{cls.timeRange}</span>
+                        <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60 sm:col-span-2">
+                          <Calendar className="w-4 h-4 text-[#2563EB] shrink-0" />
+                          <span className="font-bold">
+                            {cls.dateLabel}
+                            <span className="text-slate-500 font-semibold"> · {cls.timeRange}</span>
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-700 font-medium bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
                           <Users className="w-4 h-4 text-emerald-600 shrink-0" />
                           <span>
                             <strong className="font-black">{cls.assignedStudents}</strong> Students
                           </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-600 bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
-                          <Calendar className="w-4 h-4 text-slate-400 shrink-0" />
-                          <span>{cls.dateLabel}</span>
                         </div>
                         <div className="flex items-center gap-2 text-slate-600 bg-white/80 p-2.5 rounded-xl border border-slate-200/60">
                           {isLive || cls.mode === "ONLINE" ? (
@@ -453,7 +548,17 @@ export const FacultyDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="pt-2 border-t border-slate-200/70 flex items-center justify-end">
+                    <div className="pt-2 border-t border-slate-200/70 flex flex-wrap items-center justify-end gap-2">
+                      {(isLive || cls.mode === "ONLINE") && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={(e) => handleJoinGoogleMeet(cls, e)}
+                          className="font-black text-xs h-10 px-4 rounded-xl gap-2 border-rose-200 text-rose-700 hover:bg-rose-50"
+                        >
+                          <Video className="w-4 h-4" /> Join Google Meet
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         onClick={() => handleOpenClass(cls)}

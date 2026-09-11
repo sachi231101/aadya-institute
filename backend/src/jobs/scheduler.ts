@@ -68,10 +68,19 @@ export const startCronJobs = (): void => {
     );
   });
 
+  // Nightly full sweep (03:00)
   cron.schedule("0 3 * * *", async () => {
     logger.info("[cron] Running recording-cleanup job");
     await recordingCleanupJob().catch((e) =>
       logger.error({ err: e }, "[cron] recording-cleanup failed")
+    );
+  });
+
+  // Daytime sweep so Drive delete lag after expiry is hours, not a full day
+  cron.schedule("0 */6 * * *", async () => {
+    logger.info("[cron] Running recording-cleanup daytime sweep");
+    await recordingCleanupJob().catch((e) =>
+      logger.error({ err: e }, "[cron] recording-cleanup daytime sweep failed")
     );
   });
 

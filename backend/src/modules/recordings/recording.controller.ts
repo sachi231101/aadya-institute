@@ -84,3 +84,35 @@ export const getRecordingAccess = async (
     next(error);
   }
 };
+
+export const syncRecording = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await service.syncRecording(
+      req.user as unknown as AuthUser,
+      req.params.id as string
+    );
+    sendSuccess(res, result, 200, result.message);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const expireRecording = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await service.expireRecording(
+      req.user as unknown as AuthUser,
+      req.params.id as string
+    );
+    sendSuccess(res, result, 200, "Recording expired and deleted successfully");
+  } catch (error) {
+    next(error);
+  }
+};

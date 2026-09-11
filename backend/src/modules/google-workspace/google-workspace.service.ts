@@ -16,6 +16,9 @@ import type {
   CreateMeetSpaceDTO,
   GoogleStatePayload,
 } from "./google-workspace.types";
+import { getRecordingRetentionMs } from "../recordings/recording-retention.service";
+import { hasBranchAccess } from "../../utils/branch-isolation.util";
+import { NotificationService } from "../notifications/notification.service";
 
 /**
  * Creates a signed OAuth state token to protect against CSRF attacks
@@ -295,21 +298,41 @@ export const createMeetSpaceForSession = async (
     throw new AppError("Class session not found", 404);
   }
 
-  // Branch isolation check
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    session.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Class session not found", 404);
+  const isFaculty = currentUser.roles.includes("FACULTY");
+  const isAdmin = currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
+  const isCenterManager = currentUser.roles.includes("CENTER_MANAGER");
+
+  let isAssignedFaculty = false;
+  if (isFaculty) {
+    const faculty = await prisma.faculty.findFirst({ where: { userId: currentUser.id || currentUser.userId! } });
+    if (faculty && faculty.id === session.facultyId) {
+      isAssignedFaculty = true;
+    }
+  }
+
+  // Branch isolation check (applies to users who are not admin and not the assigned faculty)
+  if (!isAdmin && !isAssignedFaculty) {
+    const branchAllowed = hasBranchAccess(
+      {
+        id: currentUser.id || currentUser.userId!,
+        userId: currentUser.userId || currentUser.id!,
+        instituteId: currentUser.instituteId,
+        branchId: currentUser.branchId,
+        allowedBranchIds: currentUser.allowedBranchIds,
+        roles: currentUser.roles,
+        permissions: [],
+        name: "",
+      },
+      session.branchId
+    );
+    if (!branchAllowed) {
+      throw new AppError("Class session not found", 404);
+    }
   }
 
   // Faculty assignment check
-  if (currentUser.roles.includes("FACULTY") && !currentUser.roles.includes("ADMIN") && !currentUser.roles.includes("CENTER_MANAGER")) {
-    const faculty = await prisma.faculty.findUnique({ where: { userId: currentUser.id || currentUser.userId! } });
-    if (!faculty || faculty.id !== session.facultyId) {
-      throw new AppError("You can only create Google Meet spaces for your assigned class sessions", 403);
-    }
+  if (isFaculty && !isAdmin && !isCenterManager && !isAssignedFaculty) {
+    throw new AppError("You can only create Google Meet spaces for your assigned class sessions", 403);
   }
 
   const organizerUserId = currentUser.id || currentUser.userId!;
@@ -384,124 +407,248 @@ export const syncSessionRecordings = async (
     throw new AppError("Class session not found", 404);
   }
 
+  const isFaculty = currentUser.roles.includes("FACULTY");
+  const isAdmin = currentUser.roles.includes("ADMIN") || currentUser.roles.includes("SUPER_ADMIN");
+
+  let isAssignedFaculty = false;
+  if (isFaculty) {
+    const faculty = await prisma.faculty.findFirst({ where: { userId: currentUser.id || currentUser.userId! } });
+    if (faculty && faculty.id === session.facultyId) {
+      isAssignedFaculty = true;
+    }
+  }
+
   // Branch isolation
-  if (
-    !currentUser.roles.includes("ADMIN") &&
-    currentUser.branchId &&
-    session.branchId !== currentUser.branchId
-  ) {
-    throw new AppError("Class session not found", 404);
+  if (!isAdmin && !isAssignedFaculty) {
+    const branchAllowed = hasBranchAccess(
+      {
+        id: currentUser.id || currentUser.userId!,
+        userId: currentUser.userId || currentUser.id!,
+        instituteId: currentUser.instituteId,
+        branchId: currentUser.branchId,
+        allowedBranchIds: currentUser.allowedBranchIds,
+        roles: currentUser.roles,
+        permissions: [],
+        name: "",
+      },
+      session.branchId
+    );
+    if (!branchAllowed) {
+      throw new AppError("Class session not found", 404);
+    }
   }
 
   if (!session.googleMeetSpace) {
     throw new AppError("No Google Meet space is linked to this class session", 400);
   }
 
-  const { authClient } = await resolveGoogleAuthClient(currentUser, session.googleMeetSpace.organizerUserId);
+  const syncTime = new Date();
+  const userId = currentUser.id || currentUser.userId!;
 
-  const conferenceRecords = await googleMeet.listConferenceRecords(
-    authClient,
-    session.googleMeetSpace.spaceName
-  );
+  try {
+    const { authClient } = await resolveGoogleAuthClient(
+      currentUser,
+      session.googleMeetSpace.organizerUserId
+    );
+    const retentionMs = await getRecordingRetentionMs(currentUser.instituteId);
+    const conferenceRecords = await googleMeet.listConferenceRecords(
+      authClient,
+      session.googleMeetSpace.spaceName
+    );
 
-  let syncedRecordingsCount = 0;
-  let latestRecording = session.recording;
+    let syncedRecordingsCount = 0;
+    let latestRecording = session.recording;
 
-  for (const conf of conferenceRecords) {
-    const recordings = await googleMeet.listConferenceRecordings(authClient, conf.name);
+    for (const conf of conferenceRecords) {
+      const recordings = await googleMeet.listConferenceRecordings(
+        authClient,
+        conf.name
+      );
 
-    for (const rec of recordings) {
-      const googleRecordingId = rec.name;
-      const driveFileId = rec.driveDestination?.file;
+      for (const rec of recordings) {
+        const googleRecordingId = rec.name;
+        const driveFileId = rec.driveDestination?.file
+          ? googleDrive.normalizeDriveFileId(rec.driveDestination.file)
+          : null;
+        const conflictingRecording = driveFileId
+          ? await prisma.recording.findFirst({
+              where: {
+                googleDriveFileId: driveFileId,
+                classSessionId: { not: session.id },
+              },
+              select: { id: true },
+            })
+          : null;
 
-      let driveMeta = null;
-      if (driveFileId) {
-        driveMeta = await googleDrive.getDriveFileMetadata(authClient, driveFileId);
-      }
+        if (conflictingRecording) {
+          logger.warn(
+            {
+              classSessionId: session.id,
+              recordingId: conflictingRecording.id,
+            },
+            "Skipped duplicate Google Drive recording association"
+          );
+          continue;
+        }
 
-      let recordingStatus = "PROCESSING";
-      if (rec.state === "FILE_GENERATED" && driveFileId) {
-        recordingStatus = "READY";
-      } else if (rec.state === "STARTED") {
-        recordingStatus = "RECORDING";
-      } else if (rec.state === "ENDED") {
-        recordingStatus = "PROCESSING";
-      }
+        const driveMeta = driveFileId
+          ? await googleDrive.getDriveFileMetadata(authClient, driveFileId)
+          : null;
+        const existing = latestRecording;
+        const wasAvailable =
+          existing?.recordingStatus === "AVAILABLE" ||
+          existing?.recordingStatus === "READY";
+        const wasDeleted = existing?.recordingStatus === "DELETED";
+        const recordingOrigin = driveMeta?.createdTime
+          ? new Date(driveMeta.createdTime)
+          : rec.startTime
+            ? new Date(rec.startTime)
+            : session.actualStartTime || session.scheduledDate;
+        const expiresAt =
+          existing?.expiresAt ||
+          new Date(recordingOrigin.getTime() + retentionMs);
+        const isExpired = expiresAt.getTime() <= syncTime.getTime();
+        const driveFileDeleted =
+          Boolean(driveFileId) && !driveMeta && existing?.googleDriveFileId === driveFileId;
 
-      const startedAt = rec.startTime ? new Date(rec.startTime) : session.actualStartTime || session.scheduledDate;
-      const endedAt = rec.endTime ? new Date(rec.endTime) : session.actualEndTime || undefined;
-      const duration = driveMeta?.videoMediaMetadata?.durationMillis
-        ? Math.round(Number(driveMeta.videoMediaMetadata.durationMillis) / 60000)
-        : undefined;
+        let recordingStatus = "PROCESSING";
+        if (wasDeleted || driveFileDeleted) {
+          recordingStatus = "DELETED";
+        } else if (isExpired && wasAvailable) {
+          recordingStatus = "EXPIRED";
+        } else if (rec.state === "FILE_GENERATED" && driveFileId && driveMeta) {
+          recordingStatus = "AVAILABLE";
+        } else if (rec.state === "STARTED") {
+          recordingStatus = "RECORDING";
+        }
 
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30-day retention
+        const startedAt = rec.startTime
+          ? new Date(rec.startTime)
+          : session.actualStartTime || session.scheduledDate;
+        const endedAt = rec.endTime
+          ? new Date(rec.endTime)
+          : session.actualEndTime || undefined;
+        const duration = driveMeta?.videoMediaMetadata?.durationMillis
+          ? Math.round(
+              Number(driveMeta.videoMediaMetadata.durationMillis) / 60000
+            )
+          : undefined;
 
-      const upserted = await prisma.recording.upsert({
-        where: { classSessionId: session.id },
-        update: {
-          googleConferenceRecordId: conf.name,
-          googleRecordingId,
-          googleDriveFileId: driveFileId || undefined,
-          playbackUrl: driveMeta?.webViewLink || undefined,
-          recordingStatus,
-          storageProvider: "GOOGLE_DRIVE",
-          duration: duration || undefined,
-          startedAt,
-          endedAt,
-          expiresAt,
-          metadata: driveMeta ? (driveMeta as any) : undefined,
-          status: "ACTIVE",
-        },
-        create: {
-          classSessionId: session.id,
-          googleConferenceRecordId: conf.name,
-          googleRecordingId,
-          googleDriveFileId: driveFileId || undefined,
-          playbackUrl: driveMeta?.webViewLink || undefined,
-          recordingStatus,
-          storageProvider: "GOOGLE_DRIVE",
-          duration: duration || undefined,
-          startedAt,
-          endedAt,
-          expiresAt,
-          metadata: driveMeta ? (driveMeta as any) : undefined,
-          status: "ACTIVE",
-        },
-      });
+        const upserted = await prisma.recording.upsert({
+          where: { classSessionId: session.id },
+          update: {
+            name: driveMeta?.name,
+            googleConferenceRecordId: conf.name,
+            googleRecordingId,
+            googleDriveFileId: driveFileId || undefined,
+            playbackUrl: driveMeta?.webViewLink || undefined,
+            recordingStatus,
+            storageProvider: "GOOGLE_DRIVE",
+            duration,
+            startedAt,
+            endedAt,
+            expiresAt,
+            metadata: driveMeta ? (driveMeta as any) : undefined,
+            lastSyncAt: syncTime,
+            lastSyncError: null,
+            deletedAt:
+              recordingStatus === "DELETED"
+                ? existing?.deletedAt || syncTime
+                : undefined,
+            status:
+              recordingStatus === "DELETED" ? "INACTIVE" : existing?.status || "ACTIVE",
+          },
+          create: {
+            classSessionId: session.id,
+            name: driveMeta?.name,
+            googleConferenceRecordId: conf.name,
+            googleRecordingId,
+            googleDriveFileId: driveFileId || undefined,
+            playbackUrl: driveMeta?.webViewLink || undefined,
+            recordingStatus,
+            storageProvider: "GOOGLE_DRIVE",
+            duration,
+            startedAt,
+            endedAt,
+            expiresAt,
+            metadata: driveMeta ? (driveMeta as any) : undefined,
+            lastSyncAt: syncTime,
+            lastSyncError: null,
+            deletedAt: recordingStatus === "DELETED" ? syncTime : undefined,
+            status: recordingStatus === "DELETED" ? "INACTIVE" : "ACTIVE",
+          },
+        });
 
-      latestRecording = upserted;
-      syncedRecordingsCount++;
+        latestRecording = upserted;
+        syncedRecordingsCount++;
 
-      // If recording is now READY, trigger student notification
-      if (recordingStatus === "READY") {
-        setImmediate(() => {
-          triggerRecordingAvailableNotification(upserted.id);
+        if (recordingStatus === "AVAILABLE" && !wasAvailable) {
+          setImmediate(() => {
+            void triggerRecordingAvailableNotification(upserted.id);
+            void triggerFacultyRecordingAvailableNotification(upserted.id);
+          });
+        }
+
+        await createAuditLog({
+          userId,
+          instituteId: currentUser.instituteId,
+          action: "GOOGLE_MEET_RECORDING_SYNCED",
+          entityType: "Recording",
+          entityId: upserted.id,
+          newData: {
+            classSessionId: session.id,
+            googleRecordingId,
+            recordingStatus,
+          },
         });
       }
+    }
 
-      await createAuditLog({
-        userId: currentUser.id || currentUser.userId!,
-        instituteId: currentUser.instituteId,
-        action: "GOOGLE_MEET_RECORDING_SYNCED",
-        entityType: "Recording",
-        entityId: upserted.id,
-        newData: {
-          classSessionId: session.id,
-          googleRecordingId,
-          recordingStatus,
-        },
+    if (syncedRecordingsCount === 0 && session.recording) {
+      latestRecording = await prisma.recording.update({
+        where: { id: session.recording.id },
+        data: { lastSyncAt: syncTime, lastSyncError: null },
       });
     }
-  }
 
-  return {
-    syncedCount: syncedRecordingsCount,
-    recording: latestRecording,
-    message:
-      syncedRecordingsCount > 0
-        ? `Successfully synchronized ${syncedRecordingsCount} recording artifact(s) from Google Meet.`
-        : "No new recording artifacts found in Google Meet for this space yet.",
-  };
+    return {
+      syncedCount: syncedRecordingsCount,
+      recording: latestRecording,
+      message:
+        syncedRecordingsCount > 0
+          ? `Successfully synchronized ${syncedRecordingsCount} recording artifact(s) from Google Meet.`
+          : "No new recording artifacts found in Google Meet for this space yet.",
+    };
+  } catch (error: unknown) {
+    const message =
+      error instanceof AppError
+        ? error.message
+        : "Google recording synchronization failed.";
+    await prisma.recording.updateMany({
+      where: { classSessionId: session.id },
+      data: { lastSyncAt: syncTime, lastSyncError: message },
+    });
+
+    if (
+      error instanceof AppError &&
+      (error.statusCode === 401 || error.statusCode === 403)
+    ) {
+      await repo.updateConnectionStatus(
+        session.googleMeetSpace.organizerUserId,
+        "REAUTH_REQUIRED"
+      );
+    }
+
+    await createAuditLog({
+      userId,
+      instituteId: currentUser.instituteId,
+      action: "GOOGLE_MEET_RECORDING_SYNC_FAILED",
+      entityType: "ClassSession",
+      entityId: session.id,
+      newData: { error: message },
+    });
+    throw error;
+  }
 };
 
 /**
@@ -556,5 +703,72 @@ const triggerRecordingAvailableNotification = async (recordingId: string) => {
     }
   } catch (err) {
     logger.error({ err, recordingId }, "Failed to send recording notifications");
+  }
+};
+
+/**
+ * In-app faculty notification once a recording becomes AVAILABLE (idempotent by recordingId).
+ */
+const triggerFacultyRecordingAvailableNotification = async (recordingId: string) => {
+  try {
+    const recording = await prisma.recording.findUnique({
+      where: { id: recordingId },
+      include: {
+        classSession: {
+          include: {
+            faculty: { select: { userId: true } },
+            batch: { select: { instituteId: true, name: true, id: true } },
+          },
+        },
+      },
+    });
+
+    if (!recording) return;
+
+    const session = recording.classSession;
+    const facultyUserId = session.faculty?.userId;
+    if (!facultyUserId) return;
+
+    const existing = await prisma.notification.findFirst({
+      where: {
+        userId: facultyUserId,
+        instituteId: session.batch.instituteId,
+        metadata: {
+          path: ["recordingId"],
+          equals: recordingId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      return;
+    }
+
+    const sessionTitle = session.title || "Class session";
+    const batchName = session.batch.name || "batch";
+
+    await NotificationService.createNotification({
+      userId: facultyUserId,
+      instituteId: session.batch.instituteId,
+      branchId: session.branchId,
+      title: "Recording ready",
+      message: `The recording for "${sessionTitle}" (${batchName}) is now available.`,
+      type: "CLASS_SESSION",
+      module: "recordings",
+      link: "/faculty/recordings",
+      metadata: {
+        recordingId: recording.id,
+        classSessionId: session.id,
+        module: "recordings",
+        targetRole: "FACULTY",
+        event: "RECORDING_AVAILABLE",
+      },
+    });
+  } catch (err) {
+    logger.error(
+      { err, recordingId },
+      "Failed to send faculty recording-available notification"
+    );
   }
 };

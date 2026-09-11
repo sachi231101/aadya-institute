@@ -3,11 +3,13 @@ import {
   resolveOptionalMaster,
   type ResolvedMasterRecord,
 } from "./master.validator";
+import { findMasterRecordById } from "./master.repository";
 
 export interface ResolvedMasterFields {
   masterId: string;
   code: string | null;
   label: string;
+  data?: Record<string, unknown> | null;
 }
 
 /**
@@ -49,10 +51,12 @@ export const resolveOptionalMasterFields = async (options: {
     branchId: options.branchId,
   });
   if (!master) return null;
+  const full = await findMasterRecordById(master.id, options.instituteId);
   return {
     masterId: master.id,
     code: master.code,
     label: master.name,
+    data: (full?.data as Record<string, unknown> | null | undefined) ?? null,
   };
 };
 

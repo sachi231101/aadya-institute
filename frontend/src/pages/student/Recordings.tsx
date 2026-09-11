@@ -1,13 +1,13 @@
 ﻿import React, { useMemo, useState } from "react";
 import { Video, Play, Clock, Lock, Calendar, X, Loader2 } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useRecordings, useRecordingAccess } from "@/hooks/useRecordings";
 import { useStudentAcademicAccess } from "@/hooks/useStudentAcademicAccess";
-import { useSessionStore } from "@/store/session.store";
 import type { Recording } from "@/services/recordings.api";
+import { useSearchParams } from "react-router-dom";
 
 const formatDuration = (seconds?: number) => {
   if (!seconds) return "—";
@@ -18,9 +18,15 @@ const formatDuration = (seconds?: number) => {
 
 export const StudentRecordings: React.FC = () => {
   const academic = useStudentAcademicAccess();
-  const { data: recordingsRes, isLoading, isError } = useRecordings({ limit: 50 });
+  const [searchParams] = useSearchParams();
+  const classSessionId = searchParams.get("classSessionId") || undefined;
+  const { data: recordingsRes, isLoading, isError } = useRecordings({
+    limit: 50,
+    classSessionId,
+    recordingStatus: "AVAILABLE",
+  });
   const accessMutation = useRecordingAccess();
-  const { recordings: localStoreRecordings } = useSessionStore();
+  const [recordingsNow] = useState(() => Date.now());
 
   const [activeRecording, setActiveRecording] = useState<any>(null);
   const [playbackUrl, setPlaybackUrl] = useState<string | null>(null);
@@ -30,39 +36,15 @@ export const StudentRecordings: React.FC = () => {
   const enrichedRecordings = useMemo(() => {
     const rawApiRecordings: Recording[] = recordingsRes?.data ?? [];
 
-    // Map store recordings (uploaded by faculty in browser)
-    const localMapped = localStoreRecordings.map((rec) => ({
-      id: rec.id,
-      classSessionId: rec.id,
-      storageKey: rec.videoUrl,
-      duration: parseInt(rec.duration, 10) * 60 || 3600,
-      recordingStatus: "READY",
-      status: "READY",
-      expiresAt: rec.expiresAt,
-      playbackUrl: rec.videoUrl,
-      batchLabel: rec.batch || rec.batchName || "Batch",
-      courseLabel: rec.course || "Assigned Course",
-      moduleLabel: rec.module || rec.title || "Lecture Recording",
-      facultyName: rec.facultyName || "Faculty",
-      dateLabel: rec.date || "Today",
-      durationLabel: rec.duration || "60 mins",
-      expiresLabel: "30 days",
-      isLocal: true,
-      classSession: {
-        id: rec.id,
-        title: rec.module || rec.title || "Class Recording",
-        scheduledDate: rec.date || new Date().toISOString(),
-        batch: { name: rec.batchName || rec.batch, code: rec.batch },
-        batchModule: { courseModule: { name: rec.module || rec.course } },
-        faculty: { user: { name: rec.facultyName } },
-      },
-    }));
-
     const scoped = rawApiRecordings
       .filter((rec) => {
         const session = rec.classSession;
         if (!session) return false;
-        return academic.isAuthorizedForSession(session);
+        return (
+          rec.recordingStatus === "AVAILABLE" &&
+          new Date(rec.expiresAt).getTime() > recordingsNow &&
+          academic.isAuthorizedForSession(session)
+        );
       })
       .map((rec) => ({
         ...rec,
@@ -88,24 +70,17 @@ export const StudentRecordings: React.FC = () => {
               year: "numeric",
             })
           : "—",
-        status:
-          (rec as Recording & { recordingStatus?: string }).recordingStatus || rec.status,
-        isLocal: false,
+        status: rec.recordingStatus,
       }));
 
-    return [...localMapped, ...scoped];
-  }, [recordingsRes, localStoreRecordings, academic]);
+    return scoped;
+  }, [recordingsRes, academic, recordingsNow]);
 
   const handleWatchRecording = async (rec: any) => {
     setActiveRecording(rec);
     setPlaybackUrl(null);
     setPlayError(null);
     setShowWatchModal(true);
-
-    if (rec.isLocal || rec.playbackUrl) {
-      setPlaybackUrl(rec.playbackUrl || rec.storageKey || "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-      return;
-    }
 
     try {
       const res = await accessMutation.mutateAsync(rec.id);
@@ -115,8 +90,11 @@ export const StudentRecordings: React.FC = () => {
       } else {
         setPlayError("No playback URL available for this recording.");
       }
-    } catch {
-      setPlayError("Unable to load recording. Please try again later.");
+    } catch (err: unknown) {
+      setPlayError(
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+          "Unable to load recording. It may have expired."
+      );
     }
   };
 
@@ -137,7 +115,7 @@ export const StudentRecordings: React.FC = () => {
           Class Recordings
         </h1>
         <p className="text-xs text-slate-500 font-medium mt-1">
-          Watch recorded sessions for your enrolled course batches. Recordings are retained for 30 days.
+          Watch available sessions from your enrolled batches. Recordings are retained for 7 days.
         </p>
       </div>
 
@@ -181,7 +159,7 @@ export const StudentRecordings: React.FC = () => {
                       Batch: {rec.batchLabel}
                     </Badge>
                     <span className="px-2 py-0.5 rounded-md bg-emerald-500/90 text-white font-mono text-[10px] font-black shadow-xs">
-                      {rec.status === "READY" ? "Ready" : rec.status}
+                      Available
                     </span>
                   </div>
 
@@ -203,7 +181,7 @@ export const StudentRecordings: React.FC = () => {
 
                 <div className="p-5 space-y-2.5">
                   <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] font-bold">
-                    Status: {rec.status === "READY" ? "Available" : rec.status}
+                    Status: Available
                   </Badge>
 
                   <h3 className="font-extrabold text-slate-900 text-sm leading-snug tracking-tight group-hover:text-[#2563EB] transition-colors line-clamp-2">
