@@ -62,27 +62,38 @@ const computeAttendanceSummary = (records: AttendanceLike[]) => {
 const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any) => {
   const totalPaidFromPayments = payments
     .filter((p) => p.status === "SUCCESS")
-    .reduce((sum: number, p) => sum + (p.amount || 0), 0);
-  const totalPendingDue = pendingFees.reduce((sum: number, f) => sum + (f.dueAmount || 0), 0);
+    .reduce((sum: number, p) => sum + Number(p.amount || 0), 0);
+  const totalPendingDue = pendingFees.reduce(
+    (sum: number, f) => sum + Math.max(0, Number(f.dueAmount || 0)),
+    0
+  );
+  const byHead = new Map<string, number>();
+  for (const f of pendingFees) {
+    const key = f.feeHeadMasterId || f.feeHead || "Fee";
+    byHead.set(
+      key,
+      (byHead.get(key) || 0) + Number(f.amountPaid || 0) + Math.max(0, Number(f.dueAmount || 0))
+    );
+  }
   const calculatedTotalFee =
-    pendingFees[0]?.totalFee ||
+    Array.from(byHead.values()).reduce((s, v) => s + v, 0) ||
     (totalPaidFromPayments + totalPendingDue > 0 ? totalPaidFromPayments + totalPendingDue : 0);
   const finalAmountPaid =
     totalPaidFromPayments > 0 ? totalPaidFromPayments : Math.max(0, calculatedTotalFee - totalPendingDue);
   const finalDueAmount =
     totalPendingDue > 0 ? totalPendingDue : Math.max(0, calculatedTotalFee - finalAmountPaid);
-  const nextDue = pendingFees.find((f) => f.dueAmount > 0);
+  const nextDue = pendingFees.find((f) => Number(f.dueAmount) > 0);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const hasOverdue = pendingFees.some((f) => {
-    if (!(f.dueAmount > 0)) return false;
+    if (!(Number(f.dueAmount) > 0)) return false;
     if (f.status === "OVERDUE") return true;
     const due = new Date(f.dueDate);
     due.setHours(0, 0, 0, 0);
     return due < today;
   });
-  const hasPartial = pendingFees.some((f) => f.dueAmount > 0 && (f.amountPaid || 0) > 0);
+  const hasPartial = pendingFees.some((f) => Number(f.dueAmount) > 0 && Number(f.amountPaid || 0) > 0);
 
   let status: "Paid" | "Overdue" | "Partial" | "Pending" = "Pending";
   if (finalDueAmount === 0 && calculatedTotalFee > 0) status = "Paid";
@@ -100,6 +111,7 @@ const computeFeeSummary = (payments: any[], pendingFees: any[], admission?: any)
     feePlan: admission?.feePlan || "INSTALLMENT",
     status,
     nextDueDate: nextDue?.dueDate ?? undefined,
+    byFeeHead: Array.from(byHead.entries()).map(([feeHead, total]) => ({ feeHead, total })),
   };
 };
 

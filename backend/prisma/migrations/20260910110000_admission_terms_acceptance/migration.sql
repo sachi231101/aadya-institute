@@ -1,3 +1,3 @@
 ALTER TABLE "Admission"
-ADD COLUMN "termsAcceptedAt" TIMESTAMP(3),
-ADD COLUMN "termsAcceptance" JSONB;
+ADD COLUMN IF NOT EXISTS "termsAcceptedAt" TIMESTAMP(3),
+ADD COLUMN IF NOT EXISTS "termsAcceptance" JSONB;

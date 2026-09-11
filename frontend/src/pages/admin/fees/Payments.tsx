@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useState } from "react";
+﻿import React, { useEffect, useMemo, useState } from "react";
 import {
   CreditCard,
   Plus,
@@ -15,11 +15,12 @@ import {
   Loader2,
   FileText,
 } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import {
   usePayments,
   useFeeStats,
   useCreatePayment,
-  useDeletePayment,
+  useVoidPayment,
   usePendingFees,
 } from "../../../hooks/useFees";
 import { useCourses } from "../../../hooks/useCourses";
@@ -50,6 +51,7 @@ import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 
 export const Payments: React.FC = () => {
+  const [searchParams] = useSearchParams();
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -64,7 +66,7 @@ export const Payments: React.FC = () => {
 
   const { data: statsData } = useFeeStats();
   const createPaymentMutation = useCreatePayment();
-  const deletePaymentMutation = useDeletePayment();
+  const voidPaymentMutation = useVoidPayment();
   const { courses } = useCourses();
   const { data: studentsData } = useStudentList({ limit: 200 });
   const students = useMemo(() => {
@@ -86,6 +88,14 @@ export const Payments: React.FC = () => {
   const [lateFee, setLateFee] = useState<number>(0);
   const [bankAccountMasterId, setBankAccountMasterId] = useState("");
   const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get("studentId");
+    if (fromQuery) {
+      setStudentId(fromQuery);
+      setShowModal(true);
+    }
+  }, [searchParams]);
 
   const selectedStudent = students.find((s) => s.id === studentId);
   const { data: openPendingData } = usePendingFees({
@@ -160,13 +170,14 @@ export const Payments: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this payment and reverse linked installment dues?")) return;
+    if (!window.confirm("Void this payment and reverse linked charge dues? The receipt number is kept."))
+      return;
     try {
-      await deletePaymentMutation.mutateAsync(id);
+      await voidPaymentMutation.mutateAsync(id);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to delete payment";
+        "Failed to void payment";
       alert(message);
     }
   };
@@ -395,7 +406,7 @@ export const Payments: React.FC = () => {
                                   className="text-red-600 focus:text-red-600"
                                   onClick={() => handleDelete(p.id)}
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
+                                  <Trash2 className="mr-2 h-4 w-4" /> Void Receipt
                                 </DropdownMenuItem>
                               </>
                             )}

@@ -223,6 +223,8 @@ export const PendingFees: React.FC = () => {
                 <TableRow>
                   <TableHead className="font-semibold text-text-primary">Student & Phone</TableHead>
                   <TableHead className="font-semibold text-text-primary">Admission No</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Invoice</TableHead>
+                  <TableHead className="font-semibold text-text-primary">Fee Head</TableHead>
                   <TableHead className="font-semibold text-text-primary">Course</TableHead>
                   <TableHead className="font-semibold text-text-primary">Total Fee</TableHead>
                   <TableHead className="font-semibold text-text-primary">Paid / Due</TableHead>
@@ -235,7 +237,7 @@ export const PendingFees: React.FC = () => {
               <TableBody>
                 {pendingLoading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                    <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
                         <Loader2 className="w-5 h-5 animate-spin text-[#2563EB]" />
                         Loading pending fee records...
@@ -244,7 +246,7 @@ export const PendingFees: React.FC = () => {
                   </TableRow>
                 ) : pendingFees.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                    <TableCell colSpan={10} className="text-center py-8 text-text-secondary">
                       No pending fee dues match your criteria.
                     </TableCell>
                   </TableRow>
@@ -257,6 +259,12 @@ export const PendingFees: React.FC = () => {
                       </TableCell>
                       <TableCell className="font-mono text-sm font-medium text-slate-800">
                         {pf.admissionNo}
+                      </TableCell>
+                      <TableCell className="font-mono text-xs text-slate-700">
+                        {pf.invoiceNo || "—"}
+                      </TableCell>
+                      <TableCell className="text-sm font-medium text-slate-700">
+                        {pf.feeHead || "Fee"}
                       </TableCell>
                       <TableCell className="max-w-[180px] truncate text-slate-700 font-medium">
                         {pf.courseName}

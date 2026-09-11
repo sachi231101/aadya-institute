@@ -95,6 +95,7 @@ enum PaymentStatus {
   SUCCESS
   PENDING
   FAILED
+  VOID
 }
 
 enum OverdueStatus {
@@ -102,6 +103,22 @@ enum OverdueStatus {
   DUE_SOON
   PARTIAL
   PAID
+}
+
+enum StudentInvoiceStatus {
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum OtherInvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  CANCELLED
 }
 
 enum BatchStatus {
@@ -185,6 +202,8 @@ model Institute {
 
   payments                 Payment[]
   pendingFees              PendingFee[]
+  studentInvoices          StudentInvoice[]
+  otherInvoices            OtherInvoice[]
   createdAtLogs            ActivityLog[]
   notifications            Notification[]
   leads                    Lead[]
@@ -257,6 +276,8 @@ model Branch {
 
   payments              Payment[]
   pendingFees           PendingFee[]
+  studentInvoices       StudentInvoice[]
+  otherInvoices         OtherInvoice[]
   notifications         Notification[]
   leads                 Lead[]
   masterRecords         MasterRecord[]
@@ -446,6 +467,8 @@ model Student {
   notifications         Notification[]
   payments              Payment[]
   pendingFees           PendingFee[]
+  studentInvoices       StudentInvoice[]
+  otherInvoices         OtherInvoice[]
   convertedFromLeads    Lead[]
   examAttempts          ExamAttempt[]
   examAssignments       ExamStudent[]
@@ -505,7 +528,7 @@ model Course {
   mode        String?  @default("HYBRID")
   level       String?  @default("BEGINNER")
   totalHours  Int?     @default(100)
-  fee         Float?
+  fee         Decimal? @db.Decimal(12, 2)
   status      Status   @default(ACTIVE)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -651,6 +674,8 @@ model Admission {
   batchEnrollments   BatchEnrollment[]
   payments           Payment[]
   pendingFees        PendingFee[]
+  studentInvoices    StudentInvoice[]
+  otherInvoices      OtherInvoice[]
   convertedFromLeads Lead[]
 
   @@index([studentId])
@@ -1298,7 +1323,7 @@ model Payment {
   studentName         String
   admissionNo         String
   courseName          String
-  amount              Float
+  amount              Decimal       @db.Decimal(12, 2)
   date                DateTime      @default(now())
   method              String        @default("UPI")
   paymentModeMasterId String?
@@ -1309,23 +1334,27 @@ model Payment {
   status              PaymentStatus @default(SUCCESS)
   notes               String?
   recordedById        String?
+  receiptPdfUrl       String?
+  receiptGeneratedAt  DateTime?
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
 
-  institute         Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch            Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  student           Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  admission         Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
-  pendingFee        PendingFee?   @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
-  paymentModeMaster MasterRecord? @relation("PaymentModeMaster", fields: [paymentModeMasterId], references: [id], onDelete: SetNull)
-  bankAccountMaster MasterRecord? @relation("PaymentBankAccountMaster", fields: [bankAccountMasterId], references: [id], onDelete: SetNull)
-  feeHeadMaster     MasterRecord? @relation("PaymentFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
+  institute         Institute           @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch            Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student           Student?            @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission         Admission?          @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  pendingFee        PendingFee?         @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
+  paymentModeMaster MasterRecord?       @relation("PaymentModeMaster", fields: [paymentModeMasterId], references: [id], onDelete: SetNull)
+  bankAccountMaster MasterRecord?       @relation("PaymentBankAccountMaster", fields: [bankAccountMasterId], references: [id], onDelete: SetNull)
+  feeHeadMaster     MasterRecord?       @relation("PaymentFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
+  allocations       PaymentAllocation[]
 
   @@index([instituteId])
   @@index([branchId])
   @@index([studentId])
   @@index([admissionId])
   @@index([receiptNo])
+  @@index([status])
 }
 
 model PendingFee {
@@ -1338,30 +1367,169 @@ model PendingFee {
   admissionNo     String
   phone           String
   courseName      String
-  totalFee        Float
-  amountPaid      Float         @default(0)
-  dueAmount       Float
+  totalFee        Decimal       @db.Decimal(12, 2)
+  amountPaid      Decimal       @default(0) @db.Decimal(12, 2)
+  dueAmount       Decimal       @db.Decimal(12, 2)
   dueDate         DateTime
   installmentNo   Int           @default(1)
   overdueDays     Int           @default(0)
   status          OverdueStatus @default(DUE_SOON)
-  feeHeadMasterId String?
+  feeHeadMasterId String
   feeHead         String?
   notes           String?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  institute     Institute     @relation(fields: [instituteId], references: [id], onDelete: Cascade)
-  branch        Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  student       Student?      @relation(fields: [studentId], references: [id], onDelete: SetNull)
-  admission     Admission?    @relation(fields: [admissionId], references: [id], onDelete: SetNull)
-  feeHeadMaster MasterRecord? @relation("PendingFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
-  payments      Payment[]
+  institute     Institute           @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch        Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student       Student?            @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission     Admission?          @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  feeHeadMaster  MasterRecord        @relation("PendingFeeHeadMaster", fields: [feeHeadMasterId], references: [id], onDelete: Restrict)
+  payments       Payment[]
+  allocations    PaymentAllocation[]
+  studentInvoice StudentInvoice?
+  otherInvoiceId String?
+  otherInvoice   OtherInvoice?       @relation(fields: [otherInvoiceId], references: [id], onDelete: SetNull)
 
   @@index([instituteId])
   @@index([branchId])
   @@index([studentId])
   @@index([admissionId])
+  @@index([feeHeadMasterId])
+  @@index([otherInvoiceId])
+  @@index([instituteId, dueDate])
+  @@index([status, dueAmount])
+}
+
+model PaymentAllocation {
+  id               String   @id @default(cuid())
+  paymentId        String
+  pendingFeeId     String
+  studentInvoiceId String?
+  amount           Decimal  @db.Decimal(12, 2)
+  createdAt        DateTime @default(now())
+
+  payment        Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  pendingFee     PendingFee      @relation(fields: [pendingFeeId], references: [id], onDelete: Restrict)
+  studentInvoice StudentInvoice? @relation(fields: [studentInvoiceId], references: [id], onDelete: SetNull)
+
+  @@unique([paymentId, pendingFeeId])
+  @@index([pendingFeeId])
+  @@index([paymentId])
+  @@index([studentInvoiceId])
+}
+
+model StudentInvoice {
+  id              String               @id @default(cuid())
+  invoiceNo       String               @unique
+  instituteId     String
+  branchId        String?
+  studentId       String?
+  admissionId     String?
+  pendingFeeId    String?              @unique
+  otherInvoiceId  String?
+  studentName     String
+  admissionNo     String
+  courseName      String
+  feeHead         String?
+  totalAmount     Decimal              @db.Decimal(12, 2)
+  amountPaid      Decimal              @default(0) @db.Decimal(12, 2)
+  balance         Decimal              @db.Decimal(12, 2)
+  status          StudentInvoiceStatus @default(ISSUED)
+  invoiceDate     DateTime             @default(now())
+  dueDate         DateTime
+  lineItems       Json?
+  notes           String?
+  cancelledAt     DateTime?
+  cancelReason    String?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  institute      Institute           @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch         Branch?             @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student        Student?            @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission      Admission?          @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  pendingFee     PendingFee?         @relation(fields: [pendingFeeId], references: [id], onDelete: SetNull)
+  otherInvoice   OtherInvoice?       @relation(fields: [otherInvoiceId], references: [id], onDelete: SetNull)
+  allocations    PaymentAllocation[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([admissionId])
+  @@index([otherInvoiceId])
+  @@index([status])
+  @@index([instituteId, dueDate])
+  @@index([invoiceNo])
+}
+
+model OtherInvoice {
+  id           String             @id @default(cuid())
+  invoiceNo    String             @unique
+  instituteId  String
+  branchId     String?
+  studentId    String?
+  admissionId  String?
+  studentName  String
+  admissionNo  String
+  courseName   String?
+  reference    String?
+  invoiceDate  DateTime           @default(now())
+  dueDate      DateTime?
+  takenById    String?
+  takenByName  String?
+  subtotal     Decimal            @db.Decimal(12, 2)
+  discount     Decimal            @default(0) @db.Decimal(12, 2)
+  tax          Decimal            @default(0) @db.Decimal(12, 2)
+  adjustments  Decimal            @default(0) @db.Decimal(12, 2)
+  grandTotal   Decimal            @db.Decimal(12, 2)
+  amountPaid   Decimal            @default(0) @db.Decimal(12, 2)
+  balance      Decimal            @db.Decimal(12, 2)
+  status       OtherInvoiceStatus @default(ISSUED)
+  terms        String?
+  notes        String?
+  cancelledAt  DateTime?
+  cancelReason String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  institute       Institute          @relation(fields: [instituteId], references: [id], onDelete: Cascade)
+  branch          Branch?            @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  student         Student?           @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  admission       Admission?         @relation(fields: [admissionId], references: [id], onDelete: SetNull)
+  items           OtherInvoiceItem[]
+  pendingFees     PendingFee[]
+  studentInvoices StudentInvoice[]
+
+  @@index([instituteId])
+  @@index([branchId])
+  @@index([studentId])
+  @@index([status])
+  @@index([invoiceNo])
+}
+
+model OtherInvoiceItem {
+  id              String   @id @default(cuid())
+  otherInvoiceId  String
+  name            String
+  description     String?
+  quantity        Decimal  @default(1) @db.Decimal(12, 2)
+  unitPrice       Decimal  @db.Decimal(12, 2)
+  discount        Decimal  @default(0) @db.Decimal(12, 2)
+  discountType    String   @default("FLAT")
+  tax             Decimal  @default(0) @db.Decimal(12, 2)
+  taxPercent      Decimal  @default(0) @db.Decimal(12, 2)
+  lineTotal       Decimal  @db.Decimal(12, 2)
+  feeHeadMasterId String?
+  feeHead         String?
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+
+  otherInvoice  OtherInvoice  @relation(fields: [otherInvoiceId], references: [id], onDelete: Cascade)
+  feeHeadMaster MasterRecord? @relation("OtherInvoiceItemFeeHead", fields: [feeHeadMasterId], references: [id], onDelete: SetNull)
+
+  @@index([otherInvoiceId])
+  @@index([feeHeadMasterId])
 }
 
 model UserSettings {
@@ -1715,8 +1883,9 @@ model MasterRecord {
   batchSchedulesAsTimeslot  BatchSchedule[] @relation("BatchScheduleTimeslotMaster")
   paymentsAsMode            Payment[]       @relation("PaymentModeMaster")
   paymentsAsBankAccount     Payment[]       @relation("PaymentBankAccountMaster")
-  paymentsAsFeeHead         Payment[]       @relation("PaymentFeeHeadMaster")
-  pendingFeesAsFeeHead      PendingFee[]    @relation("PendingFeeHeadMaster")
+  paymentsAsFeeHead         Payment[]            @relation("PaymentFeeHeadMaster")
+  pendingFeesAsFeeHead      PendingFee[]         @relation("PendingFeeHeadMaster")
+  otherInvoiceItemsAsFeeHead OtherInvoiceItem[]  @relation("OtherInvoiceItemFeeHead")
   admissionsAsStatus        Admission[]     @relation("AdmissionStatusMaster")
   admissionsAsConcession    Admission[]     @relation("AdmissionConcessionMaster")
   assignmentsAsType         Assignment[]    @relation("AssignmentTypeMaster")
@@ -2443,8 +2612,9 @@ model FeePlanTemplate {
   courseId     String?
   name         String
   code         String?
-  totalAmount  Float
+  totalAmount  Decimal  @db.Decimal(12, 2)
   planType     FeePlan  @default(FULL_PAYMENT)
+  /// Plan lines: [{ feeHeadMasterId, feeHeadCode?, amount, installments?: [{ installmentNo, amount, dueDays }] }]
   installments Json?
   description  String?
   status       Status   @default(ACTIVE)

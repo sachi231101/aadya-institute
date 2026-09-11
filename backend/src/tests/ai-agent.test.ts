@@ -235,6 +235,24 @@ describe("AI Institute Data Agent Module Tests", () => {
     });
 
     // Create Pending Fee for Student A
+    const tuitionHead = await prisma.masterRecord.upsert({
+      where: {
+        instituteId_entityType_name: {
+          instituteId,
+          entityType: "feeheads",
+          name: "Tuition Fee",
+        },
+      },
+      update: {},
+      create: {
+        instituteId,
+        entityType: "feeheads",
+        code: "TUITION",
+        name: "Tuition Fee",
+        status: "ACTIVE",
+        sortOrder: 1,
+      },
+    });
     await prisma.pendingFee.create({
       data: {
         instituteId,
@@ -249,6 +267,8 @@ describe("AI Institute Data Agent Module Tests", () => {
         dueAmount: 30000,
         dueDate: new Date(),
         status: "OVERDUE",
+        feeHeadMasterId: tuitionHead.id,
+        feeHead: "Tuition Fee",
       },
     });
 

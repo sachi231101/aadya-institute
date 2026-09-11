@@ -9,9 +9,16 @@ import type {
   UpdateFeePlanDTO,
   QueryReceiptsDTO,
   StudentFeeStatementSummary,
+  CreateChargesDTO,
+  CreateChargeDTO,
+  QueryFeeStudentsDTO,
+  QueryStudentInvoicesDTO,
+  CreateOtherInvoiceDTO,
 } from "./fee.types";
+import { generateAndStoreReceiptPdf } from "./fee-receipt-pdf.service";
+import path from "path";
+import fs from "fs";
 import { prisma } from "../../config/database";
-import { SequenceService } from "../masters/sequence.service";
 import {
   assertBranchRecordAccess,
   getBranchScopeFilter,
@@ -25,6 +32,7 @@ import {
 import { triggerNotification } from "../whatsapp/whatsapp.service";
 import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.constants";
 import { derivePendingStatus, startOfDay } from "./fee-balance.util";
+import { roundMoney, serializePayment, toMoneyNumber } from "./fee-money.util";
 
 async function resolvePaymentMasters(
   instituteId: string,
@@ -94,15 +102,39 @@ const summarizeStudentFees = (
     dueDate: Date | string;
     totalFee: number;
     status: string;
-  }>
+    feeHeadMasterId?: string;
+    feeHead?: string | null;
+  }>,
+  concessionAmount = 0
 ): StudentFeeStatementSummary => {
   const amountPaid = payments
     .filter((p) => p.status === "SUCCESS")
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   const dueAmount = pendingFees.reduce((sum, f) => sum + Math.max(0, f.dueAmount || 0), 0);
-  const totalFee =
-    pendingFees[0]?.totalFee ||
-    (amountPaid + dueAmount > 0 ? amountPaid + dueAmount : 0);
+
+  const byHeadMap = new Map<
+    string,
+    { feeHeadMasterId: string; feeHead: string; totalFee: number; amountPaid: number; dueAmount: number }
+  >();
+  for (const f of pendingFees) {
+    const key = f.feeHeadMasterId || f.feeHead || "unknown";
+    const existing = byHeadMap.get(key) || {
+      feeHeadMasterId: f.feeHeadMasterId || "",
+      feeHead: f.feeHead || "Fee",
+      totalFee: 0,
+      amountPaid: 0,
+      dueAmount: 0,
+    };
+    // totalFee on rows is line total duplicated per installment — take max per head group of installment dues+paid
+    existing.amountPaid += f.amountPaid || 0;
+    existing.dueAmount += Math.max(0, f.dueAmount || 0);
+    existing.totalFee = Math.max(existing.totalFee, (f.amountPaid || 0) + Math.max(0, f.dueAmount || 0));
+    byHeadMap.set(key, existing);
+  }
+  const byFeeHead = Array.from(byHeadMap.values());
+  const netPayable = byFeeHead.reduce((s, h) => s + h.totalFee, 0);
+  const totalFee = roundMoney(netPayable + concessionAmount);
+
   const today = startOfDay();
   const hasOverdue = pendingFees.some(
     (f) =>
@@ -111,7 +143,7 @@ const summarizeStudentFees = (
   );
   const hasPartial = pendingFees.some((f) => f.dueAmount > 0 && f.amountPaid > 0);
   let status: StudentFeeStatementSummary["status"] = "Pending";
-  if (dueAmount <= 0 && totalFee > 0) status = "Paid";
+  if (dueAmount <= 0 && netPayable > 0) status = "Paid";
   else if (hasOverdue) status = "Overdue";
   else if (hasPartial || (amountPaid > 0 && dueAmount > 0)) status = "Partial";
   else if (dueAmount > 0) status = "Pending";
@@ -119,10 +151,13 @@ const summarizeStudentFees = (
   const nextDue = pendingFees.find((f) => f.dueAmount > 0);
   return {
     totalFee,
+    concessionAmount,
+    netPayable,
     amountPaid,
     dueAmount,
     status,
     nextDueDate: nextDue?.dueDate ? new Date(nextDue.dueDate).toISOString() : undefined,
+    byFeeHead,
   };
 };
 
@@ -183,15 +218,46 @@ export const FeeService = {
     const admission = student.admissions[0];
     const studentName = student.user?.name || dto.studentName || "Student";
     const admissionNo = admission?.admissionNo || dto.admissionNo || student.studentCode;
-    const courseName =
-      admission?.course?.name || dto.courseName || "Enrolled Course";
+    const courseName = admission?.course?.name || dto.courseName || "Enrolled Course";
     const admissionId = dto.admissionId || admission?.id || null;
     const branchId = student.branchId;
-
-    const totalAmount = dto.amount + (dto.lateFee || 0);
+    const totalAmount = roundMoney(dto.amount + (dto.lateFee || 0));
     const masters = await resolvePaymentMasters(currentUser.instituteId, dto, branchId);
 
-    // Targeted installment collect
+    const studentCtx = {
+      id: student.id,
+      name: studentName,
+      admissionNo,
+      courseName,
+      branchId,
+      admissionId,
+    };
+
+    // Explicit multi-charge allocations
+    if (dto.allocations && dto.allocations.length > 0) {
+      const payment = await FeeRepository.recordAllocatedPayment({
+        instituteId: currentUser.instituteId,
+        student: studentCtx,
+        amount: totalAmount,
+        allocations: dto.allocations,
+        masters,
+        dto: { ...dto, amount: totalAmount },
+        recordedById,
+      });
+      await maybeSendPaymentConfirmation({
+        instituteId: currentUser.instituteId,
+        studentId: student.id,
+        studentName,
+        courseName,
+        paymentId: payment.id,
+        amount: toMoneyNumber(payment.amount),
+        receiptNo: payment.receiptNo,
+        enabled: dto.sendWhatsAppReceipt,
+      });
+      return serializePayment(payment as unknown as Record<string, unknown>);
+    }
+
+    // Targeted single charge
     if (dto.pendingFeeId) {
       const pendingItem = await FeeRepository.findPendingFeeById(
         dto.pendingFeeId,
@@ -202,128 +268,89 @@ export const FeeService = {
       if (pendingItem.studentId !== student.id) {
         throw new AppError("Pending fee does not belong to this student", 400);
       }
-      if (totalAmount > pendingItem.dueAmount) {
+      const due = toMoneyNumber(pendingItem.dueAmount);
+      if (totalAmount > due + 0.009) {
         throw new AppError(
-          `Amount paid (₹${totalAmount}) exceeds due amount (₹${pendingItem.dueAmount})`,
+          `Amount paid (₹${totalAmount}) exceeds due amount (₹${due})`,
           400
         );
       }
 
-      const receiptNo = await SequenceService.getNextNumber(
-        currentUser.instituteId,
-        "RECEIPT"
-      );
-      const result = await FeeRepository.recordPendingFeePayment(
-        pendingItem,
-        receiptNo,
-        {
-          amountPaidNow: totalAmount,
-          method: masters.method,
-          paymentModeMasterId: masters.paymentModeMasterId,
-          feeHeadMasterId: masters.feeHeadMasterId ?? pendingItem.feeHeadMasterId ?? undefined,
+      const payment = await FeeRepository.recordAllocatedPayment({
+        instituteId: currentUser.instituteId,
+        student: studentCtx,
+        amount: totalAmount,
+        allocations: [{ pendingFeeId: pendingItem.id, amount: totalAmount }],
+        masters: {
+          ...masters,
+          feeHeadMasterId: masters.feeHeadMasterId ?? pendingItem.feeHeadMasterId,
           feeHead: masters.feeHead ?? pendingItem.feeHead ?? undefined,
-          transactionRef: dto.transactionRef,
-          notes: dto.notes,
         },
-        recordedById
-      );
+        dto: { ...dto, amount: totalAmount },
+        recordedById,
+      });
 
       await maybeSendPaymentConfirmation({
         instituteId: currentUser.instituteId,
         studentId: student.id,
         studentName,
         courseName: pendingItem.courseName,
-        paymentId: result.payment.id,
-        amount: result.payment.amount,
-        receiptNo: result.payment.receiptNo,
+        paymentId: payment.id,
+        amount: toMoneyNumber(payment.amount),
+        receiptNo: payment.receiptNo,
         enabled: dto.sendWhatsAppReceipt,
       });
-
-      return result.payment;
+      return serializePayment(payment as unknown as Record<string, unknown>);
     }
 
-    // FIFO across open installments — one Payment per installment touched
+    // Same-head FIFO across open dues
     const openPending = await FeeRepository.findOpenPendingFeesForStudent(
       currentUser.instituteId,
       student.id,
-      { admissionId, courseName }
+      { admissionId: admissionId || undefined, feeHeadMasterId: masters.feeHeadMasterId }
     );
 
-    const allocationPreview = openPending.length
-      ? openPending
-      : [];
-    // Estimate how many receipt numbers we need
-    let neededReceipts = 1;
-    if (allocationPreview.length > 0) {
-      let rem = totalAmount;
-      neededReceipts = 0;
-      for (const row of allocationPreview) {
-        if (rem <= 0) break;
-        if (row.dueAmount <= 0) continue;
-        const applied = Math.min(rem, row.dueAmount);
-        if (applied > 0) {
-          neededReceipts += 1;
-          rem -= applied;
-        }
-      }
-      if (neededReceipts === 0) neededReceipts = 1;
-      if (rem > 0) {
-        throw new AppError(
-          `Payment amount exceeds open installment dues by ₹${rem.toFixed(2)}`,
-          400
-        );
-      }
-    }
-
-    const receiptNumbers: string[] = [];
-    for (let i = 0; i < neededReceipts; i++) {
-      receiptNumbers.push(
-        await SequenceService.getNextNumber(currentUser.instituteId, "RECEIPT")
-      );
-    }
-
-    const payments = await FeeRepository.recordFifoPayments({
+    const payment = await FeeRepository.recordFifoPayment({
       instituteId: currentUser.instituteId,
-      student: {
-        id: student.id,
-        name: studentName,
-        admissionNo,
-        courseName,
-        branchId,
-        admissionId,
-      },
+      student: studentCtx,
       openPending,
       amount: totalAmount,
+      preferredHeadId: masters.feeHeadMasterId,
       masters,
       dto: { ...dto, amount: totalAmount },
-      receiptNumbers,
       recordedById,
     });
 
-    const primary = payments[0];
-    if (primary && dto.sendWhatsAppReceipt !== false) {
-      const totalPaid = payments.reduce((s, p) => s + p.amount, 0);
+    if (dto.sendWhatsAppReceipt !== false) {
       await maybeSendPaymentConfirmation({
         instituteId: currentUser.instituteId,
         studentId: student.id,
         studentName,
         courseName,
-        paymentId: primary.id,
-        amount: totalPaid,
-        receiptNo: primary.receiptNo,
+        paymentId: payment.id,
+        amount: toMoneyNumber(payment.amount),
+        receiptNo: payment.receiptNo,
         enabled: dto.sendWhatsAppReceipt,
       });
     }
 
-    return payments.length === 1 ? payments[0] : payments;
+    return serializePayment(payment as unknown as Record<string, unknown>);
+  },
+
+  async voidPayment(currentUser: AuthUser, id: string) {
+    const existing = await FeeRepository.findPaymentById(id, currentUser.instituteId);
+    if (!existing) throw new AppError("Payment record not found", 404);
+    assertBranchRecordAccess(currentUser, existing.branchId);
+    const voided = await FeeRepository.voidPayment(id, currentUser.instituteId);
+    return serializePayment((voided || existing) as unknown as Record<string, unknown>);
   },
 
   async deletePayment(currentUser: AuthUser, id: string) {
     const existing = await FeeRepository.findPaymentById(id, currentUser.instituteId);
     if (!existing) throw new AppError("Payment record not found", 404);
     assertBranchRecordAccess(currentUser, existing.branchId);
-    await FeeRepository.deletePaymentWithReverse(id, currentUser.instituteId);
-    return { id };
+    const result = await FeeRepository.deletePaymentWithReverse(id, currentUser.instituteId);
+    return { id, status: result?.status === "VOID" ? "VOID" : "DELETED" };
   },
 
   async getPendingFees(currentUser: AuthUser, query: QueryPendingFeesDTO) {
@@ -348,17 +375,14 @@ export const FeeService = {
     if (!pendingItem) throw new AppError("Pending fee record not found", 404);
     assertBranchRecordAccess(currentUser, pendingItem.branchId);
 
-    if (dto.amountPaidNow > pendingItem.dueAmount) {
+    const due = toMoneyNumber(pendingItem.dueAmount);
+    if (dto.amountPaidNow > due + 0.009) {
       throw new AppError(
-        `Amount paid (₹${dto.amountPaidNow}) exceeds due amount (₹${pendingItem.dueAmount})`,
+        `Amount paid (₹${dto.amountPaidNow}) exceeds due amount (₹${due})`,
         400
       );
     }
 
-    const receiptNo = await SequenceService.getNextNumber(
-      currentUser.instituteId,
-      "RECEIPT"
-    );
     const masters = await resolvePaymentMasters(
       currentUser.instituteId,
       dto,
@@ -367,30 +391,82 @@ export const FeeService = {
 
     const result = await FeeRepository.recordPendingFeePayment(
       pendingItem,
-      receiptNo,
+      "",
       {
         ...dto,
         method: masters.method,
         paymentModeMasterId: masters.paymentModeMasterId,
-        feeHeadMasterId: masters.feeHeadMasterId ?? pendingItem.feeHeadMasterId ?? undefined,
+        feeHeadMasterId: masters.feeHeadMasterId ?? pendingItem.feeHeadMasterId,
         feeHead: masters.feeHead ?? pendingItem.feeHead ?? undefined,
       },
       recordedById
     );
 
     if (pendingItem.studentId && result.payment) {
+      const payment = result.payment as unknown as {
+        id: string;
+        amount: unknown;
+        receiptNo: string;
+      };
       await maybeSendPaymentConfirmation({
         instituteId: currentUser.instituteId,
         studentId: pendingItem.studentId,
         studentName: pendingItem.studentName,
         courseName: pendingItem.courseName,
-        paymentId: result.payment.id,
-        amount: result.payment.amount,
-        receiptNo: result.payment.receiptNo,
+        paymentId: payment.id,
+        amount: toMoneyNumber(payment.amount),
+        receiptNo: payment.receiptNo,
       });
     }
 
     return result;
+  },
+
+  async createCharges(currentUser: AuthUser, dto: CreateChargesDTO) {
+    const student = await prisma.student.findFirst({
+      where: { id: dto.studentId, instituteId: currentUser.instituteId },
+      include: {
+        user: { select: { name: true, phone: true } },
+        admissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: { course: { select: { name: true } } },
+        },
+      },
+    });
+    if (!student) throw new AppError("Student not found", 404);
+    assertBranchRecordAccess(currentUser, student.branchId);
+
+    const admission = student.admissions[0];
+    return FeeRepository.createCharges(
+      currentUser.instituteId,
+      {
+        id: student.id,
+        name: student.user?.name || "Student",
+        phone: student.user?.phone || "",
+        admissionNo: admission?.admissionNo || student.studentCode,
+        courseName: admission?.course?.name || "Course",
+        branchId: student.branchId,
+        admissionId: dto.admissionId || admission?.id || null,
+      },
+      dto
+    );
+  },
+
+  async createCharge(currentUser: AuthUser, dto: CreateChargeDTO) {
+    return FeeService.createCharges(currentUser, {
+      studentId: dto.studentId,
+      admissionId: dto.admissionId,
+      charges: [
+        {
+          feeHeadMasterId: dto.feeHeadMasterId,
+          amount: dto.amount,
+          dueDate: dto.dueDate,
+          installmentNo: dto.installmentNo,
+          notes: dto.notes,
+        },
+      ],
+    });
   },
 
   async sendFeeReminder(currentUser: AuthUser, pendingFeeId: string) {
@@ -403,6 +479,9 @@ export const FeeService = {
     if (!pendingItem.studentId) {
       throw new AppError("Pending fee has no linked student", 400);
     }
+    if (toMoneyNumber(pendingItem.dueAmount) <= 0) {
+      throw new AppError("This charge is already paid", 400);
+    }
 
     const due = new Date(pendingItem.dueDate);
     const startOfToday = startOfDay();
@@ -411,6 +490,7 @@ export const FeeService = {
       ? NotificationEvent.FEE_OVERDUE_REMINDER
       : NotificationEvent.FEE_DUE_REMINDER;
     const dateKey = startOfToday.toISOString().slice(0, 10);
+    const feeLabel = pendingItem.feeHead || "Fee";
 
     const notification = await triggerNotification({
       instituteId: currentUser.instituteId,
@@ -430,11 +510,12 @@ export const FeeService = {
             ),
       templateParams: {
         student_name: pendingItem.studentName,
-        amount: String(pendingItem.dueAmount),
+        amount: String(toMoneyNumber(pendingItem.dueAmount)),
         due_date: due.toLocaleDateString("en-IN"),
         course_name: pendingItem.courseName ?? "Course",
+        fee_head: feeLabel,
       },
-      metadata: { pendingFeeId: pendingItem.id, manual: true },
+      metadata: { pendingFeeId: pendingItem.id, manual: true, feeHead: feeLabel },
     });
 
     return {
@@ -447,6 +528,7 @@ export const FeeService = {
       skipReason: notification?.skipReason ?? null,
       studentName: pendingItem.studentName,
       phone: pendingItem.phone,
+      feeHead: feeLabel,
     };
   },
 
@@ -467,15 +549,40 @@ export const FeeService = {
   },
 
   async getStudentFeeStatement(currentUser: AuthUser, studentId: string) {
+    const isStudent = currentUser.roles?.includes("STUDENT");
+    // Students may only view their own statement
+    if (isStudent) {
+      const selfId =
+        currentUser.studentId ||
+        (
+          await prisma.student.findFirst({
+            where: { userId: currentUser.userId || currentUser.id, instituteId: currentUser.instituteId },
+            select: { id: true },
+          })
+        )?.id;
+      if (!selfId || selfId !== studentId) {
+        throw new AppError("Forbidden — students can only view their own fees", 403);
+      }
+    }
+
     const student = await prisma.student.findFirst({
       where: { id: studentId, instituteId: currentUser.instituteId },
-      include: { user: { select: { name: true, phone: true } } },
+      include: {
+        user: { select: { name: true, phone: true } },
+        admissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: { concessionHeadMaster: { select: { id: true, name: true, data: true } } },
+        },
+      },
     });
     if (!student) throw new AppError("Student not found", 404);
-    assertBranchRecordAccess(currentUser, student.branchId);
+    if (!isStudent) {
+      assertBranchRecordAccess(currentUser, student.branchId);
+    }
 
     const scope = scopeParams(currentUser);
-    const [payments, pendingFees] = await Promise.all([
+    const [payments, pendingFees, invoices] = await Promise.all([
       FeeRepository.findPaymentsByStudent(currentUser.instituteId, studentId, {
         branchId: scope.branchId,
         branchIds: scope.branchIds,
@@ -484,7 +591,48 @@ export const FeeService = {
         branchId: scope.branchId,
         branchIds: scope.branchIds,
       }),
+      FeeRepository.findStudentInvoices(currentUser.instituteId, {
+        studentId,
+        branchId: scope.branchId,
+        branchIds: scope.branchIds,
+        page: 1,
+        limit: 100,
+      }),
     ]);
+
+    // Best-effort concession from master percentage metadata (display only)
+    let concessionAmount = 0;
+    const concession = student.admissions[0]?.concessionHeadMaster;
+    const pendingRows = pendingFees as Array<{
+      amountPaid?: number;
+      dueAmount?: number;
+      feeHeadMasterId?: string;
+      feeHead?: string | null;
+    }>;
+    if (concession?.data && typeof concession.data === "object") {
+      const pct = Number((concession.data as { percentage?: string }).percentage);
+      const net = pendingRows.reduce(
+        (s, f) => s + (f.amountPaid || 0) + Math.max(0, f.dueAmount || 0),
+        0
+      );
+      if (Number.isFinite(pct) && pct > 0 && pct < 100) {
+        concessionAmount = roundMoney(net / (1 - pct / 100) - net);
+      }
+    }
+
+    const paymentRows = payments as unknown as Array<{ status: string; amount: number }>;
+    const summary = summarizeStudentFees(paymentRows, pendingRows as never, concessionAmount);
+
+    const grouped = summary.byFeeHead.map((h) => ({
+      ...h,
+      charges: pendingRows.filter(
+        (p) =>
+          (p.feeHeadMasterId || "") === h.feeHeadMasterId ||
+          (p.feeHead || "Fee") === h.feeHead
+      ),
+    }));
+
+    const receipts = paymentRows.filter((p) => p.status === "SUCCESS");
 
     return {
       student: {
@@ -496,7 +644,202 @@ export const FeeService = {
       },
       payments,
       pendingFees,
-      summary: summarizeStudentFees(payments, pendingFees),
+      invoices: invoices.data,
+      receipts,
+      byFeeHead: grouped,
+      summary,
+    };
+  },
+
+  async listFeeStudents(currentUser: AuthUser, query: QueryFeeStudentsDTO) {
+    const scope = scopeParams(currentUser, query.branchId);
+    return FeeRepository.findFeeStudents(scope.instituteId, {
+      ...query,
+      branchId: scope.branchId,
+      branchIds: scope.branchIds,
+    });
+  },
+
+  async listStudentInvoices(currentUser: AuthUser, query: QueryStudentInvoicesDTO) {
+    const scope = scopeParams(currentUser, query.branchId);
+    return FeeRepository.findStudentInvoices(scope.instituteId, {
+      ...query,
+      branchId: scope.branchId,
+      branchIds: scope.branchIds,
+    });
+  },
+
+  async getStudentInvoice(currentUser: AuthUser, id: string) {
+    const invoice = await FeeRepository.findStudentInvoiceById(id, currentUser.instituteId);
+    if (!invoice) throw new AppError("Invoice not found", 404);
+    assertBranchRecordAccess(currentUser, invoice.branchId);
+    return invoice;
+  },
+
+  async cancelStudentInvoice(currentUser: AuthUser, id: string, reason?: string) {
+    const existing = await FeeRepository.findStudentInvoiceById(id, currentUser.instituteId);
+    if (!existing) throw new AppError("Invoice not found", 404);
+    assertBranchRecordAccess(currentUser, existing.branchId);
+    return FeeRepository.cancelStudentInvoice(id, currentUser.instituteId, reason);
+  },
+
+  async listOtherInvoices(currentUser: AuthUser, query: QueryStudentInvoicesDTO) {
+    const scope = scopeParams(currentUser, query.branchId);
+    return FeeRepository.findOtherInvoices(scope.instituteId, {
+      ...query,
+      branchId: scope.branchId,
+      branchIds: scope.branchIds,
+    });
+  },
+
+  async getOtherInvoice(currentUser: AuthUser, id: string) {
+    const invoice = await FeeRepository.findOtherInvoiceById(id, currentUser.instituteId);
+    if (!invoice) throw new AppError("Other invoice not found", 404);
+    assertBranchRecordAccess(currentUser, invoice.branchId);
+    return invoice;
+  },
+
+  async createOtherInvoice(
+    currentUser: AuthUser,
+    dto: CreateOtherInvoiceDTO,
+    takenBy?: { id?: string; name?: string }
+  ) {
+    const student = await prisma.student.findFirst({
+      where: { id: dto.studentId, instituteId: currentUser.instituteId },
+      include: {
+        user: { select: { name: true, phone: true } },
+        admissions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          include: { course: { select: { name: true } } },
+        },
+      },
+    });
+    if (!student) throw new AppError("Student not found", 404);
+    assertBranchRecordAccess(currentUser, student.branchId);
+
+    const admission = student.admissions[0];
+    const invoice = await FeeRepository.createOtherInvoice(
+      currentUser.instituteId,
+      {
+        id: student.id,
+        name: student.user?.name || "Student",
+        phone: student.user?.phone || "",
+        admissionNo: admission?.admissionNo || student.studentCode,
+        courseName: admission?.course?.name || "Course",
+        branchId: student.branchId,
+        admissionId: admission?.id || null,
+      },
+      {
+        ...dto,
+        takenById: takenBy?.id,
+        takenByName: dto.takenByName || takenBy?.name,
+      }
+    );
+
+    if (!invoice) throw new AppError("Failed to create other invoice", 500);
+
+    // Optional same-screen payment against newly created charges
+    if (dto.payment && dto.payment.amount > 0) {
+      const pending = (invoice.pendingFees || []) as Array<{
+        id: string;
+        dueAmount: number;
+      }>;
+      const open = pending.filter((p) => (p.dueAmount || 0) > 0);
+      if (open.length === 0) {
+        throw new AppError("Invoice created but no open charges to allocate payment", 400);
+      }
+
+      let remaining = roundMoney(dto.payment.amount);
+      const allocations: Array<{ pendingFeeId: string; amount: number }> = [];
+      for (const row of open) {
+        if (remaining <= 0) break;
+        const apply = Math.min(remaining, roundMoney(row.dueAmount));
+        if (apply <= 0) continue;
+        allocations.push({ pendingFeeId: row.id, amount: apply });
+        remaining = roundMoney(remaining - apply);
+      }
+      if (allocations.length === 0) {
+        throw new AppError("Payment amount could not be allocated to invoice charges", 400);
+      }
+
+      const paidAmount = roundMoney(allocations.reduce((s, a) => s + a.amount, 0));
+      const noteParts = [
+        dto.payment.narration,
+        dto.payment.transactionStatus
+          ? `Txn status: ${dto.payment.transactionStatus}`
+          : null,
+        dto.payment.tds ? `TDS: ${dto.payment.tds}` : null,
+        `Other invoice ${invoice.invoiceNo}`,
+      ].filter(Boolean);
+
+      await FeeService.createPayment(
+        currentUser,
+        {
+          studentId: student.id,
+          amount: paidAmount,
+          date: dto.payment.transactionDate || dto.invoiceDate,
+          paymentModeMasterId: dto.payment.paymentModeMasterId,
+          method: dto.payment.method,
+          bankAccountMasterId: dto.payment.bankAccountMasterId,
+          transactionRef: dto.payment.transactionRef,
+          notes: noteParts.join(" | ") || undefined,
+          allocations,
+          sendWhatsAppReceipt: true,
+        },
+        takenBy?.id
+      );
+
+      return FeeRepository.findOtherInvoiceById(invoice.id, currentUser.instituteId);
+    }
+
+    return invoice;
+  },
+
+  async getReceipt(currentUser: AuthUser, id: string) {
+    const receipt = await FeeRepository.findReceiptById(id, currentUser.instituteId);
+    if (!receipt) throw new AppError("Receipt not found", 404);
+    assertBranchRecordAccess(currentUser, (receipt as { branchId?: string | null }).branchId);
+    return receipt;
+  },
+
+  async ensureReceiptPdf(currentUser: AuthUser, id: string) {
+    const receipt = await FeeRepository.findReceiptById(id, currentUser.instituteId);
+    if (!receipt) throw new AppError("Receipt not found", 404);
+    assertBranchRecordAccess(currentUser, (receipt as { branchId?: string | null }).branchId);
+    if ((receipt as { status?: string }).status !== "SUCCESS") {
+      throw new AppError("PDF is only available for successful payments", 400);
+    }
+    const generated = await generateAndStoreReceiptPdf(id);
+    if (!generated) throw new AppError("Failed to generate receipt PDF", 500);
+    return {
+      ...receipt,
+      receiptPdfUrl: generated.receiptPdfUrl,
+      receiptGeneratedAt: generated.receiptGeneratedAt,
+    };
+  },
+
+  async getReceiptPdfPath(currentUser: AuthUser, id: string): Promise<{
+    absolutePath: string;
+    filename: string;
+  }> {
+    const receipt = (await FeeService.ensureReceiptPdf(currentUser, id)) as {
+      receiptPdfUrl?: string;
+      receiptNo?: string;
+    };
+    const url = receipt.receiptPdfUrl || "";
+    // Local storage keys look like /receipts/RCP_....pdf or full APP_URL + path
+    const keyMatch = url.match(/\/receipts\/[^/?#]+/);
+    const key = keyMatch ? keyMatch[0] : null;
+    if (!key) throw new AppError("Receipt PDF not available", 404);
+    const localRoot = process.env.LOCAL_UPLOADS_DIR || "./uploads";
+    const absolutePath = path.resolve(localRoot, key.replace(/^\//, ""));
+    if (!fs.existsSync(absolutePath)) {
+      throw new AppError("Receipt PDF file missing on disk", 404);
+    }
+    return {
+      absolutePath,
+      filename: `${(receipt.receiptNo || id).replace(/[^a-zA-Z0-9-_]/g, "_")}.pdf`,
     };
   },
 
@@ -530,6 +873,7 @@ export const FeeService = {
       ...dto,
       planType: dto.planType as never,
       status: dto.status as never,
+      installments: dto.installments as never,
     });
   },
 
@@ -541,6 +885,7 @@ export const FeeService = {
       branchIds: scope.branchIds,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,
+      feeHeadMasterId: query.feeHeadMasterId,
       page: query.page,
       limit: query.limit,
     });

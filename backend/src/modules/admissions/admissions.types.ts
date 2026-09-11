@@ -89,6 +89,12 @@ export interface AdmissionInstallmentDTO {
   amount: number;
 }
 
+export interface AdmissionFeeLineDTO {
+  feeHeadMasterId: string;
+  amount: number;
+  installments?: AdmissionInstallmentDTO[];
+}
+
 export interface AdmissionTermsAcceptanceDTO {
   masterId: string;
   name: string;
@@ -113,6 +119,9 @@ export interface CreateAdmissionDTO {
   transactionRef?: string;
   admissionDate?: string;
   installments?: AdmissionInstallmentDTO[];
+  /** Multi-head fee lines (tuition/book/exam). When omitted, totalFee becomes Tuition. */
+  feeLines?: AdmissionFeeLineDTO[];
+  feePlanTemplateId?: string;
   sourceMasterId?: string;
   statusMasterId?: string;
   paymentModeMasterId?: string;

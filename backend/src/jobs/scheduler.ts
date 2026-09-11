@@ -11,7 +11,15 @@ import { aiFollowupJob } from "./ai-followup.job";
 import { targetSyncJob } from "../modules/targets/jobs/target-sync.job";
 import { logger } from "../config/logger";
 
+let cronJobsStarted = false;
+
 export const startCronJobs = (): void => {
+  if (cronJobsStarted) {
+    logger.warn("[cron] Cron jobs already started — skipping duplicate registration");
+    return;
+  }
+  cronJobsStarted = true;
+
   cron.schedule("*/5 * * * *", async () => {
     logger.info("[cron] Running class-reminder job");
     await classReminderJob().catch((e) =>

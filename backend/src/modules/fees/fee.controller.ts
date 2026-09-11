@@ -13,6 +13,15 @@ import {
   updateFeePlanSchema,
   queryReceiptsSchema,
   studentFeeStatementParamsSchema,
+  createChargesSchema,
+  createChargeSchema,
+  paymentIdParamsSchema,
+  queryFeeStudentsSchema,
+  queryStudentInvoicesSchema,
+  cancelInvoiceSchema,
+  invoiceIdParamsSchema,
+  createOtherInvoiceSchema,
+  queryOtherInvoicesSchema,
 } from "./fee.validation";
 import { toAuthUser } from "../../utils/auth-user.util";
 import { AppError } from "../../middlewares/error.middleware";
@@ -68,10 +77,57 @@ export const deletePayment = async (req: AuthenticatedRequest, res: Response): P
       sendError(res, "Institute ID required", 400);
       return;
     }
-    await FeeService.deletePayment(toAuthUser(req), req.params.id as string);
-    sendSuccess(res, null, 200, "Payment deleted successfully");
+    const result = await FeeService.deletePayment(toAuthUser(req), req.params.id as string);
+    sendSuccess(
+      res,
+      result,
+      200,
+      result.status === "VOID" ? "Payment voided successfully" : "Payment deleted successfully"
+    );
   } catch (err: unknown) {
     handleFeeError(err, res, "Failed to delete payment");
+  }
+};
+
+export const voidPayment = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = paymentIdParamsSchema.parse(req.params);
+    const payment = await FeeService.voidPayment(toAuthUser(req), id);
+    sendSuccess(res, payment, 200, "Payment voided successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to void payment");
+  }
+};
+
+export const createCharges = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = createChargesSchema.parse(req.body);
+    const charges = await FeeService.createCharges(toAuthUser(req), validated);
+    sendSuccess(res, charges, 201, "Fee charges created successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to create fee charges");
+  }
+};
+
+export const createCharge = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = createChargeSchema.parse(req.body);
+    const charges = await FeeService.createCharge(toAuthUser(req), validated);
+    sendSuccess(res, charges, 201, "Fee charge created successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to create fee charge");
   }
 };
 
@@ -234,5 +290,160 @@ export const getReceipts = async (req: AuthenticatedRequest, res: Response): Pro
     sendSuccess(res, result, 200, "Fee receipts retrieved successfully");
   } catch (err: unknown) {
     handleFeeError(err, res, "Failed to fetch receipts");
+  }
+};
+
+export const listFeeStudents = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = queryFeeStudentsSchema.parse(req.query);
+    const result = await FeeService.listFeeStudents(toAuthUser(req), validated);
+    sendSuccess(res, result, 200, "Fee students retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch fee students");
+  }
+};
+
+export const listStudentInvoices = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = queryStudentInvoicesSchema.parse(req.query);
+    const result = await FeeService.listStudentInvoices(toAuthUser(req), validated);
+    sendSuccess(res, result, 200, "Student invoices retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch invoices");
+  }
+};
+
+export const getStudentInvoice = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = invoiceIdParamsSchema.parse(req.params);
+    const result = await FeeService.getStudentInvoice(toAuthUser(req), id);
+    sendSuccess(res, result, 200, "Invoice retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch invoice");
+  }
+};
+
+export const cancelStudentInvoice = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = invoiceIdParamsSchema.parse(req.params);
+    const body = cancelInvoiceSchema.parse(req.body || {});
+    const result = await FeeService.cancelStudentInvoice(toAuthUser(req), id, body.reason);
+    sendSuccess(res, result, 200, "Invoice cancelled successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to cancel invoice");
+  }
+};
+
+export const listOtherInvoices = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = queryOtherInvoicesSchema.parse(req.query);
+    const result = await FeeService.listOtherInvoices(toAuthUser(req), validated);
+    sendSuccess(res, result, 200, "Other invoices retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch other invoices");
+  }
+};
+
+export const getOtherInvoice = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = invoiceIdParamsSchema.parse(req.params);
+    const result = await FeeService.getOtherInvoice(toAuthUser(req), id);
+    sendSuccess(res, result, 200, "Other invoice retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch other invoice");
+  }
+};
+
+export const createOtherInvoice = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const validated = createOtherInvoiceSchema.parse(req.body);
+    const authUser = toAuthUser(req);
+    const result = await FeeService.createOtherInvoice(authUser, validated, {
+      id: authUser.userId || authUser.id,
+      name: authUser.name,
+    });
+    sendSuccess(res, result, 201, "Other invoice created successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to create other invoice");
+  }
+};
+
+export const getReceipt = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = paymentIdParamsSchema.parse(req.params);
+    const result = await FeeService.getReceipt(toAuthUser(req), id);
+    sendSuccess(res, result, 200, "Receipt retrieved successfully");
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to fetch receipt");
+  }
+};
+
+export const downloadReceiptPdf = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.instituteId) {
+      sendError(res, "Institute ID required", 400);
+      return;
+    }
+    const { id } = paymentIdParamsSchema.parse(req.params);
+    const { absolutePath, filename } = await FeeService.getReceiptPdfPath(
+      toAuthUser(req),
+      id
+    );
+    res.download(absolutePath, filename);
+  } catch (err: unknown) {
+    handleFeeError(err, res, "Failed to download receipt PDF");
   }
 };

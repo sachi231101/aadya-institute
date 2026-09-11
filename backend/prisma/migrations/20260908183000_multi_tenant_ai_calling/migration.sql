@@ -79,18 +79,21 @@ CREATE INDEX "AiCallingUsageDaily_date_idx" ON "AiCallingUsageDaily"("date");
 ALTER TABLE "AiCallingUsageDaily" ADD CONSTRAINT "AiCallingUsageDaily_instituteId_fkey" FOREIGN KEY ("instituteId") REFERENCES "Institute"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- ─── Lead: importJobId + normalizedPhone ──────────────────────────────────────
-ALTER TABLE "Lead" ADD COLUMN "importJobId" TEXT;
-ALTER TABLE "Lead" ADD COLUMN "normalizedPhone" TEXT;
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "importJobId" TEXT;
+ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "normalizedPhone" TEXT;
 
 UPDATE "Lead"
 SET "normalizedPhone" = RIGHT(regexp_replace(COALESCE("phoneNumber", ''), '[^0-9]', '', 'g'), 10)
 WHERE "normalizedPhone" IS NULL
   AND regexp_replace(COALESCE("phoneNumber", ''), '[^0-9]', '', 'g') <> '';
 
-CREATE INDEX "Lead_instituteId_normalizedPhone_idx" ON "Lead"("instituteId", "normalizedPhone");
-CREATE INDEX "Lead_importJobId_idx" ON "Lead"("importJobId");
+CREATE INDEX IF NOT EXISTS "Lead_instituteId_normalizedPhone_idx" ON "Lead"("instituteId", "normalizedPhone");
+CREATE INDEX IF NOT EXISTS "Lead_importJobId_idx" ON "Lead"("importJobId");
 
-ALTER TABLE "Lead" ADD CONSTRAINT "Lead_importJobId_fkey" FOREIGN KEY ("importJobId") REFERENCES "DataImportJob"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  ALTER TABLE "Lead" ADD CONSTRAINT "Lead_importJobId_fkey" FOREIGN KEY ("importJobId") REFERENCES "DataImportJob"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ─── CallLog: add columns (nullable instituteId first for backfill) ───────────
 ALTER TABLE "CallLog" ADD COLUMN "instituteId" TEXT;

@@ -30,6 +30,7 @@ export interface WhatsAppAutomation {
   description: string;
   timingLabel: string;
   recipientLabel: string;
+  timingMode?: "immediate" | "hours_before" | "days_before_due" | "days_before" | "fixed";
   sampleVariables: Record<string, string>;
   enabled: boolean;
   templateId: string | null;
@@ -42,6 +43,11 @@ export interface WhatsAppAutomation {
   } | null;
   configuration: Record<string, unknown> & {
     variableMap?: Record<string, string>;
+    delayMinutes?: number;
+    offsetMinutes?: number;
+    daysBeforeDue?: number;
+    daysBefore?: number;
+    includeFaculty?: boolean;
   };
   ruleId: string | null;
 }

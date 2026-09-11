@@ -72,7 +72,14 @@ import { PendingFees } from "../pages/admin/fees/PendingFees";
 import { FeeReports } from "../pages/admin/fees/FeeReports";
 import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
+import { StudentFeeProfile } from "../pages/admin/fees/StudentFeeProfile";
 import { Receipts } from "../pages/admin/fees/Receipts";
+import { ReceiptDetail } from "../pages/admin/fees/ReceiptDetail";
+import { Invoices } from "../pages/admin/fees/Invoices";
+import { InvoiceDetail } from "../pages/admin/fees/InvoiceDetail";
+import { OtherInvoices } from "../pages/admin/fees/OtherInvoices";
+import { OtherInvoiceForm } from "../pages/admin/fees/OtherInvoiceForm";
+import { OtherInvoiceDetail } from "../pages/admin/fees/OtherInvoiceDetail";
 
 import { StudentReports } from "../pages/admin/reports/StudentReports";
 import { FacultyReports } from "../pages/admin/reports/FacultyReports";
@@ -251,10 +258,18 @@ export const adminChildRoutes = (
     {/* Fee Management */}
     <Route path="fees">
       <Route path="plans" element={<FeePlans />} />
-      <Route path="student-fees" element={<StudentFees />} />
+      <Route path="students" element={<StudentFees />} />
+      <Route path="students/:studentId" element={<StudentFeeProfile />} />
+      <Route path="student-fees" element={<Navigate to="/admin/fees/students" replace />} />
       <Route path="payments" element={<Payments />} />
       <Route path="pending" element={<PendingFees />} />
+      <Route path="invoices" element={<Invoices />} />
+      <Route path="invoices/:id" element={<InvoiceDetail />} />
+      <Route path="other-invoices" element={<OtherInvoices />} />
+      <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
+      <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
       <Route path="receipts" element={<Receipts />} />
+      <Route path="receipts/:id" element={<ReceiptDetail />} />
       <Route path="reports" element={<FeeReports />} />
     </Route>
 

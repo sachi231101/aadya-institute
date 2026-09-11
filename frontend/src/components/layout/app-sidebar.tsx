@@ -166,15 +166,15 @@ const data = {
     },
     {
       title: "Fee Management",
-      url: A.FEES.PAYMENTS,
+      url: A.FEES.STUDENTS,
       icon: CreditCard,
       items: [
-        { title: "Fee Plans", url: A.FEES.PLANS },
-        { title: "Student Fees", url: A.FEES.STUDENT_FEES },
-        { title: "Payments", url: A.FEES.PAYMENTS },
+        { title: "All Students", url: A.FEES.STUDENTS },
         { title: "Pending Fees", url: A.FEES.PENDING },
+        { title: "Payments", url: A.FEES.PAYMENTS },
+        { title: "Invoices", url: A.FEES.INVOICES },
+        { title: "Other Invoices", url: A.FEES.OTHER_INVOICES },
         { title: "Receipts", url: A.FEES.RECEIPTS },
-        { title: L["fees.reports"] ?? "Fee Collection Reports", url: A.FEES.REPORTS },
       ],
     },
     {

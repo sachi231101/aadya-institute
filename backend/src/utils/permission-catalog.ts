@@ -177,15 +177,16 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
   {
     key: "fee_management",
     label: "Fee Management",
-    description: "Fee plans, collections, receipts, and reports",
+    description: "Fee collections, invoices, receipts, and student fee workspace",
     category: "ERP Modules",
     items: [
-      { key: "fees.plans", label: "Fee Plans", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.student_fees", label: "Student Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
-      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
+      { key: "fees.students", label: "All Students", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
+      { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
+      { key: "fees.invoices", label: "Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
+      { key: "fees.other_invoices", label: "Other Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.create"] },
       { key: "fees.receipts", label: "Receipts", readPermissions: ["fee.read"], writePermissions: [] },
-      { key: "fees.reports", label: "Fee Collection Reports", readPermissions: ["fee.read", "report.read"], writePermissions: [] },
+      { key: "fees.plans", label: "Fee Plans", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
     ],
   },
   {

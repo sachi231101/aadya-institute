@@ -3,11 +3,14 @@ import assert from "node:assert";
 import {
   applyAmountToPendingRow,
   applyFifoToPendingRows,
+  applyFifoSameHeadOnly,
   derivePendingStatus,
   reverseAmountOnPendingRow,
   getIstTodayDateString,
 } from "../modules/fees/fee-balance.util";
-import { createPaymentSchema, queryPendingFeesSchema } from "../modules/fees/fee.validation";
+import { roundMoney, toMoneyNumber } from "../modules/fees/fee-money.util";
+import { createPaymentSchema, queryPendingFeesSchema, createChargesSchema } from "../modules/fees/fee.validation";
+import { Prisma } from "@prisma/client";
 
 describe("Fee balance helpers", () => {
   const dueSoon = new Date();
@@ -49,8 +52,8 @@ describe("Fee balance helpers", () => {
 
   test("FIFO create payment across two installments", () => {
     const rows = [
-      { id: "a", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1 },
-      { id: "b", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 2 },
+      { id: "a", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "t" },
+      { id: "b", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 2, feeHeadMasterId: "t" },
     ];
     const { allocations, remainingUnapplied } = applyFifoToPendingRows(rows, 7000);
     assert.strictEqual(remainingUnapplied, 0);
@@ -62,7 +65,42 @@ describe("Fee balance helpers", () => {
     assert.strictEqual(allocations[1].status, "PARTIAL");
   });
 
-  test("delete payment reverse restores dues", () => {
+  test("same-head FIFO does not apply tuition payment to book dues when preferred", () => {
+    const rows = [
+      { id: "t1", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "tuition" },
+      { id: "b1", dueAmount: 2500, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "book" },
+    ];
+    const { allocations, remainingUnapplied } = applyFifoSameHeadOnly(rows, 3000, "tuition");
+    assert.strictEqual(allocations.length, 1);
+    assert.strictEqual(allocations[0].row.id, "t1");
+    assert.strictEqual(allocations[0].applied, 3000);
+    assert.strictEqual(remainingUnapplied, 0);
+  });
+
+  test("same-head FIFO leaves unapplied when preferred head has insufficient due", () => {
+    const rows = [
+      { id: "t1", dueAmount: 1000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "tuition" },
+      { id: "b1", dueAmount: 5000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "book" },
+    ];
+    const { allocations, remainingUnapplied } = applyFifoSameHeadOnly(rows, 3000, "tuition");
+    assert.strictEqual(allocations[0].applied, 1000);
+    assert.strictEqual(remainingUnapplied, 2000);
+  });
+
+  test("multi-allocation one receipt amounts sum correctly", () => {
+    const rows = [
+      { id: "b", dueAmount: 2500, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "book" },
+      { id: "e", dueAmount: 1000, amountPaid: 0, dueDate: dueSoon, installmentNo: 1, feeHeadMasterId: "exam" },
+    ];
+    const book = applyAmountToPendingRow(rows[0], 2500);
+    const exam = applyAmountToPendingRow(rows[1], 1000);
+    const receiptTotal = roundMoney(book.applied + exam.applied);
+    assert.strictEqual(receiptTotal, 3500);
+    assert.strictEqual(book.status, "PAID");
+    assert.strictEqual(exam.status, "PAID");
+  });
+
+  test("delete/void payment reverse restores dues", () => {
     const reversed = reverseAmountOnPendingRow(
       { dueAmount: 0, amountPaid: 5000, dueDate: dueSoon, installmentNo: 1 },
       5000
@@ -100,6 +138,11 @@ describe("Fee balance helpers", () => {
     const s = getIstTodayDateString();
     assert.match(s, /^\d{4}-\d{2}-\d{2}$/);
   });
+
+  test("toMoneyNumber handles Prisma.Decimal", () => {
+    assert.strictEqual(toMoneyNumber(new Prisma.Decimal("1234.50")), 1234.5);
+    assert.strictEqual(toMoneyNumber(null), 0);
+  });
 });
 
 describe("Fee validation", () => {
@@ -114,8 +157,20 @@ describe("Fee validation", () => {
       studentId: "stu-1",
       amount: 1000,
       method: "UPI",
+      allocations: [
+        { pendingFeeId: "pf-1", amount: 600 },
+        { pendingFeeId: "pf-2", amount: 400 },
+      ],
     });
-    assert.strictEqual(parsed.studentId, "stu-1");
+    assert.strictEqual(parsed.allocations?.length, 2);
+  });
+
+  test("createChargesSchema requires fee heads", () => {
+    const parsed = createChargesSchema.parse({
+      studentId: "stu-1",
+      charges: [{ feeHeadMasterId: "head-book", amount: 2500 }],
+    });
+    assert.strictEqual(parsed.charges[0].amount, 2500);
   });
 
   test("queryPendingFeesSchema accepts UNPAID and DUE_SOON", () => {
@@ -125,9 +180,11 @@ describe("Fee validation", () => {
 });
 
 describe("Fee reports target revenue formula", () => {
-  test("targetRevenue equals collected + open dues", () => {
-    const totalCollected = 400000;
+  test("targetRevenue equals collected + open dues and excludes void conceptually", () => {
+    const successCollected = 400000;
+    const voidAmount = 5000; // must not be in successCollected
     const openDues = 150000;
+    const totalCollected = successCollected; // VOID excluded upstream
     const targetRevenue = totalCollected + openDues;
     const targetAchievedPercent = Math.min(
       100,
@@ -135,6 +192,6 @@ describe("Fee reports target revenue formula", () => {
     );
     assert.strictEqual(targetRevenue, 550000);
     assert.strictEqual(targetAchievedPercent, 73);
-    assert.notStrictEqual(targetRevenue, 1500000);
+    assert.ok(totalCollected !== successCollected + voidAmount);
   });
 });

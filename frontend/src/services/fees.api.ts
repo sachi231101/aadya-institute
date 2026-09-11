@@ -6,8 +6,14 @@ import type {
   FeeReportsData,
   CreatePaymentPayload,
   CollectPendingFeePayload,
+  CreateChargePayload,
+  CreateChargesPayload,
   FeeReminderResponse,
   StudentFeeStatement,
+  FeeStudentRow,
+  StudentInvoice,
+  OtherInvoice,
+  CreateOtherInvoicePayload,
 } from "../types/fee.types";
 
 export interface ApiResponse<T> {
@@ -39,10 +45,26 @@ export const feesApi = {
     return response.data;
   },
 
+  listFeeStudents: async (params?: {
+    search?: string;
+    courseId?: string;
+    batchId?: string;
+    status?: string;
+    branchId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedApiResponse<FeeStudentRow>> => {
+    const response = await api.get<PaginatedApiResponse<FeeStudentRow>>("/fees/students", {
+      params,
+    });
+    return response.data;
+  },
+
   getPayments: async (params?: {
     search?: string;
     method?: string;
     paymentModeMasterId?: string;
+    feeHeadMasterId?: string;
     status?: string;
     page?: number;
     limit?: number;
@@ -58,8 +80,15 @@ export const feesApi = {
     return response.data;
   },
 
-  deletePayment: async (id: string): Promise<ApiResponse<void>> => {
-    const response = await api.delete<ApiResponse<void>>(`/fees/payments/${id}`);
+  voidPayment: async (id: string): Promise<ApiResponse<Payment>> => {
+    const response = await api.post<ApiResponse<Payment>>(`/fees/payments/${id}/void`);
+    return response.data;
+  },
+
+  deletePayment: async (id: string): Promise<ApiResponse<{ id: string; status: string }>> => {
+    const response = await api.delete<ApiResponse<{ id: string; status: string }>>(
+      `/fees/payments/${id}`
+    );
     return response.data;
   },
 
@@ -67,6 +96,7 @@ export const feesApi = {
     search?: string;
     status?: string;
     studentId?: string;
+    feeHeadMasterId?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedApiResponse<PendingFee>> => {
@@ -85,6 +115,16 @@ export const feesApi = {
     return response.data;
   },
 
+  createCharge: async (payload: CreateChargePayload): Promise<ApiResponse<PendingFee[]>> => {
+    const response = await api.post<ApiResponse<PendingFee[]>>("/fees/charge", payload);
+    return response.data;
+  },
+
+  createCharges: async (payload: CreateChargesPayload): Promise<ApiResponse<PendingFee[]>> => {
+    const response = await api.post<ApiResponse<PendingFee[]>>("/fees/charges", payload);
+    return response.data;
+  },
+
   sendReminder: async (id: string): Promise<ApiResponse<FeeReminderResponse>> => {
     const response = await api.post<ApiResponse<FeeReminderResponse>>(
       `/fees/pending/${id}/reminder`
@@ -98,6 +138,61 @@ export const feesApi = {
     const response = await api.get<ApiResponse<StudentFeeStatement>>(
       `/fees/students/${studentId}`
     );
+    return response.data;
+  },
+
+  listInvoices: async (params?: {
+    search?: string;
+    status?: string;
+    studentId?: string;
+    branchId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedApiResponse<StudentInvoice>> => {
+    const response = await api.get<PaginatedApiResponse<StudentInvoice>>("/fees/invoices", {
+      params,
+    });
+    return response.data;
+  },
+
+  getInvoice: async (id: string): Promise<ApiResponse<StudentInvoice>> => {
+    const response = await api.get<ApiResponse<StudentInvoice>>(`/fees/invoices/${id}`);
+    return response.data;
+  },
+
+  cancelInvoice: async (
+    id: string,
+    reason?: string
+  ): Promise<ApiResponse<StudentInvoice>> => {
+    const response = await api.post<ApiResponse<StudentInvoice>>(`/fees/invoices/${id}/cancel`, {
+      reason,
+    });
+    return response.data;
+  },
+
+  listOtherInvoices: async (params?: {
+    search?: string;
+    status?: string;
+    studentId?: string;
+    branchId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedApiResponse<OtherInvoice>> => {
+    const response = await api.get<PaginatedApiResponse<OtherInvoice>>("/fees/other-invoices", {
+      params,
+    });
+    return response.data;
+  },
+
+  getOtherInvoice: async (id: string): Promise<ApiResponse<OtherInvoice>> => {
+    const response = await api.get<ApiResponse<OtherInvoice>>(`/fees/other-invoices/${id}`);
+    return response.data;
+  },
+
+  createOtherInvoice: async (
+    payload: CreateOtherInvoicePayload
+  ): Promise<ApiResponse<OtherInvoice>> => {
+    const response = await api.post<ApiResponse<OtherInvoice>>("/fees/other-invoices", payload);
     return response.data;
   },
 
@@ -120,7 +215,7 @@ export const feesApi = {
     courseId?: string;
     totalAmount: number;
     planType?: string;
-    installments?: Array<{ installmentNo: number; amount: number; dueDays: number }>;
+    installments?: unknown;
     description?: string;
   }) => {
     const response = await api.post("/fees/plans", payload);
@@ -139,8 +234,21 @@ export const feesApi = {
     branchId?: string;
     dateFrom?: string;
     dateTo?: string;
+    feeHeadMasterId?: string;
   }) => {
     const response = await api.get("/fees/receipts", { params });
+    return response.data;
+  },
+
+  getReceipt: async (id: string): Promise<ApiResponse<Payment>> => {
+    const response = await api.get<ApiResponse<Payment>>(`/fees/receipts/${id}`);
+    return response.data;
+  },
+
+  downloadReceiptPdf: async (id: string): Promise<Blob> => {
+    const response = await api.get(`/fees/receipts/${id}/pdf`, {
+      responseType: "blob",
+    });
     return response.data;
   },
 };

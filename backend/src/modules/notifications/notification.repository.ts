@@ -37,6 +37,15 @@ export const STUDENT_ALLOWED_MODULES = [
   "settings",
 ] as const;
 
+/**
+ * In-app bell / Notifications page must not show WhatsApp delivery logs.
+ * WhatsApp rows always set `event`; legacy in-app rows often still have
+ * channel default "WHATSAPP" but no event.
+ */
+const IN_APP_NOTIFICATION_FILTER = {
+  OR: [{ channel: { not: "WHATSAPP" } }, { event: null }],
+} as const;
+
 export const inferNotificationModule = (
   item: {
     type?: string | null;
@@ -154,23 +163,19 @@ export class NotificationRepository {
 
     const whereCondition: any = {
       instituteId,
-      OR: [
-        { userId: userId },
-        { userId: null },
+      AND: [
+        IN_APP_NOTIFICATION_FILTER,
+        {
+          OR: [{ userId: userId }, { userId: null }],
+        },
       ],
     };
 
     // Branch isolation for Center Manager
     if (isCenterManager && userBranchId) {
-      whereCondition.AND = [
-        ...(whereCondition.AND || []),
-        {
-          OR: [
-            { branchId: userBranchId },
-            { branchId: null },
-          ],
-        },
-      ];
+      whereCondition.AND.push({
+        OR: [{ branchId: userBranchId }, { branchId: null }],
+      });
     }
 
     if (filters.type) {
@@ -182,15 +187,12 @@ export class NotificationRepository {
     }
 
     if (filters.search) {
-      whereCondition.AND = [
-        ...(whereCondition.AND || []),
-        {
-          OR: [
-            { title: { contains: filters.search, mode: "insensitive" } },
-            { message: { contains: filters.search, mode: "insensitive" } },
-          ],
-        },
-      ];
+      whereCondition.AND.push({
+        OR: [
+          { title: { contains: filters.search, mode: "insensitive" } },
+          { message: { contains: filters.search, mode: "insensitive" } },
+        ],
+      });
     }
 
     // Fetch notifications from database
@@ -332,16 +334,19 @@ export class NotificationRepository {
 
     const whereCondition: any = {
       instituteId,
-      OR: [{ userId: userId }, { userId: null }],
       isRead: false,
+      AND: [
+        IN_APP_NOTIFICATION_FILTER,
+        {
+          OR: [{ userId: userId }, { userId: null }],
+        },
+      ],
     };
 
     if (isCenterManager && userBranchId) {
-      whereCondition.AND = [
-        {
-          OR: [{ branchId: userBranchId }, { branchId: null }],
-        },
-      ];
+      whereCondition.AND.push({
+        OR: [{ branchId: userBranchId }, { branchId: null }],
+      });
     }
 
     const unreadNotifications = await prisma.notification.findMany({
@@ -446,16 +451,19 @@ export class NotificationRepository {
 
     const whereCondition: any = {
       instituteId,
-      OR: [{ userId: userId }, { userId: null }],
       isRead: false,
+      AND: [
+        IN_APP_NOTIFICATION_FILTER,
+        {
+          OR: [{ userId: userId }, { userId: null }],
+        },
+      ],
     };
 
     if (isCenterManager && userBranchId) {
-      whereCondition.AND = [
-        {
-          OR: [{ branchId: userBranchId }, { branchId: null }],
-        },
-      ];
+      whereCondition.AND.push({
+        OR: [{ branchId: userBranchId }, { branchId: null }],
+      });
     }
 
     const result = await prisma.notification.updateMany({
@@ -486,6 +494,7 @@ export class NotificationRepository {
         title: payload.title,
         message: payload.message,
         type: payload.type || "SYSTEM",
+        channel: "IN_APP",
         link: payload.link || null,
         metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
         isRead: false,
@@ -795,6 +804,7 @@ export class NotificationRepository {
           title: item.title,
           message: item.message,
           type: item.type,
+          channel: "IN_APP",
           link: item.link,
           metadata: { module: item.module },
           isRead: false,

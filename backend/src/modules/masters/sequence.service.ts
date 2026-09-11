@@ -25,6 +25,8 @@ export interface SequenceContext {
 const DEFAULT_PATTERNS: Record<string, string> = {
   ADMISSION: "AADYA/{YEAR}/{SEQ:4}",
   RECEIPT: "RCP/{YEAR}/{SEQ:4}",
+  INVOICE: "INV/{YEAR}/{SEQ:4}",
+  OTHER_INVOICE: "OI/{YEAR}/{SEQ:4}",
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",

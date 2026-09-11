@@ -1,5 +1,6 @@
 import { prisma } from "../../../config/database";
 import type { AIToolAuthContext } from "../security/ai-scope.service";
+import { toMoneyNumber } from "../../fees/fee-money.util";
 
 export const executeGetFeeSummary = async (
   context: AIToolAuthContext,
@@ -23,7 +24,7 @@ export const executeGetFeeSummary = async (
       _count: { id: true },
     }),
     prisma.pendingFee.aggregate({
-      where: pendingWhere,
+      where: { ...pendingWhere, dueAmount: { gt: 0 } },
       _sum: { totalFee: true, amountPaid: true, dueAmount: true },
       _count: { id: true },
     }),
@@ -36,8 +37,8 @@ export const executeGetFeeSummary = async (
     }),
   ]);
 
-  const totalCollected = paymentAgg._sum.amount || 0;
-  const totalPendingDue = pendingAgg._sum.dueAmount || 0;
+  const totalCollected = toMoneyNumber(paymentAgg._sum.amount);
+  const totalPendingDue = toMoneyNumber(pendingAgg._sum.dueAmount);
   const scopeLabel = context.branchId ? "in your branch" : "across the institute";
 
   return {
@@ -73,6 +74,7 @@ export const executeGetOverdueFees = async (
           branch: { select: { name: true } },
         },
       },
+      feeHeadMaster: { select: { name: true, code: true } },
     },
   });
 
@@ -82,9 +84,10 @@ export const executeGetOverdueFees = async (
     studentPhone: pf.phone || pf.student?.user?.phone || "N/A",
     studentCode: pf.student?.studentCode || pf.admissionNo,
     branch: pf.student?.branch?.name || "N/A",
-    totalFee: pf.totalFee,
-    amountPaid: pf.amountPaid,
-    dueAmount: pf.dueAmount,
+    feeHead: pf.feeHead || pf.feeHeadMaster?.name || "Fee",
+    totalFee: toMoneyNumber(pf.totalFee),
+    amountPaid: toMoneyNumber(pf.amountPaid),
+    dueAmount: toMoneyNumber(pf.dueAmount),
     dueDate: pf.dueDate.toISOString().split("T")[0],
   }));
 
@@ -97,7 +100,12 @@ export const executeGetOverdueFees = async (
     summaryText:
       formatted.length > 0
         ? `Found ${formatted.length} student(s) with pending/overdue fees:\n` +
-          formatted.map((f) => `- ${f.studentName} (${f.studentCode}): ₹${f.dueAmount} due by ${f.dueDate}`).join("\n")
-        : "No students with overdue fees found.",
+          formatted
+            .map(
+              (f) =>
+                `- ${f.studentName} (${f.studentCode}): ${f.feeHead} ₹${f.dueAmount} due by ${f.dueDate}`
+            )
+            .join("\n")
+        : "No pending/overdue fees found.",
   };
 };
