@@ -70,7 +70,7 @@ export const MODULE_OPTIONS: FrontendModuleDef[] = [
   {
     key: "fees",
     label: "Fees & Payments",
-    description: "Track student fees, installment collections, pending dues, and fee receipts",
+    description: "Student fees, invoices, collections, and receipts",
     icon: CreditCard,
     category: "Finance",
   },
@@ -156,7 +156,7 @@ export const COUNSELLOR_MODULE_OPTIONS: FrontendModuleDef[] = [
   {
     key: "fees",
     label: "Fees & Payments",
-    description: "Track student fee payments, pending dues, and installment receipts",
+    description: "Student fees, invoices, and receipts",
     icon: CreditCard,
     category: "Finance",
   },

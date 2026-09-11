@@ -61,8 +61,6 @@ import { ExamConsentScreen } from "../pages/student/exams/ExamConsentScreen";
 import { TakeExam } from "../pages/student/exams/TakeExam";
 import { ExamResultScreen } from "../pages/student/exams/ExamResultScreen";
 import { Timetable } from "../pages/admin/schedule/Timetable";
-import { Payments } from "../pages/admin/fees/Payments";
-import { PendingFees } from "../pages/admin/fees/PendingFees";
 import { FeeReports } from "../pages/admin/fees/FeeReports";
 import { StudentReports } from "../pages/admin/reports/StudentReports";
 import { FacultyReports } from "../pages/admin/reports/FacultyReports";
@@ -111,9 +109,13 @@ import { Receipts } from "../pages/admin/fees/Receipts";
 import { ReceiptDetail } from "../pages/admin/fees/ReceiptDetail";
 import { Invoices } from "../pages/admin/fees/Invoices";
 import { InvoiceDetail } from "../pages/admin/fees/InvoiceDetail";
-import { OtherInvoices } from "../pages/admin/fees/OtherInvoices";
 import { OtherInvoiceForm } from "../pages/admin/fees/OtherInvoiceForm";
 import { OtherInvoiceDetail } from "../pages/admin/fees/OtherInvoiceDetail";
+import {
+  PendingFeesRedirect,
+  OtherInvoicesListRedirect,
+  PaymentsEntry,
+} from "../pages/admin/fees/FeeNavRedirects";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
@@ -261,11 +263,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="students" element={<StudentFees />} />
           <Route path="students/:studentId" element={<StudentFeeProfile />} />
           <Route path="student-fees" element={<Navigate to="/center/fees/students" replace />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="pending" element={<PendingFees />} />
+          <Route path="payments" element={<PaymentsEntry />} />
+          <Route path="pending" element={<PendingFeesRedirect />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/:id" element={<InvoiceDetail />} />
-          <Route path="other-invoices" element={<OtherInvoices />} />
+          <Route path="other-invoices" element={<OtherInvoicesListRedirect />} />
           <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
           <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
           <Route path="receipts" element={<Receipts />} />
@@ -420,11 +422,11 @@ export const AppRoutes: React.FC = () => {
           <Route path="students" element={<StudentFees />} />
           <Route path="students/:studentId" element={<StudentFeeProfile />} />
           <Route path="student-fees" element={<Navigate to="/counselor/fees/students" replace />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="pending" element={<PendingFees />} />
+          <Route path="payments" element={<PaymentsEntry />} />
+          <Route path="pending" element={<PendingFeesRedirect />} />
           <Route path="invoices" element={<Invoices />} />
           <Route path="invoices/:id" element={<InvoiceDetail />} />
-          <Route path="other-invoices" element={<OtherInvoices />} />
+          <Route path="other-invoices" element={<OtherInvoicesListRedirect />} />
           <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
           <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
           <Route path="receipts" element={<Receipts />} />

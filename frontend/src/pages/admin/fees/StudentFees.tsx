@@ -1,5 +1,5 @@
-﻿import React, { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Users,
   Search,
@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -28,6 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { FeeStudentRow } from "@/types/fee.types";
+import { PendingFees } from "./PendingFees";
 
 const statusVariant = (status: FeeStudentRow["status"]) => {
   if (status === "Overdue") return "destructive" as const;
@@ -38,9 +40,11 @@ const statusVariant = (status: FeeStudentRow["status"]) => {
 export const StudentFees: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const formatMoney = useFormatCurrency();
 
+  const tab = searchParams.get("tab") === "pending" ? "pending" : "students";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
@@ -60,19 +64,24 @@ export const StudentFees: React.FC = () => {
   const totalPages = data?.data?.totalPages ?? 1;
   const totalFees = (stats?.totalCollected ?? 0) + (stats?.totalPendingDues ?? 0);
 
+  const setTab = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === "pending") nextParams.set("tab", "pending");
+    else nextParams.delete("tab");
+    setSearchParams(nextParams, { replace: true });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-text-primary">All Students</h2>
+          <h2 className="text-2xl font-bold text-text-primary">Student Fees</h2>
           <p className="text-sm text-text-secondary">
-            Fee overview across students — click a row for the full fee profile.
+            Find a student, collect dues, and send reminders from one workspace.
           </p>
         </div>
-        <Button asChild className="gap-2">
-          <Link to={`${basePath}/fees/payments`}>
-            <CreditCard className="h-4 w-4" /> Record Payment
-          </Link>
+        <Button className="gap-2" onClick={() => setTab("pending")}>
+          <CreditCard className="h-4 w-4" /> Collect dues
         </Button>
       </div>
 
@@ -110,28 +119,32 @@ export const StudentFees: React.FC = () => {
             </div>
           </CardContent>
         </Card>
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
-              <Clock className="h-5 w-5 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatMoney(stats?.totalPendingDues ?? 0)}</p>
-              <p className="text-xs text-text-secondary">Outstanding</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border-border/50">
-          <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold">{formatMoney(stats?.overdueDues ?? 0)}</p>
-              <p className="text-xs text-text-secondary">Overdue</p>
-            </div>
-          </CardContent>
-        </Card>
+        <button type="button" className="text-left" onClick={() => setTab("pending")}>
+          <Card className="border-border/50 h-full hover:border-amber-300 transition-colors">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-amber-50 flex items-center justify-center">
+                <Clock className="h-5 w-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold">{formatMoney(stats?.totalPendingDues ?? 0)}</p>
+                <p className="text-xs text-text-secondary">Outstanding</p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+        <button type="button" className="text-left" onClick={() => setTab("pending")}>
+          <Card className="border-border/50 h-full hover:border-red-300 transition-colors">
+            <CardContent className="p-4 flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-red-50 flex items-center justify-center">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+              </div>
+              <div>
+                <p className="text-lg font-bold">{formatMoney(stats?.overdueDues ?? 0)}</p>
+                <p className="text-xs text-text-secondary">Overdue</p>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
         <Card className="border-border/50">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
@@ -145,138 +158,151 @@ export const StudentFees: React.FC = () => {
         </Card>
       </div>
 
-      <Card className="border-border/50">
-        <CardContent className="p-4 space-y-4">
-          <div className="flex flex-col md:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
-              <Input
-                placeholder="Search by name, code, phone, or admission no..."
-                value={searchTerm}
-                onChange={(e) => {
-                  setSearchTerm(e.target.value);
-                  setPage(1);
-                }}
-                className="pl-9"
-              />
-            </div>
-            <select
-              value={statusFilter}
-              onChange={(e) => {
-                setStatusFilter(e.target.value);
-                setPage(1);
-              }}
-              className="h-10 px-3 border rounded-md text-sm min-w-[160px]"
-            >
-              <option value="ALL">All statuses</option>
-              <option value="Paid">Paid</option>
-              <option value="Partial">Partial</option>
-              <option value="Pending">Pending</option>
-              <option value="Overdue">Overdue</option>
-              <option value="None">None</option>
-            </select>
-          </div>
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="students">Students</TabsTrigger>
+          <TabsTrigger value="pending">Pending dues</TabsTrigger>
+        </TabsList>
 
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Student</TableHead>
-                <TableHead>Course</TableHead>
-                <TableHead>Batch</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Paid</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
-                    <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
-                    Loading...
-                  </TableCell>
-                </TableRow>
-              ) : isError ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-red-600">
-                    <AlertCircle className="w-5 h-5 inline mr-2" />
-                    Failed to load.
-                    <Button variant="link" onClick={() => refetch()}>
-                      Retry
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ) : rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
-                    <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
-                    No students found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    className="cursor-pointer hover:bg-muted/40"
-                    onClick={() => navigate(`${basePath}/fees/students/${row.id}`)}
-                  >
-                    <TableCell>
-                      <div className="font-medium">{row.name}</div>
-                      <div className="text-xs font-mono text-text-secondary">
-                        {row.studentCode}
-                        {row.admissionNo ? ` · ${row.admissionNo}` : ""}
-                      </div>
-                    </TableCell>
-                    <TableCell>{row.courseName || "—"}</TableCell>
-                    <TableCell>{row.batchName || "—"}</TableCell>
-                    <TableCell className="font-medium">{formatMoney(row.totalFee)}</TableCell>
-                    <TableCell>{formatMoney(row.amountPaid)}</TableCell>
-                    <TableCell className="font-bold">{formatMoney(row.balance)}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
-                      <Button variant="outline" size="sm" asChild>
-                        <Link to={`${basePath}/fees/payments?studentId=${row.id}`}>
-                          Record Payment
-                        </Link>
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-
-          {totalPages > 1 && (
-            <div className="flex justify-between items-center text-sm">
-              <span>
-                Page {page} of {totalPages}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+        <TabsContent value="students" className="mt-4">
+          <Card className="border-border/50">
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-col md:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted" />
+                  <Input
+                    placeholder="Search by name, code, phone, or admission no..."
+                    value={searchTerm}
+                    onChange={(e) => {
+                      setSearchTerm(e.target.value);
+                      setPage(1);
+                    }}
+                    className="pl-9"
+                  />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value);
+                    setPage(1);
+                  }}
+                  className="h-10 px-3 border rounded-md text-sm min-w-[160px]"
                 >
-                  Previous
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
+                  <option value="ALL">All statuses</option>
+                  <option value="Paid">Paid</option>
+                  <option value="Partial">Partial</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Overdue">Overdue</option>
+                  <option value="None">None</option>
+                </select>
               </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Student</TableHead>
+                    <TableHead>Course</TableHead>
+                    <TableHead>Batch</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Paid</TableHead>
+                    <TableHead>Balance</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8">
+                        <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+                        Loading...
+                      </TableCell>
+                    </TableRow>
+                  ) : isError ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-red-600">
+                        <AlertCircle className="w-5 h-5 inline mr-2" />
+                        Failed to load.
+                        <Button variant="link" onClick={() => refetch()}>
+                          Retry
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ) : rows.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-8 text-text-secondary">
+                        <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                        No students found.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        className="cursor-pointer hover:bg-muted/40"
+                        onClick={() => navigate(`${basePath}/fees/students/${row.id}`)}
+                      >
+                        <TableCell>
+                          <div className="font-medium">{row.name}</div>
+                          <div className="text-xs font-mono text-text-secondary">
+                            {row.studentCode}
+                            {row.admissionNo ? ` · ${row.admissionNo}` : ""}
+                          </div>
+                        </TableCell>
+                        <TableCell>{row.courseName || "—"}</TableCell>
+                        <TableCell>{row.batchName || "—"}</TableCell>
+                        <TableCell className="font-medium">{formatMoney(row.totalFee)}</TableCell>
+                        <TableCell>{formatMoney(row.amountPaid)}</TableCell>
+                        <TableCell className="font-bold">{formatMoney(row.balance)}</TableCell>
+                        <TableCell>
+                          <Badge variant={statusVariant(row.status)}>{row.status}</Badge>
+                        </TableCell>
+                        <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`${basePath}/fees/students/${row.id}?tab=pending`}>
+                              Collect
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+
+              {totalPages > 1 && (
+                <div className="flex justify-between items-center text-sm">
+                  <span>
+                    Page {page} of {totalPages}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= totalPages}
+                      onClick={() => setPage((p) => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="pending" className="mt-4">
+          <PendingFees embedded />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

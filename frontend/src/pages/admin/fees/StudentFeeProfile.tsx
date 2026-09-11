@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useLocation, useParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowLeft,
   CreditCard,
@@ -10,8 +10,14 @@ import {
   FileText,
   Receipt,
   Clock,
+  Send,
+  CheckCircle2,
 } from "lucide-react";
-import { useStudentFeeStatement, useCreateFeeCharge } from "@/hooks/useFees";
+import {
+  useStudentFeeStatement,
+  useCreateFeeCharge,
+  useSendFeeReminder,
+} from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,19 +36,26 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PendingFee, Payment, StudentInvoice } from "@/types/fee.types";
+import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { CollectFeeModal } from "./CollectFeeModal";
 
 export const StudentFeeProfile: React.FC = () => {
   const { studentId } = useParams<{ studentId: string }>();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
   const createCharge = useCreateFeeCharge();
+  const sendReminder = useSendFeeReminder();
+  const profileTab = searchParams.get("tab") || "overview";
 
   const [showCharge, setShowCharge] = useState(false);
   const [chargeHeadId, setChargeHeadId] = useState("");
   const [chargeAmount, setChargeAmount] = useState(0);
   const [chargeDueDate, setChargeDueDate] = useState("");
+  const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
+  const [reminderSentId, setReminderSentId] = useState<string | null>(null);
 
   const { data, isLoading, isError, refetch } = useStudentFeeStatement(studentId);
   const statement = data?.data;
@@ -66,6 +79,33 @@ export const StudentFeeProfile: React.FC = () => {
     setChargeHeadId("");
     setChargeDueDate("");
     void refetch();
+  };
+
+  const handleSendReminder = async (item: PendingFee) => {
+    try {
+      setReminderSentId(item.id);
+      const res = await sendReminder.mutateAsync(item.id);
+      const payload = res?.data;
+      if (payload?.status === "SKIPPED") {
+        alert(payload.message || `Reminder skipped (${payload.skipReason || "unknown"})`);
+      } else if (payload?.message) {
+        alert(payload.message);
+      }
+      setTimeout(() => setReminderSentId(null), 3000);
+    } catch (err: unknown) {
+      setReminderSentId(null);
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to send reminder";
+      alert(message);
+    }
+  };
+
+  const setProfileTab = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === "overview") nextParams.delete("tab");
+    else nextParams.set("tab", next);
+    setSearchParams(nextParams, { replace: true });
   };
 
   if (isLoading) {
@@ -95,7 +135,7 @@ export const StudentFeeProfile: React.FC = () => {
         <div className="space-y-2">
           <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
             <Link to={`${basePath}/fees/students`}>
-              <ArrowLeft className="h-4 w-4" /> All Students
+              <ArrowLeft className="h-4 w-4" /> Student Fees
             </Link>
           </Button>
           <div>
@@ -155,7 +195,7 @@ export const StudentFeeProfile: React.FC = () => {
         </Card>
       </div>
 
-      <Tabs defaultValue="overview">
+      <Tabs value={profileTab} onValueChange={setProfileTab}>
         <TabsList className="flex flex-wrap h-auto gap-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="details">Fee Details</TabsTrigger>
@@ -360,12 +400,13 @@ export const StudentFeeProfile: React.FC = () => {
                     <TableHead>Due Date</TableHead>
                     <TableHead>Overdue Days</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {openPending.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-text-secondary">
+                      <TableCell colSpan={7} className="text-center py-6 text-text-secondary">
                         No pending dues.
                       </TableCell>
                     </TableRow>
@@ -381,6 +422,33 @@ export const StudentFeeProfile: React.FC = () => {
                           <Badge variant={f.status === "OVERDUE" ? "destructive" : "outline"}>
                             {f.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-2">
+                            <PermissionGate itemKey="fees.pending" mode="write">
+                              <Button size="sm" onClick={() => setCollectItem(f)}>
+                                Collect
+                              </Button>
+                            </PermissionGate>
+                            <PermissionGate itemKey="fees.pending" mode="write">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void handleSendReminder(f)}
+                                disabled={reminderSentId === f.id || sendReminder.isPending}
+                              >
+                                {reminderSentId === f.id ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Sent
+                                  </>
+                                ) : (
+                                  <>
+                                    <Send className="w-3.5 h-3.5 mr-1" /> Remind
+                                  </>
+                                )}
+                              </Button>
+                            </PermissionGate>
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))
@@ -488,6 +556,16 @@ export const StudentFeeProfile: React.FC = () => {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {collectItem && (
+        <CollectFeeModal
+          item={collectItem}
+          onClose={() => {
+            setCollectItem(null);
+            void refetch();
+          }}
+        />
       )}
     </div>
   );

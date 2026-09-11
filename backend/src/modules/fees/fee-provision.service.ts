@@ -81,7 +81,7 @@ function expandLineInstallments(
 ): Array<{ installmentNo: number; amount: number; dueDate: Date }> {
   const amount = roundMoney(line.amount);
   if (line.installments && line.installments.length > 0) {
-    return line.installments
+    let parts = line.installments
       .filter((i) => Number(i.amount) > 0)
       .map((i) => {
         let dueDate: Date;
@@ -97,6 +97,23 @@ function expandLineInstallments(
           dueDate,
         };
       });
+
+    // Keep installment dues aligned to the fee-head line total
+    const partsSum = roundMoney(parts.reduce((s, p) => s + p.amount, 0));
+    if (parts.length > 0 && partsSum > 0 && Math.abs(partsSum - amount) > 0.009) {
+      const ratio = amount / partsSum;
+      let allocated = 0;
+      parts = parts.map((p, idx) => {
+        if (idx === parts.length - 1) {
+          return { ...p, amount: roundMoney(amount - allocated) };
+        }
+        const scaled = roundMoney(p.amount * ratio);
+        allocated = roundMoney(allocated + scaled);
+        return { ...p, amount: scaled };
+      });
+    }
+
+    return parts;
   }
   return [{ installmentNo: 1, amount, dueDate: addDays(baseDate, 30) }];
 }
@@ -173,7 +190,6 @@ export async function provisionStudentFeesInTransaction(
   const createdIds: string[] = [];
   for (const line of adjusted) {
     const parts = expandLineInstallments(line, baseDate);
-    const lineTotal = roundMoney(parts.reduce((s, p) => s + p.amount, 0));
     for (const part of parts) {
       const row = await tx.pendingFee.create({
         data: {
@@ -185,7 +201,8 @@ export async function provisionStudentFeesInTransaction(
           admissionNo: input.admissionNo,
           phone: input.phone || "",
           courseName: input.courseName,
-          totalFee: lineTotal,
+          // Store this installment's charge (not duplicated course total)
+          totalFee: part.amount,
           amountPaid: 0,
           dueAmount: part.amount,
           dueDate: part.dueDate,

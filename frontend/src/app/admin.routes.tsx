@@ -67,8 +67,6 @@ import { AttemptProctoringDetails } from "../pages/admin/exams/AttemptProctoring
 import { ExamManualGrading } from "../pages/admin/exams/ExamManualGrading";
 import { ExamResults } from "../pages/admin/exams/ExamResults";
 
-import { Payments } from "../pages/admin/fees/Payments";
-import { PendingFees } from "../pages/admin/fees/PendingFees";
 import { FeeReports } from "../pages/admin/fees/FeeReports";
 import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
@@ -77,9 +75,13 @@ import { Receipts } from "../pages/admin/fees/Receipts";
 import { ReceiptDetail } from "../pages/admin/fees/ReceiptDetail";
 import { Invoices } from "../pages/admin/fees/Invoices";
 import { InvoiceDetail } from "../pages/admin/fees/InvoiceDetail";
-import { OtherInvoices } from "../pages/admin/fees/OtherInvoices";
 import { OtherInvoiceForm } from "../pages/admin/fees/OtherInvoiceForm";
 import { OtherInvoiceDetail } from "../pages/admin/fees/OtherInvoiceDetail";
+import {
+  PendingFeesRedirect,
+  OtherInvoicesListRedirect,
+  PaymentsEntry,
+} from "../pages/admin/fees/FeeNavRedirects";
 
 import { StudentReports } from "../pages/admin/reports/StudentReports";
 import { FacultyReports } from "../pages/admin/reports/FacultyReports";
@@ -261,11 +263,11 @@ export const adminChildRoutes = (
       <Route path="students" element={<StudentFees />} />
       <Route path="students/:studentId" element={<StudentFeeProfile />} />
       <Route path="student-fees" element={<Navigate to="/admin/fees/students" replace />} />
-      <Route path="payments" element={<Payments />} />
-      <Route path="pending" element={<PendingFees />} />
+      <Route path="payments" element={<PaymentsEntry />} />
+      <Route path="pending" element={<PendingFeesRedirect />} />
       <Route path="invoices" element={<Invoices />} />
       <Route path="invoices/:id" element={<InvoiceDetail />} />
-      <Route path="other-invoices" element={<OtherInvoices />} />
+      <Route path="other-invoices" element={<OtherInvoicesListRedirect />} />
       <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
       <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
       <Route path="receipts" element={<Receipts />} />

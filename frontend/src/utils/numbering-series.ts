@@ -6,9 +6,23 @@
 export const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
   ADMISSION: "AADYA/{YEAR}/{SEQ:4}",
   RECEIPT: "RCP/{YEAR}/{SEQ:4}",
+  INVOICE: "INV/{YEAR}/{SEQ:4}",
+  OTHER_INVOICE: "OI/{YEAR}/{SEQ:4}",
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
+  EMPLOYEE: "FAC-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
+};
+
+export const NUMBERING_SERIES_TARGET_LABELS: Record<string, string> = {
+  ADMISSION: "Admission Number Series",
+  STUDENT: "Student Code Series",
+  EMPLOYEE: "Employee / Faculty Code Series",
+  RECEIPT: "Receipt Number Series",
+  INVOICE: "Invoice Number Series",
+  OTHER_INVOICE: "Other Invoice Number Series",
+  ENQUIRY: "Enquiry Number Series",
+  APPLICATION: "Application Number Series",
 };
 
 export interface NumberingPreviewContext {

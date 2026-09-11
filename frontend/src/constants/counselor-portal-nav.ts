@@ -124,11 +124,8 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
     icon: CreditCard,
     moduleKey: "fees",
     items: [
-      { title: "All Students", url: "/counselor/fees/students", itemKey: "fees.students" },
-      { title: "Pending Fees", url: "/counselor/fees/pending", itemKey: "fees.pending" },
-      { title: "Payments", url: "/counselor/fees/payments", itemKey: "fees.payments" },
+      { title: "Student Fees", url: "/counselor/fees/students", itemKey: "fees.students" },
       { title: "Invoices", url: "/counselor/fees/invoices", itemKey: "fees.invoices" },
-      { title: "Other Invoices", url: "/counselor/fees/other-invoices", itemKey: "fees.other_invoices" },
       { title: "Receipts", url: "/counselor/fees/receipts", itemKey: "fees.receipts" },
     ],
   },

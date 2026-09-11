@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import { 
   AlertCircle, 
   Search, 
@@ -10,7 +10,7 @@ import {
   Loader2,
   Send
 } from "lucide-react";
-import { usePendingFees, useFeeStats, useCollectPendingFee, useSendFeeReminder } from "../../../hooks/useFees";
+import { usePendingFees, useFeeStats, useSendFeeReminder } from "../../../hooks/useFees";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -24,10 +24,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { PendingFee } from "../../../types/fee.types";
-import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { CollectFeeModal } from "./CollectFeeModal";
 
-export const PendingFees: React.FC = () => {
+interface PendingFeesProps {
+  embedded?: boolean;
+}
+
+export const PendingFees: React.FC<PendingFeesProps> = ({ embedded = false }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [reminderSentId, setReminderSentId] = useState<string | null>(null);
@@ -38,16 +42,8 @@ export const PendingFees: React.FC = () => {
   });
 
   const { data: statsData } = useFeeStats();
-  const collectFeeMutation = useCollectPendingFee();
   const sendReminderMutation = useSendFeeReminder();
-
-  // Modal State for Fee Collection
   const [collectItem, setCollectItem] = useState<PendingFee | null>(null);
-  const [collectAmount, setCollectAmount] = useState<number>(0);
-  const [paymentModeMasterId, setPaymentModeMasterId] = useState("");
-  const [feeHeadMasterId, setFeeHeadMasterId] = useState("");
-  const [collectRef, setCollectRef] = useState("");
-  const [collectNotes, setCollectNotes] = useState("");
 
   const pendingFees = pendingData?.data?.data || [];
   const stats = statsData?.data || {
@@ -55,38 +51,6 @@ export const PendingFees: React.FC = () => {
     overdueDues: 0,
     overdueCount: 0,
     avgOverdueDays: 0,
-  };
-
-  const handleOpenCollectModal = (item: PendingFee) => {
-    setCollectItem(item);
-    setCollectAmount(item.dueAmount);
-    setPaymentModeMasterId("");
-    setFeeHeadMasterId("");
-    setCollectNotes(`Collection for Installment #${item.installmentNo}`);
-  };
-
-  const handleCollectSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!collectItem || collectAmount <= 0 || !paymentModeMasterId) return;
-
-    try {
-      await collectFeeMutation.mutateAsync({
-        id: collectItem.id,
-        payload: {
-          amountPaidNow: collectAmount,
-          paymentModeMasterId,
-          feeHeadMasterId: feeHeadMasterId || undefined,
-          transactionRef: collectRef,
-          notes: collectNotes,
-        },
-      });
-
-      setCollectItem(null);
-      setCollectRef("");
-      setCollectNotes("");
-    } catch (err: any) {
-      alert(err?.response?.data?.message || "Failed to record fee collection");
-    }
   };
 
   const handleSendReminder = async (item: PendingFee) => {
@@ -102,9 +66,12 @@ export const PendingFees: React.FC = () => {
       setTimeout(() => {
         setReminderSentId(null);
       }, 3000);
-    } catch (err: any) {
+    } catch (err: unknown) {
       setReminderSentId(null);
-      alert(err?.response?.data?.message || "Failed to send reminder");
+      const message =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        "Failed to send reminder";
+      alert(message);
     }
   };
 
@@ -125,7 +92,7 @@ export const PendingFees: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {!embedded && (
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h2 className="text-2xl font-bold tracking-tight text-text-primary">Pending Dues & Installments</h2>
@@ -134,8 +101,9 @@ export const PendingFees: React.FC = () => {
           </p>
         </div>
       </div>
+      )}
 
-      {/* Summary Stat Cards */}
+      {!embedded && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="border-border/50 bg-bg-secondary shadow-sm">
           <CardContent className="p-4 flex items-center gap-4">
@@ -185,6 +153,7 @@ export const PendingFees: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+      )}
 
       {/* Main Table & Filters */}
       <Card className="border-border/50 shadow-sm bg-bg-primary">
@@ -294,7 +263,7 @@ export const PendingFees: React.FC = () => {
                             <Button
                               size="sm"
                               className="bg-[#2563EB] hover:bg-[#F39A16] text-white text-xs h-8"
-                              onClick={() => handleOpenCollectModal(pf)}
+                              onClick={() => setCollectItem(pf)}
                             >
                               <DollarSign className="w-3.5 h-3.5 mr-1" /> Collect Fee
                             </Button>
@@ -330,92 +299,8 @@ export const PendingFees: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Collect Fee Modal */}
       {collectItem && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">Record Fee Collection</h3>
-                <p className="text-xs text-slate-500">Student: {collectItem.studentName} ({collectItem.admissionNo})</p>
-              </div>
-              <Button variant="ghost" size="icon" onClick={() => setCollectItem(null)}>✕</Button>
-            </div>
-
-            <form onSubmit={handleCollectSubmit} className="space-y-4">
-              <div className="p-4 bg-slate-50 rounded-lg space-y-2 text-sm">
-                <div className="flex justify-between text-slate-600">
-                  <span>Enrolled Course:</span>
-                  <span className="font-semibold text-slate-900">{collectItem.courseName}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Total Course Fee:</span>
-                  <span className="font-semibold text-slate-900">₹{collectItem.totalFee.toLocaleString("en-IN")}</span>
-                </div>
-                <div className="flex justify-between text-slate-600">
-                  <span>Current Outstanding Due:</span>
-                  <span className="font-bold text-red-600">₹{collectItem.dueAmount.toLocaleString("en-IN")}</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Amount Collecting Now (₹) *</label>
-                <Input
-                  type="number"
-                  required
-                  min={1}
-                  max={collectItem.dueAmount}
-                  value={collectAmount}
-                  onChange={(e) => setCollectAmount(Number(e.target.value))}
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Fee Head</label>
-                <MasterSelect
-                  entityType="feeheads"
-                  value={feeHeadMasterId}
-                  onChange={setFeeHeadMasterId}
-                  placeholder="Select Fee Head"
-                  className="mt-0 rounded-md"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Payment Method *</label>
-                <MasterSelect
-                  entityType="paymentmodes"
-                  value={paymentModeMasterId}
-                  onChange={setPaymentModeMasterId}
-                  placeholder="Select Payment Mode"
-                  className="mt-0 rounded-md"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-semibold text-slate-700 block mb-1">Transaction Ref / Note</label>
-                <Input
-                  placeholder="e.g. UPI/77192840192 or Cash receipt"
-                  value={collectRef}
-                  onChange={(e) => setCollectRef(e.target.value)}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <Button type="button" variant="outline" onClick={() => setCollectItem(null)}>
-                  Cancel
-                </Button>
-                <Button 
-                  type="submit" 
-                  className="bg-[#2563EB] hover:bg-[#F39A16] text-white"
-                  disabled={collectFeeMutation.isPending}
-                >
-                  {collectFeeMutation.isPending ? "Processing..." : "Confirm & Issue Receipt"}
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <CollectFeeModal item={collectItem} onClose={() => setCollectItem(null)} />
       )}
     </div>
   );

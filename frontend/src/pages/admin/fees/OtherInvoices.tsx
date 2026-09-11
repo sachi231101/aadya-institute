@@ -18,7 +18,11 @@ import {
 } from "@/components/ui/table";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
 
-export const OtherInvoices: React.FC = () => {
+interface OtherInvoicesProps {
+  embedded?: boolean;
+}
+
+export const OtherInvoices: React.FC<OtherInvoicesProps> = ({ embedded = false }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const basePath = getPortalBasePath(location.pathname);
@@ -41,6 +45,7 @@ export const OtherInvoices: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {!embedded && (
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold text-text-primary">Other Invoices</h2>
@@ -56,6 +61,18 @@ export const OtherInvoices: React.FC = () => {
           </Button>
         </PermissionGate>
       </div>
+      )}
+      {embedded && (
+        <div className="flex justify-end">
+          <PermissionGate itemKey="fees.other_invoices" mode="write">
+            <Button asChild className="gap-2">
+              <Link to={`${basePath}/fees/other-invoices/new`}>
+                <Plus className="h-4 w-4" /> Create Invoice
+              </Link>
+            </Button>
+          </PermissionGate>
+        </div>
+      )}
 
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">

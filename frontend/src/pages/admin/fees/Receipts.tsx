@@ -60,9 +60,9 @@ export const Receipts: React.FC = () => {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-text-primary">Fee Receipts</h2>
+        <h2 className="text-2xl font-bold text-text-primary">Receipts</h2>
         <p className="text-sm text-text-secondary">
-          Browse issued fee receipts and download PDFs.
+          All fee collections — view, print, or download receipts.
         </p>
       </div>
 

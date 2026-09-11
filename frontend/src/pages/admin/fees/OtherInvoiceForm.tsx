@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 import { useCreateOtherInvoice } from "@/hooks/useFees";
 import { useStudentList } from "@/hooks/useStudents";
 import { useMasterDropdown } from "@/hooks/useMasterDropdown";
+import { useNumberingSeriesPreview } from "@/hooks/useMasters";
 import { useAuthStore } from "@/store/auth.store";
 import { useFormatCurrency } from "@/hooks/useOrganizationFormat";
 import { getPortalBasePath } from "@/utils/portal-path";
@@ -100,6 +101,9 @@ export const OtherInvoiceForm: React.FC = () => {
   const createInvoice = useCreateOtherInvoice();
   const user = useAuthStore((s) => s.user);
   const { options: feeHeadOptions } = useMasterDropdown("feeheads");
+  const { data: invoiceSeriesData, isLoading: isInvoicePreviewLoading } =
+    useNumberingSeriesPreview("OTHER_INVOICE");
+  const nextInvoiceNo = invoiceSeriesData?.data?.preview;
 
   const [reference, setReference] = useState("");
   const [invoiceDate, setInvoiceDate] = useState(todayIso());
@@ -254,7 +258,7 @@ export const OtherInvoiceForm: React.FC = () => {
       navigate(
         createdId
           ? `${basePath}/fees/other-invoices/${createdId}`
-          : `${basePath}/fees/other-invoices`
+          : `${basePath}/fees/invoices?tab=other`
       );
     } catch (err: unknown) {
       const message =
@@ -269,9 +273,9 @@ export const OtherInvoiceForm: React.FC = () => {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-2">
           <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2 text-text-secondary">
-            <Link to={`${basePath}/fees/other-invoices`}>
+            <Link to={`${basePath}/fees/invoices?tab=other`}>
               <ArrowLeft className="h-4 w-4" />
-              Other Invoices
+              Invoices
             </Link>
           </Button>
           <div>
@@ -285,7 +289,7 @@ export const OtherInvoiceForm: React.FC = () => {
           <Button
             type="button"
             variant="outline"
-            onClick={() => navigate(`${basePath}/fees/other-invoices`)}
+            onClick={() => navigate(`${basePath}/fees/invoices?tab=other`)}
           >
             Cancel
           </Button>
@@ -314,7 +318,27 @@ export const OtherInvoiceForm: React.FC = () => {
         <CardContent className="grid gap-4 p-6 md:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-1.5">
             <Label>Invoice #</Label>
-            <Input value="Generated on save" disabled className="rounded-xl bg-muted/50" />
+            <Input
+              value={
+                isInvoicePreviewLoading
+                  ? "Loading..."
+                  : nextInvoiceNo || "Configure OTHER_INVOICE series in Masters"
+              }
+              disabled
+              className="rounded-xl bg-muted/50 font-mono font-medium"
+            />
+            {nextInvoiceNo ? (
+              <p className="text-[11px] text-text-secondary">
+                From Master Numbering Series · assigned on save
+                {typeof invoiceSeriesData?.data?.nextSequence === "number"
+                  ? ` · #${invoiceSeriesData.data.nextSequence}`
+                  : ""}
+              </p>
+            ) : !isInvoicePreviewLoading ? (
+              <p className="text-[11px] text-amber-600">
+                Set pattern under Masters → Numbering Series → OTHER_INVOICE
+              </p>
+            ) : null}
           </div>
           <div className="space-y-1.5">
             <Label>Reference #</Label>
@@ -828,7 +852,7 @@ export const OtherInvoiceForm: React.FC = () => {
         <Button
           type="button"
           variant="outline"
-          onClick={() => navigate(`${basePath}/fees/other-invoices`)}
+          onClick={() => navigate(`${basePath}/fees/invoices?tab=other`)}
         >
           Cancel
         </Button>

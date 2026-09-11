@@ -1,9 +1,59 @@
 import type { Prisma, StudentInvoiceStatus } from "@prisma/client";
 import { SequenceService } from "../masters/sequence.service";
+import { prisma } from "../../config/database";
+import { logger } from "../../config/logger";
 import { derivePendingStatus, startOfDay } from "./fee-balance.util";
 import { roundMoney, toMoneyNumber } from "./fee-money.util";
 
 type Tx = Prisma.TransactionClient;
+
+const repairedInstitutes = new Set<string>();
+
+/**
+ * One-time (per process) rewrite of migration backfill invoice numbers
+ * (`INV-LEGACY-*`) to the institute's Master Numbering Series pattern for INVOICE.
+ */
+export async function repairLegacyStudentInvoiceNumbers(instituteId: string): Promise<number> {
+  if (repairedInstitutes.has(instituteId)) return 0;
+
+  const legacy = await prisma.studentInvoice.findMany({
+    where: {
+      instituteId,
+      invoiceNo: { startsWith: "INV-LEGACY-" },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, invoiceNo: true },
+  });
+
+  if (legacy.length === 0) {
+    repairedInstitutes.add(instituteId);
+    return 0;
+  }
+
+  let updated = 0;
+  for (const row of legacy) {
+    const nextNo = await SequenceService.getNextNumber(instituteId, "INVOICE");
+    try {
+      await prisma.studentInvoice.update({
+        where: { id: row.id },
+        data: { invoiceNo: nextNo },
+      });
+      updated += 1;
+    } catch (err) {
+      logger.warn(
+        { err, invoiceId: row.id, from: row.invoiceNo, to: nextNo },
+        "[FeeInvoice] Failed to renumber legacy invoice; leaving original"
+      );
+    }
+  }
+
+  repairedInstitutes.add(instituteId);
+  logger.info(
+    { instituteId, updated, total: legacy.length },
+    "[FeeInvoice] Renumbered legacy invoices using master INVOICE series"
+  );
+  return updated;
+}
 
 export function deriveInvoiceStatus(params: {
   totalAmount: number;

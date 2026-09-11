@@ -180,7 +180,7 @@ const CENTER_MANAGER_CATALOG: PermissionModuleDefinition[] = [
     description: "Fee collections, invoices, receipts, and student fee workspace",
     category: "ERP Modules",
     items: [
-      { key: "fees.students", label: "All Students", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
+      { key: "fees.students", label: "Student Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.pending", label: "Pending Fees", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },
       { key: "fees.payments", label: "Payments", readPermissions: ["fee.read"], writePermissions: ["fee.create", "fee.delete"] },
       { key: "fees.invoices", label: "Invoices", readPermissions: ["fee.read"], writePermissions: ["fee.update"] },

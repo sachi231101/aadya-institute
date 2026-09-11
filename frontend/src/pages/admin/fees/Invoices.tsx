@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { FileText, Search, Loader2, AlertCircle } from "lucide-react";
 import { useFeeInvoices } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -16,17 +17,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { OtherInvoices } from "./OtherInvoices";
 
 export const Invoices: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const basePath = getPortalBasePath(location.pathname);
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
 
+  const tab = searchParams.get("tab") === "other" ? "other" : "course";
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [page, setPage] = useState(1);
+
+  const setTab = (next: string) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === "other") nextParams.set("tab", "other");
+    else nextParams.delete("tab");
+    setSearchParams(nextParams, { replace: true });
+  };
 
   const { data, isLoading, isError, refetch } = useFeeInvoices({
     search: searchTerm || undefined,
@@ -43,10 +54,17 @@ export const Invoices: React.FC = () => {
       <div>
         <h2 className="text-2xl font-bold text-text-primary">Invoices</h2>
         <p className="text-sm text-text-secondary">
-          Student fee invoices generated from charges and other invoices.
+          Course invoices and other bills (books, kits, misc.) in one place.
         </p>
       </div>
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="course">Course invoices</TabsTrigger>
+          <TabsTrigger value="other">Other invoices</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="course" className="mt-4">
       <Card className="border-border/50">
         <CardContent className="p-4 space-y-4">
           <div className="flex flex-col md:flex-row gap-3">
@@ -172,6 +190,12 @@ export const Invoices: React.FC = () => {
           )}
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="other" className="mt-4">
+          <OtherInvoices embedded />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

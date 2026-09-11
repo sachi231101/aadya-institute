@@ -1,5 +1,6 @@
-﻿import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   CreditCard,
   Plus,
   Search,
@@ -15,7 +16,7 @@ import {
   Loader2,
   FileText,
 } from "lucide-react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   usePayments,
   useFeeStats,
@@ -49,9 +50,12 @@ import {
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { getPortalBasePath } from "@/utils/portal-path";
 
 export const Payments: React.FC = () => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -230,9 +234,14 @@ export const Payments: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Fee Payment Receipts</h2>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 gap-2">
+            <Link to={`${basePath}/fees/students`}>
+              <ArrowLeft className="h-4 w-4" /> Student Fees
+            </Link>
+          </Button>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Record Payment</h2>
           <p className="text-sm text-text-secondary">
-            Issue and track student fee receipts, payment modes, and financial transaction logs.
+            Collect a payment against a student due. Issued receipts appear under Receipts.
           </p>
         </div>
 

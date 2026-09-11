@@ -52,8 +52,8 @@ export const OtherInvoiceDetail: React.FC = () => {
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
         <div className="space-y-2">
           <Button variant="ghost" size="sm" asChild className="-ml-2 gap-2">
-            <Link to={`${basePath}/fees/other-invoices`}>
-              <ArrowLeft className="h-4 w-4" /> Other Invoices
+            <Link to={`${basePath}/fees/invoices?tab=other`}>
+              <ArrowLeft className="h-4 w-4" /> Invoices
             </Link>
           </Button>
           <div>

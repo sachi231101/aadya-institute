@@ -16,6 +16,7 @@ import type {
   CreateOtherInvoiceDTO,
 } from "./fee.types";
 import { generateAndStoreReceiptPdf } from "./fee-receipt-pdf.service";
+import { repairLegacyStudentInvoiceNumbers } from "./fee-invoice.service";
 import path from "path";
 import fs from "fs";
 import { prisma } from "../../config/database";
@@ -662,6 +663,8 @@ export const FeeService = {
 
   async listStudentInvoices(currentUser: AuthUser, query: QueryStudentInvoicesDTO) {
     const scope = scopeParams(currentUser, query.branchId);
+    // Rewrite migration INV-LEGACY-* numbers to Master Numbering Series (INVOICE) once per process
+    await repairLegacyStudentInvoiceNumbers(scope.instituteId).catch(() => undefined);
     return FeeRepository.findStudentInvoices(scope.instituteId, {
       ...query,
       branchId: scope.branchId,

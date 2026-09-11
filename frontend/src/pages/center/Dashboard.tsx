@@ -167,8 +167,8 @@ const PENDING_TASKS = [
     icon: CreditCard,
     iconColor: "text-amber-600",
     iconBg: "bg-amber-50",
-    url: "/center/fees/pending",
-    itemKey: "fees.pending",
+    url: "/center/fees/students?tab=pending",
+    itemKey: "fees.students",
   },
   {
     id: "task-3",
@@ -445,7 +445,7 @@ export const CenterDashboard: React.FC = () => {
         </Card>
         )}
 
-        {canReadItem("fees.payments") && (
+        {canReadItem("fees.receipts") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -465,7 +465,7 @@ export const CenterDashboard: React.FC = () => {
         </Card>
         )}
 
-        {canReadItem("fees.pending") && (
+        {canReadItem("fees.students") && (
         <Card className="border border-slate-200/80 bg-white rounded-3xl shadow-xs hover:shadow-md transition-shadow">
           <CardContent className="p-4 flex flex-col justify-between h-full">
             <div className="flex items-center justify-between">
@@ -573,7 +573,7 @@ export const CenterDashboard: React.FC = () => {
         </div>
         )}
 
-        {canReadItem("fees.payments") && (
+        {canReadItem("fees.receipts") && (
         <div className="lg:col-span-6 xl:col-span-3.5 bg-white border border-slate-200/80 rounded-3xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="pb-3 border-b border-slate-100">
@@ -770,9 +770,9 @@ export const CenterDashboard: React.FC = () => {
             </button>
             )}
 
-            {canReadItem("fees.payments") && (
+            {canReadItem("fees.students") && (
             <button
-              onClick={() => navigate("/center/fees/payments")}
+              onClick={() => navigate("/center/fees/students?tab=pending")}
               className="p-3.5 rounded-2xl bg-teal-50/70 hover:bg-teal-100/70 border border-teal-100 flex flex-col items-center justify-center text-center gap-2 transition-all cursor-pointer group"
             >
               <div className="h-9 w-9 rounded-xl bg-teal-100 group-hover:bg-teal-200 text-teal-700 flex items-center justify-center transition-colors">

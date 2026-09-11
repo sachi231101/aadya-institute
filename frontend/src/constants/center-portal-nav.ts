@@ -174,11 +174,8 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
     icon: CreditCard,
     moduleKey: "fees",
     items: [
-      { title: "All Students", url: "/center/fees/students", itemKey: "fees.students" },
-      { title: "Pending Fees", url: "/center/fees/pending", itemKey: "fees.pending" },
-      { title: "Payments", url: "/center/fees/payments", itemKey: "fees.payments" },
+      { title: "Student Fees", url: "/center/fees/students", itemKey: "fees.students" },
       { title: "Invoices", url: "/center/fees/invoices", itemKey: "fees.invoices" },
-      { title: "Other Invoices", url: "/center/fees/other-invoices", itemKey: "fees.other_invoices" },
       { title: "Receipts", url: "/center/fees/receipts", itemKey: "fees.receipts" },
     ],
   },

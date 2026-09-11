@@ -90,7 +90,6 @@ export const ROUTES = {
       STUDENTS: "/admin/fees/students",
       STUDENT_PROFILE: "/admin/fees/students/:studentId",
       studentProfile: (studentId: string) => `/admin/fees/students/${studentId}`,
-      PAYMENTS: "/admin/fees/payments",
       PENDING: "/admin/fees/pending",
       INVOICES: "/admin/fees/invoices",
       INVOICE_DETAIL: "/admin/fees/invoices/:id",

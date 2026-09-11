@@ -109,7 +109,7 @@ export const MASTER_QUICK_CREATE_FIELDS: Record<string, MasterFormField[]> = {
     { key: "percentage", label: "Max Discount" },
     { key: "approvalLevel", label: "Approval Required" },
   ],
-  /** Numbering series only — `code` is the document target (STUDENT, ADMISSION, …) */
+  /** Numbering series only — `code` is the document target (STUDENT, ADMISSION, INVOICE, …) */
   numberingseries: [
     { key: "code", label: "Target Document", required: true },
     { key: "name", label: "Series Name", required: true },
