@@ -50,7 +50,7 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
             Complete this class?
           </DialogTitle>
           <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
-            Review the final class summary below. Once completed, attendance will be locked and this session will no longer appear as Live.
+            Review the final class summary below. Completing ends the ERP session and locks attendance — it does not stop Google Meet recording. End the Google Meet (or stop recording there) so Google can process the file; ERP will sync from Drive in the background.
           </DialogDescription>
         </DialogHeader>
 
@@ -122,7 +122,7 @@ export const CompleteClassDialog: React.FC<CompleteClassDialogProps> = ({
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Completing...
               </>
             ) : (
-              "Complete Class"
+              "End & Complete Class"
             )}
           </Button>
         </DialogFooter>

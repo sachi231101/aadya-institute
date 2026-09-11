@@ -42,19 +42,25 @@ import { PermissionGate } from "@/components/permissions/PermissionGate";
 import { useBatches } from "../../../hooks/useBatches";
 import { useBranches } from "../../../hooks/useBranches";
 import { useFacultyList } from "../../../hooks/useFaculty";
-import { useCourses } from "../../../hooks/useCourses";
 import {
   useClassSessions,
   useCreateClassSession,
   useUpdateClassSession,
 } from "../../../hooks/useClassSessions";
 import { classSessionsApi, type BackendClassSession } from "../../../services/class-sessions.api";
-import { formatBatchSubjectNames, type BatchLike } from "@/utils/batch.utils";
+import {
+  batchIncludesFaculty,
+  formatBatchSubjectNames,
+  getBatchCourseRows,
+  getCourseNameInBatch,
+  type BatchLike,
+} from "@/utils/batch.utils";
 import {
   periodToTimes,
   toDateKey,
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
+import { getApiErrorMessage } from "@/utils/api-error";
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -182,8 +188,7 @@ export const Classes: React.FC = () => {
   const { data: branchData } = useBranches();
   const branchesList = useMemo(() => branchData?.data ?? [], [branchData]);
   const { batches } = useBatches();
-  const { courses } = useCourses();
-  const { data: facultyData } = useFacultyList({ limit: 50 });
+  const { data: facultyData } = useFacultyList({ limit: 100 });
   const facultyMembers = facultyData?.data ?? [];
   const [searchParams] = useSearchParams();
 
@@ -208,6 +213,8 @@ export const Classes: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<string>("ALL");
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const [notificationTone, setNotificationTone] = useState<"success" | "error">("success");
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
   // Pagination
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -271,10 +278,10 @@ export const Classes: React.FC = () => {
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
 
   // Schedule Modal Form
-  const [formTopic, setFormTopic] = useState("");
-  const [formCourse, setFormCourse] = useState("");
+  const [formBatchCourseId, setFormBatchCourseId] = useState(""); // BatchCourse row id when available
+  const [formCourseId, setFormCourseId] = useState(""); // Course.id for subject select
   const [formModule, setFormModule] = useState("");
-  const [formBatch, setFormBatch] = useState("");
+  const [formBatch, setFormBatch] = useState(""); // batch code
   const [formBranch, setFormBranch] = useState("");
   const [formFacultyId, setFormFacultyId] = useState("");
   const [formDate, setFormDate] = useState(new Date().toISOString().split("T")[0]);
@@ -282,12 +289,72 @@ export const Classes: React.FC = () => {
   const [formMode, setFormMode] = useState<ClassMode>("OFFLINE");
   const [formClassroomMasterId, setFormClassroomMasterId] = useState("");
 
+  const selectedFormBatch = useMemo(
+    () =>
+      batches.find((b) => b.code === formBatch || b.id === formBatch) as
+        | (BatchLike & { id?: string; code?: string; name?: string; branchId?: string })
+        | undefined,
+    [batches, formBatch]
+  );
+
+  const formSubjectOptions = useMemo(() => {
+    if (!selectedFormBatch) return [];
+    return getBatchCourseRows(selectedFormBatch);
+  }, [selectedFormBatch]);
+
+  const batchesForBranch = useMemo(() => {
+    if (!formBranch || formBranch === "ALL") return batches;
+    return batches.filter((b) => b.branchId === formBranch);
+  }, [batches, formBranch]);
+
+  const facultyForForm = useMemo(() => {
+    if (!selectedFormBatch) {
+      if (!formBranch || formBranch === "ALL") return facultyMembers;
+      return facultyMembers.filter((f) => f.branchId === formBranch);
+    }
+    const assigned = facultyMembers.filter((f) =>
+      batchIncludesFaculty(selectedFormBatch, f.id)
+    );
+    if (assigned.length > 0) return assigned;
+    return facultyMembers.filter(
+      (f) => !selectedFormBatch.branchId || f.branchId === selectedFormBatch.branchId
+    );
+  }, [facultyMembers, selectedFormBatch, formBranch]);
+
+  useEffect(() => {
+    if (!selectedFormBatch) {
+      setFormCourseId("");
+      setFormBatchCourseId("");
+      return;
+    }
+    const options = formSubjectOptions;
+    if (options.length === 0) {
+      setFormCourseId("");
+      setFormBatchCourseId("");
+      return;
+    }
+    const stillValid = options.some((o) => o.courseId === formCourseId);
+    if (!stillValid) {
+      setFormCourseId(options[0].courseId);
+      setFormBatchCourseId(options[0].id || "");
+    } else {
+      const row = options.find((o) => o.courseId === formCourseId);
+      setFormBatchCourseId(row?.id || "");
+    }
+  }, [selectedFormBatch, formSubjectOptions, formCourseId]);
+
+  useEffect(() => {
+    if (!formFacultyId) return;
+    if (!facultyForForm.some((f) => f.id === formFacultyId)) {
+      setFormFacultyId(facultyForForm[0]?.id ?? "");
+    }
+  }, [facultyForForm, formFacultyId]);
+
   const slotBranchId =
     formBranch && formBranch !== "ALL"
       ? formBranch
-      : selectedBranchId !== "ALL"
-        ? selectedBranchId
-        : undefined;
+      : selectedFormBatch?.branchId ||
+        (selectedBranchId !== "ALL" ? selectedBranchId : undefined);
   const { bookableSlots, isEmpty: slotsEmpty } = useTimetableSlotColumns(slotBranchId);
 
   useEffect(() => {
@@ -339,27 +406,48 @@ export const Classes: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const showNotice = (message: string, tone: "success" | "error" = "success", ms = 4000) => {
+    setNotificationTone(tone);
+    setNotificationMsg(message);
+    setTimeout(() => setNotificationMsg(null), ms);
+  };
+
   const handleSaveClass = async () => {
-    const fac = formFacultyId && formFacultyId !== "none" ? facultyMembers.find((f) => f.id === formFacultyId) : null;
+    const errors: Record<string, string> = {};
+    const fac =
+      formFacultyId && formFacultyId !== "none"
+        ? facultyMembers.find((f) => f.id === formFacultyId)
+        : null;
     const batch = batches.find((b) => b.code === formBatch || b.id === formBatch);
 
-    if (!batch) {
-      setNotificationMsg("Please select a valid batch.");
-      setTimeout(() => setNotificationMsg(null), 3500);
+    if (!batch) errors.batch = "Batch is required.";
+    if (!formCourseId) errors.course = "Course / subject is required.";
+    if (!formModule.trim()) errors.module = "Class topic / module is required.";
+    if (!fac) errors.faculty = "Faculty is required.";
+    if (!formDate) errors.date = "Date is required.";
+    if (slotsEmpty || !formTimes.timeslotMasterId) {
+      errors.period = "Time slot is required. Configure Time Slots in Master Setup.";
+    }
+    if (!formBranch) errors.branch = "Branch is required.";
+
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      showNotice(Object.values(errors)[0], "error", 4500);
       return;
     }
 
-    if (!fac) {
-      setNotificationMsg("Faculty assignment is required to schedule a class session.");
-      setTimeout(() => setNotificationMsg(null), 3500);
-      return;
-    }
+    const subjectRow = getBatchCourseRows(batch as BatchLike).find(
+      (r) => r.courseId === formCourseId
+    );
+    const subjectName =
+      getCourseNameInBatch(batch as BatchLike, formCourseId) || formModule.trim();
 
     const payload = {
-      title: formModule || formTopic || formCourse,
-      batchId: batch.id,
-      facultyId: fac.id,
-      branchId: formBranch || batch.branchId,
+      title: formModule.trim() || subjectName,
+      batchId: batch!.id,
+      batchCourseId: formBatchCourseId || subjectRow?.id || undefined,
+      facultyId: fac!.id,
+      branchId: batch!.branchId || formBranch || undefined,
       scheduledDate: formDate,
       startTime: formStartTime,
       endTime: formEndTime,
@@ -373,38 +461,65 @@ export const Classes: React.FC = () => {
       if (editingSessionId) {
         const response = await updateSession.mutateAsync({ id: editingSessionId, payload });
         savedSession = response.data;
-        setNotificationMsg(`✓ Successfully updated class session.`);
+        showNotice("✓ Successfully updated class session.");
       } else {
         const response = await createSession.mutateAsync(payload);
         savedSession = response.data;
-        setNotificationMsg(`✓ Successfully scheduled new class: ${payload.title} (${batch.code}).`);
-      }
-      if (formMode === "ONLINE" && !savedSession.meetingUrl) {
-        await classSessionsApi.createGoogleMeet(savedSession.id);
-        setNotificationMsg("✓ Class scheduled and Google Meet created.");
+        showNotice(`✓ Successfully scheduled new class: ${payload.title} (${batch!.code}).`);
       }
       setIsScheduleModalOpen(false);
       setEditingSessionId(null);
-      setTimeout(() => setNotificationMsg(null), 3500);
+      setFormErrors({});
+      if (formMode === "ONLINE" && !savedSession.meetingUrl) {
+        try {
+          await classSessionsApi.createGoogleMeet(savedSession.id);
+          showNotice("✓ Class scheduled and Google Meet created.");
+        } catch {
+          showNotice("✓ Class scheduled, but Google Meet creation failed.", "error", 4500);
+        }
+      }
     } catch (err: unknown) {
-      const apiMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as { message?: string })?.message;
-      setNotificationMsg(apiMessage || "Failed to save class. Please check the form and try again.");
-      setTimeout(() => setNotificationMsg(null), 4500);
+      const apiMessage = getApiErrorMessage(
+        err,
+        "Failed to save class. Please check the form and try again."
+      );
+      showNotice(apiMessage, "error", 6000);
+      if (/time slot|already assign|already has a class|conflict/i.test(apiMessage)) {
+        setFormErrors((prev) => ({ ...prev, period: apiMessage }));
+      }
     }
   };
 
   const resetScheduleForm = () => {
     setEditingSessionId(null);
-    setFormTopic("");
-    setFormCourse(courses[0]?.name ?? "");
+    setFormErrors({});
+    const defaultBatch =
+      (selectedBatch !== "ALL"
+        ? batches.find((b) => b.code === selectedBatch)
+        : undefined) ||
+      (selectedBranchId !== "ALL"
+        ? batches.find((b) => b.branchId === selectedBranchId)
+        : undefined) ||
+      batches[0];
+    const defaultBranchId =
+      defaultBatch?.branchId ||
+      (selectedBranchId !== "ALL" ? selectedBranchId : undefined) ||
+      branchesList[0]?.id ||
+      "";
+    const subjects = defaultBatch ? getBatchCourseRows(defaultBatch as BatchLike) : [];
     setFormModule("");
-    setFormBatch(batches[0]?.code ?? "");
-    setFormBranch(branchesList[0]?.id ?? "");
-    setFormFacultyId(facultyMembers[0]?.id ?? "");
+    setFormBatch(defaultBatch?.code ?? "");
+    setFormBranch(defaultBranchId);
+    setFormCourseId(subjects[0]?.courseId ?? "");
+    setFormBatchCourseId(subjects[0]?.id ?? "");
+    const defaultFaculty =
+      (defaultBatch &&
+        facultyMembers.find((f) => batchIncludesFaculty(defaultBatch as BatchLike, f.id))) ||
+      facultyMembers.find((f) => f.branchId === defaultBranchId) ||
+      facultyMembers[0];
+    setFormFacultyId(defaultFaculty?.id ?? "");
     setFormDate(new Date().toISOString().split("T")[0]);
-    setFormPeriod(2);
+    setFormPeriod(bookableSlots[0]?.period ?? 1);
     setFormMode("OFFLINE");
     setFormClassroomMasterId("");
   };
@@ -480,8 +595,18 @@ export const Classes: React.FC = () => {
 
       {/* Notification Toast */}
       {notificationMsg && (
-        <div className="p-3.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-300 flex items-center gap-2 text-xs font-bold shadow-2xs">
-          <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+        <div
+          className={`p-3.5 rounded-xl flex items-center gap-2 text-xs font-bold shadow-2xs border ${
+            notificationTone === "error"
+              ? "bg-rose-500/15 border-rose-500/30 text-rose-700 dark:text-rose-300"
+              : "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-emerald-300"
+          }`}
+        >
+          {notificationTone === "error" ? (
+            <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+          )}
           <span>{notificationMsg}</span>
         </div>
       )}
@@ -541,11 +666,10 @@ export const Classes: React.FC = () => {
                 setIsViewAllBranches(!isViewAllBranches);
                 setCurrentPage(1);
               }}
-              className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${
-                isViewAllBranches
+              className={`h-11 px-4 text-xs font-bold rounded-xl gap-2 transition-all cursor-pointer ${isViewAllBranches
                   ? "bg-[#2563EB] hover:bg-[#1D4ED8] text-white shadow-xs"
                   : "border-border bg-card text-foreground hover:bg-muted"
-              }`}
+                }`}
             >
               <Building2 className="h-4 w-4" />
               <span>{isViewAllBranches ? "Showing All Branches" : "View All Branches"}</span>
@@ -795,11 +919,10 @@ export const Classes: React.FC = () => {
 
                     {/* Column 5: Mode */}
                     <td className="py-3 px-3 text-center align-middle">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
-                        item.mode === "ONLINE"
+                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${item.mode === "ONLINE"
                           ? "bg-blue-500/15 text-blue-600 dark:text-blue-400 border-blue-500/30"
                           : "bg-muted text-muted-foreground border-border"
-                      }`}>
+                        }`}>
                         {item.mode === "ONLINE" ? "Online" : "Offline"}
                       </span>
                     </td>
@@ -910,11 +1033,10 @@ export const Classes: React.FC = () => {
                 <button
                   key={pg}
                   onClick={() => setCurrentPage(pg)}
-                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                    currentPage === pg
+                  className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === pg
                       ? "bg-primary text-primary-foreground shadow-xs"
                       : "bg-card text-foreground border border-border hover:bg-muted"
-                  }`}
+                    }`}
                 >
                   {pg}
                 </button>
@@ -925,11 +1047,10 @@ export const Classes: React.FC = () => {
                   <span className="text-muted-foreground px-1">...</span>
                   <button
                     onClick={() => setCurrentPage(totalPages)}
-                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                      currentPage === totalPages
+                    className={`h-8 w-8 rounded-lg text-xs font-bold transition-all cursor-pointer ${currentPage === totalPages
                         ? "bg-primary text-primary-foreground shadow-xs"
                         : "bg-card text-foreground border border-border hover:bg-muted"
-                    }`}
+                      }`}
                   >
                     {totalPages}
                   </button>
@@ -981,25 +1102,6 @@ export const Classes: React.FC = () => {
           <div className="space-y-3.5 my-3 text-xs">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label className="text-[11px] font-bold text-foreground">Course / Subject *</Label>
-                <select
-                  value={formCourse}
-                  onChange={(e) => {
-                    setFormCourse(e.target.value);
-                    setFormTopic(e.target.value);
-                  }}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
-                >
-                  <option value="">Select course</option>
-                  {courses.map((course) => (
-                    <option key={course.id} value={course.name}>
-                      {course.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
                 <Label className="text-[11px] font-bold text-foreground">Batch Code *</Label>
                 <select
                   value={formBatch}
@@ -1008,16 +1110,67 @@ export const Classes: React.FC = () => {
                     setFormBatch(code);
                     const matched = batches.find((b) => b.code === code || b.id === code);
                     if (matched?.branchId) setFormBranch(matched.branchId);
+                    const subjects = matched ? getBatchCourseRows(matched as BatchLike) : [];
+                    setFormCourseId(subjects[0]?.courseId ?? "");
+                    setFormBatchCourseId(subjects[0]?.id ?? "");
+                    const assignedFaculty = matched
+                      ? facultyMembers.find((f) =>
+                          batchIncludesFaculty(matched as BatchLike, f.id)
+                        )
+                      : undefined;
+                    if (assignedFaculty) setFormFacultyId(assignedFaculty.id);
+                    setFormErrors((prev) => ({ ...prev, batch: "", course: "" }));
                   }}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
+                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-medium outline-none ${
+                    formErrors.batch ? "border-rose-400" : "border-border"
+                  }`}
                 >
                   <option value="">Select batch</option>
-                  {batches.map((batch) => (
+                  {batchesForBranch.map((batch) => (
                     <option key={batch.id} value={batch.code}>
                       {batch.code} — {batch.name}
+                      {` (${formatBatchSubjectNames(batch as BatchLike)})`}
                     </option>
                   ))}
                 </select>
+                {formErrors.batch && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.batch}</p>
+                )}
+              </div>
+
+              <div>
+                <Label className="text-[11px] font-bold text-foreground">Course / Subject *</Label>
+                <select
+                  value={formCourseId}
+                  onChange={(e) => {
+                    const courseId = e.target.value;
+                    setFormCourseId(courseId);
+                    setFormErrors((prev) => ({ ...prev, course: "" }));
+                    const row = formSubjectOptions.find((r) => r.courseId === courseId);
+                    setFormBatchCourseId(row?.id || "");
+                    if (row?.facultyId) setFormFacultyId(row.facultyId);
+                  }}
+                  disabled={!selectedFormBatch || formSubjectOptions.length === 0}
+                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-medium outline-none ${
+                    formErrors.course ? "border-rose-400" : "border-border"
+                  }`}
+                >
+                  <option value="">
+                    {!selectedFormBatch
+                      ? "Select batch first"
+                      : formSubjectOptions.length === 0
+                        ? "No subjects on batch"
+                        : "Select course"}
+                  </option>
+                  {formSubjectOptions.map((row) => (
+                    <option key={row.id || row.courseId} value={row.courseId}>
+                      {row.course?.name || "Subject"}
+                    </option>
+                  ))}
+                </select>
+                {formErrors.course && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.course}</p>
+                )}
               </div>
             </div>
 
@@ -1025,10 +1178,18 @@ export const Classes: React.FC = () => {
               <Label className="text-[11px] font-bold text-foreground">Class Topic / Module *</Label>
               <Input
                 value={formModule}
-                onChange={(e) => setFormModule(e.target.value)}
+                onChange={(e) => {
+                  setFormModule(e.target.value);
+                  setFormErrors((prev) => ({ ...prev, module: "" }));
+                }}
                 placeholder="e.g. Arrays & Collections"
-                className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
+                className={`h-9 mt-1 text-xs rounded-xl bg-background text-foreground ${
+                  formErrors.module ? "border-rose-400" : "border-border"
+                }`}
               />
+              {formErrors.module && (
+                <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.module}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -1036,7 +1197,18 @@ export const Classes: React.FC = () => {
                 <Label className="text-[11px] font-bold text-foreground">Branch Center</Label>
                 <select
                   value={formBranch}
-                  onChange={(e) => setFormBranch(e.target.value)}
+                  onChange={(e) => {
+                    const branchId = e.target.value;
+                    setFormBranch(branchId);
+                    if (formBatch) {
+                      const matched = batches.find((b) => b.code === formBatch || b.id === formBatch);
+                      if (matched && matched.branchId && matched.branchId !== branchId) {
+                        setFormBatch("");
+                        setFormCourseId("");
+                        setFormBatchCourseId("");
+                      }
+                    }
+                  }}
                   className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none"
                 >
                   {branchesList.map((b) => (
@@ -1048,39 +1220,60 @@ export const Classes: React.FC = () => {
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-foreground">Assign Faculty</Label>
+                <Label className="text-[11px] font-bold text-foreground">Assign Faculty *</Label>
                 <select
                   value={formFacultyId}
-                  onChange={(e) => setFormFacultyId(e.target.value)}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-bold text-[#2563EB] outline-none"
+                  onChange={(e) => {
+                    setFormFacultyId(e.target.value);
+                    setFormErrors((prev) => ({ ...prev, faculty: "" }));
+                  }}
+                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-bold text-[#2563EB] outline-none ${
+                    formErrors.faculty ? "border-rose-400" : "border-border"
+                  }`}
                 >
-                  <option value="none">⚠ Leave Unassigned for now</option>
-                  {facultyMembers.map((f) => (
+                  <option value="">Select faculty</option>
+                  {facultyForForm.map((f) => (
                     <option key={f.id} value={f.id}>
                       {f.user?.name || f.employeeCode} ({f.specialization || "Instruction"})
                     </option>
                   ))}
                 </select>
+                {formErrors.faculty && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.faculty}</p>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <Label className="text-[11px] font-bold text-foreground">Date</Label>
+                <Label className="text-[11px] font-bold text-foreground">Date *</Label>
                 <Input
                   type="date"
                   value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
-                  className="h-9 mt-1 text-xs rounded-xl bg-background border-border text-foreground"
+                  onChange={(e) => {
+                    setFormDate(e.target.value);
+                    setFormErrors((prev) => ({ ...prev, date: "" }));
+                  }}
+                  className={`h-9 mt-1 text-xs rounded-xl bg-background text-foreground ${
+                    formErrors.date ? "border-rose-400" : "border-border"
+                  }`}
                 />
+                {formErrors.date && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.date}</p>
+                )}
               </div>
 
               <div>
-                <Label className="text-[11px] font-bold text-foreground">Time Slot</Label>
+                <Label className="text-[11px] font-bold text-foreground">Time Slot *</Label>
                 <select
                   value={formPeriod}
-                  onChange={(e) => setFormPeriod(Number(e.target.value))}
-                  className="w-full h-9 px-3 mt-1 bg-background text-foreground border border-border rounded-xl font-medium outline-none text-xs"
+                  onChange={(e) => {
+                    setFormPeriod(Number(e.target.value));
+                    setFormErrors((prev) => ({ ...prev, period: "" }));
+                  }}
+                  className={`w-full h-9 px-3 mt-1 bg-background text-foreground border rounded-xl font-medium outline-none text-xs ${
+                    formErrors.period ? "border-rose-400" : "border-border"
+                  }`}
                   disabled={slotsEmpty}
                 >
                   {slotsEmpty ? (
@@ -1093,9 +1286,13 @@ export const Classes: React.FC = () => {
                     ))
                   )}
                 </select>
-                <p className="text-[10px] text-muted-foreground mt-1">
-                  From Time Slot Master (Master Setup)
-                </p>
+                {formErrors.period ? (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{formErrors.period}</p>
+                ) : (
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    From Time Slot Master (Master Setup)
+                  </p>
+                )}
               </div>
             </div>
 
@@ -1133,6 +1330,13 @@ export const Classes: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {notificationMsg && isScheduleModalOpen && notificationTone === "error" && (
+            <div className="mb-2 p-2.5 rounded-xl text-[11px] font-medium border bg-rose-50 border-rose-200 text-rose-700 flex items-start gap-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>{notificationMsg}</span>
+            </div>
+          )}
 
           <DialogFooter className="flex gap-2 mt-3">
             <Button

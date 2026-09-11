@@ -35,6 +35,8 @@ import { useAuthStore } from "@/store/auth.store";
 import { useSessionStore } from "@/store/session.store";
 import { classSessionsApi } from "@/services/class-sessions.api";
 import { facultyApi } from "@/services/faculty.api";
+import { batchesApi } from "@/services/batches.api";
+import { getApiErrorMessage } from "@/utils/api-error";
 import { CompleteClassDialog } from "./CompleteClassDialog";
 import { UploadRecordingModal } from "./UploadRecordingModal";
 import { UploadStudyMaterialsModal } from "./UploadStudyMaterialsModal";
@@ -120,20 +122,66 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     Boolean(session?.batchId) &&
     !session?.batchId?.startsWith("mock-") &&
     !session?.batchId?.startsWith("demo-") &&
-    !session?.batchId?.startsWith("batch-");
+    !session?.batchId?.startsWith("temp-");
 
   // Query enrolled students for this class/batch
-  const { data: attendanceRes, isLoading: isRosterLoading } = useQuery({
+  const {
+    data: attendanceRes,
+    isLoading: isAttendanceLoading,
+    isError: isAttendanceError,
+    isFetched: isAttendanceFetched,
+  } = useQuery({
     queryKey: ["class-session-attendance", sessionId],
     queryFn: () => classSessionsApi.getAttendance(sessionId),
     enabled: isRealSessionId && isOpen,
+    retry: 1,
   });
 
-  const { data: myStudentsRes } = useQuery({
-    queryKey: ["faculty-my-students", session?.batchId],
-    queryFn: () => facultyApi.getMyStudents({ batchId: session?.batchId, limit: 100 }),
-    enabled: isRealBatchId && isOpen && !isRealSessionId,
+  const resolvedBatchId =
+    session?.batchId ||
+    attendanceRes?.data?.classSession?.batch?.id ||
+    undefined;
+
+  const canUseBatchId =
+    Boolean(resolvedBatchId) &&
+    !String(resolvedBatchId).startsWith("mock-") &&
+    !String(resolvedBatchId).startsWith("demo-") &&
+    !String(resolvedBatchId).startsWith("temp-");
+
+  const attendanceStudents = attendanceRes?.data?.students;
+  const attendanceEmpty =
+    isAttendanceFetched &&
+    Array.isArray(attendanceStudents) &&
+    attendanceStudents.length === 0;
+  const needsBatchFallback =
+    !isRealSessionId || isAttendanceError || attendanceEmpty;
+
+  // Direct batch enrollments (same source ClassSession page uses)
+  const {
+    data: batchStudentsRes,
+    isLoading: isBatchStudentsLoading,
+    isFetched: isBatchStudentsFetched,
+  } = useQuery({
+    queryKey: ["batch-students", resolvedBatchId],
+    queryFn: () => batchesApi.getStudents(resolvedBatchId!),
+    enabled: Boolean(isOpen && canUseBatchId && needsBatchFallback),
+    retry: 1,
   });
+
+  const { data: myStudentsRes, isLoading: isMyStudentsLoading } = useQuery({
+    queryKey: ["faculty-my-students", resolvedBatchId],
+    queryFn: () => facultyApi.getMyStudents({ batchId: resolvedBatchId, limit: 100 }),
+    enabled:
+      Boolean(isOpen && canUseBatchId && needsBatchFallback) &&
+      (isBatchStudentsFetched
+        ? !Array.isArray(batchStudentsRes?.data) || batchStudentsRes.data.length === 0
+        : false),
+    retry: 1,
+  });
+
+  const isRosterLoading =
+    (isRealSessionId && isAttendanceLoading) ||
+    (needsBatchFallback && canUseBatchId && (isBatchStudentsLoading || isMyStudentsLoading));
 
   // Sync state on session prop change or activeLiveClass
   useEffect(() => {
@@ -161,32 +209,57 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
     }
   }, [session, isOpen, activeLiveClass]);
 
-  // Load student roster strictly for this session/batch
+  // Load student roster: session attendance → batch enrollments → faculty my-students
   useEffect(() => {
     if (!isOpen || !session) return;
 
-    if (attendanceRes?.data?.students && Array.isArray(attendanceRes.data.students)) {
-      const roster: StudentRosterItem[] = attendanceRes.data.students.map((s: any) => {
-        const name = s.name || s.studentName || "Student";
+    const mapAttendanceRoster = (rows: any[]): StudentRosterItem[] =>
+      rows.map((s: any) => {
+        const name = s.name || s.studentName || s.student?.user?.name || "Student";
         const rawStatus = (s.status || "").toUpperCase();
         const status: AttendanceStatus =
-          rawStatus === "ABSENT" ? "ABSENT" : rawStatus === "LEAVE" ? "LEAVE" : "PRESENT";
+          rawStatus === "ABSENT"
+            ? "ABSENT"
+            : rawStatus === "LEAVE" || rawStatus === "EXCUSED"
+              ? "LEAVE"
+              : "PRESENT";
 
         return {
-          id: s.studentId || s.id,
-          studentId: s.studentCode || `STU-${String(s.studentId || s.id).slice(0, 4)}`,
+          id: s.studentId || s.id || s.student?.id,
+          studentId: s.studentCode || s.student?.studentCode || `STU-${String(s.studentId || s.id).slice(0, 4)}`,
           name,
-          email: s.email,
-          phone: s.phone || s.mobile,
+          email: s.email || s.student?.user?.email,
+          phone: s.phone || s.mobile || s.student?.user?.phone,
           avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
           status,
+        };
+      });
+
+    const attendanceStudents = attendanceRes?.data?.students;
+    if (Array.isArray(attendanceStudents) && attendanceStudents.length > 0) {
+      setStudents(mapAttendanceRoster(attendanceStudents));
+      return;
+    }
+
+    const batchRows = batchStudentsRes?.data;
+    if (Array.isArray(batchRows) && batchRows.length > 0) {
+      const roster: StudentRosterItem[] = batchRows.map((row: any, idx: number) => {
+        const name = row.student?.user?.name || row.student?.name || `Student ${idx + 1}`;
+        return {
+          id: row.studentId || row.student?.id || `stu-${idx + 1}`,
+          studentId: row.student?.studentCode || `STU-${String(row.studentId || idx).slice(0, 4)}`,
+          name,
+          email: row.student?.user?.email,
+          phone: row.student?.user?.phone,
+          avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+          status: "PRESENT" as AttendanceStatus,
         };
       });
       setStudents(roster);
       return;
     }
 
-    if (myStudentsRes?.data && Array.isArray(myStudentsRes.data)) {
+    if (myStudentsRes?.data && Array.isArray(myStudentsRes.data) && myStudentsRes.data.length > 0) {
       const roster: StudentRosterItem[] = myStudentsRes.data.map((s: any) => {
         const name = s.user?.name || "Student";
         return {
@@ -196,28 +269,37 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
           email: s.user?.email,
           phone: s.user?.phone,
           avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
-          status: "PRESENT",
+          status: "PRESENT" as AttendanceStatus,
         };
       });
       setStudents(roster);
       return;
     }
 
-    // Default preview roster when no backend roster returned yet
-    if (!isRosterLoading) {
-      const demoStudents: StudentRosterItem[] = [
-        { id: "std-1", studentId: "STU-1001", name: "Aarav Sharma", email: "aarav.s@aadya.in", phone: "+91 98765 43210", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Aarav", status: "PRESENT" },
-        { id: "std-2", studentId: "STU-1002", name: "Ananya Verma", email: "ananya.v@aadya.in", phone: "+91 98765 43211", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Ananya", status: "PRESENT" },
-        { id: "std-3", studentId: "STU-1003", name: "Rohan Gupta", email: "rohan.g@aadya.in", phone: "+91 98765 43212", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Rohan", status: "ABSENT" },
-        { id: "std-4", studentId: "STU-1004", name: "Priya Patel", email: "priya.p@aadya.in", phone: "+91 98765 43213", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Priya", status: "PRESENT" },
-        { id: "std-5", studentId: "STU-1005", name: "Aditya Nair", email: "aditya.n@aadya.in", phone: "+91 98765 43214", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Aditya", status: "PRESENT" },
-        { id: "std-6", studentId: "STU-1006", name: "Sneha Rao", email: "sneha.r@aadya.in", phone: "+91 98765 43215", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Sneha", status: "LEAVE" },
-        { id: "std-7", studentId: "STU-1007", name: "Kunal Reddy", email: "kunal.r@aadya.in", phone: "+91 98765 43216", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Kunal", status: "PRESENT" },
-        { id: "std-8", studentId: "STU-1008", name: "Pooja Mehta", email: "pooja.m@aadya.in", phone: "+91 98765 43217", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Pooja", status: "PRESENT" },
-      ];
-      setStudents(demoStudents);
+    // Wait until all relevant queries settle before showing empty
+    if (isRosterLoading) return;
+
+    if (isRealSessionId || canUseBatchId) {
+      setStudents([]);
+      return;
     }
-  }, [attendanceRes, myStudentsRes, isOpen, session, isRosterLoading]);
+
+    // Preview-only for mock/temp sessions without batch
+    const demoStudents: StudentRosterItem[] = [
+      { id: "std-1", studentId: "STU-1001", name: "Aarav Sharma", email: "aarav.s@aadya.in", phone: "+91 98765 43210", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Aarav", status: "PRESENT" },
+      { id: "std-2", studentId: "STU-1002", name: "Ananya Verma", email: "ananya.v@aadya.in", phone: "+91 98765 43211", avatar: "https://api.dicebear.com/7.x/initials/svg?seed=Ananya", status: "PRESENT" },
+    ];
+    setStudents(demoStudents);
+  }, [
+    attendanceRes,
+    batchStudentsRes,
+    myStudentsRes,
+    isOpen,
+    session,
+    isRosterLoading,
+    isRealSessionId,
+    canUseBatchId,
+  ]);
 
   // Timer interval for LIVE session
   useEffect(() => {
@@ -374,7 +456,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       setAttendanceSaveSuccess(true);
       setTimeout(() => setAttendanceSaveSuccess(false), 2000);
     } catch (err: any) {
-      setAttendanceError(err?.message || "Failed to save attendance.");
+      setAttendanceError(getApiErrorMessage(err, "Failed to save attendance."));
     } finally {
       setIsSavingAttendance(false);
     }
@@ -416,7 +498,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
       onSessionStatusChange?.(session.id, "COMPLETED");
       if (syncQueued) {
         setRecordingSyncNotice(
-          "Class ended. Recording will sync from Google Drive in the background. You can leave now — check Class Recordings later for status."
+          "ERP class ended. End the Google Meet (or stop recording there) so Google can process the file — Meet recording is Google-managed. ERP will sync from Drive in the background; check Class Recordings later."
         );
       }
     } catch (err: any) {
@@ -625,7 +707,12 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                 )}
 
                 <div className="max-h-56 overflow-y-auto space-y-1.5 pr-1 divide-y divide-slate-100 dark:divide-slate-800">
-                  {filteredStudents.length > 0 ? (
+                  {isRosterLoading && students.length === 0 ? (
+                    <div className="py-8 text-center text-xs text-slate-400 flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Loading enrolled students…
+                    </div>
+                  ) : filteredStudents.length > 0 ? (
                     filteredStudents.map((s) => (
                       <div
                         key={s.id}
@@ -691,7 +778,9 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     ))
                   ) : (
                     <div className="py-8 text-center text-xs text-slate-400">
-                      No students found in roster for this batch.
+                      {isAttendanceError
+                        ? "Could not load session attendance. Trying batch enrollments…"
+                        : "No students found in roster for this batch."}
                     </div>
                   )}
                 </div>
@@ -723,7 +812,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                   disabled={isPreparingMeet}
                   className="bg-white hover:bg-slate-100 text-[#2563EB] font-black text-xs rounded-xl shadow-xs h-9 px-4 shrink-0"
                 >
-                  <Video className="w-4 h-4 mr-1.5 fill-current text-blue-600" /> Go Live to Class (Google Meet)
+                  <Video className="w-4 h-4 mr-1.5 fill-current text-blue-600" /> Open Google Meet
                 </Button>
               </div>
             )}
@@ -736,7 +825,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     <Film className="w-4 h-4 mt-0.5 shrink-0 text-[#2563EB]" />
                     <div>
                       <p className="font-bold text-sm text-blue-900 dark:text-blue-100">
-                        Recording sync queued
+                        ERP class ended — Drive sync queued
                       </p>
                       <p className="mt-0.5 font-normal text-blue-700 dark:text-blue-300">
                         {recordingSyncNotice}
@@ -752,7 +841,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                         <p className="font-extrabold text-sm">Class Completed & Attendance Finalized</p>
                         <p className="text-[11px] text-emerald-700 dark:text-emerald-300 font-normal">
                           {recordingSyncNotice
-                            ? "Google Meet recording syncs automatically in the background. Optionally upload a file or attach study materials for students."
+                            ? "Meet recording stays Google-managed until the host ends Meet / stops recording there. ERP syncs from Drive in the background. Optionally upload a file or attach study materials."
                             : "Upload the lecture recording and study materials now so students can access them in their Student Portal."}
                         </p>
                       </div>
@@ -807,7 +896,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                   ) : (
                     <Play className="w-4 h-4 mr-1.5 fill-current" />
                   )}
-                  START CLASS
+                  Host Class
                 </Button>
               )}
 
@@ -820,7 +909,7 @@ export const StartClassModal: React.FC<StartClassModalProps> = ({
                     disabled={isPreparingMeet || !meetingUrl}
                     className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs h-9 px-3"
                   >
-                    <Video className="w-3.5 h-3.5 mr-1" /> Go Live (Google Meet)
+                    <Video className="w-3.5 h-3.5 mr-1" /> Open Google Meet
                   </Button>
 
                   <Button

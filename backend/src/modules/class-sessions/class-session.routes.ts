@@ -2,7 +2,7 @@ import { Router } from "express";
 import type { Response, NextFunction } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
 import type { AuthenticatedRequest } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requirePermission, requirePermissionUnlessRoles } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   createClassSessionSchema,
@@ -69,7 +69,12 @@ router.post("/:id/recordings/sync", requirePermission("recording.manage"), syncS
 
 // Attendance sub-routes for class session
 router.get("/:id/attendance", requirePermission("attendance.read"), getSessionAttendance);
-router.post("/:id/attendance", requirePermission("attendance.mark"), postSessionAttendance);
+// Faculty hosts must be able to save attendance during live class (session ownership still enforced in service)
+router.post(
+  "/:id/attendance",
+  requirePermissionUnlessRoles("attendance.mark", "FACULTY"),
+  postSessionAttendance
+);
 
 // Live class management actions
 router.post("/:id/start-live", requireLiveSessionControl, startLiveSession);

@@ -15,6 +15,7 @@ export const toAuthUser = (req: AuthenticatedRequest): AuthUser => {
     name: "User",
     instituteId: user.instituteId,
     branchId: user.branchId,
+    allowedBranchIds: user.allowedBranchIds ?? [],
     roles: user.roles || [],
     permissions: [],
   };

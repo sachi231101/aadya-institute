@@ -83,9 +83,13 @@ const assertNoFacultyConflict = async (options: {
 }) => {
   const conflict = await classSessionRepository.findFacultyConflict(options);
   if (conflict) {
+    const conflictTitle = conflict.title?.trim();
     throw new AppError(
-      `Faculty already has a class at ${options.startTime}–${options.endTime} on this date`,
-      409
+      conflictTitle
+        ? `This time slot is already assigned (${conflictTitle} at ${conflict.startTime}–${conflict.endTime}). Choose another slot or faculty.`
+        : `This time slot is already assigned for this faculty (${options.startTime}–${options.endTime} on this date). Choose another slot.`,
+      409,
+      "CLASS_SESSION_TIME_CONFLICT"
     );
   }
 };
