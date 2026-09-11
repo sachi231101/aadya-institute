@@ -89,6 +89,11 @@ export interface AdmissionInstallmentDTO {
   amount: number;
 }
 
+export interface AdmissionTermsAcceptanceDTO {
+  masterId: string;
+  name: string;
+}
+
 export interface CreateAdmissionDTO {
   studentName: string;
   email?: string;
@@ -113,6 +118,7 @@ export interface CreateAdmissionDTO {
   paymentModeMasterId?: string;
   areaMasterId?: string;
   concessionHeadMasterId?: string;
+  termsAcceptance?: AdmissionTermsAcceptanceDTO[];
   sendCredentials?: boolean;
 }
 
@@ -125,6 +131,7 @@ export interface UpdateAdmissionDTO {
   feePlan?: FeePlan;
   status?: AdmissionStatus;
   notes?: string;
+  termsAcceptance?: AdmissionTermsAcceptanceDTO[];
 }
 
 export interface QueryAdmissionsDTO {
@@ -150,4 +157,5 @@ export interface ConvertApplicationDTO {
   totalFee?: number;
   amountPaid?: number;
   installments?: AdmissionInstallmentDTO[];
+  termsAcceptance?: AdmissionTermsAcceptanceDTO[];
 }

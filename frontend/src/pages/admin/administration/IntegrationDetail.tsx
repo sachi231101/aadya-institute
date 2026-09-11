@@ -19,14 +19,31 @@ import {
   useConnectGoogle,
   useDisconnectGoogle,
   useDisconnectIntegration,
+  useFetchWhatsappNumber,
   useIntegrationDetail,
   useTestIntegration,
   useUpsertIntegration,
 } from "@/hooks/useIntegrations";
+import {
+  useAiCallingAgents,
+  useAiCallingConfig,
+  useUpdateAiCallingConfig,
+} from "@/hooks/useAiCalling";
 import type { IntegrationType } from "@/services/integrations.api";
 import { ROUTES } from "@/constants/routes";
 import { getPortalBasePath } from "@/utils/portal-path";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { Textarea } from "@/components/ui/textarea";
+
+const CALLING_DAY_OPTIONS: { value: number; label: string }[] = [
+  { value: 0, label: "Sun" },
+  { value: 1, label: "Mon" },
+  { value: 2, label: "Tue" },
+  { value: 3, label: "Wed" },
+  { value: 4, label: "Thu" },
+  { value: 5, label: "Fri" },
+  { value: 6, label: "Sat" },
+];
 
 const TYPE_MAP: Record<string, IntegrationType> = {
   ai: "AI",
@@ -117,8 +134,15 @@ export const IntegrationDetail: React.FC = () => {
   const upsert = useUpsertIntegration(type ?? "AI");
   const test = useTestIntegration(type ?? "AI");
   const disconnect = useDisconnectIntegration(type ?? "AI");
+  const fetchWhatsappNumber = useFetchWhatsappNumber();
   const connectGoogle = useConnectGoogle();
   const disconnectGoogle = useDisconnectGoogle();
+
+  const isAiCalling = type === "AI_CALLING";
+  const { data: aiConfigRes, refetch: refetchAiConfig } = useAiCallingConfig(isAiCalling);
+  const { data: agentsRes } = useAiCallingAgents(isAiCalling);
+  const updateAiConfig = useUpdateAiCallingConfig();
+  const agents = agentsRes?.data || [];
 
   const [isEnabled, setIsEnabled] = useState(true);
   const [config, setConfig] = useState<Record<string, string | number | boolean>>({});
@@ -126,6 +150,17 @@ export const IntegrationDetail: React.FC = () => {
   const [replaceSecrets, setReplaceSecrets] = useState<Record<string, boolean>>({});
   const [message, setMessage] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const [aiAgentId, setAiAgentId] = useState("");
+  const [aiFromNumber, setAiFromNumber] = useState("");
+  const [aiScript, setAiScript] = useState("");
+  const [aiHoursStart, setAiHoursStart] = useState("09:00");
+  const [aiHoursEnd, setAiHoursEnd] = useState("20:00");
+  const [aiCallingDays, setAiCallingDays] = useState<number[]>([1, 2, 3, 4, 5, 6]);
+  const [aiDailyLimit, setAiDailyLimit] = useState("");
+  const [aiMaxAttempts, setAiMaxAttempts] = useState("3");
+  const [aiRetryDelay, setAiRetryDelay] = useState("60");
+  const [aiEnabled, setAiEnabled] = useState(false);
 
   useEffect(() => {
     if (!data) return;
@@ -144,6 +179,24 @@ export const IntegrationDetail: React.FC = () => {
     setMessage(null);
     setErrorMsg(null);
   }, [data]);
+
+  useEffect(() => {
+    const cfg = aiConfigRes?.data;
+    if (!cfg) return;
+    setAiAgentId(cfg.agentId || "");
+    setAiFromNumber(cfg.fromNumber || "");
+    setAiScript(cfg.callingScript || "");
+    setAiHoursStart(cfg.callingHoursStart || "09:00");
+    setAiHoursEnd(cfg.callingHoursEnd || "20:00");
+    const days = Array.isArray(cfg.callingDays)
+      ? (cfg.callingDays as number[])
+      : [1, 2, 3, 4, 5, 6];
+    setAiCallingDays(days);
+    setAiDailyLimit(cfg.dailyCallLimit != null ? String(cfg.dailyCallLimit) : "");
+    setAiMaxAttempts(String(cfg.maxAttemptsPerLead ?? 3));
+    setAiRetryDelay(String(cfg.retryDelayMinutes ?? 60));
+    setAiEnabled(Boolean(cfg.isEnabled));
+  }, [aiConfigRes?.data]);
 
   if (!type) {
     return (
@@ -193,6 +246,12 @@ export const IntegrationDetail: React.FC = () => {
     setSecrets((prev) => ({ ...prev, [key]: "" }));
   };
 
+  const toggleCallingDay = (day: number) => {
+    setAiCallingDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day].sort((a, b) => a - b)
+    );
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -211,12 +270,34 @@ export const IntegrationDetail: React.FC = () => {
       }
 
       await upsert.mutateAsync({
-        isEnabled,
-        configuration: config,
+        isEnabled: isAiCalling ? aiEnabled : isEnabled,
+        configuration: isAiCalling
+          ? {
+              ...config,
+              fromNumber: aiFromNumber || config.fromNumber,
+            }
+          : config,
         ...(Object.keys(credentials).length ? { credentials } : {}),
         ...(replaceCredentials ? { replaceCredentials: true } : {}),
       });
-      setMessage("Integration saved.");
+
+      if (isAiCalling) {
+        await updateAiConfig.mutateAsync({
+          agentId: aiAgentId || null,
+          fromNumber: aiFromNumber.trim() || null,
+          callingScript: aiScript.trim() || null,
+          callingHoursStart: aiHoursStart || null,
+          callingHoursEnd: aiHoursEnd || null,
+          callingDays: aiCallingDays.length ? aiCallingDays : null,
+          dailyCallLimit: aiDailyLimit.trim() ? Number(aiDailyLimit) : null,
+          maxAttemptsPerLead: Number(aiMaxAttempts) || 3,
+          retryDelayMinutes: Number(aiRetryDelay) || 60,
+          isEnabled: aiEnabled,
+        });
+        await refetchAiConfig();
+      }
+
+      setMessage(isAiCalling ? "AI Calling config and credentials saved." : "Integration saved.");
       setSecrets({});
       setReplaceSecrets({});
     } catch (err: unknown) {
@@ -241,6 +322,26 @@ export const IntegrationDetail: React.FC = () => {
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
         (err as Error)?.message ||
         "Test failed";
+      setErrorMsg(msg);
+    }
+  };
+
+  const handleFetchWhatsappNumber = async () => {
+    setMessage(null);
+    setErrorMsg(null);
+    try {
+      const result = await fetchWhatsappNumber.mutateAsync();
+      setConfig((prev) => ({
+        ...prev,
+        integratedNumber: result.integratedNumber,
+      }));
+      setMessage(`Integrated WhatsApp number: ${result.integratedNumber}`);
+      await refetch();
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as Error)?.message ||
+        "Failed to fetch WhatsApp number";
       setErrorMsg(msg);
     }
   };
@@ -279,7 +380,22 @@ export const IntegrationDetail: React.FC = () => {
         <div className="flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-2xl font-bold text-text-primary">{data.name}</h2>
-            <Badge variant="outline">{data.status.replace(/_/g, " ")}</Badge>
+            <Badge
+              variant={
+                data.status === "CONNECTED"
+                  ? "success"
+                  : data.status === "ERROR"
+                    ? "destructive"
+                    : "outline"
+              }
+            >
+              {data.status.replace(/_/g, " ")}
+            </Badge>
+            {type === "WHATSAPP" ? (
+              <Badge variant="outline">Provider: MSG91</Badge>
+            ) : data.provider ? (
+              <Badge variant="outline">{data.provider}</Badge>
+            ) : null}
           </div>
           <p className="text-sm text-text-secondary">{data.description}</p>
         </div>
@@ -381,13 +497,15 @@ export const IntegrationDetail: React.FC = () => {
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label>Enabled</Label>
-                  <p className="text-xs text-text-secondary">Disable to stop using this integration.</p>
+              {!isAiCalling && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label>Enabled</Label>
+                    <p className="text-xs text-text-secondary">Disable to stop using this integration.</p>
+                  </div>
+                  <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
                 </div>
-                <Switch checked={isEnabled} onCheckedChange={setIsEnabled} />
-              </div>
+              )}
 
               {type === "AI" && (
                 <>
@@ -421,48 +539,184 @@ export const IntegrationDetail: React.FC = () => {
               {type === "WHATSAPP" && (
                 <>
                   <div>
-                    <Label>Campaign name (optional)</Label>
-                    <Input
-                      value={String(config.campaignName ?? "")}
-                      onChange={setConfigField("campaignName")}
-                    />
+                    <Label>Integrated WhatsApp number</Label>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <Input
+                        value={String(config.integratedNumber ?? config.phoneNumber ?? "")}
+                        onChange={setConfigField("integratedNumber")}
+                        placeholder="9198XXXXXXXX"
+                        className="flex-1"
+                      />
+                      <PermissionGate itemKey="admin.integrations" mode="write">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={fetchWhatsappNumber.isPending || !hasCredential}
+                          onClick={handleFetchWhatsappNumber}
+                        >
+                          {fetchWhatsappNumber.isPending ? (
+                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                          ) : null}
+                          Fetch WhatsApp Number
+                        </Button>
+                      </PermissionGate>
+                    </div>
+                    <p className="text-xs text-text-secondary mt-1">
+                      Prefer Fetch from MSG91 after saving Auth Key. Manual entry is allowed if fetch fails.
+                    </p>
                   </div>
                   <div>
-                    <Label>Phone number (optional)</Label>
+                    <Label>Template namespace (optional)</Label>
                     <Input
-                      value={String(config.phoneNumber ?? "")}
-                      onChange={setConfigField("phoneNumber")}
+                      value={String(config.namespace ?? "")}
+                      onChange={setConfigField("namespace")}
+                      placeholder="Optional WABA namespace"
                     />
                   </div>
                   <SecretField
-                    label="AiSensy API Key"
-                    configured={hasCredential && !replaceSecrets.apiKey}
-                    value={secrets.apiKey ?? ""}
-                    onChange={setSecret("apiKey")}
-                    onReplace={() => markReplace("apiKey")}
-                    replacing={Boolean(replaceSecrets.apiKey)}
+                    label="MSG91 Auth Key"
+                    configured={hasCredential && !replaceSecrets.authKey}
+                    value={secrets.authKey ?? ""}
+                    onChange={setSecret("authKey")}
+                    onReplace={() => markReplace("authKey")}
+                    replacing={Boolean(replaceSecrets.authKey)}
                   />
                 </>
               )}
 
               {type === "AI_CALLING" && (
                 <>
-                  <div>
-                    <Label>From number (optional)</Label>
-                    <Input
-                      value={String(config.fromNumber ?? "")}
-                      onChange={setConfigField("fromNumber")}
-                    />
+                  <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-3">
+                    <p className="text-sm font-semibold text-slate-800">Institute dialer settings</p>
+                    <p className="text-xs text-text-secondary">
+                      Saved to AI Calling config. Credential overrides below are optional when using
+                      shared platform keys.
+                    </p>
+                    {aiConfigRes?.data?.resolved && (
+                      <p className="text-xs text-slate-600">
+                        Resolved source: <strong>{aiConfigRes.data.resolved.source}</strong>
+                        {aiConfigRes.data.resolved.hasTelephony
+                          ? " · telephony ready"
+                          : " · telephony not configured"}
+                      </p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <Label>AI Calling enabled</Label>
+                      <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
+                    </div>
+                    <div>
+                      <Label>Voice agent</Label>
+                      <select
+                        value={aiAgentId}
+                        onChange={(e) => setAiAgentId(e.target.value)}
+                        className="w-full h-10 px-3 border rounded-md text-sm bg-background"
+                      >
+                        <option value="">Select agent…</option>
+                        {agents.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.provider})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <Label>From number</Label>
+                      <Input
+                        value={aiFromNumber}
+                        onChange={(e) => setAiFromNumber(e.target.value)}
+                        placeholder="+91…"
+                      />
+                    </div>
+                    <div>
+                      <Label>Calling script</Label>
+                      <Textarea
+                        value={aiScript}
+                        onChange={(e) => setAiScript(e.target.value)}
+                        rows={4}
+                        placeholder="Script / prompt for the voice agent"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Hours start (HH:MM)</Label>
+                        <Input
+                          value={aiHoursStart}
+                          onChange={(e) => setAiHoursStart(e.target.value)}
+                          placeholder="09:00"
+                        />
+                      </div>
+                      <div>
+                        <Label>Hours end (HH:MM)</Label>
+                        <Input
+                          value={aiHoursEnd}
+                          onChange={(e) => setAiHoursEnd(e.target.value)}
+                          placeholder="20:00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="mb-2 block">Calling days</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {CALLING_DAY_OPTIONS.map((d) => {
+                          const on = aiCallingDays.includes(d.value);
+                          return (
+                            <button
+                              key={d.value}
+                              type="button"
+                              onClick={() => toggleCallingDay(d.value)}
+                              className={`px-2.5 py-1 rounded-md text-xs font-semibold border ${
+                                on
+                                  ? "bg-[#2563EB] text-white border-[#2563EB]"
+                                  : "bg-background text-foreground border-border"
+                              }`}
+                            >
+                              {d.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>Daily call limit</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={aiDailyLimit}
+                          onChange={(e) => setAiDailyLimit(e.target.value)}
+                          placeholder="Unlimited"
+                        />
+                      </div>
+                      <div>
+                        <Label>Max attempts / lead</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={aiMaxAttempts}
+                          onChange={(e) => setAiMaxAttempts(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Retry delay (min)</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={aiRetryDelay}
+                          onChange={(e) => setAiRetryDelay(e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
                   <div>
-                    <Label>Base URL (optional)</Label>
+                    <Label>Base URL override (optional)</Label>
                     <Input
                       value={String(config.baseUrl ?? "")}
                       onChange={setConfigField("baseUrl")}
                     />
                   </div>
                   <SecretField
-                    label="Sarvam API Key"
+                    label="Sarvam API Key (institute override)"
                     configured={hasCredential && !replaceSecrets.apiKey}
                     value={secrets.apiKey ?? ""}
                     onChange={setSecret("apiKey")}
@@ -470,7 +724,7 @@ export const IntegrationDetail: React.FC = () => {
                     replacing={Boolean(replaceSecrets.apiKey)}
                   />
                   <SecretField
-                    label="Telephony API Key (optional)"
+                    label="Telephony API Key (institute override)"
                     configured={Boolean(data.maskedCredential) && !replaceSecrets.telephonyApiKey}
                     value={secrets.telephonyApiKey ?? ""}
                     onChange={setSecret("telephonyApiKey")}
@@ -578,8 +832,12 @@ export const IntegrationDetail: React.FC = () => {
 
               <div className="flex flex-wrap gap-2 pt-2">
                 <PermissionGate itemKey="admin.integrations" mode="write">
-                <Button type="submit" disabled={upsert.isPending} className="bg-[#2563EB] text-white">
-                  {upsert.isPending ? (
+                <Button
+                  type="submit"
+                  disabled={upsert.isPending || updateAiConfig.isPending}
+                  className="bg-[#2563EB] text-white"
+                >
+                  {upsert.isPending || updateAiConfig.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-1" />
                   ) : (
                     <Save className="h-4 w-4 mr-1" />

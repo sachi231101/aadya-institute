@@ -1,5 +1,6 @@
 ﻿import React, { useMemo, useState } from "react";
-import { UserPlus, Search, Loader2, AlertCircle } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { UserPlus, Search, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { useLeads, useAssignLead } from "@/hooks/useLeads";
 import { useAdminUsers } from "@/hooks/useUsers";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,11 +16,18 @@ import {
 } from "@/components/ui/table";
 import { LeadStageBadge, isTerminalAiCallStatus } from "@/components/common/LeadStageBadge";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { getPortalBasePath } from "@/utils/portal-path";
 import type { Lead } from "@/services/leads.api";
+import { BulkAssignDialog } from "@/pages/admin/leads/components/BulkAssignDialog";
 
 export const LeadAllocation: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCounsellor, setSelectedCounsellor] = useState<Record<string, string>>({});
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAssignOpen, setBulkAssignOpen] = useState(false);
   const [tab, setTab] = useState<"ready" | "awaiting">("ready");
 
   const { data, isLoading, isError, refetch } = useLeads({
@@ -58,19 +66,66 @@ export const LeadAllocation: React.FC = () => {
     }
   };
 
+  const toggleSelect = (id: string) => {
+    if (tab === "awaiting") return;
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (tab === "awaiting") return;
+    if (selectedIds.length === visible.length) setSelectedIds([]);
+    else setSelectedIds(visible.map((l) => l.id));
+  };
+
+  const openLead = (leadId: string) => {
+    navigate(`${basePath}/leads/${leadId}`);
+  };
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-text-primary">Assign Leads to Counsellors</h2>
-        <p className="text-sm text-text-secondary">
-          Assign counsellors after the AI qualification call has finished.
-        </p>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-text-primary">Assign Leads to Counsellors</h2>
+          <p className="text-sm text-text-secondary">
+            Assign counsellors after the AI qualification call has finished.
+          </p>
+        </div>
+        {tab === "ready" && selectedIds.length > 0 && (
+          <PermissionGate itemKey="counsellor.lead_allocation" mode="write">
+            <Button
+              type="button"
+              className="bg-[#2563EB] text-white gap-2"
+              onClick={() => setBulkAssignOpen(true)}
+            >
+              <UserPlus className="w-4 h-4" />
+              Bulk assign ({selectedIds.length})
+            </Button>
+          </PermissionGate>
+        )}
       </div>
       <div className="flex gap-2">
-        <Button type="button" variant={tab === "ready" ? "default" : "outline"} size="sm" onClick={() => setTab("ready")}>
+        <Button
+          type="button"
+          variant={tab === "ready" ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setTab("ready");
+            setSelectedIds([]);
+          }}
+        >
           Ready to assign ({ready.length})
         </Button>
-        <Button type="button" variant={tab === "awaiting" ? "default" : "outline"} size="sm" onClick={() => setTab("awaiting")}>
+        <Button
+          type="button"
+          variant={tab === "awaiting" ? "default" : "outline"}
+          size="sm"
+          onClick={() => {
+            setTab("awaiting");
+            setSelectedIds([]);
+          }}
+        >
           Awaiting AI call ({awaiting.length})
         </Button>
       </div>
@@ -83,6 +138,15 @@ export const LeadAllocation: React.FC = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-10">
+                  <input
+                    type="checkbox"
+                    checked={visible.length > 0 && selectedIds.length === visible.length}
+                    onChange={toggleSelectAll}
+                    disabled={tab === "awaiting"}
+                    aria-label="Select all"
+                  />
+                </TableHead>
                 <TableHead>Lead</TableHead>
                 <TableHead>Phone</TableHead>
                 <TableHead>Stage</TableHead>
@@ -93,15 +157,33 @@ export const LeadAllocation: React.FC = () => {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8"><Loader2 className="w-5 h-5 animate-spin inline mr-2" />Loading...</TableCell></TableRow>
               ) : isError ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-red-600"><AlertCircle className="w-5 h-5 inline mr-2" />Failed to load.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-red-600"><AlertCircle className="w-5 h-5 inline mr-2" />Failed to load.</TableCell></TableRow>
               ) : visible.length === 0 ? (
-                <TableRow><TableCell colSpan={6} className="text-center py-8 text-text-secondary">No leads in this queue.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center py-8 text-text-secondary">No leads in this queue.</TableCell></TableRow>
               ) : (
                 visible.map((lead) => (
-                  <TableRow key={lead.id}>
-                    <TableCell className="font-medium">{lead.name}</TableCell>
+                  <TableRow key={lead.id} className="hover:bg-bg-secondary/30">
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        disabled={tab === "awaiting"}
+                        aria-label={`Select ${lead.name}`}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 text-left hover:text-[#2563EB] hover:underline"
+                        onClick={() => openLead(lead.id)}
+                      >
+                        {lead.name}
+                        <ExternalLink className="w-3.5 h-3.5 opacity-50" />
+                      </button>
+                    </TableCell>
                     <TableCell>{lead.phoneNumber}</TableCell>
                     <TableCell><LeadStageBadge stage={lead.stage} /></TableCell>
                     <TableCell className="text-xs">{lead.callLogs?.[0]?.status || "Queued"}</TableCell>
@@ -137,6 +219,17 @@ export const LeadAllocation: React.FC = () => {
           </Table>
         </CardContent>
       </Card>
+
+      <BulkAssignDialog
+        open={bulkAssignOpen}
+        onOpenChange={setBulkAssignOpen}
+        leadIds={selectedIds}
+        counsellors={counsellors}
+        onSuccess={() => {
+          setSelectedIds([]);
+          refetch();
+        }}
+      />
     </div>
   );
 };

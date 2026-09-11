@@ -109,8 +109,11 @@ export const ROUTES = {
     COMMUNICATION: {
       NOTIFICATIONS: "/admin/communication/notifications",
       WHATSAPP: "/admin/communication/whatsapp",
+      WHATSAPP_AUTOMATIONS: "/admin/communication/whatsapp/automations",
+      WHATSAPP_TEMPLATES: "/admin/communication/whatsapp/templates",
+      WHATSAPP_HISTORY: "/admin/communication/whatsapp/history",
       EMAIL: "/admin/communication/email",
-      AUTOMATION: "/admin/communication/automation",
+      AUTOMATION: "/admin/communication/whatsapp/automations",
     },
     PLACEMENT: {
       ELIGIBLE: "/admin/placement/eligible",
@@ -128,6 +131,7 @@ export const ROUTES = {
       MASTERS: "/admin/administration/masters",
       SECURITY: "/admin/administration/security",
       INTEGRATIONS: "/admin/administration/integrations",
+      AI_CALLING_PLATFORM: "/admin/administration/ai-calling-platform",
       BILLING: "/admin/administration/billing",
       DATA_MANAGEMENT: "/admin/administration/data-management",
       AUDIT_LOGS: "/admin/administration/audit-logs",

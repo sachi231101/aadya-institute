@@ -21,6 +21,7 @@ export interface CreateLeadDTO {
   leadTypeMasterId?: string;
   priority?: string;
   notes?: string;
+  tags?: string[];
 }
 
 export interface UpdateLeadDTO {
@@ -33,11 +34,47 @@ export interface UpdateLeadDTO {
   notes?: string;
   sourceMasterId?: string;
   leadTypeMasterId?: string;
+  tags?: string[];
 }
 
 export interface AssignLeadDTO {
   counsellorId: string;
   notes?: string;
+}
+
+export interface BulkAssignLeadsDTO {
+  leadIds: string[];
+  counsellorId: string;
+  notes?: string;
+}
+
+export interface MergeLeadsDTO {
+  primaryLeadId: string;
+  duplicateLeadId: string;
+}
+
+export interface UpdateLeadScoreDTO {
+  leadScore?: number | null;
+  admissionProbability?: number | null;
+  nextBestAction?: string | null;
+}
+
+export interface UpdateLeadTagsDTO {
+  tags: string[];
+}
+
+export interface CreateManualCallLogDTO {
+  leadId: string;
+  status?: string;
+  duration?: number;
+  outcome?: string | null;
+  notes?: string | null;
+  qualification?: string | null;
+  sentiment?: string | null;
+  nextAction?: string | null;
+  interestStatus?: string | null;
+  startedAt?: string | Date;
+  endedAt?: string | Date;
 }
 
 export interface ChangeLeadStageDTO {
@@ -69,12 +106,16 @@ export interface CreateFollowUpDTO {
   type?: FollowUpType;
   scheduledAt: string | Date;
   notes?: string;
+  priority?: string;
+  counsellorId?: string;
 }
 
 export interface UpdateFollowUpDTO {
   status?: FollowUpStatus;
   notes?: string;
   outcome?: string;
+  scheduledAt?: string | Date;
+  priority?: string;
 }
 
 export interface AddActivityDTO {
@@ -101,7 +142,12 @@ export interface QueryLeadsDTO {
   dateTo?: string;
   followUpFrom?: string;
   followUpTo?: string;
+  scoreBand?: "hot" | "warm" | "cold" | "unscored";
+  unassigned?: boolean;
+  tag?: string;
 }
+
+export type CallHistoryView = "queue" | "active" | "results";
 
 export interface QueryCallHistoryDTO {
   page?: number;
@@ -110,4 +156,9 @@ export interface QueryCallHistoryDTO {
   leadId?: string;
   studentId?: string;
   status?: string;
+  /** Comma-separated statuses */
+  statuses?: string;
+  callType?: "ALL" | "AI" | "MANUAL";
+  /** Convenience buckets for AI Calling tabs */
+  view?: CallHistoryView;
 }

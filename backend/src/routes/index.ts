@@ -38,6 +38,7 @@ import auditLogRoutes from "../modules/audit-logs/audit-log.routes";
 import billingRoutes from "../modules/billing/billing.routes";
 import securityRoutes from "../modules/security/security.routes";
 import dataManagementRoutes from "../modules/data-management/data-management.routes";
+import aiCallingRoutes from "../modules/ai-calling/ai-calling.routes";
 
 const router = Router();
 
@@ -67,6 +68,7 @@ router.use("/admissions", admissionsRoutes);
 
 // Leads + AI Calling (Phase 1)
 router.use("/leads", leadRoutes);
+router.use("/ai-calling", aiCallingRoutes);
 
 // Faculty
 router.use("/faculty", facultyRoutes);

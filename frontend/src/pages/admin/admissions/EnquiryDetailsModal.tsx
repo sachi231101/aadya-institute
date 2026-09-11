@@ -191,11 +191,10 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
                   key={key}
                   type="button"
                   onClick={() => setActiveTab(key as any)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
-                    isActive
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap ${isActive
                       ? "bg-card text-primary shadow-xs border border-border/80"
                       : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
-                  }`}
+                    }`}
                 >
                   <Icon className={`h-3.5 w-3.5 ${isActive ? "text-primary" : "text-muted-foreground"}`} />
                   <span>{label}</span>
@@ -536,13 +535,13 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
                 </div>
 
                 {canEditEnquiries && (
-                <Button
-                  size="sm"
-                  onClick={handleSaveFollowUp}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 text-xs cursor-pointer shadow-xs"
-                >
-                  Schedule Follow-up
-                </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveFollowUp}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 text-xs cursor-pointer shadow-xs"
+                  >
+                    Schedule Follow-up
+                  </Button>
                 )}
               </div>
             </div>
@@ -712,14 +711,14 @@ export const EnquiryDetailsModal: React.FC<EnquiryDetailsModalProps> = ({
                 />
 
                 {canEditEnquiries && (
-                <Button
-                  onClick={handleSaveNote}
-                  disabled={!noteInput.trim()}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 text-xs cursor-pointer shadow-xs gap-1.5"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  <span>+ Save Note</span>
-                </Button>
+                  <Button
+                    onClick={handleSaveNote}
+                    disabled={!noteInput.trim()}
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold h-9 text-xs cursor-pointer shadow-xs gap-1.5"
+                  >
+                    <Send className="h-3.5 w-3.5" />
+                    <span>+ Save Note</span>
+                  </Button>
                 )}
               </div>
 

@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +93,7 @@ import {
   parseAmPmToTimeInput,
 } from "@/utils/master.utils";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { MasterSelect } from "@/components/common/MasterSelect";
 
 // ─── MASTER UI CONFIG (columns, icons — merged with master-types registry) ───
 
@@ -111,7 +113,14 @@ export interface MasterEntity {
   iconBgColor: string;
   iconColor: string;
   description: string;
-  columns: { key: string; label: string; required?: boolean; inputType?: "text" | "time" | "number"; readOnly?: boolean }[];
+  columns: {
+    key: string;
+    label: string;
+    required?: boolean;
+    inputType?: "text" | "time" | "number" | "date" | "textarea";
+    masterEntityType?: string;
+    readOnly?: boolean;
+  }[];
 }
 
 type MasterUiConfig = Pick<
@@ -215,6 +224,13 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "name", label: "Assignment Type", required: true },
     ],
   },
+  holiday: {
+    icon: CalendarDays,
+    iconBgColor: "bg-orange-50 text-orange-600 border-orange-100",
+    iconColor: "text-orange-600",
+    description: "Manage institute-wide and branch holidays",
+    columns: MASTER_QUICK_CREATE_FIELDS.holiday,
+  },
   leadsource: {
     icon: PhoneCall,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
@@ -246,6 +262,13 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "step", label: "Enrollment Step" },
     ],
   },
+  termsconditions: {
+    icon: FileText,
+    iconBgColor: "bg-indigo-50 text-indigo-600 border-indigo-100",
+    iconColor: "text-indigo-600",
+    description: "Manage required admission terms and declarations",
+    columns: MASTER_QUICK_CREATE_FIELDS.termsconditions,
+  },
   bankaccounts: {
     icon: Landmark,
     iconBgColor: "bg-blue-50 text-blue-600 border-blue-100",
@@ -258,16 +281,19 @@ const MASTER_UI_CONFIG: Record<string, MasterUiConfig> = {
       { key: "branch", label: "Bank Branch" },
     ],
   },
+  feetypes: {
+    icon: BookMarked,
+    iconBgColor: "bg-violet-50 text-violet-600 border-violet-100",
+    iconColor: "text-violet-600",
+    description: "Manage fee classifications used by fee heads",
+    columns: MASTER_QUICK_CREATE_FIELDS.feetypes,
+  },
   feeheads: {
     icon: IndianRupee,
     iconBgColor: "bg-emerald-50 text-emerald-600 border-emerald-100",
     iconColor: "text-emerald-600",
     description: "Manage fee heads",
-    columns: [
-      { key: "name", label: "Fee Head Title", required: true },
-      { key: "type", label: "Fee Type" },
-      { key: "gstApplicable", label: "GST Rate" },
-    ],
+    columns: MASTER_QUICK_CREATE_FIELDS.feeheads,
   },
   paymentmodes: {
     icon: CreditCard,
@@ -722,7 +748,9 @@ export const MasterSetup: React.FC = () => {
           `"${r.name || ""}"`,
           ...(isNumberingSeries ? [`"${r.code || ""}"`] : []),
           `"${r.status || ""}"`,
-          ...extraCols.map((c) => `"${r.data?.[c.key] || ""}"`),
+          ...extraCols.map((c) =>
+            `"${c.masterEntityType ? r.data?.type || "" : r.data?.[c.key] || ""}"`
+          ),
         ];
         return vals.join(",");
       })
@@ -1204,7 +1232,9 @@ export const MasterSetup: React.FC = () => {
                                   {selectedMasterEntity.id === "timeslot" &&
                                   (col.key === "startTime" || col.key === "endTime")
                                     ? formatTimeToAmPm(String(rec.data?.[col.key] || "")) || "—"
-                                    : rec.data?.[col.key] || "—"}
+                                    : col.masterEntityType
+                                      ? rec.data?.type || "—"
+                                      : rec.data?.[col.key] || "—"}
                                 </td>
                               ))}
                             {selectedMasterEntity.id === "numberingseries" && (
@@ -1431,6 +1461,66 @@ export const MasterSetup: React.FC = () => {
                         <p className="text-[10px] text-slate-500">
                           Counter increments automatically when documents are created.
                         </p>
+                      </div>
+                    );
+                  }
+
+                  if (col.masterEntityType) {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label}
+                          {col.required && <span className="text-rose-500 ml-0.5">*</span>}
+                        </Label>
+                        <MasterSelect
+                          entityType={col.masterEntityType}
+                          value={recordFormValues[col.key] || ""}
+                          onChange={(value) => {
+                            setRecordFormValues((prev) => ({ ...prev, [col.key]: value }));
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[col.key];
+                              return next;
+                            });
+                          }}
+                          placeholder={`Select ${col.label.toLowerCase()}...`}
+                          className="mt-0"
+                        />
+                        {formErrors[col.key] && (
+                          <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
+                        )}
+                      </div>
+                    );
+                  }
+
+                  if (col.inputType === "textarea") {
+                    return (
+                      <div key={col.key} className="space-y-1">
+                        <Label className="text-[11px] font-bold text-slate-700">
+                          {col.label}
+                          {(col.required || col.key === "name") && (
+                            <span className="text-rose-500 ml-0.5">*</span>
+                          )}
+                        </Label>
+                        <Textarea
+                          value={recordFormValues[col.key] || ""}
+                          onChange={(e) => {
+                            setRecordFormValues((prev) => ({ ...prev, [col.key]: e.target.value }));
+                            setFormErrors((prev) => {
+                              const next = { ...prev };
+                              delete next[col.key];
+                              return next;
+                            });
+                          }}
+                          rows={4}
+                          placeholder={`Enter ${col.label.toLowerCase()}...`}
+                          className={`text-xs rounded-xl bg-slate-50 ${
+                            formErrors[col.key] ? "border-rose-400 focus:ring-rose-300" : ""
+                          }`}
+                        />
+                        {formErrors[col.key] && (
+                          <p className="text-[10px] text-rose-500 font-bold">{formErrors[col.key]}</p>
+                        )}
                       </div>
                     );
                   }

@@ -1,7 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { leadsApi, type LeadQueryParams } from "../services/leads.api";
+import {
+  leadsApi,
+  type LeadQueryParams,
+  type CallHistoryQueryParams,
+} from "../services/leads.api";
 import { useAuthStore } from "@/store/auth.store";
-import { mergeBranchScopedParams } from "@/utils/branch-scope.util";
+import { getScopedBranchId, mergeBranchScopedParams } from "@/utils/branch-scope.util";
 
 export const useLeads = (params?: LeadQueryParams) => {
   const { user } = useAuthStore();
@@ -21,37 +25,43 @@ export const useLeadById = (id: string) => {
 };
 
 export const useLeadDashboard = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", branchId],
-    queryFn: () => leadsApi.getDashboardSummary({ branchId }),
+    queryKey: ["leads", "dashboard", scopedBranchId],
+    queryFn: () => leadsApi.getDashboardSummary({ branchId: scopedBranchId }),
   });
 };
 
 export const useCounsellorPerformance = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", "counsellors", branchId],
-    queryFn: () => leadsApi.getCounsellorPerformance({ branchId }),
+    queryKey: ["leads", "dashboard", "counsellors", scopedBranchId],
+    queryFn: () => leadsApi.getCounsellorPerformance({ branchId: scopedBranchId }),
   });
 };
 
 export const useFollowUpDashboard = (branchId?: string) => {
+  const { user } = useAuthStore();
+  const scopedBranchId = getScopedBranchId(user, branchId);
   return useQuery({
-    queryKey: ["leads", "dashboard", "follow-ups", branchId],
-    queryFn: () => leadsApi.getFollowUpDashboard({ branchId }),
+    queryKey: ["leads", "dashboard", "follow-ups", scopedBranchId],
+    queryFn: () => leadsApi.getFollowUpDashboard({ branchId: scopedBranchId }),
   });
 };
 
-export const useCallHistory = (params?: {
-  page?: number;
-  limit?: number;
-  branchId?: string;
-  leadId?: string;
-  studentId?: string;
-  status?: string;
-}) => {
+export const useCallHistory = (
+  params?: CallHistoryQueryParams,
+  options?: { refetchInterval?: number | false; enabled?: boolean }
+) => {
+  const { user } = useAuthStore();
+  const mergedParams = mergeBranchScopedParams(user, params);
   return useQuery({
-    queryKey: ["leads", "call-history", params],
-    queryFn: () => leadsApi.getCallHistory(params),
+    queryKey: ["leads", "call-history", mergedParams],
+    queryFn: () => leadsApi.getCallHistory(mergedParams),
+    refetchInterval: options?.refetchInterval,
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -92,6 +102,16 @@ export const useUpdateLead = () => {
   });
 };
 
+export const useArchiveLead = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => leadsApi.archiveLead(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
 export const useAssignLead = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -103,22 +123,72 @@ export const useAssignLead = () => {
   });
 };
 
-export const useChangeLeadStage = () => {
+export const useBulkAssignLeads = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof leadsApi.changeStage>[1] }) =>
-      leadsApi.changeStage(id, data),
+    mutationFn: leadsApi.bulkAssignLeads,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
   });
 };
 
-export const useConvertLead = () => {
+export const useMergeLeads = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof leadsApi.convertLead>[1] }) =>
-      leadsApi.convertLead(id, data),
+    mutationFn: leadsApi.mergeLeads,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+export const useUpdateLeadTags = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: { tags: string[] } }) =>
+      leadsApi.updateLeadTags(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+export const useUpdateLeadScore = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: Parameters<typeof leadsApi.updateLeadScore>[1];
+    }) => leadsApi.updateLeadScore(id, data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+export const useCreateManualCallLog = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: leadsApi.createManualCallLog,
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["leads", "call-history"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leads"] });
+    },
+  });
+};
+
+export const useChangeLeadStage = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: Parameters<typeof leadsApi.changeStage>[1] }) =>
+      leadsApi.changeStage(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["leads"] });
     },
@@ -143,6 +213,7 @@ export const useCreateFollowUp = () => {
       leadsApi.createFollowUp(id, data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leads", variables.id] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "dashboard", "follow-ups"] });
     },
   });
 };
@@ -154,6 +225,7 @@ export const useUpdateFollowUp = () => {
       leadsApi.updateFollowUp(leadId, followUpId, data),
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ["leads", variables.leadId] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "dashboard", "follow-ups"] });
     },
   });
 };
@@ -176,6 +248,7 @@ export const useTriggerLeadCall = () => {
     onSuccess: (_data, leadId) => {
       queryClient.invalidateQueries({ queryKey: ["leads", leadId] });
       queryClient.invalidateQueries({ queryKey: ["leads"] });
+      queryClient.invalidateQueries({ queryKey: ["leads", "call-history"] });
     },
   });
 };

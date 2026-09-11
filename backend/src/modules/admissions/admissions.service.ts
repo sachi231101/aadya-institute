@@ -22,6 +22,45 @@ import { NotificationEvent, buildIdempotencyKey } from "../whatsapp/whatsapp.con
 import { logger } from "../../config/logger";
 import { SequenceService } from "../masters/sequence.service";
 import { assertBranchRecordAccess } from "../../utils/branch-isolation.util";
+import { assertActiveMaster } from "../masters/master.validator";
+
+const resolveRequiredTermsAcceptance = async (
+  instituteId: string,
+  branchId: string,
+  acceptance: CreateAdmissionDTO["termsAcceptance"]
+) => {
+  const activeTerms = await prisma.masterRecord.findMany({
+    where: {
+      instituteId,
+      entityType: "termsconditions",
+      status: "ACTIVE",
+      OR: [{ branchId }, { branchId: null }],
+    },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+
+  const acceptedIds = new Set((acceptance ?? []).map((item) => item.masterId));
+  const activeIds = new Set(activeTerms.map((item) => item.id));
+  if (
+    acceptedIds.size !== activeIds.size ||
+    [...activeIds].some((id) => !acceptedIds.has(id)) ||
+    [...acceptedIds].some((id) => !activeIds.has(id))
+  ) {
+    throw new AppError("All active Terms & Conditions must be accepted", 400);
+  }
+
+  for (const term of activeTerms) {
+    await assertActiveMaster({
+      instituteId,
+      branchId,
+      entityType: "termsconditions",
+      masterRecordId: term.id,
+    });
+  }
+
+  return activeTerms.map((term) => ({ masterId: term.id, name: term.name }));
+};
 
 const triggerAdmissionNotification = async (admissionId: string) => {
   try {
@@ -32,7 +71,7 @@ const triggerAdmissionNotification = async (admissionId: string) => {
     if (!admission) return;
 
     const studentId = admission.studentId ?? undefined;
-    const idempotencyKey = buildIdempotencyKey.ADMISSION_CREATED(
+    const idempotencyKey = buildIdempotencyKey.STUDENT_WELCOME(
       studentId ?? admission.id,
       admission.id
     );
@@ -40,7 +79,7 @@ const triggerAdmissionNotification = async (admissionId: string) => {
     await triggerNotification({
       instituteId: admission.instituteId,
       studentId,
-      event: NotificationEvent.ADMISSION_CREATED,
+      event: NotificationEvent.STUDENT_WELCOME,
       idempotencyKey,
       templateParams: {
         student_name: admission.studentName ?? "Student",
@@ -120,64 +159,55 @@ export const AdmissionsService = {
     return AdmissionsRepository.findEnquiryById(id, instituteId);
   },
 
-  async triggerEnquiryAiCall(id: string, instituteId: string) {
+  async triggerEnquiryAiCall(
+    id: string,
+    instituteId: string,
+    createdById: string
+  ) {
     const enquiry = await AdmissionsRepository.findEnquiryById(id, instituteId);
     if (!enquiry) {
       throw new Error("Enquiry not found");
     }
 
-    // Prefer linking CallLog to a matching Lead (CallLog has no enquiryId column)
     const { normalizePhoneDigits } = await import(
       "../leads/services/lead-enquiry-sync.service"
     );
     const phone = normalizePhoneDigits(enquiry.phone);
-    const leads = await prisma.lead.findMany({
-      where: { instituteId },
-      select: { id: true, phoneNumber: true },
-    });
-    const matchedLead = leads.find((l) => normalizePhoneDigits(l.phoneNumber) === phone);
-
-    const telephonyConfigured = Boolean(
-      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
-    );
-    let status = "INITIATED";
-    let externalCallId = `enq_call_${Date.now()}`;
-
-    if (telephonyConfigured && matchedLead) {
-      try {
-        const { initiateCall } = await import(
-          "../../integrations/telephony/telephony.client"
-        );
-        const callbackBase =
-          process.env.PUBLIC_API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5000}`;
-        const response = await initiateCall({
-          to: enquiry.phone,
-          from: process.env.TELEPHONY_FROM_NUMBER || "",
-          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
-          metadata: { enquiryId: id, leadId: matchedLead.id, instituteId },
-        });
-        externalCallId = response.callId || externalCallId;
-        status = response.status || "INITIATED";
-      } catch {
-        status = "FAILED";
-      }
+    if (!phone) {
+      throw new Error("Enquiry has no valid phone number");
     }
 
-    await prisma.callLog.create({
-      data: {
-        externalCallId: `call-${Date.now()}`,
-        status: "COMPLETED",
-        duration: 85,
-        transcript: "AI: Hello, this is Aadya Institute. We noticed your enquiry for our program. Prospect: Yes, I am looking to join the upcoming batch. AI: Great, our counselor will follow up with admission details.",
-      },
+    const { ensureLeadFromEnquiry } = await import(
+      "../leads/services/lead-enquiry-bridge.service"
+    );
+    const { lead: matchedLead, created: leadCreated } =
+      await ensureLeadFromEnquiry({
+        enquiry,
+        createdById,
+      });
+
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    const dial = await AiCallingService.enqueueLeadCall({
+      id: matchedLead.id,
+      phoneNumber: matchedLead.phoneNumber,
+      createdById: matchedLead.createdById,
+      instituteId: matchedLead.instituteId,
+      branchId: matchedLead.branchId,
+      importJobId: matchedLead.importJobId,
     });
 
-    // Persist AI call note on the enquiry (no dedicated AI columns in schema)
+    const status = dial.queued
+      ? "INITIATED"
+      : dial.skipped === "telephony_unavailable"
+        ? "FAILED"
+        : dial.skipped || "SKIPPED";
+
     await AdmissionsRepository.updateEnquiry(id, instituteId, {
       counselorNotes: [
         enquiry.counselorNotes,
-        `[AI Call ${status}] Queued ${new Date().toISOString()}`,
+        `[AI Call ${status}] Queued ${new Date().toISOString()} callLog=${dial.callLogId || "n/a"}${
+          leadCreated ? ` leadCreated=${matchedLead.id}` : ` leadId=${matchedLead.id}`
+        }`,
       ]
         .filter(Boolean)
         .join("\n"),
@@ -313,6 +343,13 @@ export const AdmissionsService = {
       branchCode: branch?.code,
     });
 
+    const status = dto.totalFee && dto.totalFee > 0 ? "CONFIRMED" : "PROVISIONAL";
+    const termsAcceptance = await resolveRequiredTermsAcceptance(
+      instituteId,
+      branchId,
+      dto.termsAcceptance
+    );
+
     const admission = await AdmissionsRepository.createAdmission(
       instituteId,
       branchId,
@@ -326,11 +363,12 @@ export const AdmissionsService = {
         applicationId: app.id,
         leadId: app.leadId || undefined,
         feePlan: dto.feePlan || "INSTALLMENT",
-        status: dto.totalFee && dto.totalFee > 0 ? "CONFIRMED" : "PROVISIONAL",
+        status,
         notes: dto.notes || `Converted from Application ${app.applicationNo}`,
         totalFee: dto.totalFee,
         amountPaid: dto.amountPaid,
         installments: dto.installments,
+        termsAcceptance,
       },
       currentUser?.userId
     );
@@ -344,9 +382,6 @@ export const AdmissionsService = {
 
   // ─── ADMISSIONS ────────────────────────────────────────────────────────────
   async getAdmissions(currentUser: AuthUser, params: QueryAdmissionsDTO) {
-    // #region agent log
-    fetch('http://127.0.0.1:7913/ingest/73746203-13ab-48c1-bcb6-4becdf54f2cd',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'ed66da'},body:JSON.stringify({sessionId:'ed66da',runId:'post-fix',hypothesisId:'H1',location:'admissions.service.ts:getAdmissions',message:'getAdmissions service entry',data:{hasRoles:Array.isArray(currentUser?.roles),roles:currentUser?.roles,instituteId:currentUser?.instituteId,paramsBranchId:params.branchId},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
     const scope = getBranchScopeFilter(currentUser, params.branchId);
     return AdmissionsRepository.findAdmissions(scope.instituteId, params, scope.branchId);
   },
@@ -408,6 +443,18 @@ export const AdmissionsService = {
       select: { code: true },
     });
 
+    const normalizedDto: CreateAdmissionDTO =
+      (dto.status || "CONFIRMED") === "PENDING"
+        ? dto
+        : {
+            ...dto,
+            termsAcceptance: await resolveRequiredTermsAcceptance(
+              instituteId,
+              branchId,
+              dto.termsAcceptance
+            ),
+          };
+
     const admissionNo = await SequenceService.getNextNumber(instituteId, "ADMISSION", {
       branchCode: branch?.code,
     });
@@ -416,7 +463,7 @@ export const AdmissionsService = {
       instituteId,
       branchId,
       admissionNo,
-      dto,
+      normalizedDto,
       options?.userId
     );
 
@@ -440,7 +487,20 @@ export const AdmissionsService = {
     if (!hasBranchAccess(currentUser, existing.branchId)) {
       throw new AppError("Admission not found", 404);
     }
-    await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, dto);
+    const normalizedDto: UpdateAdmissionDTO =
+      dto.status && dto.status !== "PENDING"
+        ? {
+            ...dto,
+            termsAcceptance: await resolveRequiredTermsAcceptance(
+              currentUser.instituteId,
+              existing.branchId,
+              dto.termsAcceptance
+            ),
+          }
+        : dto.status === "PENDING"
+          ? { ...dto, termsAcceptance: undefined }
+          : dto;
+    await AdmissionsRepository.updateAdmission(id, currentUser.instituteId, normalizedDto);
     return this.getAdmissionById(id, currentUser);
   },
 

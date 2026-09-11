@@ -6,6 +6,8 @@ import type {
   FeeReportsData,
   CreatePaymentPayload,
   CollectPendingFeePayload,
+  FeeReminderResponse,
+  StudentFeeStatement,
 } from "../types/fee.types";
 
 export interface ApiResponse<T> {
@@ -27,22 +29,20 @@ export interface PaginatedApiResponse<T> {
 }
 
 export const feesApi = {
-  // Stats
   getStats: async (): Promise<ApiResponse<FeeStats>> => {
     const response = await api.get<ApiResponse<FeeStats>>("/fees/stats");
     return response.data;
   },
 
-  // Reports
   getReports: async (): Promise<ApiResponse<FeeReportsData>> => {
     const response = await api.get<ApiResponse<FeeReportsData>>("/fees/reports");
     return response.data;
   },
 
-  // Payments
   getPayments: async (params?: {
     search?: string;
     method?: string;
+    paymentModeMasterId?: string;
     status?: string;
     page?: number;
     limit?: number;
@@ -51,8 +51,10 @@ export const feesApi = {
     return response.data;
   },
 
-  createPayment: async (payload: CreatePaymentPayload): Promise<ApiResponse<Payment>> => {
-    const response = await api.post<ApiResponse<Payment>>("/fees/payments", payload);
+  createPayment: async (
+    payload: CreatePaymentPayload
+  ): Promise<ApiResponse<Payment | Payment[]>> => {
+    const response = await api.post<ApiResponse<Payment | Payment[]>>("/fees/payments", payload);
     return response.data;
   },
 
@@ -61,10 +63,10 @@ export const feesApi = {
     return response.data;
   },
 
-  // Pending Fees
   getPendingFees: async (params?: {
     search?: string;
     status?: string;
+    studentId?: string;
     page?: number;
     limit?: number;
   }): Promise<PaginatedApiResponse<PendingFee>> => {
@@ -83,16 +85,22 @@ export const feesApi = {
     return response.data;
   },
 
-  sendReminder: async (
-    id: string
-  ): Promise<ApiResponse<{ message: string; logId: string; studentName: string; phone: string }>> => {
-    const response = await api.post<ApiResponse<{ message: string; logId: string; studentName: string; phone: string }>>(
+  sendReminder: async (id: string): Promise<ApiResponse<FeeReminderResponse>> => {
+    const response = await api.post<ApiResponse<FeeReminderResponse>>(
       `/fees/pending/${id}/reminder`
     );
     return response.data;
   },
 
-  // Fee Plans
+  getStudentStatement: async (
+    studentId: string
+  ): Promise<ApiResponse<StudentFeeStatement>> => {
+    const response = await api.get<ApiResponse<StudentFeeStatement>>(
+      `/fees/students/${studentId}`
+    );
+    return response.data;
+  },
+
   getPlans: async (params?: {
     page?: number;
     limit?: number;
@@ -124,7 +132,6 @@ export const feesApi = {
     return response.data;
   },
 
-  // Receipts
   getReceipts: async (params?: {
     search?: string;
     page?: number;

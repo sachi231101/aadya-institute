@@ -9,6 +9,7 @@ import {
 } from "../utils/integration-credentials.util";
 import {
   disconnectIntegrationService,
+  fetchWhatsappNumberService,
   getIntegrationService,
   listIntegrationsService,
   testIntegrationService,
@@ -17,6 +18,7 @@ import {
 import { INTEGRATION_TYPES } from "../modules/integrations/integration.types";
 import { schemaForType } from "../modules/integrations/integration.validation";
 import integrationRoutes from "../modules/integrations/integration.routes";
+import { AppError } from "../middlewares/error.middleware";
 
 describe("Integration credentials utilities", () => {
   test("encryptCredentials round-trips and maskSecret hides secrets", () => {
@@ -221,8 +223,9 @@ describe("Integrations service", () => {
 
   test("institute A cannot read or mutate institute B integrations", async () => {
     await upsertIntegrationService(adminB, "WHATSAPP", {
-      provider: "AISENSY",
-      credentials: { apiKey: "aisensy-b-key-bbbb1111" },
+      provider: "MSG91",
+      configuration: { integratedNumber: "919876543210" },
+      credentials: { authKey: "msg91-b-key-bbbb1111" },
       replaceCredentials: true,
     });
 
@@ -239,8 +242,9 @@ describe("Integrations service", () => {
     assert.ok(waB?.maskedCredential?.endsWith("1111"));
 
     await upsertIntegrationService(adminA, "WHATSAPP", {
-      provider: "AISENSY",
-      credentials: { apiKey: "aisensy-a-key-aaaa2222" },
+      provider: "MSG91",
+      configuration: { integratedNumber: "919811112222" },
+      credentials: { authKey: "msg91-a-key-aaaa2222" },
       replaceCredentials: true,
     });
 
@@ -303,5 +307,32 @@ describe("Integrations service", () => {
       assert.ok(!JSON.stringify(card).includes("sk-live-secret"));
       assert.ok(!("encryptedCredentials" in card));
     }
+  });
+
+  test("fetch WhatsApp number requires Auth Key and never returns secrets", async () => {
+    await upsertIntegrationService(adminA, "WHATSAPP", {
+      provider: "MSG91",
+      configuration: { integratedNumber: "919811112222" },
+      credentials: { authKey: "msg91-temp-key-eeee5555" },
+      replaceCredentials: true,
+    });
+    const detail = await getIntegrationService(adminA, "WHATSAPP");
+    assert.ok(!JSON.stringify(detail).includes("eeee5555"));
+    assert.ok(!("encryptedCredentials" in detail));
+    assert.ok(detail.maskedCredential);
+
+    await disconnectIntegrationService(adminA, "WHATSAPP");
+
+    await assert.rejects(
+      () => fetchWhatsappNumberService(adminA),
+      (err: unknown) => err instanceof AppError && /Auth Key/i.test((err as Error).message)
+    );
+
+    const stack = (integrationRoutes as { stack?: Array<{ route?: { path?: string; methods?: Record<string, boolean> } }> })
+      .stack;
+    const fetchRoute = stack?.find(
+      (layer) => layer.route?.path === "/:type/fetch-number" && layer.route?.methods?.post
+    );
+    assert.ok(fetchRoute, "POST /:type/fetch-number route must be registered");
   });
 });

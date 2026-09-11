@@ -32,12 +32,15 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
   { id: "coursepackage", name: "Course Package", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Direct Admission"] },
   { id: "academicyear", name: "Academic Year", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
   { id: "assignmenttype", name: "Assignment Type", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Create Assignment", "Assignments"] },
+  { id: "holiday", name: "Holiday", category: "ACADEMIC_ORG", categoryName: MASTER_CATEGORY_LABELS.ACADEMIC_ORG, usedInPages: ["Timetable", "Faculty Timetable", "Faculty My Schedule"] },
 
   { id: "leadsource", name: "Lead Source", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Leads", "Enquiries", "Admissions", "AI Calling"] },
   { id: "leadstage", name: "Lead Stage", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Lead Management", "Lead Details", "Counselor Dashboard"] },
   { id: "admissionstatus", name: "Admission Status", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Direct Admission"] },
+  { id: "termsconditions", name: "Terms & Conditions", category: "ADMISSIONS_LEADS", categoryName: MASTER_CATEGORY_LABELS.ADMISSIONS_LEADS, usedInPages: ["Direct Admission"] },
 
   { id: "bankaccounts", name: "Bank Accounts", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments"] },
+  { id: "feetypes", name: "Fees Types", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Fee Heads"] },
   { id: "feeheads", name: "Fee Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments", "Pending Fees"] },
   { id: "paymentmodes", name: "Payment Modes", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments", "Add Student", "Direct Admission"] },
   { id: "concessionheads", name: "Concession Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Add Student", "Direct Admission"] },

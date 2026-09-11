@@ -271,7 +271,53 @@ export const classSessionService = {
     if (!existing) {
       throw new AppError("Class session not found", 404);
     }
-    return classSessionRepository.update(id, instituteId, { status: "CANCELLED" });
+    const updated = await classSessionRepository.update(id, instituteId, { status: "CANCELLED" });
+
+    try {
+      const { triggerNotification } = await import("../whatsapp/whatsapp.service");
+      const { NotificationEvent, buildIdempotencyKey } = await import(
+        "../whatsapp/whatsapp.constants"
+      );
+      const session = await prisma.classSession.findFirst({
+        where: { id, batch: { instituteId } },
+        include: {
+          batch: {
+            include: {
+              enrollments: {
+                where: { status: "ACTIVE" },
+                include: { student: { include: { user: true } } },
+              },
+            },
+          },
+        },
+      });
+      if (session?.batch) {
+        const classDate = session.scheduledDate
+          ? new Date(session.scheduledDate).toLocaleDateString("en-IN")
+          : "";
+        for (const enrollment of session.batch.enrollments) {
+          const student = enrollment.student;
+          if (!student?.user) continue;
+          await triggerNotification({
+            instituteId,
+            studentId: student.id,
+            event: NotificationEvent.CLASS_CANCELLED,
+            idempotencyKey: buildIdempotencyKey.CLASS_CANCELLED(student.id, session.id),
+            templateParams: {
+              student_name: student.user.name ?? "Student",
+              batch_name: session.batch.name ?? "Batch",
+              class_date: classDate,
+              start_time: session.startTime ?? "",
+            },
+            metadata: { classSessionId: session.id },
+          });
+        }
+      }
+    } catch (err) {
+      logger.error({ err, id }, "[class-session] CLASS_CANCELLED notify failed");
+    }
+
+    return updated;
   },
 
   deleteSession: async (id: string, instituteId: string) => {

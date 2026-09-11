@@ -271,7 +271,11 @@ export const CounselorDashboard: React.FC = () => {
   });
 
   const combinedLeadsList = useMemo(() => {
-    const rawDbLeads: any[] = dbLeadsResponse?.data || [];
+    const rawDbLeads: any[] = Array.isArray(dbLeadsResponse?.data?.data)
+      ? dbLeadsResponse.data.data
+      : Array.isArray(dbLeadsResponse?.data)
+        ? dbLeadsResponse.data
+        : [];
     return rawDbLeads.map(mapApiLeadToUnified);
   }, [dbLeadsResponse, user?.name]);
 
@@ -1440,9 +1444,13 @@ export const CounselorDashboard: React.FC = () => {
                           {priorityDot}
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <p className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight group-hover:text-[#2563EB] transition-colors">
+                              <button
+                                type="button"
+                                className="font-extrabold text-slate-900 text-xs sm:text-sm tracking-tight group-hover:text-[#2563EB] transition-colors text-left hover:underline"
+                                onClick={() => navigate(`/counselor/leads/${lead.id}`)}
+                              >
                                 {lead.name}
-                              </p>
+                              </button>
                               {lead.hotLead && (
                                 <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[8.5px] font-black shrink-0">
                                   🔥 Hot

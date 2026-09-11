@@ -5,10 +5,11 @@ import type { CreatePaymentPayload, CollectPendingFeePayload } from "../types/fe
 export const FEES_KEYS = {
   stats: ["fees", "stats"] as const,
   reports: ["fees", "reports"] as const,
-  payments: (params?: Record<string, any>) => ["fees", "payments", params] as const,
-  pendingFees: (params?: Record<string, any>) => ["fees", "pending", params] as const,
-  plans: (params?: Record<string, any>) => ["fees", "plans", params] as const,
-  receipts: (params?: Record<string, any>) => ["fees", "receipts", params] as const,
+  payments: (params?: Record<string, unknown>) => ["fees", "payments", params] as const,
+  pendingFees: (params?: Record<string, unknown>) => ["fees", "pending", params] as const,
+  plans: (params?: Record<string, unknown>) => ["fees", "plans", params] as const,
+  receipts: (params?: Record<string, unknown>) => ["fees", "receipts", params] as const,
+  studentStatement: (studentId?: string) => ["fees", "student-statement", studentId] as const,
 };
 
 export const useFeeStats = () => {
@@ -28,6 +29,7 @@ export const useFeeReports = () => {
 export const usePayments = (params?: {
   search?: string;
   method?: string;
+  paymentModeMasterId?: string;
   status?: string;
   page?: number;
   limit?: number;
@@ -61,6 +63,7 @@ export const useDeletePayment = () => {
 export const usePendingFees = (params?: {
   search?: string;
   status?: string;
+  studentId?: string;
   page?: number;
   limit?: number;
 }) => {
@@ -88,6 +91,14 @@ export const useSendFeeReminder = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["fees"] });
     },
+  });
+};
+
+export const useStudentFeeStatement = (studentId: string | undefined) => {
+  return useQuery({
+    queryKey: FEES_KEYS.studentStatement(studentId),
+    queryFn: () => feesApi.getStudentStatement(studentId!),
+    enabled: !!studentId,
   });
 };
 

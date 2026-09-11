@@ -194,6 +194,98 @@ export const testIntegrationService = async (
   return { ...result, integration: toDetailDto(type, row) };
 };
 
+/**
+ * Fetch integrated WhatsApp number from MSG91 and persist on WHATSAPP integration.
+ * Does not send any WhatsApp message.
+ */
+export const fetchWhatsappNumberService = async (currentUser: AuthUser) => {
+  const type = "WHATSAPP" as IntegrationType;
+  const existing = await repo.findByInstituteAndType(currentUser.instituteId, type);
+  const config = await resolveWhatsappProviderConfig(currentUser.instituteId);
+
+  if (!config.authKey) {
+    throw new AppError(
+      "MSG91 Auth Key is not configured. Save the Auth Key first.",
+      400
+    );
+  }
+
+  const { msg91Provider } = await import("../whatsapp/integrations/msg91.provider");
+  let numbersResult;
+  try {
+    numbersResult = await msg91Provider.getIntegratedNumbers(currentUser.instituteId);
+  } catch (err: any) {
+    if (err?.code === "MSG91_AUTHENTICATION_FAILED") {
+      throw new AppError(
+        "MSG91 authentication failed. Please verify the configured Auth Key.",
+        400
+      );
+    }
+    if (err?.code === "MSG91_NUMBER_FETCH_FAILED") {
+      throw new AppError(
+        err.message || "Failed to fetch MSG91 WhatsApp number",
+        400
+      );
+    }
+    throw new AppError(
+      "MSG91 provider is unavailable. Try again later.",
+      502
+    );
+  }
+
+  const integratedNumber = numbersResult.primary || numbersResult.numbers[0];
+  if (!integratedNumber) {
+    throw new AppError(
+      "No integrated WhatsApp number found on MSG91",
+      400
+    );
+  }
+
+  const prevConfig = (existing?.configuration as Record<string, unknown>) || {};
+  const meta = INTEGRATION_CATALOG.WHATSAPP;
+  const row = await repo.upsertIntegration(currentUser.instituteId, type, {
+    provider: existing?.provider || meta.defaultProvider,
+    status: existing?.status === "CONNECTED" ? "CONNECTED" : "CONFIGURED",
+    isEnabled: existing?.isEnabled ?? true,
+    configuration: {
+      ...prevConfig,
+      integratedNumber,
+      numbers: numbersResult.numbers,
+      lastNumberFetchedAt: new Date().toISOString(),
+    } as Prisma.InputJsonValue,
+    encryptedCredentials: existing?.encryptedCredentials ?? null,
+    credentialFingerprint: existing?.credentialFingerprint ?? null,
+    lastTestedAt: existing?.lastTestedAt ?? null,
+    lastTestStatus: existing?.lastTestStatus ?? null,
+    lastError: null,
+    connectedById: existing?.connectedById ?? null,
+    connectedAt: existing?.connectedAt ?? null,
+  });
+
+  await createAuditLog({
+    userId: actorId(currentUser),
+    instituteId: currentUser.instituteId,
+    branchId: currentUser.branchId,
+    action: "INTEGRATION_NUMBER_FETCHED",
+    entityType: "Integration",
+    entityId: row.id,
+    newData: {
+      type,
+      provider: "MSG91",
+      integratedNumber,
+      numberCount: numbersResult.numbers.length,
+    },
+  });
+
+  return {
+    provider: "MSG91" as const,
+    connected: true,
+    integratedNumber,
+    numbers: numbersResult.numbers,
+    integration: toDetailDto(type, row),
+  };
+};
+
 export const disconnectIntegrationService = async (
   currentUser: AuthUser,
   typeParam: string
@@ -287,12 +379,63 @@ export const resolveAiCredentials = async (instituteId: string) => {
   };
 };
 
-export const resolveWhatsappApiKey = async (
+export interface WhatsappProviderConfig {
+  authKey: string;
+  integratedNumber: string;
+  namespace?: string;
+  isEnabled: boolean;
+}
+
+/**
+ * Resolve MSG91 WhatsApp credentials for an institute.
+ * Prefer encrypted Integration credentials; fall back to env.
+ */
+export const resolveWhatsappProviderConfig = async (
   instituteId: string
-): Promise<string> => {
+): Promise<WhatsappProviderConfig> => {
   const row = await repo.findByInstituteAndType(instituteId, "WHATSAPP");
+  if (row && row.isEnabled === false) {
+    return { authKey: "", integratedNumber: "", isEnabled: false };
+  }
+
   const creds = decryptCredentials(row?.encryptedCredentials);
-  return creds.apiKey || env.AISENSY_API_KEY || "";
+  const config = (row?.configuration || {}) as {
+    integratedNumber?: string;
+    phoneNumber?: string;
+    namespace?: string;
+  };
+
+  const authKey =
+    creds.authKey ||
+    creds.apiKey ||
+    env.MSG91_AUTH_KEY ||
+    "";
+  const integratedNumber =
+    config.integratedNumber ||
+    config.phoneNumber ||
+    env.MSG91_WHATSAPP_NUMBER ||
+    "";
+
+  return {
+    authKey,
+    integratedNumber,
+    namespace: config.namespace || undefined,
+    isEnabled: row?.isEnabled ?? true,
+  };
+};
+
+/** @deprecated Use resolveWhatsappProviderConfig — kept for transitional callers */
+export const resolveWhatsappApiKey = async (instituteId: string): Promise<string> => {
+  const cfg = await resolveWhatsappProviderConfig(instituteId);
+  return cfg.authKey;
+};
+
+/** True when institute has usable MSG91 auth key + integrated number. */
+export const isWhatsappProviderConnected = async (
+  instituteId: string
+): Promise<boolean> => {
+  const cfg = await resolveWhatsappProviderConfig(instituteId);
+  return Boolean(cfg.authKey?.trim() && cfg.integratedNumber?.trim() && cfg.isEnabled !== false);
 };
 
 export const resolveEmailSmtpConfig = async (instituteId: string) => {

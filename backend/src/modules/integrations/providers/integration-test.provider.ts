@@ -1,5 +1,4 @@
 import type { IntegrationType } from "@prisma/client";
-import { env } from "../../../config/env";
 import { logger } from "../../../config/logger";
 import { decryptCredentials } from "../../../utils/integration-credentials.util";
 import * as repo from "../integration.repository";
@@ -7,6 +6,7 @@ import * as repo from "../integration.repository";
 export interface TestResult {
   success: boolean;
   message: string;
+  status?: string;
 }
 
 export const testAiConnection = async (
@@ -40,17 +40,9 @@ export const testAiConnection = async (
 export const testWhatsappConnection = async (
   instituteId: string
 ): Promise<TestResult> => {
-  const row = await repo.findByInstituteAndType(instituteId, "WHATSAPP");
-  const creds = decryptCredentials(row?.encryptedCredentials);
-  const apiKey = creds.apiKey || env.AISENSY_API_KEY;
-  if (!apiKey) {
-    return { success: false, message: "API key is not configured" };
-  }
-  // AiSensy does not expose a universal health endpoint; presence of key + base URL is enough for V1.
-  if (!env.AISENSY_BASE_URL) {
-    return { success: false, message: "WhatsApp provider base URL is missing" };
-  }
-  return { success: true, message: "Connection successful" };
+  const { msg91Provider } = await import("../../whatsapp/integrations/msg91.provider");
+  const result = await msg91Provider.testConnection(instituteId);
+  return { success: result.success, message: result.message, status: result.status };
 };
 
 export const testAiCallingConnection = async (

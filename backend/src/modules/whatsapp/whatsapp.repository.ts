@@ -12,17 +12,22 @@ import type {
   NotificationQueryFilters,
   NotificationType,
 } from "./whatsapp.types";
+import {
+  SYSTEM_AUTOMATION_EVENTS,
+  SYSTEM_AUTOMATION_CATALOG,
+  NotificationChannel,
+} from "./whatsapp.constants";
 
 // ─── Idempotency ─────────────────────────────────────────────────────────────
 
-export const checkIdempotency = async (key: string): Promise<boolean> => {
-  const existing = await prisma.notificationIdempotency.findUnique({ where: { key } });
-  return !!existing;
-};
-
-export const createIdempotencyKey = async (key: string): Promise<boolean> => {
+export const createIdempotencyKey = async (
+  key: string,
+  instituteId?: string
+): Promise<boolean> => {
   try {
-    await prisma.notificationIdempotency.create({ data: { key } });
+    await prisma.notificationIdempotency.create({
+      data: { key, instituteId: instituteId ?? null },
+    });
     return true;
   } catch {
     return false;
@@ -33,94 +38,221 @@ export const deleteIdempotencyKey = async (key: string): Promise<void> => {
   await prisma.notificationIdempotency.deleteMany({ where: { key } });
 };
 
-// ─── Templates ───────────────────────────────────────────────────────────────
+// ─── Automation config ───────────────────────────────────────────────────────
 
-export const findTemplateByEvent = async (event: string) => {
-  return prisma.notificationTemplate.findFirst({
-    where: { event, status: "ACTIVE" },
+export const getOrCreateAutomationConfig = async (instituteId: string) => {
+  const existing = await prisma.whatsAppAutomationConfig.findUnique({
+    where: { instituteId },
+  });
+  if (existing) return existing;
+  return prisma.whatsAppAutomationConfig.create({
+    data: { instituteId, enabled: false },
   });
 };
 
-export const findTemplateById = async (id: string) => {
-  return prisma.notificationTemplate.findUnique({ where: { id } });
+export const updateAutomationConfig = async (
+  instituteId: string,
+  enabled: boolean,
+  updatedById?: string
+) => {
+  await getOrCreateAutomationConfig(instituteId);
+  return prisma.whatsAppAutomationConfig.update({
+    where: { instituteId },
+    data: { enabled, updatedById: updatedById ?? null },
+  });
 };
 
-export const findAllTemplates = async (status?: string) => {
+/** Ensure disabled rules exist for every V1 system automation. */
+export const ensureInstituteAutomationRules = async (instituteId: string) => {
+  await getOrCreateAutomationConfig(instituteId);
+
+  for (const event of SYSTEM_AUTOMATION_EVENTS) {
+    const meta = SYSTEM_AUTOMATION_CATALOG.find((c) => c.event === event);
+    await prisma.notificationRule.upsert({
+      where: {
+        instituteId_event_channel: {
+          instituteId,
+          event,
+          channel: NotificationChannel.WHATSAPP,
+        },
+      },
+      create: {
+        instituteId,
+        event,
+        channel: NotificationChannel.WHATSAPP,
+        enabled: false,
+        configuration: (meta?.defaultConfiguration ?? {}) as Prisma.InputJsonValue,
+      },
+      update: {},
+    });
+  }
+};
+
+// ─── Templates ───────────────────────────────────────────────────────────────
+
+export const findTemplateByEvent = async (instituteId: string, event: string) => {
+  return prisma.notificationTemplate.findFirst({
+    where: { instituteId, event, status: "ACTIVE" },
+  });
+};
+
+export const findTemplateById = async (id: string, instituteId?: string) => {
+  return prisma.notificationTemplate.findFirst({
+    where: { id, ...(instituteId ? { instituteId } : {}) },
+  });
+};
+
+export const findAllTemplates = async (instituteId: string, status?: string) => {
   return prisma.notificationTemplate.findMany({
-    where: status ? { status } : undefined,
-    orderBy: { createdAt: "asc" },
+    where: { instituteId, ...(status ? { status } : {}) },
+    orderBy: { updatedAt: "desc" },
   });
 };
 
 export const createTemplate = async (data: {
+  instituteId: string;
   name: string;
   event: string;
   providerTemplateName: string;
+  providerTemplateId?: string | null;
+  providerNamespace?: string | null;
   language?: string;
   variables: string[];
+  category?: string;
+  body?: string;
+  status?: string;
 }) => {
   return prisma.notificationTemplate.create({
     data: {
+      instituteId: data.instituteId,
       name: data.name,
       event: data.event,
       providerTemplateName: data.providerTemplateName,
+      providerTemplateId: data.providerTemplateId ?? null,
+      providerNamespace: data.providerNamespace ?? null,
       language: data.language ?? "en",
       variables: data.variables as unknown as Prisma.InputJsonValue,
-      status: "ACTIVE",
+      category: data.category ?? null,
+      body: data.body ?? null,
+      status: data.status ?? "ACTIVE",
     },
   });
 };
 
 export const updateTemplate = async (
   id: string,
+  instituteId: string,
   data: Partial<{
     name: string;
     event: string;
     providerTemplateName: string;
+    providerTemplateId: string | null;
+    providerNamespace: string | null;
     language: string;
     variables: string[];
     status: string;
+    category: string;
+    body: string;
   }>
 ) => {
-  return prisma.notificationTemplate.update({
-    where: { id },
+  return prisma.notificationTemplate.updateMany({
+    where: { id, instituteId },
     data: {
-      ...data,
-      ...(data.variables ? { variables: data.variables as unknown as Prisma.InputJsonValue } : {}),
+      ...(data.name !== undefined ? { name: data.name } : {}),
+      ...(data.event !== undefined ? { event: data.event } : {}),
+      ...(data.providerTemplateName !== undefined
+        ? { providerTemplateName: data.providerTemplateName }
+        : {}),
+      ...(data.providerTemplateId !== undefined
+        ? { providerTemplateId: data.providerTemplateId }
+        : {}),
+      ...(data.providerNamespace !== undefined
+        ? { providerNamespace: data.providerNamespace }
+        : {}),
+      ...(data.language !== undefined ? { language: data.language } : {}),
+      ...(data.status !== undefined ? { status: data.status } : {}),
+      ...(data.category !== undefined ? { category: data.category } : {}),
+      ...(data.body !== undefined ? { body: data.body } : {}),
+      ...(data.variables
+        ? { variables: data.variables as unknown as Prisma.InputJsonValue }
+        : {}),
     },
   });
+};
+
+export const findTemplateByProviderName = async (
+  instituteId: string,
+  providerTemplateName: string,
+  language?: string
+) => {
+  return prisma.notificationTemplate.findFirst({
+    where: {
+      instituteId,
+      providerTemplateName,
+      ...(language ? { language } : {}),
+    },
+  });
+};
+
+export const deleteTemplate = async (id: string, instituteId: string) => {
+  return prisma.notificationTemplate.deleteMany({ where: { id, instituteId } });
 };
 
 // ─── Rules ───────────────────────────────────────────────────────────────────
 
-export const findRuleByEvent = async (event: string, channel = "WHATSAPP") => {
+export const findRuleByEvent = async (
+  instituteId: string,
+  event: string,
+  channel = "WHATSAPP"
+) => {
   return prisma.notificationRule.findFirst({
-    where: { event, channel },
+    where: { instituteId, event, channel },
+    include: { template: true },
   });
 };
 
-export const findAllRules = async () => {
-  return prisma.notificationRule.findMany({ orderBy: { createdAt: "asc" } });
+export const findAllRules = async (instituteId: string) => {
+  await ensureInstituteAutomationRules(instituteId);
+  return prisma.notificationRule.findMany({
+    where: { instituteId },
+    include: { template: true },
+    orderBy: { event: "asc" },
+  });
 };
 
 export const upsertRule = async (data: {
+  instituteId: string;
   event: string;
   channel?: string;
   enabled: boolean;
+  templateId?: string | null;
   configuration?: Record<string, unknown>;
 }) => {
+  const channel = data.channel ?? "WHATSAPP";
   return prisma.notificationRule.upsert({
-    where: { event_channel: { event: data.event, channel: data.channel ?? "WHATSAPP" } },
+    where: {
+      instituteId_event_channel: {
+        instituteId: data.instituteId,
+        event: data.event,
+        channel,
+      },
+    },
     create: {
+      instituteId: data.instituteId,
       event: data.event,
-      channel: data.channel ?? "WHATSAPP",
+      channel,
       enabled: data.enabled,
+      templateId: data.templateId ?? null,
       configuration: (data.configuration ?? {}) as unknown as Prisma.InputJsonValue,
     },
     update: {
       enabled: data.enabled,
-      configuration: (data.configuration ?? {}) as unknown as Prisma.InputJsonValue,
+      ...(data.templateId !== undefined ? { templateId: data.templateId } : {}),
+      ...(data.configuration !== undefined
+        ? { configuration: data.configuration as unknown as Prisma.InputJsonValue }
+        : {}),
     },
+    include: { template: true },
   });
 };
 
@@ -130,30 +262,41 @@ export const createNotification = async (data: {
   instituteId: string;
   userId?: string;
   studentId?: string;
+  branchId?: string;
   event: string;
   channel?: string;
   templateId?: string;
   metadata?: Record<string, unknown>;
   scheduledAt?: Date;
+  status?: string;
+  skipReason?: string;
+  isTest?: boolean;
+  title?: string;
+  message?: string;
 }) => {
   return prisma.notification.create({
     data: {
       instituteId: data.instituteId,
       userId: data.userId,
       studentId: data.studentId,
+      branchId: data.branchId,
       event: data.event,
       channel: data.channel ?? "WHATSAPP",
       templateId: data.templateId,
-      status: "PENDING",
+      status: data.status ?? "PENDING",
+      skipReason: data.skipReason,
+      isTest: data.isTest ?? false,
+      title: data.title,
+      message: data.message,
       metadata: (data.metadata ?? {}) as unknown as Prisma.InputJsonValue,
       scheduledAt: data.scheduledAt,
     },
   });
 };
 
-export const findNotificationById = async (id: string) => {
-  return prisma.notification.findUnique({
-    where: { id },
+export const findNotificationById = async (id: string, instituteId?: string) => {
+  return prisma.notification.findFirst({
+    where: { id, ...(instituteId ? { instituteId } : {}) },
     include: {
       template: true,
       student: { include: { user: true } },
@@ -168,19 +311,37 @@ export const findNotifications = async (params: {
   studentId?: string;
   event?: string;
   status?: string;
+  channel?: string;
+  isTest?: boolean;
+  search?: string;
   fromDate?: Date;
   toDate?: Date;
   page: number;
   limit: number;
 }) => {
-  const { page, limit, instituteId, branchId, studentId, event, status, fromDate, toDate } = params;
+  const {
+    page,
+    limit,
+    instituteId,
+    branchId,
+    studentId,
+    event,
+    status,
+    channel,
+    isTest,
+    search,
+    fromDate,
+    toDate,
+  } = params;
   const skip = (page - 1) * limit;
 
   const where: Prisma.NotificationWhereInput = {
     instituteId,
+    ...(channel ? { channel } : {}),
     ...(studentId ? { studentId } : {}),
     ...(event ? { event } : {}),
     ...(status ? { status } : {}),
+    ...(typeof isTest === "boolean" ? { isTest } : {}),
     ...(fromDate || toDate
       ? {
           createdAt: {
@@ -189,15 +350,28 @@ export const findNotifications = async (params: {
           },
         }
       : {}),
+    ...(search
+      ? {
+          OR: [
+            { message: { contains: search, mode: "insensitive" } },
+            { title: { contains: search, mode: "insensitive" } },
+            { errorMessage: { contains: search, mode: "insensitive" } },
+            { skipReason: { contains: search, mode: "insensitive" } },
+          ],
+        }
+      : {}),
     ...(branchId
       ? {
-          student: {
-            batchEnrollments: {
-              some: {
-                batch: { branchId },
+          OR: [
+            { branchId },
+            {
+              student: {
+                batchEnrollments: {
+                  some: { batch: { branchId } },
+                },
               },
             },
-          },
+          ],
         }
       : {}),
   };
@@ -208,7 +382,11 @@ export const findNotifications = async (params: {
       skip,
       take: limit,
       orderBy: { createdAt: "desc" },
-      include: { template: true },
+      include: {
+        template: true,
+        student: { include: { user: { select: { name: true, phone: true } } } },
+        user: { select: { name: true, phone: true } },
+      },
     }),
     prisma.notification.count({ where }),
   ]);
@@ -226,6 +404,7 @@ export const updateNotificationStatus = async (
     readAt?: Date;
     failedAt?: Date;
     errorMessage?: string;
+    skipReason?: string;
     retryCount?: number;
   }
 ) => {
@@ -253,22 +432,14 @@ export class NotificationRepository {
     const limit = Math.min(100, Math.max(1, filters.limit || 20));
     const skip = (page - 1) * limit;
 
-    const whereCondition: any = {
+    const whereCondition: Prisma.NotificationWhereInput = {
       instituteId,
-      OR: [
-        { userId: userId },
-        { userId: null },
-      ],
+      OR: [{ userId }, { userId: null }],
+      channel: { not: "WHATSAPP" },
     };
 
-    if (filters.type) {
-      whereCondition.type = filters.type;
-    }
-
-    if (filters.unreadOnly) {
-      whereCondition.isRead = false;
-    }
-
+    if (filters.type) whereCondition.type = filters.type;
+    if (filters.unreadOnly) whereCondition.isRead = false;
     if (filters.search) {
       whereCondition.AND = [
         {
@@ -291,8 +462,9 @@ export class NotificationRepository {
       prisma.notification.count({
         where: {
           instituteId,
-          OR: [{ userId: userId }, { userId: null }],
+          OR: [{ userId }, { userId: null }],
           isRead: false,
+          channel: { not: "WHATSAPP" },
         },
       }),
     ]);
@@ -302,22 +474,20 @@ export class NotificationRepository {
       return this.listNotifications(instituteId, userId, filters);
     }
 
-    const formattedItems = notifications.map((n) => ({
-      id: n.id,
-      userId: n.userId,
-      instituteId: n.instituteId,
-      branchId: n.branchId,
-      title: n.title ?? "",
-      message: n.message ?? "",
-      type: n.type as NotificationType,
-      link: n.link,
-      isRead: n.isRead,
-      readAt: n.readAt ? n.readAt.toISOString() : null,
-      createdAt: n.createdAt.toISOString(),
-    }));
-
     return {
-      notifications: formattedItems,
+      notifications: notifications.map((n) => ({
+        id: n.id,
+        userId: n.userId,
+        instituteId: n.instituteId,
+        branchId: n.branchId,
+        title: n.title ?? "",
+        message: n.message ?? "",
+        type: n.type as NotificationType,
+        link: n.link,
+        isRead: n.isRead,
+        readAt: n.readAt ? n.readAt.toISOString() : null,
+        createdAt: n.createdAt.toISOString(),
+      })),
       unreadCount,
       pagination: {
         total,
@@ -332,31 +502,24 @@ export class NotificationRepository {
     const unreadCount = await prisma.notification.count({
       where: {
         instituteId,
-        OR: [{ userId: userId }, { userId: null }],
+        OR: [{ userId }, { userId: null }],
         isRead: false,
+        channel: { not: "WHATSAPP" },
       },
     });
-
     return { unreadCount };
   }
 
-  static async markAsRead(notificationId: string, userId: string) {
+  static async markAsRead(notificationId: string, _userId: string) {
     const notification = await prisma.notification.findFirst({
       where: { id: notificationId },
     });
-
-    if (!notification) {
-      throw new Error("Notification not found");
-    }
+    if (!notification) throw new Error("Notification not found");
 
     const updated = await prisma.notification.update({
       where: { id: notificationId },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
+      data: { isRead: true, readAt: new Date() },
     });
-
     return {
       id: updated.id,
       isRead: updated.isRead,
@@ -368,15 +531,11 @@ export class NotificationRepository {
     const result = await prisma.notification.updateMany({
       where: {
         instituteId,
-        OR: [{ userId: userId }, { userId: null }],
+        OR: [{ userId }, { userId: null }],
         isRead: false,
       },
-      data: {
-        isRead: true,
-        readAt: new Date(),
-      },
+      data: { isRead: true, readAt: new Date() },
     });
-
     return { success: true, count: result.count };
   }
 
@@ -391,23 +550,17 @@ export class NotificationRepository {
         type: payload.type || "SYSTEM",
         link: payload.link || null,
         isRead: false,
+        channel: "IN_APP",
       },
     });
   }
 
-  static async deleteNotification(notificationId: string, userId: string) {
+  static async deleteNotification(notificationId: string, _userId: string) {
     const notification = await prisma.notification.findFirst({
       where: { id: notificationId },
     });
-
-    if (!notification) {
-      throw new Error("Notification not found");
-    }
-
-    await prisma.notification.delete({
-      where: { id: notificationId },
-    });
-
+    if (!notification) throw new Error("Notification not found");
+    await prisma.notification.delete({ where: { id: notificationId } });
     return { success: true, message: "Notification deleted" };
   }
 
@@ -428,27 +581,6 @@ export class NotificationRepository {
         link: "/admin/fees/payments",
         createdAt: new Date(now.getTime() - 1000 * 60 * 45),
       },
-      {
-        title: "Attendance Risk Alert",
-        message: "Student Vikram Singh missed 3 consecutive theory classes in Data Science batch.",
-        type: "DISCONTINUATION_RISK" as NotificationType,
-        link: "/admin/students/attendance",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 180),
-      },
-      {
-        title: "AI Voice Call Completed",
-        message: "Lead Ananya Roy indicated high admission intent during automated AI voice call.",
-        type: "AI_CALL" as NotificationType,
-        link: "/admin/admissions/enquiries",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 360),
-      },
-      {
-        title: "Class Session Scheduled",
-        message: "New Class Session 'React Hooks & State Management' scheduled for tomorrow 10:00 AM.",
-        type: "CLASS_SESSION" as NotificationType,
-        link: "/admin/courses/batches",
-        createdAt: new Date(now.getTime() - 1000 * 60 * 720),
-      },
     ];
 
     for (const item of initialEvents) {
@@ -462,6 +594,7 @@ export class NotificationRepository {
           link: item.link,
           isRead: false,
           createdAt: item.createdAt,
+          channel: "IN_APP",
         },
       });
     }

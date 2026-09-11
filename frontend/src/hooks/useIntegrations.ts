@@ -50,6 +50,16 @@ export const useDisconnectIntegration = (type: IntegrationType) => {
   });
 };
 
+export const useFetchWhatsappNumber = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => integrationsApi.fetchWhatsappNumber(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: INTEGRATIONS_QUERY_KEY });
+    },
+  });
+};
+
 export const useConnectGoogle = () =>
   useMutation({
     mutationFn: () => integrationsApi.connectGoogle(),

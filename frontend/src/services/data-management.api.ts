@@ -9,7 +9,13 @@ export const dataManagementApi = {
     return response.data;
   },
 
-  previewImport: async (data: { entityType: ImportEntityType; csv: string; fileName?: string }) => {
+  previewImport: async (data: {
+    entityType: ImportEntityType;
+    csv: string;
+    fileName?: string;
+    /** When set (e.g. AI_CALLING), stamped on imported leads if CSV has no source. */
+    defaultLeadSource?: string;
+  }) => {
     const response = await api.post("/data-management/import/preview", data);
     return response.data;
   },

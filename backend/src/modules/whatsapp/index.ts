@@ -6,8 +6,8 @@
 export * from "./whatsapp.constants";
 export * from "./whatsapp.types";
 export * from "./whatsapp.validation";
+export * from "./variable-map.util";
 export {
-  checkIdempotency,
   createIdempotencyKey,
   deleteIdempotencyKey,
   findTemplateByEvent,
@@ -24,16 +24,23 @@ export {
   updateNotificationStatus,
   findNotificationByProviderId,
   markNotificationQueued,
+  getOrCreateAutomationConfig,
+  ensureInstituteAutomationRules,
 } from "./whatsapp.repository";
 export {
   whatsAppService,
   triggerNotification,
+  evaluateAndEnqueueSystemAutomation,
   getNotifications,
   getNotificationById,
   resendNotification,
   listTemplates,
   toggleTemplateStatus,
+  listProviderTemplates,
+  syncTemplatesFromMsg91,
   listRules,
+  listAutomations,
+  getAutomationConfig,
   NotificationService,
 } from "./whatsapp.service";
 export * from "./whatsapp.controller";
@@ -41,8 +48,10 @@ export { default as whatsappRoutes } from "./whatsapp.routes";
 export * from "./whatsapp.queue";
 export * from "./whatsapp.worker";
 export * from "./whatsapp.webhook";
-export * from "./integrations/aisensy.provider";
+export * from "./integrations/msg91.provider";
 export * from "./jobs/class-reminder.job";
 export * from "./jobs/feedback.job";
 export * from "./jobs/first-class.job";
 export * from "./jobs/module-start.job";
+export * from "./jobs/fee-reminder.job";
+export * from "./jobs/exam-reminder.job";

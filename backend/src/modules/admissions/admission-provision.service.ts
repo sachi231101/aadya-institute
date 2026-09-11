@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { prisma } from "../../config/database";
 import { AppError } from "../../middlewares/error.middleware";
 import { batchIncludesCourse } from "../../utils/batch-course.util";
@@ -6,6 +6,7 @@ import { hashPassword } from "../../utils/password";
 import { SequenceService } from "../masters/sequence.service";
 import { LeadActivityService } from "../leads/services/lead-activity.service";
 import type { CreateAdmissionDTO } from "./admissions.types";
+import { applyFifoToPendingRows } from "../fees/fee-balance.util";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -260,8 +261,30 @@ export async function provisionAdmissionInTransaction(
   });
 
   const parsedAdmissionDate = dto.admissionDate ? new Date(dto.admissionDate) : undefined;
-  const paymentMethod = dto.paymentMethod || "UPI";
   const admissionStatus = dto.status || "CONFIRMED";
+
+  const VALID_PAYMENT_METHODS = new Set(["UPI", "NET_BANKING", "CARD", "CASH", "CHEQUE"]);
+  let paymentMethod = dto.paymentMethod || "UPI";
+  let paymentModeMasterId: string | null = null;
+
+  if (dto.paymentModeMasterId) {
+    const paymentModeMaster = await tx.masterRecord.findFirst({
+      where: {
+        id: dto.paymentModeMasterId,
+        instituteId,
+        entityType: "paymentmodes",
+        status: "ACTIVE",
+      },
+      select: { id: true, code: true, name: true },
+    });
+    if (paymentModeMaster) {
+      paymentModeMasterId = paymentModeMaster.id;
+      const masterCode = (paymentModeMaster.code || "").toUpperCase();
+      if (VALID_PAYMENT_METHODS.has(masterCode)) {
+        paymentMethod = masterCode as typeof paymentMethod;
+      }
+    }
+  }
 
   // Scope PENDING reuse by course so multi-course / package admissions
   // create one row per course instead of overwriting a single draft.
@@ -292,6 +315,11 @@ export async function provisionAdmissionInTransaction(
     applicationId: dto.applicationId || null,
     feePlan: dto.feePlan || "INSTALLMENT",
     status: admissionStatus,
+    termsAcceptedAt: admissionStatus !== "PENDING" ? new Date() : null,
+    termsAcceptance:
+      admissionStatus !== "PENDING" && dto.termsAcceptance
+        ? (dto.termsAcceptance as unknown as Prisma.InputJsonValue)
+        : Prisma.DbNull,
     notes: dto.notes || null,
     ...(dto.statusMasterId ? { statusMasterId: dto.statusMasterId } : {}),
     ...(dto.concessionHeadMasterId ? { concessionHeadMasterId: dto.concessionHeadMasterId } : {}),
@@ -378,6 +406,7 @@ export async function provisionAdmissionInTransaction(
           courseName,
           amount: amountPaid,
           method: paymentMethod,
+          paymentModeMasterId,
           status: "SUCCESS",
           transactionRef: dto.transactionRef || null,
           notes: "Initial admission payment",
@@ -399,7 +428,7 @@ export async function provisionAdmissionInTransaction(
             admissionId: admission.id,
             studentName: dto.studentName,
             admissionNo,
-            phone: dto.phone,
+            phone: dto.phone || "",
             courseName,
             totalFee,
             amountPaid: 0,
@@ -410,7 +439,28 @@ export async function provisionAdmissionInTransaction(
           };
         }),
       });
+
+      // FIFO-apply down payment onto earliest installments
+      if (amountPaid > 0) {
+        const createdRows = await tx.pendingFee.findMany({
+          where: { admissionId: admission.id, studentId: finalStudentId },
+          orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
+        });
+        const { allocations } = applyFifoToPendingRows(createdRows, amountPaid);
+        for (const alloc of allocations) {
+          await tx.pendingFee.update({
+            where: { id: alloc.row.id },
+            data: {
+              amountPaid: alloc.amountPaid,
+              dueAmount: alloc.dueAmount,
+              status: alloc.status,
+              overdueDays: alloc.overdueDays,
+            },
+          });
+        }
+      }
     } else {
+      // Single remaining-balance row (amountPaid already recorded as Payment)
       const balance = Math.max(0, totalFee - amountPaid);
       if (balance > 0) {
         const dueDate = new Date();
@@ -423,10 +473,10 @@ export async function provisionAdmissionInTransaction(
             admissionId: admission.id,
             studentName: dto.studentName,
             admissionNo,
-            phone: dto.phone,
+            phone: dto.phone || "",
             courseName,
             totalFee,
-            amountPaid,
+            amountPaid: 0,
             dueAmount: balance,
             dueDate,
             installmentNo: 1,

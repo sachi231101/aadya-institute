@@ -197,7 +197,14 @@ export const getDashboardSummary = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const summary = await LeadService.getDashboardSummary(req.user as unknown as AuthUser);
+    const branchId =
+      typeof req.query.branchId === "string" && req.query.branchId.trim()
+        ? req.query.branchId.trim()
+        : undefined;
+    const summary = await LeadService.getDashboardSummary(
+      req.user as unknown as AuthUser,
+      branchId
+    );
     sendSuccess(res, summary, 200, "Dashboard summary retrieved successfully");
   } catch (err) {
     next(err);
@@ -230,7 +237,14 @@ export const getFollowUpDashboard = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const dashboard = await LeadService.getFollowUpDashboard(req.user as unknown as AuthUser);
+    const branchId =
+      typeof req.query.branchId === "string" && req.query.branchId.trim()
+        ? req.query.branchId.trim()
+        : undefined;
+    const dashboard = await LeadService.getFollowUpDashboard(
+      req.user as unknown as AuthUser,
+      branchId
+    );
     sendSuccess(res, dashboard, 200, "Follow-up dashboard retrieved successfully");
   } catch (err) {
     next(err);
@@ -261,6 +275,104 @@ export const triggerLeadCall = async (
   try {
     const result = await LeadService.triggerLeadCall(req.params.id as string, req.user as unknown as AuthUser);
     sendSuccess(res, result, 200, "AI call initiated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const bulkAssignLeads = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await LeadService.bulkAssignLeads(
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, result, 200, "Bulk assign completed");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateLeadTags = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const lead = await LeadService.updateLeadTags(
+      req.params.id as string,
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, lead, 200, "Lead tags updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const updateLeadScore = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const lead = await LeadService.updateLeadScore(
+      req.params.id as string,
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, lead, 200, "Lead score updated successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const archiveLead = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const lead = await LeadService.archiveLead(
+      req.params.id as string,
+      req.user as unknown as AuthUser
+    );
+    sendSuccess(res, lead, 200, "Lead archived successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const mergeLeads = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await LeadService.mergeLeads(
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, result, 200, "Leads merged successfully");
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const createManualCallLog = async (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const callLog = await LeadService.createManualCallLog(
+      req.user as unknown as AuthUser,
+      req.body
+    );
+    sendSuccess(res, callLog, 201, "Manual call logged successfully");
   } catch (err) {
     next(err);
   }

@@ -1,11 +1,11 @@
 /**
  * BullMQ worker process entry — start with RUN_WORKERS=true.
- * Do not run this in the HTTP API process (set RUN_WORKERS=false there).
+ * Not required when the API process already runs consumers (RUN_WORKERS=true there).
  */
 import { env } from "../config/env";
 import { connectDatabase } from "../config/database";
 import { logger } from "../config/logger";
-import { scheduleExamExpirySweep } from "../queues/exam-expiry.queue";
+import { registerWorkers } from "./register";
 
 async function main() {
   if (!env.RUN_WORKERS) {
@@ -14,22 +14,7 @@ async function main() {
   }
 
   await connectDatabase();
-
-  // Side-effect imports register BullMQ workers
-  await import("../modules/whatsapp/whatsapp.worker");
-  await import("../queues/recording.queue");
-  await import("../queues/google-recording.queue");
-  await import("../queues/ai-calling.queue");
-  await import("../queues/automation.queue");
-  await import("../queues/exam-grading.queue");
-  await import("../queues/exam-expiry.queue");
-
-  await scheduleExamExpirySweep();
-
-  logger.info(
-    { peakMode: env.PEAK_MODE },
-    "🚀 Aadya BullMQ workers running"
-  );
+  await registerWorkers();
 }
 
 main().catch((err) => {

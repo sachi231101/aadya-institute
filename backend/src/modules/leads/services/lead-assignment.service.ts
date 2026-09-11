@@ -1,9 +1,10 @@
 import { prisma } from "../../../config/database";
 import { AppError } from "../../../middlewares/error.middleware";
 import { LeadActivityService } from "./lead-activity.service";
+import { LeadNotifyService } from "./lead-notify.service";
 import { syncEnquiryAssigneeFromLead } from "./lead-enquiry-sync.service";
 import type { AuthUser } from "../../auth/auth.types";
-import type { AssignLeadDTO } from "../lead.types";
+import type { AssignLeadDTO, BulkAssignLeadsDTO } from "../lead.types";
 
 export const LeadAssignmentService = {
   async assignLead(
@@ -148,7 +149,57 @@ export const LeadAssignmentService = {
       );
 
       return { lead: updatedLead, assignment };
+    }).then(async (result) => {
+      await LeadNotifyService.notifyLeadAssigned({
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId,
+        leadName: lead.name,
+        counsellorId,
+        assignedByName: currentUser.name,
+      });
+      return result;
     });
+  },
+
+  async bulkAssignLeads(
+    currentUser: AuthUser,
+    dto: BulkAssignLeadsDTO
+  ) {
+    const results: Array<{
+      leadId: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    for (const leadId of dto.leadIds) {
+      try {
+        await this.assignLead(leadId, currentUser, {
+          counsellorId: dto.counsellorId,
+          notes: dto.notes,
+        });
+        results.push({ leadId, success: true });
+      } catch (err) {
+        const message =
+          err instanceof AppError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "Assignment failed";
+        results.push({ leadId, success: false, error: message });
+      }
+    }
+
+    const succeeded = results.filter((r) => r.success).length;
+    const failed = results.length - succeeded;
+
+    return {
+      counsellorId: dto.counsellorId,
+      total: results.length,
+      succeeded,
+      failed,
+      results,
+    };
   },
 
   async getAssignmentsByLeadId(leadId: string) {

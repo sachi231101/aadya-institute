@@ -4,6 +4,7 @@ import { requirePermission } from "../../middlewares/permission.middleware";
 import { validate } from "../../middlewares/validation.middleware";
 import {
   disconnectIntegration,
+  fetchWhatsappNumber,
   getIntegration,
   listIntegrations,
   testIntegration,
@@ -36,6 +37,13 @@ router.post(
   requirePermission("integration.manage"),
   validate(integrationTypeParamSchema, "params"),
   testIntegration
+);
+
+router.post(
+  "/:type/fetch-number",
+  requirePermission("integration.manage"),
+  validate(integrationTypeParamSchema, "params"),
+  fetchWhatsappNumber
 );
 
 router.post(

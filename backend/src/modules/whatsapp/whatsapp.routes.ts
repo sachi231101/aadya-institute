@@ -1,32 +1,124 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middlewares/auth.middleware";
-import { requirePermission } from "../../middlewares/permission.middleware";
+import { requireAnyPermission } from "../../middlewares/permission.middleware";
 import * as controller from "./whatsapp.controller";
 
 const router = Router();
 
 router.use(authMiddleware);
 
-// Send test message (ADMIN / Manage permission)
-router.post("/test", requirePermission("notification.manage"), controller.sendTestMessage);
+// Static paths MUST be registered before /:id
 
-// ─── Notification History ───────────────────────────────────────────────────
-router.get("/", requirePermission("notification.read"), controller.getNotifications);
+router.get(
+  "/automation-config",
+  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  controller.getAutomationConfig
+);
+router.patch(
+  "/automation-config",
+  requireAnyPermission("whatsapp.automation.manage", "notification.manage"),
+  controller.patchAutomationConfig
+);
+
+router.get(
+  "/automations",
+  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  controller.listAutomations
+);
+router.patch(
+  "/automations/:type",
+  requireAnyPermission("whatsapp.automation.manage", "notification.manage"),
+  controller.patchAutomation
+);
+router.post(
+  "/automations/:type/test",
+  requireAnyPermission("whatsapp.test.send", "notification.manage"),
+  controller.testAutomation
+);
+
+router.get(
+  "/history",
+  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  controller.getHistory
+);
+
+router.post(
+  "/test",
+  requireAnyPermission("whatsapp.test.send", "notification.manage"),
+  controller.sendTestMessage
+);
+
+router.get(
+  "/templates/all",
+  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  controller.listTemplates
+);
+router.get(
+  "/templates",
+  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  controller.listTemplates
+);
+router.get(
+  "/provider-templates",
+  requireAnyPermission("whatsapp.template.read", "notification.read"),
+  controller.listProviderTemplates
+);
+router.post(
+  "/templates/sync",
+  requireAnyPermission("whatsapp.template.create", "whatsapp.template.update", "notification.manage"),
+  controller.syncTemplates
+);
+router.post(
+  "/templates",
+  requireAnyPermission("whatsapp.template.create", "notification.manage"),
+  controller.createTemplate
+);
+router.patch(
+  "/templates/:id",
+  requireAnyPermission("whatsapp.template.update", "notification.manage"),
+  controller.updateTemplate
+);
+router.patch(
+  "/templates/:id/status",
+  requireAnyPermission("whatsapp.template.update", "notification.manage"),
+  controller.toggleTemplateStatus
+);
+router.delete(
+  "/templates/:id",
+  requireAnyPermission("whatsapp.template.update", "notification.manage"),
+  controller.deleteTemplate
+);
+
+router.get(
+  "/rules/all",
+  requireAnyPermission("whatsapp.automation.read", "notification.read"),
+  controller.listRules
+);
+router.post(
+  "/rules",
+  requireAnyPermission("whatsapp.automation.manage", "notification.manage"),
+  controller.upsertRule
+);
+
+router.get(
+  "/",
+  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  controller.getNotifications
+);
 router.get("/unread-count", controller.getUnreadCount);
 router.patch("/read-all", controller.markAllAsRead);
-router.get("/:id", requirePermission("notification.read"), controller.getNotificationById);
+
+router.get(
+  "/:id",
+  requireAnyPermission("whatsapp.history.read", "notification.read"),
+  controller.getNotificationById
+);
 router.patch("/:id/read", controller.markAsRead);
-router.post("/:id/resend", requirePermission("notification.resend"), controller.resendNotification);
+router.post(
+  "/:id/resend",
+  requireAnyPermission("notification.resend", "whatsapp.automation.manage"),
+  controller.resendNotification
+);
 router.delete("/:id", controller.deleteNotification);
-
-// ─── Templates ──────────────────────────────────────────────────────────────
-router.get("/templates/all", requirePermission("notification.read"), controller.listTemplates);
-router.post("/templates", requirePermission("notification.manage"), controller.createTemplate);
-router.patch("/templates/:id", requirePermission("notification.manage"), controller.updateTemplate);
-router.patch("/templates/:id/status", requirePermission("notification.manage"), controller.toggleTemplateStatus);
-
-// ─── Rules ──────────────────────────────────────────────────────────────────
-router.get("/rules/all", requirePermission("notification.read"), controller.listRules);
-router.post("/rules", requirePermission("notification.manage"), controller.upsertRule);
 
 export default router;

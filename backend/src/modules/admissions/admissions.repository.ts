@@ -300,6 +300,12 @@ export const AdmissionsRepository = {
         ...(dto.batchId !== undefined ? { batchId: dto.batchId || null } : {}),
         ...(dto.feePlan !== undefined ? { feePlan: dto.feePlan } : {}),
         ...(dto.status !== undefined ? { status: dto.status } : {}),
+        ...(dto.termsAcceptance !== undefined
+          ? {
+              termsAcceptance: dto.termsAcceptance as unknown as Prisma.InputJsonValue,
+              termsAcceptedAt: new Date(),
+            }
+          : {}),
         ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
       },
     });

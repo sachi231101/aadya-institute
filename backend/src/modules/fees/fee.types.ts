@@ -1,16 +1,20 @@
 export interface QueryPaymentsDTO {
   search?: string;
   method?: string | "ALL";
+  paymentModeMasterId?: string;
   status?: string | "ALL";
+  branchId?: string;
   page?: number;
   limit?: number;
 }
 
 export interface CreatePaymentDTO {
-  studentName: string;
-  admissionNo: string;
-  courseName: string;
+  studentId: string;
+  studentName?: string;
+  admissionNo?: string;
+  courseName?: string;
   amount: number;
+  lateFee?: number;
   date?: string;
   /** @deprecated use paymentModeMasterId */
   method?: string;
@@ -21,14 +25,16 @@ export interface CreatePaymentDTO {
   transactionRef?: string;
   status?: string;
   notes?: string;
-  studentId?: string;
   admissionId?: string;
   pendingFeeId?: string;
+  sendWhatsAppReceipt?: boolean;
 }
 
 export interface QueryPendingFeesDTO {
   search?: string;
   status?: string | "ALL";
+  branchId?: string;
+  studentId?: string;
   page?: number;
   limit?: number;
 }
@@ -96,4 +102,17 @@ export interface QueryReceiptsDTO {
   branchId?: string;
   dateFrom?: string;
   dateTo?: string;
+}
+
+export interface BranchScopeParams {
+  branchId?: string;
+  branchIds?: string[];
+}
+
+export interface StudentFeeStatementSummary {
+  totalFee: number;
+  amountPaid: number;
+  dueAmount: number;
+  status: "Paid" | "Overdue" | "Partial" | "Pending";
+  nextDueDate?: string;
 }

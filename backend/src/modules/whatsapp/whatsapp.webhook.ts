@@ -1,10 +1,10 @@
 /**
  * WhatsApp Webhook verification (GET) and status callback handler (POST).
  *
- * Configured in Provider Dashboard:
+ * Configured in MSG91 Dashboard (WhatsApp → Webhook outbound):
  *   URL: <APP_URL>/api/v1/webhooks/whatsapp
  *
- * Handles status events: sent, delivered, read, failed.
+ * Handles status events: submitted, sent, delivered, read, failed.
  *
  * @module modules/whatsapp/whatsapp.webhook
  */
@@ -14,6 +14,7 @@ import { prisma } from "../../config/database";
 import { logger } from "../../config/logger";
 import { NotificationStatus } from "./whatsapp.constants";
 import { env } from "../../config/env";
+import { mapMsg91StatusToNotification } from "./integrations/msg91.status";
 
 const VERIFY_TOKEN = env.WHATSAPP_WEBHOOK_SECRET || "aadya_secret_webhook_token";
 
@@ -31,25 +32,36 @@ export const whatsappWebhookVerify = (req: Request, res: Response): void => {
 
 interface StatusEvent {
   providerMessageId?: string;
+  crqid?: string;
   status?: string;
   reason?: string;
 }
 
 const extractMessageId = (m: Record<string, any>): string | undefined =>
-  m?.providerMessageId || m?.messageId || m?.message_id || m?.msgId || m?.id;
+  m?.providerMessageId ||
+  m?.request_id ||
+  m?.requestId ||
+  m?.message_uuid ||
+  m?.message_id ||
+  m?.messageId ||
+  m?.uuid ||
+  m?.msgId ||
+  m?.id;
+
+const extractCrqid = (m: Record<string, any>): string | undefined =>
+  m?.crqid || m?.CRQID || m?.crqId;
 
 const extractStatus = (m: Record<string, any>): string | undefined =>
-  m?.status || m?.event || m?.type;
+  m?.status || m?.eventName || m?.event || m?.type;
 
 const extractReason = (m: Record<string, any>): string | undefined =>
   m?.reason || m?.error || m?.errorMessage || m?.failureResponse?.message;
 
 const toStatusEvent = (m: Record<string, any>): StatusEvent => {
   if (typeof m !== "object" || m === null) return {};
-  const messageId = extractMessageId(m);
-  if (!messageId) return { status: extractStatus(m), reason: extractReason(m) };
   return {
-    providerMessageId: String(messageId),
+    providerMessageId: extractMessageId(m) ? String(extractMessageId(m)) : undefined,
+    crqid: extractCrqid(m) ? String(extractCrqid(m)) : undefined,
     status: extractStatus(m),
     reason: extractReason(m),
   };
@@ -59,21 +71,28 @@ const collectStatusEvents = (body: any): StatusEvent[] => {
   if (!body || typeof body !== "object") return [];
   if (Array.isArray(body)) return body.map(toStatusEvent);
   if (Array.isArray(body.messages)) return body.messages.map(toStatusEvent);
+  if (Array.isArray(body.data)) return body.data.map(toStatusEvent);
   return [toStatusEvent(body)];
 };
 
-const normalizeStatus = (s: string): string => String(s).toLowerCase();
-
 const buildUpdateForStatus = (
-  notification: { status: string; deliveredAt?: Date | null; sentAt?: Date | null; readAt?: Date | null },
+  notification: {
+    status: string;
+    deliveredAt?: Date | null;
+    sentAt?: Date | null;
+    readAt?: Date | null;
+  },
   statusRaw: string,
   reason?: string
 ): Record<string, unknown> => {
+  const mapped = mapMsg91StatusToNotification(statusRaw);
+  if (!mapped) return {};
+
   const currentStatus = notification.status as NotificationStatus;
   const now = new Date();
 
-  switch (normalizeStatus(statusRaw)) {
-    case "delivered":
+  switch (mapped) {
+    case NotificationStatus.DELIVERED:
       if (currentStatus !== NotificationStatus.READ) {
         return {
           status: NotificationStatus.DELIVERED,
@@ -81,14 +100,13 @@ const buildUpdateForStatus = (
         };
       }
       return {};
-    case "read":
-    case "seen":
+    case NotificationStatus.READ:
       return {
         status: NotificationStatus.READ,
         deliveredAt: notification.deliveredAt ?? now,
         readAt: notification.readAt ?? now,
       };
-    case "sent":
+    case NotificationStatus.SENT:
       if (
         currentStatus === NotificationStatus.PENDING ||
         currentStatus === NotificationStatus.QUEUED ||
@@ -100,9 +118,15 @@ const buildUpdateForStatus = (
         };
       }
       return {};
-    case "failed":
-    case "rejected":
-    case "error":
+    case NotificationStatus.QUEUED:
+      if (
+        currentStatus === NotificationStatus.PENDING ||
+        currentStatus === NotificationStatus.SENDING
+      ) {
+        return { status: NotificationStatus.QUEUED };
+      }
+      return {};
+    case NotificationStatus.FAILED:
       return {
         status: NotificationStatus.FAILED,
         failedAt: now,
@@ -114,19 +138,27 @@ const buildUpdateForStatus = (
 };
 
 const processStatusEvent = async (event: StatusEvent): Promise<void> => {
-  if (!event.providerMessageId || !event.status) {
-    logger.debug({ event }, "[whatsapp.webhook] Event missing messageId or status — skipping");
+  if ((!event.providerMessageId && !event.crqid) || !event.status) {
+    logger.debug({ event }, "[whatsapp.webhook] Event missing messageId/crqid or status — skipping");
     return;
   }
 
-  const notification = await prisma.notification.findFirst({
-    where: { providerMessageId: event.providerMessageId },
-  });
+  let notification = event.providerMessageId
+    ? await prisma.notification.findFirst({
+        where: { providerMessageId: event.providerMessageId },
+      })
+    : null;
+
+  if (!notification && event.crqid) {
+    notification = await prisma.notification.findFirst({
+      where: { id: event.crqid },
+    });
+  }
 
   if (!notification) {
     logger.info(
-      { providerMessageId: event.providerMessageId },
-      "[whatsapp.webhook] Notification not found for providerMessageId"
+      { providerMessageId: event.providerMessageId, crqid: event.crqid },
+      "[whatsapp.webhook] Notification not found for providerMessageId/crqid"
     );
     return;
   }
@@ -134,13 +166,21 @@ const processStatusEvent = async (event: StatusEvent): Promise<void> => {
   const updateData = buildUpdateForStatus(notification, event.status!, event.reason);
 
   if (Object.keys(updateData).length > 0) {
+    if (event.providerMessageId && !notification.providerMessageId) {
+      (updateData as any).providerMessageId = event.providerMessageId;
+    }
+
     await prisma.notification.update({
       where: { id: notification.id },
       data: updateData,
     });
 
     logger.info(
-      { notificationId: notification.id, providerMessageId: event.providerMessageId, newStatus: updateData.status },
+      {
+        notificationId: notification.id,
+        providerMessageId: event.providerMessageId,
+        newStatus: updateData.status,
+      },
       "[whatsapp.webhook] Notification status updated via webhook"
     );
   }
@@ -158,11 +198,11 @@ export const whatsappWebhookHandler = async (
     }
 
     const body = req.body;
-    logger.debug({ body }, "[whatsapp.webhook] Webhook event received");
+    logger.debug({ bodyKeys: body && typeof body === "object" ? Object.keys(body) : [] }, "[whatsapp.webhook] Webhook event received");
 
     const events = collectStatusEvents(body);
     if (events.length === 0) {
-      logger.warn({ body }, "[whatsapp.webhook] No status events found in payload");
+      logger.warn("[whatsapp.webhook] No status events found in payload");
       res.status(200).json({ received: true });
       return;
     }
@@ -191,12 +231,21 @@ const isAuthorizedWebhook = (req: Request): boolean => {
   }
 
   const provided =
-    (req.headers["x-aisensy-signature"] as string) ||
-    (req.headers["x-aisensy-token"] as string) ||
     (req.headers["x-webhook-token"] as string) ||
+    (req.headers["x-msg91-token"] as string) ||
+    (req.headers["authkey"] as string) ||
     (req.query.token as string);
 
   if (!provided) return false;
+
+  // Prefer exact match when lengths equal; otherwise compare digests for constant-time check.
+  if (provided.length === secret.length) {
+    try {
+      return crypto.timingSafeEqual(Buffer.from(provided), Buffer.from(secret));
+    } catch {
+      return false;
+    }
+  }
 
   const hashA = crypto.createHash("sha256").update(String(provided)).digest();
   const hashB = crypto.createHash("sha256").update(secret).digest();

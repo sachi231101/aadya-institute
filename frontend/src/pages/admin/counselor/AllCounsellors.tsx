@@ -144,7 +144,11 @@ export const AllCounsellors: React.FC = () => {
       : selectedBranchId;
 
   const { data: leadsResponse } = useLeads({ limit: 500, branchId: leadsBranchId });
-  const allLeads: Lead[] = (leadsResponse?.data as Lead[]) || [];
+  const allLeads: Lead[] = Array.isArray(leadsResponse?.data?.data)
+    ? leadsResponse.data.data
+    : Array.isArray(leadsResponse?.data)
+      ? leadsResponse.data
+      : [];
 
   const counselorsWithCounts = useMemo(() => {
     return counselors.map((c) => {

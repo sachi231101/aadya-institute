@@ -10,6 +10,7 @@ import {
   sendFeeReminder,
   getFeeStats,
   getFeeReports,
+  getStudentFeeStatement,
   getFeePlans,
   createFeePlan,
   updateFeePlan,
@@ -26,11 +27,14 @@ router.get("/reports", requirePermission("fee.read"), getFeeReports);
 
 // Fee Plan Templates
 router.get("/plans", requirePermission("fee.read"), getFeePlans);
-router.post("/plans", requirePermission("fee.update"), createFeePlan);
+router.post("/plans", requirePermission("fee.create"), createFeePlan);
 router.patch("/plans/:id", requirePermission("fee.update"), updateFeePlan);
 
 // Receipts
 router.get("/receipts", requirePermission("fee.read"), getReceipts);
+
+// Student fee statement (before /payments to avoid param clashes)
+router.get("/students/:studentId", requirePermission("fee.read"), getStudentFeeStatement);
 
 // Payments
 router.get("/payments", requirePermission("fee.read"), getPayments);

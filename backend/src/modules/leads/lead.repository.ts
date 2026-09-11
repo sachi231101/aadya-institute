@@ -1,6 +1,7 @@
 import { prisma } from "../../config/database";
 import type { Prisma, LeadStatus, LeadLostReason } from "@prisma/client";
 import { LeadActivityService } from "./services/lead-activity.service";
+import { normalizePhoneDigits } from "./services/lead-enquiry-sync.service";
 
 export interface LeadFindManyParams {
   instituteId: string;
@@ -18,6 +19,9 @@ export interface LeadFindManyParams {
   dateTo?: string;
   followUpFrom?: string;
   followUpTo?: string;
+  scoreBand?: "hot" | "warm" | "cold" | "unscored";
+  unassigned?: boolean;
+  tag?: string;
   skip: number;
   take: number;
 }
@@ -51,11 +55,15 @@ export const leadInclude = {
 
 export const LeadRepository = {
   async findActiveLeadByPhone(phoneNumber: string, instituteId: string) {
+    const normalizedPhone = normalizePhoneDigits(phoneNumber);
     return prisma.lead.findFirst({
       where: {
-        phoneNumber,
         instituteId,
         status: "ACTIVE",
+        OR: [
+          ...(normalizedPhone ? [{ normalizedPhone }] : []),
+          { phoneNumber },
+        ],
       },
       include: {
         assignedCounsellor: { select: { id: true, name: true } },
@@ -79,8 +87,10 @@ export const LeadRepository = {
     leadTypeMasterId?: string;
     priority?: string;
     notes?: string;
+    tags?: string[];
     createdById: string;
     assignedCounsellorId?: string;
+    importJobId?: string | null;
   }) {
     const {
       instituteId,
@@ -97,9 +107,13 @@ export const LeadRepository = {
       leadTypeMasterId,
       priority,
       notes,
+      tags,
       createdById,
       assignedCounsellorId,
+      importJobId,
     } = params;
+
+    const normalizedPhone = normalizePhoneDigits(phoneNumber) || null;
 
     return prisma.$transaction(async (tx) => {
       // 1. Create Lead
@@ -107,8 +121,10 @@ export const LeadRepository = {
         data: {
           instituteId,
           branchId,
+          importJobId: importJobId ?? null,
           name,
           phoneNumber,
+          normalizedPhone,
           email: email ?? null,
           interestedIn,
           courseId: courseId ?? null,
@@ -119,6 +135,7 @@ export const LeadRepository = {
           leadTypeMasterId: leadTypeMasterId ?? null,
           status: "ACTIVE",
           priority: priority ?? "MEDIUM",
+          tags: tags ?? [],
           notes: notes ?? null,
           createdById,
           assignedCounsellorId: assignedCounsellorId ?? null,
@@ -243,6 +260,9 @@ export const LeadRepository = {
       dateTo,
       followUpFrom,
       followUpTo,
+      scoreBand,
+      unassigned,
+      tag,
       skip,
       take,
     } = params;
@@ -258,15 +278,33 @@ export const LeadRepository = {
       ...(source ? { source } : {}),
       ...(params.sourceMasterId ? { sourceMasterId: params.sourceMasterId } : {}),
       ...(priority ? { priority } : {}),
+      ...(unassigned ? { assignedCounsellorId: null } : {}),
+      ...(tag ? { tags: { has: tag } } : {}),
     };
 
+    if (scoreBand === "hot") {
+      where.leadScore = { gte: 70 };
+    } else if (scoreBand === "warm") {
+      where.leadScore = { gte: 40, lte: 69 };
+    } else if (scoreBand === "cold") {
+      where.leadScore = { gte: 1, lte: 39 };
+    } else if (scoreBand === "unscored") {
+      where.OR = [{ leadScore: null }, { leadScore: 0 }];
+    }
+
     if (search) {
-      where.OR = [
+      const searchFilter: Prisma.LeadWhereInput[] = [
         { name: { contains: search, mode: "insensitive" } },
         { phoneNumber: { contains: search } },
         { email: { contains: search, mode: "insensitive" } },
         { interestedIn: { contains: search, mode: "insensitive" } },
       ];
+      if (where.OR && scoreBand === "unscored") {
+        where.AND = [{ OR: where.OR }, { OR: searchFilter }];
+        delete where.OR;
+      } else {
+        where.OR = searchFilter;
+      }
     }
 
     if (dateFrom || dateTo) {
@@ -412,6 +450,20 @@ export const LeadRepository = {
       ...(branchId ? { branchId } : {}),
     };
 
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const endOfToday = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23,
+      59,
+      59,
+      999
+    );
+
+    const activeWhere = { ...baseWhere, status: "ACTIVE" as const };
+
     const [
       totalLeads,
       newCount,
@@ -421,6 +473,12 @@ export const LeadRepository = {
       followUpCount,
       convertedCount,
       lostCount,
+      hot,
+      warm,
+      cold,
+      unassigned,
+      todayCreated,
+      overdueFollowUps,
     ] = await prisma.$transaction([
       prisma.lead.count({ where: baseWhere }),
       prisma.lead.count({ where: { ...baseWhere, stage: "NEW" } }),
@@ -430,6 +488,23 @@ export const LeadRepository = {
       prisma.lead.count({ where: { ...baseWhere, stage: "FOLLOW_UP" } }),
       prisma.lead.count({ where: { ...baseWhere, stage: "CONVERTED" } }),
       prisma.lead.count({ where: { ...baseWhere, stage: "LOST" } }),
+      prisma.lead.count({ where: { ...activeWhere, leadScore: { gte: 70 } } }),
+      prisma.lead.count({ where: { ...activeWhere, leadScore: { gte: 40, lte: 69 } } }),
+      prisma.lead.count({ where: { ...activeWhere, leadScore: { gte: 1, lte: 39 } } }),
+      prisma.lead.count({ where: { ...activeWhere, assignedCounsellorId: null } }),
+      prisma.lead.count({
+        where: {
+          ...baseWhere,
+          createdAt: { gte: startOfToday, lte: endOfToday },
+        },
+      }),
+      prisma.leadFollowUp.count({
+        where: {
+          status: "PENDING",
+          scheduledAt: { lt: startOfToday },
+          lead: activeWhere,
+        },
+      }),
     ]);
 
     return {
@@ -441,6 +516,12 @@ export const LeadRepository = {
       followUp: followUpCount,
       converted: convertedCount,
       lost: lostCount,
+      hot,
+      warm,
+      cold,
+      unassigned,
+      todayCreated,
+      overdueFollowUps,
     };
   },
 
@@ -509,14 +590,35 @@ export const LeadRepository = {
     leadId?: string;
     studentId?: string;
     status?: string;
+    statuses?: string[];
+    callType?: "ALL" | "AI" | "MANUAL";
     skip: number;
     take: number;
   }) {
-    const { instituteId, branchId, leadId, studentId, status, skip, take } = params;
+    const {
+      instituteId,
+      branchId,
+      leadId,
+      studentId,
+      status,
+      statuses,
+      callType = "ALL",
+      skip,
+      take,
+    } = params;
 
     const branchFilter = branchId ? { branchId } : {};
+    const statusList =
+      statuses && statuses.length > 0
+        ? statuses
+        : status
+          ? [status]
+          : undefined;
+
     const where: Prisma.CallLogWhereInput = {
-      ...(status ? { status } : {}),
+      instituteId,
+      ...(statusList ? { status: { in: statusList } } : {}),
+      ...(callType && callType !== "ALL" ? { callType } : {}),
     };
 
     if (leadId) {
@@ -525,10 +627,11 @@ export const LeadRepository = {
     } else if (studentId) {
       where.studentId = studentId;
       where.student = { instituteId, ...branchFilter };
-    } else {
+    } else if (branchId) {
       where.OR = [
-        { lead: { instituteId, ...branchFilter } },
-        { student: { instituteId, ...branchFilter } },
+        { branchId },
+        { lead: { instituteId, branchId } },
+        { student: { instituteId, branchId } },
       ];
     }
 
@@ -543,6 +646,7 @@ export const LeadRepository = {
               name: true,
               phoneNumber: true,
               branchId: true,
+              leadScore: true,
               branch: { select: { id: true, name: true, code: true } },
             },
           },
@@ -555,6 +659,9 @@ export const LeadRepository = {
               user: { select: { id: true, name: true, phone: true } },
             },
           },
+          caller: {
+            select: { id: true, name: true, email: true },
+          },
         },
         orderBy: { createdAt: "desc" },
         skip,
@@ -563,5 +670,144 @@ export const LeadRepository = {
     ]);
 
     return { total, data };
+  },
+
+  async archiveLead(leadId: string, archivedById: string) {
+    return prisma.$transaction(async (tx) => {
+      const updated = await tx.lead.update({
+        where: { id: leadId },
+        data: { status: "ARCHIVED" },
+        include: leadInclude,
+      });
+
+      await LeadActivityService.logActivity(
+        leadId,
+        "ARCHIVED",
+        "Lead archived",
+        {
+          userId: archivedById,
+          description: "Lead soft-archived (status set to ARCHIVED)",
+          tx,
+        }
+      );
+
+      return updated;
+    });
+  },
+
+  async mergeLeads(params: {
+    primaryLeadId: string;
+    duplicateLeadId: string;
+    mergedById: string;
+  }) {
+    const { primaryLeadId, duplicateLeadId, mergedById } = params;
+
+    return prisma.$transaction(async (tx) => {
+      const [primary, duplicate] = await Promise.all([
+        tx.lead.findUnique({ where: { id: primaryLeadId } }),
+        tx.lead.findUnique({ where: { id: duplicateLeadId } }),
+      ]);
+
+      if (!primary || !duplicate) {
+        return null;
+      }
+
+      await tx.callLog.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId },
+      });
+      await tx.leadFollowUp.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId },
+      });
+      await tx.leadActivity.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId },
+      });
+      await tx.leadAssignment.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId, isCurrent: false, unassignedAt: new Date() },
+      });
+      await tx.leadStageHistory.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId },
+      });
+      await tx.application.updateMany({
+        where: { leadId: duplicateLeadId },
+        data: { leadId: primaryLeadId },
+      });
+
+      const mergedTags = Array.from(
+        new Set([...(primary.tags ?? []), ...(duplicate.tags ?? [])])
+      );
+
+      const nextFollowUpAt =
+        [primary.nextFollowUpAt, duplicate.nextFollowUpAt]
+          .filter(Boolean)
+          .sort((a, b) => (a as Date).getTime() - (b as Date).getTime())[0] ??
+        null;
+
+      const lastContactedAt =
+        [primary.lastContactedAt, duplicate.lastContactedAt]
+          .filter(Boolean)
+          .sort((a, b) => (b as Date).getTime() - (a as Date).getTime())[0] ??
+        null;
+
+      await tx.lead.update({
+        where: { id: duplicateLeadId },
+        data: {
+          status: "ARCHIVED",
+          stage: "LOST",
+          lostAt: new Date(),
+          lostReason: "OTHER",
+          lostNotes: `Merged into lead ${primaryLeadId}`,
+          assignedCounsellorId: null,
+          nextFollowUpAt: null,
+        },
+      });
+
+      const updatedPrimary = await tx.lead.update({
+        where: { id: primaryLeadId },
+        data: {
+          tags: mergedTags,
+          notes: [primary.notes, duplicate.notes].filter(Boolean).join("\n---\n") || primary.notes,
+          leadScore: primary.leadScore ?? duplicate.leadScore,
+          admissionProbability:
+            primary.admissionProbability ?? duplicate.admissionProbability,
+          nextBestAction: primary.nextBestAction ?? duplicate.nextBestAction,
+          assignedCounsellorId:
+            primary.assignedCounsellorId ?? duplicate.assignedCounsellorId,
+          lastContactedAt,
+          nextFollowUpAt,
+        },
+        include: leadInclude,
+      });
+
+      await LeadActivityService.logActivity(
+        primaryLeadId,
+        "MERGED",
+        `Merged duplicate lead ${duplicate.name}`,
+        {
+          userId: mergedById,
+          description: `Duplicate lead ${duplicateLeadId} archived and relations moved`,
+          metadata: { duplicateLeadId, duplicateName: duplicate.name },
+          tx,
+        }
+      );
+
+      await LeadActivityService.logActivity(
+        duplicateLeadId,
+        "MERGED",
+        `Merged into primary lead ${primary.name}`,
+        {
+          userId: mergedById,
+          description: `Merged into ${primaryLeadId}`,
+          metadata: { primaryLeadId },
+          tx,
+        }
+      );
+
+      return { primary: updatedPrimary, duplicateId: duplicateLeadId };
+    });
   },
 };

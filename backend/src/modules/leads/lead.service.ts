@@ -7,7 +7,6 @@ import { LeadAssignmentService } from "./services/lead-assignment.service";
 import { LeadFollowupService } from "./services/lead-followup.service";
 import { LeadConversionService } from "./services/lead-conversion.service";
 import { LeadActivityService } from "./services/lead-activity.service";
-import { logger } from "../../config/logger";
 import {
   resolveRequiredMasterFields,
 } from "../masters/master-resolve.service";
@@ -17,6 +16,11 @@ import type {
   CreateLeadDTO,
   UpdateLeadDTO,
   AssignLeadDTO,
+  BulkAssignLeadsDTO,
+  MergeLeadsDTO,
+  UpdateLeadScoreDTO,
+  UpdateLeadTagsDTO,
+  CreateManualCallLogDTO,
   ChangeLeadStageDTO,
   MarkLeadLostDTO,
   ConvertLeadDTO,
@@ -27,6 +31,12 @@ import type {
   QueryCallHistoryDTO,
 } from "./lead.types";
 import type { SarvamWebhookPayload } from "../../integrations/sarvam/sarvam.types";
+
+const CALL_HISTORY_VIEW_STATUSES: Record<string, string[]> = {
+  queue: ["INITIATED"],
+  active: ["RINGING", "ANSWERED"],
+  results: ["COMPLETED", "NO_ANSWER", "BUSY", "FAILED", "CALLBACK_REQUESTED"],
+};
 
 export const LeadService = {
   // ─── Create Lead ────────────────────────────────────────────────────────────
@@ -101,6 +111,7 @@ export const LeadService = {
       stage: "NEW",
       priority: dto.priority ?? "MEDIUM",
       notes: dto.notes,
+      tags: dto.tags,
       createdById: currentUser.userId || currentUser.id,
     });
 
@@ -109,6 +120,9 @@ export const LeadService = {
       id: lead.id,
       phoneNumber: lead.phoneNumber,
       createdById: lead.createdById,
+      instituteId: lead.instituteId,
+      branchId: lead.branchId,
+      importJobId: lead.importJobId ?? null,
     });
 
     const refreshed = await LeadRepository.findLeadById(lead.id, instituteId);
@@ -134,6 +148,9 @@ export const LeadService = {
       dateTo,
       followUpFrom,
       followUpTo,
+      scoreBand,
+      unassigned,
+      tag,
     } = query;
 
     const scope = getBranchScopeFilter(currentUser, query.branchId);
@@ -164,6 +181,9 @@ export const LeadService = {
       dateTo,
       followUpFrom,
       followUpTo,
+      scoreBand,
+      unassigned: isCounsellorOnly ? undefined : unassigned,
+      tag,
       skip,
       take: limit,
     });
@@ -213,6 +233,7 @@ export const LeadService = {
       ...(dto.priority ? { priority: dto.priority } : {}),
       ...(dto.notes !== undefined ? { notes: dto.notes } : {}),
       ...(dto.courseId !== undefined ? { courseId: dto.courseId || null } : {}),
+      ...(dto.tags !== undefined ? { tags: dto.tags } : {}),
     });
 
     await LeadActivityService.logActivity(
@@ -231,6 +252,155 @@ export const LeadService = {
   // ─── Assign Lead ────────────────────────────────────────────────────────────
   async assignLead(leadId: string, currentUser: AuthUser, dto: AssignLeadDTO) {
     return LeadAssignmentService.assignLead(leadId, currentUser, dto);
+  },
+
+  async bulkAssignLeads(currentUser: AuthUser, dto: BulkAssignLeadsDTO) {
+    return LeadAssignmentService.bulkAssignLeads(currentUser, dto);
+  },
+
+  async updateLeadTags(
+    leadId: string,
+    currentUser: AuthUser,
+    dto: UpdateLeadTagsDTO
+  ) {
+    await this.getLeadById(leadId, currentUser);
+    const updated = await LeadRepository.updateLead(leadId, { tags: dto.tags });
+    await LeadActivityService.logActivity(leadId, "NOTE_ADDED", "Lead tags updated", {
+      userId: currentUser.userId || currentUser.id,
+      description: `Tags: ${dto.tags.join(", ") || "(none)"}`,
+      metadata: { tags: dto.tags },
+    });
+    return updated;
+  },
+
+  async updateLeadScore(
+    leadId: string,
+    currentUser: AuthUser,
+    dto: UpdateLeadScoreDTO
+  ) {
+    await this.getLeadById(leadId, currentUser);
+    const updated = await LeadRepository.updateLead(leadId, {
+      ...(dto.leadScore !== undefined ? { leadScore: dto.leadScore } : {}),
+      ...(dto.admissionProbability !== undefined
+        ? { admissionProbability: dto.admissionProbability }
+        : {}),
+      ...(dto.nextBestAction !== undefined
+        ? { nextBestAction: dto.nextBestAction }
+        : {}),
+    });
+    await LeadActivityService.logActivity(
+      leadId,
+      "SCORE_UPDATED",
+      "Lead score manually updated",
+      {
+        userId: currentUser.userId || currentUser.id,
+        description: `Score override by ${currentUser.name ?? currentUser.userId}`,
+        metadata: {
+          leadScore: dto.leadScore,
+          admissionProbability: dto.admissionProbability,
+          nextBestAction: dto.nextBestAction,
+        },
+      }
+    );
+    return updated;
+  },
+
+  async archiveLead(leadId: string, currentUser: AuthUser) {
+    await this.getLeadById(leadId, currentUser);
+    const archived = await LeadRepository.archiveLead(
+      leadId,
+      currentUser.userId || currentUser.id
+    );
+    return archived;
+  },
+
+  async mergeLeads(currentUser: AuthUser, dto: MergeLeadsDTO) {
+    const primary = await this.getLeadById(dto.primaryLeadId, currentUser);
+    const duplicate = await this.getLeadById(dto.duplicateLeadId, currentUser);
+
+    if (primary.instituteId !== duplicate.instituteId) {
+      throw new AppError("Cannot merge leads from different institutes", 400);
+    }
+
+    const result = await LeadRepository.mergeLeads({
+      primaryLeadId: dto.primaryLeadId,
+      duplicateLeadId: dto.duplicateLeadId,
+      mergedById: currentUser.userId || currentUser.id,
+    });
+
+    if (!result) {
+      throw new AppError("One or both leads not found", 404);
+    }
+
+    return result;
+  },
+
+  async createManualCallLog(
+    currentUser: AuthUser,
+    dto: CreateManualCallLogDTO
+  ) {
+    const lead = await this.getLeadById(dto.leadId, currentUser);
+    const userId = currentUser.userId || currentUser.id;
+    const startedAt = dto.startedAt ? new Date(dto.startedAt) : new Date();
+    const endedAt = dto.endedAt ? new Date(dto.endedAt) : new Date();
+    const idempotencyKey = `manual_call:${lead.instituteId}:${lead.id}:${userId}:${startedAt.getTime()}`;
+
+    const callLog = await prisma.callLog.create({
+      data: {
+        instituteId: lead.instituteId,
+        branchId: lead.branchId,
+        leadId: lead.id,
+        callType: "MANUAL",
+        callerUserId: userId,
+        status: dto.status || "COMPLETED",
+        duration: dto.duration ?? 0,
+        outcome: dto.outcome ?? null,
+        qualification: dto.qualification ?? null,
+        sentiment: dto.sentiment ?? null,
+        nextAction: dto.nextAction ?? null,
+        interestStatus: dto.interestStatus ?? null,
+        transcript: dto.notes ?? null,
+        aiSummary: dto.notes ?? null,
+        idempotencyKey,
+        startedAt,
+        endedAt,
+        attemptNumber: 1,
+      },
+      include: {
+        lead: {
+          select: { id: true, name: true, phoneNumber: true },
+        },
+        caller: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+    });
+
+    await prisma.lead.update({
+      where: { id: lead.id },
+      data: {
+        lastContactedAt: endedAt,
+        ...(dto.nextAction ? { nextBestAction: dto.nextAction } : {}),
+      },
+    });
+
+    await LeadActivityService.logActivity(
+      lead.id,
+      "CALL_COMPLETED",
+      `Manual call logged (${callLog.status})`,
+      {
+        userId,
+        description: dto.notes ?? dto.outcome ?? undefined,
+        metadata: {
+          callLogId: callLog.id,
+          callType: "MANUAL",
+          status: callLog.status,
+          duration: callLog.duration,
+        },
+      }
+    );
+
+    return callLog;
   },
 
   // ─── Change Stage ───────────────────────────────────────────────────────────
@@ -389,9 +559,13 @@ export const LeadService = {
     return LeadFollowupService.getFollowUpsByLeadId(leadId);
   },
 
-  async getFollowUpDashboard(currentUser: AuthUser) {
-    const scope = getBranchScopeFilter(currentUser);
-    return LeadFollowupService.getFollowUpDashboard(scope.instituteId, scope.branchId);
+  async getFollowUpDashboard(currentUser: AuthUser, branchId?: string) {
+    const scope = getBranchScopeFilter(currentUser, branchId);
+    return LeadFollowupService.getFollowUpDashboard(
+      scope.instituteId,
+      scope.branchId,
+      currentUser.userId || currentUser.id
+    );
   },
 
   // ─── Activities & History ───────────────────────────────────────────────────
@@ -423,8 +597,8 @@ export const LeadService = {
   },
 
   // ─── Dashboards ─────────────────────────────────────────────────────────────
-  async getDashboardSummary(currentUser: AuthUser) {
-    const scope = getBranchScopeFilter(currentUser);
+  async getDashboardSummary(currentUser: AuthUser, branchId?: string) {
+    const scope = getBranchScopeFilter(currentUser, branchId);
     return LeadRepository.getDashboardSummary(scope.instituteId, scope.branchId);
   },
 
@@ -433,147 +607,16 @@ export const LeadService = {
     return LeadRepository.getCounsellorPerformance(scope.instituteId, scope.branchId);
   },
 
-  // ─── Sarvam AI Webhook Integration ──────────────────────────────────────────
+  // ─── Sarvam AI Webhook Integration (delegates to multi-tenant module) ────────
   async handleSarvamWebhook(payload: SarvamWebhookPayload): Promise<void> {
-    const { attempt_id, status, interaction_transcript, duration } = payload;
-
-    const transcriptText = interaction_transcript
-      ? interaction_transcript.map((t) => `${t.role}: ${t.text}`).join("\n")
-      : null;
-
-    // Check if there is an associated lead for this attempt
-    let matchedLeadId: string | null = null;
-    if (payload.customer_number) {
-      const normalized = payload.customer_number.replace(/\D/g, "");
-      const phoneDigits = normalized.slice(-10);
-      const lead = await prisma.lead.findFirst({
-        where: {
-          phoneNumber: { contains: phoneDigits },
-          status: "ACTIVE",
-        },
-      });
-      if (lead) {
-        matchedLeadId = lead.id;
-      }
-    }
-
-    await prisma.callLog.upsert({
-      where: { externalCallId: attempt_id },
-      update: {
-        status,
-        duration: duration ?? 0,
-        transcript: transcriptText,
-        ...(matchedLeadId ? { leadId: matchedLeadId } : {}),
-      },
-      create: {
-        externalCallId: attempt_id,
-        status,
-        duration: duration ?? 0,
-        transcript: transcriptText,
-        leadId: matchedLeadId,
-      },
-    });
-
-    if (matchedLeadId) {
-      await LeadActivityService.logActivity(
-        matchedLeadId,
-        "CALL_COMPLETED",
-        `AI Call completed with status: ${status}`,
-        {
-          description: `Duration: ${duration ?? 0}s. Attempt: ${attempt_id}`,
-          metadata: { attempt_id, status, duration },
-        }
-      );
-
-      const { applyTerminalCallStatus } = await import("./services/lead-ai-call.service");
-      await applyTerminalCallStatus(matchedLeadId, status);
-    }
-
-    logger.info(
-      { attempt_id, status, duration, matchedLeadId },
-      "[LeadService] CallLog upserted after Sarvam webhook"
-    );
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    await AiCallingService.handleSarvamWebhook(payload);
   },
 
   // ─── Trigger AI Call for Lead ───────────────────────────────────────────────
   async triggerLeadCall(leadId: string, currentUser: AuthUser) {
-    const lead = await this.getLeadById(leadId, currentUser);
-    const userId = currentUser.userId || currentUser.id;
-    const telephonyConfigured = Boolean(
-      process.env.TELEPHONY_BASE_URL && process.env.TELEPHONY_API_KEY
-    );
-
-    let externalCallId = `call_${Date.now()}`;
-    let status = "INITIATED";
-    let providerMessage =
-      "AI call queued locally. Configure TELEPHONY_BASE_URL + TELEPHONY_API_KEY to place live calls; Sarvam webhook will complete the CallLog.";
-
-    if (telephonyConfigured) {
-      try {
-        const { initiateCall } = await import(
-          "../../integrations/telephony/telephony.client"
-        );
-        const callbackBase =
-          process.env.PUBLIC_API_BASE_URL ||
-          `http://localhost:${process.env.PORT || 5000}`;
-        const response = await initiateCall({
-          to: lead.phoneNumber,
-          from: process.env.TELEPHONY_FROM_NUMBER || "",
-          callbackUrl: `${callbackBase}/api/v1/webhooks/sarvam/callback`,
-          metadata: {
-            leadId: lead.id,
-            instituteId: lead.instituteId,
-            triggeredBy: userId,
-          },
-        });
-        externalCallId = response.callId || externalCallId;
-        status = response.status || "INITIATED";
-        providerMessage = "AI voice call initiated via telephony provider";
-      } catch (err) {
-        status = "FAILED";
-        providerMessage =
-          err instanceof Error
-            ? `Telephony initiate failed: ${err.message}`
-            : "Telephony initiate failed";
-        logger.error({ err, leadId: lead.id }, "[LeadService] triggerLeadCall telephony error");
-      }
-    }
-
-    const callLog = await prisma.callLog.create({
-      data: {
-        leadId: lead.id,
-        externalCallId,
-        status,
-        duration: 0,
-        transcript: null,
-      },
-    });
-
-    await LeadActivityService.logActivity(
-      lead.id,
-      status === "FAILED" ? "NOTE_ADDED" : "CALL_COMPLETED",
-      status === "FAILED"
-        ? "AI voice call failed to initiate"
-        : `AI voice call ${status.toLowerCase()}`,
-      {
-        userId,
-        description: providerMessage,
-        metadata: { callId: callLog.id, status, telephonyConfigured },
-      }
-    );
-
-    const { applyTerminalCallStatus, isTerminalCallStatus } = await import(
-      "./services/lead-ai-call.service"
-    );
-    if (isTerminalCallStatus(status) || !telephonyConfigured) {
-      await applyTerminalCallStatus(lead.id, telephonyConfigured ? status : "FAILED");
-    }
-
-    return {
-      success: status !== "FAILED",
-      call: callLog,
-      message: providerMessage,
-    };
+    const { AiCallingService } = await import("../ai-calling/ai-calling.service");
+    return AiCallingService.triggerLeadCall(leadId, currentUser);
   },
 
   async getCallHistory(currentUser: AuthUser, query: QueryCallHistoryDTO) {
@@ -582,18 +625,37 @@ export const LeadService = {
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
 
+    const viewStatuses = query.view
+      ? CALL_HISTORY_VIEW_STATUSES[query.view]
+      : undefined;
+    const statusesFromQuery = query.statuses
+      ? query.statuses
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+    const statuses = viewStatuses || statusesFromQuery;
+
     const { total, data } = await LeadRepository.findCallHistory({
       instituteId: scope.instituteId,
       branchId: scope.branchId,
       leadId: query.leadId,
       studentId: query.studentId,
-      status: query.status,
+      status: statuses ? undefined : query.status,
+      statuses,
+      callType: query.callType,
       skip,
       take: limit,
     });
 
+    const callLogs = data.map((log) => {
+      const next = (log.nextAction || "").toLowerCase();
+      const followUpCreated = next.includes("follow-up created");
+      return followUpCreated ? { ...log, followUpCreated: true } : log;
+    });
+
     return {
-      callLogs: data,
+      callLogs,
       meta: buildMeta(total, page, limit),
     };
   },

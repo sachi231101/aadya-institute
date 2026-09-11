@@ -84,8 +84,10 @@ import { ExaminationReports } from "../pages/admin/reports/ExaminationReports";
 
 import { NotificationsHub } from "../pages/admin/communication/NotificationsHub";
 import { WhatsAppHub } from "../pages/admin/communication/WhatsAppHub";
+import { WhatsAppAutomations } from "../pages/admin/communication/WhatsAppAutomations";
+import { WhatsAppTemplates } from "../pages/admin/communication/WhatsAppTemplates";
+import { WhatsAppHistory } from "../pages/admin/communication/WhatsAppHistory";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
-import { AutomationRules } from "../pages/admin/communication/AutomationRules";
 
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
@@ -102,6 +104,7 @@ import { MastersHub } from "../pages/admin/administration/MastersHub";
 import { Integrations } from "../pages/admin/administration/Integrations";
 import { IntegrationDetail } from "../pages/admin/administration/IntegrationDetail";
 import { Billing } from "../pages/admin/administration/Billing";
+import { AiCallingPlatform } from "../pages/admin/administration/AiCallingPlatform";
 import { AuditLogs } from "../pages/admin/administration/AuditLogs";
 import { SettingsHub } from "../pages/admin/administration/SettingsHub";
 import { Security } from "../pages/admin/administration/Security";
@@ -281,9 +284,14 @@ export const adminChildRoutes = (
     {/* Communication Management */}
     <Route path="communication">
       <Route path="notifications" element={<NotificationsHub />} />
-      <Route path="whatsapp" element={<WhatsAppHub />} />
+      <Route path="whatsapp" element={<WhatsAppHub />}>
+        <Route index element={<Navigate to="automations" replace />} />
+        <Route path="automations" element={<WhatsAppAutomations />} />
+        <Route path="templates" element={<WhatsAppTemplates />} />
+        <Route path="history" element={<WhatsAppHistory />} />
+      </Route>
       <Route path="email" element={<EmailManagement />} />
-      <Route path="automation" element={<AutomationRules />} />
+      <Route path="automation" element={<Navigate to="/admin/communication/whatsapp/automations" replace />} />
     </Route>
 
     {/* Placement Management */}
@@ -306,6 +314,7 @@ export const adminChildRoutes = (
       <Route path="security" element={<Security />} />
       <Route path="integrations" element={<Integrations />} />
       <Route path="integrations/:type" element={<IntegrationDetail />} />
+      <Route path="ai-calling-platform" element={<AiCallingPlatform />} />
       <Route path="billing" element={<Billing />} />
       <Route path="data-management" element={<DataManagement />} />
       <Route path="audit-logs" element={<AuditLogs />} />

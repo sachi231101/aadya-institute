@@ -211,6 +211,13 @@ async function main() {
     { name: "notification.read", description: "View notifications" },
     { name: "notification.resend", description: "Resend WhatsApp notification" },
     { name: "notification.manage", description: "Manage notification templates & rules" },
+    { name: "whatsapp.automation.read", description: "View WhatsApp system automations" },
+    { name: "whatsapp.automation.manage", description: "Enable/disable WhatsApp automations" },
+    { name: "whatsapp.template.read", description: "View WhatsApp templates" },
+    { name: "whatsapp.template.create", description: "Create WhatsApp templates" },
+    { name: "whatsapp.template.update", description: "Update WhatsApp templates" },
+    { name: "whatsapp.history.read", description: "View WhatsApp delivery history" },
+    { name: "whatsapp.test.send", description: "Send WhatsApp test messages" },
 
     // Targets & Incentives
     { name: "target.read", description: "View target plans, individual targets, and performance" },

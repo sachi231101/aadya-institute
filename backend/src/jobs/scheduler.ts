@@ -3,6 +3,8 @@ import { classReminderJob } from "../modules/whatsapp/jobs/class-reminder.job";
 import { feedbackJob } from "../modules/whatsapp/jobs/feedback.job";
 import { firstClassJob } from "../modules/whatsapp/jobs/first-class.job";
 import { moduleStartJob } from "../modules/whatsapp/jobs/module-start.job";
+import { feeReminderJob } from "../modules/whatsapp/jobs/fee-reminder.job";
+import { examReminderJob } from "../modules/whatsapp/jobs/exam-reminder.job";
 import { recordingCleanupJob } from "./recording-cleanup.job";
 import { googleRecordingSyncJob } from "./google-recording-sync.job";
 import { aiFollowupJob } from "./ai-followup.job";
@@ -10,7 +12,6 @@ import { targetSyncJob } from "../modules/targets/jobs/target-sync.job";
 import { logger } from "../config/logger";
 
 export const startCronJobs = (): void => {
-  // Class reminders — every 5 minutes (2h before class)
   cron.schedule("*/5 * * * *", async () => {
     logger.info("[cron] Running class-reminder job");
     await classReminderJob().catch((e) =>
@@ -18,7 +19,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // First-class rules & regulations message — every 5 minutes (within 24h window)
   cron.schedule("*/5 * * * *", async () => {
     logger.info("[cron] Running first-class job");
     await firstClassJob().catch((e) =>
@@ -26,7 +26,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // Module start notifications — every 15 minutes
   cron.schedule("*/15 * * * *", async () => {
     logger.info("[cron] Running module-start job");
     await moduleStartJob().catch((e) =>
@@ -34,7 +33,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // Feedback requests — every 5 minutes (10–15 min after class end)
   cron.schedule("*/5 * * * *", async () => {
     logger.info("[cron] Running feedback job");
     await feedbackJob().catch((e) =>
@@ -42,7 +40,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // Google Meet recording sync — every 10 minutes
   cron.schedule("*/10 * * * *", async () => {
     logger.info("[cron] Running google-recording-sync job");
     await googleRecordingSyncJob().catch((e) =>
@@ -50,7 +47,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // Target progress synchronization & period settlement — every 30 minutes
   cron.schedule("*/30 * * * *", async () => {
     logger.info("[cron] Running target-sync job");
     await targetSyncJob().catch((e) =>
@@ -58,7 +54,20 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // Recording cleanup — every day at 3:00 AM
+  cron.schedule("0 9 * * *", async () => {
+    logger.info("[cron] Running fee-reminder job");
+    await feeReminderJob().catch((e) =>
+      logger.error({ err: e }, "[cron] fee-reminder failed")
+    );
+  });
+
+  cron.schedule("0 * * * *", async () => {
+    logger.info("[cron] Running exam-reminder job");
+    await examReminderJob().catch((e) =>
+      logger.error({ err: e }, "[cron] exam-reminder failed")
+    );
+  });
+
   cron.schedule("0 3 * * *", async () => {
     logger.info("[cron] Running recording-cleanup job");
     await recordingCleanupJob().catch((e) =>
@@ -66,7 +75,6 @@ export const startCronJobs = (): void => {
     );
   });
 
-  // AI follow-up calls — every day at 10 AM
   cron.schedule("0 10 * * *", async () => {
     logger.info("[cron] Running AI follow-up job");
     await aiFollowupJob().catch((e) =>

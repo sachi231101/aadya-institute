@@ -41,7 +41,7 @@ export interface StudentFeeSummary {
   amountPaid: number;
   dueAmount: number;
   feePlan: "FULL_PAYMENT" | "INSTALLMENT";
-  status: "Paid" | "Pending" | "Overdue";
+  status: "Paid" | "Pending" | "Overdue" | "Partial";
   nextDueDate?: string;
 }
 
