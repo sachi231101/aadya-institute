@@ -104,20 +104,33 @@ const verifySessionAccess = async (currentUser: AuthUser, classSessionId: string
     throw new AppError("Forbidden — institute mismatch", 403);
   }
 
-  // Branch isolation
-  if (!currentUser.roles.includes("ADMIN") && !hasBranchAccess(currentUser, session.branchId)) {
-    throw new AppError("Forbidden — you cannot access class sessions outside your assigned branch", 403);
-  }
+  const roles = (currentUser.roles || []).map((r) => String(r).toUpperCase());
+  const isAdmin = roles.includes("ADMIN") || roles.includes("SUPER_ADMIN");
+  const isCenterManager = roles.includes("CENTER_MANAGER");
+  const isFaculty = roles.includes("FACULTY");
 
-  // Faculty verification: Faculty can ONLY access class sessions assigned to them
-  if (currentUser.roles.includes("FACULTY")) {
+  // Faculty assigned to this session may mark attendance (same gate as Host Class / Meet).
+  // Do not block them solely because JWT user.branchId differs from session.branchId.
+  if (isFaculty && !isAdmin && !isCenterManager) {
+    const userId = currentUser.id || currentUser.userId;
     const faculty = await prisma.faculty.findFirst({
-      where: { userId: currentUser.id },
+      where: { userId },
+      select: { id: true, branchId: true },
     });
 
     if (!faculty || session.facultyId !== faculty.id) {
-      throw new AppError("Forbidden — you can only mark attendance for class sessions assigned to you", 403);
+      throw new AppError(
+        "Forbidden — you can only mark attendance for class sessions assigned to you",
+        403
+      );
     }
+
+    return session;
+  }
+
+  // Branch isolation for Admin helpers / Center Managers / other staff
+  if (!isAdmin && !hasBranchAccess(currentUser, session.branchId)) {
+    throw new AppError("Forbidden — you cannot access class sessions outside your assigned branch", 403);
   }
 
   return session;
@@ -132,21 +145,23 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
 
   const attendanceMap = new Map(attendanceRecords.map((r) => [r.studentId, r]));
 
-  const enrolledStudents = session.batch.enrollments.map((enrollment) => {
-    const s = enrollment.student;
-    const att = attendanceMap.get(s.id);
-    return {
-      studentId: s.id,
-      studentCode: s.studentCode,
-      name: s.user?.name ?? s.studentCode,
-      email: s.user?.email ?? null,
-      phone: s.user?.phone ?? null,
-      status: att?.status ?? null,
-      markedAt: att?.markedAt ?? null,
-      remarks: att?.remarks ?? null,
-      attendanceId: att?.id ?? null,
-    };
-  });
+  const enrolledStudents = session.batch.enrollments
+    .filter((enrollment) => Boolean(enrollment.student?.id))
+    .map((enrollment) => {
+      const s = enrollment.student;
+      const att = attendanceMap.get(s.id);
+      return {
+        studentId: s.id,
+        studentCode: s.studentCode,
+        name: s.user?.name ?? s.studentCode,
+        email: s.user?.email ?? null,
+        phone: s.user?.phone ?? null,
+        status: att?.status ?? null,
+        markedAt: att?.markedAt ?? null,
+        remarks: att?.remarks ?? null,
+        attendanceId: att?.id ?? null,
+      };
+    });
 
   return {
     classSession: {
@@ -156,6 +171,7 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
       startTime: session.startTime,
       endTime: session.endTime,
       branchId: session.branchId,
+      batchId: session.batchId,
       batch: {
         id: session.batch.id,
         name: session.batch.name,
@@ -171,6 +187,7 @@ export const getSessionAttendance = async (currentUser: AuthUser, classSessionId
       },
     },
     students: enrolledStudents,
+    enrolledStudentsCount: enrolledStudents.length,
   };
 };
 

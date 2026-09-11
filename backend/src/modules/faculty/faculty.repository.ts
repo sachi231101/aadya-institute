@@ -965,11 +965,22 @@ export const findMyStudents = async (params: {
     status: "ACTIVE" as const,
     batch: {
       instituteId: params.instituteId,
-      OR: [
-        { facultyId: params.facultyId },
-        { batchCourses: { some: { facultyId: params.facultyId } } },
-      ],
-      ...(params.batchId ? { id: params.batchId } : {}),
+      ...(params.batchId
+        ? {
+            // Explicit batch: include students if faculty owns batch, teaches a subject, or hosts sessions for it
+            id: params.batchId,
+            OR: [
+              { facultyId: params.facultyId },
+              { batchCourses: { some: { facultyId: params.facultyId } } },
+              { classSessions: { some: { facultyId: params.facultyId } } },
+            ],
+          }
+        : {
+            OR: [
+              { facultyId: params.facultyId },
+              { batchCourses: { some: { facultyId: params.facultyId } } },
+            ],
+          }),
     },
     ...(params.search
       ? {

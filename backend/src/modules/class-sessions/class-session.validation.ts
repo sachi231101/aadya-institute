@@ -1,13 +1,13 @@
 import { z } from "zod";
 
 export const createClassSessionSchema = z.object({
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, "Class topic / title is required"),
   batchId: z.string().min(1, "Batch is required"),
   batchModuleId: z.string().optional().or(z.literal("")),
   batchCourseId: z.string().optional().or(z.literal("")),
   facultyId: z.string().min(1, "Faculty is required"),
   branchId: z.string().optional().or(z.literal("")),
-  scheduledDate: z.string().min(1, "Scheduled date is required"),
+  scheduledDate: z.string().min(1, "Date is required"),
   startTime: z.string().min(1, "Start time is required"),
   endTime: z.string().min(1, "End time is required"),
   roomNo: z.string().optional().or(z.literal("")),

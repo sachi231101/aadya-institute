@@ -307,7 +307,7 @@ export const FacultyMySchedule: React.FC = () => {
 
   const handleNavigateToSession = (cls: FormattedTimetableClass, defaultTab?: string) => {
     navigate(
-      `/faculty/class-session?id=${encodeURIComponent(cls.id)}&course=${encodeURIComponent(cls.courseName)}&subject=${encodeURIComponent(cls.subjectName)}&batch=${encodeURIComponent(cls.batchCode)}&room=${encodeURIComponent(cls.roomNo)}&time=${encodeURIComponent(cls.timeRange)}&date=${encodeURIComponent(cls.date)}${defaultTab ? `&tab=${defaultTab}` : ""}`
+      `/faculty/class-session?id=${encodeURIComponent(cls.id)}&course=${encodeURIComponent(cls.courseName)}&subject=${encodeURIComponent(cls.subjectName)}&batch=${encodeURIComponent(cls.batchCode)}&batchId=${encodeURIComponent(cls.batchId || "")}&room=${encodeURIComponent(cls.roomNo)}&time=${encodeURIComponent(cls.timeRange)}&date=${encodeURIComponent(cls.date)}${defaultTab ? `&tab=${defaultTab}` : ""}`
     );
   };
 
@@ -1052,7 +1052,10 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => handleGoLive(currentSelectedClass)}
                       className="flex-1 h-11 rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      <Video className="w-4 h-4" /> Join / Go Live Class
+                      <Video className="w-4 h-4" />{" "}
+                      {currentSelectedClass.status === "LIVE"
+                        ? "Open Google Meet"
+                        : "Host Class"}
                     </Button>
                   </div>
                 </Card>
@@ -1064,7 +1067,7 @@ export const FacultyMySchedule: React.FC = () => {
                     </div>
                     <h3 className="text-sm font-extrabold text-slate-800 dark:text-slate-200">No Class Selected</h3>
                     <p className="text-xs text-slate-400">
-                      Select a scheduled class from the list or timetable above to view session details, join live, or update attendance.
+                      Select a scheduled class from the list or timetable above to view session details, host class, or update attendance.
                     </p>
                   </div>
                 </Card>
@@ -1147,7 +1150,8 @@ export const FacultyMySchedule: React.FC = () => {
                       onClick={() => handleGoLive(cls)}
                       className="rounded-2xl bg-[#2563EB] hover:bg-[#125386] text-white font-extrabold h-9 text-xs px-4"
                     >
-                      <Video className="w-3.5 h-3.5 mr-1.5" /> GO LIVE
+                      <Video className="w-3.5 h-3.5 mr-1.5" />{" "}
+                      {cls.status === "LIVE" ? "Open Google Meet" : "Host Class"}
                     </Button>
                   </div>
                 </CardContent>

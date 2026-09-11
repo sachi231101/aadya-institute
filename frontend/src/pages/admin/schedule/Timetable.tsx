@@ -18,6 +18,7 @@ import {
   UtensilsCrossed,
   Trash2,
   MoveHorizontal,
+  Video,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ import {
   useDeleteClassSession,
 } from "@/hooks/useClassSessions";
 import type { BackendClassSession } from "@/services/class-sessions.api";
+import { classSessionsApi } from "@/services/class-sessions.api";
 import {
   periodFromStartTime,
   periodToTimes,
@@ -62,6 +64,7 @@ import {
   type TimetablePeriodSlot,
 } from "@/constants/timetable-slots";
 import { useTimetableSlotColumns } from "@/hooks/useTimetableSlotColumns";
+import { getApiErrorMessage } from "@/utils/api-error";
 
 // ─── TYPES & SCHEDULE DATA STRUCTURES ──────────────────────────────────────
 
@@ -82,6 +85,7 @@ export interface TimetableCellItem {
   period: number;
   timeRange: string;
   type: SlotType;
+  title?: string;
   courseName?: string;
   courseId?: string;
   batchCourseId?: string;
@@ -89,6 +93,7 @@ export interface TimetableCellItem {
   batchId?: string;
   roomNo?: string;
   classroomMasterId?: string;
+  mode?: "OFFLINE" | "ONLINE" | "HYBRID";
   studentCount?: number;
   category?: "Digital Marketing" | "Design" | "Data Analytics" | "Programming" | "Communication" | "Others";
   status?: "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
@@ -344,6 +349,7 @@ export const Timetable: React.FC = () => {
       period,
       timeRange: col?.label || `${raw.startTime} – ${raw.endTime}`,
       type: "CLASS",
+      title: raw.title || undefined,
       courseName,
       courseId,
       batchCourseId: raw.batchCourseId || undefined,
@@ -351,6 +357,7 @@ export const Timetable: React.FC = () => {
       batchId: raw.batchId,
       roomNo: raw.roomNo || "TBD",
       classroomMasterId: raw.classroomMasterId || undefined,
+      mode: (raw.mode as "OFFLINE" | "ONLINE" | "HYBRID") || "OFFLINE",
       studentCount:
         raw.enrolledStudentsCount ??
         (raw.batch as { _count?: { enrollments?: number } })?._count?.enrollments ??
@@ -438,6 +445,8 @@ export const Timetable: React.FC = () => {
   const [modalSubjectCourseId, setModalSubjectCourseId] = useState<string>("");
   const [modalClassroomMasterId, setModalClassroomMasterId] = useState<string>("");
   const [modalSlotType, setModalSlotType] = useState<SlotType>("CLASS");
+  const [modalMode, setModalMode] = useState<"OFFLINE" | "ONLINE" | "HYBRID">("OFFLINE");
+  const [modalFormErrors, setModalFormErrors] = useState<Record<string, string>>({});
 
   // Move Slot Modal State
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
@@ -708,10 +717,11 @@ export const Timetable: React.FC = () => {
     if (existingSlot && existingSlot.type === "CLASS") {
       setModalSlotType("CLASS");
       setModalSessionId(existingSlot.sessionId || existingSlot.id);
-      setModalTitle(existingSlot.courseName || "");
+      setModalTitle(existingSlot.title || existingSlot.courseName || "");
       setModalBatchId(existingSlot.batchId || "");
       setModalClassroomMasterId(existingSlot.classroomMasterId || "");
       setModalSubjectCourseId(existingSlot.courseId || "");
+      setModalMode(existingSlot.mode || "OFFLINE");
     } else if (existingSlot && existingSlot.type !== "FREE") {
       // FREE / structural only → schedule a class
       setModalSlotType("CLASS");
@@ -720,6 +730,7 @@ export const Timetable: React.FC = () => {
       setModalBatchId("");
       setModalClassroomMasterId("");
       setModalSubjectCourseId("");
+      setModalMode("OFFLINE");
     } else {
       setModalSlotType("CLASS");
       setModalSessionId(null);
@@ -727,13 +738,21 @@ export const Timetable: React.FC = () => {
       setModalBatchId("");
       setModalClassroomMasterId("");
       setModalSubjectCourseId("");
+      setModalMode("OFFLINE");
     }
 
+    setModalMode("OFFLINE");
+    setModalFormErrors({});
     setIsEditModalOpen(true);
   };
 
   const handleSaveSlot = async () => {
-    if (!modalFacultyId) return;
+    if (!modalFacultyId) {
+      setModalFormErrors({ faculty: "Faculty instructor is required." });
+      setNotificationMsg("Faculty instructor is required.");
+      setTimeout(() => setNotificationMsg(null), 3000);
+      return;
+    }
 
     if (modalSlotType !== "CLASS") {
       if (modalSessionId) {
@@ -741,15 +760,20 @@ export const Timetable: React.FC = () => {
           await deleteSession.mutateAsync(modalSessionId);
           setNotificationMsg(`✓ Class removed from ${modalDayKey} Period ${modalPeriod}.`);
         } catch (err: unknown) {
-          const apiMessage =
-            (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-            (err as { message?: string })?.message;
-          setNotificationMsg(apiMessage || "Failed to update slot. Please try again.");
+          setNotificationMsg(getApiErrorMessage(err, "Failed to update slot. Please try again."));
         }
+      } else {
+        setNotificationMsg("No class session to clear in this slot.");
       }
       setIsEditModalOpen(false);
       setTimeout(() => setNotificationMsg(null), 3000);
       return;
+    }
+
+    const errors: Record<string, string> = {};
+    const dayConfig = daysConfig.find((d) => d.key === modalDayKey);
+    if (dayConfig && !dayConfig.isWorking) {
+      errors.day = `${dayConfig.note || "Holiday"} — scheduling is closed for this day.`;
     }
 
     const fac =
@@ -757,78 +781,109 @@ export const Timetable: React.FC = () => {
       facultyRoster.find((f) => f.id === modalFacultyId);
     const batch = batches.find((b) => b.id === modalBatchId);
 
-    if (!fac) {
-      setNotificationMsg("Please select a faculty instructor.");
-      setTimeout(() => setNotificationMsg(null), 3000);
-      return;
-    }
+    if (!fac) errors.faculty = "Faculty instructor is required.";
     if (!batch) {
-      setNotificationMsg(
+      errors.batch =
         batches.length === 0
           ? "No batches available. Create a batch first."
-          : "Please select a valid batch."
-      );
-      setTimeout(() => setNotificationMsg(null), 3500);
-      return;
+          : "Batch is required.";
+    } else if (!batchIncludesFaculty(batch, modalFacultyId) && facultyBatches.length > 0) {
+      errors.batch = "Selected batch is not assigned to this faculty.";
     }
 
-    const subjectRows = getBatchCourseRows(batch);
+    const subjectRows = batch ? getBatchCourseRows(batch) : [];
     const subjectCourseId =
       modalSubjectCourseId ||
       modalSubjectOptions[0]?.courseId ||
       subjectRows[0]?.courseId ||
-      batch.courseId;
-    if (!subjectCourseId) {
-      setNotificationMsg("Select a subject for this class session.");
-      setTimeout(() => setNotificationMsg(null), 3000);
-      return;
-    }
-
-    // Keep the session on the faculty row being edited — never reassign to another instructor.
-    const sessionFacultyId = modalFacultyId;
-    const subjectName = getCourseNameInBatch(batch, subjectCourseId) || batch.name;
-    const subjectRow = subjectRows.find((r) => r.courseId === subjectCourseId);
+      batch?.courseId;
+    if (!subjectCourseId) errors.subject = "Subject is required.";
 
     const periodMeta = timeSlotColumns.find((c) => c.period === modalPeriod);
     if (periodMeta?.isBreak || periodMeta?.isLunch) {
-      setNotificationMsg("Cannot schedule a class during Break or Lunch.");
-      setTimeout(() => setNotificationMsg(null), 3500);
-      return;
+      errors.period = "Cannot schedule a class during Break or Lunch.";
     }
 
     const { start, end, timeslotMasterId } = periodToTimes(modalPeriod, timeSlotColumns);
+    if (!timeslotMasterId && bookableSlots.length > 0) {
+      errors.period = "Time slot is required. Configure Time Slots in Master Setup.";
+    }
+
+    // Client-side: slot already occupied by another class for this faculty/day/period
+    if (!modalSessionId) {
+      const facRow = facultyRoster.find((f) => f.id === modalFacultyId);
+      const existingCell = facRow?.weeklySchedule?.[modalDayKey]?.[modalPeriod];
+      if (existingCell?.type === "CLASS" && existingCell.sessionId) {
+        errors.period = `This time slot is already assigned${
+          existingCell.title || existingCell.courseName
+            ? ` (${existingCell.title || existingCell.courseName})`
+            : ""
+        }. Choose another slot.`;
+      }
+    }
+
+    setModalFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      setNotificationMsg(Object.values(errors)[0]);
+      setTimeout(() => setNotificationMsg(null), 4500);
+      return;
+    }
+
+    const sessionFacultyId = modalFacultyId;
+    const subjectName = getCourseNameInBatch(batch!, subjectCourseId!) || batch!.name;
+    const subjectRow = subjectRows.find((r) => r.courseId === subjectCourseId);
+
     const payload = {
-      title: modalTitle.trim() || subjectName || batch.name || "Class Session",
-      batchId: batch.id,
+      title: modalTitle.trim() || subjectName || batch!.name || "Class Session",
+      batchId: batch!.id,
       batchCourseId: subjectRow?.id || undefined,
       facultyId: sessionFacultyId,
-      branchId: batch.branchId || ("branchId" in fac ? fac.branchId : undefined),
+      branchId: batch!.branchId || ("branchId" in fac! ? fac!.branchId : undefined),
       scheduledDate: getDateForDayKey(modalDayKey),
       startTime: start,
       endTime: end,
       timeslotMasterId: timeslotMasterId || undefined,
-      classroomMasterId: modalClassroomMasterId || undefined,
-      mode: "OFFLINE" as const,
+      classroomMasterId: modalMode !== "ONLINE" ? modalClassroomMasterId || undefined : undefined,
+      mode: modalMode,
     };
 
     try {
+      let savedId = modalSessionId;
       if (modalSessionId) {
         await updateSession.mutateAsync({ id: modalSessionId, payload });
         setNotificationMsg(`✓ Schedule updated for ${modalDayKey} Period ${modalPeriod}.`);
       } else {
-        await createSession.mutateAsync(payload);
+        const created = await createSession.mutateAsync(payload);
+        savedId = created.data?.id || null;
         setNotificationMsg(`✓ Class scheduled for ${modalDayKey} Period ${modalPeriod}.`);
       }
+      if (modalMode === "ONLINE" && savedId) {
+        try {
+          await classSessionsApi.createGoogleMeet(savedId);
+          setNotificationMsg(
+            `✓ Class scheduled for ${modalDayKey} Period ${modalPeriod} with Google Meet.`
+          );
+        } catch {
+          setNotificationMsg(
+            `✓ Class saved, but Google Meet creation failed for ${modalDayKey} Period ${modalPeriod}.`
+          );
+        }
+      }
+      setModalFormErrors({});
       setSelectedDayKey(modalDayKey);
       setUserPickedDay(true);
       setIsEditModalOpen(false);
     } catch (err: unknown) {
-      const apiMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as { message?: string })?.message;
-      setNotificationMsg(apiMessage || "Failed to save class session. Please check the form and try again.");
+      const apiMessage = getApiErrorMessage(
+        err,
+        "Failed to save class session. Please check the form and try again."
+      );
+      setNotificationMsg(apiMessage);
+      if (/time slot|already assign|already has a class|conflict/i.test(apiMessage)) {
+        setModalFormErrors({ period: apiMessage });
+      }
     }
-    setTimeout(() => setNotificationMsg(null), 4000);
+    setTimeout(() => setNotificationMsg(null), 5000);
   };
 
   const handleDeleteSlot = async (facultyId: string, dayKey: DayKey, period: number) => {
@@ -849,10 +904,7 @@ export const Timetable: React.FC = () => {
       await deleteSession.mutateAsync(cell.sessionId);
       setNotificationMsg(`✓ Schedule deleted for period ${period}. Slot is now Free.`);
     } catch (err: unknown) {
-      const apiMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as { message?: string })?.message;
-      setNotificationMsg(apiMessage || "Failed to delete class session. Please try again.");
+      setNotificationMsg(getApiErrorMessage(err, "Failed to delete class session. Please try again."));
     }
     setTimeout(() => setNotificationMsg(null), 3000);
   };
@@ -908,10 +960,7 @@ export const Timetable: React.FC = () => {
       setNotificationMsg(`✓ Class moved from Period ${period} to Period ${targetPeriod}.`);
       setIsMoveModalOpen(false);
     } catch (err: unknown) {
-      const apiMessage =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        (err as { message?: string })?.message;
-      setNotificationMsg(apiMessage || "Failed to move class session. Please try again.");
+      setNotificationMsg(getApiErrorMessage(err, "Failed to move class session. Please try again."));
     }
 
     setTimeout(() => setNotificationMsg(null), 3000);
@@ -1514,10 +1563,8 @@ export const Timetable: React.FC = () => {
                 value={modalFacultyId}
                 onChange={(e) => {
                   setModalFacultyId(e.target.value);
-                  if (!modalSessionId) {
-                    setModalBatchId("");
-                    setModalSubjectCourseId("");
-                  }
+                  setModalBatchId("");
+                  setModalSubjectCourseId("");
                 }}
                 className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
               >
@@ -1534,8 +1581,13 @@ export const Timetable: React.FC = () => {
                 <Label className="text-[11px] font-bold text-slate-700">Day of Week</Label>
                 <select
                   value={modalDayKey}
-                  onChange={(e) => setModalDayKey(e.target.value as DayKey)}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  onChange={(e) => {
+                    setModalDayKey(e.target.value as DayKey);
+                    setModalFormErrors((prev) => ({ ...prev, day: "" }));
+                  }}
+                  className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
+                    modalFormErrors.day ? "border-rose-400" : "border-slate-200"
+                  }`}
                 >
                   {daysConfig.map((d) => (
                     <option key={d.key} value={d.key}>
@@ -1543,14 +1595,22 @@ export const Timetable: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {modalFormErrors.day && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.day}</p>
+                )}
               </div>
 
               <div>
                 <Label className="text-[11px] font-bold text-slate-700">Time Period *</Label>
                 <select
                   value={modalPeriod}
-                  onChange={(e) => setModalPeriod(Number(e.target.value))}
-                  className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  onChange={(e) => {
+                    setModalPeriod(Number(e.target.value));
+                    setModalFormErrors((prev) => ({ ...prev, period: "" }));
+                  }}
+                  className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
+                    modalFormErrors.period ? "border-rose-400" : "border-slate-200"
+                  }`}
                 >
                   {bookableSlots.map((col) => (
                     <option key={col.period} value={col.period}>
@@ -1558,6 +1618,9 @@ export const Timetable: React.FC = () => {
                     </option>
                   ))}
                 </select>
+                {modalFormErrors.period && (
+                  <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.period}</p>
+                )}
               </div>
             </div>
 
@@ -1597,8 +1660,13 @@ export const Timetable: React.FC = () => {
                   <Label className="text-[11px] font-bold text-slate-700">Batch *</Label>
                   <select
                     value={modalBatchId}
-                    onChange={(e) => setModalBatchId(e.target.value)}
-                    className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                    onChange={(e) => {
+                      setModalBatchId(e.target.value);
+                      setModalFormErrors((prev) => ({ ...prev, batch: "", subject: "" }));
+                    }}
+                    className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
+                      modalFormErrors.batch ? "border-rose-400" : "border-slate-200"
+                    }`}
                   >
                     <option value="">Select batch</option>
                     {facultyBatches.map((batch) => (
@@ -1608,40 +1676,83 @@ export const Timetable: React.FC = () => {
                       </option>
                     ))}
                   </select>
-                  {facultyBatches.length === 0 && (
-                    <p className="text-[10px] text-rose-500 mt-1">
-                      No batches found. Create a batch and assign this faculty first.
-                    </p>
+                  {modalFormErrors.batch ? (
+                    <p className="text-[10px] text-rose-600 mt-1 font-medium">{modalFormErrors.batch}</p>
+                  ) : (
+                    facultyBatches.length === 0 && (
+                      <p className="text-[10px] text-rose-500 mt-1">
+                        No batches found. Create a batch and assign this faculty first.
+                      </p>
+                    )
                   )}
                 </div>
 
-                {modalBatch && modalSubjectOptions.length > 0 && (
+                {modalBatch && (
                   <div>
                     <Label className="text-[11px] font-bold text-slate-700">Subject *</Label>
                     <select
                       value={modalSubjectCourseId}
-                      onChange={(e) => setModalSubjectCourseId(e.target.value)}
-                      className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                      onChange={(e) => {
+                        setModalSubjectCourseId(e.target.value);
+                        setModalFormErrors((prev) => ({ ...prev, subject: "" }));
+                      }}
+                      className={`w-full h-9 px-3 mt-1 bg-slate-50 border rounded-xl font-medium outline-none ${
+                        modalFormErrors.subject ? "border-rose-400" : "border-slate-200"
+                      }`}
+                      disabled={modalSubjectOptions.length === 0}
                     >
-                      {modalSubjectOptions.map((row) => (
-                        <option key={row.courseId} value={row.courseId}>
-                          {row.course?.name || "Subject"}
-                        </option>
-                      ))}
+                      {modalSubjectOptions.length === 0 ? (
+                        <option value="">No subjects on this batch</option>
+                      ) : (
+                        modalSubjectOptions.map((row) => (
+                          <option key={row.courseId} value={row.courseId}>
+                            {row.course?.name || "Subject"}
+                          </option>
+                        ))
+                      )}
                     </select>
+                    {modalFormErrors.subject && (
+                      <p className="text-[10px] text-rose-600 mt-1 font-medium">
+                        {modalFormErrors.subject}
+                      </p>
+                    )}
                   </div>
                 )}
 
                 <div>
-                  <Label className="text-[11px] font-bold text-slate-700">Classroom / Lab</Label>
-                  <ClassroomDropdown
-                    value={modalClassroomMasterId}
-                    onChange={setModalClassroomMasterId}
-                    branchId={
-                      facultyRoster.find((f) => f.id === modalFacultyId)?.branchId ||
-                      modalBatch?.branchId
+                  <Label className="text-[11px] font-bold text-slate-700">Class Mode</Label>
+                  <select
+                    value={modalMode}
+                    onChange={(e) =>
+                      setModalMode(e.target.value as "OFFLINE" | "ONLINE" | "HYBRID")
                     }
-                  />
+                    className="w-full h-9 px-3 mt-1 bg-slate-50 border border-slate-200 rounded-xl font-medium outline-none"
+                  >
+                    <option value="OFFLINE">Offline (In-Person)</option>
+                    <option value="ONLINE">Online (Virtual Meeting)</option>
+                    <option value="HYBRID">Hybrid</option>
+                  </select>
+                </div>
+
+                <div>
+                  <Label className="text-[11px] font-bold text-slate-700">
+                    {modalMode === "ONLINE" ? "Meeting Type" : "Classroom / Lab"}
+                  </Label>
+                  {modalMode === "ONLINE" ? (
+                    <div className="h-9 mt-1 px-3 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center gap-2 font-bold">
+                      <Video className="h-4 w-4" />
+                      Google Meet (auto-created)
+                    </div>
+                  ) : (
+                    <ClassroomDropdown
+                      value={modalClassroomMasterId}
+                      onChange={setModalClassroomMasterId}
+                      branchId={
+                        facultyRoster.find((f) => f.id === modalFacultyId)?.branchId ||
+                        modalBatch?.branchId
+                      }
+                    />
+                  )}
                 </div>
               </>
             )}

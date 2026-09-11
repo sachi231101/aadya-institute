@@ -91,7 +91,8 @@ export const hasBranchAccess = (
   user: AuthUser,
   targetBranchId: string
 ): boolean => {
-  if (user.roles.includes("ADMIN")) {
+  const roles = (user.roles || []).map((r) => String(r).toUpperCase());
+  if (roles.includes("ADMIN") || roles.includes("SUPER_ADMIN")) {
     return true;
   }
 

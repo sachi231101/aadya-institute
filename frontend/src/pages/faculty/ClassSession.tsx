@@ -86,11 +86,14 @@ export const FacultyClassSession: React.FC = () => {
     enabled: hasValidSessionId,
   });
 
-  // Fetch Batch specific students if batchId is given, otherwise students list
+  // Fetch Batch specific students if batchId is given, or after attendance resolves a batch id
+  const attendanceBatchId = sessionAttendanceRes?.data?.classSession?.batch?.id || sessionAttendanceRes?.data?.classSession?.batchId;
+  const effectiveBatchId = batchId || attendanceBatchId || "";
+
   const { data: batchStudentsRes } = useQuery({
-    queryKey: ["batch-students", batchId || batchCode],
-    queryFn: () => (batchId ? batchesApi.getStudents(batchId) : Promise.resolve(null)),
-    enabled: Boolean(batchId),
+    queryKey: ["batch-students", effectiveBatchId || batchCode],
+    queryFn: () => (effectiveBatchId ? batchesApi.getStudents(effectiveBatchId) : Promise.resolve(null)),
+    enabled: Boolean(effectiveBatchId),
   });
 
   const { data: studentsRes } = useQuery({
@@ -118,7 +121,7 @@ export const FacultyClassSession: React.FC = () => {
           setCustomMeetUrl(url!.trim());
         }
       } catch {
-        // Meeting may not exist yet; created on Go Live
+        // Meeting may not exist yet; created on Host Class
       }
     };
 
@@ -195,13 +198,18 @@ export const FacultyClassSession: React.FC = () => {
       return;
     }
 
-    // 4. Default Roster for assigned batch B001
+    // 4. Empty for real sessions; never invent demo students for live ERP data
+    if (hasValidSessionId || effectiveBatchId) {
+      setStudents([]);
+      return;
+    }
+
     setStudents([
       { id: "stu-b001-01", studentId: "AAD-2026-0003", name: "SACHIN GA", initials: "SG", avatar: "", status: "PRESENT" },
       { id: "stu-b001-02", studentId: "AAD-2026-0002", name: "Hareesh NV", initials: "HN", avatar: "", status: "ABSENT" },
       { id: "stu-b001-03", studentId: "AAD-2026-0001", name: "adithya fs", initials: "AF", avatar: "", status: "LEAVE" },
     ]);
-  }, [sessionAttendanceRes, batchStudentsRes, hasValidSessionId, sessionId]);
+  }, [sessionAttendanceRes, batchStudentsRes, hasValidSessionId, sessionId, effectiveBatchId]);
 
   // Live Class Timer State
   const [secondsElapsed, setSecondsElapsed] = useState(0);
@@ -353,7 +361,7 @@ export const FacultyClassSession: React.FC = () => {
   // ─── ACTION 2: GO LIVE CLASS (Open Confirmation Modal) ──────────────────────
   const handleGoLiveClick = () => {
     if (!hasValidSessionId) {
-      triggerToast("A real scheduled class is required to go live.", "error");
+      triggerToast("A real scheduled class is required to host class.", "error");
       return;
     }
     setShowGoLiveModal(true);
@@ -493,8 +501,11 @@ export const FacultyClassSession: React.FC = () => {
       }
     }
 
-    addNotification(`Class completed. Recording and attendance archived.`, "info");
-    triggerToast("Class session completed successfully.", "success");
+    addNotification(
+      `ERP class ended. End Meet / stop recording in Google Meet if still open — ERP syncs the recording from Drive in the background.`,
+      "info"
+    );
+    triggerToast("ERP class ended. Drive recording sync queued in the background.", "success");
   };
 
   // ─── ACTION 4: UPLOAD RECORDING ─────────────────────────────────────────────
@@ -928,7 +939,7 @@ export const FacultyClassSession: React.FC = () => {
                         ) : (
                           <Video className="w-4 h-4 text-white" />
                         )}
-                        Go Live Class
+                        Host Class
                       </Button>
                     )}
 
@@ -939,7 +950,7 @@ export const FacultyClassSession: React.FC = () => {
                         className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white font-extrabold h-11 px-7 rounded-xl shadow-md gap-2 cursor-pointer transition-all animate-pulse"
                       >
                         <Square className="w-4 h-4 fill-current text-white" />
-                        End Live Class
+                        End & Complete Class
                       </Button>
                     )}
 
@@ -976,7 +987,7 @@ export const FacultyClassSession: React.FC = () => {
                   i
                 </div>
                 <span>
-                  Only students assigned to this batch/class are shown here. Once you update attendance and go live, the session will be reflected in student portals.
+                  Only students assigned to this batch/class are shown here. Once you update attendance and host class, the session will be reflected in student portals.
                 </span>
               </div>
             </div>
@@ -1039,7 +1050,7 @@ export const FacultyClassSession: React.FC = () => {
                     <p className="text-xs text-slate-600 font-medium mt-0.5">
                       Meeting URL:{" "}
                       <span className="font-mono font-bold text-teal-900">
-                        {customMeetUrl || "Will be created when you go live"}
+                        {customMeetUrl || "Will be created when you host class"}
                       </span>
                     </p>
                   </div>
@@ -1062,7 +1073,7 @@ export const FacultyClassSession: React.FC = () => {
                       onClick={handleGoLiveClick}
                       className="h-9 text-xs font-extrabold rounded-xl bg-[#0066DA] hover:bg-[#0055b8] text-white gap-1.5 shadow-sm cursor-pointer"
                     >
-                      <Play className="w-3.5 h-3.5" /> Start Live Class
+                      <Play className="w-3.5 h-3.5" /> Host Class
                     </Button>
                   )}
 
@@ -1106,7 +1117,7 @@ export const FacultyClassSession: React.FC = () => {
                     onClick={handleOpenEndConfirmModal}
                     className="h-10 text-xs font-extrabold rounded-xl bg-rose-600 hover:bg-rose-700 text-white gap-2 shadow-md cursor-pointer px-6 ml-auto"
                   >
-                    <Square className="w-4 h-4 fill-current" /> End Live Class
+                    <Square className="w-4 h-4 fill-current" /> End & Complete Class
                   </Button>
                 </div>
               )}
@@ -1251,7 +1262,7 @@ export const FacultyClassSession: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-2 px-3">
                   <span className="font-mono text-[11px] text-slate-700 truncate flex-1">
-                    {customMeetUrl || "No Meet link yet — created on Go Live"}
+                    {customMeetUrl || "No Meet link yet — created on Host Class"}
                   </span>
                   <button
                     type="button"
@@ -1293,7 +1304,7 @@ export const FacultyClassSession: React.FC = () => {
               <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <h3 className="text-sm font-extrabold text-slate-900">Before Going Live</h3>
+              <h3 className="text-sm font-extrabold text-slate-900">Before Hosting Class</h3>
             </div>
 
             <ul className="space-y-2.5 text-xs text-slate-700 font-medium">
@@ -1319,7 +1330,7 @@ export const FacultyClassSession: React.FC = () => {
                 <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                   <Check className="w-3 h-3 stroke-[3]" />
                 </div>
-                <span>Click on Go Live Class to start the session</span>
+                <span>Click Host Class to start the session</span>
               </li>
             </ul>
           </Card>
@@ -1381,7 +1392,7 @@ export const FacultyClassSession: React.FC = () => {
               ) : (
                 <Video className="w-4 h-4" />
               )}
-              {isPreparingMeet ? "Starting…" : "Start Live Class"}
+              {isPreparingMeet ? "Starting…" : "Host Class"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1392,10 +1403,10 @@ export const FacultyClassSession: React.FC = () => {
         <DialogContent className="max-w-md bg-white rounded-3xl p-6 shadow-2xl border border-slate-100">
           <DialogHeader>
             <DialogTitle className="text-base font-extrabold text-slate-900 flex items-center gap-2">
-              <Square className="w-5 h-5 text-rose-600 fill-current" /> End this live class?
+              <Square className="w-5 h-5 text-rose-600 fill-current" /> End & Complete this class?
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-600 mt-2">
-              Please review the live session summary before completing:
+              Completing ends the ERP session and queues Drive recording sync. It does not stop Google Meet recording — end the Google Meet (or stop recording there) so Google can process the file.
             </DialogDescription>
           </DialogHeader>
 
@@ -1436,7 +1447,7 @@ export const FacultyClassSession: React.FC = () => {
               onClick={handleConfirmEndClass}
               className="h-10 text-xs font-extrabold bg-rose-600 hover:bg-rose-700 text-white rounded-xl shadow-md cursor-pointer"
             >
-              End Class
+              End & Complete Class
             </Button>
           </DialogFooter>
         </DialogContent>
