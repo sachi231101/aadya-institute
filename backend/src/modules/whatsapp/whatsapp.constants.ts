@@ -121,6 +121,14 @@ export const NON_RETRIABLE_ERROR_CODES = new Set([
 
 export type AutomationCategory = "ADMISSIONS" | "FEES" | "CLASSES" | "ACADEMICS";
 
+/** How admins can customize send timing in Automations UI. */
+export type AutomationTimingMode =
+  | "immediate" // optional delayMinutes after event (0 = now)
+  | "hours_before" // offsetMinutes before event (stored negative)
+  | "days_before_due" // daysBeforeDue for fee installments
+  | "days_before" // daysBefore for exams
+  | "fixed"; // not editable (e.g. daily overdue)
+
 export interface SystemAutomationMeta {
   event: SystemAutomationEvent;
   category: AutomationCategory;
@@ -130,6 +138,7 @@ export interface SystemAutomationMeta {
   recipientLabel: string;
   sampleVariables: Record<string, string>;
   defaultConfiguration?: Record<string, unknown>;
+  timingMode?: AutomationTimingMode;
 }
 
 export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
@@ -140,6 +149,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Send WhatsApp when a student admission is confirmed.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       organization_name: "Aadya Institute",
@@ -154,6 +165,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Notify student when they are assigned to a batch.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       batch_name: "FS-MWF-Morning",
@@ -167,6 +180,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Send portal login credentials to the student.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       student_code: "STU-001",
@@ -179,15 +194,16 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     category: "FEES",
     label: "Fee Due Reminder",
     description: "Remind student before a fee installment is due.",
-    timingLabel: "1 day before due date",
+    timingLabel: "3 days before due date",
     recipientLabel: "Student",
+    timingMode: "days_before_due",
     sampleVariables: {
       student_name: "Rahul Sharma",
       amount: "15000",
       due_date: "15 Sep 2026",
       course_name: "Full Stack Development",
     },
-    defaultConfiguration: { daysBeforeDue: 1 },
+    defaultConfiguration: { daysBeforeDue: 3 },
   },
   {
     event: NotificationEvent.FEE_OVERDUE_REMINDER,
@@ -196,6 +212,7 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Remind student when a fee installment is overdue.",
     timingLabel: "Daily while overdue",
     recipientLabel: "Student",
+    timingMode: "fixed",
     sampleVariables: {
       student_name: "Rahul Sharma",
       amount: "15000",
@@ -210,6 +227,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Confirm successful fee payment via WhatsApp.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       amount: "15000",
@@ -224,13 +243,14 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Remind enrolled students before a scheduled class.",
     timingLabel: "2 hours before",
     recipientLabel: "Student",
+    timingMode: "hours_before",
     sampleVariables: {
       student_name: "Rahul Sharma",
       batch_name: "FS-MWF-Morning",
       start_time: "10:00 AM",
       classroom: "Lab 2",
     },
-    defaultConfiguration: { offsetMinutes: -120 },
+    defaultConfiguration: { offsetMinutes: -120, includeFaculty: false },
   },
   {
     event: NotificationEvent.CLASS_CANCELLED,
@@ -239,6 +259,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Notify students when a class session is cancelled.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       batch_name: "FS-MWF-Morning",
@@ -253,6 +275,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Notify students when a class recording is ready.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       batch_name: "FS-MWF-Morning",
@@ -266,6 +290,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Notify students when a new assignment is published.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       assignment_title: "Build a Todo App",
@@ -279,6 +305,7 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Remind students before an upcoming exam.",
     timingLabel: "1 day before",
     recipientLabel: "Student",
+    timingMode: "days_before",
     sampleVariables: {
       student_name: "Rahul Sharma",
       exam_name: "Module 1 Assessment",
@@ -294,6 +321,8 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
     description: "Notify students when exam results are published.",
     timingLabel: "Immediately",
     recipientLabel: "Student",
+    timingMode: "immediate",
+    defaultConfiguration: { delayMinutes: 0 },
     sampleVariables: {
       student_name: "Rahul Sharma",
       exam_name: "Module 1 Assessment",
@@ -306,12 +335,61 @@ export const SYSTEM_AUTOMATION_CATALOG: SystemAutomationMeta[] = [
 export const getAutomationMeta = (event: string): SystemAutomationMeta | undefined =>
   SYSTEM_AUTOMATION_CATALOG.find((a) => a.event === event);
 
+/** Build a human-readable timing label from rule configuration. */
+export const formatAutomationTimingLabel = (
+  event: string,
+  configuration?: Record<string, unknown> | null
+): string => {
+  const meta = getAutomationMeta(event);
+  const cfg = {
+    ...(meta?.defaultConfiguration || {}),
+    ...(configuration || {}),
+  };
+  const mode = meta?.timingMode || "fixed";
+
+  if (mode === "immediate") {
+    const delay = Number(cfg.delayMinutes);
+    if (Number.isFinite(delay) && delay > 0) {
+      if (delay % 60 === 0) {
+        const hours = delay / 60;
+        return hours === 1 ? "1 hour after event" : `${hours} hours after event`;
+      }
+      return `${delay} minutes after event`;
+    }
+    return "Immediately";
+  }
+
+  if (mode === "hours_before") {
+    const offset = Number(cfg.offsetMinutes);
+    const minutesBefore = Number.isFinite(offset) ? Math.abs(offset) : 120;
+    if (minutesBefore % 60 === 0) {
+      const hours = minutesBefore / 60;
+      return hours === 1 ? "1 hour before" : `${hours} hours before`;
+    }
+    return `${minutesBefore} minutes before`;
+  }
+
+  if (mode === "days_before_due") {
+    const days = Number(cfg.daysBeforeDue);
+    const n = Number.isFinite(days) && days >= 0 ? Math.floor(days) : 3;
+    return n === 1 ? "1 day before due date" : `${n} days before due date`;
+  }
+
+  if (mode === "days_before") {
+    const days = Number(cfg.daysBefore);
+    const n = Number.isFinite(days) && days >= 0 ? Math.floor(days) : 1;
+    return n === 1 ? "1 day before" : `${n} days before`;
+  }
+
+  return meta?.timingLabel || "Scheduled";
+};
+
 /**
  * Idempotency key builders per event.
  */
 export const buildIdempotencyKey = {
-  [NotificationEvent.CLASS_REMINDER]: (studentId: string, sessionId: string, date: string) =>
-    `CLASS_REMINDER:${studentId}:${sessionId}:${date}`,
+  [NotificationEvent.CLASS_REMINDER]: (recipientId: string, sessionId: string, date: string) =>
+    `CLASS_REMINDER:${recipientId}:${sessionId}:${date}`,
 
   [NotificationEvent.CLASS_CANCELLED]: (studentId: string, sessionId: string) =>
     `CLASS_CANCELLED:${studentId}:${sessionId}`,

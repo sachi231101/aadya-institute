@@ -155,7 +155,10 @@ export const executeGetStudentDetails = async (
   const presentClasses = student.studentAttendances.filter((a) => a.status === "PRESENT").length;
   const attendancePercentage = totalClasses > 0 ? Math.round((presentClasses / totalClasses) * 100) : 100;
 
-  const totalPendingFee = student.pendingFees.reduce((acc, pf) => acc + (pf.dueAmount || 0), 0);
+  const totalPendingFee = student.pendingFees.reduce(
+    (acc, pf) => acc + Number(pf.dueAmount || 0),
+    0
+  );
 
   return {
     found: true,

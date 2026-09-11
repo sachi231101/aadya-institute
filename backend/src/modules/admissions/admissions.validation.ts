@@ -74,6 +74,16 @@ export const createAdmissionSchema = z.object({
   transactionRef: z.string().optional(),
   admissionDate: z.string().optional(),
   installments: z.array(installmentItemSchema).optional(),
+  feeLines: z
+    .array(
+      z.object({
+        feeHeadMasterId: z.string().min(1),
+        amount: z.coerce.number().positive(),
+        installments: z.array(installmentItemSchema).optional(),
+      })
+    )
+    .optional(),
+  feePlanTemplateId: z.string().optional(),
   sourceMasterId: z.string().optional(),
   statusMasterId: z.string().optional(),
   paymentModeMasterId: z.string().optional(),

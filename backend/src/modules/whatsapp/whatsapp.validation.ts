@@ -26,6 +26,11 @@ export const patchAutomationSchema = z.object({
   configuration: z
     .object({
       variableMap: z.record(z.string(), z.string()).optional(),
+      delayMinutes: z.number().int().min(0).max(10080).optional(),
+      offsetMinutes: z.number().int().min(-10080).max(-30).optional(),
+      daysBeforeDue: z.number().int().min(0).max(30).optional(),
+      daysBefore: z.number().int().min(0).max(30).optional(),
+      includeFaculty: z.boolean().optional(),
     })
     .passthrough()
     .optional(),

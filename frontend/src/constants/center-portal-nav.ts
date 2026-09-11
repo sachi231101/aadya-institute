@@ -170,16 +170,13 @@ export const CENTER_PORTAL_NAV: CenterNavModule[] = [
   },
   {
     title: "Fee Management",
-    url: "/center/fees/payments",
+    url: "/center/fees/students",
     icon: CreditCard,
     moduleKey: "fees",
     items: [
-      { title: "Fee Plans", url: "/center/fees/plans", itemKey: "fees.plans" },
-      { title: "Student Fees", url: "/center/fees/student-fees", itemKey: "fees.student_fees" },
-      { title: "Payments", url: "/center/fees/payments", itemKey: "fees.payments" },
-      { title: "Pending Fees", url: "/center/fees/pending", itemKey: "fees.pending" },
+      { title: "Student Fees", url: "/center/fees/students", itemKey: "fees.students" },
+      { title: "Invoices", url: "/center/fees/invoices", itemKey: "fees.invoices" },
       { title: "Receipts", url: "/center/fees/receipts", itemKey: "fees.receipts" },
-      { title: L["fees.reports"] ?? "Fee Collection Reports", url: "/center/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {

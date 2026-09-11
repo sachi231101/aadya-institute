@@ -41,7 +41,7 @@ export const executeGetBranchSummary = async (
   ]);
 
   const scopeName = branchInfo ? `${branchInfo.name} Branch` : "Institute-wide Overview";
-  const totalPending = totalPendingFeesAgg._sum.dueAmount || 0;
+  const totalPending = Number(totalPendingFeesAgg._sum.dueAmount || 0);
 
   return {
     scopeName,

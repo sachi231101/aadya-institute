@@ -188,9 +188,39 @@ describe("Master Module Integration Tests", () => {
     assert.strictEqual(actual, `TEST/${currentYear}/0004`);
   });
 
-  test("SequenceService falls back gracefully when no series configured", async () => {
+  test("SequenceService auto-creates series from default pattern when none configured", async () => {
     const { SequenceService } = await import("../modules/masters/sequence.service");
+    const currentYear = new Date().getFullYear();
     const unconfigured = await SequenceService.getNextNumber(instituteId, "UNCONFIGURED_TARGET");
-    assert.ok(unconfigured.length > 5);
+    assert.strictEqual(unconfigured, `AADYA/${currentYear}/0001`);
+  });
+
+  test("SequenceService generates INVOICE numbers from master pattern", async () => {
+    const { SequenceService } = await import("../modules/masters/sequence.service");
+    const currentYear = new Date().getFullYear();
+
+    await prisma.masterRecord.create({
+      data: {
+        instituteId,
+        entityType: "numberingseries",
+        name: "Test Invoice Series",
+        code: "INVOICE",
+        status: "ACTIVE",
+        data: {
+          target: "INVOICE",
+          pattern: "INV/{YEAR}/{SEQ:4}",
+          startNumber: 1,
+          currentSequence: 0,
+          resetFrequency: "YEARLY",
+        },
+      },
+    });
+
+    const inv1 = await SequenceService.getNextNumber(instituteId, "INVOICE");
+    const inv2 = await SequenceService.getNextNumber(instituteId, "INVOICE");
+    assert.strictEqual(inv1, `INV/${currentYear}/0001`);
+    assert.strictEqual(inv2, `INV/${currentYear}/0002`);
+    assert.ok(!inv1.includes("LEGACY"));
+    assert.ok(!/^\d{4}$/.test(inv1));
   });
 });

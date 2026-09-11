@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Receipt, Search, Loader2, AlertCircle } from "lucide-react";
-import { useFeeReceipts } from "@/hooks/useFees";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Receipt, Search, Loader2, AlertCircle, Download, Eye } from "lucide-react";
+import { useFeeReceipts, useDownloadReceiptPdf } from "@/hooks/useFees";
 import { useFormatCurrency, useOrganizationDate } from "@/hooks/useOrganizationFormat";
+import { getPortalBasePath } from "@/utils/portal-path";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -15,11 +17,27 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+async function triggerPdfDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export const Receipts: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [page, setPage] = useState(1);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const formatMoney = useFormatCurrency();
   const { format: formatOrgDate } = useOrganizationDate();
+  const downloadPdf = useDownloadReceiptPdf();
 
   const { data, isLoading, isError, refetch } = useFeeReceipts({
     search: searchTerm || undefined,
@@ -29,12 +47,22 @@ export const Receipts: React.FC = () => {
   const receipts = data?.data?.data || data?.data || [];
   const meta = data?.data || { totalPages: 1, page: 1 };
 
+  const handleDownload = async (id: string, receiptNo: string) => {
+    setDownloadingId(id);
+    try {
+      const blob = await downloadPdf.mutateAsync(id);
+      await triggerPdfDownload(blob, `${receiptNo || id}.pdf`);
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-text-primary">Fee Receipts</h2>
+        <h2 className="text-2xl font-bold text-text-primary">Receipts</h2>
         <p className="text-sm text-text-secondary">
-          Browse issued fee receipts and payment records.
+          All fee collections — view, print, or download receipts.
         </p>
       </div>
 
@@ -45,7 +73,10 @@ export const Receipts: React.FC = () => {
             <Input
               placeholder="Search receipts..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPage(1);
+              }}
               className="pl-9"
             />
           </div>
@@ -59,19 +90,20 @@ export const Receipts: React.FC = () => {
                 <TableHead>Method</TableHead>
                 <TableHead>Date</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
                     Loading...
                   </TableCell>
                 </TableRow>
               ) : isError ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-red-600">
+                  <TableCell colSpan={7} className="text-center py-8 text-red-600">
                     <AlertCircle className="w-5 h-5 inline mr-2" />
                     Failed to load.
                     <Button variant="link" onClick={() => refetch()}>
@@ -81,7 +113,7 @@ export const Receipts: React.FC = () => {
                 </TableRow>
               ) : !Array.isArray(receipts) || receipts.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-text-secondary">
+                  <TableCell colSpan={7} className="text-center py-8 text-text-secondary">
                     <Receipt className="w-8 h-8 mx-auto mb-2 opacity-40" />
                     No receipts found.
                   </TableCell>
@@ -97,7 +129,11 @@ export const Receipts: React.FC = () => {
                     date: string;
                     status: string;
                   }) => (
-                    <TableRow key={r.id}>
+                    <TableRow
+                      key={r.id}
+                      className="cursor-pointer hover:bg-muted/40"
+                      onClick={() => navigate(`${basePath}/fees/receipts/${r.id}`)}
+                    >
                       <TableCell className="font-mono font-medium">{r.receiptNo}</TableCell>
                       <TableCell>{r.studentName}</TableCell>
                       <TableCell className="font-bold">{formatMoney(r.amount ?? 0)}</TableCell>
@@ -105,6 +141,31 @@ export const Receipts: React.FC = () => {
                       <TableCell>{formatOrgDate(r.date)}</TableCell>
                       <TableCell>
                         <Badge variant="outline">{r.status}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex justify-end gap-2">
+                          <Button variant="outline" size="sm" asChild>
+                            <Link to={`${basePath}/fees/receipts/${r.id}`}>
+                              <Eye className="h-4 w-4 mr-1" /> View
+                            </Link>
+                          </Button>
+                          {r.status === "SUCCESS" && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              disabled={downloadingId === r.id}
+                              onClick={() => void handleDownload(r.id, r.receiptNo)}
+                            >
+                              {downloadingId === r.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Download className="h-4 w-4 mr-1" /> PDF
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   )
@@ -116,21 +177,21 @@ export const Receipts: React.FC = () => {
           {meta.totalPages > 1 && (
             <div className="flex justify-between text-sm">
               <span>
-                Page {meta.page} of {meta.totalPages}
+                Page {meta.page || page} of {meta.totalPages}
               </span>
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
                 >
                   Previous
                 </Button>
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={page >= meta.totalPages}
+                  disabled={page >= (meta.totalPages || 1)}
                   onClick={() => setPage((p) => p + 1)}
                 >
                   Next

@@ -82,6 +82,7 @@ import {
   computePatternPreview,
   getDefaultPatternForTarget,
   getNextSequenceForPreview,
+  NUMBERING_SERIES_TARGET_LABELS,
 } from "@/utils/numbering-series";
 import {
   MASTER_QUICK_CREATE_FIELDS,
@@ -1364,7 +1365,8 @@ export const MasterSetup: React.FC = () => {
                             setRecordFormValues((prev) => ({
                               ...prev,
                               [col.key]: val,
-                              name: prev.name || `${val.charAt(0) + val.slice(1).toLowerCase()} Series`,
+                              name: NUMBERING_SERIES_TARGET_LABELS[val] || `${val} Series`,
+                              pattern: getDefaultPatternForTarget(val),
                             }));
                           }}
                           className="w-full h-9 px-3 text-xs font-semibold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl outline-none"
@@ -1373,6 +1375,8 @@ export const MasterSetup: React.FC = () => {
                           <option value="STUDENT">STUDENT (Student Code / Roll No)</option>
                           <option value="EMPLOYEE">EMPLOYEE (Faculty / Staff Employee Code)</option>
                           <option value="RECEIPT">RECEIPT (Fee Payment Receipt Number)</option>
+                          <option value="INVOICE">INVOICE (Student Fee Invoice Number)</option>
+                          <option value="OTHER_INVOICE">OTHER_INVOICE (Other / Ad-hoc Invoice Number)</option>
                           <option value="ENQUIRY">ENQUIRY (Enquiry Number)</option>
                           <option value="APPLICATION">APPLICATION (Application Number)</option>
                         </select>

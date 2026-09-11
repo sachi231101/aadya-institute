@@ -1,4 +1,5 @@
 import type { OverdueStatus } from "@prisma/client";
+import { roundMoney } from "./fee-money.util";
 
 export type PendingBalanceRow = {
   id?: string;
@@ -6,6 +7,7 @@ export type PendingBalanceRow = {
   amountPaid: number;
   dueDate: Date | string;
   installmentNo?: number;
+  feeHeadMasterId?: string | null;
 };
 
 export type AppliedPendingBalance = {
@@ -64,10 +66,10 @@ export const derivePendingStatus = (
   amountPaid: number,
   today: Date = startOfDay()
 ): OverdueStatus => {
-  if (dueAmount <= 0) return "PAID";
+  if (roundMoney(dueAmount) <= 0) return "PAID";
   const due = startOfDay(new Date(dueDate));
   if (!Number.isNaN(due.getTime()) && due < today) return "OVERDUE";
-  if (amountPaid > 0) return "PARTIAL";
+  if (roundMoney(amountPaid) > 0) return "PARTIAL";
   return "DUE_SOON";
 };
 
@@ -76,14 +78,18 @@ export const applyAmountToPendingRow = (
   amount: number,
   today: Date = startOfDay()
 ): AppliedPendingBalance => {
-  const applied = Math.min(Math.max(0, amount), Math.max(0, row.dueAmount));
-  const dueAmount = Math.max(0, row.dueAmount - applied);
-  const amountPaid = row.amountPaid + applied;
+  const applied = roundMoney(Math.min(Math.max(0, amount), Math.max(0, row.dueAmount)));
+  const dueAmount = roundMoney(Math.max(0, row.dueAmount - applied));
+  const amountPaid = roundMoney(row.amountPaid + applied);
   const status = derivePendingStatus(dueAmount, row.dueDate, amountPaid, today);
   const overdueDays = status === "OVERDUE" ? overdueDaysFromDueDate(row.dueDate, today) : 0;
   return { applied, dueAmount, amountPaid, status, overdueDays };
 };
 
+/**
+ * FIFO across pending rows. Callers should pre-filter to a single fee head
+ * when cross-head allocation must be blocked.
+ */
 export const applyFifoToPendingRows = <T extends PendingBalanceRow>(
   rows: T[],
   amount: number,
@@ -96,7 +102,7 @@ export const applyFifoToPendingRows = <T extends PendingBalanceRow>(
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
-  let remaining = Math.max(0, amount);
+  let remaining = roundMoney(Math.max(0, amount));
   const allocations: FifoAllocation<T>[] = [];
 
   for (const row of sorted) {
@@ -104,11 +110,44 @@ export const applyFifoToPendingRows = <T extends PendingBalanceRow>(
     if (row.dueAmount <= 0) continue;
     const result = applyAmountToPendingRow(row, remaining, today);
     if (result.applied <= 0) continue;
-    remaining -= result.applied;
+    remaining = roundMoney(remaining - result.applied);
     allocations.push({ row, ...result });
   }
 
   return { allocations, remainingUnapplied: remaining };
+};
+
+/**
+ * Same-head FIFO: applies amount within one preferred head, or head-by-head
+ * without mixing heads in a single installment allocation chain.
+ */
+export const applyFifoSameHeadOnly = <T extends PendingBalanceRow>(
+  rows: T[],
+  amount: number,
+  preferredHeadId?: string | null,
+  today: Date = startOfDay()
+): { allocations: FifoAllocation<T>[]; remainingUnapplied: number } => {
+  if (preferredHeadId) {
+    const scoped = rows.filter((r) => r.feeHeadMasterId === preferredHeadId);
+    return applyFifoToPendingRows(scoped.length ? scoped : [], amount, today);
+  }
+
+  const headOrder: string[] = [];
+  for (const row of rows) {
+    const hid = row.feeHeadMasterId || "__none__";
+    if (!headOrder.includes(hid)) headOrder.push(hid);
+  }
+
+  let remaining = roundMoney(Math.max(0, amount));
+  const all: FifoAllocation<T>[] = [];
+  for (const hid of headOrder) {
+    if (remaining <= 0) break;
+    const scoped = rows.filter((r) => (r.feeHeadMasterId || "__none__") === hid);
+    const { allocations, remainingUnapplied } = applyFifoToPendingRows(scoped, remaining, today);
+    all.push(...allocations);
+    remaining = remainingUnapplied;
+  }
+  return { allocations: all, remainingUnapplied: remaining };
 };
 
 export const reverseAmountOnPendingRow = (
@@ -116,9 +155,9 @@ export const reverseAmountOnPendingRow = (
   amount: number,
   today: Date = startOfDay()
 ): AppliedPendingBalance => {
-  const reversed = Math.min(Math.max(0, amount), Math.max(0, row.amountPaid));
-  const amountPaid = Math.max(0, row.amountPaid - reversed);
-  const dueAmount = row.dueAmount + reversed;
+  const reversed = roundMoney(Math.min(Math.max(0, amount), Math.max(0, row.amountPaid)));
+  const amountPaid = roundMoney(Math.max(0, row.amountPaid - reversed));
+  const dueAmount = roundMoney(row.dueAmount + reversed);
   const status = derivePendingStatus(dueAmount, row.dueDate, amountPaid, today);
   const overdueDays = status === "OVERDUE" ? overdueDaysFromDueDate(row.dueDate, today) : 0;
   return { applied: reversed, dueAmount, amountPaid, status, overdueDays };
@@ -126,7 +165,13 @@ export const reverseAmountOnPendingRow = (
 
 /** Enrich a pending-fee row with read-time status / overdueDays. */
 export const withDerivedPendingStatus = <
-  T extends { dueAmount: number; amountPaid: number; dueDate: Date | string; status: OverdueStatus; overdueDays: number },
+  T extends {
+    dueAmount: number;
+    amountPaid: number;
+    dueDate: Date | string;
+    status: OverdueStatus;
+    overdueDays: number;
+  },
 >(
   row: T,
   today: Date = startOfDay()

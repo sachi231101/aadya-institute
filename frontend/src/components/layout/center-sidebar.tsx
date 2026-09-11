@@ -28,6 +28,7 @@ import {
 } from "@/constants/nav-permissions";
 import { canReadCenterItem } from "@/constants/center-item-permissions";
 import { useBranch } from "@/hooks/useBranches";
+import { isFeeNavItemActive } from "@/utils/portal-path";
 
 const NAV_KEY_MAP = buildCenterNavPermissionKeys();
 
@@ -102,8 +103,8 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
           <SidebarMenu>
             {filteredNavItems.map((item) => {
               const isItemActive = location.pathname === item.url;
-              const isGroupActive = item.items?.some(
-                (sub) => location.pathname === sub.url || location.pathname.startsWith(`${sub.url}/`)
+              const isGroupActive = item.items?.some((sub) =>
+                isFeeNavItemActive(location.pathname, sub.url)
               );
 
               if (!item.items) {
@@ -154,7 +155,7 @@ export function CenterSidebar({ ...props }: React.ComponentProps<typeof Sidebar>
                           <SidebarMenuSubItem key={subItem.url}>
                             <SidebarMenuSubButton
                               asChild
-                              isActive={location.pathname === subItem.url || location.pathname.startsWith(`${subItem.url}/`)}
+                              isActive={isFeeNavItemActive(location.pathname, subItem.url)}
                               className="h-8 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-accent/60 transition-all data-[active=true]:bg-blue-50/90 dark:data-[active=true]:bg-blue-950/50 data-[active=true]:text-[#2563EB] dark:data-[active=true]:text-sky-400 data-[active=true]:font-semibold"
                             >
                               <Link to={subItem.url} className="truncate min-w-0 flex-1">

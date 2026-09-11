@@ -18,6 +18,26 @@ const CATEGORY_LABEL: Record<string, string> = {
   ACADEMICS: "Academics",
 };
 
+const DELAY_HOUR_OPTIONS = [
+  { label: "Immediately", value: 0 },
+  { label: "After 1 hour", value: 60 },
+  { label: "After 2 hours", value: 120 },
+  { label: "After 3 hours", value: 180 },
+  { label: "After 6 hours", value: 360 },
+  { label: "After 12 hours", value: 720 },
+  { label: "After 24 hours", value: 1440 },
+];
+
+const HOURS_BEFORE_OPTIONS = [
+  { label: "1 hour before", value: 60 },
+  { label: "2 hours before", value: 120 },
+  { label: "3 hours before", value: 180 },
+  { label: "4 hours before", value: 240 },
+  { label: "6 hours before", value: 360 },
+];
+
+const DAYS_OPTIONS = [1, 2, 3, 5, 7];
+
 const fieldLabel = (key: string) =>
   key
     .split("_")
@@ -47,6 +67,136 @@ type AutomationsTemplates = Array<{
   category?: string | null;
   variables?: string[];
 }>;
+
+const TimingControl: React.FC<{
+  item: WhatsAppAutomation;
+  disabled?: boolean;
+  onSave: (configuration: Record<string, unknown>) => void;
+}> = ({ item, disabled, onSave }) => {
+  const mode = item.timingMode || "fixed";
+  const cfg = item.configuration || {};
+
+  if (mode === "fixed") {
+    return (
+      <p className="text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">Timing:</span> {item.timingLabel}
+      </p>
+    );
+  }
+
+  if (mode === "immediate") {
+    const delayMinutes = Number(cfg.delayMinutes) || 0;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-semibold text-foreground">Timing</Label>
+        <select
+          className="h-9 rounded-md border border-border bg-background px-2 text-xs max-w-[220px]"
+          value={delayMinutes}
+          disabled={disabled}
+          onChange={(e) =>
+            onSave({
+              ...cfg,
+              delayMinutes: Number(e.target.value),
+            })
+          }
+        >
+          {DELAY_HOUR_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (mode === "hours_before") {
+    const offset = Number(cfg.offsetMinutes);
+    const hoursBefore = Number.isFinite(offset) ? Math.abs(offset) : 120;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-semibold text-foreground">Timing</Label>
+        <select
+          className="h-9 rounded-md border border-border bg-background px-2 text-xs max-w-[220px]"
+          value={hoursBefore}
+          disabled={disabled}
+          onChange={(e) =>
+            onSave({
+              ...cfg,
+              offsetMinutes: -Math.abs(Number(e.target.value)),
+            })
+          }
+        >
+          {HOURS_BEFORE_OPTIONS.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (mode === "days_before_due") {
+    const days = Number(cfg.daysBeforeDue);
+    const value = Number.isFinite(days) && days >= 0 ? days : 3;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-semibold text-foreground">Days before due</Label>
+        <select
+          className="h-9 rounded-md border border-border bg-background px-2 text-xs max-w-[220px]"
+          value={value}
+          disabled={disabled}
+          onChange={(e) =>
+            onSave({
+              ...cfg,
+              daysBeforeDue: Number(e.target.value),
+            })
+          }
+        >
+          {DAYS_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d} day{d === 1 ? "" : "s"} before due date
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (mode === "days_before") {
+    const days = Number(cfg.daysBefore);
+    const value = Number.isFinite(days) && days >= 0 ? days : 1;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-xs font-semibold text-foreground">Days before exam</Label>
+        <select
+          className="h-9 rounded-md border border-border bg-background px-2 text-xs max-w-[220px]"
+          value={value}
+          disabled={disabled}
+          onChange={(e) =>
+            onSave({
+              ...cfg,
+              daysBefore: Number(e.target.value),
+            })
+          }
+        >
+          {DAYS_OPTIONS.map((d) => (
+            <option key={d} value={d}>
+              {d} day{d === 1 ? "" : "s"} before
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      <span className="font-semibold text-foreground">Timing:</span> {item.timingLabel}
+    </p>
+  );
+};
 
 export const WhatsAppAutomations: React.FC = () => {
   const queryClient = useQueryClient();
@@ -114,6 +264,13 @@ export const WhatsAppAutomations: React.FC = () => {
     });
   };
 
+  const saveTiming = (item: WhatsAppAutomation, configuration: Record<string, unknown>) => {
+    patchMutation.mutate({
+      type: item.event,
+      body: { configuration },
+    });
+  };
+
   const onTemplateChange = (item: WhatsAppAutomation, templateId: string) => {
     const selected = templates.find((t) => t.id === templateId);
     const slots = selected?.variables ?? [];
@@ -145,8 +302,8 @@ export const WhatsAppAutomations: React.FC = () => {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">
-        Enable only the system messages you want. Map MSG91 template variables to Aadya fields on
-        each card. Everything stays off until you turn it on.
+        Enable only the system messages you want. Set custom timing (e.g. 1–2 hours) and map MSG91
+        template variables on each card.
       </p>
 
       <Card className="border-border/50">
@@ -228,20 +385,51 @@ export const WhatsAppAutomations: React.FC = () => {
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0 space-y-3">
-                      <div className="grid sm:grid-cols-3 gap-2 text-xs text-muted-foreground">
-                        <p>
-                          <span className="font-semibold text-foreground">Timing:</span>{" "}
-                          {item.timingLabel}
-                        </p>
-                        <p>
+                      <div className="grid sm:grid-cols-3 gap-3 text-xs text-muted-foreground">
+                        <PermissionGate
+                          itemKey="communication.whatsapp"
+                          mode="write"
+                          fallback={
+                            <p>
+                              <span className="font-semibold text-foreground">Timing:</span>{" "}
+                              {item.timingLabel}
+                            </p>
+                          }
+                        >
+                          <TimingControl
+                            item={item}
+                            disabled={patchMutation.isPending}
+                            onSave={(configuration) => saveTiming(item, configuration)}
+                          />
+                        </PermissionGate>
+                        <p className="sm:pt-6">
                           <span className="font-semibold text-foreground">Recipient:</span>{" "}
                           {item.recipientLabel}
                         </p>
-                        <p>
+                        <p className="sm:pt-6">
                           <span className="font-semibold text-foreground">Template:</span>{" "}
                           {item.template?.name || "Not mapped"}
                         </p>
                       </div>
+                      {item.event === "CLASS_REMINDER" && (
+                        <PermissionGate itemKey="communication.whatsapp" mode="write">
+                          <label className="flex items-center gap-2 text-xs text-foreground cursor-pointer">
+                            <input
+                              type="checkbox"
+                              className="h-3.5 w-3.5 rounded border-border"
+                              checked={Boolean(item.configuration?.includeFaculty)}
+                              disabled={patchMutation.isPending}
+                              onChange={(e) =>
+                                saveTiming(item, {
+                                  ...item.configuration,
+                                  includeFaculty: e.target.checked,
+                                })
+                              }
+                            />
+                            Also send Class Reminder to assigned faculty
+                          </label>
+                        </PermissionGate>
+                      )}
                       <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
                         <PermissionGate itemKey="communication.whatsapp" mode="write">
                           <select
@@ -321,57 +509,53 @@ export const WhatsAppAutomations: React.FC = () => {
       )}
 
       {testFor && (
-        <div className="fixed inset-0 bg-slate-900/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-card rounded-xl max-w-md w-full p-6 space-y-4 border border-border shadow-lg">
-            <h3 className="text-lg font-bold">Test: {testFor.label}</h3>
-            <p className="text-xs text-muted-foreground">
-              Sends sample variables via WhatsApp using your variable mapping. Requires global +
-              automation ON and a mapped template.
-            </p>
-            <div className="space-y-2">
-              <Label>Phone *</Label>
-              <Input
-                value={testPhone}
-                onChange={(e) => setTestPhone(e.target.value)}
-                placeholder="9876543210"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input value={testName} onChange={(e) => setTestName(e.target.value)} />
-            </div>
-            {testMutation.isError && (
-              <p className="text-xs text-red-600">
-                {(testMutation.error as { response?: { data?: { message?: string } } })?.response
-                  ?.data?.message ||
-                  (testMutation.error as Error)?.message ||
-                  "Test failed"}
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-md border-border">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <MessageSquare className="h-4 w-4" /> Test: {testFor.label}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Sends sample variables via WhatsApp using your variable mapping. Requires global +
+                this automation ON.
               </p>
-            )}
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setTestFor(null)}>
-                Cancel
-              </Button>
-              <Button
-                className="bg-[#2563EB] text-white"
-                disabled={!testPhone || testMutation.isPending}
-                onClick={() => testMutation.mutate()}
-              >
-                {testMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Send Test"
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {!isLoading && automations.length === 0 && (
-        <div className="text-center py-12 text-muted-foreground">
-          <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          No system automations configured.
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone</Label>
+                <Input
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  placeholder="9876543210"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name (optional)</Label>
+                <Input value={testName} onChange={(e) => setTestName(e.target.value)} />
+              </div>
+              {testMutation.isError && (
+                <p className="text-xs text-red-600">
+                  {(testMutation.error as Error)?.message || "Test send failed"}
+                </p>
+              )}
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setTestFor(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  disabled={!testPhone || testMutation.isPending}
+                  onClick={() => testMutation.mutate()}
+                >
+                  {testMutation.isPending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    "Send test"
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

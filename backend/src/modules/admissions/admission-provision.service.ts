@@ -6,7 +6,13 @@ import { hashPassword } from "../../utils/password";
 import { SequenceService } from "../masters/sequence.service";
 import { LeadActivityService } from "../leads/services/lead-activity.service";
 import type { CreateAdmissionDTO } from "./admissions.types";
-import { applyFifoToPendingRows } from "../fees/fee-balance.util";
+import {
+  buildLegacyTuitionLines,
+  provisionStudentFeesInTransaction,
+  resolveTuitionFeeHead,
+} from "../fees/fee-provision.service";
+import type { FeeProvisionLine } from "../fees/fee.types";
+import { toMoneyNumber } from "../fees/fee-money.util";
 
 export interface ProvisionAdmissionInput extends CreateAdmissionDTO {
   leadId?: string;
@@ -384,104 +390,106 @@ export async function provisionAdmissionInTransaction(
     });
   }
 
-  if (dto.totalFee && dto.totalFee > 0 && finalStudentId) {
-    const totalFee = Number(dto.totalFee);
-    const amountPaid = Number(dto.amountPaid || 0);
-    const courseName = admission.course?.name || course.name;
+  if ((dto.totalFee && dto.totalFee > 0) || (dto.feeLines && dto.feeLines.length > 0) || dto.feePlanTemplateId) {
+    if (!finalStudentId) {
+      // nothing
+    } else {
+      const courseName = admission.course?.name || course.name;
+      const amountPaid = Number(dto.amountPaid || 0);
+      let lines: FeeProvisionLine[] = [];
 
-    if (amountPaid > 0) {
-      const receiptNo = await SequenceService.getNextNumber(instituteId, "RECEIPT", {
-        branchCode: branch.code,
-      }).catch(() => `RCP-2026-${Math.floor(1000 + Math.random() * 9000)}`);
+      if (dto.feePlanTemplateId) {
+        const plan = await tx.feePlanTemplate.findFirst({
+          where: { id: dto.feePlanTemplateId, instituteId, status: "ACTIVE" },
+        });
+        if (plan?.installments && Array.isArray(plan.installments)) {
+          for (const raw of plan.installments as Array<Record<string, unknown>>) {
+            if (raw.feeHeadMasterId && raw.amount) {
+              lines.push({
+                feeHeadMasterId: String(raw.feeHeadMasterId),
+                feeHeadCode: raw.feeHeadCode ? String(raw.feeHeadCode) : undefined,
+                amount: Number(raw.amount),
+                installments: Array.isArray(raw.installments)
+                  ? (raw.installments as Array<{ installmentNo: number; amount: number; dueDays?: number }>).map(
+                      (i) => ({
+                        installmentNo: i.installmentNo,
+                        amount: Number(i.amount),
+                        dueDays: i.dueDays,
+                      })
+                    )
+                  : undefined,
+              });
+            }
+          }
+        }
+        if (lines.length === 0 && toMoneyNumber(plan?.totalAmount) > 0) {
+          const tuition = await resolveTuitionFeeHead(tx, instituteId);
+          lines = buildLegacyTuitionLines({
+            tuitionHeadId: tuition.id,
+            tuitionHeadName: tuition.name,
+            totalFee: toMoneyNumber(plan!.totalAmount),
+            feePlan: plan!.planType,
+          });
+        }
+      }
 
-      await tx.payment.create({
-        data: {
-          receiptNo,
+      if (lines.length === 0 && dto.feeLines && dto.feeLines.length > 0) {
+        lines = dto.feeLines.map((l) => ({
+          feeHeadMasterId: l.feeHeadMasterId,
+          amount: Number(l.amount),
+          installments: l.installments?.map((i) => ({
+            installmentNo: i.installmentNo,
+            amount: Number(i.amount),
+            dueDate: i.dueDate,
+          })),
+        }));
+      }
+
+      if (lines.length === 0 && dto.totalFee && dto.totalFee > 0) {
+        const tuition = await resolveTuitionFeeHead(tx, instituteId);
+        lines = buildLegacyTuitionLines({
+          tuitionHeadId: tuition.id,
+          tuitionHeadName: tuition.name,
+          totalFee: Number(dto.totalFee),
+          feePlan: dto.feePlan,
+          installments: dto.installments,
+        });
+      }
+
+      // Concession percentage from master (applied to tuition inside provision)
+      let concessionAmount = 0;
+      if (dto.concessionHeadMasterId) {
+        const concession = await tx.masterRecord.findFirst({
+          where: { id: dto.concessionHeadMasterId, instituteId, entityType: "concessionheads" },
+        });
+        const pct = Number(
+          concession?.data && typeof concession.data === "object"
+            ? (concession.data as { percentage?: string }).percentage
+            : undefined
+        );
+        const gross = lines.reduce((s, l) => s + Number(l.amount), 0);
+        if (Number.isFinite(pct) && pct > 0 && pct < 100) {
+          concessionAmount = Math.round(((gross * pct) / 100) * 100) / 100;
+        }
+      }
+
+      if (lines.length > 0) {
+        await provisionStudentFeesInTransaction(tx, {
           instituteId,
           branchId,
           studentId: finalStudentId,
           admissionId: admission.id,
           studentName: dto.studentName,
           admissionNo,
+          phone: dto.phone || "",
           courseName,
-          amount: amountPaid,
-          method: paymentMethod,
+          lines,
+          downPayment: amountPaid,
+          paymentMethod,
           paymentModeMasterId,
-          status: "SUCCESS",
           transactionRef: dto.transactionRef || null,
-          notes: "Initial admission payment",
-        },
-      });
-    }
-
-    const plannedInstallments = (dto.installments || []).filter(
-      (item) => Number(item.amount) > 0
-    );
-    if (plannedInstallments.length > 0) {
-      await tx.pendingFee.createMany({
-        data: plannedInstallments.map((item) => {
-          const dueDate = new Date(item.dueDate);
-          return {
-            instituteId,
-            branchId,
-            studentId: finalStudentId,
-            admissionId: admission.id,
-            studentName: dto.studentName,
-            admissionNo,
-            phone: dto.phone || "",
-            courseName,
-            totalFee,
-            amountPaid: 0,
-            dueAmount: Number(item.amount),
-            dueDate: Number.isNaN(dueDate.getTime()) ? new Date() : dueDate,
-            installmentNo: item.installmentNo,
-            status: "DUE_SOON" as const,
-          };
-        }),
-      });
-
-      // FIFO-apply down payment onto earliest installments
-      if (amountPaid > 0) {
-        const createdRows = await tx.pendingFee.findMany({
-          where: { admissionId: admission.id, studentId: finalStudentId },
-          orderBy: [{ installmentNo: "asc" }, { dueDate: "asc" }],
-        });
-        const { allocations } = applyFifoToPendingRows(createdRows, amountPaid);
-        for (const alloc of allocations) {
-          await tx.pendingFee.update({
-            where: { id: alloc.row.id },
-            data: {
-              amountPaid: alloc.amountPaid,
-              dueAmount: alloc.dueAmount,
-              status: alloc.status,
-              overdueDays: alloc.overdueDays,
-            },
-          });
-        }
-      }
-    } else {
-      // Single remaining-balance row (amountPaid already recorded as Payment)
-      const balance = Math.max(0, totalFee - amountPaid);
-      if (balance > 0) {
-        const dueDate = new Date();
-        dueDate.setDate(dueDate.getDate() + 30);
-        await tx.pendingFee.create({
-          data: {
-            instituteId,
-            branchId,
-            studentId: finalStudentId,
-            admissionId: admission.id,
-            studentName: dto.studentName,
-            admissionNo,
-            phone: dto.phone || "",
-            courseName,
-            totalFee,
-            amountPaid: 0,
-            dueAmount: balance,
-            dueDate,
-            installmentNo: 1,
-            status: "DUE_SOON",
-          },
+          concessionAmount,
+          recordedById: currentUserId || null,
         });
       }
     }

@@ -26,6 +26,8 @@ import { assertActiveMaster } from "./master.validator";
 const NUMBERING_SERIES_TARGETS = [
   "ADMISSION",
   "RECEIPT",
+  "INVOICE",
+  "OTHER_INVOICE",
   "STUDENT",
   "ENQUIRY",
   "APPLICATION",
@@ -35,6 +37,8 @@ const NUMBERING_SERIES_TARGETS = [
 const DEFAULT_NUMBERING_PATTERNS: Record<string, string> = {
   ADMISSION: "AADYA/{YEAR}/{SEQ:4}",
   RECEIPT: "RCP/{YEAR}/{SEQ:4}",
+  INVOICE: "INV/{YEAR}/{SEQ:4}",
+  OTHER_INVOICE: "OI/{YEAR}/{SEQ:4}",
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",

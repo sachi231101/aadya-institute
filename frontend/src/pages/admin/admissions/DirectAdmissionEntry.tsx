@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -3342,7 +3342,7 @@ export const DirectAdmissionEntry: React.FC = () => {
                 size="sm"
                 onClick={() => {
                   setShowSuccessModal(false);
-                  navigate(`${basePath}/fees/pending`);
+                  navigate(`${basePath}/fees/students?tab=pending`);
                 }}
                 className="text-xs font-semibold"
               >

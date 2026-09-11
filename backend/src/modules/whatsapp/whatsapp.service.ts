@@ -21,12 +21,14 @@ import { whatsappQueue } from "./whatsapp.queue";
 import { prisma } from "../../config/database";
 import { env } from "../../config/env";
 import {
+  NotificationEvent,
   NotificationStatus,
   SkipReason,
   SYSTEM_AUTOMATION_CATALOG,
   SYSTEM_AUTOMATION_EVENTS,
   normalizeAutomationEvent,
   getAutomationMeta,
+  formatAutomationTimingLabel,
 } from "./whatsapp.constants";
 import {
   applyTemplateVariableMap,
@@ -279,7 +281,18 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
     }
   }
 
-  // 8. Create + queue
+  // 8. Create + queue (optional delayMinutes for immediate-mode automations)
+  const ruleConfig = (rule.configuration as Record<string, unknown>) || {};
+  const delayMinutesRaw = Number(ruleConfig.delayMinutes);
+  const delayMinutes =
+    getAutomationMeta(event)?.timingMode === "immediate" &&
+    Number.isFinite(delayMinutesRaw) &&
+    delayMinutesRaw > 0
+      ? Math.min(Math.floor(delayMinutesRaw), 7 * 24 * 60)
+      : 0;
+  const delayMs = delayMinutes * 60 * 1000;
+  const scheduledAt = delayMs > 0 ? new Date(Date.now() + delayMs) : undefined;
+
   let notification;
   try {
     notification = await repo.createNotification({
@@ -293,6 +306,7 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
       isTest: input.isTest ?? false,
       title: input.isTest ? `[TEST] ${event}` : event,
       message: template.body ?? undefined,
+      scheduledAt,
       metadata: {
         ...input.metadata,
         templateParams,
@@ -303,6 +317,7 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
         language: template.language,
         namespace: template.providerNamespace ?? undefined,
         isTest: input.isTest ?? false,
+        delayMinutes: delayMinutes || undefined,
       },
     });
   } catch (err) {
@@ -318,6 +333,7 @@ export const evaluateAndEnqueueSystemAutomation = async (input: EvaluateOptions)
         attempts: env.WHATSAPP_MAX_RETRIES,
         backoff: { type: "exponential", delay: 5000 },
         removeOnComplete: true,
+        ...(delayMs > 0 ? { delay: delayMs } : {}),
       }
     );
   } catch (err: unknown) {
@@ -388,8 +404,16 @@ export const listAutomations = async (instituteId: string) => {
 
   const automations = SYSTEM_AUTOMATION_CATALOG.map((meta) => {
     const rule = ruleByEvent.get(meta.event);
+    const configuration =
+      (rule?.configuration as Record<string, unknown>) ?? meta.defaultConfiguration ?? {};
+    const includeFaculty = Boolean(configuration.includeFaculty);
     return {
       ...meta,
+      timingLabel: formatAutomationTimingLabel(meta.event, configuration),
+      recipientLabel:
+        meta.event === NotificationEvent.CLASS_REMINDER && includeFaculty
+          ? "Student + Faculty"
+          : meta.recipientLabel,
       enabled: rule?.enabled ?? false,
       templateId: rule?.templateId ?? null,
       template: rule?.template
@@ -403,7 +427,7 @@ export const listAutomations = async (instituteId: string) => {
               : [],
           }
         : null,
-      configuration: (rule?.configuration as Record<string, unknown>) ?? meta.defaultConfiguration ?? {},
+      configuration,
       ruleId: rule?.id ?? null,
     };
   });

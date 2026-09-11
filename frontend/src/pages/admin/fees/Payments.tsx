@@ -1,5 +1,6 @@
-﻿import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ArrowLeft,
   CreditCard,
   Plus,
   Search,
@@ -15,11 +16,12 @@ import {
   Loader2,
   FileText,
 } from "lucide-react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import {
   usePayments,
   useFeeStats,
   useCreatePayment,
-  useDeletePayment,
+  useVoidPayment,
   usePendingFees,
 } from "../../../hooks/useFees";
 import { useCourses } from "../../../hooks/useCourses";
@@ -48,8 +50,12 @@ import {
 import type { PaymentMethod, PaymentStatus, Payment } from "../../../types/fee.types";
 import { MasterSelect } from "@/components/common/MasterSelect";
 import { PermissionGate } from "@/components/permissions/PermissionGate";
+import { getPortalBasePath } from "@/utils/portal-path";
 
 export const Payments: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const basePath = getPortalBasePath(location.pathname);
   const [searchTerm, setSearchTerm] = useState("");
   const [methodFilter, setMethodFilter] = useState("ALL");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -64,7 +70,7 @@ export const Payments: React.FC = () => {
 
   const { data: statsData } = useFeeStats();
   const createPaymentMutation = useCreatePayment();
-  const deletePaymentMutation = useDeletePayment();
+  const voidPaymentMutation = useVoidPayment();
   const { courses } = useCourses();
   const { data: studentsData } = useStudentList({ limit: 200 });
   const students = useMemo(() => {
@@ -86,6 +92,14 @@ export const Payments: React.FC = () => {
   const [lateFee, setLateFee] = useState<number>(0);
   const [bankAccountMasterId, setBankAccountMasterId] = useState("");
   const [sendWhatsAppReceipt, setSendWhatsAppReceipt] = useState(true);
+
+  useEffect(() => {
+    const fromQuery = searchParams.get("studentId");
+    if (fromQuery) {
+      setStudentId(fromQuery);
+      setShowModal(true);
+    }
+  }, [searchParams]);
 
   const selectedStudent = students.find((s) => s.id === studentId);
   const { data: openPendingData } = usePendingFees({
@@ -160,13 +174,14 @@ export const Payments: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Delete this payment and reverse linked installment dues?")) return;
+    if (!window.confirm("Void this payment and reverse linked charge dues? The receipt number is kept."))
+      return;
     try {
-      await deletePaymentMutation.mutateAsync(id);
+      await voidPaymentMutation.mutateAsync(id);
     } catch (err: unknown) {
       const message =
         (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        "Failed to delete payment";
+        "Failed to void payment";
       alert(message);
     }
   };
@@ -219,9 +234,14 @@ export const Payments: React.FC = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Fee Payment Receipts</h2>
+          <Button variant="ghost" size="sm" asChild className="-ml-2 mb-1 gap-2">
+            <Link to={`${basePath}/fees/students`}>
+              <ArrowLeft className="h-4 w-4" /> Student Fees
+            </Link>
+          </Button>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Record Payment</h2>
           <p className="text-sm text-text-secondary">
-            Issue and track student fee receipts, payment modes, and financial transaction logs.
+            Collect a payment against a student due. Issued receipts appear under Receipts.
           </p>
         </div>
 
@@ -395,7 +415,7 @@ export const Payments: React.FC = () => {
                                   className="text-red-600 focus:text-red-600"
                                   onClick={() => handleDelete(p.id)}
                                 >
-                                  <Trash2 className="mr-2 h-4 w-4" /> Delete Receipt Record
+                                  <Trash2 className="mr-2 h-4 w-4" /> Void Receipt
                                 </DropdownMenuItem>
                               </>
                             )}

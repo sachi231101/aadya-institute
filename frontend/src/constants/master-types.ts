@@ -41,11 +41,11 @@ export const MASTER_ENTITY_TYPES: MasterEntityTypeMeta[] = [
 
   { id: "bankaccounts", name: "Bank Accounts", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments"] },
   { id: "feetypes", name: "Fees Types", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Fee Heads"] },
-  { id: "feeheads", name: "Fee Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments", "Pending Fees"] },
+  { id: "feeheads", name: "Fee Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Student Fees", "Invoices", "Receipts"] },
   { id: "paymentmodes", name: "Payment Modes", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Payments", "Add Student", "Direct Admission"] },
   { id: "concessionheads", name: "Concession Heads", category: "ACCOUNTING_FEES", categoryName: MASTER_CATEGORY_LABELS.ACCOUNTING_FEES, usedInPages: ["Add Student", "Direct Admission"] },
 
-  { id: "numberingseries", name: "Numbering Series", category: "SYSTEM_AUTOMATION", categoryName: MASTER_CATEGORY_LABELS.SYSTEM_AUTOMATION, usedInPages: ["Admissions", "Add Student", "Add Faculty", "Payments", "Enquiries", "Lead Conversion"] },
+  { id: "numberingseries", name: "Numbering Series", category: "SYSTEM_AUTOMATION", categoryName: MASTER_CATEGORY_LABELS.SYSTEM_AUTOMATION, usedInPages: ["Admissions", "Add Student", "Add Faculty", "Payments", "Invoices", "Fees", "Enquiries", "Lead Conversion"] },
 ];
 
 /** @deprecated Use MASTER_ENTITY_TYPES — all registered types are active */

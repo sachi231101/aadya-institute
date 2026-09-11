@@ -230,6 +230,34 @@ const TIER1_MASTERS: MasterSeed[] = [
     },
     sortOrder: 6,
   },
+  {
+    entityType: "numberingseries",
+    name: "Invoice Number Series",
+    code: "INVOICE",
+    data: {
+      target: "INVOICE",
+      pattern: "INV/{YEAR}/{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 7,
+  },
+  {
+    entityType: "numberingseries",
+    name: "Other Invoice Number Series",
+    code: "OTHER_INVOICE",
+    data: {
+      target: "OTHER_INVOICE",
+      pattern: "OI/{YEAR}/{SEQ:4}",
+      startNumber: 1,
+      currentSequence: 0,
+      resetFrequency: "YEARLY",
+      lastResetPeriod: "",
+    },
+    sortOrder: 8,
+  },
 
 ];
 

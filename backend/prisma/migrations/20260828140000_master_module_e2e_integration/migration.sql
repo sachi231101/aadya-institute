@@ -1,4 +1,234 @@
 -- Master module end-to-end integration: add master FK columns and migrate enums to strings
+--
+-- NOTE: Lead / MasterRecord / Payment / PendingFee / UserSettings / LeadStageHistory were
+-- historically created via db push and never had CREATE TABLE migrations. Shadow-database
+-- replay requires these stubs so later ALTER migrations can apply cleanly.
+
+-- ─── Bootstrap missing enums (idempotent) ────────────────────────────────────
+DO $$ BEGIN
+  CREATE TYPE "LeadStatus" AS ENUM ('ACTIVE', 'CONVERTED', 'LOST', 'ARCHIVED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "LeadLostReason" AS ENUM (
+    'PRICE_HIGH', 'NOT_INTERESTED', 'JOINED_COMPETITOR', 'NO_RESPONSE',
+    'COURSE_NOT_AVAILABLE', 'LOCATION_ISSUE', 'TIMING_ISSUE', 'OTHER'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "LeadActivityType" AS ENUM (
+    'LEAD_CREATED', 'LEAD_ASSIGNED', 'STAGE_CHANGED', 'NOTE_ADDED',
+    'FOLLOW_UP_CREATED', 'FOLLOW_UP_COMPLETED', 'FOLLOW_UP_MISSED',
+    'CALL_COMPLETED', 'WHATSAPP_SENT', 'CONVERTED', 'MARKED_LOST'
+  );
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "FollowUpType" AS ENUM ('CALL', 'WHATSAPP', 'MEETING', 'REMINDER');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "FollowUpStatus" AS ENUM ('PENDING', 'COMPLETED', 'MISSED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "PaymentMethod" AS ENUM ('UPI', 'NET_BANKING', 'CARD', 'CASH', 'CHEQUE');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "PaymentStatus" AS ENUM ('SUCCESS', 'PENDING', 'FAILED');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+DO $$ BEGIN
+  CREATE TYPE "OverdueStatus" AS ENUM ('OVERDUE', 'DUE_SOON', 'PARTIAL', 'PAID');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+
+-- ─── Bootstrap missing tables (idempotent) ───────────────────────────────────
+CREATE TABLE IF NOT EXISTS "MasterRecord" (
+  "id" TEXT NOT NULL,
+  "instituteId" TEXT NOT NULL,
+  "branchId" TEXT,
+  "entityType" TEXT NOT NULL,
+  "code" TEXT,
+  "name" TEXT NOT NULL,
+  "description" TEXT,
+  "status" "Status" NOT NULL DEFAULT 'ACTIVE',
+  "sortOrder" INTEGER NOT NULL DEFAULT 0,
+  "data" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "MasterRecord_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "Lead" (
+  "id" TEXT NOT NULL,
+  "instituteId" TEXT NOT NULL,
+  "branchId" TEXT NOT NULL,
+  "name" TEXT NOT NULL,
+  "phoneNumber" TEXT NOT NULL,
+  "email" TEXT,
+  "interestedIn" TEXT NOT NULL DEFAULT '',
+  "courseId" TEXT,
+  "source" TEXT NOT NULL DEFAULT 'WALK_IN',
+  "stage" TEXT NOT NULL DEFAULT 'ASSIGNED',
+  "status" "LeadStatus" NOT NULL DEFAULT 'ACTIVE',
+  "priority" TEXT NOT NULL DEFAULT 'MEDIUM',
+  "notes" TEXT,
+  "createdById" TEXT NOT NULL,
+  "assignedCounsellorId" TEXT,
+  "lastContactedAt" TIMESTAMP(3),
+  "nextFollowUpAt" TIMESTAMP(3),
+  "convertedAt" TIMESTAMP(3),
+  "convertedStudentId" TEXT,
+  "convertedAdmissionId" TEXT,
+  "lostAt" TIMESTAMP(3),
+  "lostReason" "LeadLostReason",
+  "lostNotes" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Lead_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "LeadStageHistory" (
+  "id" TEXT NOT NULL,
+  "leadId" TEXT NOT NULL,
+  "fromStage" TEXT,
+  "toStage" TEXT NOT NULL,
+  "changedById" TEXT NOT NULL,
+  "notes" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "LeadStageHistory_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "LeadAssignment" (
+  "id" TEXT NOT NULL,
+  "leadId" TEXT NOT NULL,
+  "counsellorId" TEXT NOT NULL,
+  "assignedById" TEXT NOT NULL,
+  "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "unassignedAt" TIMESTAMP(3),
+  "isCurrent" BOOLEAN NOT NULL DEFAULT true,
+  "notes" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "LeadAssignment_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "LeadActivity" (
+  "id" TEXT NOT NULL,
+  "leadId" TEXT NOT NULL,
+  "userId" TEXT,
+  "type" "LeadActivityType" NOT NULL,
+  "title" TEXT NOT NULL,
+  "description" TEXT,
+  "metadata" JSONB,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "LeadActivity_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "LeadFollowUp" (
+  "id" TEXT NOT NULL,
+  "leadId" TEXT NOT NULL,
+  "counsellorId" TEXT NOT NULL,
+  "createdById" TEXT NOT NULL,
+  "type" "FollowUpType" NOT NULL DEFAULT 'CALL',
+  "status" "FollowUpStatus" NOT NULL DEFAULT 'PENDING',
+  "scheduledAt" TIMESTAMP(3) NOT NULL,
+  "completedAt" TIMESTAMP(3),
+  "notes" TEXT,
+  "outcome" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "LeadFollowUp_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "Payment" (
+  "id" TEXT NOT NULL,
+  "receiptNo" TEXT NOT NULL,
+  "instituteId" TEXT NOT NULL,
+  "branchId" TEXT,
+  "studentId" TEXT,
+  "admissionId" TEXT,
+  "pendingFeeId" TEXT,
+  "studentName" TEXT NOT NULL,
+  "admissionNo" TEXT NOT NULL,
+  "courseName" TEXT NOT NULL,
+  "amount" DOUBLE PRECISION NOT NULL,
+  "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "method" "PaymentMethod" NOT NULL DEFAULT 'UPI',
+  "transactionRef" TEXT,
+  "status" "PaymentStatus" NOT NULL DEFAULT 'SUCCESS',
+  "notes" TEXT,
+  "recordedById" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "PendingFee" (
+  "id" TEXT NOT NULL,
+  "instituteId" TEXT NOT NULL,
+  "branchId" TEXT,
+  "studentId" TEXT,
+  "admissionId" TEXT,
+  "studentName" TEXT NOT NULL,
+  "admissionNo" TEXT NOT NULL,
+  "phone" TEXT NOT NULL,
+  "courseName" TEXT NOT NULL,
+  "totalFee" DOUBLE PRECISION NOT NULL,
+  "amountPaid" DOUBLE PRECISION NOT NULL DEFAULT 0,
+  "dueAmount" DOUBLE PRECISION NOT NULL,
+  "dueDate" TIMESTAMP(3) NOT NULL,
+  "installmentNo" INTEGER NOT NULL DEFAULT 1,
+  "overdueDays" INTEGER NOT NULL DEFAULT 0,
+  "status" "OverdueStatus" NOT NULL DEFAULT 'DUE_SOON',
+  "notes" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "PendingFee_pkey" PRIMARY KEY ("id")
+);
+
+CREATE TABLE IF NOT EXISTS "UserSettings" (
+  "id" TEXT NOT NULL,
+  "userId" TEXT NOT NULL,
+  "designation" TEXT DEFAULT '',
+  "department" TEXT DEFAULT '',
+  "language" TEXT DEFAULT 'English (US)',
+  "timezone" TEXT DEFAULT '(GMT+05:30) India Standard Time',
+  "twoFactorEnabled" BOOLEAN NOT NULL DEFAULT false,
+  "emailAdmissions" BOOLEAN NOT NULL DEFAULT true,
+  "emailFeeAlerts" BOOLEAN NOT NULL DEFAULT true,
+  "emailAttendance" BOOLEAN NOT NULL DEFAULT false,
+  "whatsappReminders" BOOLEAN NOT NULL DEFAULT true,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "UserSettings_pkey" PRIMARY KEY ("id")
+);
+
+-- CallLog.leadId was historically added outside migrations
+ALTER TABLE "CallLog" ADD COLUMN IF NOT EXISTS "leadId" TEXT;
+
+-- Unique constraints that later migrations / app expect (ignore if present)
+DO $$ BEGIN
+  ALTER TABLE "Payment" ADD CONSTRAINT "Payment_receiptNo_key" UNIQUE ("receiptNo");
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "UserSettings" ADD CONSTRAINT "UserSettings_userId_key" UNIQUE ("userId");
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+DO $$ BEGIN
+  ALTER TABLE "MasterRecord" ADD CONSTRAINT "MasterRecord_instituteId_entityType_name_key" UNIQUE ("instituteId", "entityType", "name");
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Lead: enum -> string + master FKs
 ALTER TABLE "Lead" ADD COLUMN IF NOT EXISTS "sourceMasterId" TEXT;

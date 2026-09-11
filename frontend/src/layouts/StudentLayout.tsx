@@ -20,6 +20,7 @@ import {
   Award,
   ExternalLink,
   MoreHorizontal,
+  Wallet,
 } from "lucide-react";
 import { useAuthStore } from "../store/auth.store";
 import { useOrganization } from "@/hooks/useOrganizationContext";
@@ -106,6 +107,7 @@ export const StudentLayout: React.FC = () => {
     { label: "Dashboard", icon: LayoutDashboard, path: "/student/dashboard" },
     { label: "My Class Schedule", icon: Calendar, path: "/student/schedule" },
     { label: "Attendance", icon: CheckSquare, path: "/student/attendance" },
+    { label: "My Fees", icon: Wallet, path: "/student/fees" },
     { label: "Online Exams", icon: ShieldCheck, path: "/student/exams", badge: "PROCTORED" },
     { label: "Announcements", icon: Megaphone, path: "/student/announcements", dot: true },
     { label: "Assignments", icon: FileText, path: "/student/assignments" },

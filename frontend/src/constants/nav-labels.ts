@@ -48,6 +48,10 @@ export const NAV_ITEM_LABELS: Record<string, string> = {
   "assignments.reviews": "Grading Queue",
 
   // Fees & reports
+  "fees.students": "Student Fees",
+  "fees.invoices": "Invoices",
+  "fees.other_invoices": "Other Invoices",
+  "fees.receipts": "Receipts",
   "fees.reports": "Fee Collection Reports",
   "reports.financial": "Revenue & Finance Reports",
 

@@ -633,6 +633,7 @@ export class ReportRepository {
       prisma.payment.findMany({
         where: {
           instituteId,
+          status: "SUCCESS",
           ...whereBranch,
         },
         include: {
@@ -666,7 +667,8 @@ export class ReportRepository {
 
     payments.forEach((p) => {
       if (p.status !== "SUCCESS") return;
-      totalCollected += p.amount;
+      const amt = Number(p.amount);
+      totalCollected += amt;
 
       const methodCode = (p.method || "").toUpperCase();
       const master =
@@ -677,14 +679,14 @@ export class ReportRepository {
       const key = master?.id || code;
 
       const existing = methodTotals.get(key) ?? { name, code, value: 0 };
-      existing.value += p.amount;
+      existing.value += amt;
       if (master?.name) existing.name = master.name;
       methodTotals.set(key, existing);
     });
 
     let totalPending = 0;
     pendingFees.forEach((pf) => {
-      totalPending += pf.dueAmount;
+      totalPending += Number(pf.dueAmount);
     });
 
     const totalPotential = totalCollected + totalPending;
@@ -706,14 +708,14 @@ export class ReportRepository {
           const pDate = p.date ? new Date(p.date) : new Date(p.createdAt);
           return p.status === "SUCCESS" && pDate >= startOfMonth && pDate <= endOfMonth;
         })
-        .reduce((sum, p) => sum + p.amount, 0);
+        .reduce((sum, p) => sum + Number(p.amount), 0);
 
       const monthPending = pendingFees
         .filter((pf) => {
           const pfDate = new Date(pf.createdAt);
           return pfDate >= startOfMonth && pfDate <= endOfMonth;
         })
-        .reduce((sum, pf) => sum + pf.dueAmount, 0);
+        .reduce((sum, pf) => sum + Number(pf.dueAmount), 0);
 
       monthlyTrend.push({
         month: mLabel,
@@ -745,7 +747,7 @@ export class ReportRepository {
           studentName: p.studentName,
           admissionNo: p.admissionNo,
           courseName: p.courseName,
-          amount: p.amount,
+          amount: Number(p.amount),
           date: (p.date || p.createdAt).toISOString(),
           method: master?.name || humanizeMethod(p.method),
           status: p.status,
@@ -756,13 +758,13 @@ export class ReportRepository {
     payments.forEach((p) => {
       if (!p.branchId || p.status !== "SUCCESS") return;
       const current = branchTotals.get(p.branchId) ?? { collected: 0, pending: 0 };
-      current.collected += p.amount;
+      current.collected += Number(p.amount);
       branchTotals.set(p.branchId, current);
     });
     pendingFees.forEach((pf) => {
       if (!pf.branchId) return;
       const current = branchTotals.get(pf.branchId) ?? { collected: 0, pending: 0 };
-      current.pending += pf.dueAmount;
+      current.pending += Number(pf.dueAmount);
       branchTotals.set(pf.branchId, current);
     });
     const branchBreakdown = Array.from(branchTotals.entries()).map(([id, totals]) => ({

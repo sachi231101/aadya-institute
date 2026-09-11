@@ -221,6 +221,29 @@ export const FeeReports: React.FC = () => {
               </CardContent>
             </Card>
           </div>
+
+          {(reports.byFeeHead?.length ?? 0) > 0 && (
+            <Card className="border-border/50 shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-base">By fee head</CardTitle>
+                <CardDescription>Collected vs pending across tuition, book, exam, and other heads</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {reports.byFeeHead!.map((h) => (
+                  <div
+                    key={h.feeHeadMasterId || h.feeHead}
+                    className="flex items-center justify-between text-sm border rounded-md px-3 py-2"
+                  >
+                    <span className="font-medium">{h.feeHead}</span>
+                    <span className="text-text-secondary">
+                      Collected ₹{Number(h.collected).toLocaleString("en-IN")} · Pending ₹
+                      {Number(h.pending).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
     </div>

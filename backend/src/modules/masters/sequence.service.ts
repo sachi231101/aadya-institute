@@ -25,6 +25,8 @@ export interface SequenceContext {
 const DEFAULT_PATTERNS: Record<string, string> = {
   ADMISSION: "AADYA/{YEAR}/{SEQ:4}",
   RECEIPT: "RCP/{YEAR}/{SEQ:4}",
+  INVOICE: "INV/{YEAR}/{SEQ:4}",
+  OTHER_INVOICE: "OI/{YEAR}/{SEQ:4}",
   STUDENT: "AAD-{YEAR}-{SEQ:4}",
   ENQUIRY: "ENQ-{YEAR}-{SEQ:4}",
   APPLICATION: "APP-{YEAR}-{SEQ:4}",
@@ -150,6 +152,15 @@ export const SequenceService = {
             initialCount = await tx.lead.count({ where: { instituteId } });
           } else if (normalizedTarget === "RECEIPT") {
             initialCount = await tx.payment.count({ where: { instituteId } });
+          } else if (normalizedTarget === "INVOICE") {
+            initialCount = await tx.studentInvoice.count({
+              where: {
+                instituteId,
+                NOT: { invoiceNo: { startsWith: "INV-LEGACY-" } },
+              },
+            });
+          } else if (normalizedTarget === "OTHER_INVOICE") {
+            initialCount = await tx.otherInvoice.count({ where: { instituteId } });
           }
 
           const defaultPattern = DEFAULT_PATTERNS[normalizedTarget] || "AADYA/{YEAR}/{SEQ:4}";
@@ -213,6 +224,42 @@ export const SequenceService = {
             attempts++;
             generatedNumber = applyPattern(pattern, nextSequence, context);
           }
+        } else if (normalizedTarget === "INVOICE") {
+          let attempts = 0;
+          while (
+            (await tx.studentInvoice.findFirst({
+              where: { instituteId, invoiceNo: generatedNumber },
+            })) &&
+            attempts < 500
+          ) {
+            nextSequence++;
+            attempts++;
+            generatedNumber = applyPattern(pattern, nextSequence, context);
+          }
+        } else if (normalizedTarget === "OTHER_INVOICE") {
+          let attempts = 0;
+          while (
+            (await tx.otherInvoice.findFirst({
+              where: { instituteId, invoiceNo: generatedNumber },
+            })) &&
+            attempts < 500
+          ) {
+            nextSequence++;
+            attempts++;
+            generatedNumber = applyPattern(pattern, nextSequence, context);
+          }
+        } else if (normalizedTarget === "RECEIPT") {
+          let attempts = 0;
+          while (
+            (await tx.payment.findFirst({
+              where: { instituteId, receiptNo: generatedNumber },
+            })) &&
+            attempts < 500
+          ) {
+            nextSequence++;
+            attempts++;
+            generatedNumber = applyPattern(pattern, nextSequence, context);
+          }
         }
 
         if (seriesRecord) {
@@ -242,10 +289,11 @@ export const SequenceService = {
     } catch (error) {
       logger.error(
         { error, target: normalizedTarget, instituteId },
-        "[SequenceService] Failed to generate number, using fallback"
+        "[SequenceService] Failed to generate number from master numbering series"
       );
-      const fallbackSeq = Math.floor(1000 + Math.random() * 9000);
-      return applyPattern(DEFAULT_PATTERNS[normalizedTarget] || "{SEQ:6}", fallbackSeq, context);
+      throw error instanceof Error
+        ? error
+        : new Error(`Failed to generate ${normalizedTarget} number from master numbering series`);
     }
   },
 

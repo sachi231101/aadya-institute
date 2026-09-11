@@ -120,16 +120,13 @@ export const COUNSELOR_PORTAL_NAV: CounselorNavModule[] = [
   },
   {
     title: "Fee Management",
-    url: "/counselor/fees/payments",
+    url: "/counselor/fees/students",
     icon: CreditCard,
     moduleKey: "fees",
     items: [
-      { title: "Fee Plans", url: "/counselor/fees/plans", itemKey: "fees.plans" },
-      { title: "Student Fees", url: "/counselor/fees/student-fees", itemKey: "fees.student_fees" },
-      { title: "Payments", url: "/counselor/fees/payments", itemKey: "fees.payments" },
-      { title: "Pending Fees", url: "/counselor/fees/pending", itemKey: "fees.pending" },
+      { title: "Student Fees", url: "/counselor/fees/students", itemKey: "fees.students" },
+      { title: "Invoices", url: "/counselor/fees/invoices", itemKey: "fees.invoices" },
       { title: "Receipts", url: "/counselor/fees/receipts", itemKey: "fees.receipts" },
-      { title: L["fees.reports"] ?? "Fee Collection Reports", url: "/counselor/fees/reports", itemKey: "fees.reports" },
     ],
   },
   {

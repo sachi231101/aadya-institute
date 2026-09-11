@@ -166,15 +166,12 @@ const data = {
     },
     {
       title: "Fee Management",
-      url: A.FEES.PAYMENTS,
+      url: A.FEES.STUDENTS,
       icon: CreditCard,
       items: [
-        { title: "Fee Plans", url: A.FEES.PLANS },
-        { title: "Student Fees", url: A.FEES.STUDENT_FEES },
-        { title: "Payments", url: A.FEES.PAYMENTS },
-        { title: "Pending Fees", url: A.FEES.PENDING },
-        { title: "Receipts", url: A.FEES.RECEIPTS },
-        { title: L["fees.reports"] ?? "Fee Collection Reports", url: A.FEES.REPORTS },
+        { title: L["fees.students"] ?? "Student Fees", url: A.FEES.STUDENTS },
+        { title: L["fees.invoices"] ?? "Invoices", url: A.FEES.INVOICES },
+        { title: L["fees.receipts"] ?? "Receipts", url: A.FEES.RECEIPTS },
       ],
     },
     {
@@ -250,6 +247,8 @@ function isPathActive(pathname: string, url: string) {
   if (url === A.LEADS.ROOT) {
     return pathname === url || pathname === `${url}/all` || pathname.startsWith(`${url}/`) && !["ai-calling", "follow-ups", "call-history", "new", "add"].some(s => pathname.includes(s))
   }
+  if (url === A.FEES.INVOICES && pathname.includes("/fees/other-invoices")) return true
+  if (url === A.FEES.RECEIPTS && pathname.includes("/fees/payments")) return true
   return pathname === url || pathname.startsWith(`${url}/`)
 }
 

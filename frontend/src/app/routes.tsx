@@ -61,8 +61,6 @@ import { ExamConsentScreen } from "../pages/student/exams/ExamConsentScreen";
 import { TakeExam } from "../pages/student/exams/TakeExam";
 import { ExamResultScreen } from "../pages/student/exams/ExamResultScreen";
 import { Timetable } from "../pages/admin/schedule/Timetable";
-import { Payments } from "../pages/admin/fees/Payments";
-import { PendingFees } from "../pages/admin/fees/PendingFees";
 import { FeeReports } from "../pages/admin/fees/FeeReports";
 import { StudentReports } from "../pages/admin/reports/StudentReports";
 import { FacultyReports } from "../pages/admin/reports/FacultyReports";
@@ -106,7 +104,18 @@ import { ReviewsQueue } from "../pages/admin/assignments/ReviewsQueue";
 import { ExamResults } from "../pages/admin/exams/ExamResults";
 import { FeePlans } from "../pages/admin/fees/FeePlans";
 import { StudentFees } from "../pages/admin/fees/StudentFees";
+import { StudentFeeProfile } from "../pages/admin/fees/StudentFeeProfile";
 import { Receipts } from "../pages/admin/fees/Receipts";
+import { ReceiptDetail } from "../pages/admin/fees/ReceiptDetail";
+import { Invoices } from "../pages/admin/fees/Invoices";
+import { InvoiceDetail } from "../pages/admin/fees/InvoiceDetail";
+import { OtherInvoiceForm } from "../pages/admin/fees/OtherInvoiceForm";
+import { OtherInvoiceDetail } from "../pages/admin/fees/OtherInvoiceDetail";
+import {
+  PendingFeesRedirect,
+  OtherInvoicesListRedirect,
+  PaymentsEntry,
+} from "../pages/admin/fees/FeeNavRedirects";
 import { EmailManagement } from "../pages/admin/communication/EmailManagement";
 import { EligibleStudents } from "../pages/admin/placement/EligibleStudents";
 import { Companies } from "../pages/admin/placement/Companies";
@@ -145,6 +154,7 @@ import { CenterDashboard } from "../pages/center/Dashboard";
 import { CounselorDashboard } from "../pages/counselor/Dashboard";
 import { FacultyDashboard } from "../pages/faculty/Dashboard";
 import { StudentDashboard } from "../pages/student/Dashboard";
+import { MyFees } from "../pages/student/MyFees";
 import { StudentAttendance as PortalStudentAttendance } from "../pages/student/Attendance";
 
 /** Redirect while preserving query string (e.g. courseId on batches). */
@@ -250,10 +260,18 @@ export const AppRoutes: React.FC = () => {
         {/* Fees */}
         <Route path="fees">
           <Route path="plans" element={<FeePlans />} />
-          <Route path="student-fees" element={<StudentFees />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="pending" element={<PendingFees />} />
+          <Route path="students" element={<StudentFees />} />
+          <Route path="students/:studentId" element={<StudentFeeProfile />} />
+          <Route path="student-fees" element={<Navigate to="/center/fees/students" replace />} />
+          <Route path="payments" element={<PaymentsEntry />} />
+          <Route path="pending" element={<PendingFeesRedirect />} />
+          <Route path="invoices" element={<Invoices />} />
+          <Route path="invoices/:id" element={<InvoiceDetail />} />
+          <Route path="other-invoices" element={<OtherInvoicesListRedirect />} />
+          <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
+          <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
           <Route path="receipts" element={<Receipts />} />
+          <Route path="receipts/:id" element={<ReceiptDetail />} />
           <Route path="reports" element={<FeeReports />} />
         </Route>
 
@@ -401,10 +419,18 @@ export const AppRoutes: React.FC = () => {
 
         <Route path="fees">
           <Route path="plans" element={<FeePlans />} />
-          <Route path="student-fees" element={<StudentFees />} />
-          <Route path="payments" element={<Payments />} />
-          <Route path="pending" element={<PendingFees />} />
+          <Route path="students" element={<StudentFees />} />
+          <Route path="students/:studentId" element={<StudentFeeProfile />} />
+          <Route path="student-fees" element={<Navigate to="/counselor/fees/students" replace />} />
+          <Route path="payments" element={<PaymentsEntry />} />
+          <Route path="pending" element={<PendingFeesRedirect />} />
+          <Route path="invoices" element={<Invoices />} />
+          <Route path="invoices/:id" element={<InvoiceDetail />} />
+          <Route path="other-invoices" element={<OtherInvoicesListRedirect />} />
+          <Route path="other-invoices/new" element={<OtherInvoiceForm />} />
+          <Route path="other-invoices/:id" element={<OtherInvoiceDetail />} />
           <Route path="receipts" element={<Receipts />} />
+          <Route path="receipts/:id" element={<ReceiptDetail />} />
           <Route path="reports" element={<FeeReports />} />
         </Route>
 
@@ -502,6 +528,7 @@ export const AppRoutes: React.FC = () => {
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="home" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="dashboard" element={<StudentDashboard />} />
+        <Route path="fees" element={<MyFees />} />
         <Route path="ask-me" element={<Navigate to="/student/dashboard" replace />} />
         <Route path="attendance" element={<PortalStudentAttendance />} />
         <Route path="announcements" element={<StudentAnnouncements />} />
