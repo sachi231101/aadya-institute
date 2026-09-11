@@ -13,6 +13,8 @@ import {
   BarChart3,
   UserCircle,
   ChevronRight,
+  ChevronDown,
+  Check,
   Play,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -182,6 +184,12 @@ export const StudentDashboard: React.FC = () => {
     [recordingsRes, recordingsNow]
   );
 
+  const courseAttendance = useMemo(() => {
+    const isMainCourse =
+      !activeCourse ||
+      activeCourse.id === dashboard?.course?.id ||
+      activeCourse.name?.toLowerCase() === (dashboard?.course?.name || "").toLowerCase();
+
     if (isMainCourse && attendanceSummary && attendanceSummary.totalClasses > 0) {
       return {
         percentage: Math.round(attendanceSummary.attendancePercentage ?? 100),
@@ -248,9 +256,9 @@ export const StudentDashboard: React.FC = () => {
     if (activeLiveClass?.status === "LIVE" && academic.isAuthorizedForCourse(activeLiveClass.courseName)) {
       return {
         sessionId: activeLiveClass.sessionId || activeLiveClass.id,
-        courseName: activeLiveClass.courseName || courseName,
-        facultyName: activeLiveClass.facultyName || instructor?.name || "Faculty01",
-        batchName: activeLiveClass.batchName || batchName || "B001",
+        courseName: activeLiveClass.courseName || activeCourse.name,
+        facultyName: activeLiveClass.facultyName || activeCourse.facultyName || "Faculty01",
+        batchName: activeLiveClass.batchName || activeCourse.batchCode || "B001",
         batchId: undefined as string | undefined,
         time: activeLiveClass.time || "",
         meetUrl: activeLiveClass.meetUrl,
@@ -263,9 +271,9 @@ export const StudentDashboard: React.FC = () => {
     if (!live) return null;
     return {
       sessionId: live.id,
-      courseName: live.courseName || live.title || courseName,
-      facultyName: live.facultyName || instructor?.name || "Faculty01",
-      batchName: live.batch?.name || batchName || "B001",
+      courseName: live.courseName || live.title || activeCourse.name,
+      facultyName: live.facultyName || activeCourse.facultyName || "Faculty01",
+      batchName: live.batch?.name || activeCourse.batchCode || "B001",
       batchId: live.batchId || live.batch?.id || undefined,
       time: "",
       meetUrl: live.meetingUrl,
@@ -320,6 +328,25 @@ export const StudentDashboard: React.FC = () => {
       );
     }
   };
+
+  // 5. Today's Sessions (Filtered for Active Course)
+  const courseTodaySessions = useMemo(() => {
+    if (!activeCourse) return todaySessions;
+    return todaySessions.filter(
+      (s: any) =>
+        s.courseName?.toLowerCase() === activeCourse.name.toLowerCase() ||
+        s.batchId === activeCourse.batchId
+    );
+  }, [todaySessions, activeCourse]);
+
+  // 6. Assigned Instructor (For Active Course)
+  const courseInstructor = useMemo(() => {
+    if (!activeCourse) return null;
+    return {
+      name: activeCourse.facultyName || dashboard?.instructor?.name || "Faculty01",
+      email: activeCourse.facultyEmail || dashboard?.instructor?.email || "sachinFaculty@gmail.com",
+    };
+  }, [activeCourse, dashboard]);
 
   if (isLoading && !dashboard) {
     return (
